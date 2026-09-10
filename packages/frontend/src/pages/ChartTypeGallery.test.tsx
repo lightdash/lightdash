@@ -1,5 +1,6 @@
 import { FeatureFlags, type DataAppViz } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
@@ -399,6 +400,13 @@ describe('ChartTypeGallery', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
         expect(screen.getByText('Delete chart type')).toBeInTheDocument();
+        fireEvent.keyDown(screen.getByText('Delete chart type'), {
+            key: 'Escape',
+        });
+        expect(screen.getByText('Delete chart type')).toBeInTheDocument();
+        expect(
+            screen.getByRole('dialog', { name: 'Radial gauge' }),
+        ).toBeInTheDocument();
     });
 
     it('labels the action Uninstall for official chart types', async () => {
@@ -503,6 +511,43 @@ describe('ChartTypeGallery', () => {
         expect(
             screen.queryByRole('button', { name: /Upgrade to v/ }),
         ).not.toBeInTheDocument();
+    });
+
+    it('dismisses the preview before the chart details with Escape', async () => {
+        const user = userEvent.setup();
+        setData([makeDataAppViz({})]);
+        renderPage();
+
+        await user.click(screen.getByText('Radial gauge'));
+        await user.click(
+            screen.getByRole('button', { name: 'Preview in explorer' }),
+        );
+
+        await waitFor(() =>
+            expect(screen.getByPlaceholderText('Select a table')).toHaveFocus(),
+        );
+        await user.click(screen.getByPlaceholderText('Select a table'));
+        expect(screen.getByRole('listbox')).toBeVisible();
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(screen.getAllByRole('dialog')).toHaveLength(2);
+
+        await user.tab();
+        expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+        await user.keyboard('{Escape}');
+
+        expect(
+            screen.queryByRole('dialog', { name: 'Preview in explorer' }),
+        ).not.toBeInTheDocument();
+        const details = screen.getByRole('dialog', { name: 'Radial gauge' });
+        await waitFor(() =>
+            expect(
+                within(details).getByRole('button', { name: 'Close' }),
+            ).toHaveFocus(),
+        );
+        await user.keyboard('{Escape}');
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('previews in the explorer with the chosen table and config open', () => {
@@ -652,7 +697,8 @@ describe('ChartTypeGallery', () => {
             );
         });
 
-        it('shows the badge and a fork action in the detail modal', () => {
+        it('keeps the detail modal open when dismissing the fork dialog', async () => {
+            const user = userEvent.setup();
             setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
             renderPage();
 
@@ -662,6 +708,18 @@ describe('ChartTypeGallery', () => {
                 screen.getByRole('button', { name: /Fork to customize/ }),
             ).toBeInTheDocument();
             expect(screen.queryByText('Edit')).not.toBeInTheDocument();
+
+            await user.click(
+                screen.getByRole('button', { name: 'Fork to customize' }),
+            );
+            await user.keyboard('{Escape}');
+
+            expect(
+                screen.queryByRole('dialog', { name: 'Fork to customize' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('dialog', { name: /Radial gauge/ }),
+            ).toBeInTheDocument();
         });
 
         it.each(['card', 'detail modal'])(

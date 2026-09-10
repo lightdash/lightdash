@@ -299,6 +299,7 @@ const ChartTypeGallery = () => {
                 <ChartTypeDetailModal
                     projectUuid={projectUuid}
                     dataAppViz={selected}
+                    isActive={previewUuid === null && deleteUuid === null}
                     registryEntry={registryEntryFor(selected)}
                     onClose={() => setSelectedUuid(null)}
                     onPreview={() => setPreviewUuid(selected.dataAppVizUuid)}
