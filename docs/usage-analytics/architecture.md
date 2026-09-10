@@ -18,7 +18,7 @@ queries. It does not require dbt or a MotherDuck account.
 | Entry point            | Session-authenticated, org-admin-only create-or-get endpoint                                    | Admin navigation/button; no connector setup UI                              |
 | Enablement             | Explicit deployment `analytics-project` flag in all environments; disable takes precedence      | Controlled live verification before customer rollout                        |
 | Source org             | Persisted, authorized project org; legacy local overrides ignored                               | Live shared-instance isolation verification                                 |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB               | Dedicated read-only source credentials, tracked in PROD-11103               |
+| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB               | Verify effective IAM; read-only hardening is deferred (PROD-11103)          |
 | Models                 | Backend-owned `query_events` and `ai_usage` explores                                            | Reevaluate other streams, metadata enrichment and additional event coverage |
 
 Historical tickets and handover proposals may describe different designs. They
