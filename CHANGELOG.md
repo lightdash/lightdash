@@ -1,3 +1,10 @@
+## [2.185.1](https://github.com/lightdash/lightdash/compare/2.185.0...2.185.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* accelerate all-history analytics Parquet queries ([#28929](https://github.com/lightdash/lightdash/issues/28929)) ([8cd6a7b](https://github.com/lightdash/lightdash/commit/8cd6a7b25a40221d5db0ccfbb5dd08fd8cc70909)), closes [#23450](https://github.com/lightdash/lightdash/issues/23450)
+
 # [2.185.0](https://github.com/lightdash/lightdash/compare/2.184.7...2.185.0) (2026-09-10)
 
 
