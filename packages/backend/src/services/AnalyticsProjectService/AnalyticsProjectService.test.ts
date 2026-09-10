@@ -25,7 +25,10 @@ describe('AnalyticsProjectService', () => {
     const deleteProject = vi.fn();
     const invalidateSessionUserCache = vi.fn();
     const lock = vi.fn();
+    const getContent = vi.fn();
+    const installContent = vi.fn();
     const service = new AnalyticsProjectService({
+        analyticsContentModel: { get: getContent, install: installContent },
         projectModel: {
             getAllByOrganizationUuid,
             runInAnalyticsProvisioningLock: async <T>(
@@ -68,6 +71,7 @@ describe('AnalyticsProjectService', () => {
                 slug: 'lightdash-analytics-1',
                 url: '/projects/lightdash-analytics-1/tables',
                 createdAt: '2026-09-10T00:00:00.000Z',
+                sampleContent: null,
             },
         });
         expect(ensureAnalyticsProject).not.toHaveBeenCalled();
@@ -90,22 +94,42 @@ describe('AnalyticsProjectService', () => {
         ensureAnalyticsProject.mockResolvedValue(result);
         await expect(service.ensure(user)).resolves.toEqual(result);
         expect(ensureAnalyticsProject).toHaveBeenCalledWith(user);
+        expect(installContent).toHaveBeenCalledWith('analytics-project', user);
     });
 
-    it.each(['getStatus', 'delete'] as const)(
+    it('installs sample content only in the current organization analytics project', async () => {
+        await service.installSampleContent(user);
+        expect(lock).toHaveBeenCalledWith(user.organizationUuid);
+        expect(installContent).toHaveBeenCalledWith('analytics-project', user);
+    });
+
+    it('does not install into an ordinary project when analytics has not been provisioned', async () => {
+        getAllByOrganizationUuid.mockResolvedValue([defaultProject]);
+        await expect(service.installSampleContent(user)).rejects.toThrow(
+            NotFoundError,
+        );
+        expect(installContent).not.toHaveBeenCalled();
+    });
+
+    it.each(['getStatus', 'delete', 'installSampleContent'] as const)(
         'rejects %s before reads or writes when the existing feature/admin guard denies access',
         async (operation) => {
             assertAnalyticsProjectAccess.mockRejectedValue(
                 new ForbiddenError('disabled'),
             );
-            await expect(
-                operation === 'getStatus'
-                    ? service.getStatus(user)
-                    : service.delete(user, analyticsProject.projectUuid),
-            ).rejects.toThrow(ForbiddenError);
+            const operations = {
+                getStatus: () => service.getStatus(user),
+                installSampleContent: () => service.installSampleContent(user),
+                delete: () =>
+                    service.delete(user, analyticsProject.projectUuid),
+            };
+            await expect(operations[operation]()).rejects.toThrow(
+                ForbiddenError,
+            );
             expect(getAllByOrganizationUuid).not.toHaveBeenCalled();
             expect(lock).not.toHaveBeenCalled();
             expect(deleteProject).not.toHaveBeenCalled();
+            expect(installContent).not.toHaveBeenCalled();
         },
     );
 

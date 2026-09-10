@@ -901,6 +901,8 @@ export class ServiceRepository
             'analyticsProjectService',
             () =>
                 new AnalyticsProjectService({
+                    analyticsContentModel:
+                        this.models.getAnalyticsContentModel(),
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
                     userModel: this.models.getUserModel(),

@@ -60,6 +60,20 @@ export class AnalyticsProjectController extends BaseController {
         };
     }
 
+    /** @summary Install sample charts and dashboard in the internal analytics project */
+    @Post('/sample-content')
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @OperationId('InstallAnalyticsSampleContent')
+    async installSampleContent(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getAnalyticsProjectService()
+            .installSampleContent(toSessionUser(req.account));
+        return { status: 'ok', results: undefined };
+    }
+
     /** @summary Delete the organization's internal analytics project */
     @Delete('/{projectUuid}')
     @Middlewares([isAuthenticated, unauthorisedInDemo])

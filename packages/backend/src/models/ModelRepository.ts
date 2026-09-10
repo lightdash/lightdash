@@ -3,6 +3,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
+import { AnalyticsContentModel } from './AnalyticsContentModel';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
@@ -94,6 +95,7 @@ import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
  */
 
 export type ModelManifest = {
+    analyticsContentModel: AnalyticsContentModel;
     analyticsModel: AnalyticsModel;
     recentContentModel: RecentContentModel;
     appAccessModel: AppAccessModel;
@@ -346,6 +348,17 @@ export class ModelRepository
                     database: this.database,
                     contentVerificationModel:
                         this.getContentVerificationModel(),
+                }),
+        );
+    }
+
+    public getAnalyticsContentModel(): AnalyticsContentModel {
+        return this.getModel(
+            'analyticsContentModel',
+            () =>
+                new AnalyticsContentModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
                 }),
         );
     }

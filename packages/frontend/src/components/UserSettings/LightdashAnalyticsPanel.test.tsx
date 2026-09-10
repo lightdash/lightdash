@@ -121,6 +121,14 @@ describe('LightdashAnalyticsPanel', () => {
                 : { project },
         );
         await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+        expect(lightdashApi).toHaveBeenCalledWith({
+            url: '/org/analytics-project/sample-content',
+            method: 'POST',
+            body: undefined,
+        });
+        expect(
+            screen.queryByRole('button', { name: 'Add sample dashboard' }),
+        ).not.toBeInTheDocument();
         expect(
             await screen.findByRole('link', { name: 'AI usage overview' }),
         ).toHaveAttribute(

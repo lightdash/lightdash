@@ -14,6 +14,7 @@ import {
     useAnalyticsProject,
     useCreateAnalyticsProject,
     useDeleteAnalyticsProject,
+    useInstallAnalyticsSampleContent,
 } from '../../hooks/organization/useAnalyticsProject';
 import { useDeleteActiveProjectMutation } from '../../hooks/useActiveProject';
 import Callout from '../common/Callout';
@@ -31,6 +32,7 @@ const LightdashAnalyticsPanel = ({
     const status = useAnalyticsProject();
     const createProject = useCreateAnalyticsProject();
     const deleteProject = useDeleteAnalyticsProject();
+    const installSampleContent = useInstallAnalyticsSampleContent();
     const { mutate: clearActiveProject } = useDeleteActiveProjectMutation();
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
     const analyticsProject = status.data?.project;
@@ -143,12 +145,33 @@ const LightdashAnalyticsPanel = ({
                             <Button
                                 variant="subtle"
                                 size="xs"
-                                loading={dashboards.isFetching}
-                                onClick={() => void dashboards.refetch()}
+                                loading={
+                                    dashboards.isFetching ||
+                                    installSampleContent.isLoading
+                                }
+                                onClick={() => installSampleContent.mutate()}
                             >
                                 Refresh
                             </Button>
                         </Group>
+                        {analyticsProject.sampleContent && (
+                            <Text fz="xs" c="dimmed">
+                                Sample content v
+                                {analyticsProject.sampleContent.version}{' '}
+                                installed{' '}
+                                {new Date(
+                                    analyticsProject.sampleContent.installedAt,
+                                ).toLocaleString()}
+                            </Text>
+                        )}
+                        {installSampleContent.isError && (
+                            <Callout
+                                variant="danger"
+                                title="Unable to refresh analytics content"
+                            >
+                                {installSampleContent.error.error.message}
+                            </Callout>
+                        )}
                         {dashboards.isLoading ? (
                             <EmptyStateLoader title="Loading dashboards" />
                         ) : dashboards.isError ? (

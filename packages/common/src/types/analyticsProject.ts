@@ -5,6 +5,11 @@ export type AnalyticsProjectStatus = {
         slug: string | null;
         url: string;
         createdAt: string;
+        sampleContent?: {
+            version: number;
+            installedAt: string;
+            dashboardUuid: string | null;
+        } | null;
     } | null;
 };
 

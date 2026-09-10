@@ -6,12 +6,14 @@ import {
     NotFoundError,
     SessionUser,
 } from '@lightdash/common';
+import { type AnalyticsContentModel } from '../../models/AnalyticsContentModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
+    analyticsContentModel: Pick<AnalyticsContentModel, 'get' | 'install'>;
     projectModel: Pick<
         ProjectModel,
         'getAllByOrganizationUuid' | 'runInAnalyticsProvisioningLock'
@@ -51,6 +53,11 @@ export class AnalyticsProjectService extends BaseService {
         const project = projects.find(
             (candidate) => candidate.provisioningSource === 'analytics',
         );
+        const content = project
+            ? await this.dependencies.analyticsContentModel.get(
+                  project.projectUuid,
+              )
+            : undefined;
         return {
             project: project
                 ? {
@@ -59,13 +66,47 @@ export class AnalyticsProjectService extends BaseService {
                       slug: project.slug ?? null,
                       url: `/projects/${project.slug ?? project.projectUuid}/tables`,
                       createdAt: new Date(project.createdAt).toISOString(),
+                      sampleContent: content
+                          ? {
+                                version: content.bundle_version,
+                                installedAt: new Date(
+                                    content.installed_at,
+                                ).toISOString(),
+                                dashboardUuid: content.dashboard_uuid,
+                            }
+                          : null,
                   }
                 : null,
         };
     }
 
     async ensure(user: SessionUser): Promise<EnsureAnalyticsProjectResult> {
-        return this.dependencies.projectService.ensureAnalyticsProject(user);
+        const result =
+            await this.dependencies.projectService.ensureAnalyticsProject(user);
+        await this.installSampleContent(user);
+        return result;
+    }
+
+    async installSampleContent(user: SessionUser): Promise<void> {
+        const organizationUuid = await this.authorize(user);
+        await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
+            organizationUuid,
+            async () => {
+                const projects =
+                    await this.dependencies.projectModel.getAllByOrganizationUuid(
+                        organizationUuid,
+                    );
+                const project = projects.find(
+                    (candidate) => candidate.provisioningSource === 'analytics',
+                );
+                if (!project)
+                    throw new NotFoundError('Analytics project not found');
+                await this.dependencies.analyticsContentModel.install(
+                    project.projectUuid,
+                    user,
+                );
+            },
+        );
     }
 
     async delete(user: SessionUser, projectUuid: string): Promise<void> {
