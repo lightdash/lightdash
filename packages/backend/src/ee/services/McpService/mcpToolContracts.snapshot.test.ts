@@ -208,7 +208,11 @@ const mcpOptionCombinations = Object.keys(
     [defaultMcpAnalystPromptOptions],
 );
 
-const warnedTextLengths = new Set<string>();
+const mcpTextConfigurations = mcpOptionCombinations.map((options) => ({
+    ...registrationOnlyFeatures,
+    ...options,
+}));
+const warnedInstructionLengths = new Set<number>();
 
 const inputSchemaRequirements = z.object({
     required: z.array(z.string()).optional(),
@@ -332,17 +336,34 @@ describe('MCP tool contracts', () => {
         ).toBe(expectedCount);
     });
 
-    it.each(
-        mcpOptionCombinations.map((options) => ({
-            ...registrationOnlyFeatures,
-            ...options,
-        })),
-    )(
-        'guards MCP text lengths: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+    it.each(mcpTextConfigurations)(
+        `keeps registered MCP tool descriptions within ${MCP_CLIENT_TEXT_MAX_CHARS} chars: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled`,
         async (options) => {
             const configuration = JSON.stringify(options);
             const mcpService = makeMcpService();
             mockRegisteredMcpTools.length = 0;
+            await mcpService.createServer(makeMcpServerOptions(options));
+
+            expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+                McpToolName.FIND_CONTENT,
+            );
+            mockRegisteredMcpTools.forEach(({ name, config }) => {
+                const { length } = config.description;
+                expect
+                    .soft(
+                        length,
+                        `${configuration}: ${name} is ${length} chars, exceeding ${MCP_CLIENT_TEXT_MAX_CHARS}; shorten the text instead of updating snapshots`,
+                    )
+                    .toBeLessThanOrEqual(MCP_CLIENT_TEXT_MAX_CHARS);
+            });
+        },
+    );
+
+    it.each(mcpTextConfigurations)(
+        'ratchets MCP server instruction lengths: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        async (options) => {
+            const configuration = JSON.stringify(options);
+            const mcpService = makeMcpService();
             await mcpService.createServer(makeMcpServerOptions(options));
             // Existing instruction overages cannot grow; lower these as text shrinks.
             const instructionCeilings = options.runSqlEnabled
@@ -355,49 +376,22 @@ describe('MCP tool contracts', () => {
                           : 'structured'
                   ]
                 : MCP_CLIENT_TEXT_MAX_CHARS;
+            const { length } = getLatestMcpServerInstructions();
 
-            const texts = [
-                ...mockRegisteredMcpTools.map(({ name, config }) => ({
-                    name,
-                    length: config.description.length,
-                    ceiling: MCP_CLIENT_TEXT_MAX_CHARS,
-                })),
-                {
-                    name: 'server instructions',
-                    length: getLatestMcpServerInstructions().length,
-                    ceiling: instructionCeiling,
-                },
-            ];
-            const overages = texts.filter(({ name, length }) => {
-                const key = `${name}:${length}`;
-                if (
-                    length <= MCP_CLIENT_TEXT_MAX_CHARS ||
-                    warnedTextLengths.has(key)
-                ) {
-                    return false;
-                }
+            if (
+                length > MCP_CLIENT_TEXT_MAX_CHARS &&
+                !warnedInstructionLengths.has(length)
+            ) {
                 // Report a distinct length once, while asserting every combination.
-                warnedTextLengths.add(key);
-                return true;
-            });
-            if (overages.length > 0) {
+                warnedInstructionLengths.add(length);
                 process.stderr.write(
-                    `[MCP client text limit: ${configuration}]\n${overages
-                        .map(
-                            ({ name, length }) =>
-                                `${name}: ${length} chars (+${length - MCP_CLIENT_TEXT_MAX_CHARS} over ${MCP_CLIENT_TEXT_MAX_CHARS})`,
-                        )
-                        .join('\n')}\n`,
+                    `[MCP client text limit: ${configuration}]\nserver instructions: ${length} chars (+${length - MCP_CLIENT_TEXT_MAX_CHARS} over ${MCP_CLIENT_TEXT_MAX_CHARS})\n`,
                 );
             }
-            texts.forEach(({ name, length, ceiling }) => {
-                expect
-                    .soft(
-                        length,
-                        `${configuration}: ${name} exceeds its text ceiling; shorten the text instead of updating snapshots`,
-                    )
-                    .toBeLessThanOrEqual(ceiling);
-            });
+            expect(
+                length,
+                `${configuration}: server instructions exceed their text ceiling; shorten the text instead of updating snapshots`,
+            ).toBeLessThanOrEqual(instructionCeiling);
         },
     );
 
