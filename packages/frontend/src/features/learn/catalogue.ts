@@ -7,8 +7,7 @@ import {
 import { CURRICULUM } from '../scopeTours/curriculum';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 import { ROLE_LABELS, SYSTEM_ROLE_SCOPES } from './access';
-import { conceptProgressKey } from './conceptLesson';
-import { CONCEPT_LESSONS } from './conceptLessons.generated';
+import { COMING_SOON_SCOPES } from './comingSoon';
 
 /**
  * Foundations contains viewer lessons and is the first library section.
@@ -50,17 +49,14 @@ export type LearnModule = {
     /** The lowest project role that holds the scope; null if none does. */
     minRole: ProjectMemberRole | null;
     available: boolean;
-    format: 'walkthrough' | 'concept';
+    format: 'walkthrough' | 'coming-soon';
     blurb: string;
     stepCount: number;
 };
 
 export const moduleProgressKey = (
     module: Pick<LearnModule, 'scope' | 'format'>,
-): string =>
-    module.format === 'concept'
-        ? conceptProgressKey(module.scope)
-        : module.scope;
+): string => module.scope;
 
 export const GROUP_ORDER: LearnGroup[] = [
     FOUNDATIONS,
@@ -103,12 +99,13 @@ export const GROUP_LABELS: Record<LearnGroup, string> = {
 
 const stripBold = (text: string) => text.replace(/\*\*/g, '');
 
-/** Available walkthroughs and documentation lessons; permissions remain independent. */
+/** Walkthroughs and explicit upcoming modules; permissions remain independent. */
 export const buildLearnCatalogue = (): LearnModule[] => {
     const trainee = new Set([
         ...getTrainingProjectScopes(),
-        ...Object.keys(CONCEPT_LESSONS),
+        ...COMING_SOON_SCOPES,
     ]);
+    const comingSoon = new Set<string>(COMING_SOON_SCOPES);
     return (
         getScopes({ isEnterprise: true })
             // Base scopes only: a modifier variant (`@self`, `@space`) is the
@@ -118,11 +115,10 @@ export const buildLearnCatalogue = (): LearnModule[] => {
                     trainee.has(scope.name) &&
                     !scope.name.includes('@') &&
                     (SCOPE_TOURS[scope.name] !== undefined ||
-                        CONCEPT_LESSONS[scope.name] !== undefined),
+                        comingSoon.has(scope.name)),
             )
             .map((scope) => {
                 const tour = SCOPE_TOURS[scope.name];
-                const concept = CONCEPT_LESSONS[scope.name];
                 const minRole =
                     SYSTEM_ROLE_SCOPES.find((system) =>
                         system.held.has(scope.name),
@@ -134,7 +130,6 @@ export const buildLearnCatalogue = (): LearnModule[] => {
                     // the "all" that reads as a threat on a card.
                     title:
                         tour?.title ??
-                        concept?.title ??
                         scope.description.replace(/\ball\b /, ''),
                     // What a viewer already holds is a Foundation; the rest
                     // sit where the registry puts them.
@@ -144,13 +139,11 @@ export const buildLearnCatalogue = (): LearnModule[] => {
                             : scope.group,
                     gate: gateFor(scope),
                     minRole,
-                    available: tour !== undefined || concept !== undefined,
+                    available: tour !== undefined,
                     format: tour
                         ? ('walkthrough' as const)
-                        : ('concept' as const),
-                    blurb: tour
-                        ? stripBold(tour.steps[0]?.body ?? '')
-                        : 'Read the documented workflow and acknowledge your understanding.',
+                        : ('coming-soon' as const),
+                    blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
                     stepCount: tour?.steps.length ?? 0,
                 };
             })
@@ -198,12 +191,13 @@ export const focusModules = (
     completed: string[],
     lastStarted: string | null,
 ): { resume?: LearnModule; recommended?: LearnModule } => {
-    const resume = available.find(
+    const walkthroughs = available.filter((module) => module.available);
+    const resume = walkthroughs.find(
         (m) =>
             moduleProgressKey(m) === lastStarted &&
             !completed.includes(moduleProgressKey(m)),
     );
-    const recommended = sortForLearner(held, available).find(
+    const recommended = sortForLearner(held, walkthroughs).find(
         (m) =>
             m.scope !== resume?.scope &&
             !completed.includes(moduleProgressKey(m)),

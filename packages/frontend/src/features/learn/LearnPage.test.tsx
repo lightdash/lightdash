@@ -1,14 +1,12 @@
 import { Ability } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue, moduleProgressKey } from './catalogue';
-import { conceptProgressKey } from './conceptLesson';
-import { CONCEPT_LESSONS } from './conceptLessons.generated';
 import LearnPage from './LearnPage';
 
 const { track, projectState, learnFlagState, availabilityState, accessState } =
@@ -289,7 +287,7 @@ describe('LearnPage access', () => {
     });
 });
 
-describe('LearnPage concept acknowledgments', () => {
+describe('LearnPage unsupported modules', () => {
     beforeEach(() => {
         localStorage.clear();
         track.mockClear();
@@ -302,53 +300,26 @@ describe('LearnPage concept acknowledgments', () => {
         ];
     });
 
-    it('opening a pasted lesson and cancelling leaves progress and the active walkthrough unchanged', async () => {
-        localStorage.setItem(
-            'lightdash.learn.started',
-            JSON.stringify(['view:Dashboard']),
-        );
-        localStorage.setItem('lightdash.learn.lastStarted', 'view:Dashboard');
+    it('ignores old reading links and leaves progress unchanged', () => {
         localStorage.setItem(
             'lightdash.learn.completed',
-            JSON.stringify(['view:Space']),
+            JSON.stringify(['concept:view:Analytics']),
         );
-        const storedProgress = () =>
-            ['started', 'lastStarted', 'completed'].map((key) =>
-                localStorage.getItem(`lightdash.learn.${key}`),
-            );
-        const before = storedProgress();
-
-        renderPage('?lesson=view%3AAnalytics');
-        expect(screen.getByRole('dialog')).toBeTruthy();
-        expect(storedProgress()).toEqual(before);
-        await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-        expect(screen.getByTestId('location').textContent).toBe('');
-        expect(storedProgress()).toEqual(before);
-    });
-
-    it('acknowledges every scope in a shared lesson without completing a walkthrough', async () => {
-        const scope = 'create:ContentAsCode';
-        const lesson = CONCEPT_LESSONS[scope];
-        expect(lesson.coveredScopes.length).toBeGreaterThan(1);
-        const { container } = renderPage(
-            `?lesson=${encodeURIComponent(scope)}`,
+        const { container } = renderPage('?lesson=view%3AAnalytics');
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(
+            screen.queryByRole('button', {
+                name: /Read lesson|Read again|I have read/i,
+            }),
+        ).toBeNull();
+        const card = container.querySelector(
+            '[data-learn-module="view:Analytics"]',
+        )!;
+        expect(card.textContent).toContain('Coming Soon');
+        expect(card.querySelector('button')).toBeDisabled();
+        expect(card.textContent).not.toContain('Complete');
+        expect(localStorage.getItem('lightdash.learn.completed')).toBe(
+            JSON.stringify(['concept:view:Analytics']),
         );
-
-        await userEvent.click(
-            screen.getByRole('button', { name: 'I have read this lesson' }),
-        );
-        const completed: unknown = JSON.parse(
-            localStorage.getItem('lightdash.learn.completed') ?? '[]',
-        );
-        expect(completed).toEqual(lesson.coveredScopes.map(conceptProgressKey));
-        for (const covered of lesson.coveredScopes) {
-            expect(completed).not.toContain(covered);
-            expect(
-                container.querySelector(`[data-learn-module="${covered}"]`)
-                    ?.textContent,
-            ).toContain('Concept lesson · Read');
-        }
-        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
 });

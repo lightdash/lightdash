@@ -1,11 +1,11 @@
 import { getTrainingProjectScopes } from '@lightdash/common';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONCEPT_LESSONS } from '../../packages/frontend/src/features/learn/conceptLessons.generated';
+import { COMING_SOON_SCOPES } from '../../packages/frontend/src/features/learn/comingSoon';
 import { SCOPE_TOURS } from '../../packages/frontend/src/features/scopeTours/generated';
 
 export type ScopeDisposition = {
-    status: 'pending' | 'excluded' | 'related';
+    status: 'pending' | 'excluded' | 'related' | 'coming-soon';
     reason: string;
     ticket: string;
     tour: string | null;
@@ -17,8 +17,7 @@ const excluded = (reason: string, ticket = 'CS-212'): ScopeDisposition => ({
     ticket,
     tour: null,
 });
-// Content obligations outside the training role remain read-only lessons.
-// Listing them explicitly prevents a deleted lesson from shrinking the audit.
+// Content obligations outside the training role remain explicitly tracked.
 export const ADDITIONAL_CONTENT_SCOPES = [
     'view:Analytics',
     'view:AiAgentDocument',
@@ -26,6 +25,17 @@ export const ADDITIONAL_CONTENT_SCOPES = [
 ];
 
 export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
+    ...Object.fromEntries(
+        COMING_SOON_SCOPES.map((scope) => [
+            scope,
+            {
+                status: 'coming-soon' as const,
+                reason: 'Interactive delivery is not implemented. Reading lessons were removed by the product decision of 2026-09-10; future formats will be separate work.',
+                ticket: 'CS-212',
+                tour: null,
+            },
+        ]),
+    ),
     'view:Project': excluded(
         'Baseline project access has no standalone lesson-sized surface.',
     ),
@@ -47,6 +57,7 @@ export type CoverageAudit = {
     ok: boolean;
     generated: string[];
     pending: string[];
+    comingSoon: string[];
     excluded: string[];
     related: string[];
     unclassified: string[];
@@ -69,6 +80,7 @@ export const auditCoverage = (
         ok: true,
         generated: [],
         pending: [],
+        comingSoon: [],
         excluded: [],
         related: [],
         unclassified: [],
@@ -82,7 +94,9 @@ export const auditCoverage = (
         if (
             !disposition.reason.trim() ||
             !/^CS-\d+$/.test(disposition.ticket) ||
-            !['pending', 'excluded', 'related'].includes(disposition.status) ||
+            !['pending', 'excluded', 'related', 'coming-soon'].includes(
+                disposition.status,
+            ) ||
             (disposition.status === 'related' && !disposition.tour)
         ) {
             result.invalidDispositions.push(scope);
@@ -97,6 +111,7 @@ export const auditCoverage = (
             result.unclassified.push(scope);
         else {
             const { status } = dispositions[scope];
+            if (status === 'coming-soon') result.comingSoon.push(scope);
             if (
                 status === 'pending' ||
                 status === 'excluded' ||
@@ -121,7 +136,7 @@ if (
 ) {
     const report = auditCoverage(
         [...getTrainingProjectScopes(), ...ADDITIONAL_CONTENT_SCOPES],
-        [...Object.keys(SCOPE_TOURS), ...Object.keys(CONCEPT_LESSONS)],
+        Object.keys(SCOPE_TOURS),
         SCOPE_DISPOSITIONS,
         process.argv.includes('--release'),
     );

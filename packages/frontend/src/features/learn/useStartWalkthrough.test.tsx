@@ -41,19 +41,13 @@ describe('useStartWalkthrough', () => {
         openInCopy.mockClear();
     });
 
-    it('opens a concept reader without a training copy or walkthrough completion', () => {
-        sessionStorage.setItem('lightdash.learn.origin', 'origin-1');
+    it('does not start an unsupported module or open its old reader', () => {
         const { result } = renderHook(() => useStartWalkthrough('training-1'));
         act(() => result.current.start('view:Analytics', 'card'));
-        expect(navigate).toHaveBeenCalledWith(
-            '/projects/origin-1/learn?lesson=view%3AAnalytics',
-        );
+        expect(navigate).not.toHaveBeenCalled();
         expect(openInCopy).not.toHaveBeenCalled();
         expect(track).not.toHaveBeenCalled();
-        expect(localStorage.getItem('lightdash.learn.completed')).toBeNull();
-        expect(localStorage.getItem('lightdash.learn.started')).toBe(
-            JSON.stringify(['concept:view:Analytics']),
-        );
+        expect(localStorage.getItem('lightdash.learn.started')).toBeNull();
     });
 
     it('records the start, where it came from, and opens the copy', () => {

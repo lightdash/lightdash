@@ -6,8 +6,8 @@ interactions in a disposable training copy. Reading acknowledgment does not
 complete a hands-on scope outcome.
 
 The nine entries below now use generated in-app walkthroughs. Seven new paths
-and two reused paths replace their reading fallbacks. The other 21 reading
-scope entries remain outside this batch.
+and two reused paths replace their reading fallbacks. The other 21 scope entries now show Coming Soon; reading delivery was removed
+on 2026-09-10.
 
 | Order | Scope                         | Work                                                                           | Required result                                                                                                            |
 | ----- | ----------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
@@ -31,9 +31,8 @@ scope entries remain outside this batch.
   or accessible control is an explicit dependency to investigate.
 - Verify each flow in a fresh training copy with the recorder account, including
   its visible result, isolation from the shared source, and copy cleanup.
-- Replace each reading fallback only when its walkthrough path is ready. Keep
-  content presence distinct from verified hands-on completion in coverage and
-  reporting; do not mark this batch complete from generated entries alone.
+- Unsupported modules show Coming Soon. Keep content presence distinct from
+  verified hands-on completion in coverage and reporting.
 
 ## Verification
 
@@ -76,8 +75,9 @@ verified-content listing return 403. The new Recently deleted route denies
 that viewer, and unrestricted export choices are hidden. The deleted-content
 list API intentionally returns the viewer's own deletions rather than 403.
 
-Validation: 66 frontend tests pass, along with frontend typechecking, changed-file
-lint and formatting, generator fixtures, concept extraction/citation tests,
+Validation of the original nine walkthroughs: 66 frontend tests passed, along
+with frontend typechecking, changed-file lint and formatting, generator fixtures,
+and the then-existing concept extraction/citation tests,
 coverage tests, and the strict release audit. The walkthrough checker reports
 zero errors and 12 warnings (repeated navigation titles and existing anchor
 warnings).
@@ -91,10 +91,11 @@ No authorization rules are changed by these walkthroughs.
 
 ## Later work
 
-The other 21 reading scope entries remain outside this first batch: 12 embedding,
+The other 21 scope entries now show Coming Soon: 12 embedding,
 3 content-as-code, 2 promotion, validation, analytics, and 2 agent-document
 scopes. Their execution environments and access constraints need separate work;
-reading content does not resolve those prerequisites.
+new interactive formats will be delivered as separate tickets. Reading delivery
+is removed.
 
 Keep the useful supporting changes in #28941 (metrics-tree seed/copy), #28945
 (form recovery), and #28948 (teaching samples and thumbnails), along with the

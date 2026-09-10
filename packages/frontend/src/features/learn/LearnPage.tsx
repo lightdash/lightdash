@@ -24,7 +24,7 @@ import {
     useRef,
     useState,
 } from 'react';
-import { Navigate, useSearchParams } from 'react-router';
+import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -47,14 +47,11 @@ import {
     type LearnGroup,
     type LearnModule,
 } from './catalogue';
-import { conceptProgressKey } from './conceptLesson';
-import { ConceptLessonModal } from './ConceptLessonModal';
-import { CONCEPT_LESSONS } from './conceptLessons.generated';
 import { EnableLearnPanel } from './EnableLearnPanel';
 import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
 import { readLearnOrigin, rememberLearnOrigin } from './origin';
-import { markScopeCompleted, useLearnProgress } from './progress';
+import { useLearnProgress } from './progress';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
@@ -67,9 +64,9 @@ const stateOf = (
     started: string[],
     completed: string[],
 ): CardState =>
-    completed.includes(moduleProgressKey(module))
+    module.available && completed.includes(moduleProgressKey(module))
         ? 'done'
-        : started.includes(moduleProgressKey(module))
+        : module.available && started.includes(moduleProgressKey(module))
           ? 'started'
           : 'ready';
 
@@ -113,15 +110,13 @@ const ModuleCard: FC<{
                     {state === 'done' ? (
                         <span className={styles.done}>
                             <MantineIcon icon={IconCircleCheck} size={14} />
-                            {module.format === 'concept'
-                                ? 'Concept lesson · Read'
-                                : 'Complete'}
+                            Complete
                         </span>
                     ) : (
                         <span>
-                            {module.format === 'concept'
-                                ? 'Concept lesson'
-                                : `${module.stepCount} steps`}
+                            {module.available
+                                ? `${module.stepCount} steps`
+                                : 'Coming Soon'}
                         </span>
                     )}
                     {note && <span>{note}</span>}
@@ -130,16 +125,15 @@ const ModuleCard: FC<{
                     size="compact-sm"
                     variant="default"
                     loading={opening}
+                    disabled={!module.available}
                     onClick={() => onStart(module.scope)}
                 >
-                    {state === 'done'
-                        ? module.format === 'concept'
-                            ? 'Read again'
-                            : 'Start again'
-                        : state === 'started'
-                          ? 'Resume'
-                          : module.format === 'concept'
-                            ? 'Read lesson'
+                    {!module.available
+                        ? 'Coming Soon'
+                        : state === 'done'
+                          ? 'Start again'
+                          : state === 'started'
+                            ? 'Resume'
                             : 'Start'}
                 </Button>
             </Box>
@@ -149,12 +143,10 @@ const ModuleCard: FC<{
 
 /**
  * The learner's library: one card per covered scope, grouped by the scope
- * registry. Walkthroughs open a training copy; concept lessons open a reader
- * and record an explicit reading acknowledgment.
+ * registry. Walkthroughs open a training copy; unsupported modules remain Coming Soon.
  */
 const LearnPage: FC = () => {
     const { user } = useApp();
-    const [searchParams, setSearchParams] = useSearchParams();
     const { data: learnFlag, isLoading: isLearnFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
@@ -216,20 +208,6 @@ const LearnPage: FC = () => {
         [isOpen],
     );
     const { completed, started, lastStarted } = useLearnProgress();
-    const lessonScope = searchParams.get('lesson');
-    const concept =
-        lessonScope &&
-        catalogue.some(
-            (module) =>
-                module.scope === lessonScope && module.format === 'concept',
-        )
-            ? CONCEPT_LESSONS[lessonScope]
-            : null;
-    const closeLesson = () => {
-        const next = new URLSearchParams(searchParams);
-        next.delete('lesson');
-        setSearchParams(next);
-    };
     // What the learner can do, anywhere: their organization role, any
     // organization-level custom roles, and every project role they hold. The
     // library is that; everything else waits behind the Extra modules
@@ -361,21 +339,6 @@ const LearnPage: FC = () => {
 
     return (
         <Box className={styles.shell}>
-            {concept && lessonScope && (
-                <ConceptLessonModal
-                    lesson={concept}
-                    completed={completed.includes(
-                        conceptProgressKey(lessonScope),
-                    )}
-                    onClose={closeLesson}
-                    onComplete={() => {
-                        concept.coveredScopes.forEach((scope) =>
-                            markScopeCompleted(conceptProgressKey(scope)),
-                        );
-                        closeLesson();
-                    }}
-                />
-            )}
             <Box className={styles.main}>
                 <Box component="header" className={styles.homeHead}>
                     <h1 className={styles.greeting}>
@@ -423,11 +386,7 @@ const LearnPage: FC = () => {
                                 <h3>{upNext.title}</h3>
                                 <p>{upNext.blurb}</p>
                                 <Box className={styles.heroFoot}>
-                                    <span>
-                                        {upNext.format === 'concept'
-                                            ? 'Concept lesson'
-                                            : `${upNext.stepCount} steps`}
-                                    </span>
+                                    <span>{`${upNext.stepCount} steps`}</span>
                                     <Button
                                         variant="filled"
                                         color="indigo"
@@ -442,9 +401,7 @@ const LearnPage: FC = () => {
                                             )
                                         }
                                     >
-                                        {upNext.format === 'concept'
-                                            ? 'Read lesson'
-                                            : 'Start'}
+                                        Start
                                     </Button>
                                 </Box>
                             </Box>
