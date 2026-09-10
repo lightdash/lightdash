@@ -372,11 +372,11 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
-import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
 import {
-    assertLocalAnalyticsProjectEnabled,
-    createLocalAnalyticsClient,
-} from './analyticsProject/localAnalyticsProject';
+    assertAnalyticsProjectEnabled,
+    createAnalyticsClient,
+} from './analyticsProject/analyticsProjectClient';
+import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { projectMergedManifest } from './projectMergedManifest';
@@ -826,7 +826,7 @@ export class ProjectService extends BaseService {
             provisioningSource: 'analytics',
         });
         // Fail before creating a project if the signed file reads cannot authenticate.
-        await createLocalAnalyticsClient(organizationUuid).test();
+        await createAnalyticsClient(organizationUuid).test();
         // Both models are backend-owned. Compilation itself needs no warehouse IO.
         const explores = createAnalyticsExplores();
         return this.projectModel.runInAnalyticsProvisioningLock(
@@ -2314,7 +2314,7 @@ export class ProjectService extends BaseService {
                 throw new ForbiddenError('Invalid internal analytics project');
             }
             return {
-                warehouseClient: createLocalAnalyticsClient(
+                warehouseClient: createAnalyticsClient(
                     project.organizationUuid,
                 ),
                 sshTunnel,
@@ -2859,7 +2859,7 @@ export class ProjectService extends BaseService {
                 'Analytics project belongs to another organization',
             );
         }
-        assertLocalAnalyticsProjectEnabled(project.organizationUuid);
+        assertAnalyticsProjectEnabled();
         if (
             this.createAuditedAbility(account).cannot(
                 'manage',

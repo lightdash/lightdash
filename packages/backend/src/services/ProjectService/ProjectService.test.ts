@@ -111,7 +111,7 @@ import { AdminNotificationService } from '../AdminNotificationService/AdminNotif
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
-import * as localAnalytics from './analyticsProject/localAnalyticsProject';
+import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -694,17 +694,14 @@ describe('ProjectService', () => {
         };
         beforeEach(() => {
             testAnalyticsStorage.mockResolvedValue(undefined);
-            vi.spyOn(
-                localAnalytics,
-                'createLocalAnalyticsClient',
-            ).mockReturnValue({
+            vi.spyOn(analyticsClient, 'createAnalyticsClient').mockReturnValue({
                 test: testAnalyticsStorage,
             } as unknown as ReturnType<
-                typeof localAnalytics.createLocalAnalyticsClient
+                typeof analyticsClient.createAnalyticsClient
             >);
             vi.spyOn(
-                localAnalytics,
-                'assertLocalAnalyticsProjectEnabled',
+                analyticsClient,
+                'assertAnalyticsProjectEnabled',
             ).mockImplementation(() => undefined);
         });
         afterEach(() => {
@@ -814,7 +811,7 @@ describe('ProjectService', () => {
 
         test('stops before provisioning when the feature gate rejects access', async () => {
             vi.mocked(
-                localAnalytics.assertLocalAnalyticsProjectEnabled,
+                analyticsClient.assertAnalyticsProjectEnabled,
             ).mockImplementation(() => {
                 throw new ForbiddenError('disabled');
             });
@@ -827,19 +824,17 @@ describe('ProjectService', () => {
         });
 
         test.each([
-            { enabled: false, disabled: false },
-            { enabled: true, disabled: true },
+            { enabled: false, disabled: false, environment: 'development' },
+            { enabled: true, disabled: true, environment: 'development' },
+            { enabled: false, disabled: false, environment: 'production' },
+            { enabled: true, disabled: true, environment: 'production' },
         ])(
-            'blocks creation and refresh before any side effects when enabled=$enabled, disabled=$disabled',
-            async ({ enabled, disabled }) => {
+            'blocks creation and refresh in $environment when enabled=$enabled, disabled=$disabled',
+            async ({ enabled, disabled, environment }) => {
                 vi.mocked(
-                    localAnalytics.assertLocalAnalyticsProjectEnabled,
+                    analyticsClient.assertAnalyticsProjectEnabled,
                 ).mockRestore();
-                vi.stubEnv('NODE_ENV', 'development');
-                vi.stubEnv(
-                    'LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID',
-                    'analytics-org',
-                );
+                vi.stubEnv('NODE_ENV', environment);
                 vi.spyOn(
                     lightdashConfigMock.enabledFeatureFlags,
                     'has',
@@ -860,7 +855,7 @@ describe('ProjectService', () => {
                 ).rejects.toThrow(/not enabled/);
 
                 expect(
-                    localAnalytics.createLocalAnalyticsClient,
+                    analyticsClient.createAnalyticsClient,
                 ).not.toHaveBeenCalled();
                 expect(testAnalyticsStorage).not.toHaveBeenCalled();
                 expect(
@@ -876,6 +871,28 @@ describe('ProjectService', () => {
             },
         );
 
+        test('allows an authorized production org with the flag enabled and binds its storage source', async () => {
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                { ...defaultProject, provisioningSource: 'analytics' },
+            ]);
+            vi.mocked(
+                analyticsClient.assertAnalyticsProjectEnabled,
+            ).mockRestore();
+            vi.stubEnv('NODE_ENV', 'production');
+            vi.spyOn(
+                lightdashConfigMock.enabledFeatureFlags,
+                'has',
+            ).mockReturnValue(true);
+            vi.spyOn(
+                lightdashConfigMock.disabledFeatureFlags,
+                'has',
+            ).mockReturnValue(false);
+            await service.ensureAnalyticsProject(admin);
+            expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
+                admin.organizationUuid,
+            );
+        });
+
         test('does not apply the analytics gate to ordinary projects', async () => {
             await expect(
                 service.assertAnalyticsProjectAccess(admin, {
@@ -884,7 +901,7 @@ describe('ProjectService', () => {
                 }),
             ).resolves.toBeUndefined();
             expect(
-                localAnalytics.assertLocalAnalyticsProjectEnabled,
+                analyticsClient.assertAnalyticsProjectEnabled,
             ).not.toHaveBeenCalled();
         });
     });

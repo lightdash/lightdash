@@ -1,6 +1,7 @@
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { parse } from 'dotenv';
 import { readFile } from 'fs/promises';
+import { parseAnalyticsS3Config } from '../../../config/parseConfig';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
 // Reads only the named storage settings. Never loads another instance's DB config.
@@ -8,21 +9,29 @@ describe.skipIf(!process.env.ANALYTICS_S3_LIVE_ENV_FILE)(
     'signed analytics URLs against existing cloud Parquet (read-only)',
     () => {
         beforeAll(() => vi.unstubAllGlobals());
+        afterEach(() => vi.unstubAllEnvs());
 
         it('queries both streams without CLI authentication or bucket credentials in DuckDB', async () => {
             const settings = parse(
                 await readFile(process.env.ANALYTICS_S3_LIVE_ENV_FILE!, 'utf8'),
             );
+            for (const name of [
+                'ENDPOINT',
+                'BUCKET',
+                'REGION',
+                'ACCESS_KEY',
+                'SECRET_KEY',
+            ]) {
+                const key = `ANALYTICS_S3_${name}`;
+                vi.stubEnv(key, settings[key] ?? '');
+            }
+            const storage = parseAnalyticsS3Config();
+            if (!storage)
+                throw new Error(
+                    'Complete ANALYTICS_S3_* reader settings are required',
+                );
             const resolveSource = createS3AnalyticsSourceResolver({
-                storage: {
-                    endpoint:
-                        process.env.ANALYTICS_S3_LIVE_ENDPOINT ??
-                        'https://storage.googleapis.com',
-                    bucket: settings.USAGE_EVENTS_S3_BUCKET,
-                    accessKey: settings.USAGE_EVENTS_S3_ACCESS_KEY,
-                    secretKey: settings.USAGE_EVENTS_S3_SECRET_KEY,
-                    region: settings.USAGE_EVENTS_S3_REGION,
-                },
+                storage,
                 organizationUuid: process.env.ANALYTICS_S3_LIVE_ORG_UUID ?? '',
             });
             const source = await resolveSource();

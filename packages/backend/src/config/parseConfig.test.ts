@@ -21,6 +21,7 @@ import {
     getStringRecordFromEnvironmentVariable,
     getUpdateSetupConfig,
     getUserAttributesSetupConfig,
+    parseAnalyticsS3Config,
     parseConfig,
     parseOrganizationMemberRoleArray,
     parseUsageEventsS3Config,
@@ -52,6 +53,59 @@ describe('usage events storage endpoint', () => {
         );
         expect(process.env.S3_ENDPOINT).toBe('mock_endpoint');
     });
+});
+
+describe('analytics reader storage', () => {
+    const readerEnv = {
+        ANALYTICS_S3_ENDPOINT: 'https://storage.googleapis.com',
+        ANALYTICS_S3_BUCKET: 'reader-bucket',
+        ANALYTICS_S3_REGION: 'us-east4',
+        ANALYTICS_S3_ACCESS_KEY: 'reader-key',
+        ANALYTICS_S3_SECRET_KEY: 'reader-secret',
+    };
+
+    beforeEach(() => {
+        Object.assign(process.env, {
+            USAGE_EVENTS_S3_ACCESS_KEY: 'writer-key',
+            USAGE_EVENTS_S3_SECRET_KEY: 'writer-secret',
+            S3_ACCESS_KEY: 'base-key',
+            S3_SECRET_KEY: 'base-secret',
+            AWS_ACCESS_KEY_ID: 'ambient-key',
+            AWS_SECRET_ACCESS_KEY: 'ambient-secret',
+        });
+    });
+
+    it('does not inherit writer, base or ambient credentials', () => {
+        expect(parseAnalyticsS3Config()).toBeNull();
+        expect(parseConfig().analytics.s3).toBeNull();
+    });
+
+    it('works independently of base storage and ingestion', () => {
+        process.env = { LIGHTDASH_SECRET: 'test-secret', ...readerEnv };
+        expect(parseAnalyticsS3Config()).toEqual({
+            endpoint: readerEnv.ANALYTICS_S3_ENDPOINT,
+            bucket: readerEnv.ANALYTICS_S3_BUCKET,
+            region: readerEnv.ANALYTICS_S3_REGION,
+            accessKey: readerEnv.ANALYTICS_S3_ACCESS_KEY,
+            secretKey: readerEnv.ANALYTICS_S3_SECRET_KEY,
+            forcePathStyle: true,
+        });
+        expect(process.env.S3_ACCESS_KEY).toBeUndefined();
+    });
+
+    it.each(Object.keys(readerEnv))(
+        'fails closed without %s and leaves ingestion unchanged',
+        (key) => {
+            const writer = parseUsageEventsS3Config();
+            Object.assign(process.env, readerEnv);
+            delete process.env[key];
+            expect(parseAnalyticsS3Config()).toBeNull();
+            expect(parseConfig().analytics.s3).toBeNull();
+            expect(parseUsageEventsS3Config()).toEqual(writer);
+            process.env[key] = '   ';
+            expect(parseAnalyticsS3Config()).toBeNull();
+        },
+    );
 });
 
 describe('mobile login config', () => {

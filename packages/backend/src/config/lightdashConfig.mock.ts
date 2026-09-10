@@ -464,6 +464,7 @@ export const lightdashConfigMock: LightdashConfig = {
         maxEntries: 8,
         maxConsecutiveFailures: 3,
     },
+    analytics: { s3: null },
     usageEvents: {
         enabled: false,
         flushIntervalMs: 60000,

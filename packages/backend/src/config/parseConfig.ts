@@ -1086,6 +1086,43 @@ export const parseUsageEventsS3Config = (): Omit<
     };
 };
 
+export type AnalyticsS3Config = {
+    endpoint: string;
+    bucket: string;
+    region: string;
+    accessKey: string;
+    secretKey: string;
+    forcePathStyle: true;
+};
+
+export const parseAnalyticsS3Config = (): AnalyticsS3Config | null => {
+    const endpoint = process.env.ANALYTICS_S3_ENDPOINT;
+    const bucket = process.env.ANALYTICS_S3_BUCKET;
+    const region = process.env.ANALYTICS_S3_REGION;
+    const accessKey = process.env.ANALYTICS_S3_ACCESS_KEY;
+    const secretKey = process.env.ANALYTICS_S3_SECRET_KEY;
+
+    // Incomplete config disables reads, not application startup or ingestion.
+    if (
+        !endpoint?.trim() ||
+        !bucket?.trim() ||
+        !region?.trim() ||
+        !accessKey?.trim() ||
+        !secretKey?.trim()
+    ) {
+        return null;
+    }
+
+    return {
+        endpoint,
+        bucket,
+        region,
+        accessKey,
+        secretKey,
+        forcePathStyle: true,
+    };
+};
+
 const validateTaskList = (tasks: string[], envVarName: string) => {
     const validTasks: SchedulerTaskName[] = [];
     const invalidTasks: string[] = [];
@@ -1859,6 +1896,9 @@ export type LightdashConfig = {
         maxAgeMs: number;
         maxEntries: number;
         maxConsecutiveFailures: number;
+    };
+    analytics: {
+        s3: AnalyticsS3Config | null;
     };
     usageEvents: {
         enabled: boolean;
@@ -3781,6 +3821,7 @@ export const parseConfig = (): LightdashConfig => {
                 ) ?? 100,
         },
         motherduckInstanceCache,
+        analytics: { s3: parseAnalyticsS3Config() },
         usageEvents: {
             enabled: usageEventsEnabled,
             flushIntervalMs:

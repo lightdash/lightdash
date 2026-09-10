@@ -67,7 +67,7 @@ import {
     validateOrganizationScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
 import { BaseService } from '../BaseService';
-import { isLocalAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/localAnalyticsProject';
+import { isAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/analyticsProjectClient';
 
 const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
 
@@ -670,7 +670,7 @@ export class OrganizationService extends BaseService {
             (project, index) =>
                 accessResults[index] &&
                 (project.provisioningSource !== 'analytics' ||
-                    (isLocalAnalyticsProjectEnabled(organizationUuid) &&
+                    (isAnalyticsProjectEnabled() &&
                         auditedAbility.can(
                             'manage',
                             subject('Organization', { organizationUuid }),

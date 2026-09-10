@@ -12,14 +12,14 @@ queries. It does not require dbt or a MotherDuck account.
 
 ## Current implementation versus rollout intent
 
-| Area                   | Implemented                                                                                     | Still required for production                                                    |
-| ---------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Project                | Internal `PREVIEW` project with `provisioning_source=analytics`; both Query Events and AI Usage | Final metadata-project lifecycle and role design                                 |
-| Entry point            | Session-authenticated, org-admin-only create-or-get endpoint                                    | Admin navigation/button; no connector setup UI                                   |
-| Enablement             | `analytics-project` flag plus development mode and explicit local org binding                   | Reviewed production enablement; setting the flag alone cannot enable production  |
-| Source org             | Explicit local-org → source-org configuration                                                   | Derive source org from the persisted, authorized project; remove local overrides |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB               | Dedicated read-only source credentials, tracked in PROD-11103                    |
-| Models                 | Backend-owned `query_events` and `ai_usage` explores                                            | Reevaluate other streams, metadata enrichment and additional event coverage      |
+| Area                   | Implemented                                                                                     | Still required for production                                               |
+| ---------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Project                | Internal `PREVIEW` project with `provisioning_source=analytics`; both Query Events and AI Usage | Final metadata-project lifecycle and role design                            |
+| Entry point            | Session-authenticated, org-admin-only create-or-get endpoint                                    | Admin navigation/button; no connector setup UI                              |
+| Enablement             | Explicit deployment `analytics-project` flag; explicit disable takes precedence                 | Controlled live rollout after reader verification                           |
+| Source org             | Persisted, authorized project org; no local source-org override                                 | Live shared-instance isolation verification                                 |
+| Storage authentication | Dedicated `ANALYTICS_S3_*` credentials in backend; exact signed GET URLs passed to DuckDB       | Deploy read-only identity and verify effective IAM (PROD-11103)             |
+| Models                 | Backend-owned `query_events` and `ai_usage` explores                                            | Reevaluate other streams, metadata enrichment and additional event coverage |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production provisioning, resource-name enrichment, exports
@@ -76,8 +76,8 @@ writer or nightly process, or establish an exactly-once delivery guarantee.
 [`ProjectService.ensureAnalyticsProject`](../../packages/backend/src/services/ProjectService/ProjectService.ts)
 backs `POST /api/v1/org/analytics-project`:
 
-1. Check the session's organization, org-management permission, feature flag and
-   development-only gate. No org, bucket, path or credential is accepted in the request.
+1. Check the session's organization, org-management permission and feature flag.
+   No org, bucket, path or credential is accepted in the request.
 2. Verify signed-Parquet access before creating a project. Model compilation is
    in memory, but the endpoint includes this storage round trip.
 3. Acquire the per-org advisory lock and look for `provisioning_source=analytics`.
@@ -105,11 +105,11 @@ the user's Explore selections over these fixed models.
 
 There are three distinct forms of access; none should be confused with the others:
 
-| Layer                    | Credential or authority                                                      | Scope                                                          |
-| ------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| User → Lightdash         | Authenticated session plus org authorization and feature gate                | Access to that org's analytics project                         |
-| Backend → object storage | Server-owned usage-events access key/secret, currently reused from ingestion | Potentially broad bucket access, including writes; not per-org |
-| DuckDB → Parquet         | Short-lived signed GET URLs generated by the backend                         | Exact selected objects, HTTP method and expiry                 |
+| Layer                    | Credential or authority                                       | Scope                                                                     |
+| ------------------------ | ------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| User → Lightdash         | Authenticated session plus org authorization and feature gate | Access to that org's analytics project                                    |
+| Backend → object storage | Dedicated server-owned analytics reader access key/secret     | Deployment bucket read/list when provisioned with reader IAM; not per-org |
+| DuckDB → Parquet         | Short-lived signed GET URLs generated by the backend          | Exact selected objects, HTTP method and expiry                            |
 
 The current tested cloud path uses GCS's S3-compatible interface and HMAC
 credentials with the AWS S3 SDK. It does not run a cloud CLI, obtain a developer
@@ -117,14 +117,13 @@ OAuth token, provision an identity or require a MotherDuck token.
 
 ### Configuration and lifetime
 
-[`parseUsageEventsS3Config`](../../packages/backend/src/config/parseConfig.ts)
-reads `USAGE_EVENTS_S3_ENDPOINT`, `USAGE_EVENTS_S3_BUCKET`,
-`USAGE_EVENTS_S3_REGION`, `USAGE_EVENTS_S3_ACCESS_KEY` and
-`USAGE_EVENTS_S3_SECRET_KEY`. Each falls back to its base `S3_*` setting; a valid
-base storage configuration is still required. These are server configuration,
-not user-editable project credentials. Use the endpoint override to read GCS
-without redirecting ordinary local MinIO storage. This override applies to the
-usage-events writer/compactor configuration too, not only the reader.
+[`parseAnalyticsS3Config`](../../packages/backend/src/config/parseConfig.ts)
+reads `ANALYTICS_S3_ENDPOINT`, `ANALYTICS_S3_BUCKET`, `ANALYTICS_S3_REGION`,
+`ANALYTICS_S3_ACCESS_KEY` and `ANALYTICS_S3_SECRET_KEY`. All five are required;
+missing/blank values fail closed for reads, without breaking application startup.
+There is no writer, base-storage or ambient credential fallback. These are server
+configuration, not user-editable project credentials. Writer/compactor
+`USAGE_EVENTS_S3_*` settings and ordinary storage remain unchanged.
 
 [`S3AnalyticsSource`](../../packages/backend/src/services/ProjectService/analyticsProject/S3AnalyticsSource.ts)
 lists `events/compacted/org_id=<validated-org>/`, validates returned keys and
@@ -180,12 +179,12 @@ cryptographic revocation of previously issued capabilities or returned data.
 
 ### Org isolation: implemented boundary and remaining risk
 
-[`localAnalyticsProject`](../../packages/backend/src/services/ProjectService/analyticsProject/localAnalyticsProject.ts)
-requires the logged-in project's org to match `LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID`.
-It reads files for `LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID`. This deliberate
-development mapping lets a local org explore an explicitly selected source org;
-it is not production tenant binding. Production execution is rejected even with
-the feature flag enabled. Disabling the flag takes precedence over enabling it.
+[`analyticsProjectClient`](../../packages/backend/src/services/ProjectService/analyticsProject/analyticsProjectClient.ts)
+uses the persisted project's org, after service authorization verifies that the
+caller belongs to that org and has organization management permission. The old
+`LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID` and `LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID`
+overrides are ignored in all environments. Explicitly enabling the deployment
+feature flag permits production execution; explicitly disabling it takes precedence.
 
 The prefix filter is a backend authorization boundary, not bucket IAM. Storage
 signatures enforce the exact object/method capability passed to DuckDB, but the
@@ -194,15 +193,15 @@ A compromised signer/backend is outside the protection provided by those URLs.
 Tests for path tampering do not prove arbitrary SQL or backend compromise is safe.
 
 Read-only credentials reduce the signer's write/delete privilege exposure. They
-do not, on their own, prevent reads across org prefixes. The deferred identity
-design is a separate deployment-level reader identity plus reviewed app-side org
+do not, on their own, prevent reads across org prefixes. The identity
+design is a separate deployment-level reader identity plus app-side org
 binding, not a service account per app org. Creating another key on the writer's
 identity does not narrow permissions. See PROD-11103 for infrastructure guidance;
-no Terraform/IAM change or read-only cutover is included in this stack.
+the separate infrastructure deployment and live cutover verification remain pending.
 
 ## Operations, verification and rollout
 
-- Follow [local testing](local-testing.md) for feature flags, explicit source-org
+- Follow [local testing](local-testing.md) for feature flags, persisted-org
   binding and the browser-console provisioning request. Keep capture
   disabled for a read-only local test; never copy another worktree's DB settings.
 - Follow [credential verification](credentials.md) for real-bucket read-only
@@ -218,14 +217,14 @@ no Terraform/IAM change or read-only cutover is included in this stack.
   behavior require further work before production (PROD-11111). Caps fail rather
   than silently exposing only part of the history. Historical availability is
   limited by retained files, not their age; one-year workloads remain unbenchmarked.
-- Before rollout: remove local org overrides, finish production authorization and
-  role restrictions, switch to read-only source credentials, review all query and
-  cached-result surfaces, and add the admin entry point. Hidden UI and folder
+- Before rollout: deploy reader credentials, verify IAM and production authorization,
+  and review query and cached-result surfaces end to end. Hidden UI and folder
   separation are not substitutes for access control.
 
-The read path has been exercised against real GCS with native DuckDB and via the
+The earlier writer-backed read path was exercised against real GCS with native DuckDB and via the
 local API for both explores; local UI provisioning was manually confirmed.
-Focused tests cover reuse, access denial and credential boundaries. This is not
+Focused tests cover reuse, access denial and credential boundaries. The dedicated
+reader cutover has not yet been verified live. This is not
 a production multi-tenant security audit or a claim that every warehouse provider
 and failure mode has been validated.
 
@@ -233,7 +232,7 @@ and failure mode has been validated.
 
 - [PROD-11059](https://linear.app/lightdash/issue/PROD-11059): implementation/triage.
 - [PROD-8603](https://linear.app/lightdash/issue/PROD-8603): pipeline architecture.
-- [PROD-11103](https://linear.app/lightdash/issue/PROD-11103): deferred read-only credentials.
+- [PROD-11103](https://linear.app/lightdash/issue/PROD-11103): read-only credentials and live cutover.
 - Stack: [connector + flag](https://github.com/lightdash/lightdash/pull/28909) →
   [credentials](https://github.com/lightdash/lightdash/pull/28916) →
   [project endpoint](https://github.com/lightdash/lightdash/pull/28849) → documentation.

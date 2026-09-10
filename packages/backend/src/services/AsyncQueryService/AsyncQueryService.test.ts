@@ -108,7 +108,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
-import * as localAnalytics from '../ProjectService/analyticsProject/localAnalyticsProject';
+import * as analyticsClient from '../ProjectService/analyticsProject/analyticsProjectClient';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import {
     allExplores,
@@ -3863,10 +3863,10 @@ describe('AsyncQueryService', () => {
         afterEach(() => {
             projectModel.getSummary.mockResolvedValue(projectSummary);
             vi.mocked(
-                localAnalytics.assertLocalAnalyticsProjectEnabled,
+                analyticsClient.assertAnalyticsProjectEnabled,
             ).mockRestore();
         });
-        test.each(['disabled', 'non-admin'] as const)(
+        test.each(['disabled', 'non-admin', 'cross-org'] as const)(
             'blocks every result/history/export surface for %s access',
             async (reason) => {
                 const service = getMockedAsyncQueryService(lightdashConfigMock);
@@ -3879,12 +3879,15 @@ describe('AsyncQueryService', () => {
                 ]);
                 vi.spyOn(projectModel, 'getSummary').mockResolvedValue({
                     ...projectSummary,
-                    organizationUuid: account.organization.organizationUuid!,
+                    organizationUuid:
+                        reason === 'cross-org'
+                            ? 'other-org'
+                            : account.organization.organizationUuid!,
                     provisioningSource: 'analytics',
                 });
                 vi.spyOn(
-                    localAnalytics,
-                    'assertLocalAnalyticsProjectEnabled',
+                    analyticsClient,
+                    'assertAnalyticsProjectEnabled',
                 ).mockImplementation(() => {
                     if (reason === 'disabled')
                         throw new ForbiddenError('analytics disabled');
@@ -3897,10 +3900,11 @@ describe('AsyncQueryService', () => {
                     accessMode:
                         PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR as const,
                 };
-                const expected =
-                    reason === 'disabled'
-                        ? 'analytics disabled'
-                        : 'administration';
+                const expected = {
+                    disabled: 'analytics disabled',
+                    'cross-org': 'another organization',
+                    'non-admin': 'administration',
+                }[reason];
                 await expect(
                     service.getAsyncQueryHistory(args),
                 ).rejects.toThrow(expected);

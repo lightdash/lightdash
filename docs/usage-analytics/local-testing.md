@@ -2,7 +2,7 @@
 
 For the architecture and trust boundaries, see [architecture](architecture.md).
 
-Development-only prototype, not the production metadata-project rollout. It
+Feature-flagged internal preview, pending live reader rollout verification. It
 creates a `PREVIEW` project with a backend-owned `analytics` provisioning marker
 and an invisible DuckDB `analytics` connection.
 No MotherDuck account, dbt project, or configurable connector UI is required.
@@ -10,30 +10,29 @@ No MotherDuck account, dbt project, or configurable connector UI is required.
 ## Configure and provision
 
 Start an isolated development instance using the worktree runbook. Configure the
-usage-events writer's S3-compatible storage settings: `USAGE_EVENTS_S3_ENDPOINT`,
-`USAGE_EVENTS_S3_BUCKET`, `USAGE_EVENTS_S3_ACCESS_KEY`,
-`USAGE_EVENTS_S3_SECRET_KEY`, and `USAGE_EVENTS_S3_REGION`. The reader reuses this
-server-owned configuration to issue signed GET URLs; it requires no CLI login,
-OAuth exchange, or new cloud infrastructure. The usage-events endpoint defaults
-to `S3_ENDPOINT`; override it when analytics uses GCS and local storage uses MinIO.
+dedicated reader's S3-compatible storage settings: `ANALYTICS_S3_ENDPOINT`,
+`ANALYTICS_S3_BUCKET`, `ANALYTICS_S3_ACCESS_KEY`,
+`ANALYTICS_S3_SECRET_KEY`, and `ANALYTICS_S3_REGION`. The reader uses this
+server-owned configuration to issue signed GET URLs; it requires no CLI login
+or OAuth exchange. All five settings are required, independently of ordinary
+local MinIO storage. See [credentials](credentials.md) for infrastructure rollout.
 
 Add these values to that worktree's `.env.development.local` (never commit them):
 
 ```dotenv
 LIGHTDASH_ENABLE_FEATURE_FLAGS=analytics-project
-LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID=<local-organization-uuid>
-LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID=<source-organization-uuid>
 ```
 
 Preserve other enabled flags if needed. Explicitly disabling `analytics-project`
-takes precedence. The two org IDs are an intentional local-only binding;
-production must use the authenticated org and reviewed credential isolation.
+takes precedence. The source org must match the persisted project's org, even
+locally. Legacy local org/source-org overrides are ignored; use matching local
+fixture data instead of mapping a local org onto another org's production files.
 
 As a signed-in organization administrator, open **Organization settings →
 Lightdash analytics (Beta)** at `/generalSettings/lightdashAnalytics`. Click
-**Create** to provision and open the project, or **Open** if it already exists.
+**Create** to provision and list dashboards, or **Explore** if it already exists.
 The page shows the project's creation time, not its model-sync version or data
-freshness. Feature-flag and development-only backend restrictions still apply.
+freshness. Feature-flag and org-admin restrictions apply in all environments.
 
 Alternatively, call the same-origin endpoint from the browser console on your
 assigned local frontend:
@@ -78,7 +77,7 @@ a new project; it does not restore deleted charts or dashboards.
 
 All three endpoints live in `AnalyticsProjectController`, backed by
 `AnalyticsProjectService`, and require a session-authenticated org administrator
-and the existing analytics flag/local-org guard. Production enablement and
+and the existing analytics feature flag. Live rollout verification and
 versioned content sync remain separate follow-ups.
 
 ## Read path and safeguards
@@ -106,14 +105,13 @@ slice does not issue export URLs that outlive these checks.
 
 ## Before customer rollout
 
-- Replace the backend signer's write-capable source identity with dedicated
-  read-only credentials (PROD-11103). The interim signed-URL path keeps broad keys
-  out of DuckDB but still trusts the signer. Replace local source-org overrides
-  with the persisted project's org. Folder separation is not an IAM boundary.
+- Deploy and verify the dedicated read-only identity (PROD-11103). The signed-URL
+  path keeps broad keys out of DuckDB but still trusts the signer. Folder
+  separation is not an IAM boundary.
 - Review every permissions and cached/downloaded-results surface. Finish SQL
   Runner, scheduling, AI and model-editing exclusions. Local org-admin checks are
   not the final metadata-project role design.
-- Production provisioning, admin navigation, and feature-flag-service integration.
+- Gradual production enablement and future per-org feature-flag-service integration.
 - Latest resource names, additional domain metrics, schema evolution, empty
   streams, retention and query performance.
 - Result-cache freshness, date-aware discovery and manifest/view caching at scale
@@ -124,7 +122,7 @@ slice does not issue export URLs that outlive these checks.
 
 Actual GCS reads and isolated MinIO tests verify the signed-URL path; AWS S3 and
 production multi-tenant rollout remain unverified.
-The implementation rejects production execution even with its flag enabled.
+Production requires explicit deployment feature enablement and reader configuration.
 
 ## Incremental PR stack
 
@@ -134,7 +132,8 @@ The implementation rejects production execution even with its flag enabled.
    system models (Query Events and AI Usage). Replaces the provisioning script.
 4. Internal architecture and operational documentation (no runtime changes).
 
-Dedicated read-only credentials remain a separate deferred follow-up (PROD-11103).
+Dedicated read-only credentials replace the temporary writer reuse in PROD-11103;
+live verification waits for the infrastructure deployment.
 
 See [storage credential verification](credentials.md) for the
 opt-in read-only cloud and isolated local security tests.
