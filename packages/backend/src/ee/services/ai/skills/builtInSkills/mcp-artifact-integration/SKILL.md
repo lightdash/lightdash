@@ -9,9 +9,7 @@ availability:
 
 Use this skill when creating an HTML/React artifact or app that calls Lightdash through Model Context Protocol (MCP). It describes the existing data contract; it does not add a new endpoint, SDK or browser bridge.
 
-## Connect through the host
-
-Inspect the artifact host's actual MCP bridge and exposed tool schemas before writing integration code. Hosts differ: some return the full CallToolResult; others expose only text and an error flag or wrap the result. Do not invent a `window.*` API, REST endpoint, response wrapper or tool name. Use the host-provided connection and authorization; never embed warehouse credentials or personal access tokens in generated HTML.
+## Choose and start the query
 
 Choose `run_metric_query` for questions expressible in the semantic layer. Discover field IDs with `grep_fields` / `get_metadata`, and supply required parameters explicitly: omitted parameters may silently use defaults. Use `run_sql` for other read-only SELECT queries in the warehouse's dialect. Read each tool's schema for its effective row limit; deployment configuration can change the maximum.
 

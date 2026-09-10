@@ -440,6 +440,11 @@ describe('MCP tool contracts', () => {
                 expect(config.description).not.toContain(
                     'Warehouse execution timeouts',
                 );
+                expect(config.description).not.toMatch(
+                    /structuredContent|isError|result\.status/,
+                );
+                expect(config.description).toContain('same queryUuid');
+                expect(config.description).toContain('Stop on terminal errors');
             }
         },
     );

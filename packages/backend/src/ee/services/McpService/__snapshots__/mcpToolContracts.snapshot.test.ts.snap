@@ -2568,8 +2568,8 @@ If any selected field is marked "requires parameters" in field discovery or meta
 
 This tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.
 
-Prefer structuredContent.result when available; otherwise use content text. Check both isError and terminal result.status values. If running, wait as instructed and call get_query_result with the same queryUuid; never resubmit the original query.
-Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
+If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
+Stop on terminal errors and correct the request before retrying.
 
 When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
 ",
@@ -10291,8 +10291,8 @@ Use a complete SELECT statement in the connected warehouse's SQL dialect. Lightd
 For visuals supported by the semantic layer, prefer run_metric_query then render_chart. render_chart does not support run_sql results.
 
 Returns SQL data, not chart artifacts. The platform provides a query-specific SQL Runner action; do not add your own SQL Runner link in the final answer.
-Prefer structuredContent.result when available; otherwise use content text. Check both isError and terminal result.status values. If running, wait as instructed and call get_query_result with the same queryUuid; never resubmit the original query.
-Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
+If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
+Stop on terminal errors and correct the request before retrying.
 
 When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
       "inputSchema": {
@@ -10433,8 +10433,8 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
       },
       "description": "Poll an existing run_sql or run_metric_query query. Use the exact queryUuid returned by the query tool; never invent it. This tool retrieves results without rerunning the query.
 
-Prefer structuredContent.result when available; otherwise use content text. Check both isError and terminal result.status values. If running, wait as instructed and call get_query_result with the same queryUuid; never resubmit the original query.
-Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
+If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
+Stop on terminal errors and correct the request before retrying.
 
 Returns the original query's data on completion. For a visual, call render_chart after get_query_result returns done for a metric query. SQL results cannot be rendered by render_chart.
 
@@ -11294,8 +11294,8 @@ If any selected field is marked "requires parameters" in field discovery or meta
 
 This tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.
 
-Prefer structuredContent.result when available; otherwise use content text. Check both isError and terminal result.status values. If running, wait as instructed and call get_query_result with the same queryUuid; never resubmit the original query.
-Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
+If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
+Stop on terminal errors and correct the request before retrying.
 
 When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
 
