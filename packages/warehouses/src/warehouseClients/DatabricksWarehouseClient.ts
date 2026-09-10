@@ -673,11 +673,13 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         );
     }
 
+    // Every table_type in Unity Catalog is queryable: managed and external
+    // tables, views, materialized views, streaming tables and foreign tables
     async getAllTables() {
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
-            WHERE table_type = 'MANAGED'
+            WHERE table_schema <> 'information_schema'
             ORDER BY 1,2,3
         `;
         const { rows } = await this.runQuery(query, {}, undefined, undefined);
@@ -686,31 +688,6 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             schema: row.table_schema,
             table: row.table_name,
         }));
-    }
-
-    async getTables(
-        schema?: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND table_schema = ?` : '';
-        const query = `
-            SELECT table_catalog, table_schema, table_name
-            FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE'
-            ${schemaFilter}
-            ORDER BY 1,2,3
-        `;
-        const { rows } = await this.runQuery(
-            query,
-            tags,
-            undefined,
-            schema ? [schema] : undefined,
-        );
-        return this.parseWarehouseCatalog(
-            rows,
-            mapFieldType,
-            getDatabricksTimestampDomain,
-        );
     }
 
     async getFields(
