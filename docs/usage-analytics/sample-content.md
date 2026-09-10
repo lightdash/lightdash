@@ -1,19 +1,23 @@
 # Analytics sample content
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
-defines two managed dashboards using the existing system explores: the usage
-overview (ten charts) and Query activity (nine charts). It is compiled with the backend: no CLI upload, migration,
+defines two focused managed dashboards using the existing system explores: AI usage
+(eight charts) and Query activity (nine charts). It is compiled with the backend: no CLI upload, migration,
 installation table, or version tracking is required.
 
-The sample includes compact headline totals, daily AI/query line charts, top models
-by token volume, a cache-hit share donut, average/P90 warehouse execution trends,
+AI usage includes calls, total tokens, distinct users and output-token KPIs,
+daily calls/token trends, and top models by tokens and calls. Query activity includes
+a cache-hit share donut, average/P90 warehouse execution trends,
 and top query contexts. Token volume is not cost; warehouse execution time is not
 end-to-end latency. Missing cache flags are not treated as misses.
 
 Query activity focuses on query totals, distinct users, average/P90 warehouse
 execution time, daily query and active-user trends, cache-hit share and query
-sources. The existing overview and its IDs remain unchanged. Charts with the same
-definition on different dashboards have distinct, dashboard-owned IDs.
+sources. AI usage replaces the former mixed overview while keeping its dashboard
+slug (`lightdash-analytics-overview`) and existing AI chart slugs. Query activity
+keeps its existing content and slugs. Space slugs are explicit and stable so a
+dashboard title change does not create a new space. Sync removes the former
+overview's query tiles without deleting their saved history or custom copies.
 
 Project creation and **Sync content** in organization analytics settings both install
 the current definitions. After creation, settings stays open and shows dashboard

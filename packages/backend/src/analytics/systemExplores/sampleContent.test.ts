@@ -65,6 +65,7 @@ describe('analytics sample content', () => {
             .filter(({ key }) =>
                 [
                     'ai-calls-by-day',
+                    'tokens-by-day',
                     'queries-by-day',
                     'active-users-by-day',
                 ].includes(key),
@@ -88,12 +89,22 @@ describe('analytics sample content', () => {
         }
     });
 
-    it('keeps the overview identity and provisions a query-only dashboard', () => {
+    it('keeps existing identities while separating AI and query content', () => {
         expect(analyticsSampleDashboards[0].key).toBe(
             'lightdash-analytics-overview',
         );
+        const aiDashboard = analyticsSampleDashboards[0];
+        expect(aiDashboard.name).toBe('AI usage');
+        expect(aiDashboard.spaceSlug).toBe('lightdash-usage-overview');
+        expect(aiDashboard.charts).toHaveLength(8);
+        expect(
+            aiDashboard.charts.every(
+                ({ tableName }) => tableName === 'ai_usage',
+            ),
+        ).toBe(true);
         const queryDashboard = analyticsSampleDashboards[1];
         expect(queryDashboard.key).toBe('lightdash-analytics-query-activity');
+        expect(queryDashboard.spaceSlug).toBe('query-activity');
         expect(queryDashboard.charts).toHaveLength(9);
         expect(
             queryDashboard.charts.every(

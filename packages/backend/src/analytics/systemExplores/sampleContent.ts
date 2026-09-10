@@ -3,7 +3,6 @@ import {
     ChartType,
     Compact,
     DashboardTileTypes,
-    generateSlug,
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
@@ -132,20 +131,21 @@ const chart = (
 };
 
 /** Stable keys define project-scoped sync slugs; names are presentation only. */
-export const analyticsSampleContent = {
+const aiUsageContent = {
     key: 'lightdash-analytics-overview',
-    name: 'Lightdash usage overview',
+    spaceSlug: 'lightdash-usage-overview',
+    name: 'AI usage',
     description:
-        'A starting point for exploring AI usage and query activity. Duplicate this dashboard to keep a customized copy separate from future sample updates.',
+        'AI calls, token consumption, adoption and model usage. Duplicate this dashboard to keep a customized copy separate from future built-in updates.',
     charts: [
         chart('ai-calls', 'AI calls', 'ai_usage', 'total_ai_calls'),
         chart('tokens', 'Tokens used', 'ai_usage', 'total_tokens_used'),
-        chart('queries', 'Queries executed', 'query_events', 'total_queries'),
+        chart('ai-users', 'Users using AI', 'ai_usage', 'unique_users'),
         chart(
-            'query-users',
-            'Users running queries',
-            'query_events',
-            'unique_users',
+            'output-tokens',
+            'Output tokens',
+            'ai_usage',
+            'total_output_tokens',
         ),
         chart(
             'ai-calls-by-day',
@@ -156,12 +156,12 @@ export const analyticsSampleContent = {
             { colors: ['#7950F2'], axisLabel: 'Calls' },
         ),
         chart(
-            'queries-by-day',
-            'Queries by day',
-            'query_events',
-            'total_queries',
+            'tokens-by-day',
+            'Tokens used by day',
+            'ai_usage',
+            'total_tokens_used',
             'event_ts_day',
-            { colors: ['#12B886'], axisLabel: 'Queries' },
+            { colors: ['#339AF0'], axisLabel: 'Tokens' },
         ),
         chart(
             'tokens-by-model',
@@ -178,53 +178,27 @@ export const analyticsSampleContent = {
             },
         ),
         chart(
-            'query-cache',
-            'How often are queries served from cache?',
-            'query_events',
-            'total_queries',
-            'cache_hit',
-            {
-                visualization: 'donut',
-                description:
-                    'Share of query events by cache-hit flag. Missing flags remain a separate group rather than being treated as misses.',
-            },
-        ),
-        chart(
-            'query-latency-by-day',
-            'Is warehouse execution getting slower?',
-            'query_events',
-            'avg_warehouse_execution_time_ms',
-            'event_ts_day',
-            {
-                extraMetrics: ['p90_warehouse_execution_time_ms'],
-                seriesNames: ['Average', 'P90'],
-                colors: ['#12B886', '#F59F00'],
-                axisLabel: 'Milliseconds',
-                description:
-                    'Daily average and 90th percentile warehouse execution time, in milliseconds. Missing timings are excluded; this is not end-to-end request latency.',
-            },
-        ),
-        chart(
-            'queries-by-context',
-            'Where are queries coming from?',
-            'query_events',
-            'total_queries',
-            'context',
+            'calls-by-model',
+            'Which models are called most often?',
+            'ai_usage',
+            'total_ai_calls',
+            'model',
             {
                 visualization: 'bar',
                 colors: ['#339AF0'],
-                axisLabel: 'Queries',
+                axisLabel: 'Calls',
                 description:
-                    'Top 10 query contexts by volume across all available events.',
+                    'Top 10 models by AI calls across all available events. Compare with token volume to distinguish frequent calls from token-heavy calls.',
             },
         ),
     ],
 };
 
 export const analyticsSampleDashboards = [
-    analyticsSampleContent,
+    aiUsageContent,
     {
         key: 'lightdash-analytics-query-activity',
+        spaceSlug: 'query-activity',
         name: 'Query activity',
         description:
             'Query volume, adoption, cache usage and warehouse execution performance. Duplicate this dashboard to keep a customized copy separate from future built-in updates.',
@@ -253,8 +227,13 @@ export const analyticsSampleDashboards = [
                 'query_events',
                 'p90_warehouse_execution_time_ms',
             ),
-            ...analyticsSampleContent.charts.filter(
-                ({ key }) => key === 'queries-by-day',
+            chart(
+                'queries-by-day',
+                'Queries by day',
+                'query_events',
+                'total_queries',
+                'event_ts_day',
+                { colors: ['#12B886'], axisLabel: 'Queries' },
             ),
             chart(
                 'active-users-by-day',
@@ -269,14 +248,46 @@ export const analyticsSampleDashboards = [
                         'Distinct users with query events each day. Daily distinct counts should not be summed to calculate period-wide unique users.',
                 },
             ),
-            ...[
+            chart(
                 'query-cache',
+                'How often are queries served from cache?',
+                'query_events',
+                'total_queries',
+                'cache_hit',
+                {
+                    visualization: 'donut',
+                    description:
+                        'Share of query events by cache-hit flag. Missing flags remain a separate group rather than being treated as misses.',
+                },
+            ),
+            chart(
                 'queries-by-context',
+                'Where are queries coming from?',
+                'query_events',
+                'total_queries',
+                'context',
+                {
+                    visualization: 'bar',
+                    colors: ['#339AF0'],
+                    axisLabel: 'Queries',
+                    description:
+                        'Top 10 query contexts by volume across all available events.',
+                },
+            ),
+            chart(
                 'query-latency-by-day',
-            ].flatMap((chartKey) =>
-                analyticsSampleContent.charts.filter(
-                    ({ key }) => key === chartKey,
-                ),
+                'Is warehouse execution getting slower?',
+                'query_events',
+                'avg_warehouse_execution_time_ms',
+                'event_ts_day',
+                {
+                    extraMetrics: ['p90_warehouse_execution_time_ms'],
+                    seriesNames: ['Average', 'P90'],
+                    colors: ['#12B886', '#F59F00'],
+                    axisLabel: 'Milliseconds',
+                    description:
+                        'Daily average and 90th percentile warehouse execution time, in milliseconds. Missing timings are excluded; this is not end-to-end request latency.',
+                },
             ),
         ],
     },
@@ -286,7 +297,7 @@ export const analyticsContentAsCode: {
     dashboard: DashboardAsCode;
     charts: ChartAsCode[];
 }[] = analyticsSampleDashboards.map((bundle) => {
-    const spaceSlug = generateSlug(bundle.name);
+    const { spaceSlug } = bundle;
     const charts = bundle.charts.map(({ key, ...definition }) => ({
         ...definition,
         slug: `${bundle.key}-${key}`,
