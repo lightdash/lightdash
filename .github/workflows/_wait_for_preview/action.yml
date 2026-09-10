@@ -22,12 +22,21 @@ runs:
           run: |
               set -uo pipefail
               deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
+              reported_error=no
               while true; do
+                  rm -f /tmp/preview-health.json
                   # The step shell runs with -e, so curl's non-zero exit must be
                   # caught outside the substitution: `|| echo` inside it would
                   # append a second code to the one -w already wrote.
-                  status=$(curl -sSL -o /tmp/preview-health.json -w '%{http_code}' "$PREVIEW_URL/api/v1/health" 2>/dev/null) || true
+                  status=$(curl -sSL -o /tmp/preview-health.json -w '%{http_code}' "$PREVIEW_URL/api/v1/health" 2>/tmp/preview-curl-err) || true
                   [ -n "$status" ] || status="000"
+                  # 000 means the connection never completed, so the HTTP code
+                  # says nothing — curl's own message is the only diagnostic.
+                  if [ "$status" = "000" ] && [ "$reported_error" != "yes" ]; then
+                      echo "curl could not connect:"
+                      head -c 300 /tmp/preview-curl-err || true
+                      reported_error=yes
+                  fi
                   if [ "$status" = "200" ]; then
                       echo "Preview ready at $PREVIEW_URL"
                       cat /tmp/preview-health.json
@@ -37,6 +46,10 @@ runs:
                       echo "Preview $PREVIEW_URL did not become healthy within ${TIMEOUT_SECONDS}s (last status: $status)"
                       if [ "$status" = "404" ]; then
                           echo "A sustained 404 means no environment is serving this name, not that it is still booting."
+                      fi
+                      if [ "$status" = "000" ]; then
+                          echo "A sustained 000 means this runner never reached the host at all:"
+                          head -c 300 /tmp/preview-curl-err || true
                       fi
                       head -c 2000 /tmp/preview-health.json || true
                       exit 1
