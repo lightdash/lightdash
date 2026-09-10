@@ -3,6 +3,7 @@ import {
     CreateRedshiftCredentials,
     RedshiftAuthenticationType,
     SupportedDbtAdapter,
+    WarehouseCatalog,
     WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -128,6 +129,58 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             this.config = await this.resolveIamPoolConfig();
         }
         return super.streamQuery(sql, streamCallback, options);
+    }
+
+    // information_schema omits late-binding views and Spectrum external tables;
+    // the SVV_* views cover them alongside regular tables and views. A Redshift
+    // project pointed at plain Postgres keeps the Postgres catalog.
+    async getAllTables() {
+        if (!(await this.isRedshift())) return super.getAllTables();
+        const query = `
+            SELECT table_catalog, table_schema, table_name
+            FROM svv_tables
+            WHERE table_catalog = $1
+                AND table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_internal')
+            ORDER BY 1, 2, 3
+        `;
+        const { rows } = await this.runQuery(query, {}, undefined, [
+            this.credentials.dbname,
+        ]);
+        return rows.map((row) => ({
+            database: row.table_catalog,
+            schema: row.table_schema,
+            table: row.table_name,
+        }));
+    }
+
+    async getFields(
+        tableName: string,
+        schema?: string,
+        database?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        if (!(await this.isRedshift())) {
+            return super.getFields(tableName, schema, database, tags);
+        }
+        const { values, schemaParam, databaseParam } = this.bindFieldsFilters(
+            tableName,
+            schema,
+            database,
+        );
+        const query = `
+            SELECT table_catalog,
+                   table_schema,
+                   table_name,
+                   column_name,
+                   data_type
+            FROM svv_columns
+            WHERE table_name = $1
+            ${schemaParam ? `AND table_schema = ${schemaParam}` : ''}
+            ${databaseParam ? `AND table_catalog = ${databaseParam}` : ''}
+            ORDER BY ordinal_position
+        `;
+        const { rows } = await this.runQuery(query, tags, undefined, values);
+        return this.parsePostgresCatalog(rows);
     }
 
     private async resolveIamPoolConfig(): Promise<PoolConfig> {

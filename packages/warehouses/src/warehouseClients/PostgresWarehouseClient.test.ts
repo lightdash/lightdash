@@ -169,6 +169,97 @@ describe('PostgresWarehouseClient', () => {
             'orders',
         ]);
     });
+
+    describe('getAllTables', () => {
+        it('lists tables, views and materialized views', async () => {
+            const warehouse = new PostgresWarehouseClient(credentials);
+            const runQuery = vi
+                .spyOn(warehouse, 'runQuery')
+                .mockResolvedValueOnce({
+                    rows: [{ version: 'PostgreSQL 15.4' }],
+                    fields: {},
+                })
+                .mockResolvedValueOnce({
+                    rows: [
+                        {
+                            table_catalog: 'warehouse',
+                            table_schema: 'public',
+                            table_name: 'orders_view',
+                        },
+                    ],
+                    fields: {},
+                });
+
+            const tables = await warehouse.getAllTables();
+
+            const [query] = runQuery.mock.calls[1];
+            expect(query).toContain(
+                "table_type IN ('BASE TABLE', 'VIEW', 'FOREIGN')",
+            );
+            expect(query).toContain('FROM pg_catalog.pg_matviews');
+            expect(tables).toEqual([
+                {
+                    database: 'warehouse',
+                    schema: 'public',
+                    table: 'orders_view',
+                },
+            ]);
+        });
+
+        it('skips pg_matviews on servers that predate it', async () => {
+            const warehouse = new PostgresWarehouseClient(credentials);
+            const runQuery = vi
+                .spyOn(warehouse, 'runQuery')
+                .mockResolvedValueOnce({
+                    rows: [{ version: 'PostgreSQL 8.0.2' }],
+                    fields: {},
+                })
+                .mockResolvedValueOnce({ rows: [], fields: {} });
+
+            await warehouse.getAllTables();
+
+            expect(runQuery.mock.calls[1][0]).not.toContain('pg_matviews');
+        });
+    });
+
+    describe('getFields', () => {
+        it('includes materialized view columns and binds filters in order', async () => {
+            const warehouse = new PostgresWarehouseClient(credentials);
+            const runQuery = vi
+                .spyOn(warehouse, 'runQuery')
+                .mockResolvedValueOnce({
+                    rows: [{ version: 'PostgreSQL 15.4' }],
+                    fields: {},
+                })
+                .mockResolvedValueOnce({
+                    rows: [
+                        {
+                            table_catalog: 'warehouse',
+                            table_schema: 'public',
+                            table_name: 'orders_mv',
+                            column_name: 'amount',
+                            data_type: 'numeric',
+                        },
+                    ],
+                    fields: {},
+                });
+
+            const fields = await warehouse.getFields(
+                'orders_mv',
+                undefined,
+                'warehouse',
+            );
+
+            const [query, , , values] = runQuery.mock.calls[1];
+            expect(query).toContain("c.relkind = 'm'");
+            expect(query).toContain('table_catalog = $2');
+            expect(query).not.toContain('$3');
+            expect(values).toEqual(['orders_mv', 'warehouse']);
+            expect(fields).toEqual({
+                warehouse: { public: { orders_mv: { amount: 'number' } } },
+            });
+        });
+    });
 });
 
 describe('PostgresWarehouseClient statement timeout', () => {
