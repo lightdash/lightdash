@@ -34,7 +34,12 @@ const renderPanel = () =>
     );
 
 describe('LightdashAnalyticsPanel', () => {
-    beforeEach(() => vi.resetAllMocks());
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+            url.includes('/dashboards?') ? [] : { project },
+        );
+    });
 
     it('creates only on click and redirects using the server URL', async () => {
         vi.mocked(lightdashApi).mockResolvedValue({ project: null });
@@ -64,10 +69,9 @@ describe('LightdashAnalyticsPanel', () => {
     });
 
     it('opens an existing project without recreating or refreshing it', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({ project });
         renderPanel();
         expect(
-            await screen.findByRole('link', { name: 'Open' }),
+            await screen.findByRole('link', { name: 'Explore' }),
         ).toHaveAttribute('href', project.url);
         expect(
             screen.queryByRole('button', { name: 'Create' }),
@@ -95,8 +99,39 @@ describe('LightdashAnalyticsPanel', () => {
         ).toBeVisible();
     });
 
+    it('refreshes dashboard shortcuts for the analytics project', async () => {
+        renderPanel();
+        expect(await screen.findByText(/No dashboards yet/)).toBeVisible();
+        expect(lightdashApi).toHaveBeenCalledWith({
+            url: '/projects/analytics-project/dashboards?includePrivate=true',
+            method: 'GET',
+            body: undefined,
+        });
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+            url.includes('/dashboards?')
+                ? [
+                      {
+                          uuid: 'dashboard',
+                          slug: 'ai-usage-overview',
+                          name: 'AI usage overview',
+                          description: 'Daily AI usage',
+                          updatedAt: '2026-09-10T10:00:00Z',
+                      },
+                  ]
+                : { project },
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+        expect(
+            await screen.findByRole('link', { name: 'AI usage overview' }),
+        ).toHaveAttribute(
+            'href',
+            '/projects/lightdash-analytics-1/dashboards/ai-usage-overview/view',
+        );
+        expect(screen.getByText('Daily AI usage')).toBeVisible();
+        expect(screen.getByText(/^Updated /)).toBeVisible();
+    });
+
     it('requires confirmation before deleting and returns to Create', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({ project });
         renderPanel();
         await userEvent.click(
             await screen.findByRole('button', { name: 'Delete' }),
