@@ -1,4 +1,5 @@
 import { ActionIcon, Menu, Text, Tooltip } from '@mantine/core';
+import { useInterval } from '@mantine/hooks';
 import { IconCheck, IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import {
     memo,
@@ -8,9 +9,9 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useInterval } from 'react-use';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useStableCallback } from '../../../hooks/useStableCallback';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import MantineIcon from '../MantineIcon';
 
@@ -90,13 +91,20 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
             invalidateDashboardResultsQueries,
         ]);
 
-        // Keyed on the interval only; a paused (null) delay stops the timer.
-        useInterval(
-            () => {
-                void invalidateAndSetRefreshTime();
-            },
-            refreshInterval === undefined ? null : refreshInterval * 60 * 1000,
-        );
+        // The interval restarts whenever its callback identity changes, so
+        // the tick must stay stable across re-renders.
+        const tick = useStableCallback(() => {
+            void invalidateAndSetRefreshTime();
+        });
+        const autoRefresh = useInterval(tick, (refreshInterval ?? 0) * 60_000);
+
+        useEffect(() => {
+            if (refreshInterval === undefined) return;
+            autoRefresh.start();
+            return autoRefresh.stop;
+            // start/stop are stable; only the chosen interval matters
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [refreshInterval]);
 
         useEffect(() => {
             return () => {
@@ -163,6 +171,9 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         <Menu.Item
                             fz="xs"
                             onClick={() => {
+                                // A running interval restarts when its delay
+                                // changes, so stop before the delay drops to 0.
+                                autoRefresh.stop();
                                 setRefreshInterval(undefined);
                                 setIsAutoRefresh(false);
                             }}

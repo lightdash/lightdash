@@ -1,6 +1,7 @@
+import { useInterval } from '@mantine/hooks';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useInterval } from 'react-use';
+import { useStableCallback } from './useStableCallback';
 
 export const useTimeAgo = (
     dateOrString: Date | string,
@@ -31,9 +32,10 @@ export const useTimeAgo = (
         setTimeAgo(nextTimeAgo);
     }, [getTimeAgo]);
 
-    useInterval(() => {
-        updateTimeAgo();
-    }, interval);
+    // Callers often pass a fresh Date each render; the interval restarts on
+    // every callback change, so the tick must stay identity-stable.
+    const tick = useStableCallback(updateTimeAgo);
+    useInterval(tick, interval, { autoInvoke: true });
 
     useEffect(() => {
         updateTimeAgo();

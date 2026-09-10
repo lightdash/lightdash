@@ -2,6 +2,7 @@ import { useElementSize, useInterval, useTimeout } from '@mantine/hooks';
 import { act, render, renderHook, screen } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { useStableCallback } from './useStableCallback';
 
 const useControlledInterval = (enabled: boolean) => {
     const [ticks, setTicks] = useState(0);
@@ -18,6 +19,22 @@ const useControlledInterval = (enabled: boolean) => {
         // Matches the controlled interval pattern used by JobDetailsDrawer.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [enabled]);
+
+    return ticks;
+};
+
+// Mirrors DashboardRefreshButton: the delay comes from state and the callback
+// identity never changes between renders.
+const useAdjustableInterval = (delay: number) => {
+    const [ticks, setTicks] = useState(0);
+    const tick = useStableCallback(() => setTicks((value) => value + 1));
+    const interval = useInterval(tick, delay);
+
+    useEffect(() => {
+        interval.start();
+        return interval.stop;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return ticks;
 };
@@ -72,6 +89,41 @@ describe('Mantine hooks compatibility', () => {
             vi.advanceTimersByTime(2_000);
         });
         expect(result.current).toBe(2);
+    });
+
+    test('a running interval adopts a delay chosen after it started', () => {
+        vi.useFakeTimers();
+        const { result, rerender } = renderHook(
+            ({ delay }) => useAdjustableInterval(delay),
+            { initialProps: { delay: 1_000 } },
+        );
+
+        rerender({ delay: 5_000 });
+        act(() => {
+            vi.advanceTimersByTime(4_999);
+        });
+        expect(result.current).toBe(0);
+
+        act(() => {
+            vi.advanceTimersByTime(1);
+        });
+        expect(result.current).toBe(1);
+    });
+
+    test('re-renders between ticks do not reset the schedule', () => {
+        vi.useFakeTimers();
+        const { result, rerender } = renderHook(
+            ({ delay }) => useAdjustableInterval(delay),
+            { initialProps: { delay: 1_000 } },
+        );
+
+        for (let elapsed = 0; elapsed < 1_000; elapsed += 200) {
+            act(() => {
+                vi.advanceTimersByTime(200);
+            });
+            rerender({ delay: 1_000 });
+        }
+        expect(result.current).toBe(1);
     });
 
     test('delayed state appears after its timeout and stays hidden when cancelled', () => {
