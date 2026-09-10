@@ -16,6 +16,7 @@ import {
     getMcpAnalystPrompt,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
+import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
     isProjectScopedMcpTool,
     McpService,
@@ -48,6 +49,7 @@ type RegisteredMcpPrompt = {
 const mockRegisteredMcpTools: RegisteredMcpTool[] = [];
 const mockRegisteredMcpPrompts: RegisteredMcpPrompt[] = [];
 const mockMcpServerInstructions: Array<string | undefined> = [];
+const mockRegisteredMcpResourceUris: string[] = [];
 
 vi.mock('@sentry/node', () => ({
     getActiveSpan: () => undefined,
@@ -67,7 +69,10 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
                     registerCapabilities: vi.fn(),
                     setRequestHandler: vi.fn(),
                 },
-                registerResource: vi.fn(),
+                registerResource: vi.fn((_name: string, uri: string) => {
+                    mockRegisteredMcpResourceUris.push(uri);
+                    return {};
+                }),
                 registerPrompt: vi.fn(
                     (
                         name: string,
@@ -120,7 +125,12 @@ const makeMcpService = (
 ): McpService =>
     new McpService({
         aiAgentService: {},
-        aiAgentToolsService: { createRuntime: vi.fn() },
+        aiAgentToolsService: {
+            createRuntime: vi.fn(),
+            listMcpSkillResources: () => BuiltInSkills.listMcpResources(),
+            getMcpSkillResourceBody: (uri: string) =>
+                BuiltInSkills.getMcpResourceBody(uri),
+        },
         aiOrganizationSettingsService: {
             isMcpContentWritesEnabled: vi
                 .fn()
@@ -217,6 +227,7 @@ describe('MCP tool contracts', () => {
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
         mockMcpServerInstructions.length = 0;
+        mockRegisteredMcpResourceUris.length = 0;
     });
 
     it('matches the shared MCP tool definition names snapshot', () => {
@@ -347,12 +358,7 @@ describe('MCP tool contracts', () => {
             // Existing overages warn but cannot grow. Lower/remove these
             // ceilings as text is shortened; snapshot updates cannot raise them.
             const existingToolCeilings = new Map([
-                ['run_sql', 3453],
                 ['run_ai_writeback', 2651],
-                [
-                    'run_metric_query',
-                    options.filterExpressionsEnabled ? 2463 : 2229,
-                ],
                 ['find_content', 2086],
             ]);
             const texts = [
@@ -435,6 +441,47 @@ describe('MCP tool contracts', () => {
                     'Warehouse execution timeouts',
                 );
             }
+        },
+    );
+
+    it.each([false, true])(
+        'keeps artifact integration pointers in short MCP descriptions: expressions=%s',
+        async (filterExpressionsEnabled) => {
+            const service = makeMcpService();
+            await service.createServer(
+                makeMcpServerOptions({
+                    runSqlEnabled: true,
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
+            for (const name of [
+                'run_sql',
+                'run_metric_query',
+                'get_query_result',
+                'render_chart',
+            ]) {
+                const tool = mockRegisteredMcpTools.find(
+                    (registered) => registered.name === name,
+                );
+                expect(tool).toBeDefined();
+                expect(tool?.config.description).toContain(
+                    'read_skill with name: "mcp-artifact-integration"',
+                );
+                expect(tool?.config.description).not.toContain(
+                    'Response shape',
+                );
+                expect(tool?.config.description.length).toBeLessThanOrEqual(
+                    MCP_CLIENT_TEXT_MAX_CHARS,
+                );
+            }
+            expect(mockRegisteredMcpResourceUris).toEqual(
+                expect.arrayContaining([
+                    'skill://index.json',
+                    'skill://lightdash/mcp-artifact-integration/SKILL.md',
+                    'skill://lightdash/mcp-artifact-integration/resources/result-contracts.md',
+                ]),
+            );
         },
     );
 

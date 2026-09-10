@@ -265,6 +265,17 @@ describe('AI agent tool contracts', () => {
         },
     );
 
+    it('keeps artifact skill pointers out of every Agent description', () => {
+        for (const definition of Object.values(agentToolDefinitionsByName)) {
+            expect(definition.for('agent').description).not.toContain(
+                'mcp-artifact-integration',
+            );
+        }
+        for (const tool of Object.values(makeAgentTools(true, true))) {
+            expect(tool.description).not.toContain('mcp-artifact-integration');
+        }
+    });
+
     it('matches the shared agent tool definition names snapshot', () => {
         expect(sharedAgentToolDefinitionNames).toMatchSnapshot();
     });
