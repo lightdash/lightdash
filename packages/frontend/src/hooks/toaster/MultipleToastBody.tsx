@@ -54,7 +54,7 @@ const MultipleToastBody = ({
                         {`${expanded ? 'Hide' : 'Show'} ${older.length} older`}
                     </UnstyledButton>
 
-                    <Collapse in={expanded}>
+                    <Collapse expanded={expanded}>
                         <Box className={styles.olderList}>
                             {older.map((toastData) => {
                                 const { messageKey } = toastData;

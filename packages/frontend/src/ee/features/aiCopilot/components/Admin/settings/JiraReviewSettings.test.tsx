@@ -149,7 +149,7 @@ describe('JiraReviewSettings', () => {
         };
         renderSettings();
         await userEvent.click(
-            screen.getByRole('textbox', { name: 'Jira site' }),
+            screen.getByRole('combobox', { name: 'Jira site' }),
         );
         await userEvent.click(screen.getByText(/Acme/));
         expect(mocks.selectSite).toHaveBeenCalledWith('site-1');
@@ -164,7 +164,7 @@ describe('JiraReviewSettings', () => {
         };
         renderSettings();
         await userEvent.click(
-            screen.getByRole('textbox', { name: 'Jira issue type' }),
+            screen.getByRole('combobox', { name: 'Jira issue type' }),
         );
         await userEvent.click(screen.getByText('Task'));
         expect(mocks.updateRouting).toHaveBeenCalledWith({

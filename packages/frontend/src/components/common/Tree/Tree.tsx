@@ -12,7 +12,11 @@ import classes from './Tree.module.css';
 import TreeItem from './TreeItem';
 import { type NestableItem } from './types';
 import { type FuzzyFilteredItem } from './useFuzzyTreeSearch';
-import { convertNestableListToTree, getAllParentPaths } from './utils';
+import {
+    collectTreeValues,
+    convertNestableListToTree,
+    getAllParentPaths,
+} from './utils';
 
 type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 
@@ -135,31 +139,42 @@ const Tree: React.FC<Props> = (props) => {
      */
     const isInternalUpdate = useRef(false);
 
-    const expandAllParentPaths = useCallback(
-        (node: NestableItem) => {
-            const allParentPaths = getAllParentPaths(treeData, node.path);
-
-            allParentPaths.forEach((path) => {
-                tree.expand(path);
-            });
-        },
-        // WARNING: does not need to be re-created every time tree ref changes
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [treeData],
+    // Tree setters replace the whole expanded state from the current render,
+    // so every path is merged into a single update.
+    const withAncestorsExpanded = useCallback(
+        (base: Record<string, boolean>) => ({
+            ...base,
+            ...Object.fromEntries(
+                items
+                    .flatMap((item) => getAllParentPaths(treeData, item.path))
+                    .map((path) => [path, true]),
+            ),
+        }),
+        [items, treeData],
     );
 
     useEffect(() => {
-        items.forEach(expandAllParentPaths);
-    }, [items, expandAllParentPaths]);
+        tree.setExpandedState(withAncestorsExpanded(tree.expandedState));
+        // WARNING: does not need to be re-run every time tree ref changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [withAncestorsExpanded]);
 
     useEffect(() => {
+        const everyNode = collectTreeValues(treeData);
         if (isExpanded) {
-            tree.expandAllNodes();
+            tree.setExpandedState(
+                Object.fromEntries(everyNode.map((value) => [value, true])),
+            );
         } else {
             // Mantine keeps expanded keys across data changes, so collapse
             // explicitly and reopen only the selected items' ancestors.
-            tree.collapseAllNodes();
-            items.forEach(expandAllParentPaths);
+            tree.setExpandedState(
+                withAncestorsExpanded(
+                    Object.fromEntries(
+                        everyNode.map((value) => [value, false]),
+                    ),
+                ),
+            );
         }
         // WARNING: does not need to be re-run every time tree ref changes
         // eslint-disable-next-line react-hooks/exhaustive-deps

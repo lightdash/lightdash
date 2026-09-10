@@ -67,3 +67,9 @@ export function getAllParentPaths(
         ...getAllParentPaths(node.children, rest.join('.'), level + 1),
     ];
 }
+
+export const collectTreeValues = (tree: TreeNodeData[]): string[] =>
+    tree.flatMap((node) => [
+        node.value,
+        ...collectTreeValues(node.children ?? []),
+    ]);

@@ -26,6 +26,7 @@ import {
     Button,
     Group,
     Select,
+    type SelectProps,
     Stack,
     Text,
     TextInput,
@@ -193,9 +194,9 @@ export const CustomMetricModal = memo(() => {
         !!selectedBaseDimensionName &&
         originalBaseDimensionName !== selectedBaseDimensionName;
 
-    const renderBaseDimensionOption: React.ComponentProps<
-        typeof Select
-    >['renderOption'] = ({ option }) => {
+    const renderBaseDimensionOption: SelectProps['renderOption'] = ({
+        option,
+    }) => {
         const dim = baseDimensionByName[option.value];
         return (
             <Group gap="xs" wrap="nowrap">

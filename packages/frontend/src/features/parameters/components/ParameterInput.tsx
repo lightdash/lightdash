@@ -13,6 +13,7 @@ import {
     Group,
     MultiSelect,
     Select,
+    type ComboboxItem,
     type ComboboxItemGroup,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
@@ -314,7 +315,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                                       fetchedLabelMap.get(option) ??
                                       formatDisplayValue(option),
                               })),
-                      } satisfies ComboboxItemGroup,
+                      } satisfies ComboboxItemGroup<ComboboxItem>,
                   ]
                 : [];
 

@@ -291,7 +291,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             });
         }
 
-        const result: (ComboboxItem | ComboboxItemGroup)[] = [];
+        const result: (ComboboxItem | ComboboxItemGroup<ComboboxItem>)[] = [];
 
         if (groupItems.length > 0) {
             result.push({ group: 'Groups', items: groupItems });

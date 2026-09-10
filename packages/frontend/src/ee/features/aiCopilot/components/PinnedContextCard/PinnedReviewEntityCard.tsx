@@ -148,7 +148,7 @@ const ReviewFindingRow: FC<{
                             Evidence ({item.evidenceExcerpts.length})
                         </Group>
                     </Anchor>
-                    <Collapse in={evidenceOpen}>
+                    <Collapse expanded={evidenceOpen}>
                         <Stack
                             gap={4}
                             mt={4}

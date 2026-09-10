@@ -284,7 +284,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                             />
                         </PolymorphicGroupButton>
 
-                        <Collapse in={spacesExpanded}>
+                        <Collapse expanded={spacesExpanded}>
                             {isInitialLoading ? (
                                 <Center my="sm">
                                     <Loader size="sm" color="gray" />

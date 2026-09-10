@@ -397,7 +397,7 @@ const CreateMcpServerModal = ({
                                     More options
                                 </Button>
                                 <Collapse
-                                    in={
+                                    expanded={
                                         oauthOptionsOpened ||
                                         form.values.allowOAuthCredentialSharing
                                     }
@@ -1765,7 +1765,7 @@ export const AiAgentMcpServersInput = ({
                                                 </Text>
                                             </Group>
                                         </Box>
-                                        <Collapse in={isExpanded}>
+                                        <Collapse expanded={isExpanded}>
                                             <Divider />
                                             <Box px="md" py="sm">
                                                 <AiAgentMcpServerToolsPanel

@@ -267,7 +267,7 @@ const GuidedFilterSetup: FC<Props> = ({
                             <Fragment key={rule.id}>
                                 {ruleIndex > 0 && <AndSeparator />}
                                 <Box data-rule-id={rule.id}>
-                                    <Collapse in={isCollapsed}>
+                                    <Collapse expanded={isCollapsed}>
                                         <RuleSummary
                                             rule={rule}
                                             getField={getField}
@@ -281,7 +281,7 @@ const GuidedFilterSetup: FC<Props> = ({
                                             }
                                         />
                                     </Collapse>
-                                    <Collapse in={!isCollapsed}>
+                                    <Collapse expanded={!isCollapsed}>
                                         <Stack gap={6}>
                                             <Group gap={6} wrap="nowrap">
                                                 <RuleStatusIcon

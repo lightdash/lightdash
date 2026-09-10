@@ -283,7 +283,7 @@ export const DashboardTileComments: FC<
                                 {showResolved ? 'Hide' : 'Show'} resolved (
                                 {resolvedComments.length})
                             </Button>
-                            <Collapse in={showResolved}>
+                            <Collapse expanded={showResolved}>
                                 <Stack gap="xs" mt="xs">
                                     {resolvedComments.map((resolvedComment) => (
                                         <DashboardCommentAndReplies

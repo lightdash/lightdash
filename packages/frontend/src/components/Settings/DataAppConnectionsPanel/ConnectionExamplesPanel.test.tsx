@@ -129,7 +129,7 @@ describe('ConnectionExamplesPanel draft config', () => {
     it('only offers methods allowed by the draft config', () => {
         renderPanel(['GET']);
 
-        fireEvent.click(screen.getByRole('textbox', { name: 'Method' }));
+        fireEvent.click(screen.getByRole('combobox', { name: 'Method' }));
 
         expect(screen.getByRole('option', { name: 'GET' })).toBeInTheDocument();
         expect(
@@ -140,7 +140,7 @@ describe('ConnectionExamplesPanel draft config', () => {
     it('clamps the request method and sends the unsaved config', () => {
         renderPanel(['POST']);
 
-        expect(screen.getByRole('textbox', { name: 'Method' })).toHaveValue(
+        expect(screen.getByRole('combobox', { name: 'Method' })).toHaveValue(
             'POST',
         );
         fireEvent.click(
@@ -167,7 +167,7 @@ describe('ConnectionExamplesPanel draft config', () => {
             ),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('textbox', { name: 'Method' }),
+            screen.queryByRole('combobox', { name: 'Method' }),
         ).not.toBeInTheDocument();
         expect(screen.getByText('Saved samples')).toBeInTheDocument();
     });

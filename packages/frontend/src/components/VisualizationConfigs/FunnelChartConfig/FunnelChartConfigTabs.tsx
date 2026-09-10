@@ -282,7 +282,7 @@ export const ConfigTabs: FC = memo(() => {
                                 </Group>
                             </Config>
 
-                            <Collapse in={showLegend}>
+                            <Collapse expanded={showLegend}>
                                 <Group gap="xs">
                                     <Config.Label>Orientation</Config.Label>
                                     <SegmentedControl
