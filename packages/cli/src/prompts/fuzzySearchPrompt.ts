@@ -90,6 +90,17 @@ export const promptFuzzySearch = async <T>({
     choices: FuzzyChoice<T>[];
     pinnedChoices?: FuzzyChoice<T>[];
 }): Promise<T> => {
+    const allChoices = [...pinnedChoices, ...choices];
+
+    // Searching needs a terminal to type into: without one the autocomplete
+    // prompt gets the whole piped line at once and never resolves a choice.
+    if (!process.stdin.isTTY) {
+        const { answer } = await inquirer.prompt<{ answer: T }>([
+            { type: 'list', name: 'answer', message, choices: allChoices },
+        ]);
+        return answer;
+    }
+
     registerPrompt();
     const { answer } = await inquirer.prompt<{ answer: T }>([
         {
@@ -100,10 +111,11 @@ export const promptFuzzySearch = async <T>({
             // inquirer-autocomplete-prompt passes `undefined` on first render.
             source: (_answersSoFar: unknown, search: string | undefined) => {
                 const term = search ?? '';
-                return Promise.resolve([
-                    ...(term.trim() === '' ? pinnedChoices : []),
-                    ...fuzzyFilterChoices(choices, term),
-                ]);
+                return Promise.resolve(
+                    term.trim() === ''
+                        ? allChoices
+                        : fuzzyFilterChoices(choices, term),
+                );
             },
         },
     ]);
