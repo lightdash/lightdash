@@ -1,3 +1,10 @@
+# [2.186.0](https://github.com/lightdash/lightdash/compare/2.185.4...2.186.0) (2026-09-10)
+
+
+### Features
+
+* **cli:** type to search the project selection list ([#28981](https://github.com/lightdash/lightdash/issues/28981)) ([eda855e](https://github.com/lightdash/lightdash/commit/eda855e313cf528966c87da95f5410e76d20696c))
+
 ## [2.185.4](https://github.com/lightdash/lightdash/compare/2.185.3...2.185.4) (2026-09-10)
 
 
