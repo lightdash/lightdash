@@ -284,14 +284,14 @@ const LearnPage: FC = () => {
                 organizationUuid: organizationUuid ?? null,
                 trainingProjectUuid: trainingProject?.projectUuid ?? null,
                 hasTrainingProject: !!trainingProject,
-                // Counted against this instance's catalogue, so the numbers
+                // Counted against available walkthroughs, so the numbers
                 // are the ones the learner sees rather than every scope the
                 // browser has ever recorded progress for.
-                moduleCount: catalogue.length,
-                startedCount: catalogue.filter((module) =>
+                moduleCount: available.length,
+                startedCount: available.filter((module) =>
                     started.includes(moduleProgressKey(module)),
                 ).length,
-                completedCount: catalogue.filter((module) =>
+                completedCount: available.filter((module) =>
                     completed.includes(moduleProgressKey(module)),
                 ).length,
             },
@@ -303,7 +303,7 @@ const LearnPage: FC = () => {
         previewRedirect,
         organizationUuid,
         trainingProject,
-        catalogue,
+        available,
         started,
         completed,
         track,

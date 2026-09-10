@@ -2339,7 +2339,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="manage:DeletedContent"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
                 title: 'Recently deleted charts and dashboards',
-                body: 'When soft delete is enabled, charts and dashboards deleted within the retention window (30 days by default) can be restored or permanently deleted from the **Recently deleted** page in project settings.',
+                body: 'You need access to the project. Users with **Manage soft-deleted content** (**manage:DeletedContent**) can review and manage items deleted by other users. Without that permission, you can only see and manage items you deleted.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,

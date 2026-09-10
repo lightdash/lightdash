@@ -151,7 +151,8 @@ describe('LearnPage analytics', () => {
                     organizationUuid: 'org-1',
                     trainingProjectUuid: 'training-1',
                     hasTrainingProject: true,
-                    moduleCount: catalogue.length,
+                    moduleCount: catalogue.filter((module) => module.available)
+                        .length,
                     startedCount: 2,
                     completedCount: 1,
                 },
@@ -173,6 +174,30 @@ describe('LearnPage analytics', () => {
         expect(viewEvents()[0].properties).toMatchObject({
             completedCount: 1,
         });
+    });
+
+    it('matches the progress fraction and ignores unsupported-module progress', () => {
+        const supported = catalogue.find((module) => module.available)!;
+        const unsupported = catalogue.find((module) => !module.available)!;
+        localStorage.setItem(
+            'lightdash.learn.started',
+            JSON.stringify([supported.scope, unsupported.scope]),
+        );
+        localStorage.setItem(
+            'lightdash.learn.completed',
+            JSON.stringify([supported.scope, unsupported.scope]),
+        );
+        const { container } = renderPage();
+        const { moduleCount, startedCount, completedCount } =
+            viewEvents()[0].properties;
+        expect(moduleCount).toBe(42);
+        expect(startedCount).toBe(1);
+        expect(completedCount).toBe(1);
+        expect(
+            container
+                .querySelector('[data-learn-progress]')
+                ?.getAttribute('data-learn-progress'),
+        ).toBe(`${completedCount}/${moduleCount}`);
     });
 
     it('records the call to action before an admin has enabled Learn', () => {

@@ -59,6 +59,8 @@ Catalog, verified-chart, and virtual-view results wait for saving to finish.
 The export result waits for successful job completion and download initiation,
 including when an export is retried.
 The catalog also waits for local settings to match the server-refetched config.
+Verified-chart completion waits for unsaved changes or an in-flight version save
+on that chart; remaining in a clean editor does not block Got it.
 
 The local recorder flow is
 `~/.claude/scripts/verify-recorder/flows/learn-nine-in-app-paths.mjs`, using a
@@ -111,3 +113,13 @@ four actual walkthroughs in #28942.
 - [Catalog column documentation](https://github.com/lightdash/mintlify-docs/blob/main/explore/metrics-catalog.mdx#view-catalog-column-configuration)
 - [Virtual-view edit and delete documentation](https://github.com/lightdash/mintlify-docs/blob/main/semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view)
 - [Deleted-content documentation](https://github.com/lightdash/mintlify-docs/blob/main/explore/version-history.mdx#recently-deleted-charts-and-dashboards)
+
+## Review follow-up (2026-09-10)
+
+Library-view analytics use the same available-only denominator and progress keys
+as the progress bar. Coming Soon entries are excluded from all three counts.
+The restoration introduction now cites the permission paragraph, avoiding the
+docs page's older Project settings route; generated click steps use Browse →
+Recently deleted, and the final copy describes restoring to the original space.
+A recorded verified-chart run reopens the saved chart in clean edit mode, confirms
+Got it is enabled, then completes and removes its training copy.
