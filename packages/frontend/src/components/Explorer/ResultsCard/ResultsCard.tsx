@@ -245,10 +245,6 @@ const ResultsCard: FC = memo(() => {
                                         data-tour-title="Download a chart's results"
                                         data-tour-interactive="true"
                                         data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"]'
-                                        // With Google Drive configured the
-                                        // popover opens on a chooser first;
-                                        // the `?` hop is taken only there.
-                                        data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
                                         data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p2:1"
                                     >
                                         <MantineIcon icon={IconShare2} />

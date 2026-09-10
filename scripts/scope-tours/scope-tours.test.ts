@@ -268,6 +268,48 @@ export const Dialog = () => (
         assert.strictEqual(tours[0].steps[2].detour, undefined);
     }
 
+    // Explain an export dialog before the final download click, including
+    // instances that show an optional chooser before the dialog.
+    {
+        const files = [
+            write('Nav.tsx', nav('Click Browse')),
+            write(
+                'Pin.tsx',
+                marker('explore/homepage.mdx#pin-content:2').replace(
+                    'data-tour-resultdocs=',
+                    `data-tour-return='[data-tour-anchor="choose"]?'
+                     data-tour-resultthen='[data-tour-anchor="confirm"]'
+                     data-tour-resultdocs=`,
+                ),
+            ),
+            write(
+                'Dialog.tsx',
+                `<>
+                    <Button data-tour-anchor="choose" data-tour-hint="Click Download data" />
+                    <Button data-tour-anchor="confirm" data-tour-hint="Click Download" />
+                </>`,
+            ),
+        ];
+        const { steps } = buildTours(files).tours[0];
+        assert.strictEqual(
+            steps.map((step) => step.title).join(' > '),
+            'Pin content > Click Browse > Click Pin to homepage > See the result > Click Download',
+        );
+        assert.strictEqual(steps[3].advanceOnTargetClick, false);
+        assert.ok(steps[3].body.startsWith('Pinned items show'));
+        assert.deepStrictEqual(steps[3].detour, [
+            {
+                target: '[data-tour-anchor="choose"]',
+                title: 'Click Download data',
+            },
+        ]);
+        assert.strictEqual(steps[4].advanceOnTargetClick, true);
+        assert.deepStrictEqual(
+            checkTours(files).filter((finding) => finding.level === 'error'),
+            [],
+        );
+    }
+
     // An optional hop with nothing after it has nowhere to detour to.
     {
         const files = [

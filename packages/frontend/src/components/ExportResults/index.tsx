@@ -309,14 +309,14 @@ const ExportResults: FC<ExportResultsProps> = memo(
             <Stack
                 gap="md"
                 miw="20rem"
-                // Walkthrough result marker for manage:ExportCsv: the export
-                // dialog, still open once the file has been sent.
+                // Explain the export options before the final download click.
                 data-tour-scope="manage:ExportCsv"
                 data-tour-step="1"
                 data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
                 data-tour-label="A download keeps the table's rows"
                 data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:1"
-                data-tour-return="none"
+                data-tour-return='[data-tour-anchor="export-choose-download"]?'
+                data-tour-resultthen='[data-tour-anchor="export-download"]'
                 data-tour-resultdocs="explore/share-charts.mdx#choosing-how-many-rows-an-export-contains:p2:1"
             >
                 {isDialog && (
