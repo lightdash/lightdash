@@ -53,6 +53,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    type PeriodOverPeriodComparisonMode,
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -440,6 +441,7 @@ const createSavedChartVersion = async (
                     additionalMetric.periodOffset !== undefined
                         ? additionalMetric.periodOffset
                         : null,
+                comparison_mode: additionalMetric.comparisonMode ?? null,
             })),
         );
     });
@@ -982,6 +984,8 @@ export class SavedChartModel {
             ...(additionalMetric.generation_type && {
                 generationType:
                     additionalMetric.generation_type as 'periodOverPeriod',
+                comparisonMode: (additionalMetric.comparison_mode ??
+                    'full') as PeriodOverPeriodComparisonMode,
             }),
             ...(additionalMetric.base_metric_id && {
                 baseMetricId: additionalMetric.base_metric_id,
@@ -2125,6 +2129,7 @@ export class SavedChartModel {
                         'time_dimension_id',
                         'granularity',
                         'period_offset',
+                        'comparison_mode',
                     ])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
