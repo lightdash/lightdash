@@ -11,6 +11,7 @@ import {
     numberFilterSchema,
     stringFilterSchema,
 } from './filters';
+import { optionalNull } from './optionalNull';
 
 const extractFieldNameFromFieldId = (
     table: string,
@@ -44,7 +45,7 @@ const metricFilterRuleSchema = z.object({
     table: z.string().describe('Table name this filter field belongs to'),
 });
 
-const metricFiltersSchema = z.array(metricFilterRuleSchema).nullable();
+const metricFiltersSchema = optionalNull(z.array(metricFilterRuleSchema));
 
 // --------------------------------------------------------------------------
 // Aggregation custom metric — defines a NEW metric by applying an aggregation
@@ -227,11 +228,10 @@ export const filterAggregationCustomMetrics = (
             !isPeriodComparisonCustomMetric(cm),
     );
 
-export const customMetricsSchema = z
-    .array(customMetricBaseSchema)
-    .nullable()
-    .describe(
-        `Define new metric columns the explore doesn't already have. Two kinds:
+export const customMetricsSchema = optionalNull(
+    z.array(customMetricBaseSchema),
+).describe(
+    `Define new metric columns the explore doesn't already have. Two kinds:
 
 (1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
     (SUM, AVG, COUNT, COUNT_DISTINCT, MIN, MAX, PERCENTILE, MEDIAN).
@@ -265,4 +265,4 @@ Example B — "Revenue by month with year-over-year comparison"
   queryConfig.dimensions: ["orders_order_date_month"]
   queryConfig.metrics: ["orders_revenue"]
   customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]`,
-    );
+);

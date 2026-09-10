@@ -655,6 +655,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "additionalProperties": false,
       "properties": {
         "agentInstruction": {
+          "default": null,
           "description": "The agent's configured \`instruction\` field if present, otherwise null. Provides domain-specific guidance for explore/field selection.",
           "type": [
             "string",
@@ -668,7 +669,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       },
       "required": [
         "userQuery",
-        "agentInstruction",
       ],
       "type": "object",
     },
@@ -1042,6 +1042,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "type": "string",
                 },
                 "description": {
+                  "default": null,
                   "type": [
                     "string",
                     "null",
@@ -1083,7 +1084,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
               "required": [
                 "slug",
                 "name",
-                "description",
                 "spaceSlug",
                 "version",
                 "contentType",
@@ -1105,6 +1105,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "type": "string",
                 },
                 "description": {
+                  "default": null,
                   "type": [
                     "string",
                     "null",
@@ -1146,7 +1147,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
               "required": [
                 "slug",
                 "name",
-                "description",
                 "spaceSlug",
                 "version",
                 "contentType",
@@ -1278,7 +1278,10 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             "formatted",
             "limit",
           ],
-          "type": "object",
+          "type": [
+            "object",
+            "null",
+          ],
         },
         "__schema6": {
           "oneOf": [
@@ -1325,6 +1328,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       },
       "properties": {
         "aiAugmentationPrompt": {
+          "default": null,
           "description": "Instructions for the AI-written delivery message, regenerated from the delivered data on every send. null = plain delivery without AI augmentation.",
           "type": [
             "string",
@@ -1336,14 +1340,12 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "type": "string",
         },
         "csvOptions": {
-          "anyOf": [
+          "allOf": [
             {
               "$ref": "#/definitions/__schema1",
             },
-            {
-              "type": "null",
-            },
           ],
+          "default": null,
           "description": "Only used when format is "csv". null = defaults (formatted, table limit).",
         },
         "enabled": {
@@ -1359,6 +1361,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "type": "string",
         },
         "message": {
+          "default": null,
           "description": "Optional static message included with every delivery. Ignored when aiAugmentationPrompt is set (the AI writes the message instead).",
           "type": [
             "string",
@@ -1391,6 +1394,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "type": "array",
         },
         "timezone": {
+          "default": null,
           "description": "IANA timezone the cron runs in (e.g. "Europe/London"). null = project default.",
           "type": [
             "string",
@@ -1403,13 +1407,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
         "resourceUuidOrSlug",
         "name",
         "cron",
-        "timezone",
         "format",
-        "csvOptions",
-        "message",
         "targets",
         "enabled",
-        "aiAugmentationPrompt",
       ],
       "type": "object",
     },
@@ -1741,6 +1741,7 @@ Usage tips:
           "type": "array",
         },
         "spaceSlug": {
+          "default": null,
           "description": "Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned.",
           "type": [
             "string",
@@ -1757,7 +1758,6 @@ Usage tips:
       },
       "required": [
         "searchQueries",
-        "spaceSlug",
       ],
       "type": "object",
     },
@@ -2102,6 +2102,7 @@ Usage tips:
           "type": "array",
         },
         "page": {
+          "default": null,
           "description": "Use this to paginate through the results. Starts at 1.",
           "exclusiveMinimum": 0,
           "type": [
@@ -2117,7 +2118,6 @@ Usage tips:
       "required": [
         "table",
         "fieldSearchQueries",
-        "page",
       ],
       "type": "object",
     },
@@ -2297,6 +2297,7 @@ Recommended Dashboard Structure:
           "properties": {
             "chartConfig": {
               "additionalProperties": false,
+              "default": null,
               "properties": {
                 "defaultVizType": {
                   "description": "The default visualization type to render",
@@ -2312,17 +2313,16 @@ Recommended Dashboard Structure:
                   "type": "string",
                 },
                 "groupBy": {
-                  "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
-                  "items": {
-                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                    "type": "string",
-                  },
-                  "type": [
-                    "array",
-                    "null",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/__schema124",
+                    },
                   ],
+                  "default": null,
+                  "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
                 },
                 "lineType": {
+                  "default": null,
                   "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
                   "enum": [
                     "line",
@@ -2351,6 +2351,7 @@ Recommended Dashboard Structure:
                   ],
                 },
                 "stackBars": {
+                  "default": null,
                   "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
                   "type": [
                     "boolean",
@@ -2358,6 +2359,7 @@ Recommended Dashboard Structure:
                   ],
                 },
                 "xAxisDimension": {
+                  "default": null,
                   "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
                   "type": [
                     "string",
@@ -2369,6 +2371,7 @@ Recommended Dashboard Structure:
                   "type": "string",
                 },
                 "xAxisType": {
+                  "default": null,
                   "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
                   "enum": [
                     "category",
@@ -2385,25 +2388,17 @@ Recommended Dashboard Structure:
                   "type": "string",
                 },
                 "yAxisMetrics": {
-                  "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
-                  "items": {
-                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                    "type": "string",
-                  },
-                  "type": [
-                    "array",
-                    "null",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/__schema123",
+                    },
                   ],
+                  "default": null,
+                  "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
                 },
               },
               "required": [
                 "defaultVizType",
-                "xAxisDimension",
-                "yAxisMetrics",
-                "groupBy",
-                "xAxisType",
-                "stackBars",
-                "lineType",
                 "xAxisLabel",
                 "yAxisLabel",
               ],
@@ -2445,6 +2440,7 @@ Recommended Dashboard Structure:
                   "$ref": "#/definitions/__schema118",
                 },
                 "limit": {
+                  "default": null,
                   "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
                   "type": [
                     "number",
@@ -2467,14 +2463,12 @@ Recommended Dashboard Structure:
                   "$ref": "#/definitions/__schema6",
                 },
                 "tableCalculations": {
-                  "anyOf": [
+                  "allOf": [
                     {
                       "$ref": "#/definitions/__schema115",
                     },
-                    {
-                      "type": "null",
-                    },
                   ],
+                  "default": null,
                   "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -2493,10 +2487,6 @@ Use them whenever the question needs math the metric query alone can't express: 
                 "dimensions",
                 "metrics",
                 "sorts",
-                "limit",
-                "customMetrics",
-                "tableCalculations",
-                "filters",
               ],
               "type": "object",
             },
@@ -2509,7 +2499,6 @@ Use them whenever the question needs math the metric query alone can't express: 
             "title",
             "description",
             "queryConfig",
-            "chartConfig",
           ],
           "type": "object",
         },
@@ -2563,14 +2552,12 @@ Use them whenever the question needs math the metric query alone can't express: 
           "type": "string",
         },
         "__schema11": {
-          "anyOf": [
+          "allOf": [
             {
               "$ref": "#/definitions/__schema12",
             },
-            {
-              "type": "null",
-            },
           ],
+          "default": null,
           "description": "Define new metric columns the explore doesn't already have. Two kinds:
 
 (1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
@@ -2633,6 +2620,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "type": "string",
               },
               "format": {
+                "default": null,
                 "description": "Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".",
                 "enum": [
                   "number",
@@ -2661,6 +2649,7 @@ All branches of an IF must return the same type.",
                 "type": "string",
               },
               "resultType": {
+                "default": null,
                 "description": "Data type the formula evaluates to. null defaults to "number".",
                 "enum": [
                   "number",
@@ -2685,17 +2674,20 @@ All branches of an IF must return the same type.",
               "displayName",
               "type",
               "formula",
-              "format",
-              "resultType",
             ],
             "type": "object",
           },
-          "type": "array",
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "__schema118": {
           "additionalProperties": false,
+          "default": null,
           "properties": {
             "dimensions": {
+              "default": null,
               "items": {
                 "$ref": "#/definitions/__schema121",
               },
@@ -2705,6 +2697,7 @@ All branches of an IF must return the same type.",
               ],
             },
             "metrics": {
+              "default": null,
               "items": {
                 "$ref": "#/definitions/__schema121",
               },
@@ -2714,6 +2707,7 @@ All branches of an IF must return the same type.",
               ],
             },
             "tableCalculations": {
+              "default": null,
               "items": {
                 "$ref": "#/definitions/__schema42",
               },
@@ -2733,9 +2727,6 @@ All branches of an IF must return the same type.",
           },
           "required": [
             "type",
-            "dimensions",
-            "metrics",
-            "tableCalculations",
           ],
           "type": [
             "object",
@@ -2757,14 +2748,12 @@ All branches of an IF must return the same type.",
                     "type": "string",
                   },
                   "filters": {
-                    "anyOf": [
+                    "allOf": [
                       {
                         "$ref": "#/definitions/__schema13",
                       },
-                      {
-                        "type": "null",
-                      },
                     ],
+                    "default": null,
                     "description": "Optional filters for conditional metrics. Each filter needs a fieldId discovered via field search and the table name.",
                   },
                   "kind": {
@@ -2807,7 +2796,6 @@ All branches of an IF must return the same type.",
                   "baseDimensionName",
                   "table",
                   "type",
-                  "filters",
                 ],
                 "type": "object",
               },
@@ -2855,7 +2843,10 @@ All branches of an IF must return the same type.",
               },
             ],
           },
-          "type": "array",
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "__schema121": {
           "anyOf": [
@@ -2871,6 +2862,26 @@ All branches of an IF must return the same type.",
             {
               "$ref": "#/definitions/__schema66",
             },
+          ],
+        },
+        "__schema123": {
+          "items": {
+            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+            "type": "string",
+          },
+          "type": [
+            "array",
+            "null",
+          ],
+        },
+        "__schema124": {
+          "items": {
+            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+            "type": "string",
+          },
+          "type": [
+            "array",
+            "null",
           ],
         },
         "__schema13": {
@@ -2904,7 +2915,10 @@ All branches of an IF must return the same type.",
             ],
             "type": "object",
           },
-          "type": "array",
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "__schema130": {
           "additionalProperties": false,
@@ -2983,8 +2997,6 @@ All branches of an IF must return the same type.",
                 "dimensions",
                 "metrics",
                 "sorts",
-                "customMetrics",
-                "filters",
               ],
               "type": "object",
             },
@@ -4053,6 +4065,7 @@ Usage tips:
           "type": "string",
         },
         "page": {
+          "default": null,
           "description": "Use this to paginate through the results. Starts at 1.",
           "exclusiveMinimum": 0,
           "type": [
@@ -4063,7 +4076,6 @@ Usage tips:
       },
       "required": [
         "dashboardUuid",
-        "page",
       ],
       "type": "object",
     },
@@ -4241,6 +4253,7 @@ Usage tips:
       "additionalProperties": false,
       "properties": {
         "page": {
+          "default": null,
           "description": "Use this to paginate through the results. Starts at 1.",
           "exclusiveMinimum": 0,
           "type": [
@@ -4249,6 +4262,7 @@ Usage tips:
           ],
         },
         "spaceSlug": {
+          "default": null,
           "description": "Optional space slug/path to list. Use null to list root-level content.",
           "type": [
             "string",
@@ -4256,10 +4270,6 @@ Usage tips:
           ],
         },
       },
-      "required": [
-        "spaceSlug",
-        "page",
-      ],
       "type": "object",
     },
     "name": "listContent",
@@ -4907,6 +4917,7 @@ Parameters:
       "additionalProperties": false,
       "properties": {
         "prUrl": {
+          "default": null,
           "description": "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own connected repository. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened (get the URL from listWorkstreams or a previous editDbtProject result). Otherwise pass null.",
           "type": [
             "string",
@@ -4918,6 +4929,7 @@ Parameters:
           "type": "string",
         },
         "startNewPullRequest": {
+          "default": null,
           "description": "Set true to open a brand-new pull request even when this conversation already has one open against this project's connected repository — use it when the user asks for a SEPARATE, unrelated change rather than a follow-up to existing work. Leave null (the default) to continue the most recent pull request. Ignored when prUrl is set.",
           "type": [
             "boolean",
@@ -4927,8 +4939,6 @@ Parameters:
       },
       "required": [
         "prompt",
-        "prUrl",
-        "startNewPullRequest",
       ],
       "type": "object",
     },
@@ -5243,6 +5253,7 @@ Parameters:
           "type": "string",
         },
         "id": {
+          "default": null,
           "description": "The id of the existing entry to replace when op="update"; otherwise null.",
           "type": [
             "string",
@@ -5282,7 +5293,6 @@ Parameters:
       },
       "required": [
         "op",
-        "id",
         "kind",
         "content",
         "terms",
@@ -5384,6 +5394,7 @@ Parameters:
       "additionalProperties": false,
       "properties": {
         "prUrl": {
+          "default": null,
           "description": "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to the same repoTarget. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened on the repo. Otherwise pass null.",
           "type": [
             "string",
@@ -5391,6 +5402,7 @@ Parameters:
           ],
         },
         "prompt": {
+          "default": null,
           "description": "A focused, self-contained natural-language instruction describing exactly which files in the repository to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (file path hints, the literal change to make). Do not include preamble or pleasantries.",
           "type": [
             "string",
@@ -5402,6 +5414,7 @@ Parameters:
           "type": "string",
         },
         "startNewPullRequest": {
+          "default": null,
           "description": "Set true to open a brand-new pull request even when this conversation already has one open against the same repository — use it when the user asks for a separate/independent change rather than a follow-up to existing work. Leave null (the default) to continue the most recent pull request for the repo. Ignored when prUrl is set.",
           "type": [
             "boolean",
@@ -5411,9 +5424,6 @@ Parameters:
       },
       "required": [
         "repoTarget",
-        "prompt",
-        "prUrl",
-        "startNewPullRequest",
       ],
       "type": "object",
     },
@@ -5667,6 +5677,7 @@ Parameters:
           "type": "string",
         },
         "target": {
+          "default": null,
           "description": "Optional starting directory, as a repository "owner/repo" (e.g. "lightdash/lightdash") — the command then starts in that repository's mount (\`/owner/repo\`). Use \`discoverRepos\` to find accessible repos. Pass null to start in the dbt project mount (\`/dbt\`). This only sets the working directory; absolute paths in the command can reach any mount regardless of target.",
           "type": [
             "string",
@@ -5676,7 +5687,6 @@ Parameters:
       },
       "required": [
         "command",
-        "target",
       ],
       "type": "object",
     },
@@ -5759,6 +5769,7 @@ Parameters:
       "additionalProperties": false,
       "properties": {
         "repoTarget": {
+          "default": null,
           "description": "Restrict the list to a single repository, as "owner/repo" (e.g. "acme/web-app"). Pass null to list the pull requests this conversation has opened across all repositories.",
           "type": [
             "string",
@@ -5766,9 +5777,6 @@ Parameters:
           ],
         },
       },
-      "required": [
-        "repoTarget",
-      ],
       "type": "object",
     },
     "name": "listWorkstreams",
@@ -6067,6 +6075,7 @@ Input modes:
                   "type": "string",
                 },
                 "limit": {
+                  "default": null,
                   "description": "Optional row limit override.",
                   "type": [
                     "number",
@@ -6081,7 +6090,6 @@ Input modes:
               "required": [
                 "type",
                 "chartSlug",
-                "limit",
               ],
               "type": "object",
             },
@@ -6097,6 +6105,7 @@ Input modes:
                   "type": "string",
                 },
                 "limit": {
+                  "default": null,
                   "description": "Optional row limit override.",
                   "type": [
                     "number",
@@ -6112,7 +6121,6 @@ Input modes:
                 "type",
                 "chartSlug",
                 "dashboardSlug",
-                "limit",
               ],
               "type": "object",
             },
@@ -6202,14 +6210,12 @@ Notes:
           "type": "array",
         },
         "__schema10": {
-          "anyOf": [
+          "allOf": [
             {
               "$ref": "#/definitions/__schema11",
             },
-            {
-              "type": "null",
-            },
           ],
+          "default": null,
           "description": "Define new metric columns the explore doesn't already have. Two kinds:
 
 (1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
@@ -6281,14 +6287,12 @@ Example B — "Revenue by month with year-over-year comparison"
                     "type": "string",
                   },
                   "filters": {
-                    "anyOf": [
+                    "allOf": [
                       {
                         "$ref": "#/definitions/__schema12",
                       },
-                      {
-                        "type": "null",
-                      },
                     ],
+                    "default": null,
                     "description": "Optional filters for conditional metrics. Each filter needs a fieldId discovered via field search and the table name.",
                   },
                   "kind": {
@@ -6331,7 +6335,6 @@ Example B — "Revenue by month with year-over-year comparison"
                   "baseDimensionName",
                   "table",
                   "type",
-                  "filters",
                 ],
                 "type": "object",
               },
@@ -6379,7 +6382,10 @@ Example B — "Revenue by month with year-over-year comparison"
               },
             ],
           },
-          "type": "array",
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "__schema111": {
           "description": "Exactly one explicit ISO date/datetime threshold.",
@@ -6408,6 +6414,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "type": "string",
               },
               "format": {
+                "default": null,
                 "description": "Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".",
                 "enum": [
                   "number",
@@ -6436,6 +6443,7 @@ All branches of an IF must return the same type.",
                 "type": "string",
               },
               "resultType": {
+                "default": null,
                 "description": "Data type the formula evaluates to. null defaults to "number".",
                 "enum": [
                   "number",
@@ -6460,17 +6468,20 @@ All branches of an IF must return the same type.",
               "displayName",
               "type",
               "formula",
-              "format",
-              "resultType",
             ],
             "type": "object",
           },
-          "type": "array",
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "__schema117": {
           "additionalProperties": false,
+          "default": null,
           "properties": {
             "dimensions": {
+              "default": null,
               "items": {
                 "$ref": "#/definitions/__schema120",
               },
@@ -6480,6 +6491,7 @@ All branches of an IF must return the same type.",
               ],
             },
             "metrics": {
+              "default": null,
               "items": {
                 "$ref": "#/definitions/__schema120",
               },
@@ -6489,6 +6501,7 @@ All branches of an IF must return the same type.",
               ],
             },
             "tableCalculations": {
+              "default": null,
               "items": {
                 "$ref": "#/definitions/__schema41",
               },
@@ -6508,9 +6521,6 @@ All branches of an IF must return the same type.",
           },
           "required": [
             "type",
-            "dimensions",
-            "metrics",
-            "tableCalculations",
           ],
           "type": [
             "object",
@@ -6548,7 +6558,10 @@ All branches of an IF must return the same type.",
             ],
             "type": "object",
           },
-          "type": "array",
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "__schema120": {
           "anyOf": [
@@ -6564,6 +6577,26 @@ All branches of an IF must return the same type.",
             {
               "$ref": "#/definitions/__schema65",
             },
+          ],
+        },
+        "__schema122": {
+          "items": {
+            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+            "type": "string",
+          },
+          "type": [
+            "array",
+            "null",
+          ],
+        },
+        "__schema123": {
+          "items": {
+            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+            "type": "string",
+          },
+          "type": [
+            "array",
+            "null",
           ],
         },
         "__schema13": {
@@ -6757,8 +6790,6 @@ All branches of an IF must return the same type.",
                 "dimensions",
                 "metrics",
                 "sorts",
-                "customMetrics",
-                "filters",
               ],
               "type": "object",
             },
@@ -7588,17 +7619,16 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "groupBy": {
-                  "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
-                  "items": {
-                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                    "type": "string",
-                  },
-                  "type": [
-                    "array",
-                    "null",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/__schema123",
+                    },
                   ],
+                  "default": null,
+                  "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
                 },
                 "lineType": {
+                  "default": null,
                   "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
                   "enum": [
                     "line",
@@ -7627,6 +7657,7 @@ All branches of an IF must return the same type.",
                   ],
                 },
                 "stackBars": {
+                  "default": null,
                   "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
                   "type": [
                     "boolean",
@@ -7634,6 +7665,7 @@ All branches of an IF must return the same type.",
                   ],
                 },
                 "xAxisDimension": {
+                  "default": null,
                   "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
                   "type": [
                     "string",
@@ -7645,6 +7677,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "xAxisType": {
+                  "default": null,
                   "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
                   "enum": [
                     "category",
@@ -7661,25 +7694,17 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "yAxisMetrics": {
-                  "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
-                  "items": {
-                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                    "type": "string",
-                  },
-                  "type": [
-                    "array",
-                    "null",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/__schema122",
+                    },
                   ],
+                  "default": null,
+                  "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
                 },
               },
               "required": [
                 "defaultVizType",
-                "xAxisDimension",
-                "yAxisMetrics",
-                "groupBy",
-                "xAxisType",
-                "stackBars",
-                "lineType",
                 "xAxisLabel",
                 "yAxisLabel",
               ],
@@ -7720,6 +7745,7 @@ All branches of an IF must return the same type.",
               "type": "null",
             },
           ],
+          "default": null,
         },
         "description": {
           "description": "A descriptive summary or explanation for the chart.",
@@ -7754,6 +7780,7 @@ All branches of an IF must return the same type.",
               "$ref": "#/definitions/__schema117",
             },
             "limit": {
+              "default": null,
               "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
               "type": [
                 "number",
@@ -7776,14 +7803,12 @@ All branches of an IF must return the same type.",
               "$ref": "#/definitions/__schema5",
             },
             "tableCalculations": {
-              "anyOf": [
+              "allOf": [
                 {
                   "$ref": "#/definitions/__schema114",
                 },
-                {
-                  "type": "null",
-                },
               ],
+              "default": null,
               "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -7802,10 +7827,6 @@ Use them whenever the question needs math the metric query alone can't express: 
             "dimensions",
             "metrics",
             "sorts",
-            "limit",
-            "customMetrics",
-            "tableCalculations",
-            "filters",
           ],
           "type": "object",
         },
@@ -7818,7 +7839,6 @@ Use them whenever the question needs math the metric query alone can't express: 
         "title",
         "description",
         "queryConfig",
-        "chartConfig",
       ],
       "type": "object",
     },
@@ -8056,6 +8076,7 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
               "type": "null",
             },
           ],
+          "default": null,
           "description": "A one-line description of what the pipeline computes.",
         },
         "queries": {
@@ -8092,6 +8113,7 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                         "type": "null",
                       },
                     ],
+                    "default": null,
                   },
                   "limit": {
                     "default": 500,
@@ -8139,6 +8161,7 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                         "type": "null",
                       },
                     ],
+                    "default": null,
                     "description": "Sorts to apply, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
                   },
                   "sourceType": {
@@ -8152,8 +8175,6 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                   "exploreName",
                   "dimensions",
                   "metrics",
-                  "filters",
-                  "sorts",
                 ],
                 "type": "object",
               },
@@ -8302,6 +8323,7 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
               "type": "null",
             },
           ],
+          "default": null,
           "description": "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink (the one node no other node references); required when the pipeline has multiple sinks.",
         },
         "title": {
@@ -8313,14 +8335,12 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
               "type": "null",
             },
           ],
+          "default": null,
           "description": "A short title for the results artifact.",
         },
       },
       "required": [
-        "title",
-        "description",
         "queries",
-        "terminalNodeId",
       ],
       "type": "object",
     },
@@ -8376,12 +8396,13 @@ Usage Tips:
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "definitions": {
-        "__schema0": {
+        "__schema1": {
           "additionalProperties": false,
           "properties": {
             "dimensions": {
+              "default": null,
               "items": {
-                "$ref": "#/definitions/__schema3",
+                "$ref": "#/definitions/__schema4",
               },
               "type": [
                 "array",
@@ -8389,8 +8410,9 @@ Usage Tips:
               ],
             },
             "metrics": {
+              "default": null,
               "items": {
-                "$ref": "#/definitions/__schema3",
+                "$ref": "#/definitions/__schema4",
               },
               "type": [
                 "array",
@@ -8398,8 +8420,9 @@ Usage Tips:
               ],
             },
             "tableCalculations": {
+              "default": null,
               "items": {
-                "$ref": "#/definitions/__schema30",
+                "$ref": "#/definitions/__schema31",
               },
               "type": [
                 "array",
@@ -8417,22 +8440,31 @@ Usage Tips:
           },
           "required": [
             "type",
-            "dimensions",
-            "metrics",
-            "tableCalculations",
           ],
-          "type": "object",
+          "type": [
+            "object",
+            "null",
+          ],
         },
-        "__schema101": {
+        "__schema100": {
+          "description": "Exactly one explicit ISO date/datetime threshold.",
+          "items": {
+            "$ref": "#/definitions/__schema65",
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema102": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
-            "$ref": "#/definitions/__schema64",
+            "$ref": "#/definitions/__schema65",
           },
           "maxItems": 2,
           "minItems": 2,
           "type": "array",
         },
-        "__schema21": {
+        "__schema22": {
           "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
           "enum": [
             "equals",
@@ -8444,7 +8476,201 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema3": {
+        "__schema31": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "number",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "$ref": "#/definitions/__schema33",
+                },
+                "operator": {
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "number",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "$ref": "#/definitions/__schema33",
+                },
+                "operator": {
+                  "description": "Use equals/notEquals for exact numeric matches.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
+                },
+                "values": {
+                  "description": "One or more exact numeric values to match.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "number",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "$ref": "#/definitions/__schema33",
+                },
+                "operator": {
+                  "$ref": "#/definitions/__schema43",
+                },
+                "values": {
+                  "description": "Exactly one numeric threshold value.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "number",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "$ref": "#/definitions/__schema33",
+                },
+                "operator": {
+                  "description": "Use for ranges between two numeric bounds.",
+                  "enum": [
+                    "inBetween",
+                    "notInBetween",
+                  ],
+                  "type": "string",
+                },
+                "values": {
+                  "description": "Exactly two numeric bounds: [lower, upper].",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema33": {
+          "enum": [
+            "number",
+            "percentile",
+            "median",
+            "average",
+            "count",
+            "count_distinct",
+            "sum",
+            "sum_distinct",
+            "average_distinct",
+            "min",
+            "max",
+          ],
+          "type": "string",
+        },
+        "__schema4": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -8602,7 +8828,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema21",
+                  "$ref": "#/definitions/__schema22",
                 },
                 "values": {
                   "description": "String values to match. Do not put natural-language date ranges here.",
@@ -8622,7 +8848,7 @@ Usage Tips:
               "type": "object",
             },
             {
-              "$ref": "#/definitions/__schema30",
+              "$ref": "#/definitions/__schema31",
             },
             {
               "additionalProperties": false,
@@ -8699,7 +8925,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema63",
+                  "$ref": "#/definitions/__schema64",
                 },
               },
               "required": [
@@ -8741,13 +8967,13 @@ Usage Tips:
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema67",
+                  "$ref": "#/definitions/__schema68",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema73",
+                  "$ref": "#/definitions/__schema74",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema71",
+                  "$ref": "#/definitions/__schema72",
                 },
               },
               "required": [
@@ -8790,10 +9016,10 @@ Usage Tips:
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema81",
+                  "$ref": "#/definitions/__schema82",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema86",
+                  "$ref": "#/definitions/__schema87",
                 },
                 "values": {
                   "description": "Always [1] for current-period filters.",
@@ -8842,10 +9068,10 @@ Usage Tips:
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema94",
+                  "$ref": "#/definitions/__schema95",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema99",
+                  "$ref": "#/definitions/__schema100",
                 },
               },
               "required": [
@@ -8888,7 +9114,7 @@ Usage Tips:
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema101",
+                  "$ref": "#/definitions/__schema102",
                 },
               },
               "required": [
@@ -8902,201 +9128,7 @@ Usage Tips:
             },
           ],
         },
-        "__schema30": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
-  fieldId: "orders_total_revenue"; // use the actual field id
-  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "isNull" | "notNull"; // | means or
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "number",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "$ref": "#/definitions/__schema32",
-                },
-                "operator": {
-                  "description": "Use isNull for missing values, notNull for present values.",
-                  "enum": [
-                    "isNull",
-                    "notNull",
-                  ],
-                  "type": "string",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
-  fieldId: "orders_item_count"; // use the actual field id
-  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "equals" | "notEquals"; // | means or
-  values: number[];
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "number",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "$ref": "#/definitions/__schema32",
-                },
-                "operator": {
-                  "description": "Use equals/notEquals for exact numeric matches.",
-                  "enum": [
-                    "equals",
-                    "notEquals",
-                  ],
-                  "type": "string",
-                },
-                "values": {
-                  "description": "One or more exact numeric values to match.",
-                  "items": {
-                    "type": "number",
-                  },
-                  "type": "array",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for numeric fields with a single comparison threshold. Type shape: {
-  fieldId: "orders_total_revenue"; // use the actual field id
-  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
-  values: [number]; // exactly one array value
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "number",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "$ref": "#/definitions/__schema32",
-                },
-                "operator": {
-                  "$ref": "#/definitions/__schema42",
-                },
-                "values": {
-                  "description": "Exactly one numeric threshold value.",
-                  "items": {
-                    "type": "number",
-                  },
-                  "maxItems": 1,
-                  "minItems": 1,
-                  "type": "array",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
-  fieldId: "orders_total_revenue"; // use the actual field id
-  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "inBetween" | "notInBetween"; // | means or
-  values: [number, number]; // exactly two array values; lower and upper bounds
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "number",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "$ref": "#/definitions/__schema32",
-                },
-                "operator": {
-                  "description": "Use for ranges between two numeric bounds.",
-                  "enum": [
-                    "inBetween",
-                    "notInBetween",
-                  ],
-                  "type": "string",
-                },
-                "values": {
-                  "description": "Exactly two numeric bounds: [lower, upper].",
-                  "items": {
-                    "type": "number",
-                  },
-                  "maxItems": 2,
-                  "minItems": 2,
-                  "type": "array",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-          ],
-        },
-        "__schema32": {
-          "enum": [
-            "number",
-            "percentile",
-            "median",
-            "average",
-            "count",
-            "count_distinct",
-            "sum",
-            "sum_distinct",
-            "average_distinct",
-            "min",
-            "max",
-          ],
-          "type": "string",
-        },
-        "__schema42": {
+        "__schema43": {
           "description": "Use for threshold comparisons such as greater than 100.",
           "enum": [
             "lessThan",
@@ -9106,35 +9138,35 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema63": {
+        "__schema64": {
           "description": "One or more explicit ISO dates/datetimes.",
           "items": {
-            "$ref": "#/definitions/__schema64",
+            "$ref": "#/definitions/__schema65",
           },
           "type": "array",
         },
-        "__schema64": {
+        "__schema65": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema65",
+              "$ref": "#/definitions/__schema66",
             },
             {
-              "$ref": "#/definitions/__schema66",
+              "$ref": "#/definitions/__schema67",
             },
           ],
           "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
         },
-        "__schema65": {
+        "__schema66": {
           "format": "date",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
           "type": "string",
         },
-        "__schema66": {
+        "__schema67": {
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
           "type": "string",
         },
-        "__schema67": {
+        "__schema68": {
           "description": "Use inThePast for last/past N periods, inTheNext for next N periods, notInThePast to exclude recent periods.",
           "enum": [
             "inThePast",
@@ -9143,7 +9175,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema71": {
+        "__schema72": {
           "description": "Exactly one positive number of periods, e.g. [2].",
           "items": {
             "exclusiveMinimum": 0,
@@ -9153,7 +9185,7 @@ Usage Tips:
           "minItems": 1,
           "type": "array",
         },
-        "__schema73": {
+        "__schema74": {
           "additionalProperties": false,
           "description": "Relative period settings.",
           "properties": {
@@ -9162,7 +9194,7 @@ Usage Tips:
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema75",
+              "$ref": "#/definitions/__schema76",
             },
           },
           "required": [
@@ -9171,7 +9203,7 @@ Usage Tips:
           ],
           "type": "object",
         },
-        "__schema75": {
+        "__schema76": {
           "description": "Period unit for the relative date filter.",
           "enum": [
             "days",
@@ -9182,7 +9214,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema81": {
+        "__schema82": {
           "description": "Use for this/current period or to exclude this/current period.",
           "enum": [
             "inTheCurrent",
@@ -9190,7 +9222,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema86": {
+        "__schema87": {
           "additionalProperties": false,
           "description": "Current-period settings.",
           "properties": {
@@ -9200,7 +9232,7 @@ Usage Tips:
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema88",
+              "$ref": "#/definitions/__schema89",
             },
           },
           "required": [
@@ -9209,7 +9241,7 @@ Usage Tips:
           ],
           "type": "object",
         },
-        "__schema88": {
+        "__schema89": {
           "description": "Current period unit, e.g. weeks for this week.",
           "enum": [
             "days",
@@ -9220,7 +9252,7 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema94": {
+        "__schema95": {
           "description": "Use for before/after comparisons against one explicit date or datetime.",
           "enum": [
             "lessThan",
@@ -9230,15 +9262,6 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema99": {
-          "description": "Exactly one explicit ISO date/datetime threshold.",
-          "items": {
-            "$ref": "#/definitions/__schema64",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
       },
       "properties": {
         "fieldId": {
@@ -9246,17 +9269,16 @@ Usage Tips:
           "type": "string",
         },
         "filters": {
-          "anyOf": [
+          "allOf": [
             {
-              "$ref": "#/definitions/__schema0",
-            },
-            {
-              "type": "null",
+              "$ref": "#/definitions/__schema1",
             },
           ],
+          "default": null,
           "description": "Optional filters to scope the value search. If supplied, always include type, dimensions, metrics, and tableCalculations; use null or [] for every unused category. Never construct a partial filter group. Filtered fields must exist in the selected explore or be referenced from custom metrics.",
         },
         "query": {
+          "default": null,
           "description": "Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.",
           "type": [
             "string",
@@ -9271,8 +9293,6 @@ Usage Tips:
       "required": [
         "table",
         "fieldId",
-        "query",
-        "filters",
       ],
       "type": "object",
     },
@@ -9345,6 +9365,7 @@ Usage Tips:
         ],
       },
       "query": {
+        "default": null,
         "description": "Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.",
         "type": [
           "string",
@@ -9359,7 +9380,6 @@ Usage Tips:
     "required": [
       "table",
       "fieldId",
-      "query",
     ],
     "type": "object",
   },
@@ -9610,6 +9630,7 @@ Example B — "Revenue by month with year-over-year comparison"
               "type": "string",
             },
             "format": {
+              "default": null,
               "description": "Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".",
               "enum": [
                 "number",
@@ -9638,6 +9659,7 @@ All branches of an IF must return the same type.",
               "type": "string",
             },
             "resultType": {
+              "default": null,
               "description": "Data type the formula evaluates to. null defaults to "number".",
               "enum": [
                 "number",
@@ -9662,12 +9684,13 @@ All branches of an IF must return the same type.",
             "displayName",
             "type",
             "formula",
-            "format",
-            "resultType",
           ],
           "type": "object",
         },
-        "type": "array",
+        "type": [
+          "array",
+          "null",
+        ],
       },
       "__schema16": {
         "additionalProperties": false,
@@ -9708,6 +9731,26 @@ All branches of an IF must return the same type.",
         ],
         "type": [
           "object",
+          "null",
+        ],
+      },
+      "__schema21": {
+        "items": {
+          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+          "type": "string",
+        },
+        "type": [
+          "array",
+          "null",
+        ],
+      },
+      "__schema22": {
+        "items": {
+          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+          "type": "string",
+        },
+        "type": [
+          "array",
           "null",
         ],
       },
@@ -9951,17 +9994,16 @@ All branches of an IF must return the same type.",
                 "type": "string",
               },
               "groupBy": {
-                "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
-                "items": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "type": [
-                  "array",
-                  "null",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/__schema22",
+                  },
                 ],
+                "default": null,
+                "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
               },
               "lineType": {
+                "default": null,
                 "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
                 "enum": [
                   "line",
@@ -9990,6 +10032,7 @@ All branches of an IF must return the same type.",
                 ],
               },
               "stackBars": {
+                "default": null,
                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
                 "type": [
                   "boolean",
@@ -9997,6 +10040,7 @@ All branches of an IF must return the same type.",
                 ],
               },
               "xAxisDimension": {
+                "default": null,
                 "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
                 "type": [
                   "string",
@@ -10008,6 +10052,7 @@ All branches of an IF must return the same type.",
                 "type": "string",
               },
               "xAxisType": {
+                "default": null,
                 "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
                 "enum": [
                   "category",
@@ -10024,25 +10069,17 @@ All branches of an IF must return the same type.",
                 "type": "string",
               },
               "yAxisMetrics": {
-                "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
-                "items": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "type": [
-                  "array",
-                  "null",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/__schema21",
+                  },
                 ],
+                "default": null,
+                "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
               },
             },
             "required": [
               "defaultVizType",
-              "xAxisDimension",
-              "yAxisMetrics",
-              "groupBy",
-              "xAxisType",
-              "stackBars",
-              "lineType",
               "xAxisLabel",
               "yAxisLabel",
             ],
@@ -10083,6 +10120,7 @@ All branches of an IF must return the same type.",
             "type": "null",
           },
         ],
+        "default": null,
       },
       "description": {
         "description": "A descriptive summary or explanation for the chart.",
@@ -10117,6 +10155,7 @@ All branches of an IF must return the same type.",
             "$ref": "#/definitions/__schema16",
           },
           "limit": {
+            "default": null,
             "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
             "type": [
               "number",
@@ -10139,14 +10178,12 @@ All branches of an IF must return the same type.",
             "$ref": "#/definitions/__schema5",
           },
           "tableCalculations": {
-            "anyOf": [
+            "allOf": [
               {
                 "$ref": "#/definitions/__schema13",
               },
-              {
-                "type": "null",
-              },
             ],
+            "default": null,
             "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -10165,9 +10202,7 @@ Use them whenever the question needs math the metric query alone can't express: 
           "dimensions",
           "metrics",
           "sorts",
-          "limit",
           "customMetrics",
-          "tableCalculations",
           "filters",
         ],
         "type": "object",
@@ -10181,7 +10216,6 @@ Use them whenever the question needs math the metric query alone can't express: 
       "title",
       "description",
       "queryConfig",
-      "chartConfig",
     ],
     "type": "object",
   },

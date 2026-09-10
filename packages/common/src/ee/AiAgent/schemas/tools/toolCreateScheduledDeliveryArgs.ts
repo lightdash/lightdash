@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
+import { optionalNull } from '../optionalNull';
 import { toolNameFor } from './discoveryToolNames';
 
 export const TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION = ({
@@ -44,19 +45,16 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
         .describe(
             '5-part cron expression, e.g. "0 9 * * 1". Minimum frequency is hourly — sub-hourly minute patterns (e.g. "*/15") are rejected.',
         ),
-    timezone: z
-        .string()
-        .nullable()
-        .describe(
-            'IANA timezone the cron runs in (e.g. "Europe/London"). null = project default.',
-        ),
+    timezone: optionalNull(z.string()).describe(
+        'IANA timezone the cron runs in (e.g. "Europe/London"). null = project default.',
+    ),
     format: z
         .enum(['csv', 'image'])
         .describe(
             '"image" sends a rendered image of the chart/dashboard; "csv" sends the results as CSV.',
         ),
-    csvOptions: z
-        .object({
+    csvOptions: optionalNull(
+        z.object({
             formatted: z
                 .boolean()
                 .describe('Apply Lightdash value formatting.'),
@@ -69,17 +67,13 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
                 .describe(
                     '"table" = the chart\'s own limit, "all" = all results, or an explicit row count.',
                 ),
-        })
-        .nullable()
-        .describe(
-            'Only used when format is "csv". null = defaults (formatted, table limit).',
-        ),
-    message: z
-        .string()
-        .nullable()
-        .describe(
-            'Optional static message included with every delivery. Ignored when aiAugmentationPrompt is set (the AI writes the message instead).',
-        ),
+        }),
+    ).describe(
+        'Only used when format is "csv". null = defaults (formatted, table limit).',
+    ),
+    message: optionalNull(z.string()).describe(
+        'Optional static message included with every delivery. Ignored when aiAugmentationPrompt is set (the AI writes the message instead).',
+    ),
     targets: z
         .array(
             z.discriminatedUnion('type', [
@@ -94,12 +88,9 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
         .describe(
             'Whether the delivery starts firing immediately. Use true only when the user explicitly confirmed it should go live; when in doubt, create it paused (false) — the user can enable it from the UI.',
         ),
-    aiAugmentationPrompt: z
-        .string()
-        .nullable()
-        .describe(
-            'Instructions for the AI-written delivery message, regenerated from the delivered data on every send. null = plain delivery without AI augmentation.',
-        ),
+    aiAugmentationPrompt: optionalNull(z.string()).describe(
+        'Instructions for the AI-written delivery message, regenerated from the delivered data on every send. null = plain delivery without AI augmentation.',
+    ),
 });
 
 export type ToolCreateScheduledDeliveryArgs = z.infer<

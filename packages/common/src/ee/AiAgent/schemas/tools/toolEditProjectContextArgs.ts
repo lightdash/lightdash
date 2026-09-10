@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { aiProjectContextTypedObjectRefSchema } from '../../projectContext';
+import { optionalNull } from '../optionalNull';
 
 export const TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION = [
     "Open or update a pull request that changes this project's Lightdash project context — the lightdash.project_context.yml living document of business definitions and routing/context facts the AI agents read before answering.",
@@ -16,12 +17,9 @@ export const toolEditProjectContextArgsSchema = z.object({
         .describe(
             'Use "update" to replace an existing project-context entry (set id), otherwise "create".',
         ),
-    id: z
-        .string()
-        .nullable()
-        .describe(
-            'The id of the existing entry to replace when op="update"; otherwise null.',
-        ),
+    id: optionalNull(z.string()).describe(
+        'The id of the existing entry to replace when op="update"; otherwise null.',
+    ),
     kind: z
         .enum(['definition', 'context'])
         .describe(
