@@ -69,6 +69,7 @@ import {
     formatCellContent,
     getFormattedValueCell,
 } from '../../../hooks/useColumns';
+import { canHaveWarehouseTotal } from '../../../utils/canHaveWarehouseTotal';
 import {
     getColorFromRange,
     transformColorsForDarkMode,
@@ -604,7 +605,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 if (
                                     subtotalValue === undefined &&
                                     subtotalError &&
-                                    (isRowTotal || isNumericItem(item))
+                                    (isRowTotal || canHaveWarehouseTotal(item))
                                 ) {
                                     return (
                                         <TotalCalculationErrorCell
@@ -618,7 +619,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     (isRowTotal
                                         ? isRowSubtotalsLoading
                                         : isSubtotalsLoading) &&
-                                    isNumericItem(item)
+                                    canHaveWarehouseTotal(item)
                                 ) {
                                     return (
                                         <Skeleton
