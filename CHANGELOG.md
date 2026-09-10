@@ -1,3 +1,10 @@
+## [2.187.1](https://github.com/lightdash/lightdash/compare/2.187.0...2.187.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **tables:** refuse to run a totals query that has nothing to select ([#28991](https://github.com/lightdash/lightdash/issues/28991)) ([46aaf17](https://github.com/lightdash/lightdash/commit/46aaf17bc963b2e5813a18388914a6ad829ae31b))
+
 # [2.187.0](https://github.com/lightdash/lightdash/compare/2.186.3...2.187.0) (2026-09-10)
 
 
