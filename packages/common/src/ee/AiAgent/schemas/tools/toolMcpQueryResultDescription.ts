@@ -37,7 +37,7 @@ export const buildMcpQueryRunResponseDescription = ({
     completedResultShape,
 }: BuildMcpQueryRunResponseDescriptionArgs) => `Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return ${contentDescription}; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
+- If the query finishes within the server-side wait, structuredContent: {
 ${completedResultShape}
   }
 - If the query is still running, structuredContent: {

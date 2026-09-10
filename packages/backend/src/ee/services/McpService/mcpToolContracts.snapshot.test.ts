@@ -347,13 +347,12 @@ describe('MCP tool contracts', () => {
             // Existing overages warn but cannot grow. Lower/remove these
             // ceilings as text is shortened; snapshot updates cannot raise them.
             const existingToolCeilings = new Map([
-                ['run_sql', 3654],
+                ['run_sql', 3453],
                 ['run_ai_writeback', 2651],
                 [
                     'run_metric_query',
-                    options.filterExpressionsEnabled ? 2664 : 2430,
+                    options.filterExpressionsEnabled ? 2463 : 2229,
                 ],
-                ['get_query_result', 2219],
                 ['find_content', 2086],
             ]);
             const texts = [
