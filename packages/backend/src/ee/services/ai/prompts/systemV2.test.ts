@@ -61,6 +61,23 @@ describe('getSystemPromptV2 filter expressions', () => {
         expect(rendered.equals(baseline)).toBe(true);
     });
 
+    test('directs the agent to replace required filter defaults', () => {
+        const content = promptText({ availableExplores: [] });
+
+        expect(content).toContain(
+            'their configured operator and values are replaceable defaults, not fixed constraints on the data',
+        );
+        expect(content).toContain(
+            'you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field',
+        );
+        expect(content).toContain(
+            "Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it",
+        );
+        expect(content).not.toContain(
+            'required` are hard constraints: they are always applied',
+        );
+    });
+
     test('keeps structured field-value guidance when disabled', () => {
         const instruction = searchFieldValuesInstruction({
             availableExplores: [],
