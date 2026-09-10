@@ -29,7 +29,7 @@ overrides:
   cpu-features: 0.0.10
   nan: 2.27.0
   express-rate-limit: 8.3.0
-  '@hapi/content': 6.0.1
+  '@hapi/content': 6.0.2
   undici: 6.27.0
   handlebars: 4.7.9
   basic-ftp: 5.3.1
@@ -98,6 +98,8 @@ minimumReleaseAgeExclude:
   - "@opentelemetry/core@2.8.0"
   # Renovate security update: @tiptap/core@3.30.4
   - "@tiptap/core@3.30.4"
+  # Renovate security update: @hapi/content@6.0.2
+  - "@hapi/content@6.0.2"
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
