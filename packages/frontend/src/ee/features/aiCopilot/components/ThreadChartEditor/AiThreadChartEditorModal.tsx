@@ -1,9 +1,13 @@
-import { type SavedChart } from '@lightdash/common';
-import { IconChartBar } from '@tabler/icons-react';
+import { subject } from '@casl/ability';
+import { canMutateVerifiedContent, type SavedChart } from '@lightdash/common';
+import { Button } from '@mantine/core';
+import { IconChartBar, IconPencil } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import Page from '../../../../../components/common/Page/Page';
+import DashboardChartEditorModal from '../../../../../components/DashboardTiles/DashboardChartEditorModal';
 import Explorer from '../../../../../components/Explorer';
 import {
     buildInitialExplorerState,
@@ -23,7 +27,7 @@ const ExplorerEffects: FC = () => {
 
 const ChartViewContent: FC<{ chart: SavedChart }> = ({ chart }) => {
     const { health } = useApp();
-    // Store initializes once; the parent key remounts it per chart.
+    // Store initializes once; the parent key remounts it per chart version.
     const [store] = useState(() =>
         createExplorerStore({
             explorer: buildInitialExplorerState({
@@ -47,6 +51,77 @@ const ChartViewContent: FC<{ chart: SavedChart }> = ({ chart }) => {
     );
 };
 
+const noop = () => {};
+
+// Keyed by chart uuid from the parent, so mode resets per chart.
+const ThreadChartModalInner: FC<{ chart: SavedChart; onClose: () => void }> = ({
+    chart,
+    onClose,
+}) => {
+    const [mode, setMode] = useState<'view' | 'edit'>('view');
+    const { user } = useApp();
+
+    // Mirrors the saved-chart view page's gate for its "Edit chart" button.
+    const userCanManageChart =
+        !!user.data?.ability?.can(
+            'manage',
+            subject('SavedChart', { ...chart }),
+        ) &&
+        canMutateVerifiedContent(
+            user.data.ability,
+            {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+            },
+            chart.verification,
+            user.data.userUuid,
+        );
+
+    if (mode === 'edit') {
+        return (
+            <DashboardChartEditorModal
+                opened
+                dashboard={null}
+                editChart={chart}
+                customMetricsEnabled={false}
+                onChartSaved={() => setMode('view')}
+                onRegistryMetricEdited={noop}
+                onRegistryMetricDeleted={noop}
+                onClose={() => setMode('view')}
+            />
+        );
+    }
+
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title={chart.name}
+            icon={IconChartBar}
+            fullScreen
+            cancelLabel={false}
+            modalBodyProps={{ px: 0, py: 0 }}
+            headerActions={
+                userCanManageChart ? (
+                    <Button
+                        variant="default"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPencil} />}
+                        onClick={() => setMode('edit')}
+                    >
+                        Edit chart
+                    </Button>
+                ) : undefined
+            }
+        >
+            <ChartViewContent
+                key={`${chart.uuid}-${chart.updatedAt}`}
+                chart={chart}
+            />
+        </MantineModal>
+    );
+};
+
 type Props = {
     chartUuid: string | null;
     projectUuid: string | undefined;
@@ -54,9 +129,10 @@ type Props = {
 };
 
 /**
- * Read-only saved-chart view over the AI agent thread, so a chart the agent
- * created or edited can be inspected without leaving the conversation.
- * Mirrors the /saved/:uuid view page: same Explorer in view mode.
+ * Saved-chart view over the AI agent thread, so a chart the agent created or
+ * edited can be inspected without leaving the conversation. Mirrors the
+ * /saved/:uuid view page; "Edit chart" switches to the modal-hosted editor,
+ * and saving or leaving the editor returns to the refreshed view.
  */
 const AiThreadChartEditorModal: FC<Props> = ({
     chartUuid,
@@ -72,17 +148,11 @@ const AiThreadChartEditorModal: FC<Props> = ({
     if (!chartUuid || !chart || chart.uuid !== chartUuid) return null;
 
     return (
-        <MantineModal
-            opened
+        <ThreadChartModalInner
+            key={chart.uuid}
+            chart={chart}
             onClose={onClose}
-            title={chart.name}
-            icon={IconChartBar}
-            fullScreen
-            cancelLabel={false}
-            modalBodyProps={{ px: 0, py: 0 }}
-        >
-            <ChartViewContent key={chart.uuid} chart={chart} />
-        </MantineModal>
+        />
     );
 };
 
