@@ -804,7 +804,12 @@ export const convertTable = (
                                     startOfWeek,
                                     'isAdditionalDimension' in dim &&
                                         dim.isAdditionalDimension,
-                                    disableTimestampConversion,
+                                    // Additional-dim children derive from the
+                                    // parent's compiled sql, which already
+                                    // carries the timestamp conversion.
+                                    dim.isAdditionalDimension
+                                        ? true
+                                        : disableTimestampConversion,
                                     undefined,
                                     granularityLabels,
                                 ),
