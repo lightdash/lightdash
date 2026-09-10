@@ -6,6 +6,7 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -106,6 +107,26 @@ const LightdashAnalyticsPanel = ({
                                     >
                                         Explore
                                     </Button>
+                                    <Tooltip
+                                        events={{
+                                            hover: true,
+                                            focus: true,
+                                            touch: true,
+                                        }}
+                                        label="Updates built-in dashboards and charts, replacing edits to them. Custom dashboards and copies are kept. Duplicate built-in dashboards to keep your edits."
+                                    >
+                                        <Button
+                                            variant="default"
+                                            loading={
+                                                installSampleContent.isLoading
+                                            }
+                                            onClick={() =>
+                                                installSampleContent.mutate()
+                                            }
+                                        >
+                                            Sync content
+                                        </Button>
+                                    </Tooltip>
                                     <Button
                                         variant="subtle"
                                         color="red"
@@ -128,43 +149,6 @@ const LightdashAnalyticsPanel = ({
                                 </Button>
                             )}
                         </Group>
-                    </Stack>
-                )}
-            </SettingsCard>
-            {status.isSuccess && analyticsProject && (
-                <SettingsCard>
-                    <Stack gap="md">
-                        <Group justify="space-between">
-                            <Title order={5}>Dashboards</Title>
-                            <Group gap="xs">
-                                <Button
-                                    variant="subtle"
-                                    size="xs"
-                                    loading={dashboards.isFetching}
-                                    disabled={installSampleContent.isLoading}
-                                    onClick={() => void dashboards.refetch()}
-                                >
-                                    Refresh
-                                </Button>
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    loading={installSampleContent.isLoading}
-                                    onClick={() =>
-                                        installSampleContent.mutate()
-                                    }
-                                >
-                                    Sync Lightdash content
-                                </Button>
-                            </Group>
-                        </Group>
-                        <Text fz="xs" c="dimmed">
-                            Sync updates Lightdash-managed dashboards and charts
-                            to the latest built-in definitions, overwriting
-                            customizations in place. Duplicate them to keep your
-                            changes. Your project, custom dashboards and copies
-                            are preserved. Refresh only reloads this list.
-                        </Text>
                         {installSampleContent.isError && (
                             <Callout
                                 variant="danger"
@@ -173,6 +157,13 @@ const LightdashAnalyticsPanel = ({
                                 {installSampleContent.error.error.message}
                             </Callout>
                         )}
+                    </Stack>
+                )}
+            </SettingsCard>
+            {status.isSuccess && analyticsProject && (
+                <SettingsCard>
+                    <Stack gap="md">
+                        <Title order={5}>Dashboards</Title>
                         {dashboards.isLoading ? (
                             <EmptyStateLoader title="Loading dashboards" />
                         ) : dashboards.isError ? (
@@ -208,7 +199,7 @@ const LightdashAnalyticsPanel = ({
                         ) : (
                             <Text fz="sm" c="dimmed">
                                 No dashboards yet. Save a dashboard in your
-                                analytics project, then refresh this list to see
+                                analytics project, then reload this page to see
                                 it here.
                             </Text>
                         )}

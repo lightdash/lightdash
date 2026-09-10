@@ -93,7 +93,7 @@ describe('LightdashAnalyticsPanel', () => {
         });
     });
 
-    it('opens an existing project without recreating or refreshing it', async () => {
+    it('opens an existing project without recreating or syncing it', async () => {
         renderPanel();
         expect(
             await screen.findByRole('link', { name: 'Explore' }),
@@ -124,14 +124,7 @@ describe('LightdashAnalyticsPanel', () => {
         ).toBeVisible();
     });
 
-    it('refreshes dashboard shortcuts for the analytics project', async () => {
-        renderPanel();
-        expect(await screen.findByText(/No dashboards yet/)).toBeVisible();
-        expect(lightdashApi).toHaveBeenCalledWith({
-            url: '/projects/analytics-project/dashboards?includePrivate=true',
-            method: 'GET',
-            body: undefined,
-        });
+    it('loads dashboard shortcuts without a separate Refresh action', async () => {
         vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
             url.includes('/dashboards?')
                 ? [
@@ -145,7 +138,18 @@ describe('LightdashAnalyticsPanel', () => {
                   ]
                 : { project },
         );
-        await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+        renderPanel();
+        expect(
+            await screen.findByRole('link', { name: 'AI usage overview' }),
+        ).toBeVisible();
+        expect(lightdashApi).toHaveBeenCalledWith({
+            url: '/projects/analytics-project/dashboards?includePrivate=true',
+            method: 'GET',
+            body: undefined,
+        });
+        expect(
+            screen.queryByRole('button', { name: 'Refresh' }),
+        ).not.toBeInTheDocument();
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
@@ -166,7 +170,7 @@ describe('LightdashAnalyticsPanel', () => {
         renderPanel();
         await userEvent.click(
             await screen.findByRole('button', {
-                name: 'Sync Lightdash content',
+                name: 'Sync content',
             }),
         );
         await waitFor(() =>

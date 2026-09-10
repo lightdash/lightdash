@@ -21,7 +21,7 @@ export const useAnalyticsProject = () => {
     });
 };
 
-const useRefreshAnalyticsProject = () => {
+const useInvalidateAnalyticsProject = () => {
     const queryClient = useQueryClient();
     return () =>
         Promise.all([
@@ -32,7 +32,7 @@ const useRefreshAnalyticsProject = () => {
 };
 
 export const useCreateAnalyticsProject = () => {
-    const refresh = useRefreshAnalyticsProject();
+    const invalidate = useInvalidateAnalyticsProject();
     return useMutation<EnsureAnalyticsProjectResult, ApiError>(
         () =>
             lightdashApi<EnsureAnalyticsProjectResult>({
@@ -42,13 +42,13 @@ export const useCreateAnalyticsProject = () => {
             }),
         {
             retry: false,
-            onSuccess: refresh,
+            onSuccess: invalidate,
         },
     );
 };
 
 export const useDeleteAnalyticsProject = () => {
-    const refresh = useRefreshAnalyticsProject();
+    const invalidate = useInvalidateAnalyticsProject();
     return useMutation<undefined, ApiError, string>(
         (projectUuid) =>
             lightdashApi<undefined>({
@@ -56,7 +56,7 @@ export const useDeleteAnalyticsProject = () => {
                 method: 'DELETE',
                 body: undefined,
             }),
-        { retry: false, onSuccess: refresh },
+        { retry: false, onSuccess: invalidate },
     );
 };
 

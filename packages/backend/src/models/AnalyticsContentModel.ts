@@ -20,7 +20,7 @@ export class AnalyticsContentModel {
         },
     ) {}
 
-    /** Refresh replaces managed content atomically without changing its identity. */
+    /** Sync replaces managed content atomically without changing its identity. */
     async install(projectUuid: string, user: SessionUser): Promise<void> {
         await this.args.database.transaction(async (trx) => {
             // Also serialize callers that do not hold the org provisioning lock.
@@ -49,7 +49,7 @@ export class AnalyticsContentModel {
             });
             const bundle = analyticsSampleContent;
             // These IDs are server-only creation arguments, never client input.
-            // Copies receive random IDs and cannot become refresh targets.
+            // Copies receive random IDs and cannot become sync targets.
             const dashboardUuid = uuidv5(
                 `lightdash-analytics/${projectUuid}/${bundle.key}`,
                 uuidv5.URL,
@@ -72,7 +72,7 @@ export class AnalyticsContentModel {
                     .first();
                 if (!space)
                     throw new NotFoundError(
-                        'Restore the sample dashboard space before refreshing',
+                        'Restore the sample dashboard space before syncing',
                     );
                 await trx('dashboards')
                     .where({

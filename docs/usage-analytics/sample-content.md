@@ -10,7 +10,7 @@ by token volume, a cache-hit share donut, average/P90 warehouse execution trends
 and top query contexts. Token volume is not cost; warehouse execution time is not
 end-to-end latency. Missing cache flags are not treated as misses.
 
-Project creation and **Sync Lightdash content** in organization analytics settings both install
+Project creation and **Sync content** in organization analytics settings both install
 the current definitions. After creation, settings stays open and shows dashboard
 shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
 `POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
@@ -18,8 +18,10 @@ analytics feature flag, development environment, and org-admin guard. The server
 resolves the organization and its marked analytics project; no target IDs or
 content definitions are accepted from the caller.
 
-**Refresh** only reloads the dashboard list. Sync never deletes or recreates the
-project and preserves custom dashboards and copies.
+The dashboard list loads when the page opens and reloads after a successful sync.
+There is no separate list refresh button. **Sync content** is a secondary
+action beside **Explore**, with a tooltip explaining its overwrite behavior. Sync
+never deletes or recreates the project and preserves custom dashboards and copies.
 
 ## Identity and overwrite behavior
 
@@ -27,7 +29,7 @@ The dashboard UUID is derived from the project UUID and stable bundle key using
 UUID v5. Each chart UUID is derived from its stable key and the dashboard UUID.
 These IDs are passed as separate internal model arguments, not exposed in the
 public creation payload. Normal creation and duplication still allocate random
-UUIDs. Names and slugs are never used to identify refresh targets, so unrelated
+UUIDs. Names and slugs are never used to identify sync targets, so unrelated
 content with the same name or slug and user-created copies are not overwritten.
 
 Sync overwrites the managed dashboard's name, description, layout, filters,
@@ -49,7 +51,7 @@ Every existing target is checked for project/dashboard ownership before updating
 There is no out-of-date detection or installed version in this PR. Every Sync
 applies the definitions shipped with the current backend. Version detection and
 broader content synchronization are tracked in PROD-11152. Creation timestamps
-alone would not indicate the version after an in-place refresh.
+alone would not indicate the version after an in-place sync.
 
 Keep bundle/chart keys stable when changing metrics or dimensions. A future
 user-name lookup and joined user table should be introduced through the system

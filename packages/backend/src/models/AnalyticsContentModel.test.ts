@@ -151,7 +151,7 @@ describe('AnalyticsContentModel', () => {
         expect(mocks.updateChart).not.toHaveBeenCalled();
     });
 
-    it('refreshes the same dashboard and charts without changing their slugs or creating copies', async () => {
+    it('syncs the same dashboard and charts without changing their slugs or creating copies', async () => {
         const mocks = setup({ existing: true });
         await mocks.model.install('project', user);
         expect(mocks.createSpace).not.toHaveBeenCalled();
@@ -219,7 +219,7 @@ describe('AnalyticsContentModel', () => {
         expect(mocks.addVersion).not.toHaveBeenCalled();
     });
 
-    it('propagates refresh failures out of the transaction before replacing the dashboard layout', async () => {
+    it('propagates sync failures out of the transaction before replacing the dashboard layout', async () => {
         const mocks = setup({ existing: true });
         mocks.chartVersion.mockRejectedValueOnce(new Error('write failed'));
         await expect(mocks.model.install('project', user)).rejects.toThrow(
