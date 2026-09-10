@@ -1,0 +1,17 @@
+.loading {
+    position: fixed;
+    inset: 0;
+    z-index: var(--mantine-z-index-overlay);
+    background-color: var(--ld-color-page);
+}
+
+:global(#navbar-header[data-has-visible-fixed-navbar='true']) ~ .loading {
+    top: var(--navbar-height);
+}
+
+:global(
+        #navbar-header[data-has-visible-fixed-navbar='true'][data-has-banner='true']
+    )
+    ~ .loading {
+    top: calc(var(--navbar-height) + var(--banner-height));
+}
