@@ -176,23 +176,18 @@ assert.ok(
 // SPK-1021: the preview job's dependency install was 75% of its runtime because
 // nothing cached it. Losing the cache costs ~4 minutes per run and fails
 // silently — the job still passes, just slowly — so it is asserted here.
-// The ordering matters too: setup-node shells out to pnpm to resolve the store
-// path, so pnpm must be set up first or the cache cannot be configured at all.
-// Comments are stripped first: the prose above this config quotes `cache: 'pnpm'`
-// verbatim, so testing the raw text matches the explanation rather than the
-// setting, and the assertion passes with the cache deleted.
+// Inspect configuration without comments so prose cannot satisfy the assertion.
 const configOnly = withoutComments.join('\n');
 const previewJob = configOnly.slice(
     configOnly.indexOf('\n  preview:'),
     configOnly.indexOf('\n  retract:'),
 );
-assert.ok(
-    /cache:\s*'pnpm'/.test(previewJob),
-    "the preview job's setup-node must cache the pnpm store (SPK-1021)",
+const setupStep = previewJob.match(
+    /- uses: pnpm\/setup@[^\n]+\n((?: {8,}[^\n]*\n)*)/,
 );
 assert.ok(
-    previewJob.indexOf('pnpm/setup') < previewJob.indexOf('actions/setup-node'),
-    'pnpm must be set up before setup-node, or cache: pnpm cannot resolve the store path (SPK-1021)',
+    setupStep && /cache:\s*true/.test(setupStep[1]),
+    "the preview job's pnpm setup must cache the store (SPK-1021)",
 );
 
 process.stdout.write('release-safety workflow shape tests passed\n');

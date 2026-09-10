@@ -235,15 +235,15 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
           install: false
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Read packageManager
         id: package-manager
@@ -387,15 +387,15 @@ jobs:
         with:
           mode: firewall-free
 
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
           install: false
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Read packageManager
         id: package-manager

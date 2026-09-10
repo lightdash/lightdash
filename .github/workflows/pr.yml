@@ -125,12 +125,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          cache: true
           install: false
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: "pnpm-lock.yaml"
+
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Build
@@ -169,12 +166,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          cache: true
           install: false
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: "pnpm-lock.yaml"
+
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Build SDK bundle
@@ -223,14 +217,16 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
           install: false
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: "pnpm-lock.yaml"
+
       - name: Generate base OpenAPI schema
         run: |
           pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
@@ -538,12 +534,9 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          cache: true
           install: false
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: "pnpm-lock.yaml"
+
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Build packages/common module
@@ -704,6 +697,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
+        with:
+          install-npm: true
       - name: Build packages/common module
         run: pnpm common-build
       - name: Build packages/warehouses module
@@ -740,6 +735,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
+        with:
+          install-npm: true
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
@@ -810,6 +807,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
+        with:
+          install-npm: true
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
