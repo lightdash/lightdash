@@ -61,7 +61,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 const db = await instance.connect();
                 try {
                     await db.run(
-                        `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2026-09-07' AS event_ts) TO '${fixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
+                        `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2026-09-07' AS event_ts, 7::INTEGER AS new_metric) TO '${fixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
                     );
                     await db.run(
                         `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2025-09-07' AS event_ts) TO '${historicalFixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
@@ -104,6 +104,28 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                         )
                     ).rows,
                 ).toEqual([{ total: '84' }]);
+                // Historical files may predate fields added to the stream.
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT count(new_metric) AS populated, sum(new_metric) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ populated: '1', total: '7' }]);
+                const otherReader = new DuckdbWarehouseClient({
+                    type: 'duckdb_parquet',
+                    resolveSource: createS3AnalyticsSourceResolver({
+                        storage,
+                        organizationUuid: otherOrg,
+                    }),
+                });
+                expect(
+                    (
+                        await otherReader.runQuery(
+                            'SELECT sum(tokens) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '42' }]);
                 expect(
                     (
                         await reader.runQuery(
@@ -120,6 +142,11 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 ).toEqual([{ total: '42' }]);
                 await expect(
                     reader.runQuery('SELECT sql FROM duckdb_views()'),
+                ).rejects.toThrow(/catalog access/);
+                await expect(
+                    reader.runQuery(
+                        'SELECT * FROM duckdb_external_file_cache()',
+                    ),
                 ).rejects.toThrow(/catalog access/);
                 const source = await resolveSource();
                 expect(source).not.toHaveProperty('s3Config');
