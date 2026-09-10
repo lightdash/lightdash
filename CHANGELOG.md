@@ -1,3 +1,10 @@
+## [2.186.1](https://github.com/lightdash/lightdash/compare/2.186.0...2.186.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **cli:** refresh warehouse credentials when re-running start-preview with an existing name ([#28985](https://github.com/lightdash/lightdash/issues/28985)) ([a3eb1e2](https://github.com/lightdash/lightdash/commit/a3eb1e20f04b5bd5a49a58b0684d447dbcc9daaa))
+
 # [2.186.0](https://github.com/lightdash/lightdash/compare/2.185.4...2.186.0) (2026-09-10)
 
 
