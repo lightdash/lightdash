@@ -1,3 +1,10 @@
+# [2.190.0](https://github.com/lightdash/lightdash/compare/2.189.0...2.190.0) (2026-09-10)
+
+
+### Features
+
+* **roadmap:** add roadmap project follow requests ([#29002](https://github.com/lightdash/lightdash/issues/29002)) ([a326e7c](https://github.com/lightdash/lightdash/commit/a326e7cac725796354c889660cd0a58ce602cc0a))
+
 # [2.189.0](https://github.com/lightdash/lightdash/compare/2.188.0...2.189.0) (2026-09-10)
 
 

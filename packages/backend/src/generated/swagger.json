@@ -33062,6 +33062,38 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "RoadmapFollowProjectResults": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message"],
+                "type": "object"
+            },
+            "ApiRoadmapFollowProjectResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RoadmapFollowProjectResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "RoadmapFollowProjectRequest": {
+                "properties": {
+                    "note": {
+                        "type": "string"
+                    }
+                },
+                "required": ["note"],
+                "type": "object"
+            },
             "RoadmapItemStatus": {
                 "enum": ["Backlog", "Building", "Shipped", "Canceled"],
                 "type": "string"
@@ -61062,7 +61094,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.189.0",
+        "version": "2.190.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
