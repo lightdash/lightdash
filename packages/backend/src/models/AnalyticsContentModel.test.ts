@@ -130,7 +130,9 @@ describe('AnalyticsContentModel', () => {
             'project',
             dashboardUuid,
         );
-        expect(mocks.createChart).toHaveBeenCalledTimes(6);
+        expect(mocks.createChart).toHaveBeenCalledTimes(
+            analyticsSampleContent.charts.length,
+        );
         for (const { key } of analyticsSampleContent.charts) {
             expect(mocks.createChart).toHaveBeenCalledWith(
                 'project',
@@ -159,7 +161,9 @@ describe('AnalyticsContentModel', () => {
             name: analyticsSampleContent.name,
             description: analyticsSampleContent.description,
         });
-        expect(mocks.chartVersion).toHaveBeenCalledTimes(6);
+        expect(mocks.chartVersion).toHaveBeenCalledTimes(
+            analyticsSampleContent.charts.length,
+        );
         expect(mocks.addVersion).toHaveBeenCalledWith(
             dashboardUuid,
             expect.objectContaining({
@@ -180,7 +184,9 @@ describe('AnalyticsContentModel', () => {
     it('restores only the managed IDs when samples were soft-deleted', async () => {
         const mocks = setup({ existing: true, deleted: true });
         await mocks.model.install('project', user);
-        expect(mocks.restoreChart).toHaveBeenCalledTimes(6);
+        expect(mocks.restoreChart).toHaveBeenCalledTimes(
+            analyticsSampleContent.charts.length,
+        );
         expect(mocks.createChart).not.toHaveBeenCalled();
     });
 

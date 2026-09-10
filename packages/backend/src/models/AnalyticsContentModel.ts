@@ -169,9 +169,9 @@ export class AnalyticsContentModel {
                     tiles: bundle.charts.map(({ key }, index) => ({
                         type: DashboardTileTypes.SAVED_CHART,
                         x: index < 4 ? index * 9 : ((index - 4) % 2) * 18,
-                        y: index < 4 ? 0 : 4 + Math.floor((index - 4) / 2) * 9,
+                        y: index < 4 ? 0 : 3 + Math.floor((index - 4) / 2) * 8,
                         w: index < 4 ? 9 : 18,
-                        h: index < 4 ? 4 : 9,
+                        h: index < 4 ? 3 : 8,
                         tabUuid: null,
                         properties: { savedChartUuid: chartUuids[key] },
                     })),

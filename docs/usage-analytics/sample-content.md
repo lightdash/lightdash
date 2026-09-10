@@ -1,9 +1,14 @@
 # Analytics sample content
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
-defines a usage overview dashboard and six dashboard-owned charts using the existing
+defines a usage overview dashboard and ten dashboard-owned charts using the existing
 system explores. It is compiled with the backend: no CLI upload, migration,
 installation table, or version tracking is required.
+
+The sample includes compact headline totals, daily AI/query line charts, top models
+by token volume, a cache-hit share donut, average/P90 warehouse execution trends,
+and top query contexts. Token volume is not cost; warehouse execution time is not
+end-to-end latency. Missing cache flags are not treated as misses.
 
 Project creation and **Refresh** in organization analytics settings both install
 the current definitions. After creation, settings stays open and shows dashboard
