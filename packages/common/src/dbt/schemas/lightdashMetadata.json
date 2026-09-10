@@ -488,6 +488,104 @@
                 }
             }
         },
+        "PreAggregateSort": {
+            "type": "object",
+            "properties": {
+                "fieldId": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "descending": {
+                    "description": "Whether to sort descending.",
+                    "enum": [true, false]
+                }
+            },
+            "required": ["fieldId", "descending"],
+            "additionalProperties": false
+        },
+        "PreAggregate": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "dimensions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sorts": {
+                    "oneOf": [
+                        {
+                            "const": false
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/PreAggregateSort"
+                            }
+                        }
+                    ]
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "time_dimension": {
+                    "type": "string"
+                },
+                "granularity": {
+                    "type": "string"
+                },
+                "max_rows": {
+                    "type": "integer"
+                },
+                "refresh": {
+                    "type": "object",
+                    "properties": {
+                        "cron": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "materialization_role": {
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string"
+                        },
+                        "attributes": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "oneOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "required": ["email", "attributes"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["name", "dimensions", "metrics"]
+        },
         "LightdashModelMetadata": {
             "type": "object",
             "required": [],
@@ -593,6 +691,12 @@
                 },
                 "default_time_dimension": {
                     "$ref": "#/definitions/DefaultTimeDimension"
+                },
+                "pre_aggregates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PreAggregate"
+                    }
                 }
             },
             "default": {}
