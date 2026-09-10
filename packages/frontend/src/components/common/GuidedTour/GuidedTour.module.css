@@ -331,3 +331,10 @@
         animation: none;
     }
 }
+
+.waitingControls {
+    position: fixed;
+    bottom: var(--mantine-spacing-md);
+    right: var(--mantine-spacing-md);
+    pointer-events: auto;
+}

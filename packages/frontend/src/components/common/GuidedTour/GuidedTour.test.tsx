@@ -1,8 +1,8 @@
 import { Popover } from '@mantine/core';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import MantineModal from '../MantineModal';
 import { GuidedTour, type GuidedTourStep } from './GuidedTour';
@@ -12,6 +12,20 @@ const steps: GuidedTourStep[] = [
     { target: null, title: 'Step two', body: 'second body' },
     { target: null, title: 'Step three', body: 'third body' },
 ];
+
+// jsdom has no layout; model visible controls with non-empty boxes.
+beforeEach(() => {
+    document.elementsFromPoint = () => [];
+    Element.prototype.scrollIntoView = () => {};
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(
+        function (this: Element) {
+            return this.hasAttribute('hidden')
+                ? new DOMRect(0, 0, 0, 0)
+                : new DOMRect(100, 100, 100, 30);
+        },
+    );
+});
+afterEach(() => vi.restoreAllMocks());
 
 describe('GuidedTour', () => {
     it('renders nothing when closed', () => {
@@ -102,13 +116,14 @@ describe('GuidedTour', () => {
         expect(calls).toEqual(['finish', 'close']);
     });
 
-    // A control the instance never shows (a screen behind a config the tour
-    // did not know about) used to leave the page blocked with no card and no
-    // Skip: the only way out was a new tab.
-    it('brings the card back when the next control never appears', async () => {
+    it('keeps the next step hidden but allows skipping when its control never appears', async () => {
         vi.useFakeTimers();
+        const onClose = vi.fn();
+        const recovery = document.createElement('button');
+        recovery.setAttribute('data-recovery', '');
+        document.body.appendChild(recovery);
         try {
-            renderWithProviders(
+            const { unmount } = renderWithProviders(
                 <GuidedTour
                     steps={[
                         { target: null, title: 'Step one', body: '' },
@@ -117,11 +132,12 @@ describe('GuidedTour', () => {
                             title: 'Step two',
                             body: '',
                             interactive: true,
-                            advanceOnTargetClick: true,
+                            via: ['[data-recovery]'],
                         },
+                        { target: null, title: 'Step three', body: '' },
                     ]}
                     opened
-                    onClose={vi.fn()}
+                    onClose={onClose}
                     initialStepIndex={1}
                     initialBeacon={{ x: 10, y: 10 }}
                 />,
@@ -136,20 +152,122 @@ describe('GuidedTour', () => {
             });
             expect(screen.queryByText('Step two')).not.toBeInTheDocument();
 
-            // Well before the 15 s path patience: the learner needs to see
-            // the tour is alive long before that.
+            // Passing the old card-return timeout must not reveal the step.
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(2_000);
             });
-            expect(screen.getByText('Step two')).toBeInTheDocument();
+            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Skip' }),
             ).toBeInTheDocument();
-            expect(screen.getByText(/Still waiting/)).toBeInTheDocument();
+            expect(screen.queryByText(/Still waiting/)).not.toBeInTheDocument();
+            await act(() => vi.advanceTimersByTimeAsync(20_000));
+            await act(() => vi.advanceTimersByTimeAsync(1_000));
+            await act(() => vi.advanceTimersByTimeAsync(1_000));
+            fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+            expect(onClose).toHaveBeenCalledTimes(1);
+            unmount();
+            await act(() => vi.advanceTimersByTimeAsync(20_000));
+            expect(document.documentElement).not.toHaveClass(
+                'ld-tour-beacon-cursor',
+            );
         } finally {
+            recovery.remove();
             vi.useRealTimers();
         }
     });
+
+    it.each(['Next', 'click', 'input'] as const)(
+        'waits for a visible destination after %s, then supports a targetless step',
+        async (advance) => {
+            vi.useFakeTimers();
+            const host = document.createElement('div');
+            host.innerHTML = '<input id="source" />';
+            document.body.appendChild(host);
+            const onNavigate = vi.fn();
+            const onFinish = vi.fn();
+            try {
+                renderWithProviders(
+                    <GuidedTour
+                        steps={[
+                            {
+                                target: '#source',
+                                title: 'Source step',
+                                body: '',
+                                interactive: true,
+                                advanceOnTargetClick: advance === 'click',
+                                advanceOnTargetInput: advance === 'input',
+                            },
+                            {
+                                target: '#destination',
+                                via: ['#source'],
+                                title: 'Destination step',
+                                body: 'Destination instructions',
+                                route: '/destination',
+                                interactive: true,
+                                advanceOnTargetClick: true,
+                            },
+                            { target: null, title: 'Finished', body: '' },
+                        ]}
+                        opened
+                        onClose={vi.fn()}
+                        onFinish={onFinish}
+                        onNavigate={onNavigate}
+                    />,
+                );
+                await act(() => vi.advanceTimersByTimeAsync(1_000));
+                if (advance === 'Next') {
+                    fireEvent.click(
+                        screen.getByRole('button', { name: 'Next' }),
+                    );
+                } else if (advance === 'click') {
+                    fireEvent.click(host.querySelector('#source')!);
+                } else {
+                    fireEvent.input(host.querySelector('#source')!, {
+                        target: { value: 'hello' },
+                    });
+                    await act(() => vi.advanceTimersByTimeAsync(1_000));
+                }
+                expect(onNavigate).toHaveBeenCalledWith('/destination');
+                expect(
+                    screen.queryByText('Destination step'),
+                ).not.toBeInTheDocument();
+                await act(() => vi.advanceTimersByTimeAsync(20_000));
+                await act(() => vi.advanceTimersByTimeAsync(1_000));
+                await act(() => vi.advanceTimersByTimeAsync(1_000));
+                expect(
+                    screen.queryByText('Destination instructions'),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByText(/Still waiting/),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.getByRole('button', { name: 'Skip' }),
+                ).toBeVisible();
+                expect(onFinish).not.toHaveBeenCalled();
+
+                host.innerHTML =
+                    '<button id="destination" hidden>Destination</button>';
+                await act(() => vi.advanceTimersByTimeAsync(1_000));
+                expect(
+                    screen.queryByText('Destination step'),
+                ).not.toBeInTheDocument();
+
+                host.querySelector('#destination')!.removeAttribute('hidden');
+                await act(() => vi.advanceTimersByTimeAsync(1_000));
+                await act(() => vi.advanceTimersByTimeAsync(1_000));
+                expect(screen.getByText('Destination step')).toBeVisible();
+                fireEvent.click(host.querySelector('#destination')!);
+                await act(() => vi.advanceTimersByTimeAsync(1_000));
+                expect(screen.getByText('Finished')).toBeVisible();
+                fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+                expect(onFinish).toHaveBeenCalledTimes(1);
+            } finally {
+                host.remove();
+                vi.useRealTimers();
+            }
+        },
+    );
 
     // A step's target may sit behind a control only some instances show (a
     // chooser before the export form). While that control is on the page and
@@ -171,11 +289,6 @@ describe('GuidedTour', () => {
                 ],
             },
         ];
-        // jsdom has no layout: the tour's viewport checks need these to exist.
-        beforeEach(() => {
-            document.elementsFromPoint = () => [];
-            Element.prototype.scrollIntoView = () => {};
-        });
         const mount = (html: string) => {
             const host = document.createElement('div');
             host.innerHTML = html;
@@ -228,7 +341,7 @@ describe('GuidedTour', () => {
                         host.querySelector('[data-x="download"]'),
                     ).toHaveAttribute('data-tour-active'),
                 );
-                expect(screen.getByText('Click Download')).toBeVisible();
+                expect(await screen.findByText('Click Download')).toBeVisible();
                 expect(
                     screen.queryByText('Click Download data'),
                 ).not.toBeInTheDocument();
@@ -323,7 +436,7 @@ describe('GuidedTour and the menus a step opens', () => {
         );
 
         expect(screen.getByText('Sales')).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        await user.click(await screen.findByRole('button', { name: 'Got it' }));
         await waitFor(() =>
             expect(screen.queryByText('Sales')).not.toBeInTheDocument(),
         );
