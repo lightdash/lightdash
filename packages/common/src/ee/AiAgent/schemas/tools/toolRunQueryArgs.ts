@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MergeJoinType } from '../../../../types/mergeQuery';
+import assertUnreachable from '../../../../utils/assertUnreachable';
 import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
@@ -278,17 +279,26 @@ export const isCustomChartTypeSlugChartConfig = (
 // the agent runtime has its own prompt and different sibling tool names.
 const MCP_RUN_QUERY_LEAD = `Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.`;
 
+const RUN_QUERY_PARAMETER_GUIDANCE = `If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.`;
+
 export const TOOL_RUN_QUERY_DESCRIPTION = ({
     runtime,
-}: ToolDescriptionContext): string => `${
-    runtime === 'mcp' ? MCP_RUN_QUERY_LEAD : 'Execute a metric query.'
-}
+}: ToolDescriptionContext): string => {
+    switch (runtime) {
+        case 'agent':
+            return `Execute a metric query.
 
-If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
+${RUN_QUERY_PARAMETER_GUIDANCE}
+
+The tool handles execution and chart artifacts. It returns a result summary and CSV data when data access is enabled. For empty results, follow the returned guidance. Correct validation or execution errors before retrying.`;
+        case 'mcp':
+            return `${MCP_RUN_QUERY_LEAD}
+
+${RUN_QUERY_PARAMETER_GUIDANCE}
 
 This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
-    'run_metric_query',
-)}
+                'run_metric_query',
+            )}
 
 ${buildMcpQueryRunResponseDescription({
     contentDescription:
@@ -305,6 +315,10 @@ ${buildMcpQueryRunResponseDescription({
 Notes:
 ${MCP_QUERY_COMMON_NOTES}
 `;
+        default:
+            return assertUnreachable(runtime, 'Unknown query tool runtime');
+    }
+};
 
 // Kept only for parsing historical persisted tool args.
 export const toolRunQueryArgsSchemaV1 = createToolSchema()

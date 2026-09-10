@@ -1,5 +1,5 @@
 import {
-    buildRunSqlDescription,
+    buildAgentRunSqlDescription,
     createToolRunSqlArgsSchema,
     isSlackPrompt,
     runSqlToolDefinition,
@@ -130,7 +130,7 @@ export const getRunSql = ({
     };
 
     return tool({
-        description: buildRunSqlDescription(500, maxQueryLimit),
+        description: buildAgentRunSqlDescription(500, maxQueryLimit),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,

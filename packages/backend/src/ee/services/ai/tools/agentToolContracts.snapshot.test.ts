@@ -72,7 +72,10 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('agent').name,
 );
 
-const makeAgentTools = (enableFilterExpressions = false) => {
+const makeAgentTools = (
+    enableFilterExpressions = false,
+    enableMergeQueries = true,
+) => {
     const noop = vi.fn();
     const noopAsync = vi.fn().mockResolvedValue(undefined);
 
@@ -173,7 +176,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         generateVisualization: getGenerateVisualization({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
-            enableMergeQueries: true,
+            enableMergeQueries,
             enableFilterExpressions,
             getPrompt: noop,
             maxLimit: 500,
@@ -230,6 +233,38 @@ const makeAgentTools = (enableFilterExpressions = false) => {
 };
 
 describe('AI agent tool contracts', () => {
+    it.each(
+        [false, true].flatMap((enableFilterExpressions) =>
+            [false, true].map((enableMergeQueries) => ({
+                enableFilterExpressions,
+                enableMergeQueries,
+            })),
+        ),
+    )(
+        'keeps MCP polling out of Agent query guidance: expressions=$enableFilterExpressions merge=$enableMergeQueries',
+        ({ enableFilterExpressions, enableMergeQueries }) => {
+            const { generateVisualization, runSql } = makeAgentTools(
+                enableFilterExpressions,
+                enableMergeQueries,
+            );
+            for (const description of [
+                generateVisualization.description,
+                runSql.description,
+                agentToolDefinitionsByName.runQuery.for('agent').description,
+                agentToolDefinitionsByName.runSql.for('agent').description,
+            ]) {
+                expect(description).toContain('execution');
+                expect(description).not.toMatch(
+                    /get_query_result|render_chart|structuredContent|nextPollAfterMs|heartbeatAt|~50s/,
+                );
+            }
+            expect(generateVisualization.description).toContain(
+                'queryConfig.parameters',
+            );
+            expect(runSql.description).toContain('max 500');
+        },
+    );
+
     it('matches the shared agent tool definition names snapshot', () => {
         expect(sharedAgentToolDefinitionNames).toMatchSnapshot();
     });
