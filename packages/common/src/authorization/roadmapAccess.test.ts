@@ -7,6 +7,7 @@ const ORG_UUID = 'roadmap-org-uuid';
 const PROJECT_UUID = 'roadmap-project-uuid';
 const USER_UUID = 'roadmap-user-uuid';
 const CUSTOM_ROLE_UUID = '44444444-4444-4444-a444-444444444444';
+const EXTRA_ROLE_UUID = '55555555-5555-4555-a555-555555555555';
 
 const PERMISSIONS_CONFIG = {
     pat: { enabled: false, allowedOrgRoles: [] },
@@ -15,14 +16,18 @@ const PERMISSIONS_CONFIG = {
 const canViewRoadmap = ({
     role = OrganizationMemberRole.MEMBER,
     orgRoleUuid,
+    orgExtraRoleUuids = [],
     projectRoleUuid,
+    projectExtraRoleUuids,
     scopes = ['view:Roadmap'],
     customRolesEnabled = true,
     isEnterprise = true,
 }: {
     role?: OrganizationMemberRole;
     orgRoleUuid?: string;
+    orgExtraRoleUuids?: string[];
     projectRoleUuid?: string;
+    projectExtraRoleUuids?: string[];
     scopes?: string[];
     customRolesEnabled?: boolean;
     isEnterprise?: boolean;
@@ -34,18 +39,24 @@ const canViewRoadmap = ({
             userUuid: USER_UUID,
             roleUuid: orgRoleUuid,
         },
-        projectProfiles: projectRoleUuid
-            ? [
-                  {
-                      projectUuid: PROJECT_UUID,
-                      role: ProjectMemberRole.VIEWER,
-                      userUuid: USER_UUID,
-                      roleUuid: projectRoleUuid,
-                  },
-              ]
-            : [],
+        orgExtraRoleUuids,
+        projectProfiles:
+            projectRoleUuid || projectExtraRoleUuids
+                ? [
+                      {
+                          projectUuid: PROJECT_UUID,
+                          role: ProjectMemberRole.VIEWER,
+                          userUuid: USER_UUID,
+                          roleUuid: projectRoleUuid,
+                          extraRoleUuids: projectExtraRoleUuids,
+                      },
+                  ]
+                : [],
         permissionsConfig: PERMISSIONS_CONFIG,
-        customRoleScopes: { [CUSTOM_ROLE_UUID]: scopes },
+        customRoleScopes: {
+            [CUSTOM_ROLE_UUID]: scopes,
+            [EXTRA_ROLE_UUID]: ['view:Roadmap'],
+        },
         customRolesEnabled,
         isEnterprise,
     });
@@ -150,12 +161,63 @@ describe('Roadmap access', () => {
         });
     });
 
+    describe('Organization role set (extra custom role)', () => {
+        it('grants a non-admin while keeping their system role in the primary slot', () => {
+            expect(
+                canViewRoadmap({
+                    role: OrganizationMemberRole.VIEWER,
+                    orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+                }),
+            ).toBe(true);
+        });
+
+        it('widens a custom primary slot that omits view:Roadmap', () => {
+            expect(
+                canViewRoadmap({
+                    role: OrganizationMemberRole.VIEWER,
+                    orgRoleUuid: CUSTOM_ROLE_UUID,
+                    scopes: ['view:Dashboard'],
+                    orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+                }),
+            ).toBe(true);
+        });
+
+        it('denies when custom roles are disabled — extra roles are skipped', () => {
+            expect(
+                canViewRoadmap({
+                    role: OrganizationMemberRole.VIEWER,
+                    orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+                    customRolesEnabled: false,
+                }),
+            ).toBe(false);
+        });
+
+        it('denies without an enterprise license', () => {
+            expect(
+                canViewRoadmap({
+                    role: OrganizationMemberRole.VIEWER,
+                    orgExtraRoleUuids: [EXTRA_ROLE_UUID],
+                    isEnterprise: false,
+                }),
+            ).toBe(false);
+        });
+    });
+
     describe('Project-level assignment', () => {
         it('grants nothing — view:Roadmap builds a projectUuid condition that never matches the org-keyed subject', () => {
             expect(
                 canViewRoadmap({
                     role: OrganizationMemberRole.VIEWER,
                     projectRoleUuid: CUSTOM_ROLE_UUID,
+                }),
+            ).toBe(false);
+        });
+
+        it('grants nothing as a project extra role either', () => {
+            expect(
+                canViewRoadmap({
+                    role: OrganizationMemberRole.VIEWER,
+                    projectExtraRoleUuids: [EXTRA_ROLE_UUID],
                 }),
             ).toBe(false);
         });

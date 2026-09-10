@@ -289,16 +289,22 @@ system role**, so every other user needs an explicit grant. The recipe:
    (`CUSTOM_ROLES_ENABLED=true` or the `custom-roles` flag). Without
    both, the role assignment silently falls back to the user's system
    role and the grant does nothing.
-2. **Settings → Roles** → duplicate the role the user should keep (e.g.
-   Viewer) and pick the **organization** level. An org-level custom role
-   *replaces* the user's system-role org abilities rather than adding to
-   them, so the duplicate has to carry everything they already had.
-3. Toggle **View Roadmap** (Organization Management group) and save.
-4. Assign the new role to the user **at the organization level**
-   (Settings → Users → change role; `UpsertOrganizationUserRoleAssignment`).
-   Assigning it on a project grants nothing — `view:Roadmap` builds a
-   `{ projectUuid }` condition that can never match the `{ organizationUuid }`
-   -keyed `Roadmap` subject.
+2. **Settings → Roles** → create an **organization**-level role holding
+   just **View Roadmap** (Organization Management group), and save.
+3. Add that role to the user's organization role set alongside the
+   system role they already have (Settings → Users → role cell;
+   `ReplaceOrganizationUserRoleSet`). Extra roles are unioned on top of
+   the primary slot, so the user keeps everything their system role
+   grants and gains the roadmap.
+4. Assign it **at the organization level**. On a project it grants
+   nothing — `view:Roadmap` builds a `{ projectUuid }` condition that
+   can never match the `{ organizationUuid }`-keyed `Roadmap` subject.
+
+Releases before role sets have only the single
+`organization_memberships.role_uuid` slot, where a custom role *replaces*
+the system role's org abilities. There the recipe is to duplicate the
+role the user should keep, toggle **View Roadmap** on the duplicate, and
+assign it with `UpsertOrganizationUserRoleAssignment`.
 
 The user then sees the Roadmap nav item and
 `GET /api/v1/org/roadmap` returns data; anyone without the scope gets no

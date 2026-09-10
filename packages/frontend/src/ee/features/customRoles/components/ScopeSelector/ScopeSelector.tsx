@@ -1,7 +1,4 @@
-import {
-    getOrganizationOnlyScopes,
-    type RoleLevel,
-} from '@lightdash/common';
+import { getOrganizationOnlyScopes, type RoleLevel } from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -528,11 +525,10 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                         </Text>
                         {level === 'project' ? (
                             <Text fz="xs" c="dimmed">
-                                {organizationOnlyScopeCount}{' '}
-                                organization-level permissions, including
-                                viewing the roadmap, are hidden here. They only
-                                take effect on an organization-level role
-                                assigned to a user at the organization level.
+                                {organizationOnlyScopeCount} organization-level
+                                permissions are hidden here. They only take
+                                effect on an organization-level role assigned at
+                                the organization level.
                             </Text>
                         ) : null}
                     </Stack>
