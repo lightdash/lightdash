@@ -1,44 +1,49 @@
 # Analytics sample content
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
-defines a usage overview dashboard and its dashboard-owned charts. The definitions
-use the regular typed chart configuration and the existing system explores. They
-are compiled with the backend; installation needs neither a CLI process nor local
-content files on a separate worker.
+defines a usage overview dashboard and six dashboard-owned charts using the existing
+system explores. It is compiled with the backend: no CLI upload, migration,
+installation table, or version tracking is required.
 
-Project creation installs the sample after compiling the explores. Existing
-projects can use **Refresh** in organization analytics settings,
-which calls `POST /api/v1/org/analytics-project/sample-content`. Both paths require
-the existing analytics feature flag, development environment, and org-admin guard.
-The organization and analytics project are resolved on the server.
+Project creation and **Refresh** in organization analytics settings both install
+the current definitions. Refresh calls
+`POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
+analytics feature flag, development environment, and org-admin guard. The server
+resolves the organization and its marked analytics project; no target IDs or
+content definitions are accepted from the caller.
 
-Installation uses the existing space/chart/dashboard models in a single database
-transaction. A project row lock serializes installations. Content and its registry
-record either commit together or roll back together; retries cannot leave duplicate
-or partial samples. Existing user content is never looked up by a bundled slug or
-updated. Normal slug allocation handles collisions. The charts belong to the sample
-dashboard rather than appearing as standalone saved charts.
+## Identity and overwrite behavior
 
-`analytics_content_installations` records:
+The dashboard UUID is derived from the project UUID and stable bundle key using
+UUID v5. Each chart UUID is derived from its stable key and the dashboard UUID.
+These IDs are passed as separate internal model arguments, not exposed in the
+public creation payload. Normal creation and duplication still allocate random
+UUIDs. Names and slugs are never used to identify refresh targets, so unrelated
+content with the same name or slug and user-created copies are not overwritten.
 
-- Project UUID and stable bundle key.
-- Successfully installed version and timestamp.
-- Actual dashboard UUID and the chart UUIDs indexed by stable bundle item keys.
+Refresh overwrites the managed dashboard's name, description, layout, filters,
+and sample chart definitions using the existing versioned models. Existing UUIDs
+and slugs remain unchanged, including a collision suffix allocated on first
+creation. Customizations to the managed sample can be lost: duplicate it first
+to keep them. Other dashboards and their charts are untouched. Removed chart
+definitions are no longer included in the dashboard layout; their saved rows and
+historical versions are retained rather than hard-deleted.
 
-Names and slugs can change without changing the recorded identity. Duplicating a
-dashboard does not copy the registry record. Deleting an analytics project cascades
-its installation record; collected event files remain untouched.
+Installation runs in one transaction under a project row lock. Failed refreshes
+roll back, preserving the previous content. A soft-deleted managed dashboard or
+sample chart can be restored by Refresh. Refresh fails if its space is deleted
+(restore the space first) or a managed chart has moved outside that dashboard.
+Every existing target is checked for project/dashboard ownership before updating.
 
-## Future updates
+## Future work
 
-This first version installs once. Repeat calls preserve all existing content,
-including edits to the sample. Bumping the bundle version alone does **not** update
-installed dashboards. Automatic updates, manual sync, and deleted-item repair are
-tracked in PROD-11152.
+There is no out-of-date detection or installed version in this PR. Every Refresh
+applies the definitions shipped with the current backend. Version detection and
+broader content synchronization are tracked in PROD-11152. Creation timestamps
+alone would not indicate the version after an in-place refresh.
 
-Future synchronization must target the recorded UUIDs, verify that each item still
-belongs to the analytics project, and preserve user-created copies and content that
-merely has a matching slug. Preserve keys and field identifiers across releases;
-introduce new keys for new charts. Update the installed version only after all
-content updates succeed. Treat missing/deleted managed items explicitly, without
-taking over unrelated content or silently resurrecting deliberately deleted items.
+Keep bundle/chart keys stable when changing metrics or dimensions. A future
+user-name lookup and joined user table should be introduced through the system
+explores first, then referenced by the sample charts. Preserve existing field IDs
+where possible to avoid breaking user-created charts. Future model-and-content
+sync must compile the explores before applying chart definitions.

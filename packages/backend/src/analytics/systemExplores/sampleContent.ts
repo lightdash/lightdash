@@ -63,7 +63,6 @@ const chart = (
 /** Stable keys identify managed items; names and slugs are presentation only. */
 export const analyticsSampleContent = {
     key: 'lightdash-analytics-overview',
-    version: 1,
     name: 'Lightdash usage overview',
     description:
         'A starting point for exploring AI usage and query activity. Duplicate this dashboard to keep a customized copy separate from future sample updates.',

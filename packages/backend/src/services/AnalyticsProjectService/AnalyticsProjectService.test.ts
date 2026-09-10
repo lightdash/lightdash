@@ -25,10 +25,9 @@ describe('AnalyticsProjectService', () => {
     const deleteProject = vi.fn();
     const invalidateSessionUserCache = vi.fn();
     const lock = vi.fn();
-    const getContent = vi.fn();
     const installContent = vi.fn();
     const service = new AnalyticsProjectService({
-        analyticsContentModel: { get: getContent, install: installContent },
+        analyticsContentModel: { install: installContent },
         projectModel: {
             getAllByOrganizationUuid,
             runInAnalyticsProvisioningLock: async <T>(
@@ -71,7 +70,6 @@ describe('AnalyticsProjectService', () => {
                 slug: 'lightdash-analytics-1',
                 url: '/projects/lightdash-analytics-1/tables',
                 createdAt: '2026-09-10T00:00:00.000Z',
-                sampleContent: null,
             },
         });
         expect(ensureAnalyticsProject).not.toHaveBeenCalled();

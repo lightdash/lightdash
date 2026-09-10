@@ -528,6 +528,7 @@ export const createSavedChart = async (
         slug: string;
         forceSlug?: boolean;
     },
+    savedChartUuid?: string,
 ): Promise<string> => {
     for (let attempt = 1; attempt <= MaxChartSlugCreateAttempts; attempt += 1) {
         try {
@@ -550,6 +551,9 @@ export const createSavedChart = async (
 
                 let chart: InsertChart;
                 const baseChart = {
+                    ...(savedChartUuid
+                        ? { saved_query_uuid: savedChartUuid }
+                        : {}),
                     name,
                     description,
                     last_version_chart_kind:
@@ -1096,12 +1100,14 @@ export class SavedChartModel {
             slug: string;
             forceSlug?: boolean;
         },
+        savedChartUuid?: string,
     ): Promise<SavedChartDAO> {
         const newSavedChartUuid = await createSavedChart(
             this.database,
             projectUuid,
             userUuid,
             data,
+            savedChartUuid,
         );
         return this.get(newSavedChartUuid);
     }

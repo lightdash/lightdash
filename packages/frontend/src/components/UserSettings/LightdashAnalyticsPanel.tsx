@@ -154,16 +154,12 @@ const LightdashAnalyticsPanel = ({
                                 Refresh
                             </Button>
                         </Group>
-                        {analyticsProject.sampleContent && (
-                            <Text fz="xs" c="dimmed">
-                                Sample content v
-                                {analyticsProject.sampleContent.version}{' '}
-                                installed{' '}
-                                {new Date(
-                                    analyticsProject.sampleContent.installedAt,
-                                ).toLocaleString()}
-                            </Text>
-                        )}
+                        <Text fz="xs" c="dimmed">
+                            Refresh overwrites the sample dashboard and its
+                            charts. Duplicate the sample to keep your
+                            customizations. Your other dashboards are not
+                            changed.
+                        </Text>
                         {installSampleContent.isError && (
                             <Callout
                                 variant="danger"
