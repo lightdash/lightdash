@@ -4,6 +4,10 @@ import {
     formatRoadmapDetailDate,
     getPriorityColor,
 } from '../../pages/roadmapUtils';
+import {
+    FollowProjectButton,
+    type FollowProjectAction,
+} from './FollowProjectButton';
 import { RoadmapDetails, RoadmapRailRow } from './RoadmapDetails';
 import styles from './RoadmapDetails.module.css';
 import { getProjectPresentation } from './roadmapPresentation';
@@ -13,11 +17,13 @@ export function RoadmapProjectDetails({
     status,
     onClose,
     onOpenBoard,
+    followAction,
 }: {
     item: RoadmapProjectGroup | null;
     status: { label: string; color: string };
     onClose: () => void;
     onOpenBoard: (() => void) | null;
+    followAction: FollowProjectAction;
 }) {
     const project = item ? getProjectPresentation(item.project) : null;
     return (
@@ -27,6 +33,11 @@ export function RoadmapProjectDetails({
             onClose={onClose}
             title={item?.project.title ?? 'Roadmap project'}
             propertiesLabel="Roadmap project properties"
+            headerActions={
+                item ? (
+                    <FollowProjectButton item={item} {...followAction} />
+                ) : null
+            }
             actions={
                 onOpenBoard ? (
                     <Button onClick={onOpenBoard} size="xs" variant="default">

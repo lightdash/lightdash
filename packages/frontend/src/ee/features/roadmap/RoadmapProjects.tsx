@@ -1,4 +1,5 @@
 import {
+    ROADMAP_DEFAULT_PAGE_SIZE,
     type RoadmapItem,
     type RoadmapProjectGroup,
     type RoadmapProject,
@@ -49,6 +50,11 @@ import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { getPriorityColor } from '../../pages/roadmapUtils';
 import {
+    FollowProjectButton,
+    type FollowProjectAction,
+} from './FollowProjectButton';
+import { FollowProjectModal } from './FollowProjectModal';
+import {
     defaultProjectPresentation,
     getProjectPresentation,
     ticketStage,
@@ -58,6 +64,7 @@ import {
 import { RoadmapProjectDetails } from './RoadmapProjectDetails';
 import classes from './RoadmapProjects.module.css';
 import { RoadmapRequestDetails } from './RoadmapRequestDetails';
+import { useFollowRoadmapProject } from './useFollowRoadmapProject';
 import { useRoadmapBoard } from './useRoadmapBoard';
 import { useRoadmapProjects, useRoadmapRequests } from './useRoadmapProjects';
 
@@ -323,11 +330,13 @@ function ProjectCard({
     presentation,
     onClick,
     onOpenBoard,
+    followAction,
 }: {
     group: RoadmapProjectGroup;
     presentation: RoadmapProjectPresentation;
     onClick: () => void;
     onOpenBoard: (() => void) | null;
+    followAction: FollowProjectAction;
 }) {
     return (
         <Box className={classes.projectCard}>
@@ -374,6 +383,12 @@ function ProjectCard({
                 </Group>
                 <ProjectProgress value={presentation.progress} expanded />
             </UnstyledButton>
+            <FollowProjectButton
+                compact
+                className={classes.projectFollowAction}
+                item={group}
+                {...followAction}
+            />
             {onOpenBoard && (
                 <UnstyledButton
                     className={classes.projectCardFooter}
@@ -599,30 +614,41 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
     );
 }
 
-function BoardError({
-    retry,
-    message = 'Could not load the roadmap',
-}: {
-    retry: () => void;
-    message?: string;
-}) {
+function BoardError() {
     return (
         <Box p="xl">
             <SuboptimalState
                 icon={IconAlertCircle}
-                title={message}
-                description="We couldn't refresh the board. Please try again."
-                action={
-                    <Button variant="default" onClick={retry}>
-                        Try again
-                    </Button>
-                }
+                title="Could not load the roadmap"
+                description="The roadmap is currently unavailable."
             />
         </Box>
     );
 }
 
-export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
+export function RoadmapProjects({
+    cacheKey,
+    canFollow,
+}: {
+    cacheKey: string;
+    canFollow: boolean;
+}) {
+    const { follow, submittedProjectIds, pendingProjectIds } =
+        useFollowRoadmapProject(cacheKey);
+    const [projectToFollow, setProjectToFollow] =
+        useState<RoadmapProjectGroup | null>(null);
+    const followAction = (
+        group: RoadmapProjectGroup | null,
+    ): FollowProjectAction => ({
+        canFollow,
+        isSubmitted:
+            group !== null &&
+            submittedProjectIds.includes(group.project.projectId),
+        isLoading:
+            group !== null &&
+            pendingProjectIds.includes(group.project.projectId),
+        onFollow: () => setProjectToFollow(group),
+    });
     const { pathname } = useLocation();
     const [view, setView] = useState('board');
     const [itemTypes, setItemTypes] = useState<string[]>([]);
@@ -642,7 +668,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     );
     const [selectedProject, setSelectedProject] =
         useState<RoadmapProjectGroup | null>(null);
-    const [projectDetails, setProjectDetails] =
+    const [projectDetailsSelection, setProjectDetails] =
         useState<RoadmapProjectGroup | null>(null);
     const selectedProjectId = selectedProject?.project.projectId ?? null;
     const [selectedTicket, setSelectedTicket] = useState<RoadmapItem | null>(
@@ -652,7 +678,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const showProjects = !projectBoard && itemType !== 'tickets';
     const showTickets = projectBoard || itemType !== 'projects';
     const projectQuery: RoadmapProjectQuery = {
-        pageSize: COLUMN_PREVIEW_LIMIT,
+        pageSize: ROADMAP_DEFAULT_PAGE_SIZE,
         search: initializingInterest ? '' : debouncedMainSearch,
         onlyInterested: onlyInterested ?? true,
         statuses: initializingInterest ? '' : statusQuery(mainStatuses),
@@ -711,13 +737,17 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
               )
             : (projectsQuery.data?.pages ?? [])
     ).flatMap((page) => page.projects);
+    const projectDetails =
+        projects.find(
+            (group) =>
+                group.project.projectId ===
+                projectDetailsSelection?.project.projectId,
+        ) ?? projectDetailsSelection;
     const tickets = (
         view === 'board'
             ? boardQueries.flatMap((column) => column.tickets.data?.pages ?? [])
             : (ticketsQuery.data?.pages ?? [])
     ).flatMap((page) => page.data);
-    const { refetch: refetchProjects } = projectsQuery;
-    const { refetch: refetchTickets } = ticketsQuery;
     const presentation = getProjectPresentation(
         selectedProject?.project ?? defaultProjectPresentation,
     );
@@ -752,16 +782,6 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         (error) => error?.error?.statusCode === 403,
     );
     const failed = errors.some(Boolean);
-    const retry = () => {
-        if (!initializingInterest && view === 'board') {
-            boardQueries.forEach((column) => {
-                void column.refetch();
-            });
-        } else {
-            void refetchProjects();
-            if (projectsQuery.isSuccess && showTickets) void refetchTickets();
-        }
-    };
     const back = () => {
         setSelectedProject(null);
         setProjectSearch('');
@@ -798,6 +818,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                       card: (
                           <ProjectCard
                               group={group}
+                              followAction={followAction(group)}
                               presentation={metadata}
                               onClick={onOpen}
                               onOpenBoard={onOpenBoard}
@@ -1016,7 +1037,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                     />
                 </Box>
             ) : failed ? (
-                <BoardError retry={retry} />
+                <BoardError />
             ) : loading ? (
                 <Box p="xl">
                     <EmptyStateLoader
@@ -1080,6 +1101,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                 </>
             )}
             <RoadmapProjectDetails
+                followAction={followAction(projectDetails)}
                 item={failed ? null : projectDetails}
                 status={
                     columns.find(
@@ -1101,6 +1123,22 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                 item={failed ? null : selectedTicket}
                 onClose={() => setSelectedTicket(null)}
             />
+            {!failed && projectToFollow && (
+                <FollowProjectModal
+                    key={projectToFollow.project.projectId}
+                    projectTitle={projectToFollow.project.title}
+                    isLoading={pendingProjectIds.includes(
+                        projectToFollow.project.projectId,
+                    )}
+                    onSubmit={(note) =>
+                        follow({
+                            projectId: projectToFollow.project.projectId,
+                            note,
+                        })
+                    }
+                    onClose={() => setProjectToFollow(null)}
+                />
+            )}
         </SettingsPage>
     );
 }

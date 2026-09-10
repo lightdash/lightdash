@@ -1,3 +1,4 @@
+import { OrganizationMemberRole } from '@lightdash/common';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import useApp from '../../providers/App/useApp';
 import { RoadmapProjects } from '../features/roadmap/RoadmapProjects';
@@ -10,6 +11,7 @@ export default function Roadmap() {
         <RoadmapProjects
             key={user.data.organizationUuid}
             cacheKey={`${user.data.organizationUuid}:${user.data.userUuid}`}
+            canFollow={user.data.role === OrganizationMemberRole.ADMIN}
         />
     );
 }

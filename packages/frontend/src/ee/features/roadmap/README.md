@@ -1,9 +1,7 @@
 # Lightdash roadmap
 
-The roadmap in Settings helps customers explore what Lightdash is building and track their organization’s feature requests. It brings projects and individual requests together in a board or table, with search and filters to find relevant work. Opening a project shows the requests their organization is following.
+The roadmap displays projects and organization-specific tickets in a board or table. The frontend reads this data through the Lightdash backend, which checks roadmap access and calls Lightdash Control Center using the instance license and the authenticated organization. Control Center provides the project catalog and organization-specific interest.
 
-Roadmap data comes from Linear through Lightdash Control Center. Control Center provides the shared project catalog and organization-specific requests; this feature presents them within Lightdash.
+When an organization admin requests to follow a project, the frontend sends their note to the backend. The backend adds the authenticated user and organization details before forwarding the request to Control Center. Control Center handles the interest request and notifies the Lightdash team; some requests require manual follow-up.
 
-Project-board header badges show the overall ticket total for each status. Columns show a stack above followed tickets for the remaining count: the overall status total minus the full followed-ticket count matching the column's filters, clamped to zero. Pagination does not change this count. Empty columns show ‘No items’ when the remaining count is zero. Overall totals include non-archived Product-team tickets and descendant-team tickets, independent of customer filters and the 30-day completed/canceled request window; canceled totals include duplicates. These counts do not grant access to additional ticket details. The project modal shows `lastIssueUpdatedAt` as “Last ticket update,” using an em dash when it is null.
-
-With a valid license but no Linear customer mapping (or a deleted customer), Control Center returns shared projects with empty organization relevance and requests. Lightdash defaults to All and opens project details without offering an empty project board. Private request access still requires the exact license-and-organization mapping; invalid licenses and existing Lightdash feature/permission checks remain enforced.
+After a successful submission, the frontend confirms receipt and refreshes the roadmap. Following state comes from server reads, and following a project does not grant access to additional tickets.

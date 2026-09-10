@@ -1,5 +1,8 @@
 import {
     RoadmapProjectResultsSchema,
+    RoadmapFollowProjectResultsSchema,
+    type RoadmapFollowProjectRequest,
+    type RoadmapFollowProjectResults,
     RoadmapProjectRequestsResultsSchema,
     type RoadmapProjectQuery,
     type RoadmapQuery,
@@ -7,14 +10,6 @@ import {
     type RoadmapProjectRequestsResults,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
-
-interface RoadmapApi {
-    getProjects: (query: RoadmapProjectQuery) => Promise<RoadmapProjectResults>;
-    getRequests: (
-        query: RoadmapQuery,
-    ) => Promise<RoadmapProjectRequestsResults>;
-}
-
 function queryString(query: RoadmapProjectQuery | RoadmapQuery) {
     return new URLSearchParams(
         Object.entries(query)
@@ -23,17 +18,33 @@ function queryString(query: RoadmapProjectQuery | RoadmapQuery) {
     ).toString();
 }
 
-export const roadmapApi: RoadmapApi = {
-    getProjects: async (query) =>
-        RoadmapProjectResultsSchema.parse(
-            await lightdashApi<RoadmapProjectResults>({
-                url: `/org/roadmap/projects?${queryString(query)}`,
-                method: 'GET',
-                body: undefined,
+async function getProjects(query: RoadmapProjectQuery) {
+    return RoadmapProjectResultsSchema.parse(
+        await lightdashApi<RoadmapProjectResults>({
+            url: `/org/roadmap/projects?${queryString(query)}`,
+            method: 'GET',
+            body: undefined,
+            version: 'v1',
+        }),
+    );
+}
+
+export const roadmapApi = {
+    followProject: async ({
+        projectId,
+        note,
+    }: RoadmapFollowProjectRequest & { projectId: string }) =>
+        RoadmapFollowProjectResultsSchema.parse(
+            await lightdashApi<RoadmapFollowProjectResults>({
+                url: `/org/roadmap/projects/${encodeURIComponent(projectId)}/follow`,
+                method: 'POST',
+                sensitive: true,
+                body: JSON.stringify({ note }),
                 version: 'v1',
             }),
         ),
-    getRequests: async (query) =>
+    getProjects,
+    getRequests: async (query: RoadmapQuery) =>
         RoadmapProjectRequestsResultsSchema.parse(
             await lightdashApi<RoadmapProjectRequestsResults>({
                 url: `/org/roadmap?${queryString(query)}`,
