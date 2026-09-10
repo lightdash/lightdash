@@ -1,5 +1,5 @@
 import { act } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { renderWithProviders } from '../testing/testUtils';
 
@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
     iframePreview: vi.fn((_props: IframePreviewProps) => null),
     headerActions: vi.fn((_props: HeaderActionsProps) => null),
     versionParam: '1' as string | undefined,
+    appUuid: 'app-uuid',
+    appName: 'Sales app',
+    isLoading: false,
 }));
 
 vi.mock('react-router', () => ({
@@ -23,7 +26,7 @@ vi.mock('react-router', () => ({
     useNavigate: () => vi.fn(),
     useParams: () => ({
         projectUuid: 'project-uuid',
-        appUuid: 'app-uuid',
+        appUuid: mocks.appUuid,
         version: mocks.versionParam,
     }),
 }));
@@ -50,20 +53,22 @@ vi.mock('../features/apps/hooks/useAppPreviewToken', () => ({
 
 vi.mock('../features/apps/hooks/useGetApp', () => ({
     useGetApp: () => ({
-        data: {
-            pages: [
-                {
-                    name: 'Sales app',
-                    description: null,
-                    spaceUuid: null,
-                    spaceName: null,
-                    createdByUserUuid: 'user-uuid',
-                    latestReadyVersion: 5,
-                    versions: [{ status: 'ready' }],
-                },
-            ],
-        },
-        isLoading: false,
+        data: mocks.isLoading
+            ? undefined
+            : {
+                  pages: [
+                      {
+                          name: mocks.appName,
+                          description: null,
+                          spaceUuid: null,
+                          spaceName: null,
+                          createdByUserUuid: 'user-uuid',
+                          latestReadyVersion: 5,
+                          versions: [{ status: 'ready' }],
+                      },
+                  ],
+              },
+        isLoading: mocks.isLoading,
         error: undefined,
     }),
 }));
@@ -152,7 +157,32 @@ const readyEvent = (id: string): QueryEvent => ({
     rawMetricQuery: null,
 });
 
-describe('AppPreviewTest capturedQueryCount', () => {
+describe('AppPreviewTest', () => {
+    beforeEach(() => {
+        mocks.appUuid = 'app-uuid';
+        mocks.appName = 'Sales app';
+        mocks.isLoading = false;
+    });
+
+    it('sets the tab title when the app loads and updates it when the app changes', () => {
+        mocks.isLoading = true;
+        const { rerender } = renderWithProviders(<AppPreviewTest />);
+        expect(document.title).not.toContain('Sales app');
+
+        mocks.isLoading = false;
+        rerender(<AppPreviewTest />);
+        expect(document.title).toBe('(DEV) Sales app - Lightdash');
+
+        mocks.appName = 'Revenue app';
+        rerender(<AppPreviewTest />);
+        expect(document.title).toBe('(DEV) Revenue app - Lightdash');
+
+        mocks.appUuid = 'another-app-uuid';
+        mocks.appName = 'Inventory app';
+        rerender(<AppPreviewTest />);
+        expect(document.title).toBe('(DEV) Inventory app - Lightdash');
+    });
+
     it('resets the captured query count when the previewed version changes', () => {
         mocks.versionParam = '1';
         const { rerender } = renderWithProviders(<AppPreviewTest />);

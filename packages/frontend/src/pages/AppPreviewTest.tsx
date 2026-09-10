@@ -3,6 +3,7 @@ import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
 import { IconAppsOff, IconMaximize } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
+import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -252,6 +253,7 @@ export default function AppPreviewTest() {
                     : classes.previewContainer
             }
         >
+            <DocumentTitle title={appName} />
             {firstPage && (
                 <DataAppAiAgentContextBridge
                     projectUuid={projectUuid}
