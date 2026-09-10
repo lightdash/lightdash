@@ -2635,28 +2635,12 @@ Notes:
                 "type": "string",
               },
               "secondaryYAxisLabel": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                  },
-                  {
-                    "type": "null",
-                  },
-                ],
-                "default": null,
                 "description": "A helpful label for the secondary y-axis",
+                "type": "string",
               },
               "secondaryYAxisMetric": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                  },
-                  {
-                    "type": "null",
-                  },
-                ],
-                "default": null,
                 "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+                "type": "string",
               },
               "stackBars": {
                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -6985,16 +6969,8 @@ Example B — "Revenue by month with year-over-year comparison"
                       "type": "string",
                     },
                     "nullsFirst": {
-                      "anyOf": [
-                        {
-                          "type": "boolean",
-                        },
-                        {
-                          "type": "null",
-                        },
-                      ],
-                      "default": null,
                       "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
+                      "type": "boolean",
                     },
                   },
                   "required": [
@@ -7259,28 +7235,12 @@ Response shape (MCP CallToolResult):
                 "type": "string",
               },
               "secondaryYAxisLabel": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                  },
-                  {
-                    "type": "null",
-                  },
-                ],
-                "default": null,
                 "description": "A helpful label for the secondary y-axis",
+                "type": "string",
               },
               "secondaryYAxisMetric": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                  },
-                  {
-                    "type": "null",
-                  },
-                ],
-                "default": null,
                 "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+                "type": "string",
               },
               "stackBars": {
                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -11435,28 +11395,12 @@ Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema d
             "type": "string",
           },
           "secondaryYAxisLabel": {
-            "anyOf": [
-              {
-                "type": "string",
-              },
-              {
-                "type": "null",
-              },
-            ],
-            "default": null,
             "description": "A helpful label for the secondary y-axis",
+            "type": "string",
           },
           "secondaryYAxisMetric": {
-            "anyOf": [
-              {
-                "type": "string",
-              },
-              {
-                "type": "null",
-              },
-            ],
-            "default": null,
             "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+            "type": "string",
           },
           "stackBars": {
             "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -11750,16 +11694,8 @@ Example B — "Revenue by month with year-over-year comparison"
                   "type": "string",
                 },
                 "nullsFirst": {
-                  "anyOf": [
-                    {
-                      "type": "boolean",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                  "default": null,
                   "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
+                  "type": "boolean",
                 },
               },
               "required": [
@@ -11996,18 +11932,10 @@ Usage Tips:
         "type": "string",
       },
       "filters": {
-        "anyOf": [
-          {
-            "maxLength": 16384,
-            "minLength": 1,
-            "type": "string",
-          },
-          {
-            "type": "null",
-          },
-        ],
-        "default": null,
         "description": "When present, scopes the candidate-value search with one flat AND filter expression containing dimension fields only.",
+        "maxLength": 16384,
+        "minLength": 1,
+        "type": "string",
       },
       "projectUuid": {
         "description": "Project UUID for this operation.",

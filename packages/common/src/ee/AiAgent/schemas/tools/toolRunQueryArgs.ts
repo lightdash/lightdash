@@ -7,6 +7,7 @@ import {
 import { type ToolDescriptionContext } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import sortFieldSchema from '../sortField';
 import {
@@ -44,12 +45,9 @@ export const queryConfigBaseSchema = z.object({
         .describe(
             'Sort configuration for the query, it can use a combination of metrics and dimensions.',
         ),
-    limit: z.coerce
-        .number()
-        .nullable()
-        .describe(
-            'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
-        ),
+    limit: optionalNull(z.coerce.number()).describe(
+        'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
+    ),
     parameters: z
         .record(
             z.string(),
@@ -71,13 +69,13 @@ export const queryConfigBaseSchema = z.object({
 // kept nesting them (especially filters) inside queryConfig or emitting
 // invalid combinations. V2 makes queryConfig the canonical (and only) place.
 const queryConfigSchemaV1 = queryConfigBaseSchema.extend({
-    filters: filtersSchemaV2.nullable().default(null),
+    filters: optionalNull(filtersSchemaV2),
 });
 
 const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
     customMetrics: customMetricsSchema,
     tableCalculations: tableCalcsSchema,
-    filters: filtersSchemaV2.nullable(),
+    filters: optionalNull(filtersSchemaV2),
 });
 
 // V4 narrows the advertised tableCalculations contract to formula-only.
@@ -160,64 +158,44 @@ const chartConfigBuiltinSchema = z.object({
         .describe('The default visualization type to render'),
 
     // Axis field selection
-    xAxisDimension: z
-        .string()
-        .nullable()
-        .describe(
-            'The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions',
-        ),
-    yAxisMetrics: z
-        .array(getFieldIdSchema({ additionalDescription: null }))
-        .nullable()
-        .describe(
-            'The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations',
-        ),
+    xAxisDimension: optionalNull(z.string()).describe(
+        'The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions',
+    ),
+    yAxisMetrics: optionalNull(
+        z.array(getFieldIdSchema({ additionalDescription: null })),
+    ).describe(
+        'The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations',
+    ),
 
     // Series creation control
-    groupBy: z
-        .array(getFieldIdSchema({ additionalDescription: null }))
-        .nullable()
-        .describe(
-            'Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.',
-        ),
+    groupBy: optionalNull(
+        z.array(getFieldIdSchema({ additionalDescription: null })),
+    ).describe(
+        'Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.',
+    ),
 
     // Bar and horizontal bar chart specific
-    xAxisType: z
-        .enum(['category', 'time'])
-        .nullable()
-        .describe(
-            'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.',
-        ),
-    stackBars: z
-        .boolean()
-        .nullable()
-        .describe(
-            'If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.',
-        ),
+    xAxisType: optionalNull(z.enum(['category', 'time'])).describe(
+        'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.',
+    ),
+    stackBars: optionalNull(z.boolean()).describe(
+        'If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.',
+    ),
 
     // Line chart specific
-    lineType: z
-        .enum(['line', 'area'])
-        .nullable()
-        .describe(
-            'default line. The type of line to display. If area then the area under the line will be filled in.',
-        ),
+    lineType: optionalNull(z.enum(['line', 'area'])).describe(
+        'default line. The type of line to display. If area then the area under the line will be filled in.',
+    ),
 
     // Common display properties
     xAxisLabel: z.string().describe('A helpful label to explain the x-axis'),
     yAxisLabel: z.string().describe('A helpful label to explain the y-axis'),
-    secondaryYAxisMetric: z
-        .string()
-        .nullish()
-        .default(null)
-        .describe(
-            '(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).',
-        ),
-    secondaryYAxisLabel: z
-        .string()
-        .nullish()
-        .default(null)
-        .describe('A helpful label for the secondary y-axis'),
+    secondaryYAxisMetric: optionalNull(z.string()).describe(
+        '(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).',
+    ),
+    secondaryYAxisLabel: optionalNull(z.string()).describe(
+        'A helpful label for the secondary y-axis',
+    ),
 });
 
 const customChartTypeOptionValueSchema = z.union([
@@ -239,27 +217,27 @@ const chartConfigCustomChartTypeSchema = z.object({
         .describe(
             "Binds the custom chart type's field slots to this query's fields: slot name (from the type's schema) → a field id selected in queryConfig. Every required slot must be bound.",
         ),
-    options: z
-        .record(z.string(), customChartTypeOptionValueSchema)
-        .nullish()
-        .default(null)
-        .describe(
-            "Values for the type's config options, keyed by option name from the type's schema. null to use the type's defaults.",
-        ),
+    options: optionalNull(
+        z.record(z.string(), customChartTypeOptionValueSchema),
+    ).describe(
+        "Values for the type's config options, keyed by option name from the type's schema. null to use the type's defaults.",
+    ),
 });
 
 // The only chartConfig union — advertised to the model and used to parse
 // persisted tool args alike: builtin viz config | custom chart type slug.
 // Server-derived custom chart type data (dataAppVizUuid) never lives inside
 // chartConfig; it sits beside the verbatim tool args in the artifact envelope.
-export const chartConfigSchema = z
-    .union([chartConfigBuiltinSchema, chartConfigCustomChartTypeSchema])
-    .nullable();
+export const chartConfigSchema = optionalNull(
+    z.union([chartConfigBuiltinSchema, chartConfigCustomChartTypeSchema]),
+);
 
 // Builtin-only view pinning surfaces that do not support custom chart types
 // (MCP run_metric_query / render_chart, the dashboard tool): their contracts
 // stay byte-identical to before the union existed.
-export const chartConfigBuiltinOnlySchema = chartConfigBuiltinSchema.nullable();
+export const chartConfigBuiltinOnlySchema = optionalNull(
+    chartConfigBuiltinSchema,
+);
 
 export type ToolRunQueryBuiltinChartConfig = z.infer<
     typeof chartConfigBuiltinSchema
@@ -310,11 +288,11 @@ ${MCP_QUERY_COMMON_NOTES}
 export const toolRunQueryArgsSchemaV1 = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
-        customMetrics: customMetricsSchema.default(null),
-        tableCalculations: tableCalcsSchema.default(null),
+        customMetrics: customMetricsSchema,
+        tableCalculations: tableCalcsSchema,
         queryConfig: queryConfigSchemaV1,
-        chartConfig: chartConfigSchema.default(null),
-        filters: filtersSchemaV2.nullable().default(null),
+        chartConfig: chartConfigSchema,
+        filters: optionalNull(filtersSchemaV2),
     })
     .build();
 
@@ -374,7 +352,7 @@ export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV4;
 // covers templates and formulas).
 //
 // Evolving the contract:
-// - Additive field: no version bump. Add `.nullish().default(null)` to the
+// - Additive field: no version bump. Wrap it in `optionalNull` on the
 //   CURRENT schema (providers accept optional keys now) — old payloads and
 //   models that omit it both parse, and this alias needs no change as long
 //   as it carries the field too (add it here if the bases diverge; Zod
@@ -430,7 +408,7 @@ const queryConfigInternalSchema = queryConfigBaseSchema.extend({
 const runQueryInternalSchemaV2 = z.object({
     ...visualizationMetadataSchema.shape,
     queryConfig: queryConfigInternalSchema,
-    chartConfig: chartConfigSchema.default(null),
+    chartConfig: chartConfigSchema,
 });
 
 const mergeSourceQueryConfigInternalSchema = queryConfigInternalSchema.omit({
@@ -517,6 +495,13 @@ export const migrateRunQueryArgsV1ToV2 = (
 // category, so they cannot represent dimensions using AND while metrics use
 // OR. Keep this parser unchanged for existing records; the wider persistence
 // boundary handles the per-category filter-expression format separately.
+const V1_TOP_LEVEL_KEYS = ['filters', 'customMetrics', 'tableCalculations'];
+
+const isV1ShapedRunQueryArgs = (raw: unknown): boolean =>
+    raw !== null &&
+    typeof raw === 'object' &&
+    V1_TOP_LEVEL_KEYS.some((key) => key in raw);
+
 export const parsePersistedRunQueryArgs = (
     raw: unknown,
 ): ToolRunQueryArgsTransformed | null => {
@@ -527,16 +512,22 @@ export const parsePersistedRunQueryArgs = (
         return v3.success ? v3.data : null;
     }
 
-    const v2 = toolRunQueryArgsSchemaV2Transformed.safeParse(raw);
-    if (v2.success) return { ...v2.data, mergeConfig: null };
+    // V1 rows always persisted these keys at the top level and V2 never
+    // does, so their presence is the version marker. V2 must not be tried
+    // first: it accepts omitted queryConfig keys and would silently drop the
+    // top-level filters.
+    if (isV1ShapedRunQueryArgs(raw)) {
+        const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
+        return v1.success
+            ? toolRunQueryArgsSchemaTransformed.parse({
+                  ...migrateRunQueryArgsV1ToV2(v1.data),
+                  mergeConfig: null,
+              })
+            : null;
+    }
 
-    const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
-    return v1.success
-        ? toolRunQueryArgsSchemaTransformed.parse({
-              ...migrateRunQueryArgsV1ToV2(v1.data),
-              mergeConfig: null,
-          })
-        : null;
+    const v2 = toolRunQueryArgsSchemaV2Transformed.safeParse(raw);
+    return v2.success ? { ...v2.data, mergeConfig: null } : null;
 };
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a chart for a completed query result in MCP App-capable clients.

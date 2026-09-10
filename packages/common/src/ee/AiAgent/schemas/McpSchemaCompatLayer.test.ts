@@ -2,6 +2,7 @@ import z, { type ZodSchema } from 'zod';
 import { z as zV3 } from 'zod/v3';
 import { toJsonSchema } from '../../../utils/zodJsonSchema';
 import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
+import { optionalNull } from './optionalNull';
 import {
     toolFindFieldsArgsSchema,
     toolFindFieldsArgsSchemaTransformed,
@@ -649,5 +650,29 @@ describe('McpSchemaCompatLayer', () => {
                 ),
             ).not.toThrow();
         });
+    });
+});
+
+describe('McpSchemaCompatLayer optionalNull', () => {
+    const nullableSchema = z.object({
+        query: z.string().nullable().describe('Search text'),
+    });
+    const optionalNullSchema = z.object({
+        query: optionalNull(z.string()).describe('Search text'),
+    });
+
+    test('advertises the same contract as a plain nullable field', () => {
+        expect(
+            toJsonSchema(mapZodSchema(optionalNullSchema), { io: 'input' }),
+        ).toEqual(toJsonSchema(mapZodSchema(nullableSchema), { io: 'input' }));
+    });
+
+    test('accepts an omitted key or null and outputs null', () => {
+        const mapped = mapZodSchema<{ query: string | null }>(
+            optionalNullSchema,
+        );
+        expect(mapped.parse({})).toEqual({ query: null });
+        expect(mapped.parse({ query: null })).toEqual({ query: null });
+        expect(mapped.parse({ query: 'x' })).toEqual({ query: 'x' });
     });
 });

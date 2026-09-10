@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -17,12 +18,9 @@ Usage tips:
 
 export const toolListContentArgsSchema = createToolSchema()
     .extend({
-        spaceSlug: z
-            .string()
-            .nullable()
-            .describe(
-                'Optional space slug/path to list. Use null to list root-level content.',
-            ),
+        spaceSlug: optionalNull(z.string()).describe(
+            'Optional space slug/path to list. Use null to list root-level content.',
+        ),
     })
     .withPagination()
     .build();

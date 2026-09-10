@@ -1,11 +1,17 @@
 import { z } from 'zod';
+import { optionalNull } from './optionalNull';
+
+// We need to coerce because LLMs were passing strings instead of numbers quite often (via MCP)
+const pageSchema = optionalNull(z.coerce.number().positive()).describe(
+    'Use this to paginate through the results. Starts at 1.',
+);
 
 export type ToolSchemaBuilder<$Schema extends z.ZodRawShape = z.ZodRawShape> = {
     extend: <$Fields extends z.ZodRawShape>(
         fields: $Fields,
     ) => ToolSchemaBuilder<$Schema & $Fields>;
     withPagination: () => ToolSchemaBuilder<
-        $Schema & { page: z.ZodNullable<z.ZodNumber> }
+        $Schema & { page: typeof pageSchema }
     >;
     build: () => z.ZodObject<$Schema>;
     schema: z.ZodObject<$Schema>;
@@ -27,17 +33,8 @@ const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
      */
     withPagination: () =>
         toolSchemaBuilder(
-            schema.extend({
-                // We need to coerce because LLMs were passing strings instead of numbers quite often (via MCP)
-                page: z.coerce
-                    .number()
-                    .positive()
-                    .nullable()
-                    .describe(
-                        'Use this to paginate through the results. Starts at 1.',
-                    ),
-            }),
-        ) as ToolSchemaBuilder<$Schema & { page: z.ZodNullable<z.ZodNumber> }>,
+            schema.extend({ page: pageSchema }),
+        ) as ToolSchemaBuilder<$Schema & { page: typeof pageSchema }>,
 
     /**
      * Builds the schema

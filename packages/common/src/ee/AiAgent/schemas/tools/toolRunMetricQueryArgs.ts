@@ -11,6 +11,7 @@ import {
 } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
@@ -39,10 +40,9 @@ export const tableVizConfigSchema = z
                 'Sort configuration for the query, it can use a combination of metrics and dimensions.',
             ),
 
-        limit: z.coerce
-            .number()
-            .nullable()
-            .describe('The maximum number of rows in the table.'),
+        limit: optionalNull(z.coerce.number()).describe(
+            'The maximum number of rows in the table.',
+        ),
     })
     .describe(
         'Configuration file for generating a table from a query with metrics and dimensions',

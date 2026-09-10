@@ -9,6 +9,7 @@ import {
     type TableCalculation,
 } from '../../../../types/field';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { optionalNull } from '../optionalNull';
 import {
     tableCalcFormulaSchema,
     withLeadingEquals,
@@ -35,7 +36,8 @@ const tableCalcSchema = z.discriminatedUnion('type', [
 ]);
 
 export type TableCalcSchema = z.infer<typeof tableCalcSchema>;
-export const tableCalcsSchema = z.array(tableCalcSchema).nullable().describe(`
+export const tableCalcsSchema = optionalNull(z.array(tableCalcSchema))
+    .describe(`
 Table calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.
 
 **Prefer type "formula"** — it expresses arithmetic across fields, ratios, comparisons, conditionals, and partitioned window calculations. The other types are legacy single-field templates kept for backwards compatibility.
@@ -51,9 +53,9 @@ export type TableCalcsSchema = z.infer<typeof tableCalcsSchema>;
 
 // Formula-only contract advertised to the agent. The wide tableCalcsSchema
 // above still parses everything this produces.
-export const formulaTableCalcsSchema = z
-    .array(tableCalcFormulaSchema)
-    .nullable().describe(`
+export const formulaTableCalcsSchema = optionalNull(
+    z.array(tableCalcFormulaSchema),
+).describe(`
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
 Use them whenever the question needs math the metric query alone can't express: arithmetic across metrics (\`metric_a + metric_b\`), ratios, percent of total, period-over-period change, running totals, moving averages, ranking, row-level comparisons, or aggregating already-aggregated metrics.

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNull } from '../optionalNull';
 
 export const DISCOVER_FIELDS_DESCRIPTION = `Tool: discoverFields
 
@@ -21,12 +22,9 @@ export const discoverFieldsInputSchema = z.object({
         .describe(
             'The latest user question or instruction the agent is responding to. Pass the full message — the subagent uses it to disambiguate explores and rank fields.',
         ),
-    agentInstruction: z
-        .string()
-        .nullable()
-        .describe(
-            "The agent's configured `instruction` field if present, otherwise null. Provides domain-specific guidance for explore/field selection.",
-        ),
+    agentInstruction: optionalNull(z.string()).describe(
+        "The agent's configured `instruction` field if present, otherwise null. Provides domain-specific guidance for explore/field selection.",
+    ),
 });
 
 export type DiscoverFieldsInput = z.infer<typeof discoverFieldsInputSchema>;

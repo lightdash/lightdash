@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNull } from '../optionalNull';
 import { baseTableCalcSchema } from './tableCalcBaseSchemas';
 
 // Names must exist in @lightdash/formula's catalog; common cannot depend on
@@ -49,18 +50,14 @@ export function withLeadingEquals(formula: string): string {
 export const tableCalcFormulaSchema = baseTableCalcSchema.extend({
     type: z.literal('formula'),
     formula: z.string().describe(formulaDescription),
-    format: z
-        .enum(['number', 'percent'])
-        .nullable()
-        .describe(
-            'Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".',
-        ),
-    resultType: z
-        .enum(['number', 'string', 'date', 'timestamp', 'boolean'])
-        .nullable()
-        .describe(
-            'Data type the formula evaluates to. null defaults to "number".',
-        ),
+    format: optionalNull(z.enum(['number', 'percent'])).describe(
+        'Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".',
+    ),
+    resultType: optionalNull(
+        z.enum(['number', 'string', 'date', 'timestamp', 'boolean']),
+    ).describe(
+        'Data type the formula evaluates to. null defaults to "number".',
+    ),
 });
 
 export type TableCalcFormulaSchema = z.infer<typeof tableCalcFormulaSchema>;

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -29,12 +30,9 @@ Parameters:
 
 export const toolSyncDbtProjectArgsSchema = createToolSchema()
     .extend({
-        reason: z
-            .string()
-            .nullable()
-            .describe(
-                'An optional short note about why the project is being synced (e.g. "picking up the newly merged net_revenue metric"). Informational only; does not affect the compile. Pass null if you have nothing to add.',
-            ),
+        reason: optionalNull(z.string()).describe(
+            'An optional short note about why the project is being synced (e.g. "picking up the newly merged net_revenue metric"). Informational only; does not affect the compile. Pass null if you have nothing to add.',
+        ),
     })
     .build();
 

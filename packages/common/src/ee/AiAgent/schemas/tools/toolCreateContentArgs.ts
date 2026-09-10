@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ChartAsCode } from '../../../../types/coder';
+import { optionalNull } from '../optionalNull';
 
 export const TOOL_CREATE_CONTENT_DESCRIPTION =
     'Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.';
@@ -42,7 +43,7 @@ const baseContentSchema = z.object({
             'Requested slug. Lightdash may append a suffix if this slug already exists.',
         ),
     name: z.string().min(1),
-    description: z.string().nullable(),
+    description: optionalNull(z.string()),
     spaceSlug: z.string().min(1),
     version: z.coerce.number(),
     contentType: z.string(),

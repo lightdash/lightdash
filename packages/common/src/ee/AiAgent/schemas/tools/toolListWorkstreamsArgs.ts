@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNull } from '../optionalNull';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 
 export const TOOL_LIST_WORKSTREAMS_DESCRIPTION = [
@@ -8,12 +9,9 @@ export const TOOL_LIST_WORKSTREAMS_DESCRIPTION = [
 ].join(' ');
 
 export const toolListWorkstreamsArgsSchema = z.object({
-    repoTarget: z
-        .string()
-        .nullable()
-        .describe(
-            'Restrict the list to a single repository, as "owner/repo" (e.g. "acme/web-app"). Pass null to list the pull requests this conversation has opened across all repositories.',
-        ),
+    repoTarget: optionalNull(z.string()).describe(
+        'Restrict the list to a single repository, as "owner/repo" (e.g. "acme/web-app"). Pass null to list the pull requests this conversation has opened across all repositories.',
+    ),
 });
 
 export type ToolListWorkstreamsArgs = z.infer<
