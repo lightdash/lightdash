@@ -1,5 +1,6 @@
 import { CHART_TYPE_ICONS, type ChartTypeIcon } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Popover,
@@ -8,7 +9,6 @@ import {
     Text,
     TextInput,
     Tooltip,
-    UnstyledButton,
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -55,15 +55,16 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
         >
             <Popover.Target>
                 <Tooltip label="Choose an icon" disabled={isOpen}>
-                    <UnstyledButton
-                        type="button"
-                        className={classes.target}
+                    <ActionIcon
+                        variant="default"
+                        size="lg"
+                        display="flex"
                         aria-label="Chart type icon"
                         disabled={disabled}
                         onClick={() => setIsOpen((opened) => !opened)}
                     >
                         <MantineIcon icon={getChartTypeIcon(value)} />
-                    </UnstyledButton>
+                    </ActionIcon>
                 </Tooltip>
             </Popover.Target>
 
@@ -72,9 +73,7 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
                     <TextInput
                         size="xs"
                         autoFocus
-                        leftSection={
-                            <MantineIcon icon={IconSearch} size="sm" />
-                        }
+                        leftSection={<MantineIcon icon={IconSearch} />}
                         placeholder="Search icons"
                         value={search}
                         onChange={(event) =>
@@ -82,7 +81,10 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
                         }
                     />
 
-                    <ScrollArea.Autosize mah={200} type="scroll">
+                    <ScrollArea.Autosize
+                        className={classes.scroll}
+                        type="scroll"
+                    >
                         {filteredIcons.length === 0 ? (
                             <Text size="xs" c="dimmed" ta="center" py="xs">
                                 No icons match
@@ -92,17 +94,21 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
                                 {filteredIcons.map((iconName) => {
                                     const label =
                                         getChartTypeIconLabel(iconName);
+                                    const isSelected = value === iconName;
                                     return (
                                         <Tooltip key={iconName} label={label}>
-                                            <UnstyledButton
-                                                type="button"
-                                                className={classes.cell}
-                                                data-selected={
-                                                    value === iconName
+                                            <ActionIcon
+                                                variant={
+                                                    isSelected
+                                                        ? 'light'
+                                                        : 'subtle'
                                                 }
-                                                aria-pressed={
-                                                    value === iconName
+                                                color={
+                                                    isSelected
+                                                        ? 'blue'
+                                                        : undefined
                                                 }
+                                                aria-pressed={isSelected}
                                                 aria-label={label}
                                                 onClick={() =>
                                                     handleSelect(iconName)
@@ -112,9 +118,8 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
                                                     icon={getChartTypeIcon(
                                                         iconName,
                                                     )}
-                                                    size="sm"
                                                 />
-                                            </UnstyledButton>
+                                            </ActionIcon>
                                         </Tooltip>
                                     );
                                 })}
