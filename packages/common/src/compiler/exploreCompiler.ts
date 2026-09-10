@@ -462,7 +462,7 @@ export class ExploreCompiler {
                   if (tables[join.table] === undefined) {
                       exploreWarnings.push({
                           type: InlineErrorType.MISSING_TABLE,
-                          message: `Join to table "${join.table}" was skipped because the table does not exist`,
+                          message: `Join "${join.alias || join.table}" to table "${join.table}" was skipped because the model is not available in this Lightdash project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.`,
                       });
                       return false;
                   }
@@ -664,6 +664,20 @@ export class ExploreCompiler {
             const tableName = j.alias || j.table;
             if (this.options.allowPartialCompilation) {
                 try {
+                    const references = parseAllReferences(j.sqlOn, tableName);
+                    const missingJoin = joinedTables.find(
+                        (join) =>
+                            !tables[join.table] &&
+                            references.some(
+                                ({ refTable }) =>
+                                    refTable === (join.alias || join.table),
+                            ),
+                    );
+                    if (missingJoin) {
+                        throw new CompileError(
+                            `Join "${tableName}" was skipped because it depends on skipped join "${missingJoin.alias || missingJoin.table}" (table "${missingJoin.table}"). Resolve the missing-table warning for that join, then refresh the project.`,
+                        );
+                    }
                     return {
                         join: j,
                         compiled: this.compileJoin(

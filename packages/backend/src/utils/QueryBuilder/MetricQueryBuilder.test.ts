@@ -4,8 +4,10 @@ import {
     CompiledMetricQuery,
     CompileError,
     CustomDimensionType,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
     Explore,
+    ExploreCompiler,
     FieldType,
     FilterOperator,
     ForbiddenError,
@@ -98,6 +100,51 @@ const buildQuery = (
         ...args,
         parameterDefinitions: {},
     }).compileQuery();
+
+describe('skipped joins', () => {
+    it('returns an actionable compile error for a metric query depending on a skipped join', () => {
+        const explore = new ExploreCompiler(warehouseClientMock, {
+            allowPartialCompilation: true,
+        }).compileExplore({
+            ...EXPLORE,
+            meta: {},
+            spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    sqlWhere: '${details.dim2} IS NOT NULL',
+                },
+            },
+            joinedTables: [
+                {
+                    table: 'accounts',
+                    alias: 'account',
+                    sqlOn: '${table1.dim1} = ${account.id}',
+                },
+                {
+                    table: 'table2',
+                    alias: 'details',
+                    sqlOn: '${account.id} = ${details.dim2}',
+                },
+            ],
+        });
+        expect(explore.joinedTables).toEqual([]);
+
+        const query = () =>
+            buildQuery({
+                explore,
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: {},
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+        expect(query).toThrow(CompileError);
+        expect(query).toThrow(/Join "details" is not available/);
+        expect(query).toThrow(/account.*accounts/);
+        expect(query).toThrow(/tags\/selector/);
+    });
+});
 
 describe('field compilation errors', () => {
     const exploreWithErroredDimension: Explore = {
