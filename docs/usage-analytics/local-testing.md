@@ -2,7 +2,7 @@
 
 For the architecture and trust boundaries, see [architecture](architecture.md).
 
-Development-only prototype, not the production metadata-project rollout. It
+Feature-flagged internal preview, not a broadly enabled customer rollout. It
 creates a `PREVIEW` project with a backend-owned `analytics` provisioning marker
 and an invisible DuckDB `analytics` connection.
 No MotherDuck account, dbt project, or configurable connector UI is required.
@@ -21,19 +21,18 @@ Add these values to that worktree's `.env.development.local` (never commit them)
 
 ```dotenv
 LIGHTDASH_ENABLE_FEATURE_FLAGS=analytics-project
-LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID=<local-organization-uuid>
-LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID=<source-organization-uuid>
 ```
 
 Preserve other enabled flags if needed. Explicitly disabling `analytics-project`
-takes precedence. The two org IDs are an intentional local-only binding;
-production must use the authenticated org and reviewed credential isolation.
+takes precedence. Source data must belong to the persisted project's org, even
+locally; legacy org/source-org overrides are ignored. For production testing,
+follow [live testing](live-testing.md).
 
 As a signed-in organization administrator, open **Organization settings →
 Lightdash analytics (Beta)** at `/generalSettings/lightdashAnalytics`. Click
 **Create** to provision and open the project, or **Open** if it already exists.
 The page shows the project's creation time, not its model-sync version or data
-freshness. Feature-flag and development-only backend restrictions still apply.
+freshness. Feature-flag and org-admin backend restrictions still apply.
 
 Alternatively, call the same-origin endpoint from the browser console on your
 assigned local frontend:
@@ -78,7 +77,7 @@ a new project; it does not restore deleted charts or dashboards.
 
 All three endpoints live in `AnalyticsProjectController`, backed by
 `AnalyticsProjectService`, and require a session-authenticated org administrator
-and the existing analytics flag/local-org guard. Production enablement and
+and the existing analytics feature flag. Broad customer enablement and
 versioned content sync remain separate follow-ups.
 
 ## Read path and safeguards
@@ -106,10 +105,9 @@ slice does not issue export URLs that outlive these checks.
 
 ## Before customer rollout
 
-- Replace the backend signer's write-capable source identity with dedicated
-  read-only credentials (PROD-11103). The interim signed-URL path keeps broad keys
-  out of DuckDB but still trusts the signer. Replace local source-org overrides
-  with the persisted project's org. Folder separation is not an IAM boundary.
+- Review effective IAM and shared-instance isolation. Dedicated read-only
+  credentials are deferred hardening (PROD-11103). Signed URLs keep broad keys
+  out of DuckDB but still trust the signer. Folder separation is not an IAM boundary.
 - Review every permissions and cached/downloaded-results surface. Finish SQL
   Runner, scheduling, AI and model-editing exclusions. Local org-admin checks are
   not the final metadata-project role design.
@@ -124,7 +122,7 @@ slice does not issue export URLs that outlive these checks.
 
 Actual GCS reads and isolated MinIO tests verify the signed-URL path; AWS S3 and
 production multi-tenant rollout remain unverified.
-The implementation rejects production execution even with its flag enabled.
+Production execution requires explicit deployment feature enablement.
 
 ## Incremental PR stack
 

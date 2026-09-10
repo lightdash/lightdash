@@ -23,7 +23,7 @@ Project creation and **Sync content** in organization analytics settings both in
 the current definitions. After creation, settings stays open and shows dashboard
 shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
 `POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
-analytics feature flag, development environment, and org-admin guard. The server
+analytics feature flag and org-admin guard. The server
 resolves the organization and its marked analytics project; no target IDs or
 content definitions are accepted from the caller.
 

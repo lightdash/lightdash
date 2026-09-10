@@ -7,43 +7,34 @@ import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
-/** Temporary local triage configuration, NOT a production credential strategy. */
-export const isLocalAnalyticsProjectEnabled = (
-    organizationUuid: string,
-): boolean =>
-    process.env.NODE_ENV === 'development' &&
+export const isAnalyticsProjectEnabled = (): boolean =>
     lightdashConfig.enabledFeatureFlags.has(FeatureFlags.AnalyticsProject) &&
-    !lightdashConfig.disabledFeatureFlags.has(FeatureFlags.AnalyticsProject) &&
-    process.env.LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID === organizationUuid;
+    !lightdashConfig.disabledFeatureFlags.has(FeatureFlags.AnalyticsProject);
 
-export const assertLocalAnalyticsProjectEnabled = (
-    organizationUuid: string,
-): void => {
-    if (!isLocalAnalyticsProjectEnabled(organizationUuid)) {
+export const assertAnalyticsProjectEnabled = (): void => {
+    if (!isAnalyticsProjectEnabled()) {
         throw new ForbiddenError(
             'Internal analytics projects are not enabled for this organization',
         );
     }
 };
 
-export const createLocalAnalyticsClient = (
+export const createAnalyticsClient = (
     organizationUuid: string,
 ): DuckdbWarehouseClient => {
-    assertLocalAnalyticsProjectEnabled(organizationUuid);
+    assertAnalyticsProjectEnabled();
     const storage = lightdashConfig.usageEvents.s3;
     if (!storage) {
         throw new MissingConfigError('Usage events storage is not configured');
     }
     const resolveSource = createS3AnalyticsSourceResolver({
         storage,
-        // Explicit local demo binding only; production must use the persisted org.
-        organizationUuid:
-            process.env.LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID ?? '',
+        organizationUuid,
     });
     return new DuckdbWarehouseClient({
         type: 'duckdb_parquet',
         resolveSource: async () => {
-            assertLocalAnalyticsProjectEnabled(organizationUuid);
+            assertAnalyticsProjectEnabled();
             return resolveSource();
         },
     });

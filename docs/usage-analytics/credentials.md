@@ -8,7 +8,9 @@ provisioning with both system explores → internal documentation. Dedicated
 read-only credentials are deferred to PROD-11103. The credential provider itself
 does not expose an HTTP endpoint or public connector. Its caller must authorize
 the project's org and check the shared flag before constructing the resolver;
-the current development-only source-org mapping is described in the architecture.
+the source org is always the persisted, authorized project org. See
+[live testing](live-testing.md) for feature-flagged production testing with the
+existing writer identity; dedicated reader credentials are deferred.
 
 ## Reuse existing writer configuration
 
