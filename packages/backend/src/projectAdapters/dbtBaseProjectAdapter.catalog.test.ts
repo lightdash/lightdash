@@ -322,7 +322,7 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
     });
 
     it('types a reappearing known missing table after one narrow probe', async () => {
-        const fetchedAt = new Date('2026-09-07T18:00:00.000Z');
+        const fetchedAt = new Date();
         const harness = makeHarness({
             models: [
                 makeModel('existing'),
