@@ -4729,6 +4729,10 @@ describe('ProjectService', () => {
                 warehouseCredentials: warehouseClientMock.credentials,
                 cachedWarehouse: {
                     warehouseCatalog: undefined,
+                    warehouseCatalogFetchedAt: null,
+                    missingWarehouseTables: null,
+                    manualWarehouseCatalogRefresh: null,
+                    warehouseCatalogMaxAgeMs: null,
                     onWarehouseCatalogChange: vi.fn(),
                 },
                 dbtVersionOption: DefaultSupportedDbtVersion,
