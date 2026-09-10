@@ -136,28 +136,39 @@ const LightdashAnalyticsPanel = ({
                     <Stack gap="md">
                         <Group justify="space-between">
                             <Title order={5}>Dashboards</Title>
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                loading={
-                                    dashboards.isFetching ||
-                                    installSampleContent.isLoading
-                                }
-                                onClick={() => installSampleContent.mutate()}
-                            >
-                                Refresh
-                            </Button>
+                            <Group gap="xs">
+                                <Button
+                                    variant="subtle"
+                                    size="xs"
+                                    loading={dashboards.isFetching}
+                                    disabled={installSampleContent.isLoading}
+                                    onClick={() => void dashboards.refetch()}
+                                >
+                                    Refresh
+                                </Button>
+                                <Button
+                                    variant="default"
+                                    size="xs"
+                                    loading={installSampleContent.isLoading}
+                                    onClick={() =>
+                                        installSampleContent.mutate()
+                                    }
+                                >
+                                    Sync Lightdash content
+                                </Button>
+                            </Group>
                         </Group>
                         <Text fz="xs" c="dimmed">
-                            Refresh overwrites the sample dashboard and its
-                            charts. Duplicate the sample to keep your
-                            customizations. Your other dashboards are not
-                            changed.
+                            Sync updates Lightdash-managed dashboards and charts
+                            to the latest built-in definitions, overwriting
+                            customizations in place. Duplicate them to keep your
+                            changes. Your project, custom dashboards and copies
+                            are preserved. Refresh only reloads this list.
                         </Text>
                         {installSampleContent.isError && (
                             <Callout
                                 variant="danger"
-                                title="Unable to refresh analytics content"
+                                title="Unable to sync analytics content"
                             >
                                 {installSampleContent.error.error.message}
                             </Callout>

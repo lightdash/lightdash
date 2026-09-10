@@ -146,11 +146,9 @@ describe('LightdashAnalyticsPanel', () => {
                 : { project },
         );
         await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-        expect(lightdashApi).toHaveBeenCalledWith({
-            url: '/org/analytics-project/sample-content',
-            method: 'POST',
-            body: undefined,
-        });
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'POST' }),
+        );
         expect(
             screen.queryByRole('button', { name: 'Add sample dashboard' }),
         ).not.toBeInTheDocument();
@@ -162,6 +160,35 @@ describe('LightdashAnalyticsPanel', () => {
         );
         expect(screen.getByText('Daily AI usage')).toBeVisible();
         expect(screen.getByText(/^Updated /)).toBeVisible();
+    });
+
+    it('syncs managed content without deleting or recreating the project', async () => {
+        renderPanel();
+        await userEvent.click(
+            await screen.findByRole('button', {
+                name: 'Sync Lightdash content',
+            }),
+        );
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith({
+                url: '/org/analytics-project/sample-content',
+                method: 'POST',
+                body: undefined,
+            }),
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'DELETE' }),
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/org/analytics-project',
+                method: 'POST',
+            }),
+        );
+        expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute(
+            'href',
+            project.url,
+        );
     });
 
     it('requires confirmation before deleting and returns to Create', async () => {

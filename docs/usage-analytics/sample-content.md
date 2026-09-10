@@ -10,13 +10,16 @@ by token volume, a cache-hit share donut, average/P90 warehouse execution trends
 and top query contexts. Token volume is not cost; warehouse execution time is not
 end-to-end latency. Missing cache flags are not treated as misses.
 
-Project creation and **Refresh** in organization analytics settings both install
+Project creation and **Sync Lightdash content** in organization analytics settings both install
 the current definitions. After creation, settings stays open and shows dashboard
-shortcuts and the **Explore** button; it does not redirect automatically. Refresh calls
+shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
 `POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
 analytics feature flag, development environment, and org-admin guard. The server
 resolves the organization and its marked analytics project; no target IDs or
 content definitions are accepted from the caller.
+
+**Refresh** only reloads the dashboard list. Sync never deletes or recreates the
+project and preserves custom dashboards and copies.
 
 ## Identity and overwrite behavior
 
@@ -27,7 +30,7 @@ public creation payload. Normal creation and duplication still allocate random
 UUIDs. Names and slugs are never used to identify refresh targets, so unrelated
 content with the same name or slug and user-created copies are not overwritten.
 
-Refresh overwrites the managed dashboard's name, description, layout, filters,
+Sync overwrites the managed dashboard's name, description, layout, filters,
 and sample chart definitions using the existing versioned models. Existing UUIDs
 and slugs remain unchanged, including a collision suffix allocated on first
 creation. Customizations to the managed sample can be lost: duplicate it first
@@ -35,15 +38,15 @@ to keep them. Other dashboards and their charts are untouched. Removed chart
 definitions are no longer included in the dashboard layout; their saved rows and
 historical versions are retained rather than hard-deleted.
 
-Installation runs in one transaction under a project row lock. Failed refreshes
+Installation runs in one transaction under a project row lock. Failed syncs
 roll back, preserving the previous content. A soft-deleted managed dashboard or
-sample chart can be restored by Refresh. Refresh fails if its space is deleted
+sample chart can be restored by Sync. Sync fails if its space is deleted
 (restore the space first) or a managed chart has moved outside that dashboard.
 Every existing target is checked for project/dashboard ownership before updating.
 
 ## Future work
 
-There is no out-of-date detection or installed version in this PR. Every Refresh
+There is no out-of-date detection or installed version in this PR. Every Sync
 applies the definitions shipped with the current backend. Version detection and
 broader content synchronization are tracked in PROD-11152. Creation timestamps
 alone would not indicate the version after an in-place refresh.
