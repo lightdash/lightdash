@@ -1,5 +1,6 @@
 import {
     computePreAggregateWarnings,
+    hasPreAggregateMaterializationReachedMaxRows,
     NotFoundError,
     type ActiveMaterializationDetails,
     type ApiPreAggregateMaterializationsResults,
@@ -28,6 +29,18 @@ import {
 type DbPreAggregateDefinitionWithExploreName = DbPreAggregateDefinition & {
     pre_agg_explore_name: string;
 };
+
+type ActiveMaterializationRow = Pick<
+    DbPreAggregateMaterialization,
+    | 'pre_aggregate_materialization_uuid'
+    | 'query_uuid'
+    | 'materialization_uri'
+    | 'columns'
+    | 'materialized_at'
+    | 'total_bytes'
+    | 'row_count'
+> &
+    Pick<DbPreAggregateDefinition, 'materialization_metric_query'>;
 
 const toPreAggregateDefinition = (
     row: DbPreAggregateDefinition,
@@ -62,6 +75,48 @@ const toPreAggregateMaterialization = (
     updatedAt: row.updated_at,
 });
 
+export const toActiveMaterializationDetails = (
+    row: ActiveMaterializationRow | undefined,
+): ActiveMaterializationDetails | undefined => {
+    if (
+        !row ||
+        !row.query_uuid ||
+        !row.materialization_uri ||
+        !row.materialized_at
+    ) {
+        return undefined;
+    }
+
+    // The cap comes from the persisted payload the artifact was built from;
+    // a payload rebuild implies a compile, which cascade-deletes the artifact,
+    // so the pair can never be mismatched. Legacy at-cap artifacts predate the
+    // promote gate and may be truncated — treat them as no active materialization.
+    const resolvedMaxRows =
+        row.materialization_metric_query?.resolvedMaxRows ?? null;
+    if (
+        hasPreAggregateMaterializationReachedMaxRows({
+            rowCount: row.row_count,
+            resolvedMaxRows,
+        })
+    ) {
+        return undefined;
+    }
+
+    return {
+        materializationUuid: row.pre_aggregate_materialization_uuid,
+        queryUuid: row.query_uuid,
+        materializationUri: row.materialization_uri,
+        format: row.materialization_uri.endsWith('.parquet')
+            ? 'parquet'
+            : 'jsonl',
+        columns: row.columns,
+        materializedAt: row.materialized_at,
+        totalBytes: row.total_bytes,
+        rowCount: row.row_count,
+        resolvedMaxRows,
+    };
+};
+
 export class PreAggregateModel {
     readonly database: Knex;
 
@@ -69,6 +124,11 @@ export class PreAggregateModel {
         this.database = database;
     }
 
+    // Compile-scoped lifecycle: every dbt compile wipes the project's cached
+    // explores and the FK cascades delete these rows (and their materializations)
+    // with them, so the merge branch below never pairs an old artifact with a new
+    // definition. An incremental sync that keeps cached explores alive would have
+    // to supersede active materializations itself when the payload changes.
     async upsertPreAggregateDefinitions(
         definitions: DbPreAggregateDefinitionIn[],
     ): Promise<void> {
@@ -446,23 +506,15 @@ export class PreAggregateModel {
                 'active',
             )
             .whereNotNull(`${PreAggregateMaterializationsTableName}.query_uuid`)
-            .select<
-                Pick<
-                    DbPreAggregateMaterialization,
-                    | 'pre_aggregate_materialization_uuid'
-                    | 'query_uuid'
-                    | 'materialization_uri'
-                    | 'columns'
-                    | 'materialized_at'
-                    | 'total_bytes'
-                >[]
-            >([
+            .select<ActiveMaterializationRow[]>([
                 `${PreAggregateMaterializationsTableName}.pre_aggregate_materialization_uuid`,
                 `${PreAggregateMaterializationsTableName}.query_uuid`,
                 `${PreAggregateMaterializationsTableName}.materialization_uri`,
                 `${PreAggregateMaterializationsTableName}.columns`,
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
                 `${PreAggregateMaterializationsTableName}.total_bytes`,
+                `${PreAggregateMaterializationsTableName}.row_count`,
+                `${PreAggregateDefinitionsTableName}.materialization_metric_query`,
             ])
             .orderBy(
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
@@ -470,26 +522,7 @@ export class PreAggregateModel {
             )
             .first();
 
-        if (
-            !row ||
-            !row.query_uuid ||
-            !row.materialization_uri ||
-            !row.materialized_at
-        ) {
-            return undefined;
-        }
-
-        return {
-            materializationUuid: row.pre_aggregate_materialization_uuid,
-            queryUuid: row.query_uuid,
-            materializationUri: row.materialization_uri,
-            format: row.materialization_uri.endsWith('.parquet')
-                ? 'parquet'
-                : 'jsonl',
-            columns: row.columns,
-            materializedAt: row.materialized_at,
-            totalBytes: row.total_bytes,
-        };
+        return toActiveMaterializationDetails(row);
     }
 
     async getDefinitionsWithLatestMaterialization(

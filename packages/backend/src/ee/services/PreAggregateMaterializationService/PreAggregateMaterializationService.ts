@@ -1,6 +1,7 @@
 import {
     getErrorMessage,
     getIntrinsicUserAttributes,
+    hasPreAggregateMaterializationReachedMaxRows,
     NotFoundError,
     PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
     preAggregateMaterialization,
@@ -414,6 +415,81 @@ export class PreAggregateMaterializationService extends BaseService {
                     status: 'failed',
                     queryUuid,
                 };
+            }
+
+            if (
+                hasPreAggregateMaterializationReachedMaxRows({
+                    rowCount: queryHistory.totalRowCount,
+                    resolvedMaxRows: materializationMetricQuery.resolvedMaxRows,
+                })
+            ) {
+                const errorMessage = `Materialization reached the maxRows limit of ${materializationMetricQuery.resolvedMaxRows} rows and would serve truncated results. Raise max_rows, add pre-aggregate filters, or coarsen the grain.`;
+
+                this.logger.warn(
+                    `Pre-aggregate materialization rejected at the maxRows cap`,
+                    {
+                        materializationUuid,
+                        queryUuid,
+                        projectUuid: args.projectUuid,
+                        preAggregateDefinitionUuid:
+                            args.preAggregateDefinitionUuid,
+                        trigger: args.trigger,
+                        rowCount: queryHistory.totalRowCount,
+                        resolvedMaxRows:
+                            materializationMetricQuery.resolvedMaxRows,
+                    },
+                );
+
+                // Failing before promotion keeps the previous active materialization serving.
+                await this.preAggregateModel.markFailed({
+                    materializationUuid,
+                    errorMessage,
+                });
+
+                const durationMs = Date.now() - startTime;
+                this.trackMaterializationFailed({
+                    account: args.account,
+                    materializationUuid,
+                    queryUuid,
+                    projectUuid: args.projectUuid,
+                    preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
+                    preAggregateName,
+                    trigger: args.trigger,
+                    queryStatus: queryHistory.status,
+                    totalDurationMs: durationMs,
+                    errorMessage,
+                });
+                this.prometheusMetrics?.preAggregateMaterializationCounter?.inc(
+                    { status: 'failed', trigger: args.trigger },
+                );
+                this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
+                    { status: 'failed', trigger: args.trigger },
+                    durationMs / 1000,
+                );
+
+                return {
+                    materializationUuid,
+                    status: 'failed',
+                    queryUuid,
+                };
+            }
+
+            if (
+                queryHistory.totalRowCount == null &&
+                materializationMetricQuery.resolvedMaxRows !== null
+            ) {
+                this.logger.warn(
+                    `Pre-aggregate materialization completed without a row count; the maxRows cap cannot be verified`,
+                    {
+                        materializationUuid,
+                        queryUuid,
+                        projectUuid: args.projectUuid,
+                        preAggregateDefinitionUuid:
+                            args.preAggregateDefinitionUuid,
+                        resolvedMaxRows:
+                            materializationMetricQuery.resolvedMaxRows,
+                    },
+                );
             }
 
             const columnCount = queryHistory.columns

@@ -8,6 +8,7 @@ import type { S3ResultsFileStorageClient } from '../../../clients/ResultsFileSto
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import type { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { sessionAccount } from '../../../services/ProjectService/ProjectService.mock';
 import type { PreAggregateModel } from '../../models/PreAggregateModel';
 import { PreAggregateMaterializationService } from './PreAggregateMaterializationService';
 
@@ -294,6 +295,129 @@ describe('PreAggregateMaterializationService', () => {
                 'Materialization query completed without a persisted results file',
         });
         expect(preAggregateModel.promoteToActive).not.toHaveBeenCalled();
+    });
+
+    describe('maxRows promote gate', () => {
+        const definitionWithMaxRows = (resolvedMaxRows: number | null) => ({
+            ...baseStoredPreAggregateDefinition,
+            preAggregateDefinitionUuid: 'def-1',
+            materializationMetricQuery: {
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 100,
+                    tableCalculations: [],
+                },
+                metricComponents: {},
+                timeDimensionFieldId: null,
+                resolvedMaxRows,
+            },
+            materializationQueryError: null,
+        });
+
+        const readyQueryHistory = (totalRowCount: number | null) => ({
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'query-1-results',
+            resultsUpdatedAt: new Date('2024-02-01T10:00:00.000Z'),
+            totalRowCount,
+            columns: null,
+        });
+
+        beforeEach(() => {
+            asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
+                queryUuid: 'query-1',
+            });
+            preAggregateResultsStorageClient.getFileSize.mockResolvedValue(
+                456789,
+            );
+            preAggregateModel.promoteToActive.mockResolvedValue({
+                status: 'active',
+            });
+        });
+
+        test('marks run as failed without promoting when the row count reaches the persisted cap', async () => {
+            preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue(
+                definitionWithMaxRows(100),
+            );
+            queryHistoryModel.pollForQueryCompletion.mockResolvedValue(
+                readyQueryHistory(100),
+            );
+
+            const result = await service.materializePreAggregate({
+                account: sessionAccount,
+                projectUuid: 'project-1',
+                preAggregateDefinitionUuid: 'def-1',
+                trigger: 'manual',
+            });
+
+            expect(result).toEqual({
+                materializationUuid: 'mat-1',
+                status: 'failed',
+                queryUuid: 'query-1',
+            });
+            expect(preAggregateModel.markFailed).toHaveBeenCalledWith({
+                materializationUuid: 'mat-1',
+                errorMessage:
+                    'Materialization reached the maxRows limit of 100 rows and would serve truncated results. Raise max_rows, add pre-aggregate filters, or coarsen the grain.',
+            });
+            // The gate runs before promotion, so the previous active materialization keeps serving.
+            expect(preAggregateModel.promoteToActive).not.toHaveBeenCalled();
+        });
+
+        test('promotes when the row count is strictly below the persisted cap', async () => {
+            preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue(
+                definitionWithMaxRows(100),
+            );
+            queryHistoryModel.pollForQueryCompletion.mockResolvedValue(
+                readyQueryHistory(99),
+            );
+
+            const result = await service.materializePreAggregate({
+                account: sessionAccount,
+                projectUuid: 'project-1',
+                preAggregateDefinitionUuid: 'def-1',
+                trigger: 'manual',
+            });
+
+            expect(result).toEqual({
+                materializationUuid: 'mat-1',
+                status: 'active',
+                queryUuid: 'query-1',
+            });
+            expect(preAggregateModel.markFailed).not.toHaveBeenCalled();
+            expect(preAggregateModel.promoteToActive).toHaveBeenCalledWith(
+                expect.objectContaining({ rowCount: 99 }),
+            );
+        });
+
+        test('promotes when the warehouse omits the row count', async () => {
+            preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue(
+                definitionWithMaxRows(100),
+            );
+            queryHistoryModel.pollForQueryCompletion.mockResolvedValue(
+                readyQueryHistory(null),
+            );
+
+            const result = await service.materializePreAggregate({
+                account: sessionAccount,
+                projectUuid: 'project-1',
+                preAggregateDefinitionUuid: 'def-1',
+                trigger: 'manual',
+            });
+
+            expect(result).toEqual({
+                materializationUuid: 'mat-1',
+                status: 'active',
+                queryUuid: 'query-1',
+            });
+            expect(preAggregateModel.markFailed).not.toHaveBeenCalled();
+            expect(preAggregateModel.promoteToActive).toHaveBeenCalledWith(
+                expect.objectContaining({ rowCount: null }),
+            );
+        });
     });
 
     test('passes materializationRole only when the pre-aggregate definition configures it', async () => {
