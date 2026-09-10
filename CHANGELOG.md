@@ -1,3 +1,10 @@
+## [2.191.1](https://github.com/lightdash/lightdash/compare/2.191.0...2.191.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **chart-types:** rebuild the icon picker on the theme ActionIcon ([#29020](https://github.com/lightdash/lightdash/issues/29020)) ([c8bbb5b](https://github.com/lightdash/lightdash/commit/c8bbb5bfaac30154de078e1e6e355d3c251354f8))
+
 # [2.191.0](https://github.com/lightdash/lightdash/compare/2.190.2...2.191.0) (2026-09-10)
 
 
