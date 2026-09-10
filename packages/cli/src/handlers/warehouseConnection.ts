@@ -28,8 +28,6 @@ export const getWarehouseCredentialsSource = (options: {
     return { source: 'profiles' };
 };
 
-// Secrets stripped from the GET response are merged back server-side before
-// the project is persisted.
 export const updateProjectWarehouseConnection = async (
     project: Pick<
         Project,
@@ -38,12 +36,18 @@ export const updateProjectWarehouseConnection = async (
     credentials: CreateWarehouseCredentials,
     jobLabel: string,
 ): Promise<void> => {
+    // Build UpdateProject body — preserve existing fields, override warehouseConnection.
+    // Note: dbtConnection from GET response may have stripped secrets, but the backend's
+    // mergeMissingProjectConfigSecrets fills them back in from the saved project before persisting.
     const updateBody: UpdateProject = {
         name: project.name,
         dbtConnection: project.dbtConnection,
         dbtVersion: project.dbtVersion,
         warehouseConnection: credentials,
     };
+
+    // PATCH project — triggers adaptor test + recompile. CLI-deployed projects
+    // (dbtConnection type "none") only run the adaptor test and keep their explores.
     const result = await lightdashApi<ApiJobStartedResults>({
         method: 'PATCH',
         url: `/api/v1/projects/${project.projectUuid}`,
