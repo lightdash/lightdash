@@ -60,6 +60,8 @@ import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useCustomMetricDelete } from '../../useCustomMetricDelete';
 import { ItemDetailPreview } from '../ItemDetailPreview';
+import previewClasses from '../ItemDetailPreview.module.css';
+import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from '../itemDetailPreviewTransition';
 import { MAX_GROUP_DEPTH } from './constants';
 import styles from './TreeSingleNode.module.css';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
@@ -469,6 +471,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                          * right at the same offset. Shave ~28px off to align.
                          */
                         offset={isCustomDimension(item) ? 36 : 70}
+                        transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
                     >
                         <HoverCard.Target>
                             <Text truncate fz="sm" className="ld-grow">
@@ -483,7 +486,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}
-                            p="xs"
+                            p="md"
                             miw={400}
                             mah={500}
                             /**
@@ -491,7 +494,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                              * of readability.
                              */
                             maw={500}
-                            className={styles.detailPreviewDropdown}
+                            className={`${styles.detailPreviewDropdown} ${previewClasses.previewDropdown}`}
                             onClick={handleDropdownClick}
                         >
                             {isMissing ? (
