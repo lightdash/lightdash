@@ -42,9 +42,11 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
 import {
     buildTableRows,
+    catalogHasViews,
     filterTablesBySchema,
     type SchemaTables,
     type TableRow,
+    type TableTypeFilter,
 } from '../utils/tableRows';
 import styles from './Tables.module.css';
 
@@ -193,8 +195,9 @@ const TableItem: FC<TableItemProps> = memo(
 const SchemaItem: FC<{
     schema: string;
     isExpanded: boolean;
+    count: number | null;
     onToggle: (schema: string, isExpanded: boolean) => void;
-}> = memo(({ schema, isExpanded, onToggle }) => (
+}> = memo(({ schema, isExpanded, count, onToggle }) => (
     <UnstyledButton
         onClick={() => onToggle(schema, isExpanded)}
         className={styles.schemaButton}
@@ -209,29 +212,83 @@ const SchemaItem: FC<{
             <Text fz="sm" fw={500} truncate>
                 {schema}
             </Text>
+            {count !== null && (
+                <Text fz="xs" c="dimmed" ml="auto" pr="xs">
+                    {count}
+                </Text>
+            )}
         </Group>
     </UnstyledButton>
 ));
 
+// Manual expand/collapse choices, keyed by the search and type filter they were made under
 type SchemaExpansion = {
-    search: string;
+    key: string;
     overrides: Record<string, boolean>;
 };
 const NO_OVERRIDES: Record<string, boolean> = {};
 
+const TYPE_FILTER_TOGGLES: {
+    filter: TableTypeFilter;
+    icon: Icon;
+    label: string;
+}[] = [
+    { filter: 'tables', icon: IconTable, label: 'Only tables' },
+    { filter: 'views', icon: IconEye, label: 'Only views' },
+];
+
+// One toggle active at a time; clicking the active one shows everything again
+const TableTypeToggle: FC<{
+    value: TableTypeFilter | null;
+    onChange: (value: TableTypeFilter | null) => void;
+}> = ({ value, onChange }) => (
+    <ActionIcon.Group>
+        {TYPE_FILTER_TOGGLES.map(({ filter, icon, label }) => {
+            const isActive = value === filter;
+            return (
+                <Tooltip
+                    key={filter}
+                    label={isActive ? 'Show all' : label}
+                    openDelay={400}
+                >
+                    <ActionIcon
+                        variant={isActive ? 'light' : 'default'}
+                        size="input-sm"
+                        aria-label={label}
+                        aria-pressed={isActive}
+                        onClick={() => onChange(isActive ? null : filter)}
+                    >
+                        <MantineIcon icon={icon} />
+                    </ActionIcon>
+                </Tooltip>
+            );
+        })}
+    </ActionIcon.Group>
+);
+
 const VirtualRow: FC<{
     row: TableRow;
     search: string;
+    showCounts: boolean;
     database: string;
     activeTable: string | undefined;
     activeSchema: string | undefined;
     onToggleSchema: (schema: string, isExpanded: boolean) => void;
-}> = ({ row, search, database, activeTable, activeSchema, onToggleSchema }) => {
+}> = ({
+    row,
+    search,
+    showCounts,
+    database,
+    activeTable,
+    activeSchema,
+    onToggleSchema,
+}) => {
     if (row.type === 'schema') {
         return (
             <SchemaItem
                 schema={row.schema}
                 isExpanded={row.isExpanded}
+                count={showCounts ? row.tableCount : null}
                 onToggle={onToggleSchema}
             />
         );
@@ -263,31 +320,30 @@ export const Tables: FC = () => {
             ? debouncedSearch
             : '';
 
-    // Manual expand/collapse choices, discarded whenever the search changes
+    const [typeFilter, setTypeFilter] = useState<TableTypeFilter | null>(null);
+    const isFiltering = effectiveSearch !== '' || typeFilter !== null;
+    const filterKey = `${typeFilter ?? 'all'}:${effectiveSearch}`;
+
     const [expansion, setExpansion] = useState<SchemaExpansion>({
-        search: '',
+        key: filterKey,
         overrides: {},
     });
     const overrides = useMemo(
         () =>
-            expansion.search === effectiveSearch
-                ? expansion.overrides
-                : NO_OVERRIDES,
-        [expansion, effectiveSearch],
+            expansion.key === filterKey ? expansion.overrides : NO_OVERRIDES,
+        [expansion, filterKey],
     );
     const toggleSchema = useCallback(
         (schema: string, isExpanded: boolean) => {
             setExpansion((previous) => ({
-                search: effectiveSearch,
+                key: filterKey,
                 overrides: {
-                    ...(previous.search === effectiveSearch
-                        ? previous.overrides
-                        : {}),
+                    ...(previous.key === filterKey ? previous.overrides : {}),
                     [schema]: !isExpanded,
                 },
             }));
         },
-        [effectiveSearch],
+        [filterKey],
     );
 
     const { data, isLoading, isSuccess } = useTables({ projectUuid });
@@ -307,19 +363,34 @@ export const Tables: FC = () => {
         return { database, tablesBySchema };
     }, [data]);
 
+    const hasViews = useMemo(
+        () => (catalog ? catalogHasViews(catalog.tablesBySchema) : false),
+        [catalog],
+    );
+
     const rows = useMemo<TableRow[]>(() => {
         if (!catalog) return [];
-        const tablesBySchema = effectiveSearch
-            ? filterTablesBySchema(catalog.tablesBySchema, effectiveSearch)
+        const tablesBySchema = isFiltering
+            ? filterTablesBySchema(
+                  catalog.tablesBySchema,
+                  effectiveSearch,
+                  typeFilter,
+              )
             : catalog.tablesBySchema;
-        // Searching expands every matching schema; otherwise only the active one
+        // Filtering expands every matching schema; otherwise only the active one
         return buildTableRows(
             tablesBySchema,
             (schema) =>
-                overrides[schema] ??
-                (effectiveSearch !== '' || schema === activeSchema),
+                overrides[schema] ?? (isFiltering || schema === activeSchema),
         );
-    }, [catalog, effectiveSearch, overrides, activeSchema]);
+    }, [
+        catalog,
+        isFiltering,
+        effectiveSearch,
+        typeFilter,
+        overrides,
+        activeSchema,
+    ]);
 
     const viewportRef = useRef<HTMLDivElement>(null);
     const virtualizer = useVirtualizer({
@@ -335,7 +406,7 @@ export const Tables: FC = () => {
 
     return (
         <>
-            <Box>
+            <Group gap="xs" wrap="nowrap">
                 <Tooltip
                     opened={
                         search.length > 0 && search.length < MIN_SEARCH_LENGTH
@@ -344,6 +415,7 @@ export const Tables: FC = () => {
                 >
                     <TextInput
                         size="sm"
+                        flex={1}
                         disabled={!data && !debouncedSearch}
                         leftSection={
                             isLoading ? (
@@ -372,7 +444,13 @@ export const Tables: FC = () => {
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </Tooltip>
-            </Box>
+                {hasViews && (
+                    <TableTypeToggle
+                        value={typeFilter}
+                        onChange={setTypeFilter}
+                    />
+                )}
+            </Group>
 
             <ScrollArea
                 viewportRef={viewportRef}
@@ -408,6 +486,7 @@ export const Tables: FC = () => {
                                     <VirtualRow
                                         row={row}
                                         search={effectiveSearch}
+                                        showCounts={typeFilter !== null}
                                         database={catalog.database}
                                         activeTable={activeTable}
                                         activeSchema={activeSchema}
