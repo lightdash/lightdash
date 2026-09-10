@@ -61062,7 +61062,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.187.1",
+        "version": "2.188.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -95920,6 +95920,37 @@
                     }
                 },
                 "summary": "Ensure internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/sample-content": {
+            "post": {
+                "operationId": "InstallAnalyticsSampleContent",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Install sample charts and dashboard in the internal analytics project",
                 "tags": ["Analytics project"],
                 "security": [],
                 "parameters": []

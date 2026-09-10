@@ -1,3 +1,10 @@
+# [2.188.0](https://github.com/lightdash/lightdash/compare/2.187.1...2.188.0) (2026-09-10)
+
+
+### Features
+
+* provision and sync analytics dashboards ([#28978](https://github.com/lightdash/lightdash/issues/28978)) ([f22e2d5](https://github.com/lightdash/lightdash/commit/f22e2d5c8aa9f63b3a383285aeef78a438fc2d8d)), closes [#28973](https://github.com/lightdash/lightdash/issues/28973)
+
 ## [2.187.1](https://github.com/lightdash/lightdash/compare/2.187.0...2.187.1) (2026-09-10)
 
 
