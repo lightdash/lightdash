@@ -1,3 +1,10 @@
+## [2.185.4](https://github.com/lightdash/lightdash/compare/2.185.3...2.185.4) (2026-09-10)
+
+
+### Bug Fixes
+
+* **explorer:** prevent description preview overlap ([#28982](https://github.com/lightdash/lightdash/issues/28982)) ([22e133e](https://github.com/lightdash/lightdash/commit/22e133efd84946df120d38840d1f645568fd7e7b))
+
 ## [2.185.3](https://github.com/lightdash/lightdash/compare/2.185.2...2.185.3) (2026-09-10)
 
 
