@@ -1,3 +1,10 @@
+# [2.192.0](https://github.com/lightdash/lightdash/compare/2.191.1...2.192.0) (2026-09-10)
+
+
+### Features
+
+* **learn:** add remaining in-app curriculum and training fixtures ([#29028](https://github.com/lightdash/lightdash/issues/29028)) ([487faea](https://github.com/lightdash/lightdash/commit/487faea0745b11cd517abf9eb9e6e1ed2c2490c1))
+
 ## [2.191.1](https://github.com/lightdash/lightdash/compare/2.191.0...2.191.1) (2026-09-10)
 
 
