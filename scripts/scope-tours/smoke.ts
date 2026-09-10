@@ -355,6 +355,17 @@ const runTour = async (
         }
         if (step && !step.advanceOnTargetClick && state.button) {
             if (state.button.ready) {
+                if (
+                    scope === 'manage:MetricsTree' &&
+                    state.button.label === 'Got it'
+                ) {
+                    // The fallback card can finish even when save navigation
+                    // was blocked. Require the persisted tree to be on screen.
+                    await page.locator(step.target).waitFor({
+                        state: 'visible',
+                        timeout: 30_000,
+                    });
+                }
                 await page
                     .locator('[data-tour-card]')
                     .getByRole('button', { name: state.button.label! })

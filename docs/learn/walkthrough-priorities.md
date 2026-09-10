@@ -123,3 +123,10 @@ docs page's older Project settings route; generated click steps use Browse →
 Recently deleted, and the final copy describes restoring to the original space.
 A recorded verified-chart run reopens the saved chart in clean edit mode, confirms
 Got it is enabled, then completes and removes its training copy.
+
+Metrics-tree save follow-up: reproduced the final-step hang with a recorded
+browser run. Creating the tree succeeded, but navigation was blocked by the
+old editor's unsaved-changes guard before VIEW mode committed. The guard now
+allows the exact destination returned by a successful create. A repeat recording
+shows the saved tree and completes; the smoke driver now requires the result
+canvas to be visible before finishing this walkthrough.
