@@ -42,22 +42,19 @@ type Props = {
 
 type TreeController = ReturnType<typeof useTree>;
 
-function recursivelyToggleSelected(
+// Tree setters replace the whole selection from the current render, so a
+// node and its descendants have to be toggled in a single update.
+function toggleSubtreeSelected(
     tree: TreeController,
     node: TreeNodeData,
     selected: boolean,
 ) {
-    if (!selected) {
-        tree.select(node.value);
-    } else {
-        tree.deselect(node.value);
-    }
-
-    if (node.children && node.children.length > 0) {
-        node.children.forEach((child) => {
-            recursivelyToggleSelected(tree, child, selected);
-        });
-    }
+    const subtree = collectTreeValues([node]);
+    tree.setSelectedState(
+        selected
+            ? tree.selectedState.filter((value) => !subtree.includes(value))
+            : Array.from(new Set([...tree.selectedState, ...subtree])),
+    );
 }
 
 const Tree: React.FC<Props> = (props) => {
@@ -287,7 +284,7 @@ const Tree: React.FC<Props> = (props) => {
                                         if (isRestricted) return;
 
                                         if (type === 'multiple') {
-                                            recursivelyToggleSelected(
+                                            toggleSubtreeSelected(
                                                 tree,
                                                 node,
                                                 selected,
@@ -304,7 +301,9 @@ const Tree: React.FC<Props> = (props) => {
                                         if (type === 'single' && selected) {
                                             return;
                                         }
-                                        nTree.toggleSelected(node.value);
+                                        // toggleSelected no longer commits
+                                        // single-select state in Mantine 9.
+                                        nTree.select(node.value);
                                     }}
                                     onClickExpand={() =>
                                         nTree.toggleExpanded(node.value)
