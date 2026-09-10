@@ -68,6 +68,7 @@ import {
 import provenanceStyles from '../features/mergeQuery/components/MergeColumnProvenance.module.css';
 import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { getMergeFieldProvenance } from '../features/mergeQuery/utils/getMergeFieldProvenance';
+import { canHaveWarehouseTotal } from '../utils/canHaveWarehouseTotal';
 import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
 import {
@@ -768,14 +769,17 @@ export const useColumns = (): TableColumn[] => {
                                 timezone,
                             );
                         }
-                        if (totalsError && isNumericItem(item)) {
+                        if (totalsError && canHaveWarehouseTotal(item)) {
                             return (
                                 <TotalCalculationErrorCell
                                     error={totalsError}
                                 />
                             );
                         }
-                        if (isCalculatingTotals && isNumericItem(item)) {
+                        if (
+                            isCalculatingTotals &&
+                            canHaveWarehouseTotal(item)
+                        ) {
                             return (
                                 <Skeleton
                                     height={16}
