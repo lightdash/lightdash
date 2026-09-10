@@ -1,4 +1,9 @@
-import { PartitionType, type PartitionColumn } from '@lightdash/common';
+import {
+    assertUnreachable,
+    PartitionType,
+    WarehouseTableType,
+    type PartitionColumn,
+} from '@lightdash/common';
 import {
     TextInput,
     Box,
@@ -16,9 +21,13 @@ import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronRight,
+    IconCloudDataConnection,
+    IconEye,
+    IconEyeTable,
     IconSearch,
     IconTable,
     IconX,
+    type Icon,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
@@ -50,7 +59,27 @@ interface TableItemProps {
     database: string;
     isActive: boolean;
     partitionColumn: PartitionColumn | undefined;
+    tableType: WarehouseTableType | undefined;
 }
+
+// Rows cached before the type was stored fall back to the table icon
+const getTableTypeDisplay = (
+    tableType: WarehouseTableType | undefined,
+): { icon: Icon; label: string } => {
+    switch (tableType) {
+        case WarehouseTableType.VIEW:
+            return { icon: IconEye, label: 'View' };
+        case WarehouseTableType.MATERIALIZED_VIEW:
+            return { icon: IconEyeTable, label: 'Materialized view' };
+        case WarehouseTableType.EXTERNAL:
+            return { icon: IconCloudDataConnection, label: 'External table' };
+        case WarehouseTableType.TABLE:
+        case undefined:
+            return { icon: IconTable, label: 'Table' };
+        default:
+            return assertUnreachable(tableType, 'Unknown table type');
+    }
+};
 
 const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
     if (partitionColumn) {
@@ -70,8 +99,17 @@ const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
 };
 
 const TableItem: FC<TableItemProps> = memo(
-    ({ table, search, schema, database, isActive, partitionColumn }) => {
+    ({
+        table,
+        search,
+        schema,
+        database,
+        isActive,
+        partitionColumn,
+        tableType,
+    }) => {
         const { ref: hoverRef, hovered } = useHover();
+        const typeDisplay = getTableTypeDisplay(tableType);
         const { ref: truncatedRef, isTruncated } =
             useIsTruncated<HTMLDivElement>();
         const dispatch = useAppDispatch();
@@ -103,11 +141,14 @@ const TableItem: FC<TableItemProps> = memo(
                     className={styles.tableButton}
                 >
                     <Group gap="xs" wrap="nowrap">
-                        <MantineIcon
-                            icon={IconTable}
-                            size="sm"
-                            className={styles.tableIcon}
-                        />
+                        <Tooltip label={typeDisplay.label} openDelay={400}>
+                            <MantineIcon
+                                icon={typeDisplay.icon}
+                                size="sm"
+                                className={styles.tableIcon}
+                                aria-label={typeDisplay.label}
+                            />
+                        </Tooltip>
                         <Tooltip
                             label={table}
                             disabled={!isTruncated}
@@ -203,6 +244,7 @@ const VirtualRow: FC<{
             search={search}
             isActive={row.table === activeTable && row.schema === activeSchema}
             partitionColumn={row.partitionColumn}
+            tableType={row.tableType}
         />
     );
 };

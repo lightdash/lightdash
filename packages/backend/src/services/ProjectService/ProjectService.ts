@@ -10001,6 +10001,7 @@ export class ProjectService extends BaseService {
             warehouseTables.map((t) => ({
                 ...t,
                 partition_column: t.partitionColumn || null,
+                table_type: t.tableType,
             })),
         );
 

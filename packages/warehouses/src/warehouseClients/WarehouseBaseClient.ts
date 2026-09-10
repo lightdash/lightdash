@@ -3,13 +3,13 @@ import {
     CreateWarehouseCredentials,
     DimensionType,
     Metric,
-    PartitionColumn,
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseCatalog,
     WarehouseResults,
     WarehouseSqlBuilder,
+    WarehouseTables,
     WeekDay,
     type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
@@ -186,14 +186,7 @@ export default abstract class WarehouseBaseClient<
     abstract getAllTables(
         schema?: string,
         tags?: Record<string, string>,
-    ): Promise<
-        {
-            database: string;
-            schema: string;
-            table: string;
-            partitionColumn?: PartitionColumn;
-        }[]
-    >;
+    ): Promise<WarehouseTables>;
 
     abstract getFields(
         tableName: string,

@@ -23,6 +23,7 @@ import {
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
     PartitionColumn,
@@ -814,6 +815,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     database: t.bigQuery.projectId,
                     schema: t.dataset.id!,
                     table: t.id!,
+                    tableType: getWarehouseTableType(t.metadata?.type),
                     partitionColumn,
                 };
             }),

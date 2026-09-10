@@ -169,18 +169,18 @@ for (const [warehouseName, warehouseConfig] of warehouseEntries) {
                         Object.keys(resp.body.results[database][schema]),
                     ).toContain(table);
                 }
-                expect(
-                    Object.keys(resp.body.results[database][schema].ORDERS),
-                ).toEqual([]);
+                expect(resp.body.results[database][schema].ORDERS).toEqual({
+                    tableType: 'table',
+                });
             } else {
                 for (const table of ['customers', 'orders', 'payments']) {
                     expect(
                         Object.keys(resp.body.results[database][schema]),
                     ).toContain(table);
                 }
-                expect(
-                    Object.keys(resp.body.results[database][schema].orders),
-                ).toEqual([]);
+                expect(resp.body.results[database][schema].orders).toEqual({
+                    tableType: 'table',
+                });
             }
         });
 

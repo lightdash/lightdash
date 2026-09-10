@@ -9,6 +9,7 @@ import {
     CreateClickhouseCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
     setCatalogTimestampDomain,
@@ -549,7 +550,8 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             SELECT 
                 '' as "table_catalog",
                 database as "table_schema",
-                name as "table_name"
+                name as "table_name",
+                engine as "table_type"
             FROM system.tables
             WHERE database = {databaseName: String}
             ORDER BY database, name
@@ -561,6 +563,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             database: row.table_catalog,
             schema: row.table_schema || 'default',
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 

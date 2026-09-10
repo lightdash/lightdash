@@ -14,6 +14,7 @@ import {
     CreateAthenaCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
     setCatalogTimestampDomain,
@@ -22,6 +23,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTables,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
@@ -614,11 +616,8 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         }, {});
     }
 
-    async getAllTables(): Promise<
-        { database: string; schema: string; table: string }[]
-    > {
-        const tables: { database: string; schema: string; table: string }[] =
-            [];
+    async getAllTables(): Promise<WarehouseTables> {
+        const tables: WarehouseTables = [];
 
         try {
             let nextToken: string | undefined;
@@ -640,6 +639,9 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                             database: this.credentials.database,
                             schema: this.credentials.schema,
                             table: tableMeta.Name,
+                            tableType: getWarehouseTableType(
+                                tableMeta.TableType,
+                            ),
                         });
                     }
                 });

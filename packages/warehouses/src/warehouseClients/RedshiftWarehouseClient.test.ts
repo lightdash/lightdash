@@ -56,6 +56,13 @@ describe('RedshiftWarehouseClient', () => {
                         table_catalog: 'warehouse',
                         table_schema: 'public',
                         table_name: 'orders_lbv',
+                        table_type: 'VIEW',
+                    },
+                    {
+                        table_catalog: 'warehouse',
+                        table_schema: 'spectrum',
+                        table_name: 'sales',
+                        table_type: 'EXTERNAL TABLE',
                     },
                 ],
                 fields: {},
@@ -68,7 +75,18 @@ describe('RedshiftWarehouseClient', () => {
         expect(query).toContain('table_catalog = $1');
         expect(values).toEqual(['warehouse']);
         expect(tables).toEqual([
-            { database: 'warehouse', schema: 'public', table: 'orders_lbv' },
+            {
+                database: 'warehouse',
+                schema: 'public',
+                table: 'orders_lbv',
+                tableType: 'view',
+            },
+            {
+                database: 'warehouse',
+                schema: 'spectrum',
+                table: 'sales',
+                tableType: 'external',
+            },
         ]);
     });
 

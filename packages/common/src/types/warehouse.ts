@@ -247,10 +247,52 @@ export const setCatalogNestedColumnShape = (
     ] = shape;
 };
 
+export enum WarehouseTableType {
+    TABLE = 'table',
+    VIEW = 'view',
+    MATERIALIZED_VIEW = 'materialized_view',
+    EXTERNAL = 'external',
+}
+
+export const isWarehouseTableType = (
+    value: unknown,
+): value is WarehouseTableType =>
+    typeof value === 'string' &&
+    Object.values<string>(WarehouseTableType).includes(value);
+
+// Maps the table_type strings and engine names warehouses report onto one vocabulary
+export const getWarehouseTableType = (rawType: unknown): WarehouseTableType => {
+    const normalized =
+        typeof rawType === 'string'
+            ? rawType
+                  .trim()
+                  .toUpperCase()
+                  .replace(/[\s_]+/g, ' ')
+            : '';
+    switch (normalized) {
+        case 'VIEW':
+        case 'VIRTUAL VIEW':
+            return WarehouseTableType.VIEW;
+        case 'MATERIALIZED VIEW':
+        case 'MATERIALIZEDVIEW':
+            return WarehouseTableType.MATERIALIZED_VIEW;
+        case 'EXTERNAL':
+        case 'EXTERNAL TABLE':
+        case 'FOREIGN':
+        case 'FOREIGN TABLE':
+            return WarehouseTableType.EXTERNAL;
+        default:
+            return WarehouseTableType.TABLE;
+    }
+};
+
 export type WarehouseTablesCatalog = {
     [database: string]: {
         [schema: string]: {
-            [table: string]: { partitionColumn?: PartitionColumn };
+            [table: string]: {
+                partitionColumn?: PartitionColumn;
+                tableType?: WarehouseTableType;
+            };
         };
     };
 };
@@ -259,6 +301,7 @@ export type WarehouseTables = {
     database: string;
     schema: string;
     table: string;
+    tableType: WarehouseTableType;
     partitionColumn?: PartitionColumn;
 }[];
 

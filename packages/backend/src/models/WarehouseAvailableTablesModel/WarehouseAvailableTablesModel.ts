@@ -1,4 +1,5 @@
 import {
+    isWarehouseTableType,
     NotFoundError,
     WarehouseCatalog,
     WarehouseTables,
@@ -20,12 +21,13 @@ export class WarehouseAvailableTablesModel {
     static toWarehouseCatalog(
         rows: Pick<
             DbWarehouseAvailableTables,
-            'database' | 'schema' | 'table' | 'partition_column'
+            'database' | 'schema' | 'table' | 'partition_column' | 'table_type'
         >[],
     ): WarehouseTablesCatalog {
         return rows.reduce((acc, row) => {
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            const { database, schema, table, partition_column } = row;
+            const { database, schema, table, partition_column, table_type } =
+                row;
             if (!acc[database]) {
                 acc[database] = {};
             }
@@ -34,6 +36,10 @@ export class WarehouseAvailableTablesModel {
             }
             acc[database][schema][table] = {
                 partitionColumn: partition_column || undefined,
+                // Rows cached before the column existed have no type
+                tableType: isWarehouseTableType(table_type)
+                    ? table_type
+                    : undefined,
             };
             return acc;
         }, {} as WarehouseTablesCatalog);
@@ -47,7 +53,13 @@ export class WarehouseAvailableTablesModel {
                 'user_warehouse_credentials_uuid',
                 userWarehouseCredentialsId,
             )
-            .select(['database', 'schema', 'table', 'partition_column']);
+            .select([
+                'database',
+                'schema',
+                'table',
+                'partition_column',
+                'table_type',
+            ]);
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
@@ -64,7 +76,13 @@ export class WarehouseAvailableTablesModel {
                 `${WarehouseAvailableTablesTableName}.project_warehouse_credentials_id`,
             )
             .where('project_uuid', projectUuid)
-            .select(['database', 'schema', 'table', 'partition_column']);
+            .select([
+                'database',
+                'schema',
+                'table',
+                'partition_column',
+                'table_type',
+            ]);
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
@@ -88,7 +106,7 @@ export class WarehouseAvailableTablesModel {
             throw new NotFoundError('Warehouse credentials not found');
         }
         const rows = tables.map(
-            ({ database, schema, table, partitionColumn }) => ({
+            ({ database, schema, table, partitionColumn, tableType }) => ({
                 database,
                 schema,
                 table,
@@ -96,6 +114,7 @@ export class WarehouseAvailableTablesModel {
                     warehouseCredentialsId.warehouse_credentials_id,
                 user_warehouse_credentials_uuid: null,
                 partition_column: partitionColumn || null,
+                table_type: tableType,
             }),
         );
 
@@ -118,12 +137,12 @@ export class WarehouseAvailableTablesModel {
         tables: WarehouseTables,
     ) {
         const rows = tables.map(
-            ({ database, schema, table, partitionColumn }) => ({
+            ({ database, schema, table, partitionColumn, tableType }) => ({
                 database,
                 schema,
                 table,
                 partition_column: partitionColumn || null,
-
+                table_type: tableType,
                 project_warehouse_credentials_id: null,
                 user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
             }),

@@ -16,6 +16,7 @@ import {
     DucklakeDataPathType,
     formatMilliseconds,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
     NotImplementedError,
@@ -25,6 +26,7 @@ import {
     WarehouseCatalog,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTables,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
@@ -2679,15 +2681,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     async getAllTables(
         schema?: string,
         tags?: Record<string, string>,
-    ): Promise<
-        {
-            database: string;
-            schema: string;
-            table: string;
-        }[]
-    > {
+    ): Promise<WarehouseTables> {
         return this.withSession(async (db) => {
-            let sql = `SELECT table_catalog AS database, table_schema AS schema, table_name AS table
+            let sql = `SELECT table_catalog AS database, table_schema AS schema, table_name AS table, table_type
                         FROM information_schema.tables
                         WHERE table_type IN ('BASE TABLE', 'VIEW')`;
 
@@ -2704,6 +2700,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 database: row.database as string,
                 schema: row.schema as string,
                 table: row.table as string,
+                tableType: getWarehouseTableType(row.table_type),
             }));
         });
     }
