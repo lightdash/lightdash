@@ -92,8 +92,8 @@ minimumReleaseAgeExclude:
   - undici@6.27.0
   # Renovate security update: tar@7.5.21
   - tar@7.5.21
-  # Renovate security update: nanoid@3.3.17
-  - nanoid@3.3.17
+  # Renovate security update: nanoid@3.3.17 || 3.3.18
+  - nanoid@3.3.17 || 3.3.18
   # Renovate security update: @opentelemetry/core@2.8.0
   - "@opentelemetry/core@2.8.0"
   # Renovate security update: @tiptap/core@3.30.4
