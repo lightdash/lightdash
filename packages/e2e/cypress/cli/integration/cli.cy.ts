@@ -85,6 +85,30 @@ describe('preview', () => {
         });
     });
 
+    it('Should refresh warehouse credentials when re-running start-preview with the same name', () => {
+        cy.login();
+        cy.getApiToken().then((apiToken) => {
+            cy.exec(
+                `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
+                {
+                    failOnNonZeroExit: false,
+                    env: {
+                        CI: true,
+                        NODE_ENV: 'development',
+                        LIGHTDASH_API_KEY: apiToken,
+                        LIGHTDASH_URL: lightdashUrl,
+                        LIGHTDASH_PROJECT: SEED_PROJECT.project_uuid,
+                        ...databaseEnvVars,
+                    },
+                },
+            )
+                .its('stderr')
+                .should('contain', 'Updating preview project')
+                .and('contain', 'Warehouse credentials refreshed')
+                .and('contain', 'Project updated');
+        });
+    });
+
     it('Should stop-preview', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
