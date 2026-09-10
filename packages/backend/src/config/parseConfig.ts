@@ -1076,7 +1076,7 @@ export const parseUsageEventsS3Config = (): Omit<
     } = baseS3Config;
 
     return {
-        endpoint,
+        endpoint: process.env.USAGE_EVENTS_S3_ENDPOINT || endpoint,
         forcePathStyle,
         bucket: process.env.USAGE_EVENTS_S3_BUCKET || baseBucket,
         region: process.env.USAGE_EVENTS_S3_REGION || baseRegion,

@@ -32,6 +32,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    ProjectType,
     SaveOrganizationBrandRequest,
     SessionUser,
     TooManyRequestsError,
@@ -66,6 +67,7 @@ import {
     validateOrganizationScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
 import { BaseService } from '../BaseService';
+import { isLocalAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/localAnalyticsProject';
 
 const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
 
@@ -664,7 +666,16 @@ export class OrganizationService extends BaseService {
             ),
         );
 
-        return projects.filter((_, index) => accessResults[index]);
+        return projects.filter(
+            (project, index) =>
+                accessResults[index] &&
+                (project.provisioningSource !== 'analytics' ||
+                    (isLocalAnalyticsProjectEnabled(organizationUuid) &&
+                        auditedAbility.can(
+                            'manage',
+                            subject('Organization', { organizationUuid }),
+                        ))),
+        );
     }
 
     async getOnboarding(user: SessionUser): Promise<OnbordingRecord> {
