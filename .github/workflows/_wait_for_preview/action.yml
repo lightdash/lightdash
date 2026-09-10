@@ -23,7 +23,10 @@ runs:
               set -uo pipefail
               deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
               while true; do
-                  status=$(curl -sSL -o /tmp/preview-health.json -w '%{http_code}' "$PREVIEW_URL/api/v1/health" || echo "000")
+                  # curl writes %{http_code} even when it fails, so take its
+                  # output as-is and only substitute when it produced nothing.
+                  status=$(curl -sSL -o /tmp/preview-health.json -w '%{http_code}' "$PREVIEW_URL/api/v1/health" 2>/dev/null)
+                  [ -n "$status" ] || status="000"
                   if [ "$status" = "200" ]; then
                       echo "Preview ready at $PREVIEW_URL"
                       cat /tmp/preview-health.json
@@ -31,6 +34,9 @@ runs:
                   fi
                   if [ "$(date +%s)" -ge "$deadline" ]; then
                       echo "Preview $PREVIEW_URL did not become healthy within ${TIMEOUT_SECONDS}s (last status: $status)"
+                      if [ "$status" = "404" ]; then
+                          echo "A sustained 404 means no environment is serving this name, not that it is still booting."
+                      fi
                       head -c 2000 /tmp/preview-health.json || true
                       exit 1
                   fi
