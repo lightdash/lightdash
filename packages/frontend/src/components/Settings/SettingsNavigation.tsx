@@ -6,6 +6,7 @@ import {
     type SettingsNavigationItem,
     type SettingsNavigationSection,
 } from '../../hooks/settings/types';
+import { BetaBadge } from '../common/BetaBadge';
 import MantineIcon from '../common/MantineIcon';
 import RouterNavLink from '../common/RouterNavLink';
 
@@ -44,6 +45,7 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
                     exact={item.exact}
                     onClick={item.onClick}
                     leftSection={leftSection}
+                    rightSection={item.isBeta ? <BetaBadge /> : undefined}
                 />
             );
         }

@@ -20,6 +20,7 @@ import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
+import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
@@ -142,6 +143,7 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     projectService: ProjectService;
+    analyticsProjectService: AnalyticsProjectService;
     promptService: PromptService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -890,6 +892,18 @@ export class ServiceRepository
                         this.getPersistentDownloadFileService(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                }),
+        );
+    }
+
+    public getAnalyticsProjectService(): AnalyticsProjectService {
+        return this.getService(
+            'analyticsProjectService',
+            () =>
+                new AnalyticsProjectService({
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }

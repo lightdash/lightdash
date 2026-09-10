@@ -47,6 +47,7 @@ import GithubUserSettingsPanel from '../components/UserSettings/GithubUserSettin
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
+import LightdashAnalyticsPanel from '../components/UserSettings/LightdashAnalyticsPanel';
 import LimitsPanel from '../components/UserSettings/LimitsPanel';
 import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
@@ -163,6 +164,8 @@ const Settings: FC = () => {
         showImpersonationPanel,
         isCustomRolesEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
+        isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
         isOrganizationRoadmapLoading,
         isSsoOrganizationSettingsEnabled,
@@ -379,6 +382,16 @@ const Settings: FC = () => {
                             <ExportingPanel />
                         </SettingsGridCard>
                     </SettingsPage>
+                ),
+            });
+        }
+        if (canAccessAnalyticsSettings) {
+            allowedRoutes.push({
+                path: '/lightdashAnalytics',
+                element: (
+                    <LightdashAnalyticsPanel
+                        activeProjectUuid={project?.projectUuid}
+                    />
                 ),
             });
         }
@@ -776,6 +789,7 @@ const Settings: FC = () => {
         dataAppsFlag?.enabled,
         externalSourcesFlag?.enabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
@@ -921,6 +935,11 @@ const Settings: FC = () => {
     const isAwaitingDataAppsRoute =
         isDataAppsFlagLoading &&
         Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
+    const isAwaitingAnalyticsRoute =
+        isAnalyticsProjectFlagLoading &&
+        Boolean(
+            matchPath('/generalSettings/lightdashAnalytics', location.pathname),
+        );
 
     if (
         isHealthLoading ||
@@ -930,7 +949,8 @@ const Settings: FC = () => {
         isProjectLoading ||
         isAwaitingAiSettingsRoute ||
         isAwaitingRoadmapRoute ||
-        isAwaitingDataAppsRoute
+        isAwaitingDataAppsRoute ||
+        isAwaitingAnalyticsRoute
     ) {
         return <PageSpinner />;
     }

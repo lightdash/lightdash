@@ -27,6 +27,7 @@ export type SettingsNavigationItem = {
     icon: TablerIcon;
     /** Render the gradient AI orb instead of `icon` in the sidebar. */
     aiAgentIcon?: boolean;
+    isBeta?: boolean;
     /** Hidden search aliases so e.g. "sso" finds "Single Sign-On". */
     keywords: string[];
     /**
@@ -62,6 +63,8 @@ export type SettingsContext = {
     showImpersonationPanel: boolean | undefined;
     isCustomRolesEnabled: boolean | undefined;
     isProLimitsEnabled: boolean;
+    canAccessAnalyticsSettings: boolean;
+    isAnalyticsProjectFlagLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
     isOrganizationRoadmapLoading: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
