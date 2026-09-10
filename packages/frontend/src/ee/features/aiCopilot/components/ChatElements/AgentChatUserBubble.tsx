@@ -1,5 +1,6 @@
 import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
 import { Anchor, Box, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconWindowMaximize } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC, type MouseEvent } from 'react';
@@ -193,6 +194,11 @@ export const UserBubble: FC<Props> = ({
                                     target={href ? '_blank' : undefined}
                                     to={href ?? undefined}
                                     showArrow={href !== null}
+                                    trailingIcon={
+                                        handleClick
+                                            ? IconWindowMaximize
+                                            : undefined
+                                    }
                                 >
                                     {segment.label}
                                 </ContentReferenceLink>

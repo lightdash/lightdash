@@ -1,4 +1,5 @@
 import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
+import { IconWindowMaximize } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
@@ -113,6 +114,7 @@ const PinnedChartCard: FC<{
             target="_blank"
             onClick={handleClick}
             showArrow
+            trailingIcon={handleClick ? IconWindowMaximize : undefined}
         >
             {item.displayName ?? 'Chart'}
         </ContentReferenceLink>
