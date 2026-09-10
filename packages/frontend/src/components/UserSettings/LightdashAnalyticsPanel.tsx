@@ -8,7 +8,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import {
     useAnalyticsProject,
@@ -28,7 +28,6 @@ const LightdashAnalyticsPanel = ({
 }: {
     activeProjectUuid?: string;
 }) => {
-    const navigate = useNavigate();
     const status = useAnalyticsProject();
     const createProject = useCreateAnalyticsProject();
     const deleteProject = useDeleteAnalyticsProject();
@@ -123,12 +122,7 @@ const LightdashAnalyticsPanel = ({
                             ) : (
                                 <Button
                                     loading={createProject.isLoading}
-                                    onClick={() =>
-                                        createProject.mutate(undefined, {
-                                            onSuccess: ({ url }) =>
-                                                navigate(url),
-                                        })
-                                    }
+                                    onClick={() => createProject.mutate()}
                                 >
                                     Create
                                 </Button>

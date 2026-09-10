@@ -41,7 +41,7 @@ describe('LightdashAnalyticsPanel', () => {
         );
     });
 
-    it('creates only on click and redirects using the server URL', async () => {
+    it('creates only on click and stays in settings with dashboards and an Explore link', async () => {
         vi.mocked(lightdashApi).mockResolvedValue({ project: null });
         renderPanel();
         const create = await screen.findByRole('button', {
@@ -50,17 +50,42 @@ describe('LightdashAnalyticsPanel', () => {
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
-        vi.mocked(lightdashApi).mockImplementation(async ({ method }) =>
-            method === 'POST'
-                ? {
-                      projectUuid: project.projectUuid,
-                      url: project.url,
-                      created: true,
-                  }
-                : { project },
+        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) =>
+            url.includes('/dashboards?')
+                ? [
+                      {
+                          uuid: 'sample-dashboard',
+                          slug: 'lightdash-analytics-overview',
+                          name: 'Lightdash usage overview',
+                          updatedAt: '2026-09-10T00:00:00Z',
+                      },
+                  ]
+                : method === 'POST'
+                  ? {
+                        projectUuid: project.projectUuid,
+                        url: project.url,
+                        created: true,
+                    }
+                  : { project },
         );
         await userEvent.click(create);
-        expect(await screen.findByText('Analytics explores')).toBeVisible();
+        expect(
+            await screen.findByRole('link', { name: 'Explore' }),
+        ).toHaveAttribute('href', project.url);
+        expect(
+            await screen.findByRole('link', {
+                name: 'Lightdash usage overview',
+            }),
+        ).toHaveAttribute(
+            'href',
+            '/projects/lightdash-analytics-1/dashboards/lightdash-analytics-overview/view',
+        );
+        expect(
+            screen.queryByText('Analytics explores'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Create' }),
+        ).not.toBeInTheDocument();
         expect(lightdashApi).toHaveBeenCalledWith({
             url: '/org/analytics-project',
             method: 'POST',

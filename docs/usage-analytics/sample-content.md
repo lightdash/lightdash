@@ -6,7 +6,8 @@ system explores. It is compiled with the backend: no CLI upload, migration,
 installation table, or version tracking is required.
 
 Project creation and **Refresh** in organization analytics settings both install
-the current definitions. Refresh calls
+the current definitions. After creation, settings stays open and shows dashboard
+shortcuts and the **Explore** button; it does not redirect automatically. Refresh calls
 `POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
 analytics feature flag, development environment, and org-admin guard. The server
 resolves the organization and its marked analytics project; no target IDs or
