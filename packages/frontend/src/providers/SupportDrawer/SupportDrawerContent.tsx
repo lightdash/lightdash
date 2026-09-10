@@ -130,7 +130,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                         {screenshotError ? (
                             <>
                                 <MantineIcon icon={IconIdOff} color="ldGray" />
-                                <Text color="dimmed" ta="center">
+                                <Text c="dimmed" ta="center">
                                     Screenshot could not be captured. You can
                                     still submit your report with the details
                                     below
@@ -157,12 +157,12 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 onChange={(event) => setAllowAccess(event.target.checked)}
                 mt="xs"
             />
-            <Text size="xs" color="dimmed">
+            <Text size="xs" c="dimmed">
                 By ticking this box, you agree to give Lightdash Support access
                 to your organization for 12 hours to investigate this issue.
             </Text>
 
-            <Text size="xs" color="dimmed">
+            <Text size="xs" c="dimmed">
                 We will also share your Lightdash logs and your recent network
                 requests to help us investigate this issue.
             </Text>

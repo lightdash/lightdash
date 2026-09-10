@@ -53,7 +53,7 @@ const FilterSummaryLabel: FC<
     }
     return (
         <Text fw={400} span>
-            <Text span color="ldGray.7">
+            <Text span c="ldGray.7">
                 {filterSummary?.operator}{' '}
             </Text>
             <Text fw={600} span>
@@ -165,7 +165,7 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                         />
                     )}
                     {isMissingRequiredValue && !isEditing && (
-                        <Text fz="sm" color="red">
+                        <Text fz="sm" c="red">
                             *
                         </Text>
                     )}

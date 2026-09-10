@@ -143,7 +143,7 @@ const Register: FC = () => {
                     my="md"
                     labelPosition="center"
                     label={
-                        <Text color="ldGray.5" size="sm" fw={500}>
+                        <Text c="ldGray.5" size="sm" fw={500}>
                             {isNewLayout ? 'or' : 'OR'}
                         </Text>
                     }
