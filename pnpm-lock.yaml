@@ -865,6 +865,9 @@ importers:
       inquirer:
         specifier: 8.2.7
         version: 8.2.7(@types/node@24.13.2)
+      inquirer-autocomplete-prompt:
+        specifier: 2.0.1
+        version: 2.0.1(inquirer@8.2.7(@types/node@24.13.2))
       js-yaml:
         specifier: 4.3.0
         version: 4.3.0
@@ -905,6 +908,9 @@ importers:
       '@types/inquirer':
         specifier: 8.2.4
         version: 8.2.4
+      '@types/inquirer-autocomplete-prompt':
+        specifier: 3.0.3
+        version: 3.0.3
       '@types/js-yaml':
         specifier: 4.0.9
         version: 4.0.9
@@ -7378,6 +7384,9 @@ packages:
   '@types/http-errors@2.0.1':
     resolution: {integrity: sha512-/K3ds8TRAfBvi5vfjuz8y6+GiAYBZ0x4tXv1Av6CWBWn0IlADc+ZX9pMq7oU0fNQPnBwIZl3rmeLp6SBApbxSQ==}
 
+  '@types/inquirer-autocomplete-prompt@3.0.3':
+    resolution: {integrity: sha512-OQCW09mEECgvhcppbQRgZSmWskWv58l+WwyUvWB1oxTu3CZj8keYSDZR9U8owUzJ5Zeux5kacN9iVPJLXcoLXg==}
+
   '@types/inquirer@8.2.4':
     resolution: {integrity: sha512-Pxxx3i3AyK7vKAj3LRM/vF7ETcHKiLJ/u5CnNgbz/eYj/vB3xGAYtRxI5IKtq0hpe5iFHD22BKV3n6WHUu0k4Q==}
 
@@ -11074,6 +11083,12 @@ packages:
 
   inline-style-prefixer@7.0.1:
     resolution: {integrity: sha512-lhYo5qNTQp3EvSSp3sRvXMbVQTLrvGV6DycRMJ5dm2BLMiJ30wpXKdDdgX+GmJZ5uQMucwRKHamXSst3Sj/Giw==}
+
+  inquirer-autocomplete-prompt@2.0.1:
+    resolution: {integrity: sha512-jUHrH0btO7j5r8DTQgANf2CBkTZChoVySD8zF/wp5fZCOLIuUbleXhf4ZY5jNBOc1owA3gdfWtfZuppfYBhcUg==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      inquirer: ^8.0.0
 
   inquirer@8.2.7:
     resolution: {integrity: sha512-UjOaSel/iddGZJ5xP/Eixh6dY1XghiBw4XK13rCCIJcJfyhhoul/7KhLLUGtebEj6GDYM6Vnx/mVsjx2L/mFIA==}
@@ -23184,6 +23199,10 @@ snapshots:
 
   '@types/http-errors@2.0.1': {}
 
+  '@types/inquirer-autocomplete-prompt@3.0.3':
+    dependencies:
+      '@types/inquirer': 8.2.4
+
   '@types/inquirer@8.2.4':
     dependencies:
       '@types/through': 0.0.30
@@ -28126,6 +28145,15 @@ snapshots:
   inline-style-prefixer@7.0.1:
     dependencies:
       css-in-js-utils: 3.1.0
+
+  inquirer-autocomplete-prompt@2.0.1(inquirer@8.2.7(@types/node@24.13.2)):
+    dependencies:
+      ansi-escapes: 4.3.2
+      figures: 3.2.0
+      inquirer: 8.2.7(@types/node@24.13.2)
+      picocolors: 1.1.1
+      run-async: 2.4.1
+      rxjs: 7.8.1
 
   inquirer@8.2.7(@types/node@24.13.2):
     dependencies:
