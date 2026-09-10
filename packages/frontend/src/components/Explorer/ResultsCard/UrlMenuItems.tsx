@@ -18,15 +18,20 @@ import { useMemo, type FC } from 'react';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import {
+    type GetTemplatedUrlItem,
+    type TemplatedUrlRow,
+    type TemplatedUrlRowContext,
+} from './templatedUrlRowContext';
 
 const UrlMenuItem: FC<{
     urlConfig: FieldUrl;
-    itemsMap?: Record<string, Field | TableCalculation>;
+    getItem?: GetTemplatedUrlItem;
     itemIdsInRow: string[];
     value: ResultValue;
-    row: Record<string, Record<string, ResultValue>>;
+    row: TemplatedUrlRow;
     showError?: boolean;
-}> = ({ urlConfig, itemsMap, itemIdsInRow, value, row, showError = true }) => {
+}> = ({ urlConfig, getItem, itemIdsInRow, value, row, showError = true }) => {
     const tracking = useTracking({ failSilently: true });
     const [url, renderError] = useMemo(() => {
         let parsedUrl: string | undefined = undefined;
@@ -55,10 +60,10 @@ const UrlMenuItem: FC<{
                 (rowDependency) => !itemIdsInRow.includes(rowDependency),
             );
             if (missingDependencies.length > 0) {
-                if (itemsMap) {
+                if (getItem) {
                     errorMessage = `To use this action add ${missingDependencies
                         .map((rowReference) => {
-                            const item = itemsMap[rowReference];
+                            const item = getItem(rowReference);
                             const label = item
                                 ? getItemLabel(item)
                                 : friendlyName(rowReference);
@@ -73,7 +78,7 @@ const UrlMenuItem: FC<{
             errorMessage = e instanceof Error ? e.message : `${e}`;
         }
         return errorMessage;
-    }, [itemIdsInRow, itemsMap, urlConfig]);
+    }, [itemIdsInRow, getItem, urlConfig]);
     const error: string | undefined = validationError || renderError;
     if (!showError && error) {
         return null;
@@ -105,6 +110,33 @@ const UrlMenuItem: FC<{
     );
 };
 
+/**
+ * Renders one menu item per templated URL from an already-resolved row
+ * context. Tables that don't use TanStack rows (e.g. the pivot table) build
+ * the context themselves with `buildTemplatedUrlRowContext`.
+ */
+export const TemplatedUrlMenuItems: FC<{
+    urls: FieldUrl[] | undefined;
+    value: ResultValue;
+    rowContext: TemplatedUrlRowContext;
+    getItem?: GetTemplatedUrlItem;
+    showErrors?: boolean;
+}> = ({ urls, value, rowContext, getItem, showErrors }) => (
+    <>
+        {(urls || []).map((urlConfig) => (
+            <UrlMenuItem
+                key={urlConfig.label}
+                urlConfig={urlConfig}
+                getItem={getItem}
+                itemIdsInRow={rowContext.itemIdsInRow}
+                row={rowContext.row}
+                value={value}
+                showError={showErrors}
+            />
+        ))}
+    </>
+);
+
 const UrlMenuItems: FC<{
     urls: FieldUrl[] | undefined;
     cell: Cell<ResultRow, ResultRow[0]>;
@@ -112,42 +144,36 @@ const UrlMenuItems: FC<{
     showErrors?: boolean;
 }> = ({ urls, cell, itemsMap, showErrors }) => {
     const value: ResultValue = cell.getValue()?.value || {};
-    const [itemIdsInRow, rowData] = useMemo(() => {
-        const itemIds: string[] = [];
+    const rowContext = useMemo<TemplatedUrlRowContext>(() => {
+        const itemIdsInRow: string[] = [];
         const row = cell.row
             .getAllCells()
-            .reduce<Record<string, Record<string, ResultValue>>>(
-                (acc, rowCell) => {
-                    const item = rowCell.column.columnDef.meta?.item;
-                    const rowCellValue = (rowCell.getValue() as ResultRow[0])
-                        ?.value;
-                    if (item && isField(item) && rowCellValue) {
-                        itemIds.push(getItemId(item));
-                        acc[item.table] = acc[item.table] || {};
-                        acc[item.table][item.name] = rowCellValue;
-                        return acc;
-                    }
-                    return acc;
-                },
-                {},
-            );
-        return [itemIds, row];
+            .reduce<TemplatedUrlRow>((acc, rowCell) => {
+                const item = rowCell.column.columnDef.meta?.item;
+                const rowCellValue = (rowCell.getValue() as ResultRow[0])
+                    ?.value;
+                if (item && isField(item) && rowCellValue) {
+                    itemIdsInRow.push(getItemId(item));
+                    acc[item.table] = acc[item.table] || {};
+                    acc[item.table][item.name] = rowCellValue;
+                }
+                return acc;
+            }, {});
+        return { itemIdsInRow, row };
     }, [cell]);
+    const getItem = useMemo(
+        () => (itemsMap ? (fieldId: string) => itemsMap[fieldId] : undefined),
+        [itemsMap],
+    );
 
     return (
-        <>
-            {(urls || []).map((urlConfig) => (
-                <UrlMenuItem
-                    key={urlConfig.label}
-                    urlConfig={urlConfig}
-                    itemsMap={itemsMap}
-                    itemIdsInRow={itemIdsInRow}
-                    row={rowData}
-                    value={value}
-                    showError={showErrors}
-                />
-            ))}
-        </>
+        <TemplatedUrlMenuItems
+            urls={urls}
+            value={value}
+            rowContext={rowContext}
+            getItem={getItem}
+            showErrors={showErrors}
+        />
     );
 };
 
