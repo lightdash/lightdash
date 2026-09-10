@@ -50628,32 +50628,6 @@
             "ApiOrganizationDesignFileResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ApiOrganizationDesignFile_"
             },
-            "ApiSuccess__projectUuid-string--url-string--created-boolean__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "created": {
-                                "type": "boolean"
-                            },
-                            "url": {
-                                "type": "string"
-                            },
-                            "projectUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["created", "url", "projectUuid"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "Organization": {
                 "properties": {
                     "pgWire": {
@@ -56080,6 +56054,84 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AnalyticsProjectStatus": {
+                "properties": {
+                    "project": {
+                        "properties": {
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string"
+                            },
+                            "slug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "createdAt",
+                            "url",
+                            "slug",
+                            "name",
+                            "projectUuid"
+                        ],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": ["project"],
+                "type": "object"
+            },
+            "ApiSuccess_AnalyticsProjectStatus_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AnalyticsProjectStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "EnsureAnalyticsProjectResult": {
+                "properties": {
+                    "created": {
+                        "type": "boolean"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["created", "url", "projectUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_EnsureAnalyticsProjectResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/EnsureAnalyticsProjectResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "RoleAssignment": {
                 "properties": {
                     "hasMultipleRoles": {
@@ -61010,7 +61062,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.186.3",
+        "version": "2.187.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -88066,38 +88118,6 @@
                 ]
             }
         },
-        "/api/v1/org/analytics-project": {
-            "post": {
-                "operationId": "EnsureAnalyticsProject",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess__projectUuid-string--url-string--created-boolean__"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Create or refresh the current organization's internal analytics preview.",
-                "summary": "Ensure internal analytics project",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": []
-            }
-        },
         "/api/v1/org": {
             "get": {
                 "operationId": "GetMyOrganization",
@@ -95843,6 +95863,106 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project": {
+            "get": {
+                "operationId": "GetAnalyticsProjectStatus",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsProjectStatus_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Get internal analytics project status",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "EnsureAnalyticsProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_EnsureAnalyticsProjectResult_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Ensure internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/{projectUuid}": {
+            "delete": {
+                "operationId": "DeleteAnalyticsProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Delete the organization's internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectId}/roles/assignments": {

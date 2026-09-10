@@ -1,3 +1,16 @@
+# [2.187.0](https://github.com/lightdash/lightdash/compare/2.186.3...2.187.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **chart-types:** dismiss the topmost gallery modal first ([#28993](https://github.com/lightdash/lightdash/issues/28993)) ([22889b8](https://github.com/lightdash/lightdash/commit/22889b8cf894a7c9ae0ff8cc5af31b425c0a5ab5))
+* **tables:** only show totals loading and error cells under columns the warehouse can total ([#28987](https://github.com/lightdash/lightdash/issues/28987)) ([054e623](https://github.com/lightdash/lightdash/commit/054e623505c3dedf3971fba7f257ac36c1e69fdd))
+
+
+### Features
+
+* add Lightdash analytics organization settings ([#28973](https://github.com/lightdash/lightdash/issues/28973)) ([907a21f](https://github.com/lightdash/lightdash/commit/907a21ff6ba500d972c658c7f374807b86497243)), closes [#28929](https://github.com/lightdash/lightdash/issues/28929)
+
 ## [2.186.3](https://github.com/lightdash/lightdash/compare/2.186.2...2.186.3) (2026-09-10)
 
 
