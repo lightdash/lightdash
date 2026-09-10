@@ -139,7 +139,11 @@ export class RoadmapService extends BaseService {
             RoadmapFollowProjectResponseSchema,
             {
                 method: 'POST',
-                body: JSON.stringify({ ...identity.data, ...parsed.data }),
+                body: JSON.stringify({
+                    organizationName: identity.data.organizationName,
+                    user: identity.data.user,
+                    note: parsed.data.note,
+                }),
                 timeoutMs: 120_000,
                 errorMessage:
                     'Could not send the roadmap request. Please try again.',
@@ -249,8 +253,14 @@ export class RoadmapService extends BaseService {
                 },
                 signal: AbortSignal.timeout(options.timeoutMs),
             });
-        } catch {
-            this.logger.warn('Could not reach the roadmap service');
+        } catch (error) {
+            const cause = z
+                .object({ code: z.string() })
+                .safeParse(error instanceof Error ? error.cause : undefined);
+            this.logger.warn('Could not reach the roadmap service', {
+                errorName: error instanceof Error ? error.name : 'UnknownError',
+                errorCode: cause.success ? cause.data.code : undefined,
+            });
             throw new UnexpectedServerError(options.errorMessage);
         }
 
@@ -270,6 +280,7 @@ export class RoadmapService extends BaseService {
                 'This roadmap project is no longer available',
             );
         }
+        // Control Center confirms receipt only with HTTP 200 and a validated body.
         if (
             !response.ok ||
             (options.method === 'POST' && response.status !== 200)

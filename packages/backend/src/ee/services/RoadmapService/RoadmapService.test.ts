@@ -697,16 +697,48 @@ describe('RoadmapService', () => {
             ).rejects.toThrow(UnexpectedServerError);
         });
 
-        it('handles timeouts without retrying a potentially delivered request', async () => {
-            fetchMock.mockRejectedValueOnce(
-                new DOMException('timeout', 'TimeoutError'),
-            );
-            await expect(
-                buildService().followProject(account(), projectId, {
-                    note: 'Use case',
+        it.each([
+            {
+                error: new DOMException(
+                    'private timeout details',
+                    'TimeoutError',
+                ),
+                errorName: 'TimeoutError',
+                errorCode: undefined,
+            },
+            ...['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET'].map((code) => ({
+                error: new TypeError('private request details', {
+                    cause: { code, message: 'private provider details' },
                 }),
-            ).rejects.toThrow(UnexpectedServerError);
-            expect(fetchMock).toHaveBeenCalledOnce();
-        });
+                errorName: 'TypeError',
+                errorCode: code,
+            })),
+            {
+                error: 'private thrown value',
+                errorName: 'UnknownError',
+                errorCode: undefined,
+            },
+        ])(
+            'logs safe network diagnostics without retrying: $errorName $errorCode',
+            async ({ error, errorName, errorCode }) => {
+                const service = buildService();
+                const warn = vi.spyOn(service['logger'], 'warn');
+                fetchMock.mockRejectedValueOnce(error);
+                await expect(
+                    service.followProject(account(), projectId, {
+                        note: 'Use case',
+                    }),
+                ).rejects.toThrow(UnexpectedServerError);
+                expect(warn).toHaveBeenCalledExactlyOnceWith(
+                    'Could not reach the roadmap service',
+                    { errorName, errorCode },
+                );
+                expect(JSON.stringify(warn.mock.calls)).not.toContain(
+                    'private',
+                );
+                expect(fetchMock).toHaveBeenCalledOnce();
+                warn.mockRestore();
+            },
+        );
     });
 });
