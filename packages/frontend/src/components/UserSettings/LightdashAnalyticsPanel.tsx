@@ -6,14 +6,16 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import {
     useAnalyticsProject,
     useCreateAnalyticsProject,
     useDeleteAnalyticsProject,
+    useInstallAnalyticsSampleContent,
 } from '../../hooks/organization/useAnalyticsProject';
 import { useDeleteActiveProjectMutation } from '../../hooks/useActiveProject';
 import Callout from '../common/Callout';
@@ -27,10 +29,10 @@ const LightdashAnalyticsPanel = ({
 }: {
     activeProjectUuid?: string;
 }) => {
-    const navigate = useNavigate();
     const status = useAnalyticsProject();
     const createProject = useCreateAnalyticsProject();
     const deleteProject = useDeleteAnalyticsProject();
+    const installSampleContent = useInstallAnalyticsSampleContent();
     const { mutate: clearActiveProject } = useDeleteActiveProjectMutation();
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
     const analyticsProject = status.data?.project;
@@ -105,6 +107,26 @@ const LightdashAnalyticsPanel = ({
                                     >
                                         Explore
                                     </Button>
+                                    <Tooltip
+                                        events={{
+                                            hover: true,
+                                            focus: true,
+                                            touch: true,
+                                        }}
+                                        label="Updates built-in dashboards and charts, replacing edits to them. Custom dashboards and copies are kept. Duplicate built-in dashboards to keep your edits."
+                                    >
+                                        <Button
+                                            variant="default"
+                                            loading={
+                                                installSampleContent.isLoading
+                                            }
+                                            onClick={() =>
+                                                installSampleContent.mutate()
+                                            }
+                                        >
+                                            Sync content
+                                        </Button>
+                                    </Tooltip>
                                     <Button
                                         variant="subtle"
                                         color="red"
@@ -121,34 +143,27 @@ const LightdashAnalyticsPanel = ({
                             ) : (
                                 <Button
                                     loading={createProject.isLoading}
-                                    onClick={() =>
-                                        createProject.mutate(undefined, {
-                                            onSuccess: ({ url }) =>
-                                                navigate(url),
-                                        })
-                                    }
+                                    onClick={() => createProject.mutate()}
                                 >
                                     Create
                                 </Button>
                             )}
                         </Group>
+                        {installSampleContent.isError && (
+                            <Callout
+                                variant="danger"
+                                title="Unable to sync analytics content"
+                            >
+                                {installSampleContent.error.error.message}
+                            </Callout>
+                        )}
                     </Stack>
                 )}
             </SettingsCard>
             {status.isSuccess && analyticsProject && (
                 <SettingsCard>
                     <Stack gap="md">
-                        <Group justify="space-between">
-                            <Title order={5}>Dashboards</Title>
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                loading={dashboards.isFetching}
-                                onClick={() => void dashboards.refetch()}
-                            >
-                                Refresh
-                            </Button>
-                        </Group>
+                        <Title order={5}>Dashboards</Title>
                         {dashboards.isLoading ? (
                             <EmptyStateLoader title="Loading dashboards" />
                         ) : dashboards.isError ? (
@@ -184,7 +199,7 @@ const LightdashAnalyticsPanel = ({
                         ) : (
                             <Text fz="sm" c="dimmed">
                                 No dashboards yet. Save a dashboard in your
-                                analytics project, then refresh this list to see
+                                analytics project, then reload this page to see
                                 it here.
                             </Text>
                         )}
