@@ -2949,6 +2949,487 @@ describe('convert_timezone dimension override', () => {
     });
 });
 
+describe('wall_clock_timezone dimension annotation', () => {
+    const ZONE = 'Africa/Johannesburg';
+
+    const buildModel = ({
+        wallClockTimezone = ZONE,
+        type = DimensionType.TIMESTAMP,
+        convertTimezone,
+        timestampDomain,
+        timeIntervals = [TimeFrames.DAY],
+    }: {
+        wallClockTimezone?: string;
+        type?: DimensionType;
+        convertTimezone?: boolean;
+        timestampDomain?: 'aware' | 'naive';
+        timeIntervals?: (TimeFrames | string)[];
+    }): DbtModelNode & { relation_name: string } => ({
+        ...model,
+        columns: {
+            created_at: {
+                name: 'created_at',
+                data_type: type,
+                ...(timestampDomain
+                    ? { timestamp_domain: timestampDomain }
+                    : {}),
+                meta: {
+                    dimension: {
+                        type,
+                        wall_clock_timezone: wallClockTimezone,
+                        ...(convertTimezone !== undefined
+                            ? { convert_timezone: convertTimezone }
+                            : {}),
+                        time_intervals: timeIntervals,
+                    },
+                },
+            },
+        },
+    });
+
+    it('converts the column to UTC in place on Snowflake', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            buildModel({}),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.created_at.sql).toBe(
+            "CONVERT_TIMEZONE('Africa/Johannesburg', 'UTC', ${TABLE}.created_at)",
+        );
+        expect(result.dimensions.created_at.sourceTimezone).toBe('UTC');
+        expect(result.dimensions.created_at.timestampDomain).toBe('naive');
+        expect(result.warnings).toBeUndefined();
+    });
+
+    it('converts the column on Snowflake even when disableTimestampConversion is set', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            buildModel({}),
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            true,
+        );
+
+        expect(result.dimensions.created_at.sql).toBe(
+            "CONVERT_TIMEZONE('Africa/Johannesburg', 'UTC', ${TABLE}.created_at)",
+        );
+        expect(result.dimensions.created_at.sourceTimezone).toBe('UTC');
+        expect(result.dimensions.created_at.timestampDomain).toBe('naive');
+    });
+
+    it('leaves an unannotated Snowflake column on the session-based wrap', () => {
+        const unannotated: DbtModelNode & { relation_name: string } = {
+            ...model,
+            columns: {
+                created_at: {
+                    name: 'created_at',
+                    data_type: DimensionType.TIMESTAMP,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.TIMESTAMP,
+                            time_intervals: [TimeFrames.DAY],
+                        },
+                    },
+                },
+            },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            unannotated,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.created_at.sql).toBe(
+            "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.created_at))",
+        );
+        expect(result.dimensions.created_at.sourceTimezone).toBeUndefined();
+    });
+
+    it('leaves the SQL alone and stamps the zone on other warehouses', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            buildModel({}),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.created_at.sql).toBe('${TABLE}.created_at');
+        expect(result.dimensions.created_at.sourceTimezone).toBe(ZONE);
+        expect(result.dimensions.created_at.timestampDomain).toBe('naive');
+        expect(result.warnings).toBeUndefined();
+    });
+
+    it('propagates sourceTimezone onto standard and custom-granularity children', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            buildModel({
+                timeIntervals: [TimeFrames.DAY, 'my_quarter'],
+            }),
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            {
+                my_quarter: {
+                    label: 'My Quarter',
+                    sql: "DATE_TRUNC('QUARTER', ${COLUMN})",
+                },
+            },
+        );
+
+        expect(result.dimensions.created_at_day.sourceTimezone).toBe(ZONE);
+        expect(result.dimensions.created_at_day.timestampDomain).toBe('naive');
+        expect(result.dimensions.created_at_my_quarter.sourceTimezone).toBe(
+            ZONE,
+        );
+    });
+
+    it('warns and ignores an invalid timezone', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            buildModel({ wallClockTimezone: 'Not/AZone' }),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings?.[0].type).toBe(InlineErrorType.FIELD_ERROR);
+        expect(result.warnings?.[0].message).toContain('not a valid timezone');
+        expect(result.dimensions.created_at.sourceTimezone).toBeUndefined();
+        expect(result.dimensions.created_at_day.sourceTimezone).toBeUndefined();
+    });
+
+    it('warns and ignores the annotation on a non-timestamp dimension', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            buildModel({ type: DimensionType.DATE }),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings?.[0].message).toContain(
+            'only applies to timestamp dimensions',
+        );
+        expect(result.dimensions.created_at.sourceTimezone).toBeUndefined();
+        expect(result.dimensions.created_at).not.toHaveProperty(
+            'timestampDomain',
+        );
+    });
+
+    it('warns and ignores the annotation when convert_timezone is false', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            buildModel({ convertTimezone: false }),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings?.[0].message).toContain(
+            'cannot be combined with "convert_timezone: false"',
+        );
+        expect(result.dimensions.created_at.sourceTimezone).toBeUndefined();
+        expect(result.dimensions.created_at.skipTimezoneConversion).toBe(true);
+        expect(result.dimensions.created_at.sql).toBe(
+            "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.created_at))",
+        );
+    });
+
+    it('carries an additional dimension wall clock to its children and does not leak the base annotation', () => {
+        const modelWithAdditionalDimensions: DbtModelNode & {
+            relation_name: string;
+        } = {
+            ...model,
+            columns: {
+                created_at: {
+                    name: 'created_at',
+                    data_type: DimensionType.TIMESTAMP,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.TIMESTAMP,
+                            wall_clock_timezone: ZONE,
+                            time_intervals: [TimeFrames.DAY],
+                        },
+                        additional_dimensions: {
+                            created_at_lisbon: {
+                                type: DimensionType.TIMESTAMP,
+                                sql: '${TABLE}.created_at_lisbon',
+                                wall_clock_timezone: 'Europe/Lisbon',
+                                time_intervals: [TimeFrames.DAY],
+                            },
+                            created_at_plain: {
+                                type: DimensionType.TIMESTAMP,
+                                sql: '${TABLE}.created_at_plain',
+                                time_intervals: [TimeFrames.DAY],
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            modelWithAdditionalDimensions,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.created_at.sourceTimezone).toBe(ZONE);
+        expect(result.dimensions.created_at_lisbon.sourceTimezone).toBe(
+            'Europe/Lisbon',
+        );
+        expect(result.dimensions.created_at_lisbon_day.sourceTimezone).toBe(
+            'Europe/Lisbon',
+        );
+        expect(
+            result.dimensions.created_at_plain.sourceTimezone,
+        ).toBeUndefined();
+        expect(
+            result.dimensions.created_at_plain_day.sourceTimezone,
+        ).toBeUndefined();
+    });
+
+    it('wraps the column once on a Snowflake standard interval child', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            buildModel({}),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.created_at_day.sql).toBe(
+            "DATE_TRUNC('DAY', CONVERT_TIMEZONE('Africa/Johannesburg', 'UTC', ${TABLE}.created_at))",
+        );
+        expect(result.dimensions.created_at_day.sourceTimezone).toBe('UTC');
+        expect(result.dimensions.created_at_day.wallClockTimezone).toBe(ZONE);
+        expect(result.dimensions.created_at.wallClockTimezone).toBe(ZONE);
+    });
+
+    it('wraps the custom sql expression, not the column, on Snowflake', () => {
+        const withCustomSql: DbtModelNode & { relation_name: string } = {
+            ...model,
+            columns: {
+                created_at: {
+                    name: 'created_at',
+                    data_type: DimensionType.TIMESTAMP,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.TIMESTAMP,
+                            sql: 'COALESCE(${TABLE}.created_at, ${TABLE}.updated_at)',
+                            wall_clock_timezone: ZONE,
+                            time_intervals: [TimeFrames.DAY],
+                        },
+                    },
+                },
+            },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            withCustomSql,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.created_at.sql).toBe(
+            "CONVERT_TIMEZONE('Africa/Johannesburg', 'UTC', COALESCE(${TABLE}.created_at, ${TABLE}.updated_at))",
+        );
+        expect(result.dimensions.created_at_day.sql).toBe(
+            "DATE_TRUNC('DAY', CONVERT_TIMEZONE('Africa/Johannesburg', 'UTC', COALESCE(${TABLE}.created_at, ${TABLE}.updated_at)))",
+        );
+    });
+
+    it('warns and ignores an offset-style zone', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            buildModel({ wallClockTimezone: '+05:00' }),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings?.[0].message).toContain('not a valid timezone');
+        expect(result.dimensions.created_at.sourceTimezone).toBeUndefined();
+        expect(result.dimensions.created_at.wallClockTimezone).toBeUndefined();
+        expect(result.dimensions.created_at.sql).toBe(
+            "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.created_at))",
+        );
+    });
+
+    describe('additional dimensions', () => {
+        const buildAdditionalDimensionModel = ({
+            baseConvertTimezone,
+            wallClockTimezone,
+        }: {
+            baseConvertTimezone?: boolean;
+            wallClockTimezone?: string;
+        }): DbtModelNode & { relation_name: string } => ({
+            ...model,
+            columns: {
+                created_at: {
+                    name: 'created_at',
+                    data_type: DimensionType.TIMESTAMP,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.TIMESTAMP,
+                            ...(baseConvertTimezone !== undefined
+                                ? { convert_timezone: baseConvertTimezone }
+                                : {}),
+                            time_intervals: [TimeFrames.DAY],
+                        },
+                        additional_dimensions: {
+                            alt_lisbon: {
+                                type: DimensionType.TIMESTAMP,
+                                sql: '${TABLE}.alt',
+                                ...(wallClockTimezone
+                                    ? {
+                                          wall_clock_timezone:
+                                              wallClockTimezone,
+                                      }
+                                    : {}),
+                                time_intervals: [TimeFrames.DAY],
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        it('wraps an annotated additional dimension and its child exactly once on Snowflake', () => {
+            const result = convertTable(
+                SupportedDbtAdapter.SNOWFLAKE,
+                buildAdditionalDimensionModel({
+                    wallClockTimezone: 'Europe/Lisbon',
+                }),
+                DEFAULT_SPOTLIGHT_CONFIG,
+            );
+
+            expect(result.dimensions.alt_lisbon.sql).toBe(
+                "CONVERT_TIMEZONE('Europe/Lisbon', 'UTC', ${TABLE}.alt)",
+            );
+            expect(result.dimensions.alt_lisbon_day.sql).toBe(
+                "DATE_TRUNC('DAY', CONVERT_TIMEZONE('Europe/Lisbon', 'UTC', ${TABLE}.alt))",
+            );
+            [
+                result.dimensions.alt_lisbon,
+                result.dimensions.alt_lisbon_day,
+            ].forEach((dimension) => {
+                expect(dimension.sourceTimezone).toBe('UTC');
+                expect(dimension.wallClockTimezone).toBe('Europe/Lisbon');
+                expect(dimension.timestampDomain).toBe('naive');
+                expect(dimension).not.toHaveProperty('skipTimezoneConversion');
+            });
+        });
+
+        it('does not leak the base column convert_timezone onto an annotated additional dimension', () => {
+            const result = convertTable(
+                SupportedDbtAdapter.POSTGRES,
+                buildAdditionalDimensionModel({
+                    baseConvertTimezone: false,
+                    wallClockTimezone: 'Europe/Lisbon',
+                }),
+                DEFAULT_SPOTLIGHT_CONFIG,
+            );
+
+            expect(result.warnings).toBeUndefined();
+            [
+                result.dimensions.alt_lisbon,
+                result.dimensions.alt_lisbon_day,
+            ].forEach((dimension) => {
+                expect(dimension.sourceTimezone).toBe('Europe/Lisbon');
+                expect(dimension.wallClockTimezone).toBe('Europe/Lisbon');
+                expect(dimension.timestampDomain).toBe('naive');
+                expect(dimension).not.toHaveProperty('skipTimezoneConversion');
+            });
+        });
+
+        it('leaves an unannotated additional dimension and its child untouched on Snowflake', () => {
+            const result = convertTable(
+                SupportedDbtAdapter.SNOWFLAKE,
+                buildAdditionalDimensionModel({}),
+                DEFAULT_SPOTLIGHT_CONFIG,
+            );
+
+            expect(result.dimensions.alt_lisbon.sql).toBe(
+                "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.alt))",
+            );
+            expect(result.dimensions.alt_lisbon_day.sql).toBe(
+                "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.alt)))))",
+            );
+            expect(result.dimensions.alt_lisbon.sourceTimezone).toBeUndefined();
+            expect(
+                result.dimensions.alt_lisbon_day.sourceTimezone,
+            ).toBeUndefined();
+        });
+
+        it('does not leak the base column convert_timezone onto an unannotated additional dimension child', () => {
+            const result = convertTable(
+                SupportedDbtAdapter.SNOWFLAKE,
+                buildAdditionalDimensionModel({ baseConvertTimezone: false }),
+                DEFAULT_SPOTLIGHT_CONFIG,
+            );
+
+            // Same SQL as without the base column annotation: convert_timezone
+            // never governed the compile-time wrap.
+            expect(result.dimensions.alt_lisbon.sql).toBe(
+                "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.alt))",
+            );
+            expect(result.dimensions.alt_lisbon_day.sql).toBe(
+                "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.alt)))))",
+            );
+            expect(result.dimensions.alt_lisbon).not.toHaveProperty(
+                'skipTimezoneConversion',
+            );
+            expect(result.dimensions.alt_lisbon_day).not.toHaveProperty(
+                'skipTimezoneConversion',
+            );
+        });
+
+        it('carries an additional dimension own convert_timezone to its children', () => {
+            const withOwnConvertTimezone: DbtModelNode & {
+                relation_name: string;
+            } = {
+                ...model,
+                columns: {
+                    created_at: {
+                        name: 'created_at',
+                        data_type: DimensionType.TIMESTAMP,
+                        meta: {
+                            dimension: { type: DimensionType.TIMESTAMP },
+                            additional_dimensions: {
+                                alt_raw: {
+                                    type: DimensionType.TIMESTAMP,
+                                    sql: '${TABLE}.alt',
+                                    convert_timezone: false,
+                                    time_intervals: [TimeFrames.DAY],
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+            const result = convertTable(
+                SupportedDbtAdapter.SNOWFLAKE,
+                withOwnConvertTimezone,
+                DEFAULT_SPOTLIGHT_CONFIG,
+            );
+
+            expect(result.dimensions.alt_raw.skipTimezoneConversion).toBe(true);
+            expect(result.dimensions.alt_raw_day.skipTimezoneConversion).toBe(
+                true,
+            );
+        });
+    });
+
+    it('warns but still reads an aware column as a naive wall clock', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            buildModel({ timestampDomain: 'aware' }),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings?.[0].message).toContain(
+            'its "aware" timestamp domain is ignored',
+        );
+        expect(result.dimensions.created_at.timestampDomain).toBe('naive');
+        expect(result.dimensions.created_at.sourceTimezone).toBe(ZONE);
+        expect(result.dimensions.created_at_day.timestampDomain).toBe('naive');
+    });
+});
+
 describe('project default additional_time_intervals', () => {
     const TIMESTAMP_MODEL: DbtModelNode & { relation_name: string } = {
         ...model,
