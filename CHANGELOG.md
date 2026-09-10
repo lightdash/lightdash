@@ -1,3 +1,10 @@
+## [2.185.2](https://github.com/lightdash/lightdash/compare/2.185.1...2.185.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* hide period comparison dropdown for a single eligible dimension ([#28867](https://github.com/lightdash/lightdash/issues/28867)) ([45767b4](https://github.com/lightdash/lightdash/commit/45767b4b8d1fc5428102c9bc61c41892fc4559de))
+
 ## [2.185.1](https://github.com/lightdash/lightdash/compare/2.185.0...2.185.1) (2026-09-10)
 
 
