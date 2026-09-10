@@ -1,3 +1,10 @@
+# [2.189.0](https://github.com/lightdash/lightdash/compare/2.188.0...2.189.0) (2026-09-10)
+
+
+### Features
+
+* **pivot-table:** URL actions and a value menu on pivoted dimension cells ([#28999](https://github.com/lightdash/lightdash/issues/28999)) ([00ca49c](https://github.com/lightdash/lightdash/commit/00ca49cc222d8c32c3d1f3fac1c972fc986257b1))
+
 # [2.188.0](https://github.com/lightdash/lightdash/compare/2.187.1...2.188.0) (2026-09-10)
 
 
