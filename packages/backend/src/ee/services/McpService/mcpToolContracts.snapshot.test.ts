@@ -344,6 +344,7 @@ describe('MCP tool contracts', () => {
             const mcpService = makeMcpService();
             mockRegisteredMcpTools.length = 0;
             await mcpService.createServer(makeMcpServerOptions(options));
+            // Existing instruction overages cannot grow; lower these as text shrinks.
             const instructionCeilings = options.runSqlEnabled
                 ? { structured: 5483, expression: 9192 }
                 : { structured: 4659, expression: 8368 };
@@ -355,16 +356,11 @@ describe('MCP tool contracts', () => {
                   ]
                 : MCP_CLIENT_TEXT_MAX_CHARS;
 
-            // Existing overages warn but cannot grow. Lower/remove these
-            // ceilings as text is shortened; snapshot updates cannot raise them.
-            const existingToolCeilings = new Map([['run_ai_writeback', 2651]]);
             const texts = [
                 ...mockRegisteredMcpTools.map(({ name, config }) => ({
                     name,
                     length: config.description.length,
-                    ceiling:
-                        existingToolCeilings.get(name) ??
-                        MCP_CLIENT_TEXT_MAX_CHARS,
+                    ceiling: MCP_CLIENT_TEXT_MAX_CHARS,
                 })),
                 {
                     name: 'server instructions',
