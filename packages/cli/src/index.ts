@@ -740,7 +740,7 @@ program
     )
     .option(
         '--no-warehouse-credentials',
-        'Create preview without warehouse credentials. Copies credentials from upstream project.',
+        'Create preview without warehouse credentials (copied from the upstream project). When updating an existing preview, keep the credentials it already has.',
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option('--no-batched-deploy', 'Use the legacy single-request deploy')

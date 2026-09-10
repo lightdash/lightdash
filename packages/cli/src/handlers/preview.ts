@@ -19,14 +19,22 @@ import GlobalState from '../globalState';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import { compileProject } from './compile';
-import { createProject } from './createProject';
+import {
+    createProject,
+    loadWarehouseCredentialsFromProfiles,
+} from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
+import { getProject } from './dbt/refresh';
 import { deploy } from './deploy';
 import {
     getDisableTimestampConversionFromProject,
     getProjectDisableTimestampConversion,
 } from './timestampConversion';
+import {
+    getWarehouseCredentialsSource,
+    updateProjectWarehouseConnection,
+} from './warehouseConnection';
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -462,6 +470,59 @@ export const previewHandler = async (
     await cleanupProject(executionId, project.projectUuid, previewStartTime);
 };
 
+// Credentials resolved locally (AWS SSO, Snowflake SSO) expire, so a re-run
+// with the same name pushes freshly resolved ones into the existing preview.
+const refreshPreviewWarehouseCredentials = async (
+    projectUuid: string,
+    options: PreviewHandlerOptions,
+): Promise<void> => {
+    const source = getWarehouseCredentialsSource(options);
+    if (source.source === 'organization') {
+        GlobalState.debug(
+            `> Preview uses organization warehouse credentials "${source.name}", nothing to refresh`,
+        );
+        return;
+    }
+    if (source.source === 'none') {
+        GlobalState.debug(
+            '> Skipping warehouse credentials refresh (--no-warehouse-credentials)',
+        );
+        return;
+    }
+    const loaded = await loadWarehouseCredentialsFromProfiles({
+        projectDir: options.projectDir,
+        profilesDir: options.profilesDir,
+        target: options.target,
+        profile: options.profile,
+        startOfWeek: options.startOfWeek,
+        assumeYes: options.assumeYes,
+        targetPath: options.targetPath,
+    });
+    if (!loaded) {
+        console.error(
+            styles.warning(
+                'Keeping the warehouse credentials already stored on the preview.',
+            ),
+        );
+        return;
+    }
+    const spinner = GlobalState.startSpinner(
+        '  Refreshing warehouse credentials...',
+    );
+    try {
+        const project = await getProject(projectUuid);
+        await updateProjectWarehouseConnection(
+            project,
+            loaded.credentials,
+            'Refreshing warehouse credentials',
+        );
+        spinner.succeed('  Warehouse credentials refreshed');
+    } catch (e) {
+        spinner.fail();
+        throw e;
+    }
+};
+
 export const startPreviewHandler = async (
     originalOptions: PreviewHandlerOptions,
 ): Promise<void> => {
@@ -519,6 +580,11 @@ export const startPreviewHandler = async (
             previewProject.projectUuid,
             options.expiresIn,
         );
+
+        await refreshPreviewWarehouseCredentials(previewProject.projectUuid, {
+            ...options,
+            warehouseCredentials: projectTypeConfig.warehouseCredentials,
+        });
 
         // Update
         options.disableTimestampConversion =
