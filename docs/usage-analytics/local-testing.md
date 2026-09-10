@@ -29,8 +29,14 @@ Preserve other enabled flags if needed. Explicitly disabling `analytics-project`
 takes precedence. The two org IDs are an intentional local-only binding;
 production must use the authenticated org and reviewed credential isolation.
 
-As a signed-in organization administrator, call the same-origin endpoint from
-the browser console on your assigned local frontend:
+As a signed-in organization administrator, open **Organization settings →
+Lightdash analytics (Beta)** at `/generalSettings/lightdashAnalytics`. Click
+**Create** to provision and open the project, or **Open** if it already exists.
+The page shows the project's creation time, not its model-sync version or data
+freshness. Feature-flag and development-only backend restrictions still apply.
+
+Alternatively, call the same-origin endpoint from the browser console on your
+assigned local frontend:
 
 ```javascript
 const response = await fetch('/api/v1/org/analytics-project', {
@@ -54,7 +60,26 @@ lock. Re-running refreshes both models and repairs a failed model-save attempt
 without replacing the project or deleting saved charts. Analytics previews do
 not expire automatically. They are visible only to enabled org admins in the
 projects API (for slug resolution), and omitted from the normal switcher as
-previews with no upstream. No admin navigation has been added.
+previews with no upstream.
+
+### Status and reset
+
+`GET /api/v1/org/analytics-project` returns `{ project: null }` when absent,
+otherwise project UUID, name, slug, URL, and creation timestamp. This read does
+not access object storage, compile models, or create anything.
+
+The settings page's **Delete** action requires confirmation and calls
+`DELETE /api/v1/org/analytics-project/{projectUuid}`. Only the current org's
+analytics-marked project with that exact UUID can be deleted. Deletion uses the
+same per-org lock as creation. A stale UUID cannot delete a replacement project.
+This permanently removes the project and its saved content, but leaves the
+collected usage events in object storage intact. Afterwards, **Create** provisions
+a new project; it does not restore deleted charts or dashboards.
+
+All three endpoints live in `AnalyticsProjectController`, backed by
+`AnalyticsProjectService`, and require a session-authenticated org administrator
+and the existing analytics flag/local-org guard. Production enablement and
+versioned content sync remain separate follow-ups.
 
 ## Read path and safeguards
 

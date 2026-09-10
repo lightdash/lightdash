@@ -142,6 +142,18 @@ export const useSettingsContext = (): SettingsContext => {
     // out, matching what the backend actually authorizes.
     const { data: projects } = useProjects();
     const organizationUuid = organization?.organizationUuid;
+    const {
+        data: analyticsProjectFlag,
+        isInitialLoading: isAnalyticsProjectFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.AnalyticsProject);
+    const canAccessAnalyticsSettings =
+        analyticsProjectFlag?.enabled === true &&
+        !!organizationUuid &&
+        (user?.ability.can(
+            'manage',
+            subject('Organization', { organizationUuid }),
+        ) ??
+            false);
     const canManageOrgAiAgent =
         user?.ability?.can(
             'manage',
@@ -195,6 +207,8 @@ export const useSettingsContext = (): SettingsContext => {
         showImpersonationPanel,
         isCustomRolesEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
+        isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
         isOrganizationRoadmapLoading:
             organizationRoadmapFlagQuery.isInitialLoading,

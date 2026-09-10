@@ -110,6 +110,10 @@ import {
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
+import {
+    type AnalyticsProjectStatus,
+    type EnsureAnalyticsProjectResult,
+} from './analyticsProject';
 import { type AnyType } from './any';
 import {
     type ApiCreateComment,
@@ -1265,6 +1269,8 @@ type ApiResults =
     | BigqueryProjectRecommendation
     | ApiScimRequestLogListResponse['results']
     | EnsurePlaygroundProjectResults
+    | AnalyticsProjectStatus
+    | EnsureAnalyticsProjectResult
     | CreateTrainingPreviewResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
