@@ -1,14 +1,19 @@
 # Analytics sample content
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
-defines a usage overview dashboard and ten dashboard-owned charts using the existing
-system explores. It is compiled with the backend: no CLI upload, migration,
+defines two managed dashboards using the existing system explores: the usage
+overview (ten charts) and Query activity (nine charts). It is compiled with the backend: no CLI upload, migration,
 installation table, or version tracking is required.
 
 The sample includes compact headline totals, daily AI/query line charts, top models
 by token volume, a cache-hit share donut, average/P90 warehouse execution trends,
 and top query contexts. Token volume is not cost; warehouse execution time is not
 end-to-end latency. Missing cache flags are not treated as misses.
+
+Query activity focuses on query totals, distinct users, average/P90 warehouse
+execution time, daily query and active-user trends, cache-hit share and query
+sources. The existing overview and its IDs remain unchanged. Charts with the same
+definition on different dashboards have distinct, dashboard-owned IDs.
 
 Project creation and **Sync content** in organization analytics settings both install
 the current definitions. After creation, settings stays open and shows dashboard
@@ -22,6 +27,10 @@ The dashboard list loads when the page opens and reloads after a successful sync
 There is no separate list refresh button. **Sync content** is a secondary
 action beside **Explore**, with a tooltip explaining its overwrite behavior. Sync
 never deletes or recreates the project and preserves custom dashboards and copies.
+Every sync iterates the built-in dashboard list, creating missing dashboards and
+updating existing ones in the same transaction. Add future dashboards with a new
+stable key to this list. Removing a definition does not automatically delete its
+previously installed dashboard.
 
 ## Identity and overwrite behavior
 

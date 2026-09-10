@@ -1,7 +1,10 @@
 import { ConflictError, NotFoundError } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { v5 as uuidv5 } from 'uuid';
-import { analyticsSampleContent } from '../analytics/systemExplores/sampleContent';
+import {
+    analyticsSampleContent,
+    analyticsSampleDashboards,
+} from '../analytics/systemExplores/sampleContent';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { user } from '../services/ProjectService/ProjectService.mock';
 import { AnalyticsContentModel } from './AnalyticsContentModel';
@@ -15,6 +18,21 @@ describe('AnalyticsContentModel', () => {
         `lightdash-analytics/project/${analyticsSampleContent.key}`,
         uuidv5.URL,
     );
+    const managedChartOwners = new Map(
+        analyticsSampleDashboards.flatMap((bundle) => {
+            const owner = uuidv5(
+                `lightdash-analytics/project/${bundle.key}`,
+                uuidv5.URL,
+            );
+            return bundle.charts.map(
+                ({ key }) => [uuidv5(key, owner), owner] as const,
+            );
+        }),
+    );
+    const totalCharts = analyticsSampleDashboards.reduce(
+        (total, bundle) => total + bundle.charts.length,
+        0,
+    );
 
     const setup = ({
         existing = false,
@@ -22,6 +40,7 @@ describe('AnalyticsContentModel', () => {
         movedChart = false,
         deleted = false,
         dashboardProject = 'project',
+        onlyOverviewExists = false,
     } = {}) => {
         const update = vi.fn().mockResolvedValue(1);
         const trx = vi.fn((table: string) => {
@@ -52,10 +71,45 @@ describe('AnalyticsContentModel', () => {
                 where: vi.fn(),
                 forUpdate: vi.fn(),
                 whereNull: vi.fn(),
-                first: vi.fn().mockResolvedValue(results[table]),
+                first: vi.fn(async () => results[table]),
                 update,
             };
-            query.where.mockReturnValue(query);
+            query.where.mockImplementation((column: string, value: string) => {
+                if (
+                    existing &&
+                    table === 'dashboards' &&
+                    column === 'dashboard_uuid'
+                ) {
+                    results.dashboards =
+                        onlyOverviewExists && value !== dashboardUuid
+                            ? undefined
+                            : {
+                                  dashboard_uuid: value,
+                                  project_uuid: dashboardProject,
+                                  space_id: 3,
+                                  deleted_at: deleted ? new Date() : null,
+                              };
+                }
+                if (
+                    existing &&
+                    table === 'saved_queries' &&
+                    column === 'saved_query_uuid'
+                ) {
+                    const owner = managedChartOwners.get(value);
+                    results.saved_queries =
+                        onlyOverviewExists && owner !== dashboardUuid
+                            ? undefined
+                            : {
+                                  project_uuid: 'project',
+                                  dashboard_uuid: movedChart
+                                      ? 'another-dashboard'
+                                      : owner,
+                                  space_id: null,
+                                  deleted_at: deleted ? new Date() : null,
+                              };
+                }
+                return query;
+            });
             query.forUpdate.mockReturnValue(query);
             query.whereNull.mockReturnValue(query);
             return query;
@@ -130,9 +184,7 @@ describe('AnalyticsContentModel', () => {
             'project',
             dashboardUuid,
         );
-        expect(mocks.createChart).toHaveBeenCalledTimes(
-            analyticsSampleContent.charts.length,
-        );
+        expect(mocks.createChart).toHaveBeenCalledTimes(totalCharts);
         for (const { key } of analyticsSampleContent.charts) {
             expect(mocks.createChart).toHaveBeenCalledWith(
                 'project',
@@ -161,9 +213,7 @@ describe('AnalyticsContentModel', () => {
             name: analyticsSampleContent.name,
             description: analyticsSampleContent.description,
         });
-        expect(mocks.chartVersion).toHaveBeenCalledTimes(
-            analyticsSampleContent.charts.length,
-        );
+        expect(mocks.chartVersion).toHaveBeenCalledTimes(totalCharts);
         expect(mocks.addVersion).toHaveBeenCalledWith(
             dashboardUuid,
             expect.objectContaining({
@@ -184,9 +234,7 @@ describe('AnalyticsContentModel', () => {
     it('restores only the managed IDs when samples were soft-deleted', async () => {
         const mocks = setup({ existing: true, deleted: true });
         await mocks.model.install('project', user);
-        expect(mocks.restoreChart).toHaveBeenCalledTimes(
-            analyticsSampleContent.charts.length,
-        );
+        expect(mocks.restoreChart).toHaveBeenCalledTimes(totalCharts);
         expect(mocks.createChart).not.toHaveBeenCalled();
     });
 
@@ -197,6 +245,36 @@ describe('AnalyticsContentModel', () => {
         );
         expect(mocks.createSpace).not.toHaveBeenCalled();
         expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it('adds missing dashboards while updating the existing overview', async () => {
+        const mocks = setup({ existing: true, onlyOverviewExists: true });
+        await mocks.model.install('project', user);
+        const queryDashboard = analyticsSampleDashboards[1];
+        const queryDashboardUuid = uuidv5(
+            `lightdash-analytics/project/${queryDashboard.key}`,
+            uuidv5.URL,
+        );
+        expect(mocks.createDashboard).toHaveBeenCalledTimes(1);
+        expect(mocks.createDashboard).toHaveBeenCalledWith(
+            'space',
+            expect.objectContaining({ name: 'Query activity' }),
+            user,
+            'project',
+            queryDashboardUuid,
+        );
+        expect(mocks.updateDashboard).toHaveBeenCalledTimes(1);
+        expect(mocks.updateDashboard).toHaveBeenCalledWith(
+            dashboardUuid,
+            expect.anything(),
+        );
+        expect(mocks.addVersion).toHaveBeenCalledTimes(2);
+        expect(mocks.createChart).toHaveBeenCalledTimes(
+            queryDashboard.charts.length,
+        );
+        expect(mocks.chartVersion).toHaveBeenCalledTimes(
+            analyticsSampleContent.charts.length,
+        );
     });
 
     it('rejects a dashboard in another project', async () => {

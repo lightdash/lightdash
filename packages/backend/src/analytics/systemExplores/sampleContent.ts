@@ -214,3 +214,64 @@ export const analyticsSampleContent = {
         ),
     ],
 };
+
+export const analyticsSampleDashboards = [
+    analyticsSampleContent,
+    {
+        key: 'lightdash-analytics-query-activity',
+        name: 'Query activity',
+        description:
+            'Query volume, adoption, cache usage and warehouse execution performance. Duplicate this dashboard to keep a customized copy separate from future built-in updates.',
+        charts: [
+            chart(
+                'queries',
+                'Queries executed',
+                'query_events',
+                'total_queries',
+            ),
+            chart(
+                'query-users',
+                'Users running queries',
+                'query_events',
+                'unique_users',
+            ),
+            chart(
+                'avg-execution-time',
+                'Average warehouse execution (ms)',
+                'query_events',
+                'avg_warehouse_execution_time_ms',
+            ),
+            chart(
+                'p90-execution-time',
+                'P90 warehouse execution (ms)',
+                'query_events',
+                'p90_warehouse_execution_time_ms',
+            ),
+            ...analyticsSampleContent.charts.filter(
+                ({ key }) => key === 'queries-by-day',
+            ),
+            chart(
+                'active-users-by-day',
+                'Users running queries by day',
+                'query_events',
+                'unique_users',
+                'event_ts_day',
+                {
+                    colors: ['#339AF0'],
+                    axisLabel: 'Users',
+                    description:
+                        'Distinct users with query events each day. Daily distinct counts should not be summed to calculate period-wide unique users.',
+                },
+            ),
+            ...[
+                'query-cache',
+                'queries-by-context',
+                'query-latency-by-day',
+            ].flatMap((chartKey) =>
+                analyticsSampleContent.charts.filter(
+                    ({ key }) => key === chartKey,
+                ),
+            ),
+        ],
+    },
+];
