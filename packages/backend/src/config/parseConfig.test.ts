@@ -78,6 +78,7 @@ describe('dbt git cache config', () => {
         expect(parseConfig().dbt).toMatchObject({
             gitCacheMaxBytes: 4096,
             gitCacheMaxAgeMs: 60_000,
+        });
     });
 });
 
