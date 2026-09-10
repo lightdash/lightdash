@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AbilityAction,
+    ApiSpaceServiceAccountCandidatesResponse,
     BulkActionable,
     CreateSpace,
     ForbiddenError,
@@ -8,6 +9,7 @@ import {
     NotFoundError,
     ParameterError,
     PersonalSpaceSummary,
+    RegisteredAccount,
     SessionUser,
     Space,
     SpaceDeleteImpact,
@@ -15,6 +17,7 @@ import {
     SpaceShare,
     SpaceSummary,
     UpdateSpace,
+    UUID,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type SpaceAccess,
@@ -22,7 +25,9 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import type { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -52,6 +57,7 @@ type SpaceServiceArguments = {
     // EE-only. When the license isn't active the repository leaves this
     // undefined and the cascade skips data apps (there are none to delete).
     appGenerateService: AppGenerateService | undefined;
+    serviceAccountModel?: ServiceAccountModel;
 };
 
 export const hasDirectAccessToSpace = (
@@ -106,6 +112,8 @@ export class SpaceService
 
     private readonly appGenerateService: AppGenerateService | undefined;
 
+    private readonly serviceAccountModel: ServiceAccountModel | undefined;
+
     constructor(args: SpaceServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -120,6 +128,7 @@ export class SpaceService
         this.savedChartService = args.savedChartService;
         this.dashboardService = args.dashboardService;
         this.appGenerateService = args.appGenerateService;
+        this.serviceAccountModel = args.serviceAccountModel;
     }
 
     /** @internal For unit testing only */
@@ -294,6 +303,7 @@ export class SpaceService
     private async validateSpaceShareTargetUsers(
         organizationUuid: string,
         userUuids: string[],
+        includeServiceAccounts = false,
     ): Promise<void> {
         const uniqueUserUuids = [...new Set(userUuids)];
         const memberUuids = new Set(
@@ -302,7 +312,24 @@ export class SpaceService
                 uniqueUserUuids,
             ),
         );
-        if (uniqueUserUuids.some((userUuid) => !memberUuids.has(userUuid))) {
+        const missingUserUuids = uniqueUserUuids.filter(
+            (userUuid) => !memberUuids.has(userUuid),
+        );
+        const serviceAccounts =
+            includeServiceAccounts && missingUserUuids.length > 0
+                ? await this.serviceAccountModel?.getSpaceShareCandidates(
+                      organizationUuid,
+                      missingUserUuids,
+                  )
+                : [];
+        const serviceAccountUserUuids = new Set(
+            serviceAccounts?.map(({ userUuid }) => userUuid),
+        );
+        if (
+            missingUserUuids.some(
+                (userUuid) => !serviceAccountUserUuids.has(userUuid),
+            )
+        ) {
             throw new NotFoundError(
                 'Cannot share space: user is not a member of this organization',
             );
@@ -958,6 +985,30 @@ export class SpaceService
         await this.spaceModel.permanentDelete(spaceUuid);
     }
 
+    async getSpaceServiceAccountCandidates(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        spaceUuid: UUID,
+    ): Promise<ApiSpaceServiceAccountCandidatesResponse['results']> {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+            projectUuid,
+        });
+        if (
+            !(await this.spacePermissionService.can(
+                'manage',
+                toSessionUser(account),
+                space.uuid,
+            ))
+        ) {
+            throw new ForbiddenError();
+        }
+        return (
+            this.serviceAccountModel?.getSpaceShareCandidates(
+                space.organizationUuid,
+            ) ?? []
+        );
+    }
+
     async addSpaceUserAccess(
         user: SessionUser,
         spaceUuid: string,
@@ -971,9 +1022,11 @@ export class SpaceService
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        await this.validateSpaceShareTargetUsers(space.organizationUuid, [
-            shareWithUserUuid,
-        ]);
+        await this.validateSpaceShareTargetUsers(
+            space.organizationUuid,
+            [shareWithUserUuid],
+            true,
+        );
 
         await this.spaceModel.addSpaceAccess(
             spaceUuid,
