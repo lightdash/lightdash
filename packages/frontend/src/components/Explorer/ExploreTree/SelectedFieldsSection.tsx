@@ -47,6 +47,8 @@ import FieldIcon from '../../common/Filters/FieldIcon';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './SelectedFieldsSection.module.css';
 import { ItemDetailPreview } from './TableTree/ItemDetailPreview';
+import previewClasses from './TableTree/ItemDetailPreview.module.css';
+import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from './TableTree/itemDetailPreviewTransition';
 import TreeSingleNodeActions from './TableTree/Tree/TreeSingleNodeActions';
 import { type NodeItem } from './TableTree/Tree/types';
 import { useCustomMetricDelete } from './useCustomMetricDelete';
@@ -292,6 +294,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                 disabled={isHoverCardDisabled}
                 position="right"
                 offset={70}
+                transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
             >
                 <HoverCard.Target>
                     <span className={classes.label} title={label}>
@@ -300,10 +303,11 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                 </HoverCard.Target>
                 <HoverCard.Dropdown
                     hidden={!isHover}
-                    p="xs"
+                    p="md"
                     miw={400}
                     mah={500}
                     maw={500}
+                    className={previewClasses.previewDropdown}
                     onClick={handleDropdownClick}
                 >
                     <ItemDetailPreview

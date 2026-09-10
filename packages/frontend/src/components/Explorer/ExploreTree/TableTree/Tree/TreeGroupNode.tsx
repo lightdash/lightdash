@@ -19,6 +19,8 @@ import {
 } from '../../../../../features/explorer/store';
 import MantineIcon from '../../../../common/MantineIcon';
 import { ItemDetailPreview } from '../ItemDetailPreview';
+import previewClasses from '../ItemDetailPreview.module.css';
+import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from '../itemDetailPreviewTransition';
 import { buildGroupKey } from '../Virtualization/types';
 import TreeNodes from './TreeNodes';
 import { type GroupNode, type Node } from './types';
@@ -184,6 +186,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                          * Ensures the hover card does not overlap with the right-hand menu.
                          */
                         offset={80}
+                        transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
                     >
                         <HoverCard.Target>
                             <Text
@@ -202,12 +205,13 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}
-                            p="xs"
+                            p="md"
                             /**
                              * Takes up space to the right, so it's OK to go fairly wide in the interest
                              * of readability.
                              */
                             maw={500}
+                            className={previewClasses.previewDropdown}
                             onClick={handleDropdownClick}
                         >
                             <ItemDetailPreview

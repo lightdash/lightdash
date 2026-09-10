@@ -14,3 +14,22 @@ table.markdownTable td.markdownCell {
     overflow-wrap: anywhere;
     word-break: break-word;
 }
+
+.previewDropdown {
+    overflow: auto;
+    border-color: var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    box-shadow: var(--mantine-shadow-md);
+}
+
+.markdown {
+    line-height: 1.55;
+}
+
+.markdown > :first-child {
+    margin-top: 0;
+}
+
+.markdown > :last-child {
+    margin-bottom: 0;
+}

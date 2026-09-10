@@ -6,7 +6,6 @@ import {
     type Dimension,
 } from '@lightdash/common';
 import {
-    Anchor,
     Badge,
     Box,
     Button,
@@ -20,7 +19,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconCode } from '@tabler/icons-react';
+import { IconArrowRight, IconCode } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC, type PropsWithChildren } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
@@ -33,6 +32,7 @@ import FieldIcon from '../../../common/Filters/FieldIcon';
 import { filterOperatorLabel } from '../../../common/Filters/FilterInputs/constants';
 import MantineIcon from '../../../common/MantineIcon';
 import classes from './ItemDetailPreview.module.css';
+import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from './itemDetailPreviewTransition';
 
 /**
  * Renders markdown for an item's description, with additional constraints
@@ -43,6 +43,7 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
     const theme = useMantineTheme();
     return (
         <ReactMarkdownPreview
+            className={classes.markdown}
             skipHtml
             components={{
                 h1: ({ children }) => <Title order={2}>{children}</Title>,
@@ -102,7 +103,7 @@ export const ItemDetailPreview: FC<{
     const [showCompiled, setShowCompiled] = useState(false);
 
     return (
-        <Stack gap="xs">
+        <Stack gap="sm">
             {metricInfo && (
                 <>
                     <Group gap="xs" justify="space-between">
@@ -171,16 +172,20 @@ export const ItemDetailPreview: FC<{
                 </Box>
             )}
             {isTruncated && (
-                <Box ta={'center'}>
-                    <Anchor
-                        size={'xs'}
-                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                <Box ta="right">
+                    <Button
+                        variant="subtle"
+                        size="compact-sm"
+                        rightSection={
+                            <MantineIcon icon={IconArrowRight} size="sm" />
+                        }
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.preventDefault();
                             onViewDescription();
                         }}
                     >
                         Read full description
-                    </Anchor>
+                    </Button>
                 </Box>
             )}
             {metricInfo && (
@@ -332,6 +337,7 @@ export const TableItemDetailPreview = ({
             position="right"
             withArrow
             offset={offset}
+            transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
         >
             <Popover.Target>{children}</Popover.Target>
             <Popover.Dropdown
@@ -340,6 +346,8 @@ export const TableItemDetailPreview = ({
                  * of readability.
                  */
                 maw={500}
+                p="md"
+                className={classes.previewDropdown}
                 /**
                  * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
                  * while interacting with the hovercard.
