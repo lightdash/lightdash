@@ -5,7 +5,6 @@ import {
     FeatureFlags,
     ForbiddenError,
     NotFoundError,
-    OrganizationMemberRole,
     ParameterError,
     ROADMAP_DEFAULT_PAGE_SIZE,
     RoadmapFollowProjectRequestSchema,
@@ -94,11 +93,13 @@ export class RoadmapService extends BaseService {
         assertRegisteredAccount(account);
         assertIsAccountWithOrg(account);
         if (
-            account.user.role !== OrganizationMemberRole.ADMIN ||
-            account.isServiceAccount()
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Roadmap', { organizationUuid }),
+            )
         ) {
             throw new ForbiddenError(
-                'Only organization admins can request to follow roadmap projects',
+                'You do not have permission to request to follow roadmap projects',
             );
         }
         const parsed = RoadmapFollowProjectRequestSchema.safeParse(body);

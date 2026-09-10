@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    buildAbilityFromScopes,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -489,7 +490,17 @@ describe('RoadmapService', () => {
             },
         };
         const account = () => {
-            const value = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    organizationUuid: sessionOrgUuid,
+                    userUuid,
+                    isEnterprise: true,
+                    scopes: ['view:Roadmap', 'manage:Roadmap'],
+                },
+                builder,
+            );
+            const value = buildAccount(builder.build());
             return { ...value, user: { ...value.user, userUuid } } as Account;
         };
 
@@ -551,22 +562,61 @@ describe('RoadmapService', () => {
             expect(fetchMock).not.toHaveBeenCalled();
         });
 
-        it('requires an admin even with roadmap view access and rejects service accounts', async () => {
-            const nonAdmin = account();
-            nonAdmin.user = {
-                ...nonAdmin.user,
-                role: OrganizationMemberRole.DEVELOPER,
-            } as typeof nonAdmin.user;
+        it('allows a non-admin with the organization scope', async () => {
+            const customRoleAccount = account();
+            customRoleAccount.user = {
+                ...customRoleAccount.user,
+                role: OrganizationMemberRole.MEMBER,
+            } as typeof customRoleAccount.user;
+            fetchMock.mockResolvedValueOnce(
+                new Response(JSON.stringify(confirmation)),
+            );
             await expect(
-                buildService().followProject(nonAdmin, projectId, {
+                buildService().followProject(customRoleAccount, projectId, {
                     note: 'Use case',
                 }),
-            ).rejects.toThrow(ForbiddenError);
+            ).resolves.toEqual(confirmation.results);
+        });
+
+        it('allows service accounts with the scope and required identity', async () => {
             const serviceAccount = account();
             serviceAccount.isServiceAccount = (() =>
                 true) as typeof serviceAccount.isServiceAccount;
+            fetchMock.mockResolvedValueOnce(
+                new Response(JSON.stringify(confirmation)),
+            );
             await expect(
                 buildService().followProject(serviceAccount, projectId, {
+                    note: 'Use case',
+                }),
+            ).resolves.toEqual(confirmation.results);
+        });
+
+        it('denies view-only accounts even when their stored role is admin', async () => {
+            const viewer = account();
+            viewer.user.ability = viewRoadmapAbility(sessionOrgUuid);
+            viewer.user.abilityRules = viewer.user.ability.rules;
+            await expect(
+                buildService().followProject(viewer, projectId, {
+                    note: 'Use case',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('denies management grants belonging to another organization', async () => {
+            const wrongOrg = account();
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            builder.can('view', 'Roadmap', {
+                organizationUuid: sessionOrgUuid,
+            });
+            builder.can('manage', 'Roadmap', {
+                organizationUuid: otherOrgUuid,
+            });
+            wrongOrg.user.ability = builder.build();
+            wrongOrg.user.abilityRules = wrongOrg.user.ability.rules;
+            await expect(
+                buildService().followProject(wrongOrg, projectId, {
                     note: 'Use case',
                 }),
             ).rejects.toThrow(ForbiddenError);

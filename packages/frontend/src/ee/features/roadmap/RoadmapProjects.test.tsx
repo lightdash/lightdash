@@ -281,7 +281,7 @@ describe('following roadmap projects', () => {
         expect(screen.getByRole('button', { name: 'Follow' })).toBeEnabled();
     });
 
-    it('does not offer follow requests to non-admins', async () => {
+    it('does not offer follow requests without permission', async () => {
         renderRoadmap('org-1', false);
         await showAllProjects();
         expect(

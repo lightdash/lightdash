@@ -93,37 +93,40 @@ describe('Organization member permissions', () => {
         );
     });
 
-    it('allows only admins to view their organization roadmap', () => {
-        const adminAbility =
-            defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
-        const memberAbility =
-            defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
+    it.each(['view', 'manage'] as const)(
+        'allows only admins to %s their organization roadmap',
+        (action) => {
+            const adminAbility =
+                defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
+            const memberAbility =
+                defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
 
-        expect(
-            adminAbility.can(
-                'view',
-                subject('Roadmap', {
-                    organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
-                }),
-            ),
-        ).toBe(true);
-        expect(
-            adminAbility.can(
-                'view',
-                subject('Roadmap', {
-                    organizationUuid: 'another-organization',
-                }),
-            ),
-        ).toBe(false);
-        expect(
-            memberAbility.can(
-                'view',
-                subject('Roadmap', {
-                    organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
-                }),
-            ),
-        ).toBe(false);
-    });
+            expect(
+                adminAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                adminAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: 'another-organization',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                memberAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
+                    }),
+                ),
+            ).toBe(false);
+        },
+    );
 
     describe('Member permissions', () => {
         let ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
