@@ -54,6 +54,7 @@
     "execa": "5.1.1",
     "google-auth-library": "10.7.0",
     "inquirer": "8.2.7",
+    "inquirer-autocomplete-prompt": "2.0.1",
     "js-yaml": "4.3.0",
     "lodash": "4.18.1",
     "node-fetch": "2.7.0",
@@ -69,8 +70,7 @@
   },
   "devDependencies": {
     "@types/inquirer": "8.2.4",
-    "oxlint": "1.75.0",
-    "oxlint-tsgolint": "7.0.2001",
+    "@types/inquirer-autocomplete-prompt": "3.0.3",
     "@types/js-yaml": "4.0.9",
     "@types/lodash": "4.14.202",
     "@types/node-fetch": "2.6.13",
@@ -81,6 +81,8 @@
     "@vercel/ncc": "0.38.4",
     "@yao-pkg/pkg": "6.7.0",
     "copyfiles": "2.4.1",
+    "oxlint": "1.75.0",
+    "oxlint-tsgolint": "7.0.2001",
     "tsx": "4.19.4",
     "typescript": "7.0.2",
     "vitest": "4.1.6"

@@ -1,9 +1,9 @@
 import { OrganizationProject, ProjectType } from '@lightdash/common';
-import inquirer from 'inquirer';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject, unsetProject } from '../config';
 import GlobalState from '../globalState';
+import { promptFuzzySearch } from '../prompts/fuzzySearchPrompt';
 import { lightdashApi } from './dbt/apiClient';
 
 type SetProjectOptions = {
@@ -57,30 +57,27 @@ export const setProjectCommand = async (
         [selectedProject] = nonPreviewProjects;
     } else {
         const SKIP_VALUE = '__skip__';
-        const answers = await inquirer.prompt([
-            {
-                type: 'list',
-                name: 'project',
-                choices: [
-                    {
-                        name: "Don't select a project",
-                        value: SKIP_VALUE,
-                    },
-                    ...nonPreviewProjects.map((project) => ({
-                        name: project.name,
-                        value: project.projectUuid,
-                    })),
-                ],
-            },
-        ]);
+        const answer = await promptFuzzySearch<string>({
+            message: 'Select a project (type to search)',
+            pinnedChoices: [
+                {
+                    name: "Don't select a project",
+                    value: SKIP_VALUE,
+                },
+            ],
+            choices: nonPreviewProjects.map((project) => ({
+                name: project.name,
+                value: project.projectUuid,
+            })),
+        });
 
-        if (answers.project === SKIP_VALUE) {
+        if (answer === SKIP_VALUE) {
             await unsetProject();
             return 'skipped';
         }
 
         selectedProject = nonPreviewProjects.find(
-            (project) => project.projectUuid === answers.project,
+            (project) => project.projectUuid === answer,
         );
     }
 
