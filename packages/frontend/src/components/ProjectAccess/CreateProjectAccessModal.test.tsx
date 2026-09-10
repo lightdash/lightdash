@@ -65,7 +65,7 @@ describe('CreateProjectAccessModal', () => {
         const user = userEvent.setup();
         renderModal();
 
-        const emailInput = screen.getByRole('textbox', {
+        const emailInput = screen.getByRole('combobox', {
             name: 'Enter user email address',
         });
         await user.click(emailInput);
@@ -87,7 +87,7 @@ describe('CreateProjectAccessModal', () => {
         const user = userEvent.setup();
         renderModal();
 
-        const emailInput = screen.getByRole('textbox', {
+        const emailInput = screen.getByRole('combobox', {
             name: 'Enter user email address',
         });
         await user.click(emailInput);

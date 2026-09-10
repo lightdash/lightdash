@@ -159,10 +159,10 @@ describe('DirectAccessModal', () => {
             expect(screen.getByText('vera@example.com')).toBeInTheDocument();
             expect(screen.getByText('Analysts')).toBeInTheDocument();
             expect(
-                screen.getByRole('textbox', { name: 'Role for Vera Viewer' }),
+                screen.getByRole('combobox', { name: 'Role for Vera Viewer' }),
             ).toHaveValue('Can view');
             expect(
-                screen.getByRole('textbox', { name: 'Role for Analysts' }),
+                screen.getByRole('combobox', { name: 'Role for Analysts' }),
             ).toHaveValue('Can edit');
             // one hook family: the query is keyed by the closed resource ref
             expect(mockedAssignments).toHaveBeenCalledWith(
@@ -178,7 +178,7 @@ describe('DirectAccessModal', () => {
         renderModal();
 
         await user.click(
-            screen.getByRole('textbox', { name: 'Role for Analysts' }),
+            screen.getByRole('combobox', { name: 'Role for Analysts' }),
         );
         await user.click(
             await screen.findByRole('option', { name: 'Full access' }),
@@ -324,7 +324,7 @@ describe('DirectAccessModal', () => {
         renderModal();
 
         await user.click(
-            screen.getByRole('textbox', {
+            screen.getByRole('combobox', {
                 name: 'Select a user or group to share with',
             }),
         );
@@ -332,7 +332,7 @@ describe('DirectAccessModal', () => {
             await screen.findByRole('option', { name: 'Mallory Member' }),
         );
         await user.click(
-            screen.getByRole('textbox', { name: 'Role for new assignment' }),
+            screen.getByRole('combobox', { name: 'Role for new assignment' }),
         );
         await user.click(
             await screen.findByRole('option', { name: 'Can edit' }),
@@ -387,7 +387,7 @@ describe('DirectAccessModal', () => {
     it('keeps focus in the dialog when a focused role disappears and Retry restores the policy', async () => {
         const user = userEvent.setup();
         const { rerender } = renderModal();
-        const roleInput = screen.getByRole('textbox', {
+        const roleInput = screen.getByRole('combobox', {
             name: 'Role for Vera Viewer',
         });
         roleInput.focus();
@@ -415,7 +415,7 @@ describe('DirectAccessModal', () => {
         await user.click(retry);
         mockAssignmentsQuery();
         rerender(modalElement());
-        const recipientInput = screen.getByRole('textbox', {
+        const recipientInput = screen.getByRole('combobox', {
             name: 'Select a user or group to share with',
         });
         expect(recipientInput).toHaveFocus();
@@ -450,7 +450,9 @@ describe('DirectAccessModal', () => {
                 screen.queryByRole('button', { name: 'Remove all access' }),
             ).not.toBeInTheDocument();
             expect(
-                screen.queryByRole('textbox', { name: 'Role for Vera Viewer' }),
+                screen.queryByRole('combobox', {
+                    name: 'Role for Vera Viewer',
+                }),
             ).not.toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Retry' }),

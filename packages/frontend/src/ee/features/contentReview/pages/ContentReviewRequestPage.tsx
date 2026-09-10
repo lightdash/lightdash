@@ -581,7 +581,7 @@ const SimilarContentFooter: FC<{
                     {opened ? 'Hide' : 'Show'}
                 </UnstyledButton>
             </Group>
-            <Collapse in={opened}>
+            <Collapse expanded={opened}>
                 <Stack gap={4}>
                     <Text fz="xs" c="dimmed">
                         {hint}

@@ -397,7 +397,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                 />
                                             </PolymorphicGroupButton>
                                             <Collapse
-                                                in={isProjectBreakdownOpen}
+                                                expanded={
+                                                    isProjectBreakdownOpen
+                                                }
                                             >
                                                 <Stack gap="xxs">
                                                     {schedulersSummary?.byProject.map(
@@ -522,7 +524,9 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                 />
                                             </PolymorphicGroupButton>
                                             <Collapse
-                                                in={isDashboardBreakdownOpen}
+                                                expanded={
+                                                    isDashboardBreakdownOpen
+                                                }
                                             >
                                                 <Stack gap="xxs">
                                                     {dashboardsSummary?.byProject.map(

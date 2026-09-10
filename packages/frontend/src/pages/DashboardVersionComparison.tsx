@@ -90,7 +90,7 @@ const ExpandableSection = ({
                     {!opened && badge}
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened}>{children}</Collapse>
+            <Collapse expanded={opened}>{children}</Collapse>
         </Paper>
     );
 };

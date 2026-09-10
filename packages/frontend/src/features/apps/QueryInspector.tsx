@@ -122,7 +122,7 @@ const QueryRow: FC<{
                     </Text>
                 )}
             </Group>
-            <Collapse in={expanded}>
+            <Collapse expanded={expanded}>
                 <Group
                     gap={0}
                     wrap="nowrap"
@@ -303,7 +303,7 @@ const QueryRow: FC<{
                                     )}
                                 </CopyButton>
                             </Group>
-                            <Collapse in={jsonExpanded}>
+                            <Collapse expanded={jsonExpanded}>
                                 <ScrollArea.Autosize mah={200}>
                                     <Code block fz="xs">
                                         {JSON.stringify(

@@ -264,18 +264,20 @@ const CreatePreviewModal: FC<Props> = ({
             }));
     }, [isLoadingProjects, projects, user.data]);
 
-    const regularProjectList: (ComboboxItem | ComboboxItemGroup)[] =
-        useMemo(() => {
-            const available = projectItems.filter((item) => !item.disabled);
-            const restricted = projectItems.filter((item) => item.disabled);
+    const regularProjectList: (
+        | ComboboxItem
+        | ComboboxItemGroup<ComboboxItem>
+    )[] = useMemo(() => {
+        const available = projectItems.filter((item) => !item.disabled);
+        const restricted = projectItems.filter((item) => item.disabled);
 
-            return restricted.length > 0
-                ? [
-                      ...available,
-                      { group: 'Requires Developer Access', items: restricted },
-                  ]
-                : available;
-        }, [projectItems]);
+        return restricted.length > 0
+            ? [
+                  ...available,
+                  { group: 'Requires Developer Access', items: restricted },
+              ]
+            : available;
+    }, [projectItems]);
 
     const { data: projectDetails } = useProject(
         selectedProjectUuid ?? undefined,

@@ -78,7 +78,7 @@ const ConditionSection: FC<{
                 </Stack>
                 {extraItems.length > 0 && (
                     <>
-                        <Collapse in={expanded}>
+                        <Collapse expanded={expanded}>
                             <Stack gap={6}>
                                 {extraItems.map((item) => (
                                     <ConditionRow

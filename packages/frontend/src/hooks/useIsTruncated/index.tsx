@@ -1,5 +1,5 @@
-import { useElementSize } from '@mantine/hooks';
-import { useEffect, useState } from 'react';
+import { useElementSize, useMergedRef } from '@mantine/hooks';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Detects if the element is truncated by comparing its scrollWidth to its clientWidth
@@ -9,17 +9,19 @@ import { useEffect, useState } from 'react';
 export const useIsTruncated = <T extends HTMLElement = any>(
     selector?: string,
 ) => {
-    const { ref, width } = useElementSize<T>();
+    const nodeRef = useRef<T>(null);
+    const { ref: sizeRef, width } = useElementSize<T>();
+    const ref = useMergedRef(nodeRef, sizeRef);
     const [isTruncated, setIsTruncated] = useState(false);
 
     useEffect(() => {
-        if (!ref.current) return;
+        if (!nodeRef.current) return;
         const element = selector
-            ? ref.current.querySelector<HTMLElement>(selector)
-            : ref.current;
+            ? nodeRef.current.querySelector<HTMLElement>(selector)
+            : nodeRef.current;
         if (!element) return;
         setIsTruncated(element.scrollWidth > element.clientWidth);
-    }, [ref, width, selector]);
+    }, [width, selector]);
 
     return {
         ref,

@@ -285,7 +285,9 @@ const ScopePanel: FC<{
                                                     </UnstyledButton>
                                                 </Group>
                                                 <Collapse
-                                                    in={isDependencyListOpen}
+                                                    expanded={
+                                                        isDependencyListOpen
+                                                    }
                                                 >
                                                     <Stack gap="xs">
                                                         {dependencies.map(

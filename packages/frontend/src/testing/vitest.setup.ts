@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import nock from 'nock';
 import nodeFetch from 'node-fetch';
 import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
+import mockDocumentFonts from './__mocks__/implementations/documentFonts.mock';
 import mockElementsFromPoint from './__mocks__/implementations/elementsFromPoint.mock';
 import mockMatchMedia from './__mocks__/implementations/matchMedia.mock';
 import mockResizeObserver from './__mocks__/implementations/resizeObserver.mock';
@@ -24,6 +25,7 @@ beforeAll(() => {
     mockResizeObserver();
     mockScrollIntoView();
     mockElementsFromPoint();
+    mockDocumentFonts();
 });
 
 // Disable all network requests by default

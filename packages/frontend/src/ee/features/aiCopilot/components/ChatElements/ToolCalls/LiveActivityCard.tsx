@@ -244,7 +244,7 @@ export const ReasoningHistoryRow: FC<{
                 </Group>
             </UnstyledButton>
             <Collapse
-                in={open}
+                expanded={open}
                 transitionDuration={240}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
@@ -833,7 +833,7 @@ export const LiveActivityCard: FC<Props> = ({
                     );
                 })()}
             <Collapse
-                in={showBody}
+                expanded={showBody}
                 transitionDuration={260}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >

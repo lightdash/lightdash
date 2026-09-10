@@ -152,7 +152,7 @@ describe('external connection usage', () => {
             screen.getByRole('tab', { name: 'Chart types (0)' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('textbox', { name: 'Link a data app' }),
+            screen.getByRole('combobox', { name: 'Link a data app' }),
         ).toBeInTheDocument();
     });
 
@@ -316,7 +316,7 @@ describe('external connection usage', () => {
             screen.getByRole('link', { name: /Already linked/ }),
         ).toBeInTheDocument();
         fireEvent.click(
-            screen.getByRole('textbox', { name: 'Link a data app' }),
+            screen.getByRole('combobox', { name: 'Link a data app' }),
         );
 
         expect(
@@ -356,7 +356,7 @@ describe('external connection usage', () => {
 
         fireEvent.click(screen.getByRole('tab', { name: 'Chart types (0)' }));
         fireEvent.click(
-            screen.getByRole('textbox', { name: 'Link a chart type' }),
+            screen.getByRole('combobox', { name: 'Link a chart type' }),
         );
         fireEvent.click(
             screen.getByRole('option', {

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import Tree from './Tree';
@@ -25,6 +25,48 @@ const renderTree = (isExpanded: boolean, value: string | null) =>
     );
 
 describe('Tree', () => {
+    it('selects a node on click and keeps a single selection on re-click', () => {
+        const onChange = vi.fn();
+        renderWithProviders(
+            <Tree
+                topLevelLabel="Spaces"
+                isExpanded={false}
+                data={data}
+                type="single"
+                value={null}
+                onChange={onChange}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('Delta'));
+        expect(onChange).toHaveBeenLastCalledWith('d');
+
+        fireEvent.click(screen.getByText('Delta'));
+        expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('toggles a node and its descendants in and out of a multiple selection', () => {
+        const onChangeMultiple = vi.fn();
+        const renderMultiple = (values: string[]) => (
+            <Tree
+                topLevelLabel="Spaces"
+                isExpanded
+                data={data}
+                type="multiple"
+                values={values}
+                onChangeMultiple={onChangeMultiple}
+            />
+        );
+        const { rerender } = renderWithProviders(renderMultiple([]));
+
+        fireEvent.click(screen.getByText('Delta'));
+        expect(onChangeMultiple).toHaveBeenLastCalledWith(['d', 'e']);
+
+        rerender(renderMultiple(['d', 'e']));
+        fireEvent.click(screen.getByText('Delta'));
+        expect(onChangeMultiple).toHaveBeenLastCalledWith([]);
+    });
+
     it('only opens the selected item ancestors by default', () => {
         renderTree(false, 'c');
 

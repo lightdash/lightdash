@@ -89,7 +89,7 @@ describe('PeriodOverPeriodComparisonModal', () => {
             const store = renderModal(dimensions);
 
             expect(
-                screen.queryByRole('textbox', { name: 'Time dimension' }),
+                screen.queryByRole('combobox', { name: 'Time dimension' }),
             ).not.toBeInTheDocument();
             expect(screen.getByText('Order date week')).toBeVisible();
             expect(screen.getByText('Week granularity')).toBeVisible();
@@ -121,7 +121,7 @@ describe('PeriodOverPeriodComparisonModal', () => {
         expect(confirmButton).toBeDisabled();
 
         await user.click(
-            screen.getByRole('textbox', { name: 'Time dimension' }),
+            screen.getByRole('combobox', { name: 'Time dimension' }),
         );
         await user.click(
             screen.getByRole('option', { name: 'Order date month' }),

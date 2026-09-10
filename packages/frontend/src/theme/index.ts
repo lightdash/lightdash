@@ -58,6 +58,8 @@ export const getMantineThemeOverride = (colorScheme: ColorScheme) =>
         autoContrast: true,
 
         defaultRadius: 'md',
+        // Mantine 9 moved the medium weight to 600; keep the pre-upgrade look.
+        fontWeights: { medium: '500' },
         radius: {
             xs: rem(4),
             sm: rem(6),
