@@ -1,3 +1,18 @@
+# [2.191.0](https://github.com/lightdash/lightdash/compare/2.190.2...2.191.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **ai:** separate Agent and MCP query guidance ([#28892](https://github.com/lightdash/lightdash/issues/28892)) ([17dacfb](https://github.com/lightdash/lightdash/commit/17dacfb5301e36fd73e16665a3df75d795f3a6d6))
+* **mcp:** extract artifact integration skill ([#28971](https://github.com/lightdash/lightdash/issues/28971)) ([4c42b90](https://github.com/lightdash/lightdash/commit/4c42b90386dfe6ecb71a853ee4f0c6cca55f35ae))
+* **mcp:** return polling guidance with results ([#28893](https://github.com/lightdash/lightdash/issues/28893)) ([4930ad3](https://github.com/lightdash/lightdash/commit/4930ad3166bd693e363dd4abcf9d27194026085e))
+* **mcp:** tighten query text guard ([#28905](https://github.com/lightdash/lightdash/issues/28905)) ([d95fd07](https://github.com/lightdash/lightdash/commit/d95fd07bf672ed084cd56c62bd6a007ffacd0cf7))
+
+
+### Features
+
+* **ai-agent:** open chart references from AI threads in a view/edit modal ([#29015](https://github.com/lightdash/lightdash/issues/29015)) ([09e7c2b](https://github.com/lightdash/lightdash/commit/09e7c2bdddd65454b808f645eb9774cbc03b0799))
+
 ## [2.190.2](https://github.com/lightdash/lightdash/compare/2.190.1...2.190.2) (2026-09-10)
 
 
