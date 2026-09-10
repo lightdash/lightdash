@@ -353,137 +353,33 @@ jobs:
     needs: files-changed
     if: needs.files-changed.outputs.preview == 'true'
     outputs:
-      url: ${{ steps.deploy.outputs.url }}
+      url: ${{ steps.up.outputs.url }}
+      name: ${{ steps.up.outputs.name }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - name: Context
-        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          url: ${{ secrets.OKTETO_CONTEXT }}
-          token: ${{ secrets.OKTETO_TOKEN }}
+          sparse-checkout: scripts/rainbow-e2e-env.sh
+          sparse-checkout-cone-mode: false
 
-      - name: Create GitHub deployment
-        id: deployment
-        uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a # v2
-        with:
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          initial-status: pending
-          environment: pr-${{ github.event.number }}
-          environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
-
-      - name: Deploy preview environment
-        id: deploy
-        uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
+      # One environment per run, made as the recipe's e2e profile
+      # (rainbow.toml [profile.e2e]): the branch's preview parent forked,
+      # the production bundle built in the fork and served by the backend.
+      # The ordinary PR preview (the dev server) is untouched; this one is
+      # destroyed by the teardown job below.
+      - name: Create the e2e environment
+        id: up
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          name: pr-${{ github.event.number }}
-          # Covers a bounded diverted attempt (18m) plus the blank-volume
-          # retry with a full migrate + seed (see okteto.preview.yaml)
-          timeout: 40m
-          file: okteto.preview.yaml
-          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
-
-      - name: Collect failed preview diagnostics
-        if: ${{ failure() && steps.deploy.outcome == 'failure' }}
-        continue-on-error: true
-        timeout-minutes: 3
-        env:
-          OKTETO_CONTEXT: ${{ secrets.OKTETO_CONTEXT }}
-          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
-          PREVIEW_NAMESPACE: pr-${{ github.event.number }}
+          RAINBOW_MCP_TOKEN: ${{ secrets.RAINBOW_MCP_TOKEN }}
         run: |
-          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
-          echo "f1fc644e2c2d2285a557577eafc6d4494410dce17b36bac6c3c269fc04c573ef  okteto" | sha256sum --check
-          chmod +x okteto
-          sudo mv okteto /usr/local/bin/okteto
-
-          okteto context use "$OKTETO_CONTEXT" --token "$OKTETO_TOKEN" --namespace "$PREVIEW_NAMESPACE"
-          okteto kubeconfig
-
-          echo "::group::Preview pod status"
-          kubectl -n "$PREVIEW_NAMESPACE" get pods -o wide || true
-          echo "::endgroup::"
-
-          echo "::group::Recent warning events"
-          kubectl -n "$PREVIEW_NAMESPACE" get events \
-            --field-selector type=Warning \
-            --sort-by=.lastTimestamp | tail -n 100 || true
-          echo "::endgroup::"
-
-          preview_pods=$(kubectl -n "$PREVIEW_NAMESPACE" get pods \
-            -l stack.okteto.com/service=lightdash-preview \
-            -o name 2>/dev/null || true)
-
-          if [ -z "$preview_pods" ]; then
-            echo "No lightdash-preview pods found"
-            exit 0
-          fi
-
-          while IFS= read -r preview_pod; do
-            echo "::group::Current logs for $preview_pod"
-            kubectl -n "$PREVIEW_NAMESPACE" logs "$preview_pod" \
-              --all-containers=true --tail=300 --timestamps || true
-            echo "::endgroup::"
-
-            echo "::group::Previous logs for $preview_pod"
-            kubectl -n "$PREVIEW_NAMESPACE" logs "$preview_pod" \
-              --all-containers=true --previous --tail=300 --timestamps || true
-            echo "::endgroup::"
-          done <<< "$preview_pods"
-
-      - name: Set preview URL output
-        run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"
-
-      - name: Update deployment status
-        uses: chrnorm/deployment-status@6df8d036fd2fee9eb82936733953da1f8382b41e # v2
-        with:
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          state: success
-          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
-
-      - name: Comment PR with preview info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const marker = '<!-- preview-environment-comment -->';
-            const body = `${marker}
-            ## Preview Environment
-
-            🌐 **URL:** https://lightdash-preview-pr-${context.issue.number}.lightdash.okteto.dev
-
-            📋 **Logs:** [View in GCP Console](https://console.cloud.google.com/logs/query;query=resource.labels.namespace_name%3D%22pr-${context.issue.number}%22;duration=PT30M?project=lightdash-previews)
-
-            🔧 **SSH:** \`./scripts/okteto-ssh.sh ${context.issue.number}\`
-            `;
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const existing = comments.find(c => c.body.includes(marker));
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body: body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: body
-              });
-            }
+          name="pr-${{ github.event.number }}-e2e-${{ github.run_id }}"
+          url=$(./scripts/rainbow-e2e-env.sh up "${{ github.head_ref }}" "$name")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "E2E environment: $url" >> "$GITHUB_STEP_SUMMARY"
 
   # ============================================================================
   # Stage 3: E2E and CLI tests (only after preview is up)
@@ -551,7 +447,7 @@ jobs:
       - name: Run API tests
         run: pnpm -F api-tests test:api
         env:
-          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          SITE_URL: ${{ needs.preview.outputs.url }}
           PGHOST: ${{ secrets.PGHOST }}
           PGPASSWORD: ${{ secrets.PGPASSWORD }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -604,7 +500,7 @@ jobs:
           install: false
           browser: firefox
           working-directory: packages/e2e
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false"
+          config: "baseUrl=${{ needs.preview.outputs.url }},specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false"
         env:
           SPLIT: ${{ strategy.job-total }}
           SPLIT_INDEX: ${{ strategy.job-index }}
@@ -667,7 +563,7 @@ jobs:
           browser: firefox
           working-directory: packages/e2e
           spec: cypress/e2e/app/dates.cy.ts
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,video=false"
+          config: "baseUrl=${{ needs.preview.outputs.url }},video=false"
         env:
           TZ: ${{ matrix.timezone }}
           CYPRESS_TZ: ${{ matrix.timezone }}
@@ -716,7 +612,7 @@ jobs:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/api,cypress/cli/yaml-only
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ needs.preview.outputs.url }}"
 
   # CLI tests with dbt
   cli-tests:
@@ -780,7 +676,7 @@ jobs:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/integration/*
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ needs.preview.outputs.url }}"
         env:
           CYPRESS_PGHOST: ${{ secrets.PGHOST }}
           CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
@@ -857,13 +753,31 @@ jobs:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/dbt/*
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ needs.preview.outputs.url }}"
         env:
           CYPRESS_PGHOST: ${{ secrets.PGHOST }}
           CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
           CYPRESS_SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
 
   # Cleanup job to drop all schemas created during CLI tests
+  preview-teardown:
+    name: Destroy the e2e environment
+    if: always() && needs.preview.result == 'success'
+    runs-on: depot-ubuntu-24.04-4
+    needs: [preview, api-tests, app-tests, timezone-tests, cli-tests-without-dbt, cli-tests, cli-dbt-tests]
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: scripts/rainbow-e2e-env.sh
+          sparse-checkout-cone-mode: false
+      - name: Destroy the e2e environment
+        env:
+          RAINBOW_MCP_TOKEN: ${{ secrets.RAINBOW_MCP_TOKEN }}
+        run: ./scripts/rainbow-e2e-env.sh down "${{ needs.preview.outputs.name }}"
+
   cleanup-schemas:
     if: always() && needs.files-changed.outputs.cli == 'true'
     runs-on: depot-ubuntu-24.04-4
