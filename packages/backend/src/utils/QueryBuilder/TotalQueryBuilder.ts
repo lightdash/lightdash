@@ -193,6 +193,12 @@ export class TotalQueryBuilder {
     constructor(private readonly args: TotalQueryBuilderArgs) {}
 
     public compileQuery(): TotalQueryResult {
+        const result = this.buildQuery();
+        this.assertHasValueColumns(result.metricQuery);
+        return result;
+    }
+
+    private buildQuery(): TotalQueryResult {
         const { kind } = this.args;
         const sourceQuery = this.buildSourceQuery();
         switch (kind) {
@@ -215,6 +221,21 @@ export class TotalQueryBuilder {
                     kind,
                     `Total query kind "${kind}" is not supported`,
                 );
+        }
+    }
+
+    // Once dimensions, PoP metrics and non-totalable calcs are stripped, a
+    // query can be left with nothing to select. Refuse it here rather than
+    // sending `SELECT FROM ...` to the warehouse.
+    private assertHasValueColumns(totalsMetricQuery: MetricQuery): void {
+        const hasValueColumns =
+            totalsMetricQuery.metrics.length > 0 ||
+            totalsMetricQuery.tableCalculations.length > 0 ||
+            getSumOfRowsTableCalculations(this.args.metricQuery).length > 0;
+        if (!hasValueColumns) {
+            throw new NotSupportedError(
+                'Nothing to total: the query has no metrics or totalable table calculations',
+            );
         }
     }
 
