@@ -1499,7 +1499,6 @@ export class DashboardModel {
         dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
-        dashboardUuid?: string,
     ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
             await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
@@ -1547,7 +1546,6 @@ export class DashboardModel {
 
             const [newDashboard] = await trx(DashboardsTableName)
                 .insert({
-                    ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
                     project_uuid: projectUuid,
                     name: dashboard.name,
                     description: dashboard.description,

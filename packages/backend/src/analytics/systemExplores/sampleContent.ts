@@ -125,7 +125,7 @@ const chart = (
     return result;
 };
 
-/** Stable keys identify managed items; names and slugs are presentation only. */
+/** Stable keys define project-scoped sync slugs; names are presentation only. */
 export const analyticsSampleContent = {
     key: 'lightdash-analytics-overview',
     name: 'Lightdash usage overview',

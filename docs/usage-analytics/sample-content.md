@@ -26,7 +26,8 @@ content definitions are accepted from the caller.
 The dashboard list loads when the page opens and reloads after a successful sync.
 There is no separate list refresh button. **Sync content** is a secondary
 action beside **Explore**, with a tooltip explaining its overwrite behavior. Sync
-never deletes or recreates the project and preserves custom dashboards and copies.
+never deletes or recreates the project. Custom dashboards and copies with other
+slugs are preserved; built-in slugs are reserved for managed content.
 Every sync iterates the built-in dashboard list, creating missing dashboards and
 updating existing ones in the same transaction. Add future dashboards with a new
 stable key to this list. Removing a definition does not automatically delete its
@@ -34,26 +35,41 @@ previously installed dashboard.
 
 ## Identity and overwrite behavior
 
-The dashboard UUID is derived from the project UUID and stable bundle key using
-UUID v5. Each chart UUID is derived from its stable key and the dashboard UUID.
-These IDs are passed as separate internal model arguments, not exposed in the
-public creation payload. Normal creation and duplication still allocate random
-UUIDs. Names and slugs are never used to identify sync targets, so unrelated
-content with the same name or slug and user-created copies are not overwritten.
+The stable bundle key is the dashboard slug; each chart uses
+`<bundle-key>-<chart-key>`. Sync looks up these exact slugs **within the authorized
+analytics project**, then updates the existing rows by their stored UUIDs. New
+content uses normal model creation and database-generated UUIDs: no UUID overrides,
+`forceSlug`, or changes to the shared dashboard/chart creation models are needed.
+
+This deliberately treats a matching dashboard slug as managed content. On initial
+project creation the slugs are unused. If a user later creates a dashboard with a
+future built-in slug, adding that bundle will overwrite it on Sync. Reserve the
+built-in slug namespace for Lightdash content. This is a known trade-off, not an
+ownership registry. Duplicated dashboards normally receive different slugs and
+are left alone. Renaming a managed dashboard's slug opts it out of subsequent
+updates; Sync will create the missing canonical dashboard. It will fail closed
+if the canonical chart slugs still belong to the renamed dashboard, rather than
+moving or overwriting those charts. Resolve that conflict before retrying.
 
 Sync overwrites the managed dashboard's name, description, layout, filters,
 and sample chart definitions using the existing versioned models. Existing UUIDs
-and slugs remain unchanged, including a collision suffix allocated on first
-creation. Customizations to the managed sample can be lost: duplicate it first
+and slugs remain unchanged. Customizations to the managed sample can be lost: duplicate it first
 to keep them. Other dashboards and their charts are untouched. Removed chart
 definitions are no longer included in the dashboard layout; their saved rows and
 historical versions are retained rather than hard-deleted.
 
-Installation runs in one transaction under a project row lock. Failed syncs
+Installation runs in one transaction under a project row lock and the existing
+project-scoped slug locks. If normal creation returns a suffixed slug (for example
+because a chart's historical alias reserves the canonical one), Sync rolls back
+instead of making a new suffixed copy on every attempt. Failed syncs
 roll back, preserving the previous content. A soft-deleted managed dashboard or
 sample chart can be restored by Sync. Sync fails if its space is deleted
 (restore the space first) or a managed chart has moved outside that dashboard.
 Every existing target is checked for project/dashboard ownership before updating.
+
+Earlier local prototypes used deterministic UUIDs. Existing rows at canonical
+slugs are updated without changing those UUIDs; noncanonical/suffixed prototype
+dashboards are not adopted or deleted automatically.
 
 ## Future work
 

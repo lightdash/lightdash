@@ -1,6 +1,5 @@
 import { ConflictError, NotFoundError } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { v5 as uuidv5 } from 'uuid';
 import {
     analyticsSampleContent,
     analyticsSampleDashboards,
@@ -14,20 +13,26 @@ import { SpaceModel } from './SpaceModel';
 
 describe('AnalyticsContentModel', () => {
     afterEach(() => vi.restoreAllMocks());
-    const dashboardUuid = uuidv5(
-        `lightdash-analytics/project/${analyticsSampleContent.key}`,
-        uuidv5.URL,
+    const dashboardIds = new Map(
+        analyticsSampleDashboards.map((bundle, index) => [
+            bundle.key,
+            `dashboard-${index}`,
+        ]),
     );
-    const managedChartOwners = new Map(
+    const dashboardUuid = dashboardIds.get(analyticsSampleContent.key)!;
+    const managedChartOwners = new Map<string, string>(
         analyticsSampleDashboards.flatMap((bundle) => {
-            const owner = uuidv5(
-                `lightdash-analytics/project/${bundle.key}`,
-                uuidv5.URL,
-            );
+            const owner = dashboardIds.get(bundle.key)!;
             return bundle.charts.map(
-                ({ key }) => [uuidv5(key, owner), owner] as const,
+                ({ key }) => [`${bundle.key}-${key}`, owner] as const,
             );
         }),
+    );
+    const chartIds = new Map(
+        [...managedChartOwners.keys()].map((slug, index) => [
+            slug,
+            `chart-${index}`,
+        ]),
     );
     const totalCharts = analyticsSampleDashboards.reduce(
         (total, bundle) => total + bundle.charts.length,
@@ -74,46 +79,44 @@ describe('AnalyticsContentModel', () => {
                 first: vi.fn(async () => results[table]),
                 update,
             };
-            query.where.mockImplementation((column: string, value: string) => {
-                if (
-                    existing &&
-                    table === 'dashboards' &&
-                    column === 'dashboard_uuid'
-                ) {
-                    results.dashboards =
-                        onlyOverviewExists && value !== dashboardUuid
-                            ? undefined
-                            : {
-                                  dashboard_uuid: value,
-                                  project_uuid: dashboardProject,
-                                  space_id: 3,
-                                  deleted_at: deleted ? new Date() : null,
-                              };
-                }
-                if (
-                    existing &&
-                    table === 'saved_queries' &&
-                    column === 'saved_query_uuid'
-                ) {
-                    const owner = managedChartOwners.get(value);
-                    results.saved_queries =
-                        onlyOverviewExists && owner !== dashboardUuid
-                            ? undefined
-                            : {
-                                  project_uuid: 'project',
-                                  dashboard_uuid: movedChart
-                                      ? 'another-dashboard'
-                                      : owner,
-                                  space_id: null,
-                                  deleted_at: deleted ? new Date() : null,
-                              };
-                }
-                return query;
-            });
+            query.where.mockImplementation(
+                (conditions: { project_uuid?: string; slug?: string }) => {
+                    const { slug } = conditions;
+                    if (existing && table === 'dashboards' && slug) {
+                        const value = dashboardIds.get(slug);
+                        results.dashboards =
+                            onlyOverviewExists && value !== dashboardUuid
+                                ? undefined
+                                : {
+                                      dashboard_uuid: value,
+                                      project_uuid: dashboardProject,
+                                      space_id: 3,
+                                      deleted_at: deleted ? new Date() : null,
+                                  };
+                    }
+                    if (existing && table === 'saved_queries' && slug) {
+                        const owner = managedChartOwners.get(slug);
+                        results.saved_queries =
+                            onlyOverviewExists && owner !== dashboardUuid
+                                ? undefined
+                                : {
+                                      saved_query_uuid: chartIds.get(slug),
+                                      project_uuid: 'project',
+                                      dashboard_uuid: movedChart
+                                          ? 'another-dashboard'
+                                          : owner,
+                                      space_id: null,
+                                      deleted_at: deleted ? new Date() : null,
+                                  };
+                    }
+                    return query;
+                },
+            );
             query.forUpdate.mockReturnValue(query);
             query.whereNull.mockReturnValue(query);
             return query;
         });
+        Object.assign(trx, { raw: vi.fn().mockResolvedValue(undefined) });
         const transaction = vi.fn(
             async (callback: (db: unknown) => Promise<void>) => callback(trx),
         );
@@ -128,9 +131,13 @@ describe('AnalyticsContentModel', () => {
             >);
         const createDashboard = vi
             .spyOn(DashboardModel.prototype, 'create')
-            .mockResolvedValue({ uuid: dashboardUuid } as Awaited<
-                ReturnType<DashboardModel['create']>
-            >);
+            .mockImplementation(
+                async (_space, definition) =>
+                    ({
+                        uuid: dashboardIds.get(definition.slug),
+                        slug: definition.slug,
+                    }) as Awaited<ReturnType<DashboardModel['create']>>,
+            );
         const updateDashboard = vi
             .spyOn(DashboardModel.prototype, 'update')
             .mockResolvedValue({ uuid: dashboardUuid } as Awaited<
@@ -138,8 +145,12 @@ describe('AnalyticsContentModel', () => {
             >);
         const createChart = vi
             .spyOn(SavedChartModel.prototype, 'create')
-            .mockResolvedValue(
-                {} as Awaited<ReturnType<SavedChartModel['create']>>,
+            .mockImplementation(
+                async (_project, _user, definition) =>
+                    ({
+                        uuid: chartIds.get(definition.slug),
+                        slug: definition.slug,
+                    }) as Awaited<ReturnType<SavedChartModel['create']>>,
             );
         const updateChart = vi
             .spyOn(SavedChartModel.prototype, 'update')
@@ -174,7 +185,7 @@ describe('AnalyticsContentModel', () => {
         };
     };
 
-    it('creates stable identities without using names or slugs to find existing content', async () => {
+    it('finds content by project-scoped slug and uses normal model-generated UUIDs', async () => {
         const mocks = setup();
         await mocks.model.install('project', user);
         expect(mocks.createDashboard).toHaveBeenCalledWith(
@@ -182,24 +193,31 @@ describe('AnalyticsContentModel', () => {
             expect.not.objectContaining({ forceSlug: true }),
             user,
             'project',
-            dashboardUuid,
         );
         expect(mocks.createChart).toHaveBeenCalledTimes(totalCharts);
         for (const { key } of analyticsSampleContent.charts) {
             expect(mocks.createChart).toHaveBeenCalledWith(
                 'project',
                 user.userUuid,
-                expect.objectContaining({ dashboardUuid }),
-                uuidv5(key, dashboardUuid),
+                expect.objectContaining({
+                    dashboardUuid,
+                    slug: `${analyticsSampleContent.key}-${key}`,
+                }),
             );
         }
         const dashboardQuery = mocks.trx.mock.results.find(
             (_, index) => mocks.trx.mock.calls[index][0] === 'dashboards',
         )!.value;
-        expect(dashboardQuery.where).toHaveBeenCalledWith(
-            'dashboard_uuid',
-            dashboardUuid,
-        );
+        expect(dashboardQuery.where).toHaveBeenCalledWith({
+            project_uuid: 'project',
+            slug: analyticsSampleContent.key,
+        });
+        expect(
+            mocks.createDashboard.mock.calls.every((args) => args.length === 4),
+        ).toBe(true);
+        expect(
+            mocks.createChart.mock.calls.every((args) => args.length === 3),
+        ).toBe(true);
         expect(mocks.updateChart).not.toHaveBeenCalled();
     });
 
@@ -220,7 +238,9 @@ describe('AnalyticsContentModel', () => {
                 tiles: expect.arrayContaining([
                     expect.objectContaining({
                         properties: {
-                            savedChartUuid: uuidv5('ai-calls', dashboardUuid),
+                            savedChartUuid: chartIds.get(
+                                `${analyticsSampleContent.key}-ai-calls`,
+                            ),
                         },
                     }),
                 ]),
@@ -231,7 +251,7 @@ describe('AnalyticsContentModel', () => {
         );
     });
 
-    it('restores only the managed IDs when samples were soft-deleted', async () => {
+    it('restores the same rows found by slug when samples were soft-deleted', async () => {
         const mocks = setup({ existing: true, deleted: true });
         await mocks.model.install('project', user);
         expect(mocks.restoreChart).toHaveBeenCalledTimes(totalCharts);
@@ -251,17 +271,12 @@ describe('AnalyticsContentModel', () => {
         const mocks = setup({ existing: true, onlyOverviewExists: true });
         await mocks.model.install('project', user);
         const queryDashboard = analyticsSampleDashboards[1];
-        const queryDashboardUuid = uuidv5(
-            `lightdash-analytics/project/${queryDashboard.key}`,
-            uuidv5.URL,
-        );
         expect(mocks.createDashboard).toHaveBeenCalledTimes(1);
         expect(mocks.createDashboard).toHaveBeenCalledWith(
             'space',
             expect.objectContaining({ name: 'Query activity' }),
             user,
             'project',
-            queryDashboardUuid,
         );
         expect(mocks.updateDashboard).toHaveBeenCalledTimes(1);
         expect(mocks.updateDashboard).toHaveBeenCalledWith(
@@ -302,6 +317,18 @@ describe('AnalyticsContentModel', () => {
         mocks.chartVersion.mockRejectedValueOnce(new Error('write failed'));
         await expect(mocks.model.install('project', user)).rejects.toThrow(
             'write failed',
+        );
+        expect(mocks.addVersion).not.toHaveBeenCalled();
+    });
+
+    it('rolls back rather than installing a suffixed chart when its slug is reserved', async () => {
+        const mocks = setup();
+        mocks.createChart.mockResolvedValueOnce({
+            uuid: 'new-chart',
+            slug: 'reserved-1',
+        } as Awaited<ReturnType<SavedChartModel['create']>>);
+        await expect(mocks.model.install('project', user)).rejects.toThrow(
+            'Sample chart slug is reserved',
         );
         expect(mocks.addVersion).not.toHaveBeenCalled();
     });

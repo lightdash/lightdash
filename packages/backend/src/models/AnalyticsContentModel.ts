@@ -5,9 +5,9 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { v5 as uuidv5 } from 'uuid';
 import { analyticsSampleDashboards } from '../analytics/systemExplores/sampleContent';
 import { type LightdashConfig } from '../config/parseConfig';
+import { acquireProjectSlugLock } from '../utils/SlugUtils';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SpaceModel } from './SpaceModel';
@@ -50,17 +50,16 @@ export class AnalyticsContentModel {
             // Keep all managed dashboards in the same atomic sync.
             /* eslint-disable no-await-in-loop */
             for (const bundle of analyticsSampleDashboards) {
-                // These IDs are server-only creation arguments, never client input.
-                // Copies receive random IDs and cannot become sync targets.
-                const dashboardUuid = uuidv5(
-                    `lightdash-analytics/${projectUuid}/${bundle.key}`,
-                    uuidv5.URL,
-                );
+                // Built-in slugs identify sync targets within this project.
+                // Reserve these slugs for managed content, including future bundles.
+                await acquireProjectSlugLock(trx, projectUuid, bundle.key);
                 const existing = await trx('dashboards')
-                    .where('dashboard_uuid', dashboardUuid)
+                    .where({ project_uuid: projectUuid, slug: bundle.key })
                     .forUpdate()
                     .first();
+                let dashboardUuid: string;
                 if (existing) {
+                    dashboardUuid = existing.dashboard_uuid;
                     if (existing.project_uuid !== projectUuid)
                         throw new ConflictError(
                             'Sample dashboard belongs to another project',
@@ -98,7 +97,7 @@ export class AnalyticsContentModel {
                         },
                         { projectUuid, userId: user.userId, trx },
                     );
-                    await dashboardModel.create(
+                    const created = await dashboardModel.create(
                         space.uuid,
                         {
                             name: bundle.name,
@@ -109,18 +108,24 @@ export class AnalyticsContentModel {
                         },
                         user,
                         projectUuid,
-                        dashboardUuid,
                     );
+                    if (created.slug !== bundle.key)
+                        throw new ConflictError(
+                            'Sample dashboard slug is reserved',
+                        );
+                    dashboardUuid = created.uuid;
                 }
                 const chartUuids: Record<string, string> = {};
                 for (const { key, ...definition } of bundle.charts) {
-                    const chartUuid = uuidv5(key, dashboardUuid);
+                    const chartSlug = `${bundle.key}-${key}`;
+                    await acquireProjectSlugLock(trx, projectUuid, chartSlug);
                     // Serialize writes on the transaction's single connection.
                     const existingChart = await trx('saved_queries')
-                        .where('saved_query_uuid', chartUuid)
+                        .where({ project_uuid: projectUuid, slug: chartSlug })
                         .forUpdate()
                         .first();
                     if (existingChart) {
+                        const chartUuid = existingChart.saved_query_uuid;
                         if (
                             existingChart.project_uuid !== projectUuid ||
                             existingChart.dashboard_uuid !== dashboardUuid ||
@@ -141,13 +146,14 @@ export class AnalyticsContentModel {
                             user,
                             trx,
                         );
+                        chartUuids[key] = chartUuid;
                     } else {
-                        await savedChartModel.create(
+                        const created = await savedChartModel.create(
                             projectUuid,
                             user.userUuid,
                             {
                                 ...definition,
-                                slug: `${bundle.key}-${key}`,
+                                slug: chartSlug,
                                 dashboardUuid,
                                 updatedByUser: {
                                     userUuid: user.userUuid,
@@ -155,10 +161,16 @@ export class AnalyticsContentModel {
                                     lastName: user.lastName,
                                 },
                             },
-                            chartUuid,
                         );
+                        // Historical chart aliases can reserve a slug even when no
+                        // canonical row exists. Roll back rather than create a new
+                        // suffixed chart on every sync or overwrite another owner.
+                        if (created.slug !== chartSlug)
+                            throw new ConflictError(
+                                'Sample chart slug is reserved',
+                            );
+                        chartUuids[key] = created.uuid;
                     }
-                    chartUuids[key] = chartUuid;
                 }
                 await dashboardModel.addVersion(
                     dashboardUuid,
