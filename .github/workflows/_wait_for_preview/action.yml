@@ -23,9 +23,10 @@ runs:
               set -uo pipefail
               deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
               while true; do
-                  # curl writes %{http_code} even when it fails, so take its
-                  # output as-is and only substitute when it produced nothing.
-                  status=$(curl -sSL -o /tmp/preview-health.json -w '%{http_code}' "$PREVIEW_URL/api/v1/health" 2>/dev/null)
+                  # The step shell runs with -e, so curl's non-zero exit must be
+                  # caught outside the substitution: `|| echo` inside it would
+                  # append a second code to the one -w already wrote.
+                  status=$(curl -sSL -o /tmp/preview-health.json -w '%{http_code}' "$PREVIEW_URL/api/v1/health" 2>/dev/null) || true
                   [ -n "$status" ] || status="000"
                   if [ "$status" = "200" ]; then
                       echo "Preview ready at $PREVIEW_URL"
