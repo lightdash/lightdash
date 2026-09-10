@@ -8267,6 +8267,334 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
     });
 });
 
+describe('Per-dimension declared wall clock timezone', () => {
+    const LOS_ANGELES = 'America/Los_Angeles';
+    // Every test runs on a connection whose column timezone differs from the
+    // dimension's declared zone, so a per-dimension read cannot pass by accident.
+    const CONNECTION_TIMEZONE = 'Asia/Tokyo';
+    const PROJECT_TIMEZONE = 'Europe/Paris';
+
+    const buildWallClockExplore = ({
+        adapter,
+        sourceTimezone,
+        wallClockTimezone,
+        baseCompiledSql,
+        annotateIntervalChildren,
+    }: {
+        adapter: SupportedDbtAdapter;
+        sourceTimezone: string;
+        wallClockTimezone?: string;
+        baseCompiledSql: string;
+        annotateIntervalChildren: boolean;
+    }): Explore => {
+        const declaration = wallClockTimezone ? { wallClockTimezone } : {};
+        const childAnnotation = annotateIntervalChildren
+            ? { sourceTimezone, ...declaration }
+            : {};
+        return {
+            targetDatabase: adapter,
+            name: 'events',
+            label: 'events',
+            baseTable: 'events',
+            tags: [],
+            joinedTables: [],
+            tables: {
+                events: {
+                    name: 'events',
+                    label: 'events',
+                    database: 'db',
+                    schema: 's',
+                    sqlTable: '"events"',
+                    primaryKey: ['id'],
+                    dimensions: {
+                        occurred_at: {
+                            type: DimensionType.TIMESTAMP,
+                            name: 'occurred_at',
+                            label: 'occurred_at',
+                            table: 'events',
+                            tableLabel: 'events',
+                            fieldType: FieldType.DIMENSION,
+                            sql: '${TABLE}.occurred_at',
+                            compiledSql: baseCompiledSql,
+                            tablesReferences: ['events'],
+                            hidden: false,
+                            timestampDomain: 'naive',
+                            sourceTimezone,
+                            ...declaration,
+                        },
+                        occurred_at_raw: {
+                            type: DimensionType.TIMESTAMP,
+                            name: 'occurred_at_raw',
+                            label: 'occurred_at_raw',
+                            table: 'events',
+                            tableLabel: 'events',
+                            fieldType: FieldType.DIMENSION,
+                            sql: '${TABLE}.occurred_at',
+                            compiledSql: baseCompiledSql,
+                            tablesReferences: ['events'],
+                            hidden: false,
+                            timeInterval: TimeFrames.RAW,
+                            timeIntervalBaseDimensionName: 'occurred_at',
+                            timeIntervalBaseDimensionType:
+                                DimensionType.TIMESTAMP,
+                            ...childAnnotation,
+                        },
+                        occurred_at_day: {
+                            type: DimensionType.DATE,
+                            name: 'occurred_at_day',
+                            label: 'occurred_at_day',
+                            table: 'events',
+                            tableLabel: 'events',
+                            fieldType: FieldType.DIMENSION,
+                            sql: `DATE_TRUNC('DAY', \${TABLE}.occurred_at)`,
+                            compiledSql: `DATE_TRUNC('DAY', ${baseCompiledSql})`,
+                            tablesReferences: ['events'],
+                            hidden: false,
+                            timeInterval: TimeFrames.DAY,
+                            timeIntervalBaseDimensionName: 'occurred_at',
+                            timeIntervalBaseDimensionType:
+                                DimensionType.TIMESTAMP,
+                            ...childAnnotation,
+                        },
+                    },
+                    metrics: {
+                        event_count: {
+                            type: MetricType.COUNT,
+                            fieldType: FieldType.METRIC,
+                            table: 'events',
+                            tableLabel: 'events',
+                            name: 'event_count',
+                            label: 'event_count',
+                            sql: '${TABLE}.id',
+                            compiledSql: 'COUNT("events".id)',
+                            tablesReferences: ['events'],
+                            hidden: false,
+                        },
+                    },
+                    lineageGraph: {},
+                },
+            },
+        };
+    };
+
+    const postgresExplore = (annotateIntervalChildren: boolean = true) =>
+        buildWallClockExplore({
+            adapter: SupportedDbtAdapter.POSTGRES,
+            sourceTimezone: LOS_ANGELES,
+            baseCompiledSql: '"events".occurred_at',
+            annotateIntervalChildren,
+        });
+
+    const wallClockQuery = (dimensions: string[]): CompiledMetricQuery => ({
+        exploreName: 'events',
+        dimensions,
+        metrics: ['events_event_count'],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    });
+
+    const buildPostgresQuery = (
+        compiledMetricQuery: CompiledMetricQuery,
+        annotateIntervalChildren: boolean = true,
+    ) =>
+        buildQuery({
+            explore: postgresExplore(annotateIntervalChildren),
+            compiledMetricQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: PROJECT_TIMEZONE,
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: CONNECTION_TIMEZONE,
+        }).query;
+
+    test('truncated SELECT rebases from the declared zone, not the connection default', () => {
+        const query = buildPostgresQuery(
+            wallClockQuery(['events_occurred_at_day']),
+        );
+        expect(query).toContain(
+            `CAST(DATE_TRUNC('DAY', (("events".occurred_at) AT TIME ZONE '${LOS_ANGELES}') AT TIME ZONE '${PROJECT_TIMEZONE}') AS DATE) AS "events_occurred_at_day"`,
+        );
+        expect(query).not.toContain(CONNECTION_TIMEZONE);
+    });
+
+    test('RAW SELECT casts from the declared zone', () => {
+        const query = buildPostgresQuery(
+            wallClockQuery(['events_occurred_at_raw']),
+        );
+        expect(query).toContain(
+            `(("events".occurred_at) AT TIME ZONE '${LOS_ANGELES}') AS "events_occurred_at_raw"`,
+        );
+        expect(query).not.toContain(CONNECTION_TIMEZONE);
+    });
+
+    test('filter literal renders in the declared wall clock with a bare LHS', () => {
+        const query = buildPostgresQuery({
+            ...wallClockQuery(['events_occurred_at_raw']),
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'f1',
+                            target: { fieldId: 'events_occurred_at_raw' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['2024-01-14T17:00:00Z'],
+                        },
+                    ],
+                },
+            },
+        });
+        const whereClause = query.slice(query.indexOf('WHERE'));
+        // 17:00Z is 09:00 on the Los Angeles wall clock (UTC-8 in January).
+        expect(whereClause).toContain(
+            `("events".occurred_at) = ('2024-01-14 09:00:00'::timestamp)`,
+        );
+        expect(whereClause).not.toContain('2024-01-15 02:00:00');
+    });
+
+    const maxWallClockQuery: CompiledMetricQuery = {
+        ...wallClockQuery([]),
+        metrics: ['events_max_ts'],
+        additionalMetrics: [
+            {
+                table: 'events',
+                name: 'max_ts',
+                label: 'Max of occurred at',
+                type: MetricType.MAX,
+                sql: '${TABLE}.occurred_at',
+                baseDimensionName: 'occurred_at',
+            },
+        ],
+        compiledAdditionalMetrics: [
+            {
+                type: MetricType.MAX,
+                fieldType: FieldType.METRIC,
+                table: 'events',
+                tableLabel: 'events',
+                name: 'max_ts',
+                label: 'Max of occurred at',
+                sql: '${TABLE}.occurred_at',
+                compiledSql: `MAX("events".occurred_at)`,
+                tablesReferences: ['events'],
+                hidden: false,
+                baseDimensionType: DimensionType.TIMESTAMP,
+            },
+        ],
+    };
+
+    test('MIN/MAX rebases the aggregate operand from the declared zone', () => {
+        const query = buildPostgresQuery(maxWallClockQuery);
+        expect(query).toContain(
+            `MAX((("events".occurred_at) AT TIME ZONE '${LOS_ANGELES}')) AS "events_max_ts"`,
+        );
+        expect(query).not.toContain(CONNECTION_TIMEZONE);
+    });
+
+    test('an interval child without its own declaration resolves the base dimension zone', () => {
+        const query = buildPostgresQuery(
+            wallClockQuery([
+                'events_occurred_at_day',
+                'events_occurred_at_raw',
+            ]),
+            false,
+        );
+        expect(query).toContain(
+            `CAST(DATE_TRUNC('DAY', (("events".occurred_at) AT TIME ZONE '${LOS_ANGELES}') AT TIME ZONE '${PROJECT_TIMEZONE}') AS DATE) AS "events_occurred_at_day"`,
+        );
+        expect(query).toContain(
+            `(("events".occurred_at) AT TIME ZONE '${LOS_ANGELES}') AS "events_occurred_at_raw"`,
+        );
+        expect(query).not.toContain(CONNECTION_TIMEZONE);
+    });
+
+    describe('Snowflake, compile-time converted to UTC', () => {
+        const JOHANNESBURG = 'Africa/Johannesburg';
+        // What the compiler emits for a declared wall clock on Snowflake: the
+        // column is already UTC, so the dimension carries sourceTimezone 'UTC'
+        // even though the connection has timestamp conversion disabled.
+        const convertedSql = `CONVERT_TIMEZONE('${JOHANNESBURG}', 'UTC', "events".occurred_at)`;
+        const snowflakeClient = {
+            ...warehouseClientMock,
+            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+        };
+        const buildSnowflakeQuery = (
+            compiledMetricQuery: CompiledMetricQuery,
+        ) =>
+            buildQuery({
+                explore: buildWallClockExplore({
+                    adapter: SupportedDbtAdapter.SNOWFLAKE,
+                    sourceTimezone: 'UTC',
+                    baseCompiledSql: convertedSql,
+                    annotateIntervalChildren: true,
+                }),
+                compiledMetricQuery,
+                warehouseSqlBuilder: snowflakeClient,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: PROJECT_TIMEZONE,
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: JOHANNESBURG,
+                dataTimezone: JOHANNESBURG,
+            }).query;
+
+        test('truncated SELECT converts from UTC only', () => {
+            const query = buildSnowflakeQuery(
+                wallClockQuery(['events_occurred_at_day']),
+            );
+            expect(query).toContain(
+                `CONVERT_TIMEZONE('UTC', '${PROJECT_TIMEZONE}', ${convertedSql})`,
+            );
+            expect(query).not.toContain(
+                `CONVERT_TIMEZONE('${JOHANNESBURG}', '${PROJECT_TIMEZONE}'`,
+            );
+        });
+
+        test('MIN/MAX over the converted column takes the UTC path', () => {
+            const query = buildSnowflakeQuery({
+                ...maxWallClockQuery,
+                compiledAdditionalMetrics:
+                    maxWallClockQuery.compiledAdditionalMetrics?.map(
+                        (metric) => ({
+                            ...metric,
+                            compiledSql: `MAX(${convertedSql})`,
+                        }),
+                    ),
+            });
+            expect(query).toContain(`MAX(${convertedSql}) AS "events_max_ts"`);
+            expect(query).not.toContain(
+                `CONVERT_TIMEZONE('${JOHANNESBURG}', 'UTC', MAX(`,
+            );
+        });
+
+        test('MIN/MAX over the raw column rebases from the declared zone, not the connection', () => {
+            const { query } = buildQuery({
+                explore: buildWallClockExplore({
+                    adapter: SupportedDbtAdapter.SNOWFLAKE,
+                    sourceTimezone: 'UTC',
+                    wallClockTimezone: JOHANNESBURG,
+                    baseCompiledSql: convertedSql,
+                    annotateIntervalChildren: true,
+                }),
+                compiledMetricQuery: maxWallClockQuery,
+                warehouseSqlBuilder: snowflakeClient,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: PROJECT_TIMEZONE,
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: CONNECTION_TIMEZONE,
+                dataTimezone: CONNECTION_TIMEZONE,
+            });
+            expect(query).toContain(
+                `MAX(CONVERT_TIMEZONE('${JOHANNESBURG}', 'UTC', "events".occurred_at)) AS "events_max_ts"`,
+            );
+            expect(query).not.toContain(CONNECTION_TIMEZONE);
+        });
+    });
+});
+
 describe('Metric filters: absolute timestamp predicates re-render at query time (GLITCH-627)', () => {
     const BAKED_PREDICATE = `("events".occurred_at) = ('2024-01-14 17:00:00+00:00')`;
     const FRESH_PREDICATE = `("events".occurred_at) = ('2024-01-15 02:00:00'::timestamp)`;
