@@ -100,6 +100,8 @@ minimumReleaseAgeExclude:
   - "@tiptap/core@3.30.4"
   # Renovate security update: @hapi/content@6.0.2
   - "@hapi/content@6.0.2"
+  # Renovate security update: react-router@7.18.2
+  - react-router@7.18.2
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
