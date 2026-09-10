@@ -1,3 +1,10 @@
+## [2.186.2](https://github.com/lightdash/lightdash/compare/2.186.1...2.186.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* show loading feedback during project navigation ([#28990](https://github.com/lightdash/lightdash/issues/28990)) ([7a346ab](https://github.com/lightdash/lightdash/commit/7a346ab047f90912f56d042e401d498434b68f30))
+
 ## [2.186.1](https://github.com/lightdash/lightdash/compare/2.186.0...2.186.1) (2026-09-10)
 
 
