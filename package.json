@@ -39,6 +39,7 @@
         "typescript": "7.0.2"
     },
     "scripts": {
+        "test:playground-content": "tsx scripts/playground-bundle/content.test.ts",
         "build:playground-bundle": "pnpm formula:build && pnpm common-build && pnpm warehouses-build && LIGHTDASH_MODE=development LIGHTDASH_SECRET=playground-bundle-build-only S3_ENDPOINT=http://localhost S3_BUCKET=playground-build S3_REGION=local tsx scripts/playground-bundle/build.ts",
         "formula:build": "pnpm -F formula build",
         "formula:test": "pnpm -F formula test",
@@ -153,6 +154,9 @@
         "scope-tours:generate": "tsx scripts/scope-tours/generate.ts && pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts",
         "scope-tours:order": "tsx scripts/scope-tours/order.ts && pnpm -F frontend run formatter -- src/features/scopeTours/curriculum.ts",
         "scope-tours:check": "tsx scripts/scope-tours/check.ts",
+        "scope-tours:coverage": "tsx scripts/scope-tours/coverage.ts",
+        "scope-tours:coverage:test": "tsx scripts/scope-tours/coverage.test.ts",
+        "scope-tours:release-check": "tsx scripts/scope-tours/coverage.ts --release",
         "scope-tours:suggest": "tsx scripts/scope-tours/suggest.ts",
         "scope-tours:smoke": "tsx scripts/scope-tours/smoke.ts"
     },

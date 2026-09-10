@@ -29,6 +29,7 @@ Markers and anchors are `data-tour-*` attributes in `packages/frontend/src`. The
 | Attribute | Where | Meaning |
 |---|---|---|
 | `data-tour-scope`, `data-tour-step` | the control the scope unlocks (step 2) and the surface showing the result (step 1) | which walkthrough, and the marker's order |
+| `data-tour-covers` | interactive action marker | additional comma/space-separated scopes taught by the same controls and observed result; reuses the primary selectors, and cannot replace another primary tour |
 | `data-tour-route` | markers | page the marker lives on (informational) |
 | `data-tour-label` | markers | the step title, a short imperative ("Click Pin to homepage") |
 | `data-tour-docs` | markers | `file#anchor[:pN][:n or a-b]` docs sentence(s) for the body; `file#intro` is the page's text before its first heading; `:liN` the Nth list item of the section |

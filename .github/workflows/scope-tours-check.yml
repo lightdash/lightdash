@@ -9,7 +9,11 @@ on:
     pull_request:
         paths:
             - 'packages/frontend/src/**'
+            - 'packages/common/src/authorization/**'
             - 'scripts/scope-tours/**'
+            - 'scripts/playground-bundle/**'
+            - 'packages/backend/assets/playground/content.json'
+            - 'package.json'
             - 'scripts/scope-tours/scope-tours.test.ts'
             - '.github/workflows/scope-tours-check.yml'
 
@@ -38,6 +42,12 @@ jobs:
               run: pnpm common-build
             - name: Checker tests
               run: pnpm exec tsx scripts/scope-tours/scope-tours.test.ts
+            - name: Playground teaching samples survive a bundle rebuild
+              run: pnpm test:playground-content
+            - name: Content coverage tests
+              run: pnpm scope-tours:coverage:test
+            - name: Every curriculum permission has a walkthrough or explicit disposition
+              run: pnpm scope-tours:release-check
             - name: Generated tours are up to date
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs

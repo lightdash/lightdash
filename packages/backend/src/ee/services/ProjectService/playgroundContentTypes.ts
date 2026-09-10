@@ -90,6 +90,18 @@ export type PlaygroundDeepResearchDefinition = {
     warehouseQueryCount: number;
 };
 
+export type PlaygroundMetricsTreeDefinition = {
+    name: string;
+    slug: string;
+    description: string;
+    nodes: Array<{
+        tableName: string;
+        metricName: string;
+        xPosition: number;
+        yPosition: number;
+    }>;
+};
+
 export type PlaygroundContent = {
     version: 1;
     space: {
@@ -105,6 +117,7 @@ export type PlaygroundContent = {
     };
     comments?: PlaygroundCommentDefinition[];
     categories?: PlaygroundCategoryDefinition[];
+    metricsTrees?: PlaygroundMetricsTreeDefinition[];
     dataApps?: PlaygroundDataAppDefinition[];
     agent?: PlaygroundAgentDefinition;
     deepResearch?: PlaygroundDeepResearchDefinition;

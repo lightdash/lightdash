@@ -7,11 +7,11 @@ import {
 import { CURRICULUM } from '../scopeTours/curriculum';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 import { ROLE_LABELS, SYSTEM_ROLE_SCOPES } from './access';
+import { COMING_SOON_SCOPES } from './comingSoon';
 
 /**
- * Foundations, as on learn.lightdash.com: what a viewer can already do,
- * taught in the same format, and the first section of the library. Every
- * other group is the scope registry's own.
+ * Foundations contains viewer lessons and is the first library section.
+ * Other groups follow the scope registry.
  */
 export const FOUNDATIONS = 'foundations' as const;
 export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
@@ -21,12 +21,16 @@ export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
  * an Enterprise licence, or one of the product's own feature switches on top
  * of it. The library leaves a closed module out (see availability.ts).
  */
-export type LearnGate = 'enterprise' | 'dataApps' | 'aiAgents';
+export type LearnGate = 'enterprise' | 'dataApps' | 'aiAgents' | 'softDelete';
 
 const SUBJECT_GATES: Record<string, LearnGate> = {
+    DeletedContent: 'softDelete',
     DataApp: 'dataApps',
     AiAgent: 'aiAgents',
     AiAgentThread: 'aiAgents',
+    AiAgentDocument: 'aiAgents',
+    EmbedAiAgent: 'aiAgents',
+    EmbedDataApps: 'dataApps',
     AiDeepResearch: 'aiAgents',
 };
 
@@ -90,21 +94,23 @@ export const GROUP_LABELS: Record<LearnGroup, string> = {
 
 const stripBold = (text: string) => text.replace(/\*\*/g, '');
 
-/**
- * One module per permission a learner can practise in the training project.
- * Nothing here is written by hand: the list is the trainee scope set, the
- * title is the scope registry's own description, the group is the registry's
- * group, and a module is available when a generated walkthrough exists for
- * it. Its blurb is that walkthrough's opening docs sentence.
- */
+/** Walkthroughs and explicit upcoming modules; permissions remain independent. */
 export const buildLearnCatalogue = (): LearnModule[] => {
-    const trainee = new Set(getTrainingProjectScopes());
+    const trainee = new Set([
+        ...getTrainingProjectScopes(),
+        ...COMING_SOON_SCOPES,
+    ]);
+    const comingSoon = new Set<string>(COMING_SOON_SCOPES);
     return (
         getScopes({ isEnterprise: true })
             // Base scopes only: a modifier variant (`@self`, `@space`) is the
             // same feature with a narrower reach, not another lesson.
             .filter(
-                (scope) => trainee.has(scope.name) && !scope.name.includes('@'),
+                (scope) =>
+                    trainee.has(scope.name) &&
+                    !scope.name.includes('@') &&
+                    (SCOPE_TOURS[scope.name] !== undefined ||
+                        comingSoon.has(scope.name)),
             )
             .map((scope) => {
                 const tour = SCOPE_TOURS[scope.name];
@@ -177,10 +183,11 @@ export const focusModules = (
     completed: string[],
     lastStarted: string | null,
 ): { resume?: LearnModule; recommended?: LearnModule } => {
-    const resume = available.find(
+    const walkthroughs = available.filter((module) => module.available);
+    const resume = walkthroughs.find(
         (m) => m.scope === lastStarted && !completed.includes(m.scope),
     );
-    const recommended = sortForLearner(held, available).find(
+    const recommended = sortForLearner(held, walkthroughs).find(
         (m) => m.scope !== resume?.scope && !completed.includes(m.scope),
     );
     return { resume, recommended };

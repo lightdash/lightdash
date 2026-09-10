@@ -7,6 +7,10 @@
  * same places the product decides what to show:
  *
  *   data-tour-scope="manage:PinnedItems"   the scope this control belongs to
+ *   data-tour-covers="view:PinnedItems"    on an interactive action: additional
+ *                                          scopes taught by the exact same
+ *                                          controls and observed result;
+ *                                          comma/space separated, no duplicates
  *   data-tour-step="2"                     order within the walkthrough
  *   data-tour-route="/projects/:projectUuid/spaces"   page the control is on
  *   data-tour-label="..."                  one line: what the learner does here

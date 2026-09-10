@@ -3,6 +3,7 @@ import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
@@ -17,10 +18,6 @@ const { track, projectState, learnFlagState, availabilityState, accessState } =
         // Everything the learner can do, anywhere.
         accessState: { current: [] as string[] },
     }));
-
-vi.mock('react-router', () => ({
-    Navigate: () => null,
-}));
 
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
@@ -92,11 +89,18 @@ vi.mock('./thumbnails', () => ({
 const catalogue = buildLearnCatalogue();
 const scopes = catalogue.map((module) => module.scope);
 
-const renderPage = () =>
+const CurrentLocation = () => (
+    <output data-testid="location">{useLocation().search}</output>
+);
+
+const renderPage = (query = '') =>
     render(
-        <MantineProvider env="test">
-            <LearnPage />
-        </MantineProvider>,
+        <MemoryRouter initialEntries={[`/learn${query}`]}>
+            <MantineProvider env="test">
+                <LearnPage />
+                <CurrentLocation />
+            </MantineProvider>
+        </MemoryRouter>,
     );
 
 const viewEvents = () =>
@@ -137,18 +141,21 @@ describe('LearnPage analytics', () => {
     it('records one view per mount, with the progress the learner is looking at', () => {
         localStorage.setItem(
             'lightdash.learn.started',
-            JSON.stringify([scopes[0], scopes[1]]),
+            JSON.stringify([catalogue[0].scope, catalogue[1].scope]),
         );
         localStorage.setItem(
             'lightdash.learn.completed',
-            JSON.stringify([scopes[0]]),
+            JSON.stringify([catalogue[0].scope]),
         );
 
         const { rerender } = renderPage();
         rerender(
-            <MantineProvider env="test">
-                <LearnPage />
-            </MantineProvider>,
+            <MemoryRouter>
+                <MantineProvider env="test">
+                    <LearnPage />
+                    <CurrentLocation />
+                </MantineProvider>
+            </MemoryRouter>,
         );
 
         expect(viewEvents()).toEqual([
@@ -158,7 +165,8 @@ describe('LearnPage analytics', () => {
                     organizationUuid: 'org-1',
                     trainingProjectUuid: 'training-1',
                     hasTrainingProject: true,
-                    moduleCount: catalogue.length,
+                    moduleCount: catalogue.filter((module) => module.available)
+                        .length,
                     startedCount: 2,
                     completedCount: 1,
                 },
@@ -169,7 +177,7 @@ describe('LearnPage analytics', () => {
     it('counts only the scopes this instance has modules for', () => {
         localStorage.setItem(
             'lightdash.learn.completed',
-            JSON.stringify([scopes[0], 'manage:SomethingRetired']),
+            JSON.stringify([catalogue[0].scope, 'manage:SomethingRetired']),
         );
 
         renderPage();
@@ -177,6 +185,30 @@ describe('LearnPage analytics', () => {
         expect(viewEvents()[0].properties).toMatchObject({
             completedCount: 1,
         });
+    });
+
+    it('matches the progress fraction and ignores unsupported-module progress', () => {
+        const supported = catalogue.find((module) => module.available)!;
+        const unsupported = catalogue.find((module) => !module.available)!;
+        localStorage.setItem(
+            'lightdash.learn.started',
+            JSON.stringify([supported.scope, unsupported.scope]),
+        );
+        localStorage.setItem(
+            'lightdash.learn.completed',
+            JSON.stringify([supported.scope, unsupported.scope]),
+        );
+        const { container } = renderPage();
+        const { moduleCount, startedCount, completedCount } =
+            viewEvents()[0].properties;
+        expect(moduleCount).toBe(42);
+        expect(startedCount).toBe(1);
+        expect(completedCount).toBe(1);
+        expect(
+            container
+                .querySelector('[data-learn-progress]')
+                ?.getAttribute('data-learn-progress'),
+        ).toBe(`${completedCount}/${moduleCount}`);
     });
 
     it('records the call to action before an admin has enabled Learn', () => {
@@ -199,9 +231,12 @@ describe('LearnPage analytics', () => {
 
         availabilityState.current = { isSettled: true };
         rerender(
-            <MantineProvider env="test">
-                <LearnPage />
-            </MantineProvider>,
+            <MemoryRouter>
+                <MantineProvider env="test">
+                    <LearnPage />
+                    <CurrentLocation />
+                </MantineProvider>
+            </MemoryRouter>,
         );
 
         expect(viewEvents()).toHaveLength(1);
@@ -246,7 +281,11 @@ describe('LearnPage access', () => {
 
         expect(
             shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
-        ).toEqual(['manage:Validation', 'view:Dashboard'].sort());
+        ).toEqual(
+            ['manage:Validation', 'view:Dashboard'].sort((a, b) =>
+                a.localeCompare(b),
+            ),
+        );
     });
 
     it('reads their access however they came by it', () => {
@@ -294,5 +333,42 @@ describe('LearnPage access', () => {
         expect(
             shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
         ).toEqual(['manage:Validation', 'view:Dashboard']);
+    });
+});
+
+describe('LearnPage unsupported modules', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        track.mockClear();
+        learnFlagState.current = { enabled: true };
+        learnFlagState.isLoading = false;
+        availabilityState.current = { isSettled: true };
+        accessState.current = scopes;
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+        ];
+    });
+
+    it('ignores old reading links and leaves progress unchanged', () => {
+        localStorage.setItem(
+            'lightdash.learn.completed',
+            JSON.stringify(['concept:view:Analytics']),
+        );
+        const { container } = renderPage('?lesson=view%3AAnalytics');
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(
+            screen.queryByRole('button', {
+                name: /Read lesson|Read again|I have read/i,
+            }),
+        ).toBeNull();
+        const card = container.querySelector(
+            '[data-learn-module="view:Analytics"]',
+        )!;
+        expect(card.textContent).toContain('Coming Soon');
+        expect(card.querySelector('button')).toBeDisabled();
+        expect(card.textContent).not.toContain('Complete');
+        expect(localStorage.getItem('lightdash.learn.completed')).toBe(
+            JSON.stringify(['concept:view:Analytics']),
+        );
     });
 });

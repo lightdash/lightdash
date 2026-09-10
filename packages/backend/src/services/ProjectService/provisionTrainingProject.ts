@@ -54,6 +54,9 @@ export type ProvisionTrainingProjectArguments = {
     projectService: Pick<ProjectService, 'createWithoutCompile'>;
     catalogService: Pick<CatalogService, 'indexCatalog'>;
     seedTrainingContent: (args: SeedTrainingContentArguments) => Promise<void>;
+    seedTrainingMetricsTrees?: (
+        args: SeedTrainingContentArguments,
+    ) => Promise<void>;
     analytics: Pick<LightdashAnalytics, 'track'>;
     trainingDataDirectory?: string;
     validateTrainingDatabase?: (databasePath: string) => Promise<void>;
@@ -90,6 +93,7 @@ export const provisionTrainingProject = async ({
     projectService,
     catalogService,
     seedTrainingContent,
+    seedTrainingMetricsTrees,
     analytics,
     trainingDataDirectory,
     validateTrainingDatabase = validatePlaygroundDatabaseBundle,
@@ -249,6 +253,19 @@ export const provisionTrainingProject = async ({
                         )}`,
                     );
                     catalogIndexErrorType = getErrorType(error);
+                }
+
+                if (content.metricsTrees?.length && seedTrainingMetricsTrees) {
+                    try {
+                        await seedTrainingMetricsTrees({
+                            projectUuid,
+                            user,
+                            content,
+                        });
+                    } catch (error) {
+                        await projectModel.delete(projectUuid);
+                        throw error;
+                    }
                 }
 
                 outcomeTracked = true;

@@ -112,6 +112,16 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                 {!viewOnly && (
                     <MetricsSidebar
                         nodes={flow.sidebarNodes}
+                        onAddMetric={(node) =>
+                            flow.addMetricsToCanvas([
+                                {
+                                    catalogSearchUuid: node.id,
+                                    name: node.data.metricName,
+                                    label: node.data.label,
+                                    tableName: node.data.tableName,
+                                },
+                            ])
+                        }
                         yamlDriversByTarget={yamlDriversByTarget}
                         hasMore={hasMoreMetrics}
                         isLoadingMore={isLoadingMoreMetrics}

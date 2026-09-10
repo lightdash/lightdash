@@ -367,7 +367,17 @@ const AiAgentNewThreadPage: FC = () => {
                 h="unset"
             >
                 <Stack flex={1} py="lg">
-                    <Stack align="center" gap={6}>
+                    <Stack
+                        align="center"
+                        gap={6}
+                        data-tour-scope="view:AiAgent"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid"
+                        data-tour-label="Explore an AI agent"
+                        data-tour-docs="agents.mdx#intro:1"
+                        data-tour-return="none"
+                        data-tour-resultdocs="agents/use-ai-agents.mdx#core-capabilities:li1"
+                    >
                         <Box className={styles.agentAvatarWrap}>
                             <LightdashUserAvatar
                                 size="lg"
@@ -419,6 +429,10 @@ const AiAgentNewThreadPage: FC = () => {
                                 ta="center"
                                 maw={600}
                                 className="ld-pre-wrap"
+                                data-tour-scope="view:AiAgent"
+                                data-tour-result="1"
+                                data-tour-label="Read the agent description"
+                                data-tour-docs="agents/effective-analytics-with-agents.mdx#think-specialized-not-general:1"
                             >
                                 {agent.description}
                             </Text>

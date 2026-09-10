@@ -124,10 +124,10 @@ export const LearnDoneModal: FC<Props> = ({
                         data-learn-all-done
                     >
                         <span className={styles.overline}>Recommendation</span>
-                        <h2>Every module is complete</h2>
+                        <h2>Every available walkthrough is complete</h2>
                         <p>
-                            There is nothing left to recommend. Start any module
-                            again from the library.
+                            There is nothing left to recommend. Start any
+                            walkthrough again from the library.
                         </p>
                     </Box>
                 )}

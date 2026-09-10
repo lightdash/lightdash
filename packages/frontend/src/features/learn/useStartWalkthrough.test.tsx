@@ -4,13 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
-const { track, openInCopy } = vi.hoisted(() => ({
+const { track, openInCopy, navigate } = vi.hoisted(() => ({
     track: vi.fn(),
+    navigate: vi.fn(),
     openInCopy: vi.fn(),
 }));
 
 vi.mock('react-router', () => ({
-    useNavigate: () => vi.fn(),
+    useNavigate: () => navigate,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -34,8 +35,19 @@ vi.mock('../scopeTours/trainingCopy', () => ({
 describe('useStartWalkthrough', () => {
     beforeEach(() => {
         localStorage.clear();
+        sessionStorage.clear();
+        navigate.mockClear();
         track.mockClear();
         openInCopy.mockClear();
+    });
+
+    it('does not start an unsupported module or open its old reader', () => {
+        const { result } = renderHook(() => useStartWalkthrough('training-1'));
+        act(() => result.current.start('view:Analytics', 'card'));
+        expect(navigate).not.toHaveBeenCalled();
+        expect(openInCopy).not.toHaveBeenCalled();
+        expect(track).not.toHaveBeenCalled();
+        expect(localStorage.getItem('lightdash.learn.started')).toBeNull();
     });
 
     it('records the start, where it came from, and opens the copy', () => {
