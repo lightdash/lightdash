@@ -29,6 +29,7 @@ import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 type Props = {
     projectUuid: string;
     dataAppViz: DataAppViz;
+    isActive: boolean;
     /** This chart type's registry entry, when it is a registry install */
     registryEntry: RegistryChartTypeListItem | null;
     onClose: () => void;
@@ -39,6 +40,7 @@ type Props = {
 const ChartTypeDetailModal: FC<Props> = ({
     projectUuid,
     dataAppViz,
+    isActive,
     registryEntry,
     onClose,
     onPreview,
@@ -48,6 +50,7 @@ const ChartTypeDetailModal: FC<Props> = ({
     const canFork = useCanCreateDataApp(projectUuid);
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
+    const isDetailActive = isActive && !isForkOpen;
     const upgradeMutation = useInstallRegistryChartType();
     const { track } = useTracking();
     const registryUpdate =
@@ -88,6 +91,11 @@ const ChartTypeDetailModal: FC<Props> = ({
             <MantineModal
                 opened
                 onClose={onClose}
+                modalRootProps={{
+                    closeOnEscape: isDetailActive,
+                    closeOnClickOutside: isDetailActive,
+                    trapFocus: isDetailActive,
+                }}
                 title={
                     <Group gap="xs" wrap="nowrap">
                         <MantineIcon icon={getChartTypeIcon(dataAppViz.icon)} />
