@@ -216,7 +216,17 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
         return (
             <>
                 <ItemDetailProvider>
-                    <Stack h="100%" flex={1}>
+                    <Stack
+                        h="100%"
+                        flex={1}
+                        data-tour-scope="delete:VirtualView"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/tables"
+                        data-tour-label="Inspect the available tables"
+                        data-tour-docs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                        data-tour-return="none"
+                        data-tour-resultdocs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                    >
                         <Can
                             I="manage"
                             this={subject('Explore', {

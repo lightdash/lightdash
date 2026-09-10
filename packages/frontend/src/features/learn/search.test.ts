@@ -16,12 +16,25 @@ describe('Learn search', () => {
         ['date zoom', 'view:Dashboard'],
         ['date granularity', 'view:Dashboard'],
         ['Custom Dimensions', 'manage:CustomFields'],
-        ['export to csv', 'manage:ExportCsv'],
+        ['download chart results', 'manage:ExportCsv'],
         ['custom dimenson', 'manage:CustomFields'],
         ['create a dashboard', 'manage:Dashboard'],
         ['manage:CustomFields', 'manage:CustomFields'],
     ])('ranks %s with the relevant walkthrough first', (query, scope) => {
         expect(search(query)[0]?.scope).toBe(scope);
+    });
+
+    it('finds both export walkthroughs before unrelated modules', () => {
+        expect(
+            search('export to csv')
+                .slice(0, 2)
+                .map((module) => module.scope),
+        ).toEqual(
+            expect.arrayContaining([
+                'manage:ExportCsv',
+                'manage:ChangeCsvResults',
+            ]),
+        );
     });
 
     it.each(['', '   ', '?!', 'how do I'])(

@@ -29,6 +29,7 @@ export const useLearnAvailability = () => {
     const agentsVisible = aiSettings.data?.aiAgentsVisible === true;
     const open = useMemo<Record<LearnGate, boolean>>(
         () => ({
+            softDelete: health.data?.softDelete.enabled === true,
             enterprise: isEnterprise,
             // Data apps are Enterprise as well as flagged: without a licence
             // the app endpoints refuse and nothing seeds an app to practise
@@ -36,7 +37,13 @@ export const useLearnAvailability = () => {
             dataApps: isEnterprise && dataAppsOn,
             aiAgents: isEnterprise && copilotOn && agentsVisible,
         }),
-        [isEnterprise, dataAppsOn, copilotOn, agentsVisible],
+        [
+            isEnterprise,
+            dataAppsOn,
+            copilotOn,
+            agentsVisible,
+            health.data?.softDelete.enabled,
+        ],
     );
     const isOpen = useCallback(
         (module: LearnModule) => module.gate === null || open[module.gate],

@@ -102,6 +102,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
             DownloadFileType.CSV,
         );
 
+        const [hasExported, setHasExported] = useState(false);
         const { isLoading: isExporting, mutateAsync: exportMutation } =
             useMutation(
                 ['export-results', fileType],
@@ -150,6 +151,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                 },
                 {
                     onMutate: () => {
+                        setHasExported(false);
                         showToastInfo({
                             title: 'Exporting results',
                             subtitle: 'This may take a few minutes...',
@@ -161,6 +163,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     onSuccess: (response) => {
                         pollJobStatus(response.jobId)
                             .then(async (details) => {
+                                if (!details?.fileUrl) {
+                                    throw new Error(
+                                        'The export did not return a download URL.',
+                                    );
+                                }
                                 const link = document.createElement('a');
                                 link.href = details?.fileUrl;
                                 link.setAttribute(
@@ -172,6 +179,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 document.body.appendChild(link);
                                 link.click();
                                 link.remove();
+                                setHasExported(true);
                                 notifications.hide(TOAST_KEY);
 
                                 if (details?.truncated) {
@@ -228,7 +236,21 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             value: Limit.TABLE,
                         },
                         {
-                            label: 'All results',
+                            label: (
+                                <span
+                                    data-tour-scope="manage:ChangeCsvResults"
+                                    data-tour-step="2"
+                                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                    data-tour-label="Choose All results"
+                                    data-tour-title="Change the rows exported"
+                                    data-tour-docs="explore/share-charts.mdx#choosing-how-many-rows-an-export-contains:p2:1"
+                                    data-tour-interactive="true"
+                                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"] >> [data-tour-anchor="export-results"] >> [data-tour-anchor="export-choose-download"]?'
+                                    data-tour-then='[data-tour-anchor="export-download"]'
+                                >
+                                    All results
+                                </span>
+                            ),
                             value: Limit.ALL,
                         },
                         {
@@ -331,7 +353,22 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     </Stack>
                 )}
 
-                <Paper p="md">
+                <Paper
+                    p="md"
+                    data-tour-scope="manage:ChangeCsvResults"
+                    data-tour-step="1"
+                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                    data-tour-label="Choose which rows to export"
+                    data-tour-busy='[data-tour-anchor="csv-export-pending"]'
+                    data-tour-docs="explore/share-charts.mdx#choosing-how-many-rows-an-export-contains:1"
+                    data-tour-return="none"
+                    data-tour-resultdocs="explore/share-charts.mdx#choosing-how-many-rows-an-export-contains:p2:1"
+                    data-tour-anchor={
+                        isExporting || !hasExported
+                            ? 'csv-export-pending'
+                            : undefined
+                    }
+                >
                     <Stack gap="lg">
                         <Stack gap="sm">
                             <Stack gap={4}>

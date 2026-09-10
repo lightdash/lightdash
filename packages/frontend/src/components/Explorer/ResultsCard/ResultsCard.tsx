@@ -238,6 +238,8 @@ const ResultsCard: FC = memo(() => {
                                         // manage:ExportCsv: the export
                                         // dialog for the results table. See
                                         // scripts/scope-tours.
+                                        data-tour-anchor="export-results"
+                                        data-tour-hint="Open the export dialog"
                                         data-tour-scope="manage:ExportCsv"
                                         data-tour-step="2"
                                         data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"

@@ -32,6 +32,7 @@ import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
+import { useRecentlyDeletedAccess } from '../../features/recentlyDeleted/hooks/useRecentlyDeletedAccess';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -82,6 +83,7 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
 };
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
+    const canManageDeletedContent = useRecentlyDeletedAccess(projectUuid);
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -218,6 +220,16 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     <MetricsLink projectUuid={projectUuid} asMenu />
                 )}
 
+                {canManageDeletedContent && (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUrlIdentifier}/recently-deleted`}
+                        data-tour-nav="recently-deleted"
+                        data-tour-hint="Open Recently deleted"
+                    >
+                        Recently deleted
+                    </Menu.Item>
+                )}
                 <ReviewRequestsMenuItem projectUuid={projectUuid} />
 
                 {hasFavorites ? (

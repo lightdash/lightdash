@@ -13,6 +13,7 @@ import { getTrainingProjectScopes } from '@lightdash/common';
  *   SMOKE_BASE_URL   (default http://localhost:3030)
  *   SMOKE_EMAIL / SMOKE_PASSWORD   (required: a learner account on that instance)
  *   SMOKE_SCOPES     comma-separated subset (default every generated tour)
+ *   SMOKE_THUMBNAIL_STEP optional 1-based step to capture with --thumbnails
  *
  * With --thumbnails, the page as the learner sees it at the action step is
  * saved to packages/frontend/src/features/learn/thumbnails/<scope>.jpg for
@@ -41,6 +42,19 @@ if (!EMAIL || !PASSWORD) {
 }
 const STEP_TIMEOUT_MS = 90_000;
 const THUMBNAILS = process.argv.includes('--thumbnails');
+const THUMBNAIL_STEP =
+    process.env.SMOKE_THUMBNAIL_STEP === undefined
+        ? null
+        : Number(process.env.SMOKE_THUMBNAIL_STEP);
+if (
+    THUMBNAIL_STEP !== null &&
+    (!Number.isInteger(THUMBNAIL_STEP) || THUMBNAIL_STEP < 1)
+) {
+    throw new Error('SMOKE_THUMBNAIL_STEP must be a positive integer');
+}
+if (THUMBNAIL_STEP !== null && !THUMBNAILS) {
+    throw new Error('SMOKE_THUMBNAIL_STEP requires --thumbnails');
+}
 const THUMBNAIL_DIR = path.join(
     root,
     'packages/frontend/src/features/learn/thumbnails',
@@ -188,7 +202,20 @@ const runTour = async (
                 ),
         );
     while (true) {
-        const state = await tourState(page);
+        // Saving a virtual view reloads the page. Retry a read interrupted
+        // by that navigation without treating the walkthrough as failed.
+        const state = await tourState(page).catch((error: unknown) => {
+            if (
+                error instanceof Error &&
+                error.message.includes('Execution context was destroyed')
+            )
+                return null;
+            throw error;
+        });
+        if (!state) {
+            await page.waitForTimeout(400);
+            continue;
+        }
         if (!state.open) {
             closedSince ??= Date.now();
             if (Date.now() - closedSince > 5_000) {
@@ -282,7 +309,9 @@ const runTour = async (
             step &&
             lastStep > 0 &&
             !thumbnailTaken &&
-            step.target.includes('data-tour-step="2"')
+            (THUMBNAIL_STEP === null
+                ? step.target.includes('data-tour-step="2"')
+                : lastStep === THUMBNAIL_STEP)
         ) {
             thumbnailTaken = true;
             await page.waitForTimeout(600);
@@ -298,7 +327,17 @@ const runTour = async (
                 shot,
             );
         }
-        if (step?.advanceOnTargetInput) {
+        const typingTargetActive =
+            step?.advanceOnTargetInput &&
+            step.target &&
+            (await page.evaluate(
+                (selector) =>
+                    document
+                        .querySelector(selector)
+                        ?.hasAttribute('data-tour-active') === true,
+                step.target,
+            ));
+        if (typingTargetActive) {
             // A typed step: the card offers a value; take it, as a learner
             // in a hurry would. Typing anything else would do as well.
             const useIt = page
@@ -316,6 +355,17 @@ const runTour = async (
         }
         if (step && !step.advanceOnTargetClick && state.button) {
             if (state.button.ready) {
+                if (
+                    scope === 'manage:MetricsTree' &&
+                    state.button.label === 'Got it'
+                ) {
+                    // The fallback card can finish even when save navigation
+                    // was blocked. Require the persisted tree to be on screen.
+                    await page.locator(step.target).waitFor({
+                        state: 'visible',
+                        timeout: 30_000,
+                    });
+                }
                 await page
                     .locator('[data-tour-card]')
                     .getByRole('button', { name: state.button.label! })
@@ -381,6 +431,19 @@ const main = async () => {
     const scopes = Object.keys(SCOPE_TOURS).filter(
         (s) => !wanted || wanted.includes(s),
     );
+    if (THUMBNAIL_STEP !== null) {
+        if (scopes.length === 0)
+            throw new Error(
+                'SMOKE_THUMBNAIL_STEP requires a selected walkthrough',
+            );
+        for (const scope of scopes) {
+            if (THUMBNAIL_STEP > SCOPE_TOURS[scope].steps.length) {
+                throw new Error(
+                    `SMOKE_THUMBNAIL_STEP ${THUMBNAIL_STEP} exceeds ${scope}'s ${SCOPE_TOURS[scope].steps.length} steps`,
+                );
+            }
+        }
+    }
     const browser = await chromium.launch();
     const page = await browser.newPage({
         viewport: { width: 1440, height: 900 },

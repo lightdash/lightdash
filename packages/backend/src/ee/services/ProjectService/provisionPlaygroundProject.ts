@@ -30,6 +30,7 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type CatalogService } from '../../../services/CatalogService/CatalogService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
+import { loadPlaygroundContent } from './loadPlaygroundContent';
 import { type PlaygroundContent } from './playgroundContentTypes';
 
 export type ProvisionPlaygroundProjectArguments = {
@@ -77,19 +78,17 @@ export const loadPlaygroundBundle = async (
     explores: (Explore | ExploreError)[];
     content: PlaygroundContent;
 }> => {
-    const [exploresJson, contentJson] = await Promise.all([
+    const [exploresJson, content] = await Promise.all([
         fs.readFile(path.join(dataDirectory, 'explores.json'), 'utf8'),
-        fs.readFile(path.join(dataDirectory, 'content.json'), 'utf8'),
+        loadPlaygroundContent(dataDirectory),
         validatePlaygroundDatabase(
             path.join(dataDirectory, 'jaffle_shop.duckdb'),
         ),
     ]);
 
     let explores: unknown;
-    let content: unknown;
     try {
         explores = JSON.parse(exploresJson);
-        content = JSON.parse(contentJson);
     } catch (error) {
         throw new Error('Playground bundle contains invalid JSON', {
             cause: error,
@@ -98,29 +97,9 @@ export const loadPlaygroundBundle = async (
     if (!Array.isArray(explores)) {
         throw new Error('Playground explores bundle must contain an array');
     }
-    if (
-        !content ||
-        typeof content !== 'object' ||
-        !('version' in content) ||
-        content.version !== 1 ||
-        !('space' in content) ||
-        !content.space ||
-        typeof content.space !== 'object' ||
-        !('name' in content.space) ||
-        typeof content.space.name !== 'string' ||
-        !('path' in content.space) ||
-        typeof content.space.path !== 'string' ||
-        !('charts' in content) ||
-        !Array.isArray(content.charts) ||
-        !('dashboard' in content) ||
-        !content.dashboard ||
-        typeof content.dashboard !== 'object'
-    ) {
-        throw new Error('Playground content bundle is invalid');
-    }
     return {
         explores: explores as (Explore | ExploreError)[],
-        content: content as PlaygroundContent,
+        content,
     };
 };
 

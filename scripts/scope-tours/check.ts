@@ -297,7 +297,7 @@ export const checkTours = (
                 );
             }
             if (
-                marker.busy &&
+                marker.busy?.match(PATH_SELECTOR) &&
                 !files.some((f) =>
                     readFileSync(f, 'utf8').includes(
                         marker.busy!.match(PATH_SELECTOR)![2],

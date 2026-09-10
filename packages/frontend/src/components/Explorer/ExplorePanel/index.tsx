@@ -274,6 +274,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     primary source's explore; shown above an added source's
                     picker they read as its header, which they are not. */}
                 <Group
+                    data-tour-scope="manage:VirtualView"
+                    data-tour-step="1"
+                    data-tour-route="/projects/:projectUuid/tables/:tableName"
+                    data-tour-label="Inspect the updated virtual view"
+                    data-tour-busy='[data-tour-anchor="virtual-view-editor"]'
+                    data-tour-docs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                    data-tour-return="none"
+                    data-tour-resultdocs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:p2:1"
                     justify="space-between"
                     display={isGuidedMerge ? 'none' : undefined}
                 >
@@ -311,6 +319,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
                                     <ActionIcon
+                                        data-tour-anchor="virtual-view-actions"
+                                        data-tour-hint="Open virtual view actions"
                                         aria-label="Virtual view actions"
                                         variant="transparent"
                                     >
@@ -325,6 +335,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     icon={IconPencil}
                                                 />
                                             }
+                                            data-tour-anchor="virtual-view-edit"
+                                            data-tour-hint="Edit the virtual view"
                                             onClick={handleEditVirtualView}
                                         >
                                             <Text fz="xs" fw={500}>
@@ -364,6 +376,15 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     />
                                                 }
                                                 color="red"
+                                                data-tour-scope="delete:VirtualView"
+                                                data-tour-step="2"
+                                                data-tour-route="/projects/:projectUuid/tables/:tableName"
+                                                data-tour-title="Delete a virtual view"
+                                                data-tour-label="Delete the virtual view"
+                                                data-tour-docs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                                                data-tour-interactive="true"
+                                                data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-sql-runner"] >> [data-tour-anchor="sql-runner-editor"] >> [data-tour-anchor="sql-runner-run"] >> [data-tour-anchor="sql-cta-menu"] >> [data-tour-anchor="sql-cta-virtual-view"] >> [data-tour-anchor="sql-create-virtual-view"] >> [data-tour-anchor="virtual-view-name"] >> [data-tour-anchor="virtual-view-create-submit"] >> [data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-search"] >> [data-tour-anchor="explore-section"][data-tour-value="Virtual Views"] >> [data-tour-anchor="explore-table"][data-tour-value="Orders by status"] >> [data-tour-anchor="virtual-view-actions"]'
+                                                data-tour-then='[data-tour-anchor="modal-confirm"]'
                                                 onClick={
                                                     handleDeleteVirtualView
                                                 }

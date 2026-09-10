@@ -385,19 +385,26 @@ export const useCanvasFlow = ({
         ],
     );
 
-    // Programmatic add (used by "add drivers" affordance). Places new nodes above
-    // the anchor so the upstream-flowing layout reads naturally before the user
+    // Adds sidebar metrics beside existing nodes, or YAML drivers above their
+    // target so the upstream-flowing layout reads naturally before the user
     // applies dagre. Falls back to a minimal node built from YAML edge metadata
     // when the driver isn't in `allNodes` (e.g. it's in an unloaded catalog page).
     const addMetricsToCanvas = useCallback(
         (drivers: YamlDriverInfo[], anchorNodeId?: string) => {
+            if (viewOnly) return;
             setCurrentNodes((nodes) => {
                 const existingIds = new Set(nodes.map((n) => n.id));
                 const anchor = anchorNodeId
                     ? nodes.find((n) => n.id === anchorNodeId)
                     : undefined;
-                const baseX = anchor?.position.x ?? 0;
-                const baseY = (anchor?.position.y ?? 0) - 220;
+                const baseX = anchor
+                    ? anchor.position.x
+                    : nodes.length > 0
+                      ? Math.max(...nodes.map((node) => node.position.x)) + 320
+                      : 0;
+                const baseY = anchor
+                    ? anchor.position.y - 220
+                    : (nodes[0]?.position.y ?? 0);
 
                 const newDrivers = drivers.filter(
                     (d) => !existingIds.has(d.catalogSearchUuid),
@@ -432,7 +439,7 @@ export const useCanvasFlow = ({
                 return [...nodes, ...toAdd];
             });
         },
-        [allNodes, setCurrentNodes],
+        [allNodes, setCurrentNodes, viewOnly],
     );
 
     // Reset layout when initial edges or nodes change

@@ -57,20 +57,18 @@ import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
-type CardState = 'soon' | 'ready' | 'started' | 'done';
+type CardState = 'ready' | 'started' | 'done';
 
 const stateOf = (
     module: LearnModule,
     started: string[],
     completed: string[],
 ): CardState =>
-    !module.available
-        ? 'soon'
-        : completed.includes(module.scope)
-          ? 'done'
-          : started.includes(module.scope)
-            ? 'started'
-            : 'ready';
+    module.available && completed.includes(module.scope)
+        ? 'done'
+        : module.available && started.includes(module.scope)
+          ? 'started'
+          : 'ready';
 
 const ModuleCard: FC<{
     module: LearnModule;
@@ -85,7 +83,7 @@ const ModuleCard: FC<{
     return (
         <Box
             component="article"
-            className={`${styles.card} ${state === 'soon' ? styles.cardSoon : ''}`}
+            className={styles.card}
             data-learn-module={module.scope}
             data-learn-state={state === 'started' ? 'ready' : state}
         >
@@ -109,42 +107,43 @@ const ModuleCard: FC<{
             )}
             <Box className={styles.foot}>
                 <Box className={styles.footStatus}>
-                    {state === 'soon' ? (
-                        <span>Coming soon</span>
-                    ) : state === 'done' ? (
+                    {state === 'done' ? (
                         <span className={styles.done}>
                             <MantineIcon icon={IconCircleCheck} size={14} />
                             Complete
                         </span>
                     ) : (
-                        <span>{module.stepCount} steps</span>
+                        <span>
+                            {module.available
+                                ? `${module.stepCount} steps`
+                                : 'Coming Soon'}
+                        </span>
                     )}
                     {note && <span>{note}</span>}
                 </Box>
-                {state !== 'soon' && (
-                    <Button
-                        size="compact-sm"
-                        variant="default"
-                        loading={opening}
-                        onClick={() => onStart(module.scope)}
-                    >
-                        {state === 'done'
-                            ? 'Start again'
-                            : state === 'started'
-                              ? 'Resume'
-                              : 'Start'}
-                    </Button>
-                )}
+                <Button
+                    size="compact-sm"
+                    variant="default"
+                    loading={opening}
+                    disabled={!module.available}
+                    onClick={() => onStart(module.scope)}
+                >
+                    {!module.available
+                        ? 'Coming Soon'
+                        : state === 'done'
+                          ? 'Start again'
+                          : state === 'started'
+                            ? 'Resume'
+                            : 'Start'}
+                </Button>
             </Box>
         </Box>
     );
 };
 
 /**
- * The learner's library: every feature they can practise in the training
- * project, one card each, grouped as the scope registry groups them. Start
- * opens the walkthrough in a fresh copy of the training project and brings
- * the learner back here when it ends.
+ * The learner's library: one card per covered scope, grouped by the scope
+ * registry. Walkthroughs open a training copy; unsupported modules remain Coming Soon.
  */
 const LearnPage: FC = () => {
     const { user } = useApp();
@@ -288,14 +287,14 @@ const LearnPage: FC = () => {
                 organizationUuid: organizationUuid ?? null,
                 trainingProjectUuid: trainingProject?.projectUuid ?? null,
                 hasTrainingProject: !!trainingProject,
-                // Counted against this instance's catalogue, so the numbers
+                // Counted against available walkthroughs, so the numbers
                 // are the ones the learner sees rather than every scope the
                 // browser has ever recorded progress for.
-                moduleCount: catalogue.length,
-                startedCount: catalogue.filter((module) =>
+                moduleCount: available.length,
+                startedCount: available.filter((module) =>
                     started.includes(module.scope),
                 ).length,
-                completedCount: catalogue.filter((module) =>
+                completedCount: available.filter((module) =>
                     completed.includes(module.scope),
                 ).length,
             },
@@ -307,7 +306,7 @@ const LearnPage: FC = () => {
         previewRedirect,
         organizationUuid,
         trainingProject,
-        catalogue,
+        available,
         started,
         completed,
         track,
@@ -390,7 +389,7 @@ const LearnPage: FC = () => {
                                 <h3>{upNext.title}</h3>
                                 <p>{upNext.blurb}</p>
                                 <Box className={styles.heroFoot}>
-                                    <span>{upNext.stepCount} steps</span>
+                                    <span>{`${upNext.stepCount} steps`}</span>
                                     <Button
                                         variant="filled"
                                         color="indigo"

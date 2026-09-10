@@ -83,6 +83,7 @@ const buildArguments = (
         duration: 0,
     }));
     const seedTrainingContent = vi.fn(async () => undefined);
+    const seedTrainingMetricsTrees = vi.fn(async () => undefined);
     const validateTrainingDatabase = vi.fn(async () => undefined);
     const track = vi.fn();
     const getFeatureFlag = vi.fn(async () => ({
@@ -103,6 +104,7 @@ const buildArguments = (
             projectService: { createWithoutCompile },
             catalogService: { indexCatalog },
             seedTrainingContent,
+            seedTrainingMetricsTrees,
             analytics: { track },
             trainingDataDirectory: path.resolve(
                 __dirname,
@@ -119,12 +121,27 @@ const buildArguments = (
         createWithoutCompile,
         indexCatalog,
         seedTrainingContent,
+        seedTrainingMetricsTrees,
         track,
         getFeatureFlag,
     };
 };
 
 describe('provisionTrainingProject', () => {
+    it('seeds saved metrics trees after catalog indexing and removes an incomplete project', async () => {
+        const mocks = buildArguments();
+        mocks.seedTrainingMetricsTrees.mockRejectedValueOnce(
+            new Error('missing metric'),
+        );
+        await expect(provisionTrainingProject(mocks.args)).rejects.toThrow(
+            'missing metric',
+        );
+        expect(mocks.indexCatalog.mock.invocationCallOrder[0]).toBeLessThan(
+            mocks.seedTrainingMetricsTrees.mock.invocationCallOrder[0],
+        );
+        expect(mocks.deleteProject).toHaveBeenCalledWith(projectUuid);
+    });
+
     it('refuses when Learn is switched off for the organization', async () => {
         const mocks = buildArguments();
         mocks.getFeatureFlag.mockResolvedValueOnce({

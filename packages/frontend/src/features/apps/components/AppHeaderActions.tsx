@@ -367,6 +367,14 @@ const AppHeaderActions: FC<Props> = ({
                     {navItem}
                     {askAiItem}
                     <Menu.Item
+                        data-tour-scope="view:DataApp"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/apps/:appUuid/view"
+                        data-tour-label="Click View network"
+                        data-tour-title="Open and inspect a data app"
+                        data-tour-docs="data-apps.mdx#network-inspector:1-2"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-apps"] >> [data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"] >> [data-tour-anchor="app-actions"]'
                         leftSection={
                             <MantineIcon icon={IconArrowsUpDown} size={14} />
                         }
