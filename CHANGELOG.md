@@ -1,3 +1,10 @@
+# [2.185.0](https://github.com/lightdash/lightdash/compare/2.184.7...2.185.0) (2026-09-10)
+
+
+### Features
+
+* provision internal analytics previews through an admin endpoint ([#28849](https://github.com/lightdash/lightdash/issues/28849)) ([5c3e62a](https://github.com/lightdash/lightdash/commit/5c3e62af5f3a9c06e394e074523455bbe2b80308))
+
 ## [2.184.7](https://github.com/lightdash/lightdash/compare/2.184.6...2.184.7) (2026-09-10)
 
 

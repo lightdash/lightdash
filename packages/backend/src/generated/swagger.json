@@ -50598,6 +50598,32 @@
             "ApiOrganizationDesignFileResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ApiOrganizationDesignFile_"
             },
+            "ApiSuccess__projectUuid-string--url-string--created-boolean__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "created": {
+                                "type": "boolean"
+                            },
+                            "url": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["created", "url", "projectUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Organization": {
                 "properties": {
                     "pgWire": {
@@ -60954,7 +60980,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.184.7",
+        "version": "2.185.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -87959,6 +87985,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/analytics-project": {
+            "post": {
+                "operationId": "EnsureAnalyticsProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess__projectUuid-string--url-string--created-boolean__"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or refresh the current organization's internal analytics preview.",
+                "summary": "Ensure internal analytics project",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/org": {
