@@ -224,10 +224,15 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         void fetch(url, { method: 'DELETE', keepalive: true });
     });
 
+    // Saving can navigate before React has committed VIEW mode. Allow only
+    // that successfully saved destination through the old editor's blocker.
+    const savedTreePathRef = useRef<string | null>(null);
+
     // Block in-app navigation when there are unsaved changes,
     // but allow query-string-only changes (e.g. filter updates)
     const blocker = useBlocker(({ currentLocation, nextLocation }) => {
         if (!isEditMode || !hasUnsavedChanges) return false;
+        if (nextLocation.pathname === savedTreePathRef.current) return false;
         if (nextLocation.pathname === currentLocation.pathname) return false;
         return true;
     });
@@ -348,10 +353,10 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                 payload,
             });
 
+            const savedTreePath = `/projects/${projectUuid}/metrics/canvas/${result.slug}`;
+            savedTreePathRef.current = savedTreePath;
             dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
-            void navigate(
-                `/projects/${projectUuid}/metrics/canvas/${result.slug}`,
-            );
+            void navigate(savedTreePath);
         }
     };
 

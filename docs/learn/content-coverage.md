@@ -1,10 +1,35 @@
 # Curriculum coverage contract
 
-The coverage audit reconciles the base permissions returned by
-`getTrainingProjectScopes()` plus the explicit analytics and agent-document obligations with generated
-`SCOPE_TOURS`, `CONCEPT_LESSONS`, and explicit curriculum
-dispositions in `scripts/scope-tours/coverage.ts`. The audit does not change permission grants or lesson runtime behavior. Modifier variants such as
-`@self` and `@space` are omitted, matching `buildLearnCatalogue()`.
+Learn offers generated in-app walkthroughs and disabled **Coming Soon** cards.
+Reading lessons and their acknowledgment flow have been removed. The catalogue
+has 42 walkthrough scope entries (40 distinct click paths) and 21 Coming Soon
+scope entries, explicitly listed in `features/learn/comingSoon.ts`.
+
+The coverage audit reconciles `getTrainingProjectScopes()`, the explicit analytics
+and agent-document obligations, generated `SCOPE_TOURS`, and dispositions in
+`scripts/scope-tours/coverage.ts`. It does not change permission grants. Modifier
+variants such as `@self` and `@space` are omitted, matching the catalogue.
+
+| Category | Meaning | Blocks release |
+| --- | --- | --- |
+| `generated` | A walkthrough exists under this exact scope key | No |
+| `comingSoon` | An explicit unsupported module, shown as Coming Soon | No |
+| `related` | Another tour is relevant, but this permission's outcome is unverified | Yes |
+| `pending` | An unapproved content or prerequisite gap | Yes |
+| `excluded` | A documented baseline/background permission or absent product surface | No |
+| `unclassified` | A scope has neither a walkthrough nor a disposition | Yes |
+
+Coming Soon is the product decision confirmed on 2026-09-10: unsupported modules
+remain visible while new interactive delivery formats are designed in separate
+tickets. They are not counted as generated content, completed learning, or
+available recommendations. There are five explicit exclusions for background
+permissions and absent surfaces. Removing a walkthrough without an explicit
+disposition still fails the audit.
+
+The strict release audit rejects pending, related, unclassified, stale, and
+invalid dispositions. Only explicitly listed Coming Soon entries may ship as
+unsupported modules. New tickets for delivery formats have not been created by
+this change; CS-212 remains the parent curriculum reference.
 
 Run from the repository root with the pinned Node version:
 
@@ -14,52 +39,15 @@ pnpm scope-tours:coverage:test
 pnpm scope-tours:release-check
 ```
 
-The pure `auditCoverage` function accepts scopes, available lesson keys, dispositions,
-and a strict-mode boolean. Its report keeps these categories separate:
+Generated content presence does not certify browser execution, teaching quality,
+seed availability, or training-copy isolation. Those require separate checks.
+Canonical documentation still supplies walkthrough prose through frontend
+markers and `scope-tours:generate`; the separate reading generator is removed.
 
-| Category | Meaning | Blocks release |
-| --- | --- | --- |
-| `generated` | A generated walkthrough or concept lesson exists under this exact scope key | No |
-| `related` | Another tour is relevant, but teaching this permission's action is unverified | Yes |
-| `pending` | Content, prerequisites, or a format decision is outstanding | Yes |
-| `excluded` | An explicit reason documents a baseline/background permission or absent product surface | No |
-| `unclassified` | A base permission has neither a direct tour nor a disposition | Yes |
+`manage:DeletedContent` uses the project-scoped Recently deleted entry. Its menu
+and direct route require the existing DeletedContent ability and soft-delete
+flag. The walkthrough restores a chart deleted in the learner's copy. Permanent
+deletion is outside this path.
 
-`generated` measures generated content presence, including reading lessons. It does not certify successful
-browser execution, accurate teaching, seed data, or training-copy isolation; those
-require separate checks. In particular, the create-virtual-view lesson does not
-prove managing or deleting a virtual view.
-
-The release audit is a structural coverage gate; generation, content checks, and
-browser smoke verification remain required.
-
-The normal audit allows documented pending and related work. Both normal and
-release audits fail for unclassified scopes, stale dispositions (a removed scope
-or a newly available direct lesson), unavailable referenced tours, or dispositions
-without a reason and ticket. `--release` additionally fails for pending and related
-work. A release failure must be resolved with content or an evidenced curriculum
-decision; dropping a card is not completion.
-
-The release catalogue contains 33 walkthroughs and 30 concept entries. Five
-baseline/background permissions or absent product surfaces have explicit
-exclusions. These are not placeholder modules. CI runs the strict release audit,
-so removing a lesson without an evidenced disposition fails even if the library
-would otherwise hide the missing card.
-
-CLI, embedding, promotion, validation, and other workflows that cannot safely be
-practised in a training copy use documentation lessons. Reading completion is
-explicitly acknowledged and does not certify performing an action. Analytics
-(CS-232) and agent knowledge documents (CS-238) are explicit content obligations
-outside the training permission set; providing their lessons grants no access.
-
-Canonical documentation supplies the generated prose. Run
-`pnpm scope-tours:concepts:test` and, with `LIGHTDASH_DOCS_DIR` set,
-`pnpm scope-tours:concepts:check` to verify extraction and source freshness.
-Documentation changes must merge before dependent generated content. The two
-metrics-tree walkthroughs additionally require the seeded saved tree and its
-project-local metric identifiers in each training copy.
-
-The prior CS-222 exclusion is superseded: `manage:DeletedContent` now has a
-Recently deleted product page and documentation, so the curriculum teaches its
-restoration and permanent-deletion workflow as a reading lesson. Exclusions are
-rechecked against current source rather than inferred from canceled tickets.
+See [walkthrough priorities](walkthrough-priorities.md) for the nine completed
+in-app outcomes and their verification evidence.

@@ -135,6 +135,8 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                     form={FORM_ID}
                     disabled={!form.values.name || !sql}
                     loading={isLoadingVirtual}
+                    data-tour-anchor="virtual-view-create-submit"
+                    data-tour-hint="Create the virtual view"
                     {...createTourAction}
                 >
                     Create

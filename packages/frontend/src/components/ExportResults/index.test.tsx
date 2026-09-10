@@ -1,5 +1,5 @@
 import { createConditionalFormattingConfigWithSingleColor } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
     afterEach,
@@ -80,6 +80,67 @@ describe('ExportResults', () => {
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
     });
+
+    it.each(['completed', 'error'])(
+        'holds walkthrough completion until the download job ends (%s)',
+        async (status) => {
+            const user = userEvent.setup();
+            const { container } = renderExportResults();
+            const button = screen.getByTestId('chart-export-results-button');
+            const busy = () =>
+                container.querySelector(
+                    '[data-tour-anchor="csv-export-pending"]',
+                );
+
+            // A successful first export must not let a later attempt complete early.
+            await user.click(button);
+            await waitFor(() =>
+                expect(
+                    HTMLAnchorElement.prototype.click,
+                ).toHaveBeenCalledOnce(),
+            );
+            await waitFor(() => expect(busy()).toBeNull());
+
+            let finishJob!: (response: Response) => void;
+            const pendingJob = new Promise<Response>((resolve) => {
+                finishJob = resolve;
+            });
+            const previousFetch = fetch;
+            vi.stubGlobal(
+                'fetch',
+                vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+                    input.toString().includes('/schedulers/job/job-id/status')
+                        ? pendingJob
+                        : previousFetch(input, init),
+                ),
+            );
+            await user.click(button);
+            await waitFor(() => expect(button).toBeEnabled());
+            expect(busy()).not.toBeNull();
+            expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledOnce();
+            await act(async () =>
+                finishJob(
+                    mockApiResponse({
+                        status,
+                        details: { fileUrl: 'about:blank' },
+                    }),
+                ),
+            );
+            if (status === 'completed') {
+                await waitFor(() =>
+                    expect(
+                        HTMLAnchorElement.prototype.click,
+                    ).toHaveBeenCalledTimes(2),
+                );
+                await waitFor(() => expect(busy()).toBeNull());
+            } else {
+                expect(
+                    HTMLAnchorElement.prototype.click,
+                ).toHaveBeenCalledOnce();
+                expect(busy()).not.toBeNull();
+            }
+        },
+    );
 
     it.each([
         { valueLabel: 'Formatted', onlyRaw: false },

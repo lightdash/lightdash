@@ -19,6 +19,7 @@ export const outputPath = path.join(
 
 export type Marker = {
     scope: string;
+    covers?: string[];
     /** Order within the walkthrough; absent on a `data-tour-result` marker. */
     step?: number;
     /** Order among the further result surfaces. */
@@ -240,6 +241,7 @@ export const findMarkers = (file: string): Marker[] => {
         if (attrs.scope && (attrs.step || attrs.result || attrs.look)) {
             markers.push({
                 scope: attrs.scope,
+                covers: attrs.covers?.split(/[,\s]+/).filter(Boolean),
                 step: attrs.step ? Number(attrs.step) : undefined,
                 result: attrs.result ? Number(attrs.result) : undefined,
                 look: attrs.look ? Number(attrs.look) : undefined,
@@ -748,5 +750,33 @@ export const buildTours = (
         };
     });
 
+    const primaryTours = new Map(tours.map((tour) => [tour.scope, tour]));
+    const coveredBy = new Map<string, string>();
+    for (const marker of markers) {
+        for (const covered of marker.covers ?? []) {
+            if (!scopes.has(covered)) {
+                throw new Error(
+                    `${marker.file}: unknown scope ${covered} in data-tour-covers`,
+                );
+            }
+            if (marker.step !== 2 || !marker.interactive) {
+                throw new Error(
+                    `${marker.file}: data-tour-covers belongs on the interactive action marker`,
+                );
+            }
+            if (
+                primaryTours.has(covered) ||
+                (coveredBy.has(covered) &&
+                    coveredBy.get(covered) !== marker.scope)
+            ) {
+                throw new Error(
+                    `${marker.file}: duplicate walkthrough coverage for ${covered}`,
+                );
+            }
+            if (coveredBy.has(covered)) continue;
+            coveredBy.set(covered, marker.scope);
+            tours.push({ ...primaryTours.get(marker.scope)!, scope: covered });
+        }
+    }
     return { tours, markers, files };
 };

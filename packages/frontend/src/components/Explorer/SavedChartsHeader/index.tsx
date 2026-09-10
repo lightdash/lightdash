@@ -133,6 +133,7 @@ import { SectionName } from '../../../types/Events';
 import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { useVerifiedChartSavePending } from './useVerifiedChartSavePending';
 const ChangeChartExploreModal = lazy(
     () => import('../../common/modal/ChangeChartExploreModal'),
 );
@@ -167,7 +168,10 @@ const isChartPath = (
  * actions menu; the green check in the header is the result.
  */
 const verifyTourAction = {
+    'data-tour-anchor': 'verify-chart',
+    'data-tour-hint': 'Verify the chart',
     'data-tour-scope': 'manage:ContentVerification',
+    'data-tour-covers': 'view:ContentVerification',
     'data-tour-step': '2',
     'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid',
     'data-tour-label': 'Click Verify',
@@ -231,6 +235,10 @@ const SavedChartsHeader: FC = () => {
     const dashboardIdentifier = savedChart?.dashboardSlug ?? dashboardUuid;
 
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
+    const isVerifiedChartSavePending = useVerifiedChartSavePending(
+        savedChart?.uuid,
+        hasUnsavedChanges,
+    );
 
     const { query } = useExplorerQuery();
     const itemsMap = query.data?.fields;
@@ -629,7 +637,22 @@ const SavedChartsHeader: FC = () => {
                 <div style={{ flex: 1 }}>
                     {savedChart && projectUuid && (
                         <>
-                            <Group gap={4}>
+                            <Group
+                                gap={4}
+                                data-tour-scope="manage:VerifiedContent"
+                                data-tour-step="1"
+                                data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                data-tour-label="Inspect the saved verified chart"
+                                data-tour-busy='[data-tour-anchor="verified-edit-pending"]'
+                                data-tour-docs="explore/verified-content.mdx#who-can-edit-or-delete-verified-content:1-2"
+                                data-tour-return="none"
+                                data-tour-resultdocs="explore/verified-content.mdx#what-happens-to-verification-when-content-is-edited:li1"
+                                data-tour-anchor={
+                                    isVerifiedChartSavePending
+                                        ? 'verified-edit-pending'
+                                        : undefined
+                                }
+                            >
                                 {!isFullscreen && (
                                     <TitleBreadCrumbs
                                         projectUuid={projectUuid}
@@ -744,7 +767,16 @@ const SavedChartsHeader: FC = () => {
                                 onConfirm={() => setIsRenamingChart(false)}
                             />
                             {!isFullscreen && (
-                                <Group gap="xs">
+                                <Group
+                                    gap="xs"
+                                    data-tour-scope="manage:DeletedContent"
+                                    data-tour-step="1"
+                                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                    data-tour-label="Inspect the restored chart"
+                                    data-tour-docs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:p2:1-3"
+                                    data-tour-return='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]'
+                                    data-tour-resultdocs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:li1"
+                                >
                                     <UpdatedInfo
                                         updatedAt={savedChart.updatedAt}
                                         user={savedChart.updatedByUser}
@@ -1220,6 +1252,8 @@ const SavedChartsHeader: FC = () => {
                                                     />
                                                 }
                                                 color="red"
+                                                data-tour-anchor="delete-chart"
+                                                data-tour-hint="Delete the chart"
                                                 onClick={
                                                     deleteModalHandlers.open
                                                 }

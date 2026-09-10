@@ -518,6 +518,16 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     ...SPACES_ROUTES,
     ...METRICS_ROUTES,
     {
+        path: 'recently-deleted',
+        lazy: async () => {
+            const RecentlyDeleted = await loadLazyRouteDefault(
+                './pages/RecentlyDeleted',
+                () => import('./pages/RecentlyDeleted'),
+            );
+            return { Component: RecentlyDeleted };
+        },
+    },
+    {
         path: 'learn',
         lazy: async () => {
             const Learn = await loadLazyRouteDefault(

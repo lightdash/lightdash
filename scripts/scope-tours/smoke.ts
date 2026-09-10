@@ -202,7 +202,20 @@ const runTour = async (
                 ),
         );
     while (true) {
-        const state = await tourState(page);
+        // Saving a virtual view reloads the page. Retry a read interrupted
+        // by that navigation without treating the walkthrough as failed.
+        const state = await tourState(page).catch((error: unknown) => {
+            if (
+                error instanceof Error &&
+                error.message.includes('Execution context was destroyed')
+            )
+                return null;
+            throw error;
+        });
+        if (!state) {
+            await page.waitForTimeout(400);
+            continue;
+        }
         if (!state.open) {
             closedSince ??= Date.now();
             if (Date.now() - closedSince > 5_000) {
@@ -342,6 +355,17 @@ const runTour = async (
         }
         if (step && !step.advanceOnTargetClick && state.button) {
             if (state.button.ready) {
+                if (
+                    scope === 'manage:MetricsTree' &&
+                    state.button.label === 'Got it'
+                ) {
+                    // The fallback card can finish even when save navigation
+                    // was blocked. Require the persisted tree to be on screen.
+                    await page.locator(step.target).waitFor({
+                        state: 'visible',
+                        timeout: 30_000,
+                    });
+                }
                 await page
                     .locator('[data-tour-card]')
                     .getByRole('button', { name: state.button.label! })

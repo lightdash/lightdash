@@ -46,14 +46,8 @@ jobs:
               run: pnpm test:playground-content
             - name: Content coverage tests
               run: pnpm scope-tours:coverage:test
-            - name: Every curriculum permission has release content
+            - name: Every curriculum permission has a walkthrough or explicit disposition
               run: pnpm scope-tours:release-check
-            - name: Concept generator tests
-              run: pnpm scope-tours:concepts:test
-            - name: Concept lessons match canonical documentation
-              env:
-                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
-              run: pnpm scope-tours:concepts:check
             - name: Generated tours are up to date
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs

@@ -540,6 +540,10 @@ export const HeaderVirtualView: FC<{
                     </Paper>
                     Editing
                     <TextInput
+                        data-tour-anchor="virtual-view-edit-name"
+                        data-tour-hint="Rename the virtual view"
+                        data-tour-input="true"
+                        data-tour-suggest="Orders grouped by status"
                         fz="sm"
                         fw={500}
                         value={name}
@@ -562,6 +566,14 @@ export const HeaderVirtualView: FC<{
                                 handleUpdateVirtualView({ handleDiff: true })
                             }
                             color="green"
+                            data-tour-scope="manage:VirtualView"
+                            data-tour-step="2"
+                            data-tour-route="/projects/:projectUuid/tables/:tableName"
+                            data-tour-title="Edit a virtual view"
+                            data-tour-label="Save the virtual view"
+                            data-tour-docs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                            data-tour-interactive="true"
+                            data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-sql-runner"] >> [data-tour-anchor="sql-runner-editor"] >> [data-tour-anchor="sql-runner-run"] >> [data-tour-anchor="sql-cta-menu"] >> [data-tour-anchor="sql-cta-virtual-view"] >> [data-tour-anchor="sql-create-virtual-view"] >> [data-tour-anchor="virtual-view-name"] >> [data-tour-anchor="virtual-view-create-submit"] >> [data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-search"] >> [data-tour-anchor="explore-section"][data-tour-value="Virtual Views"] >> [data-tour-anchor="explore-table"][data-tour-value="Orders by status"] >> [data-tour-anchor="virtual-view-actions"] >> [data-tour-anchor="virtual-view-edit"] >> [data-tour-anchor="virtual-view-discard"]? >> [data-tour-anchor="virtual-view-edit-name"]'
                         >
                             Save
                         </Button>

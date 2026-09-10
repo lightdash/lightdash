@@ -26,7 +26,6 @@ import {
     GROUP_ORDER,
     type LearnModule,
 } from '../../packages/frontend/src/features/learn/catalogue';
-import { CONCEPT_LESSONS } from '../../packages/frontend/src/features/learn/conceptLessons.generated';
 import { docsDir, findMarkers, frontendSrc, listTsx, slugify } from './lib';
 
 /** Words that name the act of using a feature, never the feature itself. */
@@ -97,18 +96,6 @@ export const citationForScope = (): Map<string, Citation> => {
             }
         });
     });
-    for (const [scope, lesson] of Object.entries(CONCEPT_LESSONS)) {
-        if (byScope.has(scope)) continue;
-        const firstSource = lesson.sections[0];
-        if (!firstSource)
-            throw new Error(`Concept lesson has no citation: ${scope}`);
-        const url = new URL(firstSource.sourceUrl);
-        byScope.set(scope, {
-            step: 0,
-            page: url.pathname.slice(1),
-            anchor: url.hash.slice(1),
-        });
-    }
     return new Map(
         [...byScope].map(
             ([scope, { page, anchor }]) => [scope, { page, anchor }] as const,

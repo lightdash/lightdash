@@ -134,6 +134,11 @@ const SortableColumn: FC<{
                 </Text>
             </Group>
             <ActionIcon
+                data-tour-anchor="catalog-column-toggle"
+                data-tour-hint="Toggle the {value} column"
+                data-tour-value={column.name}
+                aria-label={`Toggle ${column.name} column`}
+                aria-pressed={column.visible}
                 size="xs"
                 color="ldGray.5"
                 style={{
@@ -447,14 +452,50 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     size="xs"
                                     color="ldGray.5"
                                     display={embedToken ? 'none' : undefined}
+                                    data-tour-anchor="catalog-columns"
+                                    data-tour-hint="Manage column visibility"
+                                    data-tour-scope="view:SpotlightTableConfig"
+                                    data-tour-step="2"
+                                    data-tour-route="/projects/:projectUuid/metrics"
+                                    data-tour-label="Open Manage column visibility"
+                                    data-tour-docs="explore/metrics-catalog.mdx#view-catalog-column-configuration:1-2"
+                                    data-tour-title="View catalog column settings"
+                                    data-tour-interactive="true"
+                                    data-tour-via='[data-tour-nav="metrics"]'
                                 >
                                     <MantineIcon icon={IconEye} />
                                 </ActionIcon>
                             </Tooltip>
                         </Popover.Target>
-                        <Popover.Dropdown p="sm" miw={270}>
+                        <Popover.Dropdown
+                            p="sm"
+                            miw={270}
+                            data-tour-scope="view:SpotlightTableConfig"
+                            data-tour-step="1"
+                            data-tour-route="/projects/:projectUuid/metrics"
+                            data-tour-label="Read the column configuration"
+                            data-tour-docs="explore/metrics-catalog.mdx#view-catalog-column-configuration:1-2"
+                            data-tour-return="none"
+                            data-tour-resultdocs="explore/metrics-catalog.mdx#view-catalog-column-configuration:p2:1-3"
+                        >
                             <Stack gap="sm">
-                                <Stack gap={2}>
+                                <Stack
+                                    gap={2}
+                                    data-tour-scope="manage:SpotlightTableConfig"
+                                    data-tour-step="1"
+                                    data-tour-route="/projects/:projectUuid/metrics"
+                                    data-tour-label="Inspect the saved column settings"
+                                    data-tour-busy='[data-tour-anchor="catalog-save-pending"]'
+                                    data-tour-docs="explore/metrics-catalog.mdx#save-catalog-column-configuration:1"
+                                    data-tour-return="none"
+                                    data-tour-resultdocs="explore/metrics-catalog.mdx#save-catalog-column-configuration:1"
+                                    data-tour-anchor={
+                                        isCreatingSpotlightConfig ||
+                                        hasConfigChanges
+                                            ? 'catalog-save-pending'
+                                            : undefined
+                                    }
+                                >
                                     <DndContext
                                         sensors={sensors}
                                         collisionDetection={closestCenter}
@@ -534,6 +575,14 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 size="xs"
                                                 h={28}
                                                 onClick={handleSave}
+                                                data-tour-scope="manage:SpotlightTableConfig"
+                                                data-tour-step="2"
+                                                data-tour-route="/projects/:projectUuid/metrics"
+                                                data-tour-label="Save for everyone"
+                                                data-tour-docs="explore/metrics-catalog.mdx#save-catalog-column-configuration:2"
+                                                data-tour-title="Save catalog column settings"
+                                                data-tour-interactive="true"
+                                                data-tour-via='[data-tour-nav="metrics"] >> [data-tour-anchor="catalog-columns"] >> [data-tour-anchor="catalog-column-toggle"][data-tour-value="Description"]'
                                                 loading={
                                                     isCreatingSpotlightConfig
                                                 }
