@@ -403,6 +403,42 @@ describe('MCP tool contracts', () => {
         },
     );
 
+    it.each([false, true])(
+        'defers detailed polling guidance to results: expressions=%s',
+        async (filterExpressionsEnabled) => {
+            const mcpService = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await mcpService.createServer(
+                makeMcpServerOptions({
+                    runSqlEnabled: true,
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
+            const queryTools = mockRegisteredMcpTools.filter(({ name }) =>
+                [
+                    McpToolName.RUN_SQL,
+                    McpToolName.RUN_METRIC_QUERY,
+                    McpToolName.GET_QUERY_RESULT,
+                ].some((toolName) => toolName === name),
+            );
+            expect(queryTools).toHaveLength(3);
+            for (const { name, config } of queryTools) {
+                expect(
+                    config.description.includes(
+                        'follow the polling instructions in the response',
+                    ),
+                ).toBe(name !== McpToolName.GET_QUERY_RESULT);
+                expect(config.description).not.toContain(
+                    'retry get_query_result',
+                );
+                expect(config.description).not.toContain(
+                    'Warehouse execution timeouts',
+                );
+            }
+        },
+    );
+
     it('matches the current MCP tool and prompt contract snapshot', async () => {
         const mcpService = makeMcpService();
 

@@ -6,14 +6,13 @@ export const MCP_QUERY_SYNC_WAIT_LABEL = `~${MCP_QUERY_SYNC_WAIT_SECONDS}s serve
 
 export const MCP_QUERY_CLIENT_SUPPORT_NOTE = `Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.`;
 
-export const MCP_QUERY_TIMING_NOTE = `This tool waits up to ${MCP_QUERY_SYNC_WAIT_LABEL}. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.`;
+export const MCP_QUERY_TIMING_NOTE = `Each get_query_result call waits up to ${MCP_QUERY_SYNC_WAIT_LABEL}. If a polling request times out or its connection fails, retry get_query_result with the same queryUuid. Warehouse execution timeouts are governed by the warehouse connection, not the MCP wait window.`;
 
 export const MCP_QUERY_ERROR_NOTE = `Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.`;
 
 export const MCP_QUERY_STRUCTURED_RUNNING_NOTE = `heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.`;
 
 export const MCP_QUERY_COMMON_NOTES = `- ${MCP_QUERY_CLIENT_SUPPORT_NOTE}
-- ${MCP_QUERY_TIMING_NOTE}
 - ${MCP_QUERY_ERROR_NOTE}`;
 
 type McpVisualizationSourceTool =
