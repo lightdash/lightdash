@@ -1,3 +1,10 @@
+## [2.184.7](https://github.com/lightdash/lightdash/compare/2.184.6...2.184.7) (2026-09-10)
+
+
+### Bug Fixes
+
+* **ai:** clarify required filter overrides ([#28970](https://github.com/lightdash/lightdash/issues/28970)) ([ef2b916](https://github.com/lightdash/lightdash/commit/ef2b9169722c1bc1d754b4a402aec53f11a94701))
+
 ## [2.184.6](https://github.com/lightdash/lightdash/compare/2.184.5...2.184.6) (2026-09-09)
 
 
