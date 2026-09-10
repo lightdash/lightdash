@@ -21,7 +21,9 @@ runs:
 
         - name: Install npm for CLI installation tests
           if: inputs.install-npm == 'true'
-          run: pnpm add -g npm@11.16.0 --config.minimumReleaseAge=4320
+          run: |
+              pnpm add -g npm@11.16.0 --config.minimumReleaseAge=4320
+              echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
           shell: bash
 
         - name: Install Dependencies
