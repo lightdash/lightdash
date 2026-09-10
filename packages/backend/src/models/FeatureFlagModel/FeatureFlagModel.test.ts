@@ -147,6 +147,65 @@ const buildFakeWriteDatabase = ({
 };
 
 describe('FeatureFlagModel', () => {
+    describe('Learn', () => {
+        it('is off by default', async () => {
+            const model = buildModel({}, buildFakeDatabase({}));
+            await expect(
+                model.get({
+                    user: dbUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.EnableLearn,
+                enabled: false,
+            });
+        });
+
+        it.each([true, false])(
+            'honors an organization override of %s',
+            async (enabled) => {
+                const model = buildModel(
+                    {},
+                    buildFakeDatabase({
+                        flag: { default_enabled: false },
+                        orgOverride: { enabled },
+                    }),
+                );
+                await expect(
+                    model.get({
+                        user: dbUser,
+                        featureFlagId: FeatureFlags.EnableLearn,
+                    }),
+                ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled });
+            },
+        );
+
+        it('can be enabled through the self-hosted allowlist', async () => {
+            const model = buildModel({
+                enabledFeatureFlags: new Set([FeatureFlags.EnableLearn]),
+            });
+            await expect(
+                model.get({
+                    user: dbUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                }),
+            ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled: true });
+        });
+
+        it('is enabled automatically in previews', async () => {
+            const model = buildModel(
+                { previewFeatureFlags: { enabled: true } },
+                buildFakeDatabase({}),
+            );
+            await expect(
+                model.get({
+                    user: dbUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                }),
+            ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled: true });
+        });
+    });
+
     describe('check telemetry', () => {
         beforeEach(() => {
             vi.mocked(record).mockReset();

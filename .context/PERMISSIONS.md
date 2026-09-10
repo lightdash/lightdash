@@ -353,12 +353,12 @@ ability.can(
 
 | Content | Omitted / `'default'` | `'roles'` |
 | --- | --- | --- |
-| Dashboard | JWT flags and their defaults only | JWT flags OR actor embed scopes |
+| Dashboard | JWT flags and their defaults only | Actor embed scopes only |
 | AI agent | Existing AI prerequisites | Existing AI prerequisites AND `view:EmbedAiAgent` |
 
 The mode is signed into the JWT. `'jwt'` and `'legacy'` are not accepted aliases.
-AI default does not mean unconditional access. Dashboard role mode is additive:
-to control a capability solely through its scope, set its JWT flag to false.
+AI default does not mean unconditional access. Dashboard role mode ignores
+capability flags and their defaults, including PDF export's enabled default.
 
 Dashboard scopes are considered only when `writeActions.permissionsMode` is
 `'roles'` and the embed JWT has a `writeActions` actor that
@@ -370,30 +370,28 @@ If there is no resolved write actor, use only the JWT values in the default
 mode; dashboard `'roles'` mode rejects the request. Do not use the embed
 creator, organization admin, or a default role as an implicit actor.
 
-In dashboard `'roles'` mode, legacy flags and scopes are combined with OR semantics.
+In dashboard `'roles'` mode, only the actor's embed scopes grant capabilities.
 Omitted/`'default'` uses only JWT flags and their existing defaults:
 
 ```typescript
-const isAllowed =
-    jwtCapability === true ||
-    writeActorAbility.can(
-        'view',
-        subject('EmbedExplore', {
-            organizationUuid,
-            projectUuid,
-        }),
-    );
+const isAllowed = writeActorAbility.can(
+    'view',
+    subject('EmbedExplore', {
+        organizationUuid,
+        projectUuid,
+    }),
+);
 ```
 
-A JWT value of `false` must not override a granted scope. Conversely, adding a
-`writeActions` actor must not remove a capability that the JWT explicitly set
-to `true`.
+In `'roles'` mode, JWT values of `true`, `false`, and omitted all have the same
+effect: the scope decides. Adding a `writeActions` actor without selecting
+`'roles'` must not change JWT-based capability access.
 
 For structured legacy options, resolve the effective value centrally rather
 than scattering boolean checks through the UI. For example, the dashboard
 filter scope grants interactivity for all dashboard filters, while preserving
-hidden-filter presentation. Without that scope, retain the JWT's `enabled`
-and `allowedFilters` behavior.
+hidden-filter presentation. Without that scope, disable filter interactivity
+in role mode. Default mode retains the JWT's `enabled` and `allowedFilters` behavior.
 
 #### AI access: opt-in role-based authorization
 
@@ -433,8 +431,8 @@ service accounts and grant/revoke/re-grant using identical JWTs.
 Dashboard JWTs reuse `writeActions.permissionsMode`:
 
 - Omitted/`'default'`: JWT flags only, including PDF's enabled default.
-- `'roles'`: JWT flags OR the corresponding embed scopes.
-  True JWT flags still grant access when the scope is absent.
+- `'roles'`: only the corresponding embed scopes grant capabilities.
+  JWT flags and their defaults are ignored, including for PDF export.
   A write actor must resolve successfully; no implicit fallback actor is used.
 
 This applies to backend abilities, dashboard response capabilities, and
@@ -445,14 +443,14 @@ The mode does not change standalone chart, data app, or metrics catalog embeds.
 
 To opt in, issue dashboard tokens with `permissionsMode: 'roles'` under the
 existing `writeActions` user/service-account configuration. Change the actor's
-scopes and reload the same token to verify revocation/re-grant with flags false.
-Changing a role never revokes a true JWT flag. Tokens that omit the mode ignore
+scopes and reload the same token to verify revocation/re-grant with flags true,
+false, and omitted. Removing the last effective scope grant revokes the capability.
+Tokens that omit the mode ignore
 dashboard scopes; integrations must explicitly opt in. No data migration is required.
 
 For future dashboard capabilities, add independent scopes under
 `ScopeGroup.EMBED`, not new JWT capability booleans or per-feature enforcement
-switches. Keep existing flags for backward compatibility. External documentation
-are follow-up work after implementation and live validation.
+switches. Keep existing flags for backward compatibility in default mode.
 
 #### Implementation checklist for embed capabilities
 
@@ -484,27 +482,27 @@ are follow-up work after implementation and live validation.
    and the existing ability context on the frontend, using the embed target's
    identifiers. The account already serializes these ability rules. Do not add
    JWT flags, separate permission response objects, or frontend token overlays.
-6. For existing dashboard capabilities, retain JWT flags OR embed scopes.
+6. For existing dashboard capabilities, choose JWT flags or embed scopes by mode.
    The scope projection handles the mode centrally: default imports no
-   dashboard scopes, roles imports the actor's embed scopes. Do not gate or
-   disable existing JWT flags. New scope-only dashboard capabilities require
+   dashboard scopes, roles imports the actor's embed scopes. Ignore existing
+   JWT capability flags in roles mode. New scope-only dashboard capabilities require
    `'roles'` mode and the scope; do not add another JWT flag.
    Keep the JWT payload unchanged. Backend dashboard
-   responses retain their existing fields; combine scopes with flags there for
+   responses retain their existing fields; resolve the selected source there for
    existing UI consumers. Structured filters and parameters remain in the
-   existing account access fields. Preserve omitted-field defaults in both modes.
-7. Verify three cases: no write actor uses only the JWT; JWT `true` remains
-   allowed with an actor; JWT `false` plus a granted actor scope is allowed only
+   existing account access fields. Preserve omitted-field defaults in default mode only.
+7. Verify three cases: no write actor uses only the JWT in default mode; JWT `true`
+   without a scope is denied in roles mode; JWT `false` plus a granted actor scope is allowed only
    in `'roles'` mode and remains denied in omitted/`'default'` mode.
    Also verify at least one system role and one custom role through the embed
    UI. In dashboard role mode, also test true/false/omitted flags with scopes
    on/off, unresolved actors, structured controls, and UI/backend agreement.
 
 During the compatibility period, existing JWT fields are an API contract:
-keep accepting them, avoid changing their meaning, and document any eventual
+keep accepting them in default mode, and document any eventual
 removal through the normal deprecation and release-note process.
-In both modes, preserve omitted-field defaults too, including PDF export being enabled when
-`canExportPagePdf` is absent.
+In default mode, preserve omitted-field defaults, including PDF export being enabled when
+`canExportPagePdf` is absent. In roles mode, PDF export requires its scope.
 
 Organization and project role grants remain additive. To restrict an embed
 through a project custom role, avoid also granting the capability through the

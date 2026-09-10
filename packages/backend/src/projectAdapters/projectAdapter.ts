@@ -23,6 +23,7 @@ import {
     ManifestInput,
 } from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
+import { NativeGitProjectAdapter } from './nativeGitProjectAdapter';
 
 export const projectAdapterFromConfig = async (
     config:
@@ -110,6 +111,17 @@ export const projectAdapterFromConfig = async (
                     `Missing repository for GitHub project`,
                 );
             }
+            if (config.semanticLayer === 'lightdash') {
+                return new NativeGitProjectAdapter({
+                    provider: DbtProjectType.GITHUB,
+                    warehouseClient,
+                    token: githubToken,
+                    repository: config.repository,
+                    branch: config.branch,
+                    projectSubPath: config.project_sub_path,
+                    hostDomain: config.host_domain,
+                });
+            }
             return new DbtGithubProjectAdapter({
                 analytics,
                 warehouseClient,
@@ -150,6 +162,18 @@ export const projectAdapterFromConfig = async (
                 selector: config.selector,
             });
         case DbtProjectType.BITBUCKET:
+            if (config.semanticLayer === 'lightdash') {
+                return new NativeGitProjectAdapter({
+                    provider: DbtProjectType.BITBUCKET,
+                    warehouseClient,
+                    token: config.personal_access_token,
+                    username: config.username,
+                    repository: config.repository,
+                    branch: config.branch,
+                    projectSubPath: config.project_sub_path,
+                    hostDomain: config.host_domain,
+                });
+            }
             return new DbtBitBucketProjectAdapter({
                 analytics,
                 warehouseClient,

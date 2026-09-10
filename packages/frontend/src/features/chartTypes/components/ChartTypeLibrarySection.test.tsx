@@ -58,6 +58,7 @@ const makeItem = (
     publishedAt: '2026-06-30T00:00:00.000Z',
     tags: [],
     changelog: '',
+    icon: null,
     minLightdashVersion: null,
     vizSchema: {
         fields: [

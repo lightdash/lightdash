@@ -1,7 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import fs from 'fs';
 import path from 'path';
-import { expect } from 'vitest';
 import { ApiClient, Body } from './api-client';
 
 export const BIGQUERY_CREDENTIALS_PATH = path.resolve(
@@ -229,7 +228,6 @@ export async function createProject(
         dbtVersion: 'v1.12',
         warehouseConnection,
     });
-    expect(resp.status).toBe(200);
     return resp.body.results.project.projectUuid;
 }
 
@@ -251,27 +249,28 @@ async function waitForV1JobCompletion(
 }
 
 /**
- * Create a project, run a full refresh, and return its UUID once compiled.
- * Throws if the refresh job fails so callers fail loudly instead of querying
- * an empty project.
+ * Kick off a full refresh (dbt compile + warehouse catalog) and return the job
+ * to wait on, so callers can overlap the compile with other work.
  */
-export async function createAndRefreshProject(
+export async function startProjectRefresh(
     client: ApiClient,
-    projectName: string,
-    warehouseConnection: Record<string, unknown>,
+    projectUuid: string,
 ): Promise<string> {
-    const projectUuid = await createProject(
-        client,
-        projectName,
-        warehouseConnection,
-    );
-
     const refreshResp = await client.post<Body<{ jobUuid: string }>>(
         `/api/v1/projects/${projectUuid}/refresh`,
     );
-    expect(refreshResp.status).toBe(200);
+    return refreshResp.body.results.jobUuid;
+}
 
-    const { jobUuid } = refreshResp.body.results;
+/**
+ * Block until a refresh job finishes. Throws if it fails so callers fail
+ * loudly instead of querying an empty project.
+ */
+export async function waitForProjectRefresh(
+    client: ApiClient,
+    projectName: string,
+    jobUuid: string,
+): Promise<void> {
     const outcome = await waitForV1JobCompletion(client, jobUuid);
     if (outcome === 'ERROR') {
         const jobResp = await client.get<
@@ -290,6 +289,23 @@ export async function createAndRefreshProject(
             `Project refresh timed out for "${projectName}" (job ${jobUuid} still running after poll window)`,
         );
     }
+}
+
+/**
+ * Create a project, run a full refresh, and return its UUID once compiled.
+ */
+export async function createAndRefreshProject(
+    client: ApiClient,
+    projectName: string,
+    warehouseConnection: Record<string, unknown>,
+): Promise<string> {
+    const projectUuid = await createProject(
+        client,
+        projectName,
+        warehouseConnection,
+    );
+    const jobUuid = await startProjectRefresh(client, projectUuid);
+    await waitForProjectRefresh(client, projectName, jobUuid);
     return projectUuid;
 }
 
@@ -300,7 +316,6 @@ export async function deleteProjectsByName(
     const resp = await client.get<
         Body<{ projectUuid: string; name: string }[]>
     >('/api/v1/org/projects');
-    expect(resp.status).toBe(200);
     for (const project of resp.body.results) {
         if (names.includes(project.name)) {
             await client.delete(`/api/v1/org/projects/${project.projectUuid}`);

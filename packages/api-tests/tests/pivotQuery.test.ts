@@ -1,12 +1,9 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
-import {
-    createAndRefreshProject,
-    deleteProjectsByName,
-    getAvailableWarehouseConfigs,
-} from '../helpers/projects';
+import { getAvailableWarehouseConfigs } from '../helpers/projects';
+import { useSharedWarehouseProject } from '../helpers/shared-projects';
 
 const apiUrl = '/api/v2';
 
@@ -313,28 +310,19 @@ describe('Pivot query API', () => {
         }));
     });
 
-    // Every other warehouse: spin up a project against its jaffle dataset and
-    // run the same pivot suite. Skipped automatically when creds are absent.
-    for (const { name, config } of pivotWarehouseEntries) {
-        describe(name, () => {
-            const projectName = `pivot ${name} parity test`;
+    // Every other warehouse: run the same pivot suite against the shared
+    // project global setup created for it. Skipped when creds are absent.
+    for (const { name } of pivotWarehouseEntries) {
+        // Remote warehouses drop a connection now and then ("socket hang up");
+        // one retry keeps that transient from failing the run.
+        describe(name, { retry: 1 }, () => {
             let admin: ApiClient;
             let projectUuid: string;
 
             beforeAll(async () => {
                 admin = await login();
-                projectUuid = await createAndRefreshProject(
-                    admin,
-                    projectName,
-                    config,
-                );
+                projectUuid = await useSharedWarehouseProject(admin, name);
             }, 420_000);
-
-            afterAll(async () => {
-                if (projectUuid) {
-                    await deleteProjectsByName(admin, [projectName]);
-                }
-            });
 
             registerPivotQueryTests(name, () => ({
                 client: admin,

@@ -18,7 +18,7 @@ import {
 } from './customDimensions';
 
 export const FIXED_NUMBER_BIN_WRITE_BACK_ERROR =
-    'Fixed-number bins cannot be written back because they require a dbt model CTE. Use a fixed-width, custom-range, or custom-group bin instead.';
+    'Fixed-number bins cannot be written back because their boundaries depend on query results. Use a fixed-width, custom-range, or custom-group bin instead.';
 
 export const getCustomDimensionWriteBackError = (
     customDimension: CustomDimension,

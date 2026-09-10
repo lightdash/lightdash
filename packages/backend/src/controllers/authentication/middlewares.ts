@@ -201,6 +201,36 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         });
 };
 
+/**
+ * For routes that anonymous callers may hit (the login and invite pages read
+ * feature flags) but that the CLI also calls with a personal access token or
+ * service account: authenticate the token when one is sent, otherwise carry
+ * on unauthenticated instead of rejecting the request.
+ */
+export const allowApiKeyAuthenticationIfPresent: RequestHandler = (
+    req,
+    res,
+    next,
+) => {
+    if (!req.headers.authorization) {
+        next();
+        return;
+    }
+    allowApiKeyAuthentication(req, res, (err?: unknown) => {
+        if (err) {
+            next(err);
+            return;
+        }
+        // A token was sent but matched nothing: reject rather than answer as
+        // an anonymous caller, so a CLI with a bad key fails loudly.
+        if (req.account?.isAuthenticated() || req.user?.userUuid) {
+            next();
+            return;
+        }
+        next(new AuthorizationError('Invalid credentials'));
+    });
+};
+
 export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     const { redirect, inviteCode, isPopup } = req.query;
     req.session.oauth = {};

@@ -16,7 +16,13 @@ import {
     getMcpAnalystPrompt,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
-import { isProjectScopedMcpTool, McpService, McpToolName } from './McpService';
+import {
+    isProjectScopedMcpTool,
+    McpService,
+    McpToolName,
+    type McpServerToolOptions,
+} from './McpService';
+import { makeMcpServerOptions } from './McpService.mock';
 
 type RegisteredMcpTool = {
     name: string;
@@ -171,6 +177,29 @@ const defaultMcpAnalystPromptOptions = {
     filterExpressionsEnabled: false,
 };
 
+// Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
+const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
+
+// Classify new features explicitly: registration-only or text-changing.
+const registrationOnlyFeatures = {
+    mcpContentWritesEnabled: true,
+    scheduledDeliveryEnabled: true,
+} satisfies Omit<
+    McpServerToolOptions['featureAvailability'],
+    keyof typeof defaultMcpAnalystPromptOptions
+>;
+const mcpOptionCombinations = Object.keys(
+    defaultMcpAnalystPromptOptions,
+).reduce(
+    (combinations, key) =>
+        combinations.flatMap((options) =>
+            [false, true].map((enabled) => ({ ...options, [key]: enabled })),
+        ),
+    [defaultMcpAnalystPromptOptions],
+);
+
+const warnedTextLengths = new Set<string>();
+
 const inputSchemaRequirements = z.object({
     required: z.array(z.string()).optional(),
 });
@@ -234,18 +263,22 @@ describe('MCP tool contracts', () => {
     it('matches initialization guidance to the filter contract', async () => {
         const mcpService = makeMcpService();
 
-        await mcpService.createServer({
-            runMetricQueryEnabled: true,
-            filterExpressionsEnabled: false,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                runMetricQueryEnabled: true,
+                filterExpressionsEnabled: false,
+            }),
+        );
         expect(getLatestMcpServerInstructions()).not.toContain(
             MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
         );
 
-        await mcpService.createServer({
-            runMetricQueryEnabled: true,
-            filterExpressionsEnabled: true,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                runMetricQueryEnabled: true,
+                filterExpressionsEnabled: true,
+            }),
+        );
         expect(getLatestMcpServerInstructions()).toContain(
             MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
         );
@@ -265,13 +298,108 @@ describe('MCP tool contracts', () => {
         async ({ filterExpressionsEnabled }) => {
             const mcpService = makeMcpService();
 
-            await mcpService.createServer({
-                runSqlEnabled: true,
-                runMetricQueryEnabled: true,
-                filterExpressionsEnabled,
-            });
+            await mcpService.createServer(
+                makeMcpServerOptions({
+                    runSqlEnabled: true,
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
 
             expect(getLatestMcpServerInstructions()).toMatchSnapshot();
+        },
+    );
+
+    it('covers every instruction/filter configuration exactly once', () => {
+        const expectedCount =
+            2 ** Object.keys(defaultMcpAnalystPromptOptions).length;
+        expect(mcpOptionCombinations).toHaveLength(expectedCount);
+        expect(
+            new Set(
+                mcpOptionCombinations.map((options) => JSON.stringify(options)),
+            ).size,
+        ).toBe(expectedCount);
+    });
+
+    it.each(
+        mcpOptionCombinations.map((options) => ({
+            ...registrationOnlyFeatures,
+            ...options,
+        })),
+    )(
+        'guards MCP text lengths: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        async (options) => {
+            const configuration = JSON.stringify(options);
+            const mcpService = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await mcpService.createServer(makeMcpServerOptions(options));
+            const instructionCeilings = options.runSqlEnabled
+                ? { structured: 5483, expression: 9192 }
+                : { structured: 4659, expression: 8368 };
+            const instructionCeiling = options.runMetricQueryEnabled
+                ? instructionCeilings[
+                      options.filterExpressionsEnabled
+                          ? 'expression'
+                          : 'structured'
+                  ]
+                : MCP_CLIENT_TEXT_MAX_CHARS;
+
+            // Existing overages warn but cannot grow. Lower/remove these
+            // ceilings as text is shortened; snapshot updates cannot raise them.
+            const existingToolCeilings = new Map([
+                ['run_sql', 3654],
+                ['run_ai_writeback', 2651],
+                [
+                    'run_metric_query',
+                    options.filterExpressionsEnabled ? 2664 : 2430,
+                ],
+                ['get_query_result', 2219],
+                ['find_content', 2086],
+            ]);
+            const texts = [
+                ...mockRegisteredMcpTools.map(({ name, config }) => ({
+                    name,
+                    length: config.description.length,
+                    ceiling:
+                        existingToolCeilings.get(name) ??
+                        MCP_CLIENT_TEXT_MAX_CHARS,
+                })),
+                {
+                    name: 'server instructions',
+                    length: getLatestMcpServerInstructions().length,
+                    ceiling: instructionCeiling,
+                },
+            ];
+            const overages = texts.filter(({ name, length }) => {
+                const key = `${name}:${length}`;
+                if (
+                    length <= MCP_CLIENT_TEXT_MAX_CHARS ||
+                    warnedTextLengths.has(key)
+                ) {
+                    return false;
+                }
+                // Report a distinct length once, while asserting every combination.
+                warnedTextLengths.add(key);
+                return true;
+            });
+            if (overages.length > 0) {
+                process.stderr.write(
+                    `[MCP client text limit: ${configuration}]\n${overages
+                        .map(
+                            ({ name, length }) =>
+                                `${name}: ${length} chars (+${length - MCP_CLIENT_TEXT_MAX_CHARS} over ${MCP_CLIENT_TEXT_MAX_CHARS})`,
+                        )
+                        .join('\n')}\n`,
+                );
+            }
+            texts.forEach(({ name, length, ceiling }) => {
+                expect
+                    .soft(
+                        length,
+                        `${configuration}: ${name} exceeds its text ceiling; shorten the text instead of updating snapshots`,
+                    )
+                    .toBeLessThanOrEqual(ceiling);
+            });
         },
     );
 
@@ -280,11 +408,12 @@ describe('MCP tool contracts', () => {
 
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
-        await mcpService.createServer({
-            aiWritebackEnabled: true,
-            runSqlEnabled: true,
-            runMetricQueryEnabled: true,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                runSqlEnabled: true,
+                runMetricQueryEnabled: true,
+            }),
+        );
 
         const prompts = mockRegisteredMcpPrompts.map(({ name, config }) => ({
             name,
@@ -321,11 +450,12 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({
-            aiWritebackEnabled: true,
-            runSqlEnabled: false,
-            runMetricQueryEnabled: false,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                runSqlEnabled: false,
+                runMetricQueryEnabled: false,
+            }),
+        );
 
         const registeredNames = mockRegisteredMcpTools.map(({ name }) => name);
         expect(registeredNames).not.toContain(McpToolName.LIST_EXPLORES);
@@ -343,11 +473,12 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({
-            aiWritebackEnabled: true,
-            runSqlEnabled: true,
-            runMetricQueryEnabled: false,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                runSqlEnabled: true,
+                runMetricQueryEnabled: false,
+            }),
+        );
 
         const registeredNames = mockRegisteredMcpTools.map(({ name }) => name);
         expect(registeredNames).toContain(McpToolName.RUN_SQL);
@@ -360,10 +491,12 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({
-            runMetricQueryEnabled: true,
-            filterExpressionsEnabled: true,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                runMetricQueryEnabled: true,
+                filterExpressionsEnabled: true,
+            }),
+        );
 
         const registered = mockRegisteredMcpTools.find(
             ({ name }) => name === McpToolName.RUN_METRIC_QUERY,
@@ -386,10 +519,12 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({
-            runMetricQueryEnabled: true,
-            filterExpressionsEnabled: true,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                runMetricQueryEnabled: true,
+                filterExpressionsEnabled: true,
+            }),
+        );
 
         const registered = mockRegisteredMcpTools.find(
             ({ name }) => name === McpToolName.SEARCH_FIELD_VALUES,
@@ -418,10 +553,28 @@ describe('MCP tool contracts', () => {
         }).toMatchSnapshot();
     });
 
+    it.each([undefined, '00000000-0000-4000-8000-000000000001'])(
+        'derives project-switching availability from pinnedProjectUuid=%s',
+        async (pinnedProjectUuid) => {
+            const mcpService = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await mcpService.createServer(
+                makeMcpServerOptions({}, pinnedProjectUuid),
+            );
+            const names = mockRegisteredMcpTools.map(({ name }) => name);
+            expect(names.includes(McpToolName.LIST_PROJECTS)).toBe(
+                pinnedProjectUuid === undefined,
+            );
+            expect(names.includes(McpToolName.SET_PROJECT)).toBe(
+                pinnedProjectUuid === undefined,
+            );
+        },
+    );
+
     it('registers generate_hashes without project scope', async () => {
         const mcpService = makeMcpService();
 
-        await mcpService.createServer();
+        await mcpService.createServer(makeMcpServerOptions());
 
         expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
             McpToolName.GENERATE_HASHES,
@@ -432,10 +585,11 @@ describe('MCP tool contracts', () => {
     it('requires projectUuid on every project-scoped tool', async () => {
         const mcpService = makeMcpService();
 
-        await mcpService.createServer({
-            aiWritebackEnabled: true,
-            runSqlEnabled: true,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                runSqlEnabled: true,
+            }),
+        );
 
         const toolsByName = new Map(
             mockRegisteredMcpTools.map((tool) => [tool.name, tool]),
@@ -460,13 +614,17 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({ runSqlEnabled: true });
+        await mcpService.createServer(
+            makeMcpServerOptions({ runSqlEnabled: true }),
+        );
         expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
             McpToolName.RUN_SQL,
         );
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({ runSqlEnabled: false });
+        await mcpService.createServer(
+            makeMcpServerOptions({ runSqlEnabled: false }),
+        );
         expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
             McpToolName.RUN_SQL,
         );
@@ -476,13 +634,17 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({ runMetricQueryEnabled: true });
+        await mcpService.createServer(
+            makeMcpServerOptions({ runMetricQueryEnabled: true }),
+        );
         expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
             McpToolName.RUN_METRIC_QUERY,
         );
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({ runMetricQueryEnabled: false });
+        await mcpService.createServer(
+            makeMcpServerOptions({ runMetricQueryEnabled: false }),
+        );
         expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
             McpToolName.RUN_METRIC_QUERY,
         );
@@ -647,10 +809,12 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({
-            mcpContentWritesEnabled: false,
-            scheduledDeliveryEnabled: true,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                mcpContentWritesEnabled: false,
+                scheduledDeliveryEnabled: true,
+            }),
+        );
         expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
             McpToolName.CREATE_CONTENT,
         );
@@ -662,10 +826,12 @@ describe('MCP tool contracts', () => {
         );
 
         mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer({
-            mcpContentWritesEnabled: true,
-            scheduledDeliveryEnabled: false,
-        });
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                mcpContentWritesEnabled: true,
+                scheduledDeliveryEnabled: false,
+            }),
+        );
         expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
             McpToolName.CREATE_CONTENT,
         );

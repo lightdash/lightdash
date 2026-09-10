@@ -296,10 +296,9 @@ describe.each([undefined, 'default', 'roles'] as const)(
                                     }),
                                 ),
                             ).toBe(
-                                legacy === true ||
-                                    (permissionsMode === 'roles' &&
-                                        hasActor &&
-                                        granted),
+                                permissionsMode === 'roles'
+                                    ? hasActor && granted
+                                    : legacy === true,
                             );
                             expect(token).toEqual(original);
                         }

@@ -221,7 +221,8 @@ flag-gated extension: registry-only, lockfile required, screened for malicious p
 A custom chart type is a data app built from a dedicated template that declares a viz schema instead of running
 queries: the explorer hands it rows and a field mapping, and it renders. They share the pipeline, storage and
 permissions of data apps but are excluded from app listings, have their own gallery and builder, and are downloaded
-as code separately.
+as code separately. A type can carry one icon from a curated Tabler set; the as-code manifest's `icon` field round-trips
+it (omitted for non-chart-type apps), null clears it, and an off-list value is rejected on upload.
 
 Official chart types can also be installed prebuilt from a chart registry, are read-only once installed, and are
 customized by forking — the registry, library, install and fork model is documented in

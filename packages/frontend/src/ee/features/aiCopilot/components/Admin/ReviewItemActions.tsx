@@ -200,7 +200,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
 
                         {canCreatePr && !current.linkedPrUrl && (
                             <Tooltip
-                                label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
+                                label="Open a pull request against the connected project (runs in the background, may take a few minutes)"
                                 maw={260}
                             >
                                 <Button

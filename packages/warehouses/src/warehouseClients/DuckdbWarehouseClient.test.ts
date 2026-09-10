@@ -14,6 +14,7 @@ import type { Mock } from 'vitest';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
+    type DuckdbParquetSource,
     type DuckdbS3Credentials,
 } from './DuckdbWarehouseClient';
 import * as MotherduckInstanceCache from './MotherduckInstanceCache';
@@ -141,6 +142,173 @@ const createMockConnection = (
         disconnectSync: vi.fn(),
     }),
     closeSync: vi.fn(),
+});
+
+describe('internal Parquet projects', () => {
+    const scope =
+        'https://storage.googleapis.com/example/events/compacted/org_id=org-a/';
+    const url = `${scope}stream=query_events/dt=2026-09-07/part.parquet`;
+    const source = (): DuckdbParquetSource => ({
+        scope,
+        httpAuth: { bearerToken: 'test-token' },
+        tables: [{ name: 'query_events', urls: [url] }],
+    });
+    let run: Mock;
+    beforeEach(() => {
+        vi.clearAllMocks();
+        run = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () => getMockStreamResult([[{ count: 2 }]], [5])),
+                run,
+            ),
+        );
+    });
+
+    it('binds trusted views, restricts external access and refreshes the manifest each session', async () => {
+        const resolveSource = vi.fn(async () => source());
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource,
+        });
+        await client.runQuery('SELECT count(*) FROM query_events');
+        await client.runQuery('SELECT count(*) FROM query_events');
+        expect(resolveSource).toHaveBeenCalledTimes(2);
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        expect(run).toHaveBeenCalledWith(`SET allowed_paths = ['${url}'];`);
+        expect(run).toHaveBeenCalledWith('SET enable_external_access = false;');
+        expect(run).toHaveBeenCalledWith("SET temp_directory = '';");
+        expect(run).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'CREATE VIEW "query_events" AS SELECT * FROM read_parquet',
+            ),
+        );
+        expect(client.credentials).not.toHaveProperty('httpAuth');
+    });
+
+    it.each([
+        'https://storage.googleapis.com/example/events/compacted/org_id=org-b/file.parquet',
+        `${scope}../org-b/file.parquet`,
+        `${scope}%2e%2e/org-b/file.parquet`,
+        `${scope}*.parquet`,
+        '/tmp/private.parquet',
+    ])('rejects files outside the exact manifest scope: %s', async (file) => {
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => ({
+                ...source(),
+                tables: [{ name: 'query_events', urls: [file] }],
+            }),
+        });
+        await expect(
+            client.runQuery('SELECT * FROM query_events'),
+        ).rejects.toThrow();
+        expect(run).not.toHaveBeenCalledWith(
+            expect.stringContaining('CREATE SECRET'),
+        );
+    });
+
+    it.each([
+        { name: 'x"; SELECT 1; --', urls: [url] },
+        { name: 'query_events', urls: [] },
+    ])(
+        'rejects arbitrary table SQL and empty manifests: $name',
+        async (table) => {
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource: async () => ({ ...source(), tables: [table] }),
+            });
+            await expect(client.runQuery('SELECT 1')).rejects.toThrow(
+                /unique names/,
+            );
+        },
+    );
+
+    it('keeps user-supplied read_parquet forbidden', async () => {
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        await expect(
+            client.runQuery(`SELECT * FROM read_parquet('${url}')`),
+        ).rejects.toThrow(/query permissions/);
+    });
+
+    it('allows exact signed GET URLs without configuring bucket credentials', async () => {
+        const signedScope = scope.replace('org_id=', 'org_id%3D');
+        const signedUrl = `${url.replace(/=/g, '%3D')}?X-Amz-Signature=test&X-Amz-Expires=900`;
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => ({
+                scope: signedScope,
+                signedUrls: true,
+                tables: [{ name: 'query_events', urls: [signedUrl] }],
+            }),
+        });
+        await client.runQuery('SELECT count(*) FROM query_events');
+        expect(run).toHaveBeenCalledWith(
+            `SET allowed_paths = ['${signedUrl}'];`,
+        );
+        expect(run).not.toHaveBeenCalledWith(
+            expect.stringContaining('CREATE SECRET'),
+        );
+        expect(run).toHaveBeenCalledWith(
+            'SET enable_external_file_cache = false;',
+        );
+    });
+
+    it.each([
+        'SELECT sql FROM duckdb_views()',
+        'SELECT * FROM "information_schema"."views"',
+        'SELECT * FROM sqlite_master',
+        "SELECT * FROM pragma_storage_info('query_events')",
+    ])(
+        'blocks metadata queries that could disclose signed URLs: %s',
+        async (sql) => {
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource: async () => source(),
+            });
+            await expect(client.runQuery(sql)).rejects.toThrow(
+                /catalog access/,
+            );
+        },
+    );
+
+    it('redacts signed URLs from native query failures', async () => {
+        run.mockRejectedValue(new Error(`${url}?X-Amz-Signature=private`));
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        await expect(
+            client.runQuery('SELECT count(*) FROM query_events'),
+        ).rejects.toThrow(
+            /^Internal analytics query failed\. Check storage access and query permissions\.$/,
+        );
+    });
+
+    it('cannot create privileged readers from public project credentials or shared instances', () => {
+        expect(
+            () =>
+                new DuckdbWarehouseClient({
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.ANALYTICS,
+                    database: 'memory',
+                    schema: 'main',
+                }),
+        ).toThrow(/internal project service/);
+        expect(
+            () =>
+                new DuckdbWarehouseClient(
+                    {
+                        type: 'duckdb_parquet',
+                        resolveSource: async () => source(),
+                    },
+                    { instanceCacheKey: 'shared' },
+                ),
+        ).toThrow(/cannot share/);
+    });
 });
 
 describe('mapFieldTypeFromTypeId', () => {

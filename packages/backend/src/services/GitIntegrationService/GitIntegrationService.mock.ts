@@ -9,6 +9,11 @@ import {
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 
 export const PROJECT_MODEL = {
+    getAllExploresFromCache: vi.fn().mockResolvedValue({
+        another_explore: {
+            tables: { table_a: { ymlPath: 'models/nested/original.yaml' } },
+        },
+    }),
     getExploreFromCache: vi.fn(() => ({ ymlPath: 'path/to/schema.yml' })),
     getWarehouseCredentialsForProject: vi.fn(() => ({})),
     getWarehouseClientFromCredentials: vi.fn(() => warehouseClientMock),

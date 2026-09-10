@@ -6,6 +6,7 @@ import {
 } from '@casl/ability';
 import {
     CommercialFeatureFlags,
+    FeatureFlags,
     LightdashMode,
     LightdashUser,
     MemberAbility,
@@ -103,7 +104,6 @@ const lightdashConfig = {
     },
     license: {},
     customRoles: { enabled: false },
-    learn: { enabled: true },
     rudder: {},
 } as unknown as LightdashConfig;
 
@@ -448,14 +448,27 @@ describe('UserModel', () => {
             role_uuid: undefined,
         };
 
-        const createHumanModel = () => {
+        const createHumanModel = (learnEnabled = true) => {
             const model = new UserModel({
                 database: vi.fn() as unknown as Knex,
                 lightdashConfig: {
                     ...lightdashConfig,
                     customRoles: { enabled: true },
                 } as LightdashConfig,
-                featureFlagModel,
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId === FeatureFlags.EnableLearn &&
+                                learnEnabled,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
             model.getTrainingProjects = vi.fn(async () => []);
@@ -480,6 +493,21 @@ describe('UserModel', () => {
             model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
             return model;
         };
+
+        it('does not grant trainee scopes when the org Learn flag is off', async () => {
+            const model = createHumanModel(false);
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            expect(model.getTrainingProjects).not.toHaveBeenCalled();
+            expect(
+                abilityBuilder.build().can(
+                    'manage',
+                    subject('PinnedItems', {
+                        projectUuid: 'training-copy',
+                    }),
+                ),
+            ).toBe(false);
+        });
 
         it('grants the trainee layer on the org training project only', async () => {
             const model = createHumanModel();

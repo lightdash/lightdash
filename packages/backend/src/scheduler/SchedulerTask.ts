@@ -1,6 +1,7 @@
 import {
     AnyType,
     appendUuidQueryParam,
+    applyChartFilterOverrides,
     applyDimensionOverrides,
     assertUnreachable,
     BackfillDefaultUserSpacesPayload,
@@ -709,9 +710,16 @@ export default class SchedulerTask {
                 await this.schedulerService.savedChartModel.getSummary(
                     chartUuid,
                 );
+            // Saved deliveries hand the headless page the scheduler uuid so it
+            // can render with the delivery's filter overrides.
+            const chartQueryParams = new URLSearchParams();
+            if (context) chartQueryParams.set('context', context);
+            if (schedulerUuid) {
+                chartQueryParams.set('schedulerUuid', schedulerUuid);
+            }
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
-                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
+                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?${chartQueryParams.toString()}`,
                 details: {
                     name: chart.name,
                     description: chart.description,
@@ -853,9 +861,20 @@ export default class SchedulerTask {
                 ? scheduler.filters
                 : undefined;
 
+        const chartSchedulerFilters = isChartScheduler(scheduler)
+            ? scheduler.filters
+            : undefined;
+        const chartSchedulerParameters = isChartScheduler(scheduler)
+            ? scheduler.parameters
+            : undefined;
+        const sendNowSchedulerChartFilters = !schedulerUuid
+            ? chartSchedulerFilters
+            : undefined;
+
         const sendNowSchedulerParameters =
             exportOptions?.parameters ??
-            (!schedulerUuid && isDashboardScheduler(scheduler)
+            (!schedulerUuid &&
+            (isDashboardScheduler(scheduler) || isChartScheduler(scheduler))
                 ? scheduler.parameters
                 : undefined);
 
@@ -951,6 +970,7 @@ export default class SchedulerTask {
                         sendNowSchedulerDashboardFilters:
                             exportOptions?.dashboardFilters,
                         sendNowSchedulerFilters,
+                        sendNowSchedulerChartFilters,
                         sendNowSchedulerParameters,
                     });
                     if (unfurlImage.imageUrl === undefined) {
@@ -1066,6 +1086,7 @@ export default class SchedulerTask {
                             sendNowSchedulerDashboardFilters:
                                 exportOptions?.dashboardFilters,
                             sendNowSchedulerFilters,
+                            sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
                         });
                         if (!unfurlPdf.pdfFile) {
@@ -1508,6 +1529,8 @@ export default class SchedulerTask {
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
                                     pivotResults: shouldPivotResults,
+                                    schedulerFilters: chartSchedulerFilters,
+                                    parameters: chartSchedulerParameters,
                                 },
                             );
                         const downloadResult =
@@ -4186,6 +4209,9 @@ export default class SchedulerTask {
                 const shouldPivot =
                     isTableChartConfig(chart.chartConfig.config) &&
                     !!getPivotConfig(chart);
+                const chartSchedulerFilters = isChartScheduler(scheduler)
+                    ? scheduler.filters
+                    : undefined;
 
                 const {
                     rows,
@@ -4201,6 +4227,10 @@ export default class SchedulerTask {
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
+                        schedulerFilters: chartSchedulerFilters,
+                        parameters: isChartScheduler(scheduler)
+                            ? scheduler.parameters
+                            : undefined,
                     },
                     SCHEDULER_POLLING_OPTIONS,
                 );
@@ -4241,7 +4271,12 @@ export default class SchedulerTask {
                 const pivotConfig = getPivotConfig(chart);
                 const filterSummaryRows = showFilters
                     ? buildGoogleSheetsFilterSummaryRows(
-                          chart.metricQuery.filters,
+                          chartSchedulerFilters
+                              ? applyChartFilterOverrides(
+                                    chart.metricQuery.filters,
+                                    chartSchedulerFilters,
+                                )
+                              : chart.metricQuery.filters,
                           itemMap,
                       )
                     : [];
@@ -5130,7 +5165,7 @@ export default class SchedulerTask {
                                 projectUuid: schedulerPayload.projectUuid,
                                 chartUuid: savedChartUuid,
                                 context: QueryExecutionContext.SCHEDULED_CHART,
-                                filterOverrides: chartFilterOverrides,
+                                schedulerFilters: chartFilterOverrides,
                                 parameters: chartParameterOverrides,
                             },
                             SCHEDULER_POLLING_OPTIONS,

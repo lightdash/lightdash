@@ -7,6 +7,7 @@ import {
     dataAppVizSchema,
     extractDataAppDataReferences,
     getErrorMessage,
+    isChartTypeIcon,
     isSummaryExploreError,
     isValidDataAppSlug,
     ParameterError,
@@ -200,6 +201,17 @@ const validateManifest = (
                 issue(
                     'manifest',
                     `Invalid vizSchema in lightdash-app.yml (${details}).`,
+                ),
+            );
+        }
+    }
+
+    if (manifest.icon !== undefined && manifest.icon !== null) {
+        if (!isChartTypeIcon(manifest.icon)) {
+            errors.push(
+                issue(
+                    'manifest',
+                    `Invalid icon "${manifest.icon}" in lightdash-app.yml. Use one of the curated chart type icons, or null to clear it.`,
                 ),
             );
         }

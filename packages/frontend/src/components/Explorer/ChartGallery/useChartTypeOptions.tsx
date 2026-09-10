@@ -19,11 +19,11 @@ import {
     IconGauge,
     IconGitMerge,
     IconMap,
-    IconPuzzle,
     IconSquareNumber1,
     IconTable,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
 import {
     isBigNumberVisualizationConfig,
     isCartesianVisualizationConfig,
@@ -75,7 +75,7 @@ export const projectChartTypeItem = (
     label: dataAppViz
         ? getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid)
         : 'Custom chart type',
-    icon: IconPuzzle,
+    icon: getChartTypeIcon(dataAppViz?.icon ?? null),
     rotatedIcon: false,
 });
 

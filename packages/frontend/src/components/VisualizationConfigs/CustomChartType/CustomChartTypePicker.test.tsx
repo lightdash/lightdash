@@ -26,6 +26,7 @@ const makeDataAppViz = (overrides: Partial<DataAppViz>): DataAppViz => ({
     },
     createdAt: new Date('2026-06-30'),
     createdByUserUuid: 'user-1',
+    icon: null,
     registrySlug: null,
     ...overrides,
 });
@@ -106,6 +107,51 @@ describe('CustomChartTypePicker', () => {
         expect(screen.getByText('Vega (JSON editor)')).toBeDefined();
         expect(screen.getByText('Custom')).toBeDefined();
         expect(screen.getByText('Bar race')).toBeDefined();
+    });
+
+    it('shows each row with its chart type icon', () => {
+        setData([
+            makeDataAppViz({
+                dataAppVizUuid: 'a',
+                name: 'Bar race',
+                icon: 'chart-bar',
+            }),
+        ]);
+        const { container } = render();
+        openDropdown();
+
+        expect(container.querySelector('.tabler-icon-code')).not.toBeNull();
+        expect(
+            container.querySelector('.tabler-icon-chart-bar'),
+        ).not.toBeNull();
+    });
+
+    it('shows the puzzle piece in the field when nothing is selected', () => {
+        setData([]);
+        const { container } = render({}, { selected: null });
+
+        expect(container.querySelector('.tabler-icon-puzzle')).not.toBeNull();
+    });
+
+    it('shows the selected project type icon in the field instead of the puzzle piece', () => {
+        const onProject = makeDataAppViz({
+            dataAppVizUuid: 'a',
+            name: 'Bar race',
+            icon: 'chart-bar',
+        });
+        setData([onProject]);
+        const { container } = render(
+            {},
+            {
+                selected: { kind: 'projectType', dataAppVizUuid: 'a' },
+                selectedDataAppViz: onProject,
+            },
+        );
+
+        expect(
+            container.querySelector('.tabler-icon-chart-bar'),
+        ).not.toBeNull();
+        expect(container.querySelector('.tabler-icon-puzzle')).toBeNull();
     });
 
     it('reports going back to Vega separately: it is a different chart type', () => {

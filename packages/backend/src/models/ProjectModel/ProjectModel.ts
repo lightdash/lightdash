@@ -11,6 +11,7 @@ import {
     createVirtualView,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    CreateWarehouseCredentialsWithOptionalSecrets,
     DbtProjectConfig,
     DEFAULT_USER_SPACES_PARENT_NAME,
     DuckdbConnectionType,
@@ -259,6 +260,26 @@ type PreviewChartUuidMapping = {
 };
 
 export class ProjectModel {
+    /** Serializes create-or-get across API pods without relying on a slug. */
+    async runInAnalyticsProvisioningLock<T>(
+        organizationUuid: string,
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const organization = await trx(OrganizationTableName)
+                .where('organization_uuid', organizationUuid)
+                .select('organization_id')
+                .first();
+            if (!organization)
+                throw new NotFoundError('Cannot find organization');
+            await trx.raw('SELECT pg_advisory_xact_lock(?, ?)', [
+                19350431,
+                organization.organization_id,
+            ]);
+            return callback();
+        });
+    }
+
     protected database: Knex;
 
     protected lightdashConfig: LightdashConfig;
@@ -335,7 +356,8 @@ export class ProjectModel {
     }
 
     static mergeMissingWarehouseSecrets<
-        T extends CreateWarehouseCredentials = CreateWarehouseCredentials,
+        T extends CreateWarehouseCredentialsWithOptionalSecrets =
+            CreateWarehouseCredentials,
     >(incompleteConfig: T, completeConfig: CreateWarehouseCredentials): T {
         if (
             !hasSameWarehouseCredentialDestination(

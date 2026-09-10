@@ -60,7 +60,7 @@ const splitOwnerRepo = (
  * Normalise the stored sub-path (leading slash, `/` for root) to a path
  * relative to the repo root so it can be passed to `--project-dir`.
  */
-const normalizeProjectSubPath = (projectSubPath: string): string => {
+export const normalizeProjectSubPath = (projectSubPath: string): string => {
     const relative = projectSubPath
         .trim()
         .replace(/^\/+/, '')
@@ -83,6 +83,9 @@ export const parseGithubConnection = (
         repo,
         projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
         branch: connection.branch?.trim() ?? '',
+        ...(connection.semanticLayer === 'lightdash'
+            ? { semanticLayer: 'lightdash' as const }
+            : {}),
     };
 };
 
@@ -118,6 +121,12 @@ export const buildCloneTarget = (
             return {
                 url: `https://github.com/${connection.owner}/${connection.repo}.git`,
                 username: 'x-access-token',
+                password: token,
+            };
+        case PullRequestProvider.BITBUCKET:
+            return {
+                url: `https://bitbucket.org/${encodeURIComponent(connection.owner)}/${encodeURIComponent(connection.repo)}.git`,
+                username: 'x-bitbucket-api-token-auth',
                 password: token,
             };
         case PullRequestProvider.GITLAB:

@@ -353,6 +353,9 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         <Group
                             gap="sm"
                             flex={1}
+                            // Shrinkable, so long titles truncate instead of
+                            // pushing past the close button
+                            miw={0}
                             wrap="nowrap"
                             align={subtitle ? 'center' : 'flex-start'}
                         >

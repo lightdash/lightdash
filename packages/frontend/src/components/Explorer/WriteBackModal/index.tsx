@@ -1,5 +1,6 @@
 import {
     capitalize,
+    convertCustomMetricToLightdash,
     getCustomDimensionWriteBackError,
     getErrorMessage,
     isCustomBinDimension,
@@ -35,7 +36,8 @@ import { PolymorphicGroupButton } from '../../common/PolymorphicGroupButton';
 import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent';
 import {
     useCustomDimensionsWriteBackPreview,
-    useIsGitProject,
+    useSupportsCustomFieldWriteBack,
+    useIsNativeGitProject,
     useWriteBackCustomDimensions,
     useWriteBackCustomMetrics,
 } from './hooks';
@@ -43,7 +45,7 @@ import { convertToDbt, getItemId, getItemLabel, match } from './utils';
 import { BIN_ORDERING_WRITE_BACK_WARNING } from './writeBackSupport';
 
 const prDisabledMessage =
-    'Pull requests can only be opened for Git connected projects (GitHub/GitLab)';
+    'Pull requests can only be opened for GitHub, GitLab or Bitbucket Cloud connected projects';
 const texts = {
     customDimension: {
         name: 'custom dimension',
@@ -108,7 +110,9 @@ export const SingleItemModalContent = ({
     );
 
     const [showDiff, setShowDiff] = useState(true);
-    const isGitProject = useIsGitProject(projectUuid);
+    const supportsCustomFieldWriteBack =
+        useSupportsCustomFieldWriteBack(projectUuid);
+    const isNative = useIsNativeGitProject(projectUuid);
     const writeBackError = isCustomDimension(item)
         ? getCustomDimensionWriteBackError(item)
         : null;
@@ -126,12 +130,17 @@ export const SingleItemModalContent = ({
     const metricPreview = useMemo(() => {
         if (isCustomDimension(item)) return { code: '', error: null };
         try {
-            const { key, value } = convertToDbt(item);
+            const { key, value } = isNative
+                ? {
+                      key: item.name,
+                      value: convertCustomMetricToLightdash(item),
+                  }
+                : convertToDbt(item);
             return { code: yaml.dump({ [key]: value }), error: null };
         } catch (e) {
             return { code: '', error: parseError(e, type) };
         }
-    }, [item, type]);
+    }, [item, type, isNative]);
     const previewError =
         writeBackError ??
         (previewQuery.error
@@ -148,12 +157,12 @@ export const SingleItemModalContent = ({
         );
     }
 
-    const disableErrorTooltip = isGitProject && !previewError;
+    const disableErrorTooltip = supportsCustomFieldWriteBack && !previewError;
 
     const errorTooltipLabel = previewError || prDisabledMessage;
 
     const buttonDisabled =
-        isLoading || previewQuery.isLoading || !disableErrorTooltip;
+        isLoading || previewQuery.isInitialLoading || !disableErrorTooltip;
 
     const itemLabel = getItemLabel(item);
 
@@ -162,9 +171,9 @@ export const SingleItemModalContent = ({
             size="xl"
             opened={true}
             onClose={handleClose}
-            title="Write back to dbt"
+            title="Write back to project"
             icon={IconGitBranch}
-            description={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your dbt project. This will create a new branch and open a pull request.`}
+            description={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your project. This will create a new branch and open a pull request.`}
             actions={
                 <Tooltip
                     label={errorTooltipLabel}
@@ -197,8 +206,8 @@ export const SingleItemModalContent = ({
         >
             <Stack>
                 <Text fz="sm">
-                    Create a pull request in your dbt project's git repository
-                    for the following {texts[type].name}:
+                    Create a pull request in your project's git repository for
+                    the following {texts[type].name}:
                 </Text>
                 <List spacing="xs" pl="xs">
                     <List.Item fz="xs" ff="monospace">
@@ -219,7 +228,7 @@ export const SingleItemModalContent = ({
                         <CodeBlock
                             code={
                                 previewError ||
-                                (previewQuery.isLoading
+                                (previewQuery.isInitialLoading
                                     ? 'Generating warehouse-aware preview...'
                                     : previewCode)
                             }
@@ -271,7 +280,9 @@ const MultipleItemsModalContent = ({
         () => writeBackCustomMetricsIsLoading,
     );
 
-    const isGitProject = useIsGitProject(projectUuid);
+    const supportsCustomFieldWriteBack =
+        useSupportsCustomFieldWriteBack(projectUuid);
+    const isNative = useIsNativeGitProject(projectUuid);
 
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
@@ -295,7 +306,12 @@ const MultipleItemsModalContent = ({
             const code = yaml.dump(
                 (selectedItems as AdditionalMetric[])
                     .map((item) => {
-                        const { key, value } = convertToDbt(item);
+                        const { key, value } = isNative
+                            ? {
+                                  key: item.name,
+                                  value: convertCustomMetricToLightdash(item),
+                              }
+                            : convertToDbt(item);
                         return { [key]: value };
                     })
                     .reduce((acc, curr) => ({ ...acc, ...curr }), {}),
@@ -304,7 +320,7 @@ const MultipleItemsModalContent = ({
         } catch (e) {
             return { code: '', error: parseError(e, type) };
         }
-    }, [selectedCustomDimensions.length, selectedItems, type]);
+    }, [selectedCustomDimensions.length, selectedItems, type, isNative]);
     const previewError = previewQuery.error
         ? getErrorMessage(previewQuery.error.error)
         : metricPreview.error;
@@ -321,17 +337,19 @@ const MultipleItemsModalContent = ({
     }
 
     const disableErrorTooltip =
-        isGitProject && selectedItemIds.length > 0 && !previewError;
+        supportsCustomFieldWriteBack &&
+        selectedItemIds.length > 0 &&
+        !previewError;
 
     const errorTooltipLabel = previewError
         ? previewError
-        : !isGitProject
+        : !supportsCustomFieldWriteBack
           ? prDisabledMessage
           : `Select ${texts[type].baseName}s to open a pull request`;
 
     const buttonDisabled =
         isLoading ||
-        previewQuery.isLoading ||
+        previewQuery.isInitialLoading ||
         !disableErrorTooltip ||
         selectedItemIds.length === 0;
     return (
@@ -339,9 +357,9 @@ const MultipleItemsModalContent = ({
             size="auto"
             opened={true}
             onClose={handleClose}
-            title="Write back to dbt"
+            title="Write back to project"
             icon={IconGitBranch}
-            description={`Create a pull request in your dbt project's git repository for the following ${texts[type].baseName}s`}
+            description={`Create a pull request in your project's git repository for the following ${texts[type].baseName}s`}
             actions={
                 <Tooltip
                     label={errorTooltipLabel}
@@ -452,7 +470,7 @@ const MultipleItemsModalContent = ({
                         <CodeBlock
                             code={
                                 previewError ||
-                                (previewQuery.isLoading
+                                (previewQuery.isInitialLoading
                                     ? 'Generating warehouse-aware preview...'
                                     : previewCode)
                             }

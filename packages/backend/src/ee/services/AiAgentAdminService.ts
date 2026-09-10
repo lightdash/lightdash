@@ -119,6 +119,7 @@ import { sanitizeToolResultForDump } from './ai/utils/threadDumpSanitizer';
 import { type AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 import { type AiAgentService } from './AiAgentService/AiAgentService';
+import { isBitbucketCloudConnection } from './AiAgentService/writebackConnection';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
 import { type WritebackPreviewService } from './AiWritebackService/WritebackPreviewService';
 import { type ProjectContextService } from './ProjectContextService/ProjectContextService';
@@ -164,8 +165,12 @@ const parsePullRequestUrl = (
 
 type ProjectWritebackAccess =
     | {
-          provider: PullRequestProvider;
+          provider: PullRequestProvider.GITHUB | PullRequestProvider.GITLAB;
           hasGitAppInstallation: boolean;
+      }
+    | {
+          provider: PullRequestProvider.BITBUCKET;
+          hasProjectToken: boolean;
       }
     | {
           provider: null;
@@ -333,7 +338,20 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
             projectAccess.provider,
         );
     }
-    if (!projectAccess.hasGitAppInstallation) {
+    if (
+        projectAccess.provider === PullRequestProvider.BITBUCKET &&
+        !projectAccess.hasProjectToken
+    ) {
+        return unavailableWritebackEligibility(
+            'bitbucket_token_missing',
+            strategy,
+            projectAccess.provider,
+        );
+    }
+    if (
+        projectAccess.provider !== PullRequestProvider.BITBUCKET &&
+        !projectAccess.hasGitAppInstallation
+    ) {
         return unavailableWritebackEligibility(
             'git_app_not_installed',
             strategy,
@@ -1688,6 +1706,22 @@ export class AiAgentAdminService extends BaseService {
                     try {
                         const project =
                             await this.projectModel.get(projectUuid);
+                        if (isBitbucketCloudConnection(project.dbtConnection)) {
+                            const sensitiveProject =
+                                await this.projectModel.getWithSensitiveFields(
+                                    projectUuid,
+                                );
+                            return [
+                                projectUuid,
+                                {
+                                    provider: PullRequestProvider.BITBUCKET,
+                                    hasProjectToken:
+                                        sensitiveProject.dbtConnection.type ===
+                                            DbtProjectType.BITBUCKET &&
+                                        !!sensitiveProject.dbtConnection.personal_access_token?.trim(),
+                                },
+                            ];
+                        }
                         if (
                             project.dbtConnection.type === DbtProjectType.GITHUB
                         ) {
@@ -1749,6 +1783,10 @@ export class AiAgentAdminService extends BaseService {
                 throw new MissingConfigError(
                     'AI writeback requires E2B_API_KEY and ANTHROPIC_API_KEY',
                 );
+            case 'bitbucket_token_missing':
+                throw new ParameterError(
+                    'Configure a Bitbucket Cloud API token in the project connection to open writeback pull requests',
+                );
             case 'git_app_not_installed':
                 throw new ParameterError(
                     `Install the ${eligibility.provider ?? 'Git'} app to open writeback pull requests`,
@@ -1791,7 +1829,7 @@ export class AiAgentAdminService extends BaseService {
                 );
             case 'unsupported_source_control':
                 throw new ParameterError(
-                    'Writeback requires a GitHub or GitLab connected dbt project',
+                    'Writeback requires a GitHub, GitLab or Bitbucket Cloud connected project',
                 );
             case 'unsupported_root_cause':
             default:

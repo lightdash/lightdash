@@ -138,3 +138,30 @@ export const useIsGitProject = (projectUuid: string) => {
         project?.dbtConnection.type as DbtProjectType,
     );
 };
+
+export const useSupportsCustomFieldWriteBack = (projectUuid: string) => {
+    const { data: project } = useProject(projectUuid);
+    const connection = project?.dbtConnection;
+    if (!connection) {
+        return false;
+    }
+    if (connection.type === DbtProjectType.BITBUCKET) {
+        const host = connection.host_domain
+            ?.trim()
+            .toLowerCase()
+            .replace(/\.$/, '');
+        return !host || host === 'bitbucket.org';
+    }
+    return (
+        connection.type === DbtProjectType.GITHUB ||
+        connection.type === DbtProjectType.GITLAB
+    );
+};
+
+export const useIsNativeGitProject = (projectUuid: string) => {
+    const { data: project } = useProject(projectUuid);
+    return (
+        project?.dbtConnection.type === DbtProjectType.GITHUB &&
+        project.dbtConnection.semanticLayer === 'lightdash'
+    );
+};

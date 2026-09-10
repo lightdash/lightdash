@@ -121,7 +121,7 @@ export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
     spaceUuid: string;
-    /** Opt into role checks: dashboard flags OR scopes; AI additionally requires EmbedAiAgent. */
+    /** Use scopes instead of dashboard flags; AI additionally requires EmbedAiAgent. */
     permissionsMode?: 'default' | 'roles';
 };
 

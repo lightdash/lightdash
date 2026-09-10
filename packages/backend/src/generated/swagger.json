@@ -5965,6 +5965,12 @@
                             }
                         },
                         "type": "object"
+                    },
+                    "seriesOrder": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
                 "type": "object"
@@ -14914,7 +14920,7 @@
                     "permissionsMode": {
                         "type": "string",
                         "enum": ["default", "roles"],
-                        "description": "Opt into role checks: dashboard flags OR scopes; AI additionally requires EmbedAiAgent."
+                        "description": "Use scopes instead of dashboard flags; AI additionally requires EmbedAiAgent."
                     },
                     "spaceUuid": {
                         "type": "string"
@@ -17584,6 +17590,10 @@
                 "enum": ["non_additive_metric_requires_exact_match"],
                 "type": "string"
             },
+            "PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH": {
+                "enum": ["deduplicated_metric_requires_exact_match"],
+                "type": "string"
+            },
             "PreAggregateMissReason.CUSTOM_SQL_METRIC": {
                 "enum": ["custom_sql_metric"],
                 "type": "string"
@@ -17686,6 +17696,18 @@
                             },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH"
                             }
                         },
                         "required": ["fieldId", "reason"],
@@ -19211,6 +19233,65 @@
             "ApiEmbedProjectAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_EmbedProjectApp-Array_"
             },
+            "ChartTypeIcon": {
+                "type": "string",
+                "enum": [
+                    "number",
+                    "table",
+                    "target",
+                    "stack",
+                    "list",
+                    "chart-bar",
+                    "chart-histogram",
+                    "chart-line",
+                    "chart-area",
+                    "chart-area-line",
+                    "chart-arrows",
+                    "chart-arrows-vertical",
+                    "chart-candle",
+                    "chart-infographic",
+                    "chart-dots",
+                    "chart-dots-2",
+                    "chart-bubble",
+                    "chart-scatter-3d",
+                    "chart-grid-dots",
+                    "chart-pie",
+                    "chart-pie-2",
+                    "chart-donut",
+                    "chart-donut-2",
+                    "chart-arcs",
+                    "chart-circles",
+                    "chart-radar",
+                    "chart-treemap",
+                    "chart-sankey",
+                    "hierarchy",
+                    "hierarchy-2",
+                    "binary-tree",
+                    "sitemap",
+                    "topology-star",
+                    "network",
+                    "git-branch",
+                    "git-merge",
+                    "arrows-split",
+                    "map",
+                    "world",
+                    "timeline",
+                    "calendar",
+                    "clock",
+                    "layout-grid",
+                    "layout-kanban",
+                    "grid-dots",
+                    "square-number-1",
+                    "percentage",
+                    "trending-up",
+                    "trending-down",
+                    "gauge",
+                    "activity",
+                    "wave-sine",
+                    "filter",
+                    "puzzle"
+                ]
+            },
             "ChartRegistryArtifact": {
                 "properties": {
                     "sha256": {
@@ -19236,6 +19317,14 @@
                         },
                         "required": ["dist", "source"],
                         "type": "object"
+                    },
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "screenshots": {
                         "items": {
@@ -19286,6 +19375,7 @@
                 },
                 "required": [
                     "artifacts",
+                    "icon",
                     "screenshots",
                     "thumbnail",
                     "vizSchema",
@@ -19418,6 +19508,14 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "schema": {
                         "allOf": [
                             {
@@ -19450,6 +19548,7 @@
                     "registrySlug",
                     "createdByUserUuid",
                     "createdAt",
+                    "icon",
                     "schema",
                     "spaceUuid",
                     "projectUuid",
@@ -19994,10 +20093,18 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "icon": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartTypeIcon"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "registrySlug": {
                                 "type": "string",
                                 "nullable": true
@@ -20062,6 +20169,7 @@
                             }
                         },
                         "required": [
+                            "icon",
                             "registrySlug",
                             "latestReadyVersion",
                             "hasMore",
@@ -20090,7 +20198,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -20282,10 +20390,18 @@
             "ApiPromoteAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--projectUuid-string--version-number--action-PromoteAppAction__"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "icon": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartTypeIcon"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "description": {
                                 "type": "string"
                             },
@@ -20296,7 +20412,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["description", "name", "appUuid"],
+                        "required": ["icon", "description", "name", "appUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -20309,10 +20425,18 @@
                 "type": "object"
             },
             "ApiUpdateAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__"
             },
             "ApiUpdateAppRequest": {
                 "properties": {
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "description": {
                         "type": "string"
                     },
@@ -20404,6 +20528,14 @@
                         "allOf": [
                             {
                                 "$ref": "#/components/schemas/Exclude_DataAppTemplate.custom_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
                             }
                         ],
                         "nullable": true
@@ -24862,7 +24994,7 @@
                 "type": "object"
             },
             "PullRequestProvider": {
-                "enum": ["github", "gitlab"],
+                "enum": ["github", "gitlab", "bitbucket"],
                 "type": "string"
             },
             "AiAgentReviewItemPrState": {
@@ -26767,6 +26899,7 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
+                                                            "bitbucket_token_missing",
                                                             "git_write_permission",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
@@ -30799,6 +30932,45 @@
             "DuckdbEmbeddedCredentials": {
                 "$ref": "#/components/schemas/CreateDuckdbEmbeddedCredentials"
             },
+            "DuckdbConnectionType.ANALYTICS": {
+                "enum": ["analytics"],
+                "type": "string"
+            },
+            "DuckdbAnalyticsCredentials": {
+                "properties": {
+                    "startOfWeek": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean",
+                        "enum": [false],
+                        "nullable": false
+                    },
+                    "schema": {
+                        "type": "string",
+                        "enum": ["main"],
+                        "nullable": false
+                    },
+                    "database": {
+                        "type": "string",
+                        "enum": ["memory"],
+                        "nullable": false
+                    },
+                    "connectionType": {
+                        "$ref": "#/components/schemas/DuckdbConnectionType.ANALYTICS"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": ["schema", "database", "connectionType", "type"],
+                "type": "object",
+                "description": "An identifier only: storage locations and credentials belong to the backend."
+            },
             "DuckdbCredentials": {
                 "anyOf": [
                     {
@@ -30809,6 +30981,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DuckdbEmbeddedCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbAnalyticsCredentials"
                     }
                 ]
             },
@@ -31865,6 +32040,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateDuckdbEmbeddedCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbAnalyticsCredentials"
                     }
                 ]
             },
@@ -33030,9 +33208,25 @@
                     "pagination": {
                         "$ref": "#/components/schemas/RoadmapPagination"
                     },
+                    "expiresAt": {
+                        "type": "string"
+                    },
                     "data": {
                         "items": {
-                            "$ref": "#/components/schemas/RoadmapItem"
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/RoadmapItem"
+                                },
+                                {
+                                    "properties": {
+                                        "projectId": {
+                                            "type": "string",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
                         },
                         "type": "array"
                     }
@@ -33044,6 +33238,133 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/RoadmapResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "RoadmapProject": {
+                "properties": {
+                    "lastIssueUpdatedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "issueStatusCounts": {
+                        "$ref": "#/components/schemas/Record_RoadmapItemStatus.number_"
+                    },
+                    "priority": {
+                        "$ref": "#/components/schemas/RoadmapItemPriority"
+                    },
+                    "progress": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "stage": {
+                        "type": "string",
+                        "enum": [
+                            "backlog",
+                            "planned",
+                            "started",
+                            "paused",
+                            "completed"
+                        ]
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "projectId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "lastIssueUpdatedAt",
+                    "issueStatusCounts",
+                    "priority",
+                    "progress",
+                    "stage",
+                    "description",
+                    "title",
+                    "projectId"
+                ],
+                "type": "object"
+            },
+            "RoadmapProjectGroup": {
+                "properties": {
+                    "hasDirectNeed": {
+                        "type": "boolean"
+                    },
+                    "ownRequestCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "project": {
+                        "$ref": "#/components/schemas/RoadmapProject"
+                    }
+                },
+                "required": ["hasDirectNeed", "ownRequestCount", "project"],
+                "type": "object"
+            },
+            "RoadmapProjectPagination": {
+                "properties": {
+                    "totalPages": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalResults": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["totalPages", "totalResults", "pageSize", "page"],
+                "type": "object"
+            },
+            "RoadmapProjectResults": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "pagination": {
+                        "$ref": "#/components/schemas/RoadmapProjectPagination"
+                    },
+                    "otherRequestCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "projects": {
+                        "items": {
+                            "$ref": "#/components/schemas/RoadmapProjectGroup"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "expiresAt",
+                    "pagination",
+                    "otherRequestCount",
+                    "projects"
+                ],
+                "type": "object"
+            },
+            "ApiRoadmapProjectResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RoadmapProjectResults"
                     },
                     "status": {
                         "type": "string",
@@ -37404,6 +37725,7 @@
                     "insufficient_source_code_access",
                     "unsupported_source_control",
                     "git_app_not_installed",
+                    "bitbucket_token_missing",
                     "missing_writeback_config",
                     "pull_request_open",
                     "source_thread_writeback_exists",
@@ -45651,7 +45973,7 @@
                     "pullRequestUuid"
                 ],
                 "type": "object",
-                "description": "A pull request created by a write-back. Only immutable identifiers are\npersisted; the live title/state are resolved at runtime from the\nGitHub/GitLab API using provider + owner + repo + prNumber."
+                "description": "A pull request created by a write-back. Only immutable identifiers are\npersisted; the live title/state are resolved at runtime from the\nGit provider API using provider + owner + repo + prNumber."
             },
             "PullRequestState": {
                 "enum": ["open", "closed", "merged"],
@@ -45943,6 +46265,11 @@
                     "selector": {
                         "type": "string"
                     },
+                    "semanticLayer": {
+                        "type": "string",
+                        "enum": ["dbt", "lightdash"],
+                        "description": "Omitted on existing connections, which continue to build with dbt."
+                    },
                     "authorization_method": {
                         "type": "string",
                         "enum": ["personal_access_token", "installation_id"]
@@ -45996,6 +46323,10 @@
                     },
                     "selector": {
                         "type": "string"
+                    },
+                    "semanticLayer": {
+                        "type": "string",
+                        "enum": ["dbt", "lightdash"]
                     },
                     "username": {
                         "type": "string"
@@ -47423,10 +47754,288 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Partial_CreateRedshiftCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateRedshiftCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateRedshiftCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateBigqueryCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateBigqueryCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateBigqueryCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreatePostgresCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreatePostgresCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreatePostgresCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateSnowflakeCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateSnowflakeCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateSnowflakeCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateDatabricksCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateDatabricksCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateDatabricksCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateTrinoCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateTrinoCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateTrinoCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateClickhouseCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateClickhouseCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateClickhouseCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateAthenaCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateAthenaCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateAthenaCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateAthenaCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateDuckdbMotherduckCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateDuckdbMotherduckCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDuckdbMotherduckCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateDuckdbMotherduckCredentials_"
+                    }
+                ]
+            },
+            "Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {},
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_CreateDuckdbDucklakeCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateDuckdbDucklakeCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateDuckdbDucklakeCredentials_"
+                    }
+                ]
+            },
+            "Pick_CreateDuckdbEmbeddedCredentials.Exclude_keyofCreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {},
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDuckdbEmbeddedCredentials.Exclude_keyofCreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_CreateDuckdbEmbeddedCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateDuckdbEmbeddedCredentials_"
+                    }
+                ]
+            },
+            "Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {},
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_DuckdbAnalyticsCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_DuckdbAnalyticsCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_DuckdbAnalyticsCredentials_"
+                    }
+                ]
+            },
+            "CreateWarehouseCredentialsWithOptionalSecrets": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateRedshiftCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateBigqueryCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreatePostgresCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateSnowflakeCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDatabricksCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateTrinoCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateClickhouseCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateAthenaCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbMotherduckCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbDucklakeCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_DuckdbAnalyticsCredentials_"
+                    }
+                ]
+            },
             "ApiWarehouseConnectionTestBody": {
                 "properties": {
                     "warehouseConnection": {
-                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/CreateRedshiftCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreateBigqueryCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreatePostgresCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreateSnowflakeCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreateDatabricksCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreateTrinoCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreateClickhouseCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreateAthenaCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreateDuckdbCredentials"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CreateWarehouseCredentialsWithOptionalSecrets"
+                            }
+                        ]
                     }
                 },
                 "required": ["warehouseConnection"],
@@ -49989,6 +50598,32 @@
             "ApiOrganizationDesignFileResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ApiOrganizationDesignFile_"
             },
+            "ApiSuccess__projectUuid-string--url-string--created-boolean__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "created": {
+                                "type": "boolean"
+                            },
+                            "url": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["created", "url", "projectUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Organization": {
                 "properties": {
                     "pgWire": {
@@ -51343,7 +51978,11 @@
             },
             "PlaygroundProjectTrigger": {
                 "type": "string",
-                "enum": ["invite_expert", "agent_onboarding_wait"]
+                "enum": [
+                    "invite_expert",
+                    "agent_onboarding_wait",
+                    "get_started"
+                ]
             },
             "EnsurePlaygroundProjectRequest": {
                 "properties": {
@@ -55852,6 +56491,417 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "RecentContentType": {
+                "type": "string",
+                "enum": ["chart", "dashboard"]
+            },
+            "RecentContentItem": {
+                "properties": {
+                    "viewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/RecentContentType"
+                    }
+                },
+                "required": ["viewedAt", "uuid", "contentType"],
+                "type": "object"
+            },
+            "ChartContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.CHART"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ChartSourceType"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "dashboard": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "verification",
+                    "directAccessRoles",
+                    "source",
+                    "chartKind",
+                    "dashboard"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DashboardContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DASHBOARD"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "verification",
+                    "directAccessRoles",
+                    "owner"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "RecentContentEntry": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/RecentContentItem"
+                    },
+                    {
+                        "properties": {
+                            "content": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartContent"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DashboardContent"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["content"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_RecentContentEntry-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/RecentContentEntry"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiRecentContentResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_RecentContentEntry-Array_"
+            },
+            "RecordRecentContentView": {
+                "properties": {
+                    "contentUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/RecentContentType"
+                    },
+                    "projectUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["contentUuid", "contentType", "projectUuid"],
+                "type": "object"
+            },
             "QuerySourceType": {
                 "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
                 "enum": ["semanticLayer", "sql", "duckdb", "external"],
@@ -58590,339 +59640,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ChartContent": {
-                "properties": {
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.CHART"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "lastUpdatedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "project": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "organization": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "space": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "directAccessRoles": {
-                        "items": {
-                            "$ref": "#/components/schemas/SpaceMemberRole"
-                        },
-                        "type": "array"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ChartSourceType"
-                    },
-                    "chartKind": {
-                        "$ref": "#/components/schemas/ChartKind"
-                    },
-                    "dashboard": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "contentType",
-                    "uuid",
-                    "slug",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "createdBy",
-                    "lastUpdatedAt",
-                    "lastUpdatedBy",
-                    "project",
-                    "organization",
-                    "space",
-                    "pinnedList",
-                    "views",
-                    "firstViewedAt",
-                    "verification",
-                    "directAccessRoles",
-                    "source",
-                    "chartKind",
-                    "dashboard"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "DashboardContent": {
-                "properties": {
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.DASHBOARD"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "lastUpdatedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "project": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "organization": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "space": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "directAccessRoles": {
-                        "items": {
-                            "$ref": "#/components/schemas/SpaceMemberRole"
-                        },
-                        "type": "array"
-                    },
-                    "owner": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DashboardOwner"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "contentType",
-                    "uuid",
-                    "slug",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "createdBy",
-                    "lastUpdatedAt",
-                    "lastUpdatedBy",
-                    "project",
-                    "organization",
-                    "space",
-                    "pinnedList",
-                    "views",
-                    "firstViewedAt",
-                    "verification",
-                    "directAccessRoles",
-                    "owner"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
             "ContentType.SPACE": {
                 "enum": ["space"],
                 "type": "string"
@@ -60263,7 +60980,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.167.1",
+        "version": "2.185.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -87270,6 +87987,38 @@
                 ]
             }
         },
+        "/api/v1/org/analytics-project": {
+            "post": {
+                "operationId": "EnsureAnalyticsProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess__projectUuid-string--url-string--created-boolean__"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or refresh the current organization's internal analytics preview.",
+                "summary": "Ensure internal analytics project",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/org": {
             "get": {
                 "operationId": "GetMyOrganization",
@@ -96253,6 +97002,83 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/content/recently-viewed": {
+            "get": {
+                "operationId": "GetRecentlyViewed",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRecentContentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Content"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "RecordView",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Content"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecordRecentContentView"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/query-sources": {

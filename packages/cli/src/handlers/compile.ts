@@ -1,8 +1,8 @@
 import {
     applyMetricFlowMetricsToModels,
     attachTypesToModels,
+    compileLightdashModels,
     convertExplores,
-    convertLightdashModelsToDbtModels,
     DbtManifest,
     DbtModelNode,
     Explore,
@@ -291,31 +291,18 @@ const getExploresFromLightdashYmlProject = async ({
         `> Using adapter type from lightdash.config.yml: ${adapterType}`,
     );
 
-    // Convert Lightdash models to DbtModelNode format
-    const validModels = convertLightdashModelsToDbtModels(lightdashModels);
-    if (validModels.length === 0) {
-        return null;
-    }
-
-    GlobalState.debug('> Skipping warehouse catalog (types in YAML)');
-
     const warehouseSqlBuilder = warehouseSqlBuilderFromType(
         adapterType,
         startOfWeek,
     );
-
-    const validExplores = await convertExplores(
-        validModels,
-        false,
-        warehouseSqlBuilder.getAdapterType(),
+    const validExplores = await compileLightdashModels({
+        models: lightdashModels,
         warehouseSqlBuilder,
         lightdashProjectConfig,
-        {
-            disableTimestampConversion,
-            allowPartialCompilation,
-            postProcessors: [preAggregatePostProcessor],
-        },
-    );
+        disableTimestampConversion,
+        allowPartialCompilation,
+        postProcessors: [preAggregatePostProcessor],
+    });
 
     return validExplores;
 };

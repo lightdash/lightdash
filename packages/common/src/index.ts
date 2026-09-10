@@ -69,6 +69,7 @@ export * from './authorization/types';
 export * from './compiler/compilationReport';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
+export * from './compiler/joinInflation';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
 export * from './compiler/referenceLookup';
@@ -223,6 +224,9 @@ export {
     RedshiftAuthenticationType,
     resolveDbtVersion,
     playgroundProjectTriggers,
+    fillOmittedSecrets,
+    isMissingBigqueryKeyfile,
+    omitEmptySecrets,
     sensitiveCredentialsFieldNames,
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
@@ -324,6 +328,7 @@ export type {
     UpdateAgentSqlScope,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
+    CreateWarehouseCredentialsWithOptionalSecrets,
     WarehouseCredentials,
     WarehouseLocation,
 } from './types/projects';
@@ -1230,3 +1235,9 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
         ],
     },
 ] as const;
+
+export * from './compiler/compileLightdashModels';
+
+export * from './lightdash/LightdashModelEditor';
+export * from './lightdash/convertCustomMetricToLightdash';
+export * from './types/recentContent';

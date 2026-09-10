@@ -138,7 +138,25 @@ export type DuckdbS3Credentials = {
     s3Config: DuckdbS3SessionConfig;
 };
 
-export type DuckdbConnectionCredentials = DuckdbS3Credentials;
+/** Server-owned manifest. Never accept this configuration from project APIs. */
+export type DuckdbParquetSource = {
+    scope: string;
+    tables: { name: string; urls: string[] }[];
+    /** Exact server-signed GET URLs; never combine with bucket credentials. */
+    signedUrls?: boolean;
+    httpAuth?: { bearerToken: string };
+    s3Config?: DuckdbS3SessionConfig;
+};
+
+export type DuckdbParquetCredentials = {
+    type: 'duckdb_parquet';
+    /** Resolve again for every session so new files and refreshed credentials are visible. */
+    resolveSource: () => Promise<DuckdbParquetSource>;
+};
+
+export type DuckdbConnectionCredentials =
+    | DuckdbS3Credentials
+    | DuckdbParquetCredentials;
 
 export type DuckdbWarehouseClientOptions = {
     /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
@@ -548,6 +566,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly s3Config?: DuckdbS3SessionConfig;
 
+    private readonly parquetConfig?: DuckdbParquetCredentials;
+
     private readonly ducklakeConfig?: CreateDuckdbDucklakeCredentials;
 
     private readonly embeddedConfig?: CreateDuckdbEmbeddedCredentials;
@@ -586,6 +606,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             credentials &&
             'type' in credentials &&
             credentials.type === 'duckdb_s3';
+        const isParquet = credentials?.type === 'duckdb_parquet';
+        if (
+            credentials?.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.ANALYTICS
+        ) {
+            throw new ParameterError(
+                'Analytics connections must be resolved by the internal project service',
+            );
+        }
         const isDucklake =
             !isS3Only &&
             credentials &&
@@ -600,7 +629,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             credentials.connectionType === DuckdbConnectionType.EMBEDDED;
 
         let effectiveCredentials: CreateDuckdbMotherduckCredentials;
-        if (isS3Only) {
+        if (isS3Only || isParquet) {
             effectiveCredentials = DUCKDB_INTERNAL_CREDENTIALS;
         } else if (isDucklake) {
             const ducklake = credentials as CreateDuckdbDucklakeCredentials;
@@ -633,6 +662,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
         if (isS3Only) {
             this.s3Config = (credentials as DuckdbS3Credentials).s3Config;
+        }
+
+        if (isParquet) {
+            this.parquetConfig = credentials as DuckdbParquetCredentials;
+            if (options?.instanceCacheKey || options?.enableInstanceCache) {
+                throw new ParameterError(
+                    'Parquet project sessions cannot share a DuckDB instance',
+                );
+            }
         }
 
         if (isDucklake) {
@@ -675,7 +713,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                   ...options?.resourceLimits,
               }
             : options?.resourceLimits;
-        this.sharedResourceLimits = options?.sharedResourceLimits;
+        this.sharedResourceLimits = isParquet
+            ? {
+                  memoryLimit: '256MB',
+                  threads: 2,
+                  ...options?.sharedResourceLimits,
+              }
+            : options?.sharedResourceLimits;
         // DuckLake attaches a postgres catalog secret on every fresh DuckDB
         // instance, and the postgres extension only pools 8 connections per
         // instance — so parallel getFields() calls during project compile
@@ -687,7 +731,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.instanceCacheKey =
             options?.instanceCacheKey ?? ducklakeAutoCacheKey;
         this.logger = options?.logger;
-        this.enableQueryProfiling = options?.enableQueryProfiling ?? false;
+        this.enableQueryProfiling =
+            !isParquet && (options?.enableQueryProfiling ?? false);
         this.onQueryProfile = options?.onQueryProfile;
         this.embeddedQueryTimeoutMs =
             options?.embeddedQueryTimeoutMs ?? EMBEDDED_QUERY_TIMEOUT_MS;
@@ -961,6 +1006,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
 
+        if (client.parquetConfig) {
+            await client.bootstrapParquetViews(db);
+        }
+
         if (client.ducklakeConfig) {
             const stmts = DuckdbWarehouseClient.buildDucklakeAttachSql(
                 client.ducklakeConfig,
@@ -994,6 +1043,109 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             bootstrapMs,
             httpfsMs,
         };
+    }
+
+    private async bootstrapParquetViews(db: DuckdbConnection): Promise<void> {
+        const source = await this.parquetConfig!.resolveSource();
+        const escape = DuckdbWarehouseClient.escapeDuckdbString;
+        const literal = (value: string) => `'${escape(value)}'`;
+        const scope = new URL(source.scope);
+        const localSignedSource =
+            source.signedUrls &&
+            scope.protocol === 'http:' &&
+            ['localhost', '127.0.0.1', '[::1]'].includes(scope.hostname);
+        if (
+            (!['https:', 's3:'].includes(scope.protocol) &&
+                !localSignedSource) ||
+            scope.username ||
+            scope.password ||
+            scope.search ||
+            scope.hash ||
+            !source.scope.endsWith('/') ||
+            scope.pathname === '/'
+        ) {
+            throw new ParameterError(
+                'Parquet source requires a scoped remote prefix',
+            );
+        }
+        if (
+            source.signedUrls &&
+            (source.httpAuth || source.s3Config || scope.protocol === 's3:')
+        ) {
+            throw new ParameterError(
+                'Signed Parquet sources cannot carry bucket credentials',
+            );
+        }
+        const names = new Set<string>();
+        source.tables.forEach(({ name, urls }) => {
+            if (
+                !/^[a-z][a-z0-9_]*$/.test(name) ||
+                names.has(name) ||
+                urls.length === 0
+            ) {
+                throw new ParameterError(
+                    'Parquet tables require unique names and a non-empty file manifest',
+                );
+            }
+            names.add(name);
+            urls.forEach((url) => {
+                const parsed = new URL(url);
+                if (
+                    parsed.href !== url ||
+                    !url.startsWith(source.scope) ||
+                    !parsed.pathname.endsWith('.parquet') ||
+                    (!source.signedUrls && parsed.search) ||
+                    (source.signedUrls &&
+                        (!parsed.searchParams.has('X-Amz-Signature') ||
+                            !/^[a-zA-Z0-9_./=%-]+$/.test(parsed.pathname) ||
+                            /%(?!3D)/i.test(parsed.pathname))) ||
+                    parsed.hash ||
+                    /[*?[\]{}]/.test(parsed.pathname) ||
+                    (!source.signedUrls && parsed.pathname.includes('%'))
+                ) {
+                    throw new ParameterError(
+                        'Parquet file is outside the trusted source prefix',
+                    );
+                }
+            });
+        });
+        if (source.httpAuth) {
+            if (scope.protocol !== 'https:') {
+                throw new ParameterError(
+                    'HTTP credentials require an HTTPS source',
+                );
+            }
+            await db.run(
+                `CREATE SECRET analytics_http (TYPE http, BEARER_TOKEN ${literal(source.httpAuth.bearerToken)}, SCOPE ${literal(source.scope)});`,
+            );
+        }
+        if (source.s3Config) {
+            if (DuckdbWarehouseClient.usesS3CredentialChain(source.s3Config)) {
+                await this.loadExtension(db, 'aws');
+            }
+            await db.run(
+                DuckdbWarehouseClient.buildS3SecretSql({
+                    ...source.s3Config,
+                    scope: [source.scope],
+                }),
+            );
+        }
+        // Restrict the engine, not just SQL validation. No globbing, arbitrary
+        // network reads, local files, or shared spill/cache directories.
+        await db.run("SET temp_directory = '';");
+        await db.run('SET enable_http_metadata_cache = false;');
+        await db.run('SET enable_external_file_cache = false;');
+        await db.run('SET parquet_metadata_cache = false;');
+        const files = source.tables.flatMap(({ urls }) => urls);
+        await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
+        await db.run('SET enable_external_access = false;');
+        // eslint-disable-next-line no-restricted-syntax
+        for (const { name, urls } of source.tables) {
+            // eslint-disable-next-line no-await-in-loop
+            await db.run(
+                `CREATE VIEW "${name}" AS SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true);`,
+            );
+        }
     }
 
     private static async bootstrapSharedInstance(
@@ -1703,6 +1855,16 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         try {
+            if (this.parquetConfig) {
+                try {
+                    return await this.withEphemeralQuerySession(callback);
+                } catch (error) {
+                    if (error instanceof ParameterError) throw error;
+                    throw new WarehouseQueryError(
+                        'Internal analytics query failed. Check storage access and query permissions.',
+                    );
+                }
+            }
             if (this.embeddedConfig) {
                 return await this.withDirectSession(
                     callback,
@@ -2228,6 +2390,16 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
+        if (
+            this.parquetConfig &&
+            /\b(duckdb_\w+|pragma_\w+|sqlite_\w+|pg_\w+|information_schema)\b/i.test(
+                DuckdbWarehouseClient.stripSqlComments(sql),
+            )
+        ) {
+            throw new ParameterError(
+                'Internal analytics catalog access is not allowed',
+            );
+        }
         DuckdbWarehouseClient.validateSqlFunctions(sql);
         DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
         await this.validateSelectSql(db, sql);

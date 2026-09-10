@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Backend-provisioned usage analytics projects. */
+    AnalyticsProject = 'analytics-project',
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
@@ -87,6 +89,8 @@ export enum FeatureFlags {
      * is true. Disabled by default.
      */
     EnableDataApps = 'enable-data-apps',
+    // Enable the Learn library, walkthroughs and training project per org.
+    EnableLearn = 'enable-learn',
 
     /**
      * Per-organization gate for declaring custom npm dependencies in data

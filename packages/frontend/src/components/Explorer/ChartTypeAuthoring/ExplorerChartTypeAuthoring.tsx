@@ -294,6 +294,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                                   appUuid: dataAppViz.dataAppVizUuid,
                                   name: dataAppViz.name,
                                   description: dataAppViz.description,
+                                  icon: dataAppViz.icon,
                               }
                             : null
                     }

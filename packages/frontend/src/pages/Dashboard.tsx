@@ -64,6 +64,7 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
@@ -104,6 +105,11 @@ const Dashboard: FC = () => {
     );
 
     const dashboardError = useDashboardContext((c) => c.dashboardError);
+    useRecordContentView(
+        projectUuid,
+        'dashboard',
+        !isDashboardLoading && !dashboardError ? dashboardUuid : undefined,
+    );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,

@@ -41,6 +41,24 @@ export type NetworkDiagnostics = {
 
 const PROBE_TIMEOUT_MS = 4000;
 
+// Path segments that follow these carry a one-time code.
+const CODE_BEARING_SEGMENTS = ['password-reset', 'invite-links', 'share'];
+
+// The request as it may be shown to people: no query string, no one-time
+// codes, and the host only when the request left the page's own origin.
+export const redactRequestPath = (apiPrefix: string, url: string): string => {
+    const raw = `${apiPrefix}${url}`;
+    const absolute = /^https?:\/\//.test(raw);
+    const parsed = new URL(raw, 'http://relative.invalid');
+    const segments = parsed.pathname.split('/');
+    const masked = segments.map((segment, index) =>
+        index > 0 && CODE_BEARING_SEGMENTS.includes(segments[index - 1])
+            ? '***'
+            : segment,
+    );
+    return `${absolute ? parsed.origin : ''}${masked.join('/')}`;
+};
+
 const isAbortError = (err: unknown): boolean =>
     typeof err === 'object' &&
     err !== null &&
@@ -89,7 +107,7 @@ export const diagnoseTransportFailure = async ({
     const base = {
         at: new Date().toISOString(),
         method,
-        path: `${apiPrefix}${url}`,
+        path: redactRequestPath(apiPrefix, url),
         online: isOnline(),
         cause: getErrorMessage(error),
         traceId,
@@ -126,19 +144,22 @@ export const diagnoseTransportFailure = async ({
     };
 };
 
+export const GENERIC_NETWORK_FAILURE_MESSAGE =
+    'We are currently unable to reach the Lightdash server. Please try again in a few moments.';
+
+// Names the cause only; the request itself lives in the copied diagnostics.
 export const networkFailureMessage = (d: NetworkDiagnostics): string => {
-    const request = `${d.method} ${d.path}`;
     switch (d.kind) {
         case 'offline':
             return 'You appear to be offline. Check your internet connection and try again.';
         case 'blocked':
-            return `Lightdash is reachable, but ${request} was blocked before it arrived. A corporate proxy, VPN or security software on your network most likely intercepted it. Try again from another network, or copy the diagnostics for your IT team.`;
+            return 'Lightdash is reachable, but this request was blocked before it arrived. A corporate proxy, VPN or security software on your network most likely intercepted it. Try again from another network, or copy the diagnostics for your IT team.';
         case 'unreachable':
-            return `Lightdash cannot be reached from your network right now (${request}). Check your connection or VPN and try again.`;
+            return 'Lightdash cannot be reached from your network right now. Check your connection or VPN and try again.';
         case 'intercepted':
-            return `Something between you and Lightdash answered ${request} with HTTP ${d.responseStatus} instead of Lightdash. A proxy, firewall or load balancer intercepted it. Try again in a few moments, or copy the diagnostics for your IT team.`;
+            return `Something between you and Lightdash answered this request with HTTP ${d.responseStatus} instead of Lightdash. A proxy, firewall or load balancer intercepted it. Try again in a few moments, or copy the diagnostics for your IT team.`;
         case 'cancelled':
-            return `${request} was cancelled before Lightdash responded.`;
+            return 'The request was cancelled before Lightdash responded.';
         default:
             return assertUnreachable(d.kind, 'Unknown transport failure');
     }

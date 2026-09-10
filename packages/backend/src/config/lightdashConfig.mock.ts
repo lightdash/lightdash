@@ -268,6 +268,9 @@ export const lightdashConfigMock: LightdashConfig = {
         licenseKey: null,
         licenseCertificate: null,
     },
+    roadmap: {
+        baseUrl: 'https://roadmap.lightdash.com',
+    },
     groups: {
         enabled: false,
     },
@@ -467,9 +470,6 @@ export const lightdashConfigMock: LightdashConfig = {
         flushBatchSize: 1000,
         bufferMaxSize: 10000,
         s3: null,
-    },
-    learn: {
-        enabled: false,
     },
     appRuntime: {
         enabled: false,

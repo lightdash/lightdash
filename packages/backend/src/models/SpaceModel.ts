@@ -1073,6 +1073,8 @@ export class SpaceModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNull(`${SpaceTableName}.parent_space_uuid`)
             .whereNull(`${SpaceTableName}.deleted_at`)
+            .orderBy(`${SpaceTableName}.created_at`, 'asc')
+            .orderBy(`${SpaceTableName}.space_id`, 'asc')
             .select(`${SpaceTableName}.space_uuid`);
         return spaces.map((s: { space_uuid: string }) => s.space_uuid);
     }

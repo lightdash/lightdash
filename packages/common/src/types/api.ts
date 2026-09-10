@@ -340,7 +340,10 @@ import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
 import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
-import { type ApiRoadmapResponse } from './roadmap';
+import {
+    type ApiRoadmapProjectResponse,
+    type ApiRoadmapResponse,
+} from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
@@ -767,14 +770,6 @@ export type HealthState = {
         enabled: boolean;
     };
     preAggregates: {
-        enabled: boolean;
-    };
-    learn: {
-        /**
-         * Whether Learn (the training project and its walkthroughs) is
-         * switched on for this instance (`LIGHTDASH_LEARN_ENABLED`). Off by
-         * default; an org admin still has to enable it for their org.
-         */
         enabled: boolean;
     };
     dataApps: {
@@ -1350,6 +1345,7 @@ type ApiResults =
     | ApiPaginatedValidateResponse['results']
     | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
+    | ApiRoadmapProjectResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

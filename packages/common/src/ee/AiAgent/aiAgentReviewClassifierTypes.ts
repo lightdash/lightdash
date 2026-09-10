@@ -402,6 +402,7 @@ export type AiAgentReviewItemWritebackBlockedReason =
     | 'insufficient_source_code_access'
     | 'unsupported_source_control'
     | 'git_app_not_installed'
+    | 'bitbucket_token_missing'
     | 'missing_writeback_config'
     | 'pull_request_open'
     | 'source_thread_writeback_exists'

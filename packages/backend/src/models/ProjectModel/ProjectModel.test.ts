@@ -1422,6 +1422,77 @@ describe('ProjectModel', () => {
     });
 
     describe('mergeMissingDbtConfigSecrets', () => {
+        const bitbucketConfig = {
+            type: DbtProjectType.BITBUCKET as const,
+            username: 'user',
+            personal_access_token: 'saved-token',
+            repository: 'workspace/repository',
+            branch: 'main',
+            project_sub_path: '/',
+            host_domain: 'bitbucket.org',
+        };
+
+        test.each([
+            { repository: 'workspace/another-repository' },
+            { repository: 'another-workspace/repository' },
+            { username: 'another-user' },
+            { host_domain: 'bitbucket.example.com' },
+        ])(
+            'does not restore a Bitbucket token after destination change %j',
+            (change) => {
+                const incoming = {
+                    ...bitbucketConfig,
+                    ...change,
+                    personal_access_token: '',
+                };
+                expect(
+                    ProjectModel.mergeMissingDbtConfigSecrets(
+                        incoming,
+                        bitbucketConfig,
+                    ),
+                ).toEqual(incoming);
+            },
+        );
+
+        test.each([
+            {},
+            { branch: 'another-branch' },
+            { project_sub_path: '/dbt' },
+            { host_domain: 'BITBUCKET.ORG.' },
+        ])(
+            'restores a Bitbucket token for the same destination %j',
+            (change) => {
+                const incoming = {
+                    ...bitbucketConfig,
+                    ...change,
+                    personal_access_token: '',
+                };
+                expect(
+                    ProjectModel.mergeMissingDbtConfigSecrets(
+                        incoming,
+                        bitbucketConfig,
+                    ),
+                ).toEqual({
+                    ...incoming,
+                    personal_access_token: 'saved-token',
+                });
+            },
+        );
+
+        test('preserves an explicitly supplied token when the Bitbucket destination changes', () => {
+            const incoming = {
+                ...bitbucketConfig,
+                repository: 'workspace/another-repository',
+                personal_access_token: 'replacement-token',
+            };
+            expect(
+                ProjectModel.mergeMissingDbtConfigSecrets(
+                    incoming,
+                    bitbucketConfig,
+                ),
+            ).toEqual(incoming);
+        });
+
         test('should NOT merge the dbt Cloud API key when the discovery endpoint changes', () => {
             const completeConfig: DbtCloudIDEProjectConfig = {
                 type: DbtProjectType.DBT_CLOUD_IDE,

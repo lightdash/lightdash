@@ -397,15 +397,14 @@ mcpRouter.all(
                     mcpService.isFilterExpressionsEnabled(req.user!),
                 ]);
                 const toolOptions: McpServerToolOptions = {
-                    projectPinned: pinnedProjectUuid !== undefined,
-                    // The run_ai_writeback tool is always registered now that
-                    // AI writeback has graduated from its dark-launch flag.
-                    aiWritebackEnabled: true,
-                    mcpContentWritesEnabled,
-                    scheduledDeliveryEnabled,
-                    runSqlEnabled,
-                    runMetricQueryEnabled,
-                    filterExpressionsEnabled,
+                    req: { pinnedProjectUuid },
+                    featureAvailability: {
+                        mcpContentWritesEnabled,
+                        scheduledDeliveryEnabled,
+                        runSqlEnabled,
+                        runMetricQueryEnabled,
+                        filterExpressionsEnabled,
+                    },
                 };
                 const mcpServer = await mcpService.createServer(toolOptions);
                 const transport = new StreamableHTTPServerTransport({

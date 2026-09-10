@@ -77,7 +77,9 @@ export const writebackBlockedReasonLabels: Record<
     project_context_disabled: 'Project context is not enabled',
     insufficient_source_code_access:
         'You do not have permission to modify source code',
-    unsupported_source_control: 'Project is not connected to GitHub or GitLab',
+    unsupported_source_control:
+        'Project is not connected to GitHub, GitLab or Bitbucket Cloud',
+    bitbucket_token_missing: 'Configure the project Bitbucket API token',
     git_app_not_installed: 'Git app is not installed',
     missing_writeback_config: 'Writeback runtime is not configured',
     pull_request_open: 'A pull request is already open',
@@ -96,9 +98,10 @@ export const writebackBlockedReasonDescriptions: Partial<
     Record<AiAgentReviewItemWritebackBlockedReason, string>
 > = {
     unsupported_source_control:
-        'Connect this project to GitHub or GitLab so Lightdash can open a pull request that fixes issues like this for you.',
+        'Connect this project to GitHub, GitLab or Bitbucket Cloud so Lightdash can open a pull request that fixes issues like this for you.',
     reviews_disabled:
         'Turn on Issues for your organization to let agents file and fix issues automatically.',
+    bitbucket_token_missing: 'Configure the project Bitbucket API token',
     git_app_not_installed:
         'Install the Lightdash app on your repository so it can open pull requests.',
     project_context_disabled:

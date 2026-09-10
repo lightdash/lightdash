@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "2.167.1",
+  "version": "2.185.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -26,6 +26,13 @@
       "require": "./dist/cjs/dbt/validation.js",
       "import": "./dist/cjs/dbt/validation.js",
       "default": "./dist/cjs/dbt/validation.js"
+    },
+    "./lightdash/loader": {
+      "types": "./dist/esm/lightdash/loader.d.ts",
+      "module": "./dist/esm/lightdash/loader.js",
+      "require": "./dist/cjs/lightdash/loader.js",
+      "import": "./dist/cjs/lightdash/loader.js",
+      "default": "./dist/cjs/lightdash/loader.js"
     },
     "./src": "./src/index.ts",
     "./src/*": [

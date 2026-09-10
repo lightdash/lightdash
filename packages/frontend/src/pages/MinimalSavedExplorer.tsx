@@ -1,5 +1,13 @@
-import { ChartType } from '@lightdash/common';
+import {
+    applyChartFilterOverridesToMetricQuery,
+    ChartType,
+    isChartScheduler,
+    SessionStorageKeys,
+    type Filters,
+    type ParametersValuesMap,
+} from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { useSessionStorage } from '@mantine/hooks';
 import {
     memo,
     useCallback,
@@ -25,6 +33,7 @@ import {
     selectSavedChart,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useProject } from '../hooks/useProject';
@@ -33,6 +42,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useSavedQuery } from '../hooks/useSavedQuery';
+import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
 import { getProjectUrlIdentifier } from '../utils/projectUrl';
@@ -224,6 +234,54 @@ const MinimalSavedExplorer: FC<Props> = ({
         projectUuid,
     });
 
+    // Scheduled deliveries render with the delivery's filter and parameter
+    // overrides: saved schedulers pass their uuid, send-now seeds session
+    // storage. Read synchronously so the first query already carries them.
+    const schedulerUuid = useSearchParams('schedulerUuid');
+    const [sendNowSchedulerChartFilters] = useSessionStorage<
+        Filters | undefined
+    >({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_CHART_FILTERS,
+        getInitialValueInEffect: false,
+    });
+    const [sendNowSchedulerParameters] = useSessionStorage<
+        ParametersValuesMap | undefined
+    >({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS,
+        getInitialValueInEffect: false,
+    });
+    const { data: scheduler, isInitialLoading: isLoadingScheduler } =
+        useScheduler(schedulerUuid, {
+            enabled: !!schedulerUuid && !sendNowSchedulerChartFilters,
+        });
+    const chartScheduler =
+        schedulerUuid && scheduler && isChartScheduler(scheduler)
+            ? scheduler
+            : undefined;
+    const schedulerFilters = chartScheduler
+        ? chartScheduler.filters
+        : sendNowSchedulerChartFilters;
+    const schedulerParameters = chartScheduler
+        ? chartScheduler.parameters
+        : sendNowSchedulerParameters;
+
+    const savedChart = useMemo(() => {
+        if (!data) return undefined;
+        if (!schedulerFilters && !schedulerParameters) return data;
+        return {
+            ...data,
+            metricQuery: schedulerFilters
+                ? applyChartFilterOverridesToMetricQuery(
+                      data.metricQuery,
+                      schedulerFilters,
+                  )
+                : data.metricQuery,
+            parameters: schedulerParameters
+                ? { ...data.parameters, ...schedulerParameters }
+                : data.parameters,
+        };
+    }, [data, schedulerFilters, schedulerParameters]);
+
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
 
@@ -233,18 +291,20 @@ const MinimalSavedExplorer: FC<Props> = ({
         document.body.style.backgroundColor = 'white';
     }, []);
 
-    // Reset store state when data changes
+    // Reset store state when data changes. With overrides the chart runs as an
+    // edited query so the overridden metric query is what gets executed.
     useEffect(() => {
-        if (!data) return;
+        if (!savedChart) return;
 
         const initialState = buildInitialExplorerState({
-            savedChart: data,
+            savedChart,
             minimal: true,
+            isEditMode: savedChart !== data,
             expandedSections: [ExplorerSection.VISUALIZATION],
         });
 
         store.dispatch(explorerActions.reset(initialState));
-    }, [data, store]);
+    }, [savedChart, data, store]);
 
     if (
         projectsQuery.isError ||
@@ -274,6 +334,7 @@ const MinimalSavedExplorer: FC<Props> = ({
         projectsQuery.isInitialLoading ||
         projectQuery.isInitialLoading ||
         isInitialLoading ||
+        isLoadingScheduler ||
         !projectRouteContext ||
         !data
     ) {

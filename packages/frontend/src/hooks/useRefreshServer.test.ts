@@ -28,7 +28,7 @@ describe('getJobCompletionToast', () => {
     test('keeps the successful sync message when every explore is valid', () => {
         expect(getJobCompletionToast(compileJob(0, 10))).toEqual({
             variant: 'success',
-            title: 'Successfully synced dbt project!',
+            title: 'Successfully synced project!',
         });
     });
 });

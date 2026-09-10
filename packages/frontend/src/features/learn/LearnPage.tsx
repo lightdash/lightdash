@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ProjectType } from '@lightdash/common';
+import { FeatureFlags, ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -27,9 +27,9 @@ import {
 import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
-import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -51,6 +51,7 @@ import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
 import { readLearnOrigin, rememberLearnOrigin } from './origin';
 import { useLearnProgress } from './progress';
+import { createLearnSearch } from './search';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
@@ -147,7 +148,8 @@ const ModuleCard: FC<{
  */
 const LearnPage: FC = () => {
     const { user } = useApp();
-    const { data: health } = useHealth();
+    const { data: learnFlag, isLoading: isLearnFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
     const trainingProject = projects?.find(
         (project) => project.type === ProjectType.TRAINING,
@@ -218,17 +220,18 @@ const LearnPage: FC = () => {
     // One group tab, or All.
     const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
 
-    const visible = useMemo(() => {
-        const needle = query.trim().toLowerCase();
-        return sortForLearner(held, catalogue).filter(
-            (module) =>
-                (showExtra || holds(held, module)) &&
-                (showSoon || module.available) &&
-                (needle === '' ||
-                    module.title.toLowerCase().includes(needle) ||
-                    module.scope.toLowerCase().includes(needle)),
-        );
-    }, [catalogue, held, showExtra, showSoon, query]);
+    const search = useMemo(
+        () =>
+            createLearnSearch(
+                sortForLearner(held, catalogue).filter(
+                    (module) =>
+                        (showExtra || holds(held, module)) &&
+                        (showSoon || module.available),
+                ),
+            ),
+        [catalogue, held, showExtra, showSoon],
+    );
+    const visible = useMemo(() => search(query), [search, query]);
     const groups = GROUP_ORDER.filter((group) =>
         visible.some((module) => module.group === group),
     );
@@ -276,8 +279,8 @@ const LearnPage: FC = () => {
     const trackedViewRef = useRef(false);
     useEffect(() => {
         if (trackedViewRef.current) return;
-        if (!projects || !health || !isSettled) return;
-        if (previewRedirect || !health.learn.enabled) return;
+        if (!projects || !learnFlag || !isSettled) return;
+        if (previewRedirect || !learnFlag.enabled) return;
         trackedViewRef.current = true;
         track({
             name: EventName.LEARN_LIBRARY_VIEWED,
@@ -299,7 +302,7 @@ const LearnPage: FC = () => {
         });
     }, [
         projects,
-        health,
+        learnFlag,
         isSettled,
         previewRedirect,
         organizationUuid,
@@ -310,10 +313,10 @@ const LearnPage: FC = () => {
         track,
     ]);
 
-    if (previewRedirect) return <Navigate to={previewRedirect} replace />;
-    // Learn switched off for the instance: the route falls through to the
+    if (isLearnFlagLoading) return null;
+    // Learn switched off for the org: the route falls through to the
     // project's home.
-    if (health && !health.learn.enabled) {
+    if (!learnFlag?.enabled) {
         return (
             <Navigate
                 to={
@@ -325,6 +328,7 @@ const LearnPage: FC = () => {
             />
         );
     }
+    if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     if (projects && !trainingProject) {
         return (
             <EnableLearnPanel

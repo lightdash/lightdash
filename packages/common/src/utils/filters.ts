@@ -16,6 +16,7 @@ import {
     TableCalculationType,
     type CompiledField,
     type CustomSqlDimension,
+    type DashboardFilterableField,
     type Dimension,
     type Field,
     type FilterableDimension,
@@ -39,6 +40,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DateFilterRule,
+    type FieldTarget,
     type FilterDashboardToRule,
     type FilterGroup,
     type FilterGroupItem,
@@ -487,6 +489,35 @@ export const createFilterRuleFromField = (
 export const matchFieldExact = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name && a.table === b.table;
 
+/** Same query field and the same labels; explores that relabel a shared join alias yield distinct dashboard fields. */
+const matchDashboardFilterableField = (a: Field) => (b: Field) =>
+    matchFieldExact(a)(b) &&
+    a.label === b.label &&
+    a.tableLabel === b.tableLabel;
+
+export const getDashboardFilterableFieldKey = (field: Field): string =>
+    `${getItemId(field)}::${field.tableLabel}::${field.label}`;
+
+/** The field a dashboard filter displays: an explicitly targeted tile carries its own explore's labels. */
+export const getDashboardFilterField = <T extends ItemsMap[string]>(
+    itemsMap: Record<string, T>,
+    rule: {
+        target: FieldTarget;
+        tileTargets?: DashboardFilterRule['tileTargets'];
+    },
+    fieldsByTile?: Record<string, DashboardFilterableField[]>,
+): T | DashboardFilterableField | undefined => {
+    for (const [tileUuid, target] of Object.entries(rule.tileTargets ?? {})) {
+        if (target && target.fieldId === rule.target.fieldId) {
+            const field = fieldsByTile?.[tileUuid]?.find(
+                (candidate) => getItemId(candidate) === target.fieldId,
+            );
+            if (field) return field;
+        }
+    }
+    return itemsMap[rule.target.fieldId];
+};
+
 export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name;
 
@@ -577,7 +608,9 @@ const getDefaultTileTargets = (
     >((acc, [tileUuid, availableFilters]) => {
         if (!availableFilters) return acc;
 
-        const filterableField = availableFilters.find(matchFieldExact(field));
+        const filterableField = availableFilters.find(
+            matchDashboardFilterableField(field),
+        );
         if (!filterableField) return acc;
 
         return {
@@ -588,6 +621,30 @@ const getDefaultTileTargets = (
             },
         };
     }, {});
+
+/** Tiles that carry the same query field under different labels are excluded, not left to auto-apply */
+const getRelabelledTileExclusions = (
+    field: FilterableDimension | Metric | Field,
+    availableTileFilters: Record<
+        string,
+        (FilterableDimension | Metric)[] | undefined
+    >,
+) =>
+    Object.entries(availableTileFilters).reduce<Record<string, false>>(
+        (acc, [tileUuid, availableFilters]) => {
+            if (!availableFilters) return acc;
+            const sameQueryField = availableFilters.some(
+                matchFieldExact(field),
+            );
+            const sameLabels = availableFilters.some(
+                matchDashboardFilterableField(field),
+            );
+            return sameQueryField && !sameLabels
+                ? { ...acc, [tileUuid]: false }
+                : acc;
+        },
+        {},
+    );
 
 export const applyDefaultTileTargets = (
     filterRule: DashboardFilterRule<
@@ -638,7 +695,10 @@ export const createDashboardFilterRuleFromField = ({
                 tableName: field.table,
                 fieldName: field.name,
             },
-            tileTargets: getDefaultTileTargets(field, availableTileFilters),
+            tileTargets: {
+                ...getRelabelledTileExclusions(field, availableTileFilters),
+                ...getDefaultTileTargets(field, availableTileFilters),
+            },
             disabled: !isTemporary,
             label: undefined,
         },
@@ -1219,6 +1279,158 @@ export const addFiltersToMetricQuery = (
             filters.tableCalculations,
         ),
     },
+});
+
+/**
+ * Pairs each saved rule with at most one override: by id first, then the first
+ * unmatched override on the same field (an override authored against a rule
+ * the chart has since recreated). Mirrors getDashboardDimensionOverrideMatches.
+ */
+const getChartFilterRuleOverrideMatches = (
+    savedRules: FilterRule[],
+    overrides: FilterRule[],
+): {
+    overrideBySavedRuleId: Map<string, FilterRule>;
+    appliedIds: Set<string>;
+} => {
+    const savedIds = new Set(savedRules.map((rule) => rule.id));
+    const appliedIds = new Set<string>();
+    const overrideBySavedRuleId = new Map<string, FilterRule>();
+    savedRules.forEach((savedRule) => {
+        const override =
+            overrides.find((candidate) => candidate.id === savedRule.id) ??
+            overrides.find(
+                (candidate) =>
+                    !savedIds.has(candidate.id) &&
+                    !appliedIds.has(candidate.id) &&
+                    candidate.target.fieldId === savedRule.target.fieldId,
+            );
+        if (override) {
+            appliedIds.add(override.id);
+            overrideBySavedRuleId.set(savedRule.id, override);
+        }
+    });
+    return { overrideBySavedRuleId, appliedIds };
+};
+
+const replaceOverriddenRules = (
+    group: FilterGroup,
+    overrideBySavedRuleId: Map<string, FilterRule>,
+): FilterGroup => {
+    const items = getItemsFromFilterGroup(group).map(
+        (item): FilterGroupItem => {
+            if (isFilterGroup(item)) {
+                return replaceOverriddenRules(item, overrideBySavedRuleId);
+            }
+            const override = overrideBySavedRuleId.get(item.id);
+            if (!override) return item;
+            // The saved rule owns identity, target and requirement flag; the
+            // override only carries operator, values, settings and disabled.
+            return {
+                ...override,
+                id: item.id,
+                target: item.target,
+                required: item.required,
+            };
+        },
+    );
+    return isAndFilterGroup(group)
+        ? { id: group.id, and: items }
+        : { id: group.id, or: items };
+};
+
+/** Drops the rules that `keep` rejects, and any group left empty by that. */
+const pruneFilterGroup = (
+    group: FilterGroup,
+    keep: (rule: FilterRule) => boolean,
+): FilterGroup | undefined => {
+    const items = getItemsFromFilterGroup(group).reduce<FilterGroupItem[]>(
+        (acc, item) => {
+            if (isFilterGroup(item)) {
+                const pruned = pruneFilterGroup(item, keep);
+                return pruned ? [...acc, pruned] : acc;
+            }
+            return keep(item)
+                ? [...acc, { ...item, required: undefined }]
+                : acc;
+        },
+        [],
+    );
+    if (items.length === 0) return undefined;
+    return isAndFilterGroup(group)
+        ? { id: group.id, and: items }
+        : { id: group.id, or: items };
+};
+
+/**
+ * Scheduled-delivery overrides for one of a chart's saved filter groups. An
+ * override replaces the saved rule it matches (see
+ * getChartFilterRuleOverrideMatches) in place, so nested AND/OR structure is
+ * kept; overrides matching nothing are ANDed on with `required` stripped, so a
+ * delivery can narrow a chart but never widen a required filter away.
+ */
+export const applyChartFilterOverridesToFilterGroup = (
+    savedGroup: FilterGroup | undefined,
+    overrideGroup: FilterGroup | undefined,
+): FilterGroup | undefined => {
+    if (!overrideGroup) return savedGroup;
+    const { overrideBySavedRuleId, appliedIds } =
+        getChartFilterRuleOverrideMatches(
+            getFilterRulesFromGroup(savedGroup),
+            getFilterRulesFromGroup(overrideGroup),
+        );
+    const replaced = savedGroup
+        ? replaceOverriddenRules(savedGroup, overrideBySavedRuleId)
+        : undefined;
+    const appended = pruneFilterGroup(
+        overrideGroup,
+        (rule) => !appliedIds.has(rule.id),
+    );
+    if (!appended) return replaced;
+    return combineFilterGroups(replaced, appended);
+};
+
+/**
+ * Whether any override would take the place of a saved rule (by id or field),
+ * i.e. change what the chart author saved rather than only narrow it. Callers
+ * gate this on the same permission that allows running ad-hoc explore queries.
+ */
+export const doChartFilterOverridesReplaceSavedRules = (
+    savedFilters: Filters,
+    overrides: Filters,
+): boolean =>
+    (['dimensions', 'metrics', 'tableCalculations'] as const).some(
+        (section) =>
+            getChartFilterRuleOverrideMatches(
+                getFilterRulesFromGroup(savedFilters[section]),
+                getFilterRulesFromGroup(overrides[section]),
+            ).appliedIds.size > 0,
+    );
+
+export const applyChartFilterOverrides = (
+    savedFilters: Filters,
+    overrides: Filters,
+): Filters => ({
+    dimensions: applyChartFilterOverridesToFilterGroup(
+        savedFilters.dimensions,
+        overrides.dimensions,
+    ),
+    metrics: applyChartFilterOverridesToFilterGroup(
+        savedFilters.metrics,
+        overrides.metrics,
+    ),
+    tableCalculations: applyChartFilterOverridesToFilterGroup(
+        savedFilters.tableCalculations,
+        overrides.tableCalculations,
+    ),
+});
+
+export const applyChartFilterOverridesToMetricQuery = (
+    metricQuery: MetricQuery,
+    overrides: Filters,
+): MetricQuery => ({
+    ...metricQuery,
+    filters: applyChartFilterOverrides(metricQuery.filters, overrides),
 });
 
 /**

@@ -439,6 +439,74 @@ describe('ProjectContextService.writebackEntry', () => {
         expect(updated).not.toContain('content: old');
     });
 
+    test('bounds long context branch names without changing entry IDs or colliding on shared prefixes', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({});
+        const entries = ['first', 'second'].map((suffix) => ({
+            ...judgeEntry,
+            content: `${'Native context definition '.repeat(16)}${suffix}`,
+            terms: [],
+        }));
+        for await (const entry of entries) {
+            const result = await service.writebackEntry({
+                user: userWithProjectContextAccess(),
+                projectUuid: PROJECT_UUID,
+                entry,
+                branchTimestamp: 1000,
+                sourceThread: null,
+            });
+            expect(result.entryId.length).toBeGreaterThan(255);
+            const commit = mockCreateSignedCommitOnBranch.mock.lastCall![0];
+            const written = Buffer.from(
+                commit.fileChanges.additions[0].contents,
+                'base64',
+            ).toString('utf8');
+            expect(written).toContain(`id: ${result.entryId}`);
+            expect(
+                Buffer.byteLength(`refs/heads/${commit.branch}`, 'utf8'),
+            ).toBeLessThanOrEqual(255);
+        }
+        expect(
+            new Set(mockCreateBranch.mock.calls.map(([args]) => args.branch))
+                .size,
+        ).toBe(2);
+    });
+
+    test('writes native project context beside config on the configured branch', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({
+            project: {
+                ...githubProject,
+                dbtConnection: {
+                    ...githubProject.dbtConnection,
+                    semanticLayer: 'lightdash',
+                    branch: 'release',
+                    project_sub_path: '/native',
+                },
+            },
+        });
+        await service.writebackEntry({
+            user: userWithProjectContextAccess(),
+            projectUuid: PROJECT_UUID,
+            entry: judgeEntry,
+            branchTimestamp: 1000,
+            sourceThread: null,
+        });
+        expect(mockGetFileContent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fileName: 'native/lightdash.project_context.yml',
+                branch: 'release',
+            }),
+        );
+        expect(
+            mockCreateSignedCommitOnBranch.mock.calls[0][0].fileChanges
+                .additions[0].path,
+        ).toBe('native/lightdash.project_context.yml');
+        expect(mockCreatePullRequest).toHaveBeenCalledWith(
+            expect.objectContaining({ base: 'release' }),
+        );
+    });
+
     test('throws when the project has no GitHub access', async () => {
         const { service } = makeService({ installationId: undefined });
         await expect(

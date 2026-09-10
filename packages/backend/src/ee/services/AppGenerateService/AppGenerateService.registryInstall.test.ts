@@ -64,6 +64,7 @@ function makeEntry(
         tags: [],
         changelog: '',
         minLightdashVersion: null,
+        icon: null,
         vizSchema: VIZ_SCHEMA,
         thumbnail: null,
         screenshots: [],
@@ -426,6 +427,45 @@ describe('AppGenerateService.installRegistryChartType', () => {
         expect(optsArg).toEqual({ registryVersion: '1.3.0' });
     });
 
+    it('fresh install: passes the registry entry icon onto the created app', async () => {
+        const iconEntry = makeEntry({ icon: 'chart-sankey' });
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
+        const fakeS3 = makeFakeS3();
+        const createWithVersion = vi.fn().mockResolvedValue(undefined);
+        const appModel = {
+            listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
+            createWithVersion,
+        };
+        const chartRegistryClient = {
+            getEntry: vi.fn().mockResolvedValue(iconEntry),
+            downloadArtifact: vi
+                .fn()
+                .mockImplementation(
+                    (_entry: unknown, kind: 'source' | 'dist') =>
+                        Promise.resolve(
+                            kind === 'source' ? sourceTar : distTar,
+                        ),
+                ),
+        };
+        const svc = buildService({
+            appModel,
+            chartRegistryClient,
+            s3ClientOverride: fakeS3,
+        });
+
+        await svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey');
+
+        const [appArg] = createWithVersion.mock.calls[0];
+        expect(appArg).toEqual(
+            expect.objectContaining({ icon: 'chart-sankey' }),
+        );
+    });
+
     it('already installed at latest → action unchanged, no writes', async () => {
         const fakeS3 = makeFakeS3();
         const appModel = {
@@ -468,6 +508,7 @@ describe('AppGenerateService.installRegistryChartType', () => {
         ]);
         const fakeS3 = makeFakeS3();
         const createVersion = vi.fn().mockResolvedValue({ version: 3 });
+        const updateApp = vi.fn().mockResolvedValue(undefined);
         const appModel = {
             listRegistryInstalledApps: vi.fn().mockResolvedValue([
                 {
@@ -478,8 +519,11 @@ describe('AppGenerateService.installRegistryChartType', () => {
             ]),
             getLatestVersion: vi.fn().mockResolvedValue({ version: 2 }),
             createVersion,
+            updateApp,
         };
+        const iconEntry = makeEntry({ icon: 'chart-radar' });
         const chartRegistryClient = {
+            getEntry: vi.fn().mockResolvedValue(iconEntry),
             downloadArtifact: vi
                 .fn()
                 .mockImplementation(
@@ -516,6 +560,13 @@ describe('AppGenerateService.installRegistryChartType', () => {
             undefined,
             PARSED_VIZ_SCHEMA,
             { registryVersion: '1.3.0' },
+        );
+        // The registry's icon always wins on upgrade — installed types are
+        // read-only, so it can't have drifted locally.
+        expect(updateApp).toHaveBeenCalledWith(
+            'existing-app-uuid',
+            PROJECT_UUID,
+            { icon: 'chart-radar' },
         );
     });
 

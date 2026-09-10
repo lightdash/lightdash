@@ -301,6 +301,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
             }) =>
                 new ProjectHomepageService({
+                    recentContentService: repository.getRecentContentService(),
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
                     analytics: context.lightdashAnalytics,
@@ -1131,7 +1132,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         provisionTrainingProject({
                             user,
                             projectService,
-                            learnEnabled: context.lightdashConfig.learn.enabled,
+                            featureFlagModel: models.getFeatureFlagModel(),
                             projectModel: models.getProjectModel(),
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),

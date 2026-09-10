@@ -8,6 +8,7 @@ import {
     CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
+    FeatureFlags,
     ForbiddenError,
     getAllScopesForRole,
     getTrainingProjectScopes,
@@ -1159,25 +1160,35 @@ export class UserModel {
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
         const isEnterprise =
             this.lightdashConfig.license.licenseKey !== undefined;
-        const [customRoleScopes, customRolesFlag, patScopeAuthoritativeFlag] =
-            await Promise.all([
-                this.customRoleScopes(customRoleUuids, trx),
-                this.featureFlagModel.get(
-                    {
-                        user: lightdashUser,
-                        featureFlagId: CommercialFeatureFlags.CustomRoles,
-                    },
-                    { trx },
-                ),
-                this.featureFlagModel.get(
-                    {
-                        user: lightdashUser,
-                        featureFlagId:
-                            CommercialFeatureFlags.PatScopeAuthoritative,
-                    },
-                    { trx },
-                ),
-            ]);
+        const [
+            customRoleScopes,
+            customRolesFlag,
+            patScopeAuthoritativeFlag,
+            learnFlag,
+        ] = await Promise.all([
+            this.customRoleScopes(customRoleUuids, trx),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: CommercialFeatureFlags.CustomRoles,
+                },
+                { trx },
+            ),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: CommercialFeatureFlags.PatScopeAuthoritative,
+                },
+                { trx },
+            ),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                },
+                { trx },
+            ),
+        ]);
 
         // Narrow empty-role resolution: only the flagged enterprise human's
         // primary org role uuid is checked for existence when it has no
@@ -1228,6 +1239,7 @@ export class UserModel {
             user.user_uuid,
             isEnterprise,
             abilityBuilder,
+            learnFlag.enabled,
             trx,
         );
 
@@ -1304,11 +1316,12 @@ export class UserModel {
         userUuid: string,
         isEnterprise: boolean,
         builder: AbilityBuilder<MemberAbility>,
+        learnEnabled: boolean,
         trx: Knex = this.database,
     ): Promise<void> {
-        // Learn off for the instance: no trainee scopes, even if a training
+        // Learn off for the org: no trainee scopes, even if a training
         // project is left over, so switching off also closes the sandbox.
-        if (!this.lightdashConfig.learn.enabled) return;
+        if (!learnEnabled) return;
         const trainingProjects = await this.getTrainingProjects(
             organizationId,
             userUuid,

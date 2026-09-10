@@ -28,17 +28,40 @@ const updateApp = async ({
     return data;
 };
 
-export const useUpdateApp = (options?: { resourceLabel?: string }) => {
+export const useUpdateApp = (options?: {
+    resourceLabel?: string;
+    appUuidOrSlug?: string;
+}) => {
     const resourceLabel = options?.resourceLabel ?? 'App';
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<UpdateAppResult, ApiError, UpdateAppParams>({
         mutationFn: updateApp,
         onSuccess: (_data, variables) => {
-            void queryClient.invalidateQueries({
-                queryKey: ['app', variables.projectUuid, variables.appUuid],
+            const identifiers = new Set(
+                [variables.appUuid, options?.appUuidOrSlug].filter(
+                    (identifier): identifier is string => Boolean(identifier),
+                ),
+            );
+
+            identifiers.forEach((identifier) => {
+                void queryClient.invalidateQueries({
+                    queryKey: ['app', variables.projectUuid, identifier],
+                });
+                // Chart types are apps too; refresh the viz detail read by
+                // their picker, header and builder.
+                void queryClient.invalidateQueries({
+                    queryKey: [
+                        'data-app-viz',
+                        variables.projectUuid,
+                        identifier,
+                    ],
+                });
             });
             void queryClient.invalidateQueries({ queryKey: ['myApps'] });
+            void queryClient.invalidateQueries({
+                queryKey: ['data-app-vizs'],
+            });
             void invalidateContent(queryClient, variables.projectUuid);
             const field = variables.name
                 ? 'name'

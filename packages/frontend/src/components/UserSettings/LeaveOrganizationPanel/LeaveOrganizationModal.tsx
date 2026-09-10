@@ -11,9 +11,12 @@ export const LeaveOrganizationModal: FC<
     const { mutateAsync, isLoading: isLeaving } =
         useLeaveOrganizationMutation();
 
-    const [confirmOrgName, setConfirmOrgName] = useState<string>();
+    const [confirmOrgName, setConfirmOrgName] = useState('');
 
     if (isInitialLoading || !organization) return null;
+
+    const organizationName = organization.name.trim();
+    const confirmationText = organizationName || 'LEAVE';
 
     const handleConfirm = async () => {
         await mutateAsync();
@@ -21,7 +24,7 @@ export const LeaveOrganizationModal: FC<
     };
 
     const handleOnClose = () => {
-        setConfirmOrgName(undefined);
+        setConfirmOrgName('');
         onClose();
     };
 
@@ -29,27 +32,28 @@ export const LeaveOrganizationModal: FC<
         <MantineModal
             opened={opened}
             onClose={handleOnClose}
-            title="Leave organization"
+            title={`Leave “${organizationName || 'Unnamed organization'}”?`}
             variant="delete"
             confirmLabel="Leave"
             size="md"
             onConfirm={handleConfirm}
             confirmDisabled={
-                confirmOrgName?.toLowerCase() !==
-                organization.name.toLowerCase()
+                confirmOrgName.toLowerCase() !== confirmationText.toLowerCase()
             }
             confirmLoading={isLeaving}
         >
             <Stack gap="sm">
                 <Text fz="sm" c="dimmed">
-                    Type the name of this organization to confirm. You will lose
-                    access to all of its projects and will be signed out.
+                    You will lose access to all projects in this organization
+                    and will be signed out. The organization and its content
+                    will remain available to other members.
                 </Text>
 
                 <TextInput
                     name="confirmOrgName"
-                    placeholder={organization.name}
-                    value={confirmOrgName ?? ''}
+                    label={`Type ${confirmationText} to confirm`}
+                    placeholder={confirmationText}
+                    value={confirmOrgName}
                     onChange={(e) => setConfirmOrgName(e.target.value)}
                 />
             </Stack>

@@ -19,6 +19,7 @@ import { recordServerBuildHash } from './features/buildHashHandshake/buildHashHa
 import { getFromInMemoryStorage } from './utils/inMemoryStorage';
 import {
     diagnoseTransportFailure,
+    GENERIC_NETWORK_FAILURE_MESSAGE,
     networkFailureMessage,
     UnexpectedResponseError,
 } from './utils/networkDiagnostics';
@@ -114,11 +115,22 @@ const parseJsonBody = (r: Response): Promise<AnyType> =>
         throw new UnexpectedResponseError(r.status);
     });
 
+// An error status with a body that is not the API envelope came from
+// something in front of Lightdash, not from Lightdash.
+const parseErrorBody = (r: Response): Promise<ApiError> =>
+    parseJsonBody(r).then((d) => {
+        if (isApiError(d)) return d;
+        throw new UnexpectedResponseError(r.status);
+    });
+
 type FailedRequest = {
     method: string;
     url: string;
     apiPrefix: string;
     traceId: string | null;
+    // Rendered inside a host application (SDK or embed): the viewer gets the
+    // generic message and no diagnostics, which would name the Lightdash host.
+    hosted: boolean;
 };
 
 const handleError = async (
@@ -153,8 +165,10 @@ const handleError = async (
         error: {
             name: 'NetworkError',
             statusCode: 500,
-            message: networkFailureMessage(diagnostics),
-            data: diagnostics,
+            message: request.hosted
+                ? GENERIC_NETWORK_FAILURE_MESSAGE
+                : networkFailureMessage(diagnostics),
+            data: request.hosted ? {} : diagnostics,
         },
     };
 };
@@ -226,7 +240,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         .then((r) => {
             recordServerBuildHash(r);
             if (!r.ok) {
-                return parseJsonBody(r).then((d) => {
+                return parseErrorBody(r).then((d) => {
                     throw d;
                 });
             }
@@ -271,6 +285,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                 url,
                 apiPrefix,
                 traceId: sentryTrace?.split('-')[0] ?? null,
+                hosted: baseUrl !== null || !!embed?.token,
             });
             networkHistory.push(
                 sensitive
@@ -339,12 +354,13 @@ export const lightdashApiStream = ({
         signal,
     }).then(async (r) => {
         if (!r.ok) {
-            const error: unknown = await parseJsonBody(r).catch((e) => e);
+            const error: unknown = await parseErrorBody(r).catch((e) => e);
             const apiError = await handleError(error, {
                 method,
                 url,
                 apiPrefix,
                 traceId: sentryTrace?.split('-')[0] ?? null,
+                hosted: baseUrl !== null || !!embed?.token,
             });
             throw new Error(apiError.error.message);
         }

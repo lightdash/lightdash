@@ -8,6 +8,7 @@ import {
     getErrorMessage,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
+    getTotalFilterRules,
     getTzMinutesOffset,
     GoogleSheetsScopeError,
     GoogleSheetsTransientError,
@@ -37,6 +38,7 @@ import {
     Scheduler,
     SchedulerAndTargets,
     SchedulerCronUpdate,
+    SchedulerFilters,
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerOptions,
@@ -83,6 +85,7 @@ import { BaseService } from '../BaseService';
 import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import { assertCanReplaceChartFilters } from './chartFilterOverridesAccess';
 
 type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -574,6 +577,26 @@ export class SchedulerService extends BaseService {
         }
     }
 
+    // The filters column is stored per resource type: a rule list for
+    // dashboards, a Filters tree for charts. A mismatched shape would be
+    // persisted as-is and break the next delivery.
+    private static validateFiltersShape(
+        existing: Scheduler,
+        filters: SchedulerFilters | undefined,
+    ): void {
+        if (filters === undefined) return;
+        if (isDashboardScheduler(existing) && !Array.isArray(filters)) {
+            throw new ParameterError(
+                'Dashboard delivery filters must be a list of filter rules',
+            );
+        }
+        if (isChartScheduler(existing) && Array.isArray(filters)) {
+            throw new ParameterError(
+                'Chart delivery filters must be a dimensions, metrics and table calculations object',
+            );
+        }
+    }
+
     // App deliveries render the app once and materialise whatever queries it ran.
     // 'table' delivers each query's own (possibly capped) result; 'all' re-runs
     // capped queries unbounded at delivery time. Numeric limits stay rejected —
@@ -992,6 +1015,24 @@ export class SchedulerService extends BaseService {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
+        SchedulerService.validateFiltersShape(
+            existingScheduler,
+            updatedScheduler.filters,
+        );
+        if (
+            isChartScheduler(existingScheduler) &&
+            updatedScheduler.filters &&
+            !Array.isArray(updatedScheduler.filters)
+        ) {
+            assertCanReplaceChartFilters({
+                ability: this.createAuditedAbility(user),
+                chart: await this.savedChartModel.get(
+                    existingScheduler.savedChartUuid,
+                ),
+                schedulerFilters: updatedScheduler.filters,
+            });
+        }
+
         if (isAppScheduler(existingScheduler)) {
             SchedulerService.validateAppSchedulerDelivery(updatedScheduler);
         }
@@ -1049,6 +1090,11 @@ export class SchedulerService extends BaseService {
                 ...(isDashboardScheduler(scheduler) && {
                     filtersUpdatedNum: scheduler.filters
                         ? scheduler.filters.length
+                        : 0,
+                }),
+                ...(isChartScheduler(scheduler) && {
+                    filtersUpdatedNum: scheduler.filters
+                        ? getTotalFilterRules(scheduler.filters).length
                         : 0,
                 }),
                 timeZone: getTimezoneLabel(scheduler.timezone),
@@ -1766,6 +1812,14 @@ export class SchedulerService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (isChartScheduler(scheduler) && scheduler.filters) {
+            assertCanReplaceChartFilters({
+                ability: auditedAbility,
+                chart: await this.savedChartModel.get(scheduler.savedChartUuid),
+                schedulerFilters: scheduler.filters,
+            });
         }
 
         if (

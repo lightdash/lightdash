@@ -551,6 +551,7 @@ const AppHeaderActions: FC<Props> = ({
                     uuid={appUuid}
                     initialName={appName}
                     initialDescription={appDescription ?? ''}
+                    iconPicker={null}
                     onClose={() => setIsUpdateModalOpen(false)}
                     onConfirm={() => setIsUpdateModalOpen(false)}
                 />

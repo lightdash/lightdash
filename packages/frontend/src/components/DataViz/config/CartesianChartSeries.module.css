@@ -3,10 +3,18 @@
 }
 
 .controlPanel {
-    background-color: light-dark(white, transparent);
+    flex: 1;
+    min-width: 0;
+    background-color: var(--mantine-color-body);
 }
 
 .panel {
-    background-color: light-dark(white, transparent);
+    background-color: var(--mantine-color-body);
     border-radius: var(--mantine-radius-sm);
+}
+
+.seriesCard {
+    background-color: var(--mantine-color-ldGray-0);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-xs);
 }

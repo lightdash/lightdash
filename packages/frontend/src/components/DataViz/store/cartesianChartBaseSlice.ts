@@ -61,6 +61,10 @@ export const cartesianChartConfigSlice = createSlice({
     name: 'cartesianChartBaseConfig',
     initialState,
     reducers: {
+        setSeriesOrder: (state, action: PayloadAction<string[]>) => {
+            state.display = state.display || {};
+            state.display.seriesOrder = action.payload;
+        },
         setXAxisReference: (state, action: PayloadAction<string>) => {
             const xField = state.options.indexLayoutOptions.find(
                 (x) => x.reference === action.payload,

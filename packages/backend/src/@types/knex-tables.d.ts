@@ -302,6 +302,10 @@ import {
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 import {
+    RecentContentTable,
+    RecentContentTableName,
+} from '../database/entities/recentContent';
+import {
     RolesTableName,
     RoleTable,
     ScopedRolesTableName,
@@ -694,6 +698,7 @@ declare module 'knex/types/tables' {
         [SlackAuthTokensTableName]: SlackAuthTokensTable;
         [SlackChannelsTableName]: SlackChannelsTable;
         [AnalyticsChartViewsTableName]: AnalyticsChartViews;
+        [RecentContentTableName]: RecentContentTable;
         [AnalyticsDashboardViewsTableName]: AnalyticsDashboardViews;
         [AnalyticsAppViewsTableName]: AnalyticsAppViews;
         [PinnedListTableName]: PinnedListTable;

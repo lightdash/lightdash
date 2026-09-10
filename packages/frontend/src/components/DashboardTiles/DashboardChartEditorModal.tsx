@@ -1,11 +1,9 @@
 import {
-    ChartType,
-    mergeDashboardCustomMetrics,
     type AdditionalMetric,
     type DashboardCustomMetricAffectedChart,
     type SavedChart,
 } from '@lightdash/common';
-import { Button, Group, Text } from '@mantine/core';
+import { Anchor, Button, Group, Text } from '@mantine/core';
 import { IconAlertTriangle, IconChartBar } from '@tabler/icons-react';
 import {
     useCallback,
@@ -17,7 +15,6 @@ import {
 } from 'react';
 import { Provider } from 'react-redux';
 import {
-    buildInitialExplorerState,
     createExplorerStore,
     selectActiveFields,
     selectHasUnsavedChanges,
@@ -30,15 +27,16 @@ import { useDeleteDashboardCustomMetric } from '../../hooks/dashboard/useUpdateD
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
-import { ExplorerSection } from '../../providers/Explorer/types';
 import { ModalHostedContext } from '../../providers/Explorer/useIsModalHosted';
 import MantineModal from '../common/MantineModal';
 import Page from '../common/Page/Page';
+import TruncatedText from '../common/TruncatedText';
 import Explorer from '../Explorer';
 import { useChartGalleryRightSidebar } from '../Explorer/ChartGallery/useChartGalleryRightSidebar';
 import RegistryImpactPreviewModal from '../Explorer/CustomMetricModal/RegistryImpactPreviewModal';
 import ExploreSideBar from '../Explorer/ExploreSideBar';
 import PageSpinner from '../PageSpinner';
+import { buildDashboardEditorInitialState } from './buildDashboardEditorInitialState';
 
 type ContentProps = {
     exploreId: string;
@@ -92,54 +90,10 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
     // No useExplorerRoute — it would rewrite the dashboard URL from the modal.
     const [store] = useState(() =>
         createExplorerStore({
-            explorer: buildInitialExplorerState({
-                isEditMode: true,
-                initialState: {
-                    expandedSections: [
-                        ExplorerSection.FILTERS,
-                        ExplorerSection.VISUALIZATION,
-                        ExplorerSection.RESULTS,
-                    ],
-                    savedChart: editChart,
-                    unsavedChartVersion: {
-                        tableName: exploreId,
-                        // Editing: seeded metrics fill gaps, the chart's own
-                        // snapshot wins on collision.
-                        metricQuery: editChart
-                            ? {
-                                  ...editChart.metricQuery,
-                                  additionalMetrics:
-                                      mergeDashboardCustomMetrics(
-                                          editChart.metricQuery
-                                              .additionalMetrics ?? [],
-                                          seededMetrics,
-                                      ),
-                              }
-                            : {
-                                  exploreName: exploreId,
-                                  dimensions: [],
-                                  metrics: [],
-                                  filters: {},
-                                  sorts: [],
-                                  limit: 500,
-                                  tableCalculations: [],
-                                  additionalMetrics: seededMetrics,
-                                  timezone: undefined,
-                              },
-                        chartConfig: editChart?.chartConfig ?? {
-                            type: ChartType.CARTESIAN,
-                            config: {
-                                layout: { xField: '', yField: [] },
-                                eChartsConfig: { series: [] },
-                            },
-                        },
-                        tableConfig: editChart?.tableConfig ?? {
-                            columnOrder: [],
-                        },
-                        pivotConfig: editChart?.pivotConfig ?? { columns: [] },
-                    },
-                },
-                defaultLimit: 500,
+            explorer: buildDashboardEditorInitialState({
+                exploreId,
+                editChart,
+                seededMetrics,
             }),
         }),
     );
@@ -341,7 +295,30 @@ const DashboardChartEditorModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={editChart ? 'Edit chart' : 'New chart'}
+            title={
+                <Group gap={6} wrap="nowrap">
+                    <Anchor
+                        c="dimmed"
+                        fw={500}
+                        underline="hover"
+                        truncate="end"
+                        maw={300}
+                        onClick={handleClose}
+                    >
+                        {dashboardName}
+                    </Anchor>
+                    <Text c="dimmed" fw={500}>
+                        /
+                    </Text>
+                    {editChart ? (
+                        <TruncatedText fw={600} fz="md" maxWidth="100%" miw={0}>
+                            {`Edit ${editChart.name}`}
+                        </TruncatedText>
+                    ) : (
+                        <Text fw={600}>New chart</Text>
+                    )}
+                </Group>
+            }
             icon={IconChartBar}
             fullScreen
             cancelLabel={false}

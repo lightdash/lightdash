@@ -895,6 +895,198 @@ describe('AppGenerateService.importAppCode', () => {
         );
     });
 
+    it('create mode: persists a valid manifest icon for a data_app_viz upload', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = 'chart-sankey';
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ icon: 'chart-sankey' }),
+            { version: 1, prompt: '' },
+            'pending',
+            expect.any(Object),
+            undefined, // no declared dependencies
+            undefined, // no vizSchema in the manifest
+            { forceSlug: true },
+        );
+    });
+
+    it('create mode: ignores a manifest icon when the upload is not a data_app_viz', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.icon = 'chart-sankey'; // template stays null
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        const [appArg] = appModel.createWithVersion.mock.calls[0];
+        expect(appArg).not.toHaveProperty('icon');
+    });
+
+    it('create mode: throws ParameterError when the manifest icon is off the curated list', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = 'not-a-real-icon' as never;
+
+        const importPromise = service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        await expect(importPromise).rejects.toThrow(ParameterError);
+        await expect(importPromise).rejects.toThrow(
+            'Invalid icon in the app manifest. Use one of the curated chart type icons, or null to clear it.',
+        );
+
+        // must not create or enqueue
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
+    it('append mode: persists a valid manifest icon when the target app is a data_app_viz', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            template: 'data_app_viz',
+            icon: null,
+            registry_slug: null,
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = 'chart-sankey';
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.updateApp).toHaveBeenCalledExactlyOnceWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+            { icon: 'chart-sankey' },
+        );
+    });
+
+    it('append mode: clears the icon when the manifest icon is null', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            template: 'data_app_viz',
+            icon: 'chart-sankey',
+            registry_slug: null,
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = null;
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.updateApp).toHaveBeenCalledExactlyOnceWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+            { icon: null },
+        );
+    });
+
+    it('append mode: throws ParameterError when the manifest icon is off the curated list', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            template: 'data_app_viz',
+            icon: null,
+            registry_slug: null,
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.icon = 'not-a-real-icon' as never;
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code,
+                targetAppUuid: EXISTING_APP_UUID,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+    });
+
+    it('append mode: ignores a manifest icon when the target app is not a data_app_viz', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            registry_slug: null,
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const code = makeCode();
+        code.manifest.icon = 'not-a-real-icon' as never; // template stays null
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        // No name/description change and icon is ignored (not a chart type)
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
     it('rejects custom deps when the org flag is off', async () => {
         const { service, appModel, analytics } = buildService({
             customDependenciesOrgEnabled: false,

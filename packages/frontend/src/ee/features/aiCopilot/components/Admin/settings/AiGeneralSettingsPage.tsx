@@ -381,7 +381,7 @@ export const AiGeneralSettingsPage = () => {
                                             recommendations. For connected
                                             projects, Lightdash can suggest pull
                                             requests that improve context and
-                                            dbt definitions.
+                                            semantic definitions.
                                             {reviewsEffectivelyOn && (
                                                 <>
                                                     {' '}

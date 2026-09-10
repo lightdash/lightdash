@@ -50,6 +50,7 @@ import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import type { RecentContentService } from '../../services/RecentContentService/RecentContentService';
 import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
@@ -171,12 +172,12 @@ const readImageDimensions = (buffer: Buffer): ImageDimensions | null =>
     readJpegDimensions(buffer);
 
 export type ProjectHomepageServiceArguments = {
+    recentContentService: Pick<RecentContentService, 'getRecentlyViewed'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
         | 'getDefault'
         | 'getByUuid'
         | 'getPublishedDefault'
-        | 'getRecentlyViewed'
         | 'getAssignments'
         | 'updateGroupPriorities'
         | 'resolvePublished'
@@ -220,6 +221,7 @@ export type ProjectHomepageServiceArguments = {
 };
 
 export class ProjectHomepageService extends BaseService {
+    private readonly recentContentService: ProjectHomepageServiceArguments['recentContentService'];
     private readonly projectHomepageModel: ProjectHomepageServiceArguments['projectHomepageModel'];
 
     private readonly analytics: ProjectHomepageServiceArguments['analytics'];
@@ -247,6 +249,7 @@ export class ProjectHomepageService extends BaseService {
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
+        this.recentContentService = args.recentContentService;
         this.analytics = args.analytics;
         this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
@@ -560,10 +563,15 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<HomepageRecentlyViewedItem[]> {
         await this.assertFlagEnabled(user);
         await this.assertCanView(user, projectUuid);
-        return this.projectHomepageModel.getRecentlyViewed(
+        const entries = await this.recentContentService.getRecentlyViewed(
+            user,
             projectUuid,
-            user.userUuid,
         );
+        return entries.map(({ contentType, uuid, viewedAt }) => ({
+            contentType,
+            uuid,
+            viewedAt,
+        }));
     }
 
     async getHomepageForBuilder(

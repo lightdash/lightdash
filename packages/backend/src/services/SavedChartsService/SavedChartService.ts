@@ -16,6 +16,7 @@ import {
     countTotalFilterRules,
     CreateSavedChart,
     CreateSavedChartVersion,
+    CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
@@ -27,6 +28,7 @@ import {
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
+    isChartCreateScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
@@ -100,6 +102,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
     SoftDeletableService,
@@ -2696,13 +2699,23 @@ export class SavedChartService
             }
         }
 
-        const scheduler = await this.schedulerModel.createScheduler({
+        const chartScheduler: CreateSchedulerAndTargets = {
             ...newScheduler,
             createdBy: user.userUuid,
             dashboardUuid: null,
             savedChartUuid: chartUuid,
             savedSqlUuid: null,
-        });
+        };
+        if (isChartCreateScheduler(chartScheduler) && chartScheduler.filters) {
+            assertCanReplaceChartFilters({
+                ability: this.createAuditedAbility(user),
+                chart: await this.savedChartModel.get(chartUuid),
+                schedulerFilters: chartScheduler.filters,
+            });
+        }
+
+        const scheduler =
+            await this.schedulerModel.createScheduler(chartScheduler);
 
         const createSchedulerEventData: SchedulerUpsertEvent = {
             userId: user.userUuid,

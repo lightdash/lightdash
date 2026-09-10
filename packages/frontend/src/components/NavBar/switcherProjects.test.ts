@@ -17,6 +17,15 @@ const project = (
     }) as OrganizationProject;
 
 describe('project switcher grouping', () => {
+    it('omits internal analytics projects', () => {
+        const analytics = project({
+            projectUuid: 'analytics',
+            type: ProjectType.PREVIEW,
+        });
+        expect(
+            splitSwitcherProjects([analytics], () => true).baseProjects,
+        ).toEqual([]);
+    });
     const real = project({ projectUuid: 'real' });
     const training = project({
         projectUuid: 'training',

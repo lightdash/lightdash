@@ -18,6 +18,7 @@ import {
     assertEmbeddedAuth,
     assertUnreachable,
     ChartType,
+    chartTypeIconSchema,
     checkThemeLimits,
     compareSemverVersions,
     DATA_APP_CLAUDE_MODELS,
@@ -40,6 +41,7 @@ import {
     getEffectiveFieldAiHints,
     getErrorMessage,
     getVisibleDataAppClaudeModels,
+    isChartTypeIcon,
     isDashboardChartTileType,
     isExploreError,
     isSemverVersion,
@@ -77,6 +79,7 @@ import {
     type ChartConfig,
     type ChartReference,
     type ChartSampleData,
+    type ChartTypeIcon,
     type CompiledExploreJoin,
     type CompiledTable,
     type DashboardBlueprint,
@@ -4087,6 +4090,9 @@ export class AppGenerateService extends BaseService {
      * mirrors the clarify flow (org-resolved copilot config, BYO-key-aware
      * fast model). Returns a null name when no provider is configured or the
      * response is unusable — the app keeps its "Untitled" fallback.
+     *
+     * For a chart type the same call also suggests a curated icon, so the
+     * icon costs no extra model round trip.
      */
     private async generateAppMetadataFromPrompt(
         appUuid: string,
@@ -4094,7 +4100,12 @@ export class AppGenerateService extends BaseService {
         organizationUuid: string,
         projectUuid: string,
         userUuid: string,
-    ): Promise<{ name: string | null; description: string }> {
+        isChartType: boolean,
+    ): Promise<{
+        name: string | null;
+        description: string;
+        icon: ChartTypeIcon | null;
+    }> {
         const copilot =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
@@ -4110,7 +4121,7 @@ export class AppGenerateService extends BaseService {
             this.logger.info(
                 `App ${appUuid}: skipping auto-name — no LLM provider configured (${getErrorMessage(err)})`,
             );
-            return { name: null, description: '' };
+            return { name: null, description: '', icon: null };
         }
 
         const metadataSchema = z.object({
@@ -4122,6 +4133,13 @@ export class AppGenerateService extends BaseService {
             description: z
                 .string()
                 .describe('One-sentence description of what the app shows'),
+            ...(isChartType
+                ? {
+                      icon: chartTypeIconSchema.describe(
+                          'Icon from the list that best represents how the chart looks',
+                      ),
+                  }
+                : {}),
         });
 
         const METADATA_TIMEOUT_MS = 15_000;
@@ -4144,8 +4162,11 @@ export class AppGenerateService extends BaseService {
             messages: [
                 {
                     role: 'system',
-                    content:
-                        'You write display metadata for a data app that is being generated from the prompt the user provides. Respond with a short name (3-6 words, title case) and a one-sentence description of the app.',
+                    content: `You write display metadata for a data app that is being generated from the prompt the user provides. Respond with a short name (3-6 words, title case) and a one-sentence description of the app.${
+                        isChartType
+                            ? ' This app is a reusable chart type, so also pick the icon that best matches how the chart looks.'
+                            : ''
+                    }`,
                 },
                 { role: 'user', content: prompt },
             ],
@@ -4154,13 +4175,16 @@ export class AppGenerateService extends BaseService {
         const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
         const name = stripHtml(result.object.name).slice(0, 255);
         const description = stripHtml(result.object.description).slice(0, 1024);
+        const icon = isChartTypeIcon(result.object.icon)
+            ? result.object.icon
+            : null;
         if (!name) {
             this.logger.warn(
                 `App ${appUuid}: auto-name returned an empty name`,
             );
-            return { name: null, description };
+            return { name: null, description, icon };
         }
-        return { name, description };
+        return { name, description, icon };
     }
 
     private async runBuild(
@@ -4977,6 +5001,7 @@ export class AppGenerateService extends BaseService {
                 payload.organizationUuid,
                 projectUuid,
                 payload.userUuid,
+                isDataAppViz,
             )
                 .then(async (metadata) => {
                     if (metadata.name) {
@@ -4990,6 +5015,7 @@ export class AppGenerateService extends BaseService {
                                 {
                                     name: metadata.name,
                                     description: metadata.description,
+                                    icon: metadata.icon,
                                 },
                             );
                         this.logger.info(
@@ -7570,6 +7596,7 @@ export class AppGenerateService extends BaseService {
         const metadata = {
             name: sourceApp.name,
             description: sourceApp.description,
+            icon: sourceApp.icon,
             space_uuid: targetSpaceUuid,
             design_uuid: targetDesignUuid,
         };
@@ -7927,6 +7954,7 @@ export class AppGenerateService extends BaseService {
                     created_by_user_uuid: user.userUuid,
                     name: newAppName,
                     description: sourceApp.description,
+                    icon: sourceApp.icon,
                     template: sourceApp.template,
                     space_uuid: null,
                     // A fork is a plain local chart type — registry lineage
@@ -8192,6 +8220,7 @@ export class AppGenerateService extends BaseService {
                     name: sourceApp.name,
                     slug: sourceApp.slug,
                     description: sourceApp.description,
+                    icon: sourceApp.icon,
                     template: sourceApp.template,
                     space_uuid: previewSpaceUuid,
                     design_uuid: targetDesignUuid,
@@ -8407,6 +8436,7 @@ export class AppGenerateService extends BaseService {
         hasMore: boolean;
         latestReadyVersion: number | null;
         registrySlug: string | null;
+        icon: ChartTypeIcon | null;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -8421,6 +8451,7 @@ export class AppGenerateService extends BaseService {
         const {
             name,
             description,
+            icon,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -8516,6 +8547,8 @@ export class AppGenerateService extends BaseService {
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
             registrySlug,
+            // An icon retired from the curated set reads back as no icon.
+            icon: isChartTypeIcon(icon) ? icon : null,
         };
     }
 
@@ -8597,6 +8630,8 @@ export class AppGenerateService extends BaseService {
             createdAt: app.created_at,
             createdByUserUuid: app.created_by_user_uuid,
             registrySlug: app.registry_slug,
+            // An icon retired from the curated set reads back as no icon.
+            icon: isChartTypeIcon(app.icon) ? app.icon : null,
         };
     }
 
@@ -8830,6 +8865,11 @@ export class AppGenerateService extends BaseService {
                     vizSchema,
                     { registryVersion: entry.version },
                 );
+                // Registry-installed apps are read-only, so the registry's
+                // icon always wins on upgrade.
+                await this.appModel.updateApp(appUuid, projectUuid, {
+                    icon: entry.icon,
+                });
             } else {
                 await this.appModel.createWithVersion(
                     {
@@ -8840,6 +8880,7 @@ export class AppGenerateService extends BaseService {
                         description: entry.description,
                         slug: entry.slug,
                         template: DATA_APP_VIZ_TEMPLATE,
+                        icon: entry.icon,
                         registry_slug: entry.slug,
                         registry_url: this.chartRegistryClient.getBaseUrl(),
                     },
@@ -9388,8 +9429,17 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-        update: { name?: string; description?: string },
-    ): Promise<{ appUuid: string; name: string; description: string }> {
+        update: {
+            name?: string;
+            description?: string;
+            icon?: ChartTypeIcon | null;
+        },
+    ): Promise<{
+        appUuid: string;
+        name: string;
+        description: string;
+        icon: ChartTypeIcon | null;
+    }> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -9399,8 +9449,11 @@ export class AppGenerateService extends BaseService {
         );
         AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
-        const fieldsToUpdate: Partial<{ name: string; description: string }> =
-            {};
+        const fieldsToUpdate: Partial<{
+            name: string;
+            description: string;
+            icon: string | null;
+        }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
             if (trimmedName.length === 0) {
@@ -9422,10 +9475,23 @@ export class AppGenerateService extends BaseService {
             }
             fieldsToUpdate.description = trimmedDescription;
         }
+        if (update.icon !== undefined) {
+            if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+                throw new ParameterError(
+                    'Only custom chart types can have an icon',
+                );
+            }
+            if (update.icon !== null && !isChartTypeIcon(update.icon)) {
+                throw new ParameterError(
+                    `Invalid chart type icon: ${String(update.icon)}`,
+                );
+            }
+            fieldsToUpdate.icon = update.icon;
+        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name or description must be provided',
+                'At least one of name, description or icon must be provided',
             );
         }
 
@@ -9438,6 +9504,7 @@ export class AppGenerateService extends BaseService {
             appUuid: updatedApp.app_id,
             name: updatedApp.name,
             description: updatedApp.description,
+            icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
         };
     }
 
@@ -11079,6 +11146,11 @@ export class AppGenerateService extends BaseService {
             name: app.name,
             description: app.description,
             template: app.template,
+            // Only chart types carry an icon; omit the key entirely for other
+            // apps so their manifests stay unchanged.
+            ...(app.template === DATA_APP_VIZ_TEMPLATE
+                ? { icon: isChartTypeIcon(app.icon) ? app.icon : null }
+                : {}),
             // Only viz versions carry a schema; omit the key entirely otherwise
             // so non-viz manifests stay unchanged.
             ...(versionRow?.viz_schema
@@ -11343,18 +11415,48 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Applies manifest name/description to the app row when they differ.
-     * App-level metadata only — never touches versions or builds.
+     * Validates a manifest icon value: null clears it, a curated icon name
+     * passes through, anything else is rejected loudly (a hand-edited
+     * lightdash-app.yml is the only way to get a bad value here).
+     */
+    private static resolveManifestIcon(
+        manifestIcon: unknown,
+    ): ChartTypeIcon | null {
+        if (manifestIcon === null) return null;
+        if (isChartTypeIcon(manifestIcon)) return manifestIcon;
+        throw new ParameterError(
+            'Invalid icon in the app manifest. Use one of the curated chart type icons, or null to clear it.',
+        );
+    }
+
+    /**
+     * Applies manifest name/description/icon to the app row when they
+     * differ. App-level metadata only — never touches versions or builds.
+     * The icon is only meaningful on chart types; a manifest icon on any
+     * other app is ignored, not rejected.
      */
     private async updateAppMetadataIfChanged(
-        existingApp: Pick<DbApp, 'app_id' | 'name' | 'description'>,
+        existingApp: Pick<
+            DbApp,
+            'app_id' | 'name' | 'description' | 'template' | 'icon'
+        >,
         manifest: DataAppCode['manifest'],
         projectUuid: string,
     ): Promise<void> {
-        const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
+        const update: Partial<Pick<DbApp, 'name' | 'description' | 'icon'>> =
+            {};
         if (manifest.name !== existingApp.name) update.name = manifest.name;
         if (manifest.description !== existingApp.description)
             update.description = manifest.description;
+        if (
+            manifest.icon !== undefined &&
+            existingApp.template === DATA_APP_VIZ_TEMPLATE
+        ) {
+            const resolvedIcon = AppGenerateService.resolveManifestIcon(
+                manifest.icon,
+            );
+            if (resolvedIcon !== existingApp.icon) update.icon = resolvedIcon;
+        }
         if (Object.keys(update).length > 0) {
             await this.appModel.updateApp(
                 existingApp.app_id,
@@ -11931,6 +12033,16 @@ export class AppGenerateService extends BaseService {
                     description: code.manifest.description,
                     template: code.manifest.template,
                     space_uuid: targetSpaceUuid,
+                    // The icon is only meaningful on chart types; a manifest
+                    // icon on any other app is ignored, not rejected.
+                    ...(code.manifest.icon !== undefined &&
+                    code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                        ? {
+                              icon: AppGenerateService.resolveManifestIcon(
+                                  code.manifest.icon,
+                              ),
+                          }
+                        : {}),
                     // Round-trip the manifest slug exactly; createNew and
                     // pre-slug bundles let the model generate a unique one.
                     ...(manifestSlug !== undefined && !body.createNew

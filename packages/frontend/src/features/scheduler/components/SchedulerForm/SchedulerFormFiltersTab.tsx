@@ -1,335 +1,24 @@
 import {
-    FilterOperator,
-    FilterType,
-    getFilterTypeFromItem,
-    isWithValueFilter,
     type Dashboard,
     type DashboardFilterRule,
     type FilterableDimension,
     type UnmetFilterRequirement,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Center,
-    Flex,
-    Group,
-    Loader,
-    Paper,
-    Select,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import {
-    IconAlertTriangle,
-    IconCheck,
-    IconPencil,
-    IconFilterPlus,
-    IconRotate2,
-    IconTrash,
-} from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import FieldIcon from '../../../../components/common/Filters/FieldIcon';
-import FieldLabel from '../../../../components/common/Filters/FieldLabel';
-import FilterInputComponent from '../../../../components/common/Filters/FilterInputs';
-import {
-    getConditionalRuleLabelFromItem,
-    getFilterOperatorOptions,
-} from '../../../../components/common/Filters/FilterInputs/utils';
+import { Box, Center, Loader, Stack, Text } from '@mantine/core';
+import { useCallback, useEffect, useMemo, type FC } from 'react';
 import FiltersProvider from '../../../../components/common/Filters/FiltersProvider';
-import useFiltersContext from '../../../../components/common/Filters/useFiltersContext';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProject } from '../../../../hooks/useProject';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
-
-const isValidFilterOperator = (value: unknown): value is FilterOperator =>
-    Object.values(FilterOperator).includes(value as FilterOperator);
-
-const FilterSummaryLabel: FC<
-    {
-        filterSummary: ReturnType<typeof getConditionalRuleLabelFromItem>;
-    } & Record<'isDisabled', boolean>
-> = ({ filterSummary, isDisabled }) => {
-    if (isDisabled) {
-        return (
-            <Text fw={400} span>
-                <Text span c="dimmed">
-                    is any value
-                </Text>
-            </Text>
-        );
-    }
-    return (
-        <Text fw={400} span>
-            <Text span color="ldGray.7">
-                {filterSummary?.operator}{' '}
-            </Text>
-            <Text fw={600} span>
-                {filterSummary?.value}
-            </Text>
-        </Text>
-    );
-};
-
-type SchedulerFilterItemProps = {
-    dashboardFilter: DashboardFilterRule;
-    schedulerFilter?: DashboardFilterRule;
-    isMissingRequiredValue: boolean;
-    onChange: (schedulerFilter: DashboardFilterRule) => void;
-    onRevert: () => void;
-    hasChanged: boolean;
-    onRemove?: () => void;
-    removeTooltip?: string;
-    tilesWithFilter?: string[];
-};
-
-const FilterItem: FC<SchedulerFilterItemProps> = ({
-    dashboardFilter,
-    schedulerFilter,
-    isMissingRequiredValue,
-    onChange,
-    onRevert,
-    hasChanged,
-    onRemove,
-    removeTooltip = 'Remove filter',
-    tilesWithFilter,
-}) => {
-    const { itemsMap } =
-        useFiltersContext<Record<string, FilterableDimension>>();
-    const field = itemsMap[dashboardFilter.target.fieldId];
-    const [isEditing, setIsEditing] = useState(false);
-
-    const filterType = useMemo(() => {
-        return field ? getFilterTypeFromItem(field) : FilterType.STRING;
-    }, [field]);
-
-    const isDisabled = useMemo(
-        () => Boolean((schedulerFilter ?? dashboardFilter).disabled),
-        [schedulerFilter, dashboardFilter],
-    );
-
-    const filterOperatorOptions = useMemo(() => {
-        return getFilterOperatorOptions(filterType, field);
-    }, [filterType, field]);
-
-    if (!field) {
-        // show invalid dashboard filter
-        return (
-            <Group gap="xs" wrap="nowrap" justify="flex-start">
-                <Paper key={dashboardFilter.id} p="xs" radius="md">
-                    <Group gap="xs">
-                        <MantineIcon icon={IconAlertTriangle} color="red" />
-                        <Text span fw={500} fz="sm">
-                            Invalid filter
-                        </Text>
-                        <Text fw={400} span fz="xs">
-                            <Text span c="dimmed" fz="xs">
-                                Tried to reference field with unknown id:
-                            </Text>
-                            <Text span fz="xs" fw={500}>
-                                {' '}
-                                {dashboardFilter.target.fieldId}
-                            </Text>
-                        </Text>
-                    </Group>
-                </Paper>
-                {onRemove && (
-                    <Tooltip label="Remove invalid filter" fz="xs">
-                        <ActionIcon
-                            size="xs"
-                            aria-label="Remove invalid filter"
-                            onClick={onRemove}
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </Group>
-        );
-    }
-
-    return (
-        <Stack key={dashboardFilter.id} gap="xs">
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-                <Group gap="xs" flex={1} miw={0}>
-                    <FieldIcon item={field} />
-                    <FieldLabel
-                        item={{
-                            ...field,
-                            label: dashboardFilter.label ?? field.label,
-                        }}
-                        hideTableName
-                    />
-                    {isEditing ? null : (
-                        <FilterSummaryLabel
-                            filterSummary={getConditionalRuleLabelFromItem(
-                                schedulerFilter ?? dashboardFilter,
-                                field,
-                            )}
-                            isDisabled={isDisabled}
-                        />
-                    )}
-                    {isMissingRequiredValue && !isEditing && (
-                        <Text fz="sm" color="red">
-                            *
-                        </Text>
-                    )}
-                    {tilesWithFilter && tilesWithFilter.length > 0 && (
-                        <Tooltip
-                            label={`Applies to: ${tilesWithFilter.join(', ')}`}
-                            fz="xs"
-                            w={200}
-                        >
-                            <Text fz="xs" c="dimmed" span>
-                                {`Applies to ${tilesWithFilter.length} tiles`}
-                            </Text>
-                        </Tooltip>
-                    )}
-                </Group>
-                <Group gap={4} wrap="nowrap">
-                    {hasChanged && (
-                        <Tooltip label="Reset filter" fz="xs">
-                            <ActionIcon
-                                size="xs"
-                                onClick={() => {
-                                    if (isEditing) {
-                                        setIsEditing(false);
-                                    }
-                                    onRevert();
-                                }}
-                            >
-                                <MantineIcon icon={IconRotate2} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                    <ActionIcon
-                        size="xs"
-                        onClick={() => {
-                            setIsEditing(!isEditing);
-                        }}
-                    >
-                        <MantineIcon
-                            icon={isEditing ? IconCheck : IconPencil}
-                        />
-                    </ActionIcon>
-                    {onRemove && (
-                        <Tooltip label={removeTooltip} fz="xs">
-                            <ActionIcon
-                                size="xs"
-                                aria-label="Remove filter"
-                                onClick={onRemove}
-                            >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-            </Group>
-            {!isEditing && hasChanged && (
-                <Text fz="xs" c="dimmed">
-                    Unsaved changes
-                </Text>
-            )}
-
-            {isEditing && (
-                <Flex gap="xs" wrap="wrap">
-                    <Select
-                        flex="0 0 180px"
-                        size="xs"
-                        value={
-                            schedulerFilter?.operator ??
-                            dashboardFilter.operator
-                        }
-                        data={filterOperatorOptions}
-                        onChange={(operator: string | null) => {
-                            if (!isValidFilterOperator(operator)) return;
-
-                            const newFilter = {
-                                ...dashboardFilter,
-                                operator,
-                                values: isWithValueFilter(operator)
-                                    ? dashboardFilter.values
-                                    : undefined,
-                            };
-
-                            onChange(newFilter);
-                        }}
-                    />
-
-                    <FilterInputComponent
-                        filterType={filterType}
-                        field={field}
-                        rule={schedulerFilter ?? dashboardFilter}
-                        onChange={(newFilter) => {
-                            onChange(newFilter);
-                        }}
-                        popoverProps={{ withinPortal: true }}
-                    />
-                </Flex>
-            )}
-        </Stack>
-    );
-};
-
-type RemovedFilterItemProps = {
-    dashboardFilter: DashboardFilterRule;
-    onRestore: () => void;
-};
-
-const RemovedFilterItem: FC<RemovedFilterItemProps> = ({
-    dashboardFilter,
-    onRestore,
-}) => {
-    const { itemsMap } =
-        useFiltersContext<Record<string, FilterableDimension>>();
-    const field = itemsMap[dashboardFilter.target.fieldId];
-
-    if (!field) return null;
-
-    return (
-        <Group gap="xs" wrap="nowrap" align="flex-start">
-            <Group gap="xs" opacity={0.5} flex={1} miw={0}>
-                <FieldIcon item={field} />
-                <FieldLabel
-                    item={{
-                        ...field,
-                        label: dashboardFilter.label ?? field.label,
-                    }}
-                    hideTableName
-                />
-                <Text fz="xs" c="dimmed" span>
-                    Uses dashboard default
-                </Text>
-            </Group>
-            <Tooltip
-                label="Re-add filter to override it for this delivery"
-                fz="xs"
-            >
-                <ActionIcon
-                    size="xs"
-                    aria-label="Re-add filter"
-                    onClick={onRestore}
-                >
-                    <MantineIcon icon={IconFilterPlus} />
-                </ActionIcon>
-            </Tooltip>
-        </Group>
-    );
-};
-
-const hasFilterChanged = (
-    filterToCompareAgainst: DashboardFilterRule,
-    updatedFilter: DashboardFilterRule,
-) =>
-    // Check if the filter has changed, ignoring disabled state.
-    // The inputs this component uses do not include enabling/disabling filters.
-    hasSavedFilterValueChanged(
-        { ...filterToCompareAgainst, disabled: undefined },
-        { ...updatedFilter, disabled: undefined },
-    );
+import {
+    hasSchedulerFilterChanged,
+    withDerivedDisabledState,
+} from '../../utils/schedulerFilterOverrides';
+import {
+    RemovedSchedulerFilterItem,
+    SchedulerFilterItem,
+} from './SchedulerFilterItem';
 
 const updateFilters = (
     updatedFilter: DashboardFilterRule,
@@ -345,33 +34,15 @@ const updateFilters = (
             ? draftFilters[filterIndex]
             : originalFilter;
 
-    // Manually enable/disable filters based on the values.
-    // The inputs this component uses do not include enabling/disabling filters.
-    // If the operator is a value filter, the filter is disabled if the values are empty or undefined.
-    const isDisabled =
-        isWithValueFilter(updatedFilter.operator) &&
-        (updatedFilter.values?.length === 0 ||
-            updatedFilter?.values?.length === undefined);
-
     if (hasSavedFilterValueChanged(filterToCompareAgainst, updatedFilter)) {
+        const nextFilter = withDerivedDisabledState(updatedFilter);
         if (draftFilters && isExistingFilter) {
             return draftFilters.map((f) =>
-                f.id === updatedFilter.id
-                    ? {
-                          ...updatedFilter,
-                          disabled: isDisabled,
-                      }
-                    : f,
+                f.id === updatedFilter.id ? nextFilter : f,
             );
         }
 
-        return [
-            ...(draftFilters ?? []),
-            {
-                ...updatedFilter,
-                disabled: isDisabled,
-            },
-        ];
+        return [...(draftFilters ?? []), nextFilter];
     }
 };
 
@@ -401,6 +72,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         (c) => c.isLoadingDashboardFilters,
     );
     const currentDashboardFilters = useDashboardContext((c) => c.allFilters);
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -512,6 +186,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             popoverProps={{ withinPortal: true }}
             projectUuid={project.projectUuid}
             itemsMap={allFilterableFieldsMap}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
             dashboardFilters={currentDashboardFilters}
         >
@@ -538,9 +213,10 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
 
                             if (!draftFilter) {
                                 return (
-                                    <RemovedFilterItem
+                                    <RemovedSchedulerFilterItem
                                         key={dashboardFilterRule.id}
-                                        dashboardFilter={dashboardFilterRule}
+                                        savedFilter={dashboardFilterRule}
+                                        defaultLabel="Uses dashboard default"
                                         onRestore={() =>
                                             handleRestoreFilter(
                                                 dashboardFilterRule,
@@ -557,9 +233,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                 : dashboardFilterRule;
 
                             return (
-                                <FilterItem
+                                <SchedulerFilterItem
                                     key={draftFilter.id}
-                                    dashboardFilter={originalFilter}
+                                    savedFilter={originalFilter}
                                     schedulerFilter={draftFilter}
                                     isMissingRequiredValue={isMissingRequiredValue(
                                         originalFilter,
@@ -576,7 +252,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                             originalFilter,
                                         )
                                     }
-                                    hasChanged={hasFilterChanged(
+                                    hasChanged={hasSchedulerFilterChanged(
                                         draftFilter,
                                         originalFilter,
                                     )}
@@ -614,9 +290,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
 
                         return (
                             <Box key={filter.id}>
-                                <FilterItem
+                                <SchedulerFilterItem
                                     key={filter.id}
-                                    dashboardFilter={filter}
+                                    savedFilter={filter}
                                     schedulerFilter={schedulerFilter}
                                     isMissingRequiredValue={isMissingRequiredValue(
                                         filter,
@@ -635,7 +311,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     }
                                     hasChanged={
                                         schedulerFilter
-                                            ? hasFilterChanged(
+                                            ? hasSchedulerFilterChanged(
                                                   filter,
                                                   schedulerFilter,
                                               )

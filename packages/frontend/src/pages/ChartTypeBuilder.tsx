@@ -225,6 +225,7 @@ const ChartTypeBuilder: FC = () => {
             <DocumentTitle title="Chart type builder" />
             <ChartTypeBuilderHeader
                 projectUuid={projectUuid}
+                appUuidOrSlug={urlVizUuid}
                 backLink={backLink}
                 app={appMeta}
                 latestReadyVersion={history.latestReadyVersion}

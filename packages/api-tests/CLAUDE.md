@@ -41,6 +41,15 @@ that race the one under test.
 - Tests run against a live server; there is no in-process app. Keep them
   self-contained — create what you need and clean it up (`afterAll`) rather than
   depending on another test's state.
+- Files run in parallel. A file that mutates state other files read through
+  (seed project settings or embed config, the admin user, org-wide flags,
+  seeded content) must
+  be added to `serialFiles` in `vitest.config.ts`, where it runs alone after
+  the parallel group.
+- Warehouse parity suites use `useSharedWarehouseProject(client, name)` from
+  `helpers/shared-projects.ts` instead of creating their own remote project.
+  Do not change a shared project's settings; create a dedicated project when
+  a suite needs its own configuration.
 - Field references in table-calculation SQL use Lightdash's `${table.field}`
   syntax. Build these via a template helper (e.g.
   `` const fieldReference = (id: string) => `\${${id}}` ``) so the literal

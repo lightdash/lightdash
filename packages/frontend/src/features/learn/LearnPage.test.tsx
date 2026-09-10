@@ -8,11 +8,11 @@ import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
 
-const { track, projectState, healthState, availabilityState, accessState } =
+const { track, projectState, learnFlagState, availabilityState, accessState } =
     vi.hoisted(() => ({
         track: vi.fn(),
         projectState: { current: [] as unknown[] },
-        healthState: { current: { learn: { enabled: true } } },
+        learnFlagState: { current: { enabled: true }, isLoading: false },
         availabilityState: { current: { isSettled: true } },
         // Everything the learner can do, anywhere.
         accessState: { current: [] as string[] },
@@ -52,8 +52,11 @@ vi.mock('./useLearnAccess', async () => {
     };
 });
 
-vi.mock('../../hooks/health/useHealth', () => ({
-    default: () => ({ data: healthState.current }),
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: learnFlagState.current,
+        isLoading: learnFlagState.isLoading,
+    }),
 }));
 
 vi.mock('../../hooks/useProjects', () => ({
@@ -105,12 +108,30 @@ describe('LearnPage analytics', () => {
     beforeEach(() => {
         localStorage.clear();
         track.mockClear();
-        healthState.current = { learn: { enabled: true } };
+        learnFlagState.current = { enabled: true };
+        learnFlagState.isLoading = false;
         availabilityState.current = { isSettled: true };
         accessState.current = scopes;
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
         ];
+    });
+
+    it('finds date zoom from a natural-language query and restores the library on clear', async () => {
+        const { container } = renderPage();
+        const cards = () =>
+            Array.from(container.querySelectorAll('[data-learn-module]')).map(
+                (card) => card.getAttribute('data-learn-module'),
+            );
+        const initial = cards();
+        const input = screen.getByRole('textbox', {
+            name: 'Search the library',
+        });
+        await userEvent.type(input, 'change from day to month');
+        expect(cards()[0]).toBe('view:Dashboard');
+        expect(cards()).not.toContain('manage:Space');
+        await userEvent.clear(input);
+        expect(cards()).toEqual(initial);
     });
 
     it('records one view per mount, with the progress the learner is looking at', () => {
@@ -187,7 +208,7 @@ describe('LearnPage analytics', () => {
     });
 
     it('records nothing when Learn is switched off for the instance', () => {
-        healthState.current = { learn: { enabled: false } };
+        learnFlagState.current = { enabled: false };
 
         renderPage();
 
@@ -201,7 +222,7 @@ describe('LearnPage access', () => {
     beforeEach(() => {
         localStorage.clear();
         track.mockClear();
-        healthState.current = { learn: { enabled: true } };
+        learnFlagState.current = { enabled: true };
         availabilityState.current = { isSettled: true };
         accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [
@@ -223,9 +244,9 @@ describe('LearnPage access', () => {
     it('shows what the learner can do, and nothing else', () => {
         const { container } = renderPage();
 
-        expect(shown(container).sort()).toEqual(
-            ['manage:Validation', 'view:Dashboard'].sort(),
-        );
+        expect(
+            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
+        ).toEqual(['manage:Validation', 'view:Dashboard'].sort());
     });
 
     it('reads their access however they came by it', () => {
@@ -260,5 +281,18 @@ describe('LearnPage access', () => {
 
         await toggleExtra();
         expect(screen.getByText('Every module')).toBeTruthy();
+    });
+
+    it('keeps the access filter when searching and clearing', async () => {
+        const { container } = renderPage();
+        const input = screen.getByRole('textbox', {
+            name: 'Search the library',
+        });
+        await userEvent.type(input, 'dashboard');
+        expect(shown(container)).toEqual(['view:Dashboard']);
+        await userEvent.clear(input);
+        expect(
+            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
+        ).toEqual(['manage:Validation', 'view:Dashboard']);
     });
 });

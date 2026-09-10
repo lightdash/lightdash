@@ -153,7 +153,7 @@ const MetricDimensionItem: FC<{
                             <Tooltip
                                 openDelay={200}
                                 position="top"
-                                label="Write back to dbt"
+                                label="Write back to project"
                                 offset={5}
                             >
                                 <ActionIcon
