@@ -30,7 +30,7 @@ describe('classifySshClientError', () => {
     it('maps anything before the TCP connect to tcp, including a dropped SYN', () => {
         expect(
             classifySshClientError(
-                err('connect ETIMEDOUT 34.195.79.184:22 after 10000ms', {
+                err('connect ETIMEDOUT 203.0.113.10:22 after 10000ms', {
                     code: 'ETIMEDOUT',
                 }),
                 before,
@@ -91,7 +91,7 @@ describe('classifySshClientError', () => {
 
 describe('describeSshTunnelFailure', () => {
     const base = {
-        sshHost: '34.195.79.184',
+        sshHost: '203.0.113.10',
         sshPort: 22,
         sshUser: 'lightdash',
         databaseHost: 'redshift.internal',
@@ -102,7 +102,7 @@ describe('describeSshTunnelFailure', () => {
 
     it('tells the bastion admin which IP to allow on tcp failures', () => {
         const message = describeSshTunnelFailure({ ...base, stage: 'tcp' });
-        expect(message).toContain('Could not reach 34.195.79.184 on port 22');
+        expect(message).toContain('Could not reach 203.0.113.10 on port 22');
         expect(message).toContain('from Lightdash (35.1.2.3)');
         expect(message).toContain('Allow inbound SSH from 35.1.2.3');
     });
