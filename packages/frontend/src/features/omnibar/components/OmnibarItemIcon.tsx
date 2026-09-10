@@ -26,15 +26,14 @@ export const OmnibarItemIcon: FC<Props> = ({ item, boxSize }) => {
     );
 };
 
-type OmnibarItemIconWithIndicatorProps = {
-    item: SearchItem;
+type OmnibarItemIconWithIndicatorProps = Props & {
     projectUuid: string;
     canUserManageValidation: boolean;
 };
 
 export const OmnibarItemIconWithIndicator: FC<
     OmnibarItemIconWithIndicatorProps
-> = ({ item, projectUuid, canUserManageValidation }) =>
+> = ({ item, boxSize, projectUuid, canUserManageValidation }) =>
     item.item && 'validationErrors' in item.item ? (
         <ResourceIndicator
             iconProps={{
@@ -77,6 +76,6 @@ export const OmnibarItemIconWithIndicator: FC<
                 )
             }
         >
-            <OmnibarItemIcon item={item} />
+            <OmnibarItemIcon item={item} boxSize={boxSize} />
         </ResourceIndicator>
     ) : null;
