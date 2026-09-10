@@ -12,6 +12,10 @@ command = "pnpm dev"
 ports = [8080, 3000]
 serve_port = 3000
 
+# Anyone with the URL can open an environment of this repo.
+[access]
+public = true
+
 [resources]
 cpu = 8
 memory = "8gb"
