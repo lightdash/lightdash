@@ -21,37 +21,41 @@ runs:
               TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}
           run: |
               set -uo pipefail
+              # Probe with node, not curl: the cypress e2e image the browser
+              # suites run in has no curl, so a curl-based poll reports a
+              # connection failure that never resolves.
+              cat > "${RUNNER_TEMP:-/tmp}/preview-probe.mjs" <<'JS'
+              const url = `${process.env.PREVIEW_URL}/api/v1/health`;
+              try {
+                  const res = await fetch(url, { redirect: 'follow' });
+                  process.stdout.write(`${res.status} ${(await res.text()).slice(0, 2000)}`);
+              } catch (err) {
+                  process.stdout.write(`000 ${err.cause?.message ?? err.message ?? err}`);
+              }
+              JS
+              probe="${RUNNER_TEMP:-/tmp}/preview-probe.mjs"
               deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
               reported_error=no
               while true; do
-                  rm -f /tmp/preview-health.json
-                  # The step shell runs with -e, so curl's non-zero exit must be
-                  # caught outside the substitution: `|| echo` inside it would
-                  # append a second code to the one -w already wrote.
-                  status=$(curl -sSL -o /tmp/preview-health.json -w '%{http_code}' "$PREVIEW_URL/api/v1/health" 2>/tmp/preview-curl-err) || true
-                  [ -n "$status" ] || status="000"
-                  # 000 means the connection never completed, so the HTTP code
-                  # says nothing — curl's own message is the only diagnostic.
-                  if [ "$status" = "000" ] && [ "$reported_error" != "yes" ]; then
-                      echo "curl could not connect:"
-                      head -c 300 /tmp/preview-curl-err || true
-                      reported_error=yes
-                  fi
+                  out=$(node "$probe") || out="000 node could not run the probe"
+                  status=${out%% *}
+                  detail=${out#* }
                   if [ "$status" = "200" ]; then
                       echo "Preview ready at $PREVIEW_URL"
-                      cat /tmp/preview-health.json
+                      echo "$detail"
                       exit 0
+                  fi
+                  if [ "$status" = "000" ] && [ "$reported_error" = "no" ]; then
+                      echo "Could not connect: $detail"
+                      reported_error=yes
                   fi
                   if [ "$(date +%s)" -ge "$deadline" ]; then
                       echo "Preview $PREVIEW_URL did not become healthy within ${TIMEOUT_SECONDS}s (last status: $status)"
-                      if [ "$status" = "404" ]; then
-                          echo "A sustained 404 means no environment is serving this name, not that it is still booting."
-                      fi
-                      if [ "$status" = "000" ]; then
-                          echo "A sustained 000 means this runner never reached the host at all:"
-                          head -c 300 /tmp/preview-curl-err || true
-                      fi
-                      head -c 2000 /tmp/preview-health.json || true
+                      case "$status" in
+                          404) echo "A sustained 404 means no environment is serving this name, not that it is still booting." ;;
+                          000) echo "A sustained 000 means this runner never reached the host at all." ;;
+                      esac
+                      echo "$detail"
                       exit 1
                   fi
                   echo "Waiting for $PREVIEW_URL (status $status)..."
