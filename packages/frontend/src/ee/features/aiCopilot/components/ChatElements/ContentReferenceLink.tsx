@@ -44,6 +44,8 @@ type Props = {
     children: ReactNode;
     kind: ContentReferenceKind;
     showArrow?: boolean;
+    /** Replaces the trailing arrow, e.g. to signal opening in a modal. */
+    trailingIcon?: Icon;
     to?: LinkProps['to'];
 } & Omit<
     AnchorProps,
@@ -155,6 +157,7 @@ export const ContentReferenceLink = ({
     children,
     kind,
     showArrow = true,
+    trailingIcon,
     to,
     ...props
 }: Props) => {
@@ -177,7 +180,7 @@ export const ContentReferenceLink = ({
 
             {showArrow && (
                 <MantineIcon
-                    icon={IconArrowRight}
+                    icon={trailingIcon ?? IconArrowRight}
                     color="dimmed"
                     size={11}
                     stroke={1.5}

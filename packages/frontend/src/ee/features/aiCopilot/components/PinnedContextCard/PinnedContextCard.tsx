@@ -1,10 +1,15 @@
 import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
-import { type FC } from 'react';
+import { IconWindowMaximize } from '@tabler/icons-react';
+import { type FC, type MouseEvent } from 'react';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import { getDataAppContextItemLabel } from '../ChatElements/contentReferenceUtils';
-import { useDataAppPreviewLink } from '../ChatElements/useDataAppPreviewLink';
+import {
+    isPlainLeftClick,
+    useDataAppPreviewLink,
+} from '../ChatElements/useDataAppPreviewLink';
+import { useAiThreadChartEdit } from '../ThreadChartEditor/useAiThreadChartEdit';
 import { PinnedReviewEntityCard } from './PinnedReviewEntityCard';
 
 // The sent thread message the chip belongs to; lets a data app chip open the
@@ -23,7 +28,6 @@ type Props = {
 
 type ItemMeta = {
     kind:
-        | 'chart'
         | 'dashboard'
         | 'thread'
         | 'file'
@@ -39,7 +43,6 @@ const getItemMeta = (
         AiPromptContextItem,
         {
             type:
-                | 'chart'
                 | 'dashboard'
                 | 'thread'
                 | 'file'
@@ -51,12 +54,6 @@ const getItemMeta = (
     projectUuid: string,
 ): ItemMeta => {
     switch (item.type) {
-        case 'chart':
-            return {
-                kind: 'chart',
-                label: item.displayName ?? 'Chart',
-                href: `/projects/${projectUuid}/saved/${item.chartUuid}`,
-            };
         case 'dashboard':
             return {
                 kind: 'dashboard',
@@ -93,6 +90,37 @@ const getItemMeta = (
     }
 };
 
+// Opens the in-place chart editor when the host provides one; the href keeps
+// modified clicks (new tab) working.
+const PinnedChartCard: FC<{
+    item: Extract<AiPromptContextItem, { type: 'chart' }>;
+    projectUuid: string;
+}> = ({ item, projectUuid }) => {
+    const openChartEditor = useAiThreadChartEdit();
+    const handleClick = openChartEditor
+        ? (e: MouseEvent<HTMLAnchorElement>) => {
+              if (!isPlainLeftClick(e)) return;
+              e.preventDefault();
+              openChartEditor(item.chartUuid);
+          }
+        : undefined;
+
+    return (
+        <ContentReferenceLink
+            kind="chart"
+            chartKind={item.chartKind ?? undefined}
+            rel="noreferrer"
+            to={`/projects/${projectUuid}/saved/${item.chartUuid}`}
+            target="_blank"
+            onClick={handleClick}
+            showArrow
+            trailingIcon={handleClick ? IconWindowMaximize : undefined}
+        >
+            {item.displayName ?? 'Chart'}
+        </ContentReferenceLink>
+    );
+};
+
 const PinnedDataAppCard: FC<{
     item: Extract<AiPromptContextItem, { type: 'data_app' }>;
     projectUuid: string;
@@ -125,6 +153,7 @@ export const PinnedContextCard: FC<Props> = ({
 }) => {
     switch (item.type) {
         case 'chart':
+            return <PinnedChartCard item={item} projectUuid={projectUuid} />;
         case 'dashboard':
         case 'thread':
         case 'file':

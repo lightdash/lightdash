@@ -1237,8 +1237,10 @@ const Dashboard: FC = () => {
                     {isChartEditorEnabled && dashboard.uuid ? (
                         <DashboardChartEditorModal
                             opened={isNewChartOpen || chartToEdit !== undefined}
-                            dashboardUuid={dashboard.uuid}
-                            dashboardName={dashboard.name}
+                            dashboard={{
+                                uuid: dashboard.uuid,
+                                name: dashboard.name,
+                            }}
                             editChart={chartToEdit}
                             customMetricsEnabled={
                                 isDashboardCustomMetricsEnabled
