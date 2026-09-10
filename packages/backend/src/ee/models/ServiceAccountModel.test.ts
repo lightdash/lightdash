@@ -56,6 +56,41 @@ describe('ServiceAccountModel token lookup', () => {
         vi.clearAllMocks();
     });
 
+    test('space sharing discovers only linked non-SCIM accounts in the requested organization', async () => {
+        const candidates = [
+            { userUuid: 'sa-user-uuid', description: 'Automation' },
+        ];
+        tracker.on.select('service_accounts').responseOnce(candidates);
+
+        await expect(
+            model.getSpaceShareCandidates('org-uuid'),
+        ).resolves.toEqual(candidates);
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain('"organization_uuid" = $1');
+        expect(query.sql).toContain('"service_account_user_uuid" is not null');
+        expect(query.sql).toContain('NOT (scopes @> $2)');
+        expect(query.bindings).toEqual(['org-uuid', ['scim:manage']]);
+        expect(query.sql).not.toContain('is_active');
+        expect(query.sql).not.toContain('token_hash');
+    });
+
+    test('space sharing validates backing user UUIDs rather than token UUIDs', async () => {
+        tracker.on.select('service_accounts').responseOnce([]);
+
+        await expect(
+            model.getSpaceShareCandidates('org-uuid', ['missing-user-uuid']),
+        ).resolves.toEqual([]);
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain('"service_account_user_uuid" in ($3)');
+        expect(query.bindings).toEqual([
+            'org-uuid',
+            ['scim:manage'],
+            'missing-user-uuid',
+        ]);
+    });
+
     test('an active-hash match performs one bcrypt hash and one query', async () => {
         tracker.on
             .select('service_accounts')

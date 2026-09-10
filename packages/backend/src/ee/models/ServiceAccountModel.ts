@@ -485,6 +485,24 @@ export class ServiceAccountModel {
         };
     }
 
+    async getSpaceShareCandidates(
+        organizationUuid: string,
+        userUuids?: string[],
+    ): Promise<Pick<ServiceAccount, 'userUuid' | 'description'>[]> {
+        const query = this.database(ServiceAccountsTableName)
+            .where('organization_uuid', organizationUuid)
+            .whereNotNull('service_account_user_uuid')
+            .whereRaw('NOT (scopes @> ?)', [[ServiceAccountScope.SCIM_MANAGE]])
+            .select<Pick<ServiceAccount, 'userUuid' | 'description'>[]>({
+                userUuid: 'service_account_user_uuid',
+                description: 'description',
+            });
+        if (userUuids) {
+            void query.whereIn('service_account_user_uuid', userUuids);
+        }
+        return query;
+    }
+
     async getAllForOrganization(
         organizationUuid: string,
         scopes?: ServiceAccountScope[],

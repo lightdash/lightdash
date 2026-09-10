@@ -12,6 +12,7 @@ import {
     mergePullRequest,
 } from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
+import type { ServiceAccountModel } from '../ee/models/ServiceAccountModel';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { seedPlaygroundContent } from '../ee/services/ProjectService/seedPlaygroundContent';
@@ -1293,6 +1294,9 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartService: this.getSavedChartService(),
                     dashboardService: this.getDashboardService(),
+                    serviceAccountModel: this.providers.serviceAccountService
+                        ? this.models.getServiceAccountModel<ServiceAccountModel>()
+                        : undefined,
                     // Only wired when EE license is active. Core builds get
                     // undefined and the delete cascade skips apps.
                     appGenerateService: this.providers.appGenerateService

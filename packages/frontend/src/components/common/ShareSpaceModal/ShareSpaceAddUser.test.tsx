@@ -1,5 +1,6 @@
 import {
     OrganizationMemberRole,
+    SpaceMemberRole,
     type OrganizationMemberProfile,
     type Space,
 } from '@lightdash/common';
@@ -13,6 +14,19 @@ const organizationUsers: OrganizationMemberProfile[] = [];
 const organizationUsersData = { pages: [{ data: organizationUsers }] };
 const organizationGroupsData = { pages: [{ data: [] }] };
 const spaceAccessByUserUuid = new Map();
+const serviceAccounts = [
+    { userUuid: 'automation-user', description: 'Warehouse automation' },
+];
+const shareSpace = vi.fn();
+
+vi.mock('../../../hooks/useSpaceServiceAccounts', () => ({
+    useSpaceServiceAccounts: () => ({
+        data: serviceAccounts,
+        isFetching: false,
+        isError: false,
+        refetch: vi.fn(),
+    }),
+}));
 
 vi.mock('../../../hooks/useOrganizationGroups', () => ({
     useInfiniteOrganizationGroups: () => ({
@@ -46,7 +60,7 @@ vi.mock('../../../hooks/useSpaceAccess', () => ({
 
 vi.mock('../../../hooks/useSpaces', () => ({
     useAddGroupSpaceShareMutation: () => ({ mutateAsync: vi.fn() }),
-    useAddSpaceShareMutation: () => ({ mutateAsync: vi.fn() }),
+    useAddSpaceShareMutation: () => ({ mutateAsync: shareSpace }),
     useUpdateMutation: () => ({ mutateAsync: vi.fn() }),
 }));
 
@@ -94,6 +108,8 @@ const space: Space = {
 
 describe('ShareSpaceAddUser', () => {
     beforeEach(() => {
+        spaceAccessByUserUuid.clear();
+        shareSpace.mockReset();
         organizationUsers.splice(
             0,
             organizationUsers.length,
@@ -136,5 +152,74 @@ describe('ShareSpaceAddUser', () => {
         expect(
             screen.queryByText('member@example.com'),
         ).not.toBeInTheDocument();
+    });
+
+    it('finds and shares a service account by description using its backing user UUID', async () => {
+        renderWithProviders(
+            <ShareSpaceAddUser space={space} projectUuid="project-uuid" />,
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText(
+                'Select groups or users to share this space with',
+            ),
+            'Warehouse',
+        );
+        const option = await screen.findByRole('option', {
+            name: /Warehouse automation/,
+        });
+        expect(screen.getByText('Service account')).toBeInTheDocument();
+        await userEvent.click(option);
+        await userEvent.click(screen.getByRole('button', { name: 'Share' }));
+
+        expect(shareSpace).toHaveBeenCalledWith([
+            'automation-user',
+            SpaceMemberRole.VIEWER,
+        ]);
+    });
+
+    it('does not offer an account already shared directly', async () => {
+        spaceAccessByUserUuid.set('automation-user', {
+            hasDirectAccess: true,
+            role: SpaceMemberRole.EDITOR,
+        });
+        renderWithProviders(
+            <ShareSpaceAddUser space={space} projectUuid="project-uuid" />,
+        );
+        await userEvent.click(
+            screen.getByPlaceholderText(
+                'Select groups or users to share this space with',
+            ),
+        );
+
+        expect(
+            screen.queryByRole('option', { name: /Warehouse automation/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('preserves the inherited role when adding a direct service-account grant', async () => {
+        spaceAccessByUserUuid.set('automation-user', {
+            hasDirectAccess: true,
+            inheritedFrom: 'parent_space',
+            role: SpaceMemberRole.EDITOR,
+        });
+        renderWithProviders(
+            <ShareSpaceAddUser space={space} projectUuid="project-uuid" />,
+        );
+        await userEvent.click(
+            screen.getByPlaceholderText(
+                'Select groups or users to share this space with',
+            ),
+        );
+        await userEvent.click(
+            await screen.findByRole('option', {
+                name: /Warehouse automation/,
+            }),
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Share' }));
+
+        expect(shareSpace).toHaveBeenCalledWith([
+            'automation-user',
+            SpaceMemberRole.EDITOR,
+        ]);
     });
 });
