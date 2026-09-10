@@ -81,11 +81,6 @@ function useColumn(
                     : undefined,
                 options.showTickets ? fetchRemainingPages(tickets) : undefined,
             ]),
-        refetch: () =>
-            Promise.all([
-                options.showProjects ? projects.refetch() : undefined,
-                options.showTickets ? tickets.refetch() : undefined,
-            ]),
     };
 }
 

@@ -27,10 +27,12 @@ export function RoadmapDetails({
     propertiesLabel,
     children,
     actions,
+    headerActions,
     compact = false,
 }: {
     compact?: boolean;
     actions: ReactNode;
+    headerActions?: ReactNode;
     opened: boolean;
     onClose: () => void;
     title: string;
@@ -60,6 +62,7 @@ export function RoadmapDetails({
             }
             cancelLabel={false}
             actions={actions}
+            headerActions={headerActions}
             modalBodyProps={{ px: 0, py: 0 }}
             bodyScrollAreaMaxHeight="calc(85vh - 120px)"
         >

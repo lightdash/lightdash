@@ -885,6 +885,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:Roadmap',
+        description: 'Request to follow organization roadmap projects',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [{ name: 'view:Roadmap' }],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationColorPalette',
         description:
             'Create, edit, delete, and activate organization color palettes',

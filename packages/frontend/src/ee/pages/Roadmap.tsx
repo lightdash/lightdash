@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import useApp from '../../providers/App/useApp';
 import { RoadmapProjects } from '../features/roadmap/RoadmapProjects';
@@ -10,6 +11,12 @@ export default function Roadmap() {
         <RoadmapProjects
             key={user.data.organizationUuid}
             cacheKey={`${user.data.organizationUuid}:${user.data.userUuid}`}
+            canFollow={user.data.ability.can(
+                'manage',
+                subject('Roadmap', {
+                    organizationUuid: user.data.organizationUuid,
+                }),
+            )}
         />
     );
 }

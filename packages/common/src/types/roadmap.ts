@@ -297,3 +297,31 @@ export type ApiRoadmapProjectResponse = {
     status: 'ok';
     results: RoadmapProjectResults;
 };
+
+export type RoadmapFollowProjectRequest = { note: string };
+export const RoadmapFollowProjectRequestSchema = z
+    .object({
+        note: z
+            .string()
+            .trim()
+            .min(1, 'Tell us why you are interested in this feature.')
+            .max(2000),
+    })
+    .strict();
+export type RoadmapFollowProjectResults = { message: string };
+export type ApiRoadmapFollowProjectResponse = {
+    status: 'ok';
+    results: RoadmapFollowProjectResults;
+};
+export const RoadmapFollowProjectResultsSchema: z.ZodType<RoadmapFollowProjectResults> =
+    z
+        .object({
+            message: z.string().min(1),
+        })
+        .strict();
+export const RoadmapFollowProjectResponseSchema = z
+    .object({
+        status: z.literal('ok'),
+        results: RoadmapFollowProjectResultsSchema,
+    })
+    .strict();

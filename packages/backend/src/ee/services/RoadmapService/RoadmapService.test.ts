@@ -1,6 +1,9 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    buildAbilityFromScopes,
     ForbiddenError,
+    NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
     RoadmapItemPriority,
     RoadmapItemStatus,
@@ -476,4 +479,266 @@ describe('RoadmapService', () => {
             expect(fetchMock).not.toHaveBeenCalled();
         },
     );
+    describe('followProject', () => {
+        const projectId = '9333377a-b301-4e30-a244-5ad5ea3cdc6e';
+        const userUuid = 'ae3aef51-a909-4d3d-a80f-bc5b68918b5f';
+        const confirmation = {
+            status: 'ok',
+            results: {
+                message:
+                    'The request has been sent to the Lightdash team and will soon be reviewed',
+            },
+        };
+        const account = () => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    organizationUuid: sessionOrgUuid,
+                    userUuid,
+                    isEnterprise: true,
+                    scopes: ['view:Roadmap', 'manage:Roadmap'],
+                },
+                builder,
+            );
+            const value = buildAccount(builder.build());
+            return { ...value, user: { ...value.user, userUuid } } as Account;
+        };
+
+        it('sends trusted identity and a trimmed note to the configured follow endpoint', async () => {
+            fetchMock.mockResolvedValueOnce(
+                new Response(JSON.stringify(confirmation)),
+            );
+            const result = await buildService({
+                baseUrl: 'http://localhost:8082',
+            }).followProject(account(), projectId, {
+                note: '  Our use case  ',
+            });
+            expect(result).toEqual(confirmation.results);
+            const [url, options] = fetchMock.mock.calls[0];
+            expect(url).toBe(
+                `http://localhost:8082/api/v1/roadmap/organizations/${sessionOrgUuid}/projects/${projectId}/follow`,
+            );
+            expect(options.method).toBe('POST');
+            expect(options.headers).toEqual({
+                'lightdash-license-key': 'test-license-key',
+                'Content-Type': 'application/json',
+            });
+            expect(JSON.parse(options.body)).toEqual({
+                organizationName: 'Org',
+                user: {
+                    userUuid,
+                    name: 'Test User',
+                    email: 'user@example.com',
+                },
+                note: 'Our use case',
+            });
+            expect(options.signal).toBeInstanceOf(AbortSignal);
+            expect(fetchMock).toHaveBeenCalledOnce();
+        });
+
+        it.each([
+            { note: '' },
+            { note: '   ' },
+            { note: 'a'.repeat(2001) },
+            { note: 'Use case', organizationUuid: otherOrgUuid },
+            { note: 'Use case', organizationName: 'Spoofed org' },
+            { note: 'Use case', user: { email: 'attacker@example.com' } },
+        ])(
+            'rejects invalid notes and caller-supplied identity: %j',
+            async (body) => {
+                await expect(
+                    buildService().followProject(account(), projectId, body),
+                ).rejects.toThrow(ParameterError);
+                expect(fetchMock).not.toHaveBeenCalled();
+            },
+        );
+
+        it('rejects non-UUID project IDs before fetching', async () => {
+            await expect(
+                buildService().followProject(account(), '../projects', {
+                    note: 'Use case',
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('allows a non-admin with the organization scope', async () => {
+            const customRoleAccount = account();
+            customRoleAccount.user = {
+                ...customRoleAccount.user,
+                role: OrganizationMemberRole.MEMBER,
+            } as typeof customRoleAccount.user;
+            fetchMock.mockResolvedValueOnce(
+                new Response(JSON.stringify(confirmation)),
+            );
+            await expect(
+                buildService().followProject(customRoleAccount, projectId, {
+                    note: 'Use case',
+                }),
+            ).resolves.toEqual(confirmation.results);
+        });
+
+        it('allows service accounts with the scope and required identity', async () => {
+            const serviceAccount = account();
+            serviceAccount.isServiceAccount = (() =>
+                true) as typeof serviceAccount.isServiceAccount;
+            fetchMock.mockResolvedValueOnce(
+                new Response(JSON.stringify(confirmation)),
+            );
+            await expect(
+                buildService().followProject(serviceAccount, projectId, {
+                    note: 'Use case',
+                }),
+            ).resolves.toEqual(confirmation.results);
+        });
+
+        it('denies view-only accounts even when their stored role is admin', async () => {
+            const viewer = account();
+            viewer.user.ability = viewRoadmapAbility(sessionOrgUuid);
+            viewer.user.abilityRules = viewer.user.ability.rules;
+            await expect(
+                buildService().followProject(viewer, projectId, {
+                    note: 'Use case',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('denies management grants belonging to another organization', async () => {
+            const wrongOrg = account();
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            builder.can('view', 'Roadmap', {
+                organizationUuid: sessionOrgUuid,
+            });
+            builder.can('manage', 'Roadmap', {
+                organizationUuid: otherOrgUuid,
+            });
+            wrongOrg.user.ability = builder.build();
+            wrongOrg.user.abilityRules = wrongOrg.user.ability.rules;
+            await expect(
+                buildService().followProject(wrongOrg, projectId, {
+                    note: 'Use case',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('requires roadmap access, its feature flag and a configured license', async () => {
+            const wrongOrg = account();
+            wrongOrg.user.ability = viewRoadmapAbility(otherOrgUuid);
+            wrongOrg.user.abilityRules = wrongOrg.user.ability.rules;
+            await expect(
+                buildService().followProject(wrongOrg, projectId, {
+                    note: 'Use case',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                buildService({ flagEnabled: false }).followProject(
+                    account(),
+                    projectId,
+                    { note: 'Use case' },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                buildService({ licenseKey: '' }).followProject(
+                    account(),
+                    projectId,
+                    { note: 'Use case' },
+                ),
+            ).rejects.toThrow(UnexpectedServerError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('requires complete trusted identity before forwarding', async () => {
+            const missingEmail = account();
+            missingEmail.user.email = undefined;
+            await expect(
+                buildService().followProject(missingEmail, projectId, {
+                    note: 'Use case',
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it.each([201, 202, 401, 403, 404, 429, 500, 502, 503])(
+            'handles upstream %s without retrying or exposing its body',
+            async (status) => {
+                fetchMock.mockResolvedValueOnce(
+                    new Response('private note and provider details', {
+                        status,
+                    }),
+                );
+                const result = buildService().followProject(
+                    account(),
+                    projectId,
+                    { note: 'Use case' },
+                );
+                const errorType =
+                    new Map([
+                        [401, ForbiddenError],
+                        [403, ForbiddenError],
+                        [404, NotFoundError],
+                    ]).get(status) ?? UnexpectedServerError;
+                await expect(result).rejects.toThrow(errorType);
+                await expect(result).rejects.not.toThrow('private note');
+                expect(fetchMock).toHaveBeenCalledOnce();
+            },
+        );
+
+        it.each([
+            'not JSON',
+            JSON.stringify({ status: 'ok', results: { hasDirectNeed: true } }),
+        ])('rejects malformed confirmation %s', async (body) => {
+            fetchMock.mockResolvedValueOnce(new Response(body));
+            await expect(
+                buildService().followProject(account(), projectId, {
+                    note: 'Use case',
+                }),
+            ).rejects.toThrow(UnexpectedServerError);
+        });
+
+        it.each([
+            {
+                error: new DOMException(
+                    'private timeout details',
+                    'TimeoutError',
+                ),
+                errorName: 'TimeoutError',
+                errorCode: undefined,
+            },
+            ...['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET'].map((code) => ({
+                error: new TypeError('private request details', {
+                    cause: { code, message: 'private provider details' },
+                }),
+                errorName: 'TypeError',
+                errorCode: code,
+            })),
+            {
+                error: 'private thrown value',
+                errorName: 'UnknownError',
+                errorCode: undefined,
+            },
+        ])(
+            'logs safe network diagnostics without retrying: $errorName $errorCode',
+            async ({ error, errorName, errorCode }) => {
+                const service = buildService();
+                const warn = vi.spyOn(service['logger'], 'warn');
+                fetchMock.mockRejectedValueOnce(error);
+                await expect(
+                    service.followProject(account(), projectId, {
+                        note: 'Use case',
+                    }),
+                ).rejects.toThrow(UnexpectedServerError);
+                expect(warn).toHaveBeenCalledExactlyOnceWith(
+                    'Could not reach the roadmap service',
+                    { errorName, errorCode },
+                );
+                expect(JSON.stringify(warn.mock.calls)).not.toContain(
+                    'private',
+                );
+                expect(fetchMock).toHaveBeenCalledOnce();
+                warn.mockRestore();
+            },
+        );
+    });
 });

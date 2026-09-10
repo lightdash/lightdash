@@ -182,9 +182,30 @@
 }
 
 .projectCard {
+    position: relative;
     padding: 0;
     gap: 0;
     overflow: hidden;
+}
+.projectFollowAction {
+    position: absolute;
+    top: var(--mantine-spacing-xs);
+    right: var(--mantine-spacing-xs);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+}
+.projectCard:hover .projectFollowAction,
+.projectCard:focus-within .projectFollowAction,
+.projectFollowAction[data-loading] {
+    opacity: 1;
+    pointer-events: auto;
+}
+@media (hover: none) {
+    .projectFollowAction {
+        opacity: 1;
+        pointer-events: auto;
+    }
 }
 .projectCardBody {
     display: flex;

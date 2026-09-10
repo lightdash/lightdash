@@ -1,14 +1,20 @@
 import {
     assertRegisteredAccount,
     type ApiErrorPayload,
+    type ApiRoadmapFollowProjectResponse,
     type ApiRoadmapProjectResponse,
     type ApiRoadmapResponse,
+    type RoadmapFollowProjectRequest,
+    type UUID,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Hidden,
     Middlewares,
     OperationId,
+    Path,
+    Post,
     Query,
     Request,
     Response,
@@ -29,6 +35,25 @@ import type { RoadmapService } from '../services/RoadmapService/RoadmapService';
 @Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
 export class OrgRoadmapController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/projects/{projectId}/follow')
+    @OperationId('followOrgRoadmapProject')
+    async followProject(
+        @Request() req: express.Request,
+        @Path() projectId: UUID,
+        @Body() body: RoadmapFollowProjectRequest,
+    ): Promise<ApiRoadmapFollowProjectResponse> {
+        assertRegisteredAccount(req.account);
+        this.setHeader('Cache-Control', 'no-store');
+        return {
+            status: 'ok',
+            results: await this.services
+                .getRoadmapService<RoadmapService>()
+                .followProject(req.account, projectId, body),
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
