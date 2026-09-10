@@ -1,3 +1,11 @@
+## [2.185.3](https://github.com/lightdash/lightdash/compare/2.185.2...2.185.3) (2026-09-10)
+
+
+### Bug Fixes
+
+* **omnibar:** keep validation error icons consistently sized ([#28979](https://github.com/lightdash/lightdash/issues/28979)) ([2627b64](https://github.com/lightdash/lightdash/commit/2627b64832817dc90c322894de6ae5e5c5bdeb91))
+* **spaces:** keep chart listings working during space deletion ([#28967](https://github.com/lightdash/lightdash/issues/28967)) ([aa26593](https://github.com/lightdash/lightdash/commit/aa26593f7d6680c56bdde9e02997aff02dfd9ab5))
+
 ## [2.185.2](https://github.com/lightdash/lightdash/compare/2.185.1...2.185.2) (2026-09-10)
 
 
