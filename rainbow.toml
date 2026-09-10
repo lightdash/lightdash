@@ -14,7 +14,7 @@ serve_port = 3000
 
 # Anyone with the URL can open an environment of this repo.
 [access]
-public = "true"
+public = true
 
 [resources]
 cpu = 8
