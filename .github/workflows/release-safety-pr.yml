@@ -371,14 +371,15 @@ jobs:
         with:
           ref: ${{ needs.changes.outputs.base_sha }}
 
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
           install: false
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
 
       # Each side is built from its own revision's sources AND its own revision's
       # dependencies — sharing one install across both would be a faithful build of
@@ -441,32 +442,16 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      # SPK-1021: pnpm is set up BEFORE setup-node so that `cache: 'pnpm'` can
-      # resolve the store path — setup-node shells out to pnpm to find it, and
-      # fails with "Unable to locate executable file: pnpm" if it runs first.
-      # This is the ordering openapi-specs already uses.
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          cache: true
           install: false
-
-      # The install below was 75% of this job's runtime (255s median) because it
-      # re-fetched the whole CLI dependency tree, uncached, on every run — to
-      # obtain one library. This check is required, so that is merge latency for
-      # everyone, not background CI cost.
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
-
-      - name: Install tsx
-        run: npm install -g tsx@4.19.4
 
       # SPK-941: scripts/release-safety-index.ts imports
       # packages/cli/src/releaseSafety (ajv-backed index validation), so the
       # otherwise dependency-free preview needs the CLI package's dependencies.
       - name: Install CLI package dependencies
-        run: pnpm install --frozen-lockfile --filter @lightdash/cli --network-concurrency=16
+        run: pnpm install --frozen-lockfile --filter @lightdash/cli --filter . --network-concurrency=16
 
       - name: Install oasdiff
         env:
@@ -539,7 +524,7 @@ jobs:
             AI_FLAG="--ai-review"
             echo "Ready PR → running the AI migration review (if migrations present)."
           fi
-          tsx scripts/gen-release-safety.ts \
+          pnpm exec tsx scripts/gen-release-safety.ts \
             --version "pr-${{ github.event.pull_request.number }}" \
             --previous-version "${{ needs.changes.outputs.base_short }}" \
             --last-tag "${{ needs.changes.outputs.base_sha }}" \
@@ -552,7 +537,7 @@ jobs:
         id: declaration-gate
         continue-on-error: true
         run: |
-          tsx scripts/release-safety-pr-gate.ts \
+          pnpm exec tsx scripts/release-safety-pr-gate.ts \
             --base-sha "${{ needs.changes.outputs.base_sha }}" \
             --marker /tmp/release-safety.json
 
@@ -560,7 +545,7 @@ jobs:
         id: sql-declaration-gate
         continue-on-error: true
         run: |
-          tsx scripts/sql-migration-lint.ts \
+          pnpm exec tsx scripts/sql-migration-lint.ts \
             --last-tag "${{ needs.changes.outputs.base_sha }}" \
             --enforce
 
@@ -609,13 +594,13 @@ jobs:
         id: lint
         run: |
           set -euo pipefail
-          tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" > /tmp/sql-lint.json
+          pnpm exec tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" > /tmp/sql-lint.json
           BREAKING=$(node -e 'const r=JSON.parse(require("fs").readFileSync("/tmp/sql-lint.json","utf8"));process.stdout.write(String(r.breaking===true))')
           echo "breaking=${BREAKING}" >> "$GITHUB_OUTPUT"
 
       - name: Render PR comment
         run: |
-          tsx scripts/release-safety-pr-comment.ts \
+          pnpm exec tsx scripts/release-safety-pr-comment.ts \
             --marker /tmp/release-safety.json \
             --base "${{ github.event.pull_request.base.ref }} (${{ needs.changes.outputs.base_short }})" \
             --head-sha "${{ github.event.pull_request.head.sha }}" \

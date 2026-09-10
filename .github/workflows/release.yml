@@ -27,12 +27,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          cache: true
           install: false
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
+
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Generate backend API artifacts
@@ -78,18 +75,13 @@ jobs:
 
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          cache: true
           install: false
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
 
       # pnpm publishes natively via OIDC trusted publishing; npm is pinned only
       # for the npm version prepare step in release.config.js.
       - name: Pin npm for the versioning step
-        run: npm install -g npm@12.0.1
+        run: pnpm add -g npm@12.0.1 --config.minimumReleaseAge=4320
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline --config.production=false --network-concurrency=16
@@ -158,15 +150,15 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release.outputs.new_release_git_tag }}
 
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
           install: false
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline --config.production=false --network-concurrency=16
