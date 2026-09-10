@@ -66,7 +66,6 @@ export type SettingsContext = {
     canAccessAnalyticsSettings: boolean;
     isAnalyticsProjectFlagLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
-    isOrganizationRoadmapLoading: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
     isEmailWhitelabelEnabled: boolean;
     isScimTokenManagementEnabled: FeatureFlag | undefined;

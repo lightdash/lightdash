@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
     assertRegisteredAccount,
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -27,41 +26,28 @@ import {
 import { z } from 'zod';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
-import type { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 
 const ROADMAP_REQUEST_TIMEOUT_MS = 10_000;
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
-    featureFlagService: Pick<FeatureFlagService, 'get'>;
 };
 
 export class RoadmapService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
-    private readonly featureFlagService: Pick<FeatureFlagService, 'get'>;
-
-    constructor({ lightdashConfig, featureFlagService }: Dependencies) {
+    constructor({ lightdashConfig }: Dependencies) {
         super();
         this.lightdashConfig = lightdashConfig;
-        this.featureFlagService = featureFlagService;
     }
 
     private async authorize(account: Account) {
         assertRegisteredAccount(account);
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
-        const roadmapFlag = await this.featureFlagService.get({
-            user: {
-                userUuid: account.user.userUuid,
-                organizationUuid,
-            },
-            featureFlagId: FeatureFlags.OrganizationRoadmap,
-        });
         const ability = this.createAuditedAbility(account);
 
         if (
-            !roadmapFlag.enabled ||
             ability.cannot(
                 'view',
                 subject('Roadmap', {

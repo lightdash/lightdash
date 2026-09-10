@@ -86,12 +86,8 @@ export const useSettingsContext = (): SettingsContext => {
     );
     const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
 
-    const organizationRoadmapFlagQuery = useServerFeatureFlag(
-        FeatureFlags.OrganizationRoadmap,
-    );
-    const { data: organizationRoadmapFlag } = organizationRoadmapFlagQuery;
-    const isOrganizationRoadmapEnabled =
-        organizationRoadmapFlag?.enabled ?? false;
+    // The roadmap proxy is only registered behind a validated enterprise license.
+    const isOrganizationRoadmapEnabled = health?.license?.valid === true;
 
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
@@ -210,8 +206,6 @@ export const useSettingsContext = (): SettingsContext => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
-        isOrganizationRoadmapLoading:
-            organizationRoadmapFlagQuery.isInitialLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isScimTokenManagementEnabled,
