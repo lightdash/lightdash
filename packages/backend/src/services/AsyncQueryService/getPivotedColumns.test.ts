@@ -169,6 +169,23 @@ describe('getPivotedColumns', () => {
         );
     });
 
+    test('an items map keyed by anything but getItemId throws', () => {
+        // Metadata and the type derivation resolve their source item through
+        // the same shared rule, so a mis-keyed producer map fails loudly
+        // instead of silently dropping the metric's format and provenance.
+        const misKeyedItemsMap: ItemsMap = {
+            orders_revenue: { ...revenueMetric, name: 'other_revenue' },
+        };
+        expect(() =>
+            getPivotedColumns(
+                unpivotedColumns,
+                pivotConfiguration,
+                pivotValuesColumns,
+                misKeyedItemsMap,
+            ),
+        ).toThrow('must be keyed by getItemId');
+    });
+
     test('value columns without an items map get a reference-derived label and no provenance', () => {
         const columns = getPivotedColumns(
             unpivotedColumns,

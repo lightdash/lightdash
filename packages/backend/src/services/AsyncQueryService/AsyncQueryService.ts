@@ -1585,7 +1585,11 @@ export class AsyncQueryService extends ProjectService {
                 warehouseType:
                     queryHistory?.warehouseQueryMetadata?.type ?? null,
                 page,
-                columnsCount: Object.keys(queryHistory.fields).length,
+                // SQL and compose rows persist no fields map; count their
+                // stored result columns instead.
+                columnsCount:
+                    Object.keys(queryHistory.fields).length ||
+                    Object.keys(columns ?? {}).length,
                 totalRowCount: totalRowCount ?? 0,
                 totalPageCount: pageCount,
                 resultsPageSize: rows.length,
@@ -8503,7 +8507,6 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 {
                     compiled_sql: storedCompiledSql ?? execution.query,
-                    fields: execution.fieldsMap,
                     original_columns: execution.originalColumns,
                     // The results land under the file-based key, so the next
                     // run over the same files finds them
@@ -8857,6 +8860,9 @@ export class AsyncQueryService extends ProjectService {
             query: composer.getSql({
                 columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
             }),
+            // Empty by contract: a compose node outputs a result set and
+            // nothing more, so its history row keeps the empty fields map it
+            // was created with rather than the composer's virtual-view items.
             fieldsMap: composer.getFields(),
             usedParameters: composer.getUsedParameters(),
             originalColumns,

@@ -2,8 +2,8 @@ import {
     assertUnreachable,
     convertItemTypeToDimensionType,
     DimensionType,
-    getItemId,
     getResultColumnMetadataFromItem,
+    getResultColumnSourceItem,
     isMetric,
     MetricType,
     normalizeIndexColumns,
@@ -96,15 +96,12 @@ export function getPivotedColumns(
         ...indexColumnsResult,
         ...passthroughColumnsResult,
         ...pivotValuesColumns.reduce<ResultColumns>((acc, valueColumn) => {
-            // An item contributes metadata and a type only when the column
-            // reference is the item's own field id — the same identity rule
-            // that getResultColumnMetadataFromItem applies internally.
-            const lookedUpItem = itemsMap?.[valueColumn.referenceField];
-            const sourceItem =
-                lookedUpItem &&
-                getItemId(lookedUpItem) === valueColumn.referenceField
-                    ? lookedUpItem
-                    : undefined;
+            // Shared resolution rule: metadata and the type derivation must
+            // read the same source item, or they diverge.
+            const sourceItem = getResultColumnSourceItem(
+                itemsMap,
+                valueColumn.referenceField,
+            );
             const metadata = getResultColumnMetadataFromItem(
                 sourceItem,
                 valueColumn.referenceField,
