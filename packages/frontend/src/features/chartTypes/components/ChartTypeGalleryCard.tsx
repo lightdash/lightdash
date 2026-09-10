@@ -78,11 +78,10 @@ const ChartTypeGalleryCard: FC<Props> = ({
                 </Box>
                 <Stack gap="xs" p="sm">
                     <Group gap="xs" wrap="nowrap" justify="space-between">
-                        <Group gap={6} wrap="nowrap" miw={0}>
+                        <Group gap="xs" wrap="nowrap" miw={0}>
                             <MantineIcon
                                 icon={getChartTypeIcon(dataAppViz.icon)}
                                 color="dimmed"
-                                size="sm"
                             />
                             <Text fz="sm" fw={600} truncate="end">
                                 {displayName}
