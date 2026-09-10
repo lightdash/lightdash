@@ -328,7 +328,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                 </Stack>
             ) : (
                 <Center component={Stack} h={100}>
-                    <Text color="dimmed">
+                    <Text c="dimmed">
                         No filters defined for this dashboard.
                     </Text>
                 </Center>
