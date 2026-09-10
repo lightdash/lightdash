@@ -1,3 +1,10 @@
+## [2.186.3](https://github.com/lightdash/lightdash/compare/2.186.2...2.186.3) (2026-09-10)
+
+
+### Bug Fixes
+
+* **spaces:** allow sharing restricted spaces with service accounts ([#28984](https://github.com/lightdash/lightdash/issues/28984)) ([3837712](https://github.com/lightdash/lightdash/commit/38377129572d912e7a1ff11822280a2c8b68e887))
+
 ## [2.186.2](https://github.com/lightdash/lightdash/compare/2.186.1...2.186.2) (2026-09-10)
 
 
