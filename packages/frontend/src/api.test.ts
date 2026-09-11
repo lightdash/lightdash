@@ -245,7 +245,32 @@ describe('network error messages', () => {
             method: 'PATCH',
             url: '/projects/abc',
             body: JSON.stringify({}),
+            diagnoseTransportFailures: true,
         });
+
+    it('keeps the generic message and never probes unless the request opts in', async () => {
+        globalThis.fetch = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+            .mockResolvedValueOnce(healthOk());
+
+        await expect(
+            lightdashApi({
+                method: 'GET',
+                url: '/user',
+                body: undefined,
+            }),
+        ).rejects.toMatchObject({
+            error: {
+                name: 'NetworkError',
+                statusCode: 500,
+                message:
+                    'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
+                data: {},
+            },
+        });
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
 
     it('says the request was blocked when fetch rejects but the server answers a probe', async () => {
         globalThis.fetch = vi
@@ -437,6 +462,7 @@ describe('network error messages', () => {
                 method: 'POST',
                 url: '/stream',
                 body: JSON.stringify({}),
+                diagnoseTransportFailures: true,
             }),
         ).rejects.toThrow('with HTTP 403 instead of Lightdash');
     });

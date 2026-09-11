@@ -39,6 +39,7 @@ const createProject = async (data: CreateProject) =>
         method: 'POST',
         body: JSON.stringify(data),
         sensitive: true,
+        diagnoseTransportFailures: true,
     });
 
 const createProjectWithoutCompile = async (data: CreateProject) =>
@@ -47,6 +48,7 @@ const createProjectWithoutCompile = async (data: CreateProject) =>
         method: 'POST',
         body: JSON.stringify(data),
         sensitive: true,
+        diagnoseTransportFailures: true,
     });
 
 const updateProject = async (uuid: string, data: UpdateProject) =>
@@ -55,6 +57,7 @@ const updateProject = async (uuid: string, data: UpdateProject) =>
         method: 'PATCH',
         body: JSON.stringify(data),
         sensitive: true,
+        diagnoseTransportFailures: true,
     });
 
 export const getProject = async (uuid: string) =>
@@ -233,6 +236,7 @@ const testWarehouseConnection = async (
         method: 'POST',
         body: JSON.stringify(body),
         sensitive: true,
+        diagnoseTransportFailures: true,
     });
 
 export const useTestWarehouseConnectionMutation = (uuid: string) => {
