@@ -4188,6 +4188,69 @@ export class ProjectModel {
                 );
             }
 
+            // 8888b.     db    .dP"Y8 88  88 88""Yb  dP"Yb     db    88""Yb 8888b.  .dP"Y8
+            //  8I  Yb   dPYb   `Ybo." 88  88 88__dP dP   Yb   dPYb   88__dP  8I  Yb `Ybo."
+            //  8I  dY  dP__Yb  o.`Y8b 888888 88""Yb Yb   dP  dP__Yb  88"Yb   8I  dY o.`Y8b
+            // 8888Y"  dP""""Yb 8bodP' 88  88 88oodP  YbodP  dP""""Yb 88  Yb 8888Y"  8bodP'
+            const dashboards = await trx(DashboardsTableName)
+                .leftJoin(
+                    SpaceTableName,
+                    `${DashboardsTableName}.space_id`,
+                    `${SpaceTableName}.space_id`,
+                )
+                .whereIn(`${DashboardsTableName}.space_id`, spaceIds)
+                .andWhere(`${SpaceTableName}.project_id`, projectId)
+                .whereNull(`${DashboardsTableName}.deleted_at`)
+                .whereNull(`${SpaceTableName}.deleted_at`)
+                .select<DbDashboard[]>(`${DashboardsTableName}.*`);
+
+            const dashboardIds = dashboards.map((d) => d.dashboard_id);
+
+            Logger.info(
+                `Copying ${dashboards.length} dashboards on ${previewProjectUuid}`,
+            );
+
+            const newDashboards =
+                dashboards.length > 0
+                    ? await chunkedInsertReturning<DbDashboard>(
+                          trx,
+                          DashboardsTableName,
+                          dashboards.map((d) => {
+                              type CloneDashboard = Omit<
+                                  DbDashboard,
+                                  | 'dashboard_id'
+                                  | 'dashboard_uuid'
+                                  | 'search_vector'
+                              > & {
+                                  search_vector?: string;
+                                  dashboard_id?: number;
+                                  dashboard_uuid?: string;
+                              };
+                              const createDashboard: CloneDashboard = {
+                                  ...replaceProjectUuid(d, previewProjectUuid),
+                                  search_vector: undefined,
+                                  dashboard_id: undefined,
+                                  dashboard_uuid: undefined,
+                                  space_id: getNewSpaceId(d.space_id),
+                              };
+                              delete createDashboard.search_vector;
+                              delete createDashboard.dashboard_id;
+                              delete createDashboard.dashboard_uuid;
+                              return createDashboard;
+                          }),
+                      )
+                    : [];
+
+            const dashboardMapping = dashboards.map((c, i) => ({
+                id: c.dashboard_id,
+                newId: newDashboards[i].dashboard_id,
+                uuid: c.dashboard_uuid,
+                newUuid: newDashboards[i].dashboard_uuid,
+            }));
+            const previewDashboardUuidBySource = new Map(
+                dashboardMapping.map((m) => [m.uuid, m.newUuid]),
+            );
+
             // .dP"Y8    db    Yb    dP 888888 8888b.      .dP"Y8  dP"Yb  88
             // `Ybo."   dPYb    Yb  dP  88__    8I  Yb     `Ybo." dP   Yb 88
             // o.`Y8b  dP__Yb    YbdP   88""    8I  dY     o.`Y8b Yb b dP 88  .o
@@ -4244,17 +4307,17 @@ export class ProjectModel {
                     mappedSavedSQLsPromises,
                 );
                 // Insert all the saved SQLs after they have been mapped and return the result
-                const newSavedSQLs = await trx(SavedSqlTableName)
-                    .insert(mappedSavedSQLs)
-                    .returning('*');
-                return newSavedSQLs;
+                return chunkedInsertReturning<DbSavedSql>(
+                    trx,
+                    SavedSqlTableName,
+                    mappedSavedSQLs,
+                );
             };
 
             // Create the saved SQLs
             const newSavedSQLs = await createSavedSQLs(savedSQLs);
 
-            // Create a mapping of the old saved SQLs to the new saved SQLs
-            const savedSQLInDashboards = await trx(SavedSqlTableName)
+            const sourceSavedSQLInDashboards = await trx(SavedSqlTableName)
                 .leftJoin(
                     DashboardsTableName,
                     function nonDeletedDashboardJoin() {
@@ -4276,41 +4339,48 @@ export class ProjectModel {
                 .whereNull(`${SavedSqlTableName}.deleted_at`)
                 .select<DbSavedSql[]>(`${SavedSqlTableName}.*`);
 
-            Logger.info(
-                `Copying ${savedSQLInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+            // A chart whose dashboard was not copied has no home in the preview
+            const savedSQLInDashboards = sourceSavedSQLInDashboards.filter(
+                (d) =>
+                    d.dashboard_uuid !== null &&
+                    previewDashboardUuidBySource.has(d.dashboard_uuid),
             );
 
-            // Create the saved SQLs in the dashboards
+            Logger.info(
+                `Copying ${savedSQLInDashboards.length} SQL charts in dashboards on ${previewProjectUuid}, skipping ${
+                    sourceSavedSQLInDashboards.length -
+                    savedSQLInDashboards.length
+                } whose dashboard was not copied`,
+            );
+
             const newSavedSQLInDashboards =
                 savedSQLInDashboards.length > 0
-                    ? await trx(SavedSqlTableName)
-                          .insert(
-                              savedSQLInDashboards.map((d) => {
-                                  if (!d.dashboard_uuid) {
-                                      throw new Error(
-                                          `Chart ${d.saved_sql_uuid} has no dashboard_uuid`,
-                                      );
-                                  }
-                                  const createSavedSQL: CloneSavedSQL = {
-                                      // The dashboard UUID is remapped after
-                                      // dashboards are cloned below. Keep the
-                                      // destination project UUID throughout
-                                      // this transaction.
-                                      ...replaceProjectUuid(
-                                          d,
-                                          previewProjectUuid,
-                                      ),
-                                      dashboard_uuid: d.dashboard_uuid,
-                                      search_vector: undefined,
-                                      saved_sql_uuid: undefined,
-                                      space_uuid: null,
-                                  };
-                                  delete createSavedSQL.search_vector;
-                                  delete createSavedSQL.saved_sql_uuid;
-                                  return createSavedSQL;
-                              }),
-                          )
-                          .returning('*')
+                    ? await chunkedInsertReturning<DbSavedSql>(
+                          trx,
+                          SavedSqlTableName,
+                          savedSQLInDashboards.map((d) => {
+                              const newDashboardUuid = d.dashboard_uuid
+                                  ? previewDashboardUuidBySource.get(
+                                        d.dashboard_uuid,
+                                    )
+                                  : undefined;
+                              if (!newDashboardUuid) {
+                                  throw new Error(
+                                      `Chart ${d.saved_sql_uuid} has no copied dashboard`,
+                                  );
+                              }
+                              const createSavedSQL: CloneSavedSQL = {
+                                  ...replaceProjectUuid(d, previewProjectUuid),
+                                  dashboard_uuid: newDashboardUuid,
+                                  search_vector: undefined,
+                                  saved_sql_uuid: undefined,
+                                  space_uuid: null,
+                              };
+                              delete createSavedSQL.search_vector;
+                              delete createSavedSQL.saved_sql_uuid;
+                              return createSavedSQL;
+                          }),
+                      )
                     : [];
 
             // Create a mapping of the old saved SQLs to the new saved SQLs
@@ -4348,27 +4418,29 @@ export class ProjectModel {
 
             const newSavedSQLVersions =
                 savedSQLVersions.length > 0
-                    ? await trx('saved_sql_versions')
-                          .insert(
-                              savedSQLVersions.map((d) => {
-                                  const newSavedSQLUuid = savedSQLMapping.find(
-                                      (m) => m.id === d.saved_sql_uuid,
-                                  )?.newId;
-                                  if (!newSavedSQLUuid) {
-                                      throw new Error(
-                                          `Cannot find new saved SQL uuid for ${d.saved_sql_uuid}`,
-                                      );
-                                  }
-                                  const createSavedSQLVersion = {
-                                      ...d,
-                                      saved_sql_version_uuid: undefined,
-                                      saved_sql_uuid: newSavedSQLUuid,
-                                  };
-                                  delete createSavedSQLVersion.saved_sql_version_uuid;
-                                  return createSavedSQLVersion;
-                              }),
-                          )
-                          .returning('*')
+                    ? await chunkedInsertReturning<
+                          (typeof savedSQLVersions)[number]
+                      >(
+                          trx,
+                          'saved_sql_versions',
+                          savedSQLVersions.map((d) => {
+                              const newSavedSQLUuid = savedSQLMapping.find(
+                                  (m) => m.id === d.saved_sql_uuid,
+                              )?.newId;
+                              if (!newSavedSQLUuid) {
+                                  throw new Error(
+                                      `Cannot find new saved SQL uuid for ${d.saved_sql_uuid}`,
+                                  );
+                              }
+                              const createSavedSQLVersion = {
+                                  ...d,
+                                  saved_sql_version_uuid: undefined,
+                                  saved_sql_uuid: newSavedSQLUuid,
+                              };
+                              delete createSavedSQLVersion.saved_sql_version_uuid;
+                              return createSavedSQLVersion;
+                          }),
+                      )
                     : [];
 
             const savedSQLVersionMapping = savedSQLVersions.map((c, i) => ({
@@ -4428,7 +4500,7 @@ export class ProjectModel {
                       )
                     : [];
 
-            const chartsInDashboards = await trx(SavedChartsTableName)
+            const sourceChartsInDashboards = await trx(SavedChartsTableName)
                 .leftJoin(
                     DashboardsTableName,
                     function nonDeletedDashboardJoin() {
@@ -4451,27 +4523,40 @@ export class ProjectModel {
                 .whereNull(`${SavedChartsTableName}.deleted_at`)
                 .select<DbSavedChart[]>(`${SavedChartsTableName}.*`);
 
-            Logger.info(
-                `Copying ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+            // A chart whose dashboard was not copied has no home in the preview
+            const chartsInDashboards = sourceChartsInDashboards.filter(
+                (d) =>
+                    d.dashboard_uuid !== null &&
+                    previewDashboardUuidBySource.has(d.dashboard_uuid),
             );
 
-            // We also copy charts in dashboards, we will replace the dashboard_uuid later
+            Logger.info(
+                `Copying ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}, skipping ${
+                    sourceChartsInDashboards.length - chartsInDashboards.length
+                } whose dashboard was not copied`,
+            );
+
             const newChartsInDashboards =
                 chartsInDashboards.length > 0
                     ? await chunkedInsertReturning<DbSavedChart>(
                           trx,
                           SavedChartsTableName,
                           chartsInDashboards.map((d) => {
-                              if (!d.dashboard_uuid) {
+                              const newDashboardUuid = d.dashboard_uuid
+                                  ? previewDashboardUuidBySource.get(
+                                        d.dashboard_uuid,
+                                    )
+                                  : undefined;
+                              if (!newDashboardUuid) {
                                   throw new Error(
-                                      `Chart in dashboard ${d.saved_query_id} has no dashboard_uuid`,
+                                      `Chart in dashboard ${d.saved_query_id} has no copied dashboard`,
                                   );
                               }
                               const createChart: CloneChart = {
                                   ...replaceProjectUuid(d, previewProjectUuid),
                                   search_vector: undefined,
                                   space_id: null,
-                                  dashboard_uuid: d.dashboard_uuid,
+                                  dashboard_uuid: newDashboardUuid,
                               };
                               delete createChart.search_vector;
                               delete createChart.saved_query_id;
@@ -4650,69 +4735,6 @@ export class ProjectModel {
                 },
             );
 
-            // 8888b.     db    .dP"Y8 88  88 88""Yb  dP"Yb     db    88""Yb 8888b.  .dP"Y8
-            //  8I  Yb   dPYb   `Ybo." 88  88 88__dP dP   Yb   dPYb   88__dP  8I  Yb `Ybo."
-            //  8I  dY  dP__Yb  o.`Y8b 888888 88""Yb Yb   dP  dP__Yb  88"Yb   8I  dY o.`Y8b
-            // 8888Y"  dP""""Yb 8bodP' 88  88 88oodP  YbodP  dP""""Yb 88  Yb 8888Y"  8bodP'
-            const dashboards = await trx(DashboardsTableName)
-                .leftJoin(
-                    SpaceTableName,
-                    `${DashboardsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
-                )
-                .whereIn(`${DashboardsTableName}.space_id`, spaceIds)
-                .andWhere(`${SpaceTableName}.project_id`, projectId)
-                .whereNull(`${DashboardsTableName}.deleted_at`)
-                .whereNull(`${SpaceTableName}.deleted_at`)
-                .select<DbDashboard[]>(`${DashboardsTableName}.*`);
-
-            const dashboardIds = dashboards.map((d) => d.dashboard_id);
-
-            Logger.info(
-                `Copying ${dashboards.length} dashboards on ${previewProjectUuid}`,
-            );
-
-            const newDashboards =
-                dashboards.length > 0
-                    ? await trx(DashboardsTableName)
-                          .insert(
-                              dashboards.map((d) => {
-                                  type CloneDashboard = Omit<
-                                      DbDashboard,
-                                      | 'dashboard_id'
-                                      | 'dashboard_uuid'
-                                      | 'search_vector'
-                                  > & {
-                                      search_vector?: string;
-                                      dashboard_id?: number;
-                                      dashboard_uuid?: string;
-                                  };
-                                  const createDashboard: CloneDashboard = {
-                                      ...replaceProjectUuid(
-                                          d,
-                                          previewProjectUuid,
-                                      ),
-                                      search_vector: undefined,
-                                      dashboard_id: undefined,
-                                      dashboard_uuid: undefined,
-                                      space_id: getNewSpaceId(d.space_id),
-                                  };
-                                  delete createDashboard.search_vector;
-                                  delete createDashboard.dashboard_id;
-                                  delete createDashboard.dashboard_uuid;
-                                  return createDashboard;
-                              }),
-                          )
-                          .returning('*')
-                    : [];
-
-            const dashboardMapping = dashboards.map((c, i) => ({
-                id: c.dashboard_id,
-                newId: newDashboards[i].dashboard_id,
-                uuid: c.dashboard_uuid,
-                newUuid: newDashboards[i].dashboard_uuid,
-            }));
-
             // Get last version of a dashboard
             const lastDashboardVersionsIds = await trx('dashboard_versions')
                 .whereIn('dashboard_id', dashboardIds)
@@ -4822,56 +4844,6 @@ export class ProjectModel {
             const dashboardTileUuids = dashboardTiles.map(
                 (dv) => dv.dashboard_tile_uuid,
             );
-
-            Logger.info(
-                `Updating ${chartsInDashboards.length} charts in dashboards`,
-            );
-            // Update chart in dashboards with new dashboardUuids
-            const updateChartInDashboards = newChartsInDashboards.map(
-                (chart) => {
-                    const newDashboardUuid = dashboardMapping.find(
-                        (m) => m.uuid === chart.dashboard_uuid,
-                    )?.newUuid;
-
-                    if (!newDashboardUuid) {
-                        // The dashboard was not copied, perhaps becuase it belongs to a space the user doesn't have access to
-                        // We delete this chart in dashboard
-                        return trx(SavedChartsTableName)
-                            .where('saved_query_id', chart.saved_query_id)
-                            .delete();
-                    }
-                    return trx(SavedChartsTableName)
-                        .update({
-                            dashboard_uuid: newDashboardUuid,
-                        })
-                        .where('saved_query_id', chart.saved_query_id);
-                },
-            );
-            await Promise.all(updateChartInDashboards);
-
-            // update saved_sqls in dashboards
-            const updateSavedSQLInDashboards = newSavedSQLInDashboards.map(
-                (chart) => {
-                    const newDashboardUuid = dashboardMapping.find(
-                        (m) => m.uuid === chart.dashboard_uuid,
-                    )?.newUuid;
-
-                    if (!newDashboardUuid) {
-                        // The dashboard was not copied, perhaps becuase it belongs to a space the user doesn't have access to
-                        // We delete this chart in dashboard
-                        return trx(SavedSqlTableName)
-                            .where('saved_sql_uuid', chart.saved_sql_uuid)
-                            .delete();
-                    }
-                    return trx(SavedSqlTableName)
-                        .update({
-                            dashboard_uuid: newDashboardUuid,
-                        })
-                        .where('saved_sql_uuid', chart.saved_sql_uuid)
-                        .whereNull('deleted_at');
-                },
-            );
-            await Promise.all(updateSavedSQLInDashboards);
 
             const newDashboardTiles =
                 dashboardTiles.length > 0
