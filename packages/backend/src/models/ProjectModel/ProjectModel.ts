@@ -4188,10 +4188,7 @@ export class ProjectModel {
                 );
             }
 
-            // 8888b.     db    .dP"Y8 88  88 88""Yb  dP"Yb     db    88""Yb 8888b.  .dP"Y8
-            //  8I  Yb   dPYb   `Ybo." 88  88 88__dP dP   Yb   dPYb   88__dP  8I  Yb `Ybo."
-            //  8I  dY  dP__Yb  o.`Y8b 888888 88""Yb Yb   dP  dP__Yb  88"Yb   8I  dY o.`Y8b
-            // 8888Y"  dP""""Yb 8bodP' 88  88 88oodP  YbodP  dP""""Yb 88  Yb 8888Y"  8bodP'
+            // Dashboards
             const dashboards = await trx(DashboardsTableName)
                 .leftJoin(
                     SpaceTableName,
@@ -4269,10 +4266,7 @@ export class ProjectModel {
                 return previewDashboardUuid;
             };
 
-            // .dP"Y8    db    Yb    dP 888888 8888b.      .dP"Y8  dP"Yb  88
-            // `Ybo."   dPYb    Yb  dP  88__    8I  Yb     `Ybo." dP   Yb 88
-            // o.`Y8b  dP__Yb    YbdP   88""    8I  dY     o.`Y8b Yb b dP 88  .o
-            // 8bodP' dP""""Yb    YP    888888 8888Y"      8bodP'  `"YoYo 88ood8
+            // Saved SQL
 
             // Get all the saved SQLs
             const savedSQLs = await trx(SavedSqlTableName)
@@ -4454,10 +4448,7 @@ export class ProjectModel {
                 newId: newSavedSQLVersions[i].saved_sql_version_uuid,
             }));
 
-            //  dP""b8 88  88    db    88""Yb 888888 .dP"Y8
-            // dP   `" 88  88   dPYb   88__dP   88   `Ybo."
-            // Yb      888888  dP__Yb  88"Yb    88   o.`Y8b
-            //  YboodP 88  88 dP""""Yb 88  Yb   88   8bodP'
+            // Charts
             const charts = await trx(SavedChartsTableName)
                 .leftJoin(
                     SpaceTableName,
