@@ -213,8 +213,6 @@ const mcpTextConfigurations = mcpOptionCombinations.map((options) => ({
     ...options,
 }));
 
-const warnedInstructionLengths = new Set<number>();
-
 const inputSchemaRequirements = z.object({
     required: z.array(z.string()).optional(),
 });
@@ -428,38 +426,15 @@ describe('MCP tool contracts', () => {
     );
 
     it.each(mcpTextConfigurations)(
-        'ratchets MCP server instruction lengths: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        'keeps registered MCP server instructions within the client text limit: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
         async (options) => {
             const configuration = JSON.stringify(options);
             const mcpService = makeMcpService();
             await mcpService.createServer(makeMcpServerOptions(options));
-            // Existing instruction overages cannot grow; lower these as text shrinks.
-            const instructionCeilings = options.runSqlEnabled
-                ? { structured: 1922, expression: 2036 }
-                : { structured: 1358, expression: 1472 };
-            const instructionCeiling = options.runMetricQueryEnabled
-                ? instructionCeilings[
-                      options.filterExpressionsEnabled
-                          ? 'expression'
-                          : 'structured'
-                  ]
-                : MCP_CLIENT_TEXT_MAX_CHARS;
-            const { length } = getLatestMcpServerInstructions();
-
-            if (
-                length > MCP_CLIENT_TEXT_MAX_CHARS &&
-                !warnedInstructionLengths.has(length)
-            ) {
-                // Report a distinct length once, while asserting every combination.
-                warnedInstructionLengths.add(length);
-                process.stderr.write(
-                    `[MCP client text limit: ${configuration}]\nserver instructions: ${length} chars (+${length - MCP_CLIENT_TEXT_MAX_CHARS} over ${MCP_CLIENT_TEXT_MAX_CHARS})\n`,
-                );
-            }
             expect(
-                length,
-                `${configuration}: server instructions exceed their text ceiling; shorten the text instead of updating snapshots`,
-            ).toBeLessThanOrEqual(instructionCeiling);
+                getLatestMcpServerInstructions().length,
+                `${configuration}: server instructions exceed the client text limit; shorten the text instead of updating snapshots`,
+            ).toBeLessThanOrEqual(MCP_CLIENT_TEXT_MAX_CHARS);
         },
     );
 
