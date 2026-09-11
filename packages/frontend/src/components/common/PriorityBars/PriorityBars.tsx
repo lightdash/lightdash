@@ -1,9 +1,10 @@
-import { type AiAgentReviewItemPriority } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { type FC } from 'react';
-import styles from './ReviewPriorityBars.module.css';
+import styles from './PriorityBars.module.css';
 
-const FILLED_BARS: Record<AiAgentReviewItemPriority, number> = {
+export type PriorityLevel = 'none' | 'low' | 'medium' | 'high' | 'urgent';
+
+const FILLED_BARS: Record<PriorityLevel, number> = {
     none: 0,
     low: 1,
     medium: 2,
@@ -12,11 +13,11 @@ const FILLED_BARS: Record<AiAgentReviewItemPriority, number> = {
 };
 
 type Props = {
-    priority: AiAgentReviewItemPriority;
+    priority: PriorityLevel;
 };
 
 // Signal-strength glyph: one bar per level; urgent fills all three in darker ink.
-export const ReviewPriorityBars: FC<Props> = ({ priority }) => {
+export const PriorityBars: FC<Props> = ({ priority }) => {
     const filled = FILLED_BARS[priority];
 
     return (

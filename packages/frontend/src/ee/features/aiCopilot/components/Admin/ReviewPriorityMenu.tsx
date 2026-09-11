@@ -2,12 +2,12 @@ import { type AiAgentReviewItemPriority } from '@lightdash/common';
 import { Group, Menu, Tooltip, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
+import { PriorityBars } from '../../../../../components/common/PriorityBars';
 import { useUpdateAiAgentReviewItemPriority } from '../../hooks/useAiAgentAdmin';
 import {
     reviewPriorityColors,
     reviewPriorityLabels,
 } from './reviewItemDetails';
-import { ReviewPriorityBars } from './ReviewPriorityBars';
 
 type Props = {
     fingerprint: string;
@@ -53,7 +53,7 @@ export const ReviewPriorityMenu: FC<Props> = ({
                             openDelay={300}
                         >
                             <Group>
-                                <ReviewPriorityBars priority={priority} />
+                                <PriorityBars priority={priority} />
                             </Group>
                         </Tooltip>
                     ) : (
@@ -83,9 +83,7 @@ export const ReviewPriorityMenu: FC<Props> = ({
                                 priority: nextPriority,
                             })
                         }
-                        leftSection={
-                            <ReviewPriorityBars priority={nextPriority} />
-                        }
+                        leftSection={<PriorityBars priority={nextPriority} />}
                     >
                         {reviewPriorityLabels[nextPriority]}
                     </Menu.Item>

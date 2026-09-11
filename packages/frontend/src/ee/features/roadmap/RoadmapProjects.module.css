@@ -42,16 +42,12 @@
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     text-align: left;
-    box-shadow: 0 1px 2px rgba(20, 22, 28, 0.04);
-    transition:
-        border-color 120ms ease,
-        box-shadow 120ms ease;
+    transition: border-color 120ms ease;
 }
 .projectCard:has(.projectCardBody:hover),
 .projectCard:has(.projectCardFooter:hover),
 .ticketCard:hover {
-    border-color: var(--mantine-color-indigo-4);
-    box-shadow: 0 4px 14px rgba(80, 60, 180, 0.1);
+    border-color: var(--mantine-color-ldGray-3);
 }
 .projectCardBody:focus-visible,
 .projectCardFooter:focus-visible,
@@ -94,7 +90,6 @@
     position: relative;
     z-index: 1;
     background: var(--ld-color-page);
-    box-shadow: none;
 }
 .ticketStackCard .ticketTitle,
 .ticketStackCard .ticketIcon {
@@ -102,6 +97,7 @@
     font-weight: 400;
 }
 .ticketTitle {
+    flex: 1;
     font-size: var(--mantine-font-size-sm);
     font-weight: 500;
 }
@@ -109,28 +105,74 @@
 .progressValue {
     font-variant-numeric: tabular-nums;
 }
-.cardProgress {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--mantine-spacing-xs);
-    width: 100%;
+.ticketCard {
+    --notch: 8px;
+    position: relative;
+    /* Clears the notches so the title and stub don't butt against them. */
+    padding-inline: var(--mantine-spacing-lg);
 }
-.cardProgress .progress {
-    grid-column: 1 / -1;
-    width: 100%;
+/* Half-circle notches on both edges, drawn in the canvas colour so the card reads as a ticket. */
+.ticketCard::before,
+.ticketCard::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: calc(var(--notch) * 2);
+    height: calc(var(--notch) * 2);
+    margin-top: calc(var(--notch) * -1);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 50%;
+    background: var(--ld-color-page);
+    pointer-events: none;
+    transition: border-color 120ms ease;
 }
-.inlineProgress {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
+.ticketCard::before {
+    left: calc(-1px - var(--notch));
+    clip-path: inset(0 0 0 50%);
 }
-.inlineProgress .progress {
-    order: -1;
-    width: 64px;
+.ticketCard::after {
+    right: calc(-1px - var(--notch));
+    clip-path: inset(0 50% 0 0);
+}
+.ticketCard:hover::before,
+.ticketCard:hover::after {
+    border-color: var(--mantine-color-ldGray-3);
+}
+.ticketMeta {
+    flex-shrink: 0;
+    align-self: stretch;
+    margin-block: calc(var(--mantine-spacing-xs) * -0.5);
+}
+/* Perforation between the ticket body and its stub. */
+.ticketMeta::before {
+    content: '';
+    align-self: stretch;
+    width: 1px;
+    margin-right: 4px;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        var(--mantine-color-default-border) 0 2px,
+        transparent 2px 5px
+    );
+}
+.priorityNone {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+.ticketCard:hover .priorityNone,
+.ticketCard:focus-visible .priorityNone,
+.projectCard:hover .priorityNone,
+.projectCard:focus-within .priorityNone {
+    opacity: 1;
+}
+@media (hover: none) {
+    .priorityNone {
+        opacity: 1;
+    }
 }
 .ticketIcon {
     flex-shrink: 0;
-    color: var(--mantine-color-indigo-light-color);
+    color: var(--mantine-color-ldGray-5);
 }
 @media (max-width: 600px) {
     .board {

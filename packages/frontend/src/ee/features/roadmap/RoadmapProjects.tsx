@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     ROADMAP_DEFAULT_PAGE_SIZE,
     type RoadmapItem,
     type RoadmapProjectGroup,
@@ -14,7 +15,7 @@ import {
     Button,
     Group,
     Paper,
-    Progress,
+    RingProgress,
     SegmentedControl,
     Table,
     Stack,
@@ -46,9 +47,12 @@ import { ContentTableSearchInput } from '../../../components/common/ContentTable
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import FilterFacet from '../../../components/common/FilterFacet';
 import MantineIcon from '../../../components/common/MantineIcon';
+import {
+    PriorityBars,
+    type PriorityLevel,
+} from '../../../components/common/PriorityBars';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { getPriorityColor } from '../../pages/roadmapUtils';
 import {
     FollowProjectButton,
     type FollowProjectAction,
@@ -287,41 +291,82 @@ function Board({
     );
 }
 
-function ProjectProgress({
-    value,
-    expanded = false,
-}: {
-    value: number | null;
-    expanded?: boolean;
-}) {
-    const label = value === null ? 'Progress unavailable' : `${value}%`;
+function ProjectProgress({ value }: { value: number | null }) {
     return (
-        <Box
-            className={expanded ? classes.cardProgress : classes.inlineProgress}
+        <Group
+            gap={6}
+            wrap="nowrap"
+            role="img"
             aria-label={
                 value === null
                     ? 'Overall project progress unavailable'
                     : `${value}% overall project progress`
             }
         >
-            {expanded && (
-                <Text fz="xs" c="dimmed">
-                    Progress
-                </Text>
-            )}
-            <Text className={classes.progressValue} fz="xs">
-                {label}
-            </Text>
             {value !== null && (
-                <Progress
-                    className={classes.progress}
-                    value={value}
-                    color="indigo"
-                    size="xs"
-                    aria-label="Overall project completion"
+                <RingProgress
+                    size={18}
+                    thickness={3}
+                    rootColor="ldGray.2"
+                    sections={[{ value, color: 'ldGray.7' }]}
                 />
             )}
-        </Box>
+            <Text className={classes.progressValue} fz="xs" c="dimmed">
+                {value === null ? 'Progress unavailable' : `${value}%`}
+            </Text>
+        </Group>
+    );
+}
+
+function priorityLevel(priority: RoadmapItemPriority): PriorityLevel {
+    switch (priority) {
+        case RoadmapItemPriority.URGENT:
+            return 'urgent';
+        case RoadmapItemPriority.HIGH:
+            return 'high';
+        case RoadmapItemPriority.MEDIUM:
+            return 'medium';
+        case RoadmapItemPriority.LOW:
+            return 'low';
+        case RoadmapItemPriority.NO_PRIORITY:
+            return 'none';
+        default:
+            return assertUnreachable(
+                priority,
+                `Unknown roadmap priority ${priority}`,
+            );
+    }
+}
+
+function ItemPriority({
+    priority,
+    withLabel = false,
+}: {
+    priority: RoadmapItemPriority;
+    withLabel?: boolean;
+}) {
+    const level = priorityLevel(priority);
+    const glyph = (
+        <Group
+            gap={6}
+            wrap="nowrap"
+            role="img"
+            aria-label={`Priority: ${priority}`}
+            className={
+                level === 'none' && !withLabel
+                    ? classes.priorityNone
+                    : undefined
+            }
+        >
+            <PriorityBars priority={level} />
+            {withLabel && <Text fz="sm">{priority}</Text>}
+        </Group>
+    );
+    if (withLabel) return glyph;
+    return (
+        <Tooltip label={priority} openDelay={300}>
+            {glyph}
+        </Tooltip>
     );
 }
 
@@ -358,7 +403,10 @@ function ProjectCard({
                     gap="xs"
                     className={classes.cardMetadata}
                 >
-                    <ItemBadges priority={presentation.priority} />
+                    <Group gap="sm" wrap="nowrap">
+                        <ProjectProgress value={presentation.progress} />
+                        <ItemPriority priority={presentation.priority} />
+                    </Group>
                     {group.ownRequestCount === 0 && group.hasDirectNeed && (
                         <Text fz="xs" c="dimmed">
                             Interested
@@ -381,7 +429,6 @@ function ProjectCard({
                         </Group>
                     )}
                 </Group>
-                <ProjectProgress value={presentation.progress} expanded />
             </UnstyledButton>
             <FollowProjectButton
                 compact
@@ -419,62 +466,16 @@ function TicketCard({
             onClick={onClick}
             aria-label={`Open ticket ${ticket.title}`}
         >
-            <Group gap="xs" wrap="nowrap" align="center">
-                <MantineIcon
-                    icon={IconTicket}
-                    size="sm"
-                    className={classes.ticketIcon}
-                />
+            <Group gap="xs" wrap="nowrap" align="flex-start">
                 <Text className={classes.ticketTitle}>{ticket.title}</Text>
+                <Group gap={6} wrap="nowrap" className={classes.ticketMeta}>
+                    <Text fz="xs" c="ldGray.5" className={classes.ticketId}>
+                        {ticket.ticketId}
+                    </Text>
+                    <ItemPriority priority={ticket.priority} />
+                </Group>
             </Group>
-            <ItemBadges
-                className={classes.cardMetadata}
-                ticketId={ticket.ticketId}
-                priority={ticket.priority}
-            />
         </UnstyledButton>
-    );
-}
-
-function ItemBadges({
-    priority,
-    ticketId,
-    className,
-}: {
-    priority: RoadmapItemPriority;
-    ticketId?: string;
-    className?: string;
-}) {
-    return (
-        <Group gap="xs" wrap="nowrap" className={className}>
-            {ticketId && (
-                <Badge
-                    size="xs"
-                    variant="light"
-                    color="gray"
-                    className={classes.ticketId}
-                >
-                    {ticketId}
-                </Badge>
-            )}
-            <PriorityBadge priority={priority} />
-        </Group>
-    );
-}
-
-function PriorityBadge({ priority }: { priority: RoadmapItemPriority }) {
-    return (
-        <Badge
-            size="xs"
-            variant="light"
-            color={
-                priority === RoadmapItemPriority.NO_PRIORITY
-                    ? 'gray'
-                    : getPriorityColor(priority)
-            }
-        >
-            {priority}
-        </Badge>
     );
 }
 
@@ -571,7 +572,10 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                     </Group>
                                 </Table.Td>
                                 <Table.Td>
-                                    <ItemBadges priority={entry.priority} />
+                                    <ItemPriority
+                                        priority={entry.priority}
+                                        withLabel
+                                    />
                                 </Table.Td>
                                 <Table.Td>
                                     {entry.type === 'project' ? (
