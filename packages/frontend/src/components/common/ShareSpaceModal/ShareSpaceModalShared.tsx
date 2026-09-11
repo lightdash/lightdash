@@ -1,7 +1,5 @@
 import {
     OrganizationMemberRole,
-    ProjectMemberRole,
-    SpaceMemberRole,
     type LightdashUser,
     type Space,
     type SpaceGroup,
@@ -16,15 +14,9 @@ import {
     Select,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-    IconAlertCircle,
-    IconLock,
-    IconUsers,
-    IconUsersGroup,
-} from '@tabler/icons-react';
+import { IconLock, IconUsers, IconUsersGroup } from '@tabler/icons-react';
 import chunk from 'lodash/chunk';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
@@ -78,9 +70,6 @@ export const UserAccessList: FC<UserAccessListProps> = ({
     return (
         <Stack gap="sm">
             {accessList.map((sharedUser) => {
-                const needsPromotion =
-                    sharedUser.projectRole === ProjectMemberRole.VIEWER &&
-                    sharedUser.role !== SpaceMemberRole.VIEWER;
                 const isSessionUser =
                     sharedUser.userUuid === sessionUser?.userUuid;
 
@@ -157,61 +146,43 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                 )?.title ?? sharedUser.role}
                             </Badge>
                         ) : (
-                            <Tooltip
-                                disabled={!needsPromotion}
-                                label="User needs to be promoted to interactive viewer to have this space access"
-                                maw={350}
-                            >
-                                <Select
-                                    classNames={{
-                                        input: disabled
-                                            ? undefined
-                                            : classes.selectInput,
-                                    }}
-                                    size="xs"
-                                    variant={disabled ? 'default' : 'unstyled'}
-                                    comboboxProps={{ withinPortal: true }}
-                                    data={userAccessTypes.map((u) => ({
-                                        label: u.title,
-                                        value: u.value,
-                                    }))}
-                                    value={sharedUser.role}
-                                    renderOption={({ option }) => {
-                                        const opt = userAccessTypes.find(
-                                            (u) => u.value === option.value,
+                            <Select
+                                classNames={{
+                                    input: disabled
+                                        ? undefined
+                                        : classes.selectInput,
+                                }}
+                                size="xs"
+                                variant={disabled ? 'default' : 'unstyled'}
+                                comboboxProps={{ withinPortal: true }}
+                                data={userAccessTypes.map((u) => ({
+                                    label: u.title,
+                                    value: u.value,
+                                }))}
+                                value={sharedUser.role}
+                                renderOption={({ option }) => {
+                                    const opt = userAccessTypes.find(
+                                        (u) => u.value === option.value,
+                                    );
+                                    return (
+                                        <Stack gap={1}>
+                                            <Text fz="sm">{opt?.title}</Text>
+                                            <Text fz="xs" opacity={0.65}>
+                                                {opt?.selectDescription}
+                                            </Text>
+                                        </Stack>
+                                    );
+                                }}
+                                onChange={(value) => {
+                                    if (value) {
+                                        onAccessChange(
+                                            value as UserAccessAction,
+                                            sharedUser,
                                         );
-                                        return (
-                                            <Stack gap={1}>
-                                                <Text fz="sm">
-                                                    {opt?.title}
-                                                </Text>
-                                                <Text fz="xs" opacity={0.65}>
-                                                    {opt?.selectDescription}
-                                                </Text>
-                                            </Stack>
-                                        );
-                                    }}
-                                    onChange={(value) => {
-                                        if (value) {
-                                            onAccessChange(
-                                                value as UserAccessAction,
-                                                sharedUser,
-                                            );
-                                        }
-                                    }}
-                                    error={needsPromotion}
-                                    rightSection={
-                                        needsPromotion ? (
-                                            <MantineIcon
-                                                icon={IconAlertCircle}
-                                                size="sm"
-                                                color="red.6"
-                                            />
-                                        ) : null
                                     }
-                                    disabled={disabled}
-                                />
-                            </Tooltip>
+                                }}
+                                disabled={disabled}
+                            />
                         )}
                     </Group>
                 );
