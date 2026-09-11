@@ -397,6 +397,15 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                 }
             >
                 <Stack gap="md" className={classes.content}>
+                    {resource.resourceType ===
+                        DirectAccessResourceType.DASHBOARD && (
+                        <Text fz="sm" c="dimmed">
+                            Can edit allows changes to dashboard contents. Full
+                            access also allows deleting the dashboard and
+                            managing sharing. Permissions from other roles still
+                            apply.
+                        </Text>
+                    )}
                     {isUnavailable ? (
                         <Callout variant="info" title="Sharing isn't available">
                             <Text fz="sm">

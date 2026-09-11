@@ -22,6 +22,7 @@ import {
     ExportContentRequest,
     ForbiddenError,
     generateSlug,
+    getDashboardDeleteAccess,
     getItemId,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
@@ -2873,7 +2874,7 @@ export class DashboardService
                         organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject,
-                        access,
+                        access: getDashboardDeleteAccess(access),
                         metadata: { dashboardUuid: dashboardToDelete.uuid },
                     }),
                 )
@@ -2994,7 +2995,7 @@ export class DashboardService
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
                         inheritsFromOrgOrProject,
-                        access,
+                        access: getDashboardDeleteAccess(access),
                         metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 )

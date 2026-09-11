@@ -43,6 +43,7 @@ import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import {
     SpacePermissionService,
     type AccessTarget,
+    type SpaceAccessContextForCasl,
 } from '../SpaceService/SpacePermissionService';
 import { DashboardService } from './DashboardService';
 import {
@@ -72,6 +73,8 @@ const dashboardModel = {
     update: vi.fn(async () => dashboard),
 
     permanentDelete: vi.fn(async () => dashboard),
+
+    softDelete: vi.fn(async () => dashboard),
 
     addVersion: vi.fn(async () => dashboard),
 
@@ -171,7 +174,10 @@ const contentVerificationModel = {
     unverify: vi.fn(async () => undefined),
 };
 
-const spaceContexts = {
+const spaceContexts: Record<
+    string,
+    Omit<SpaceAccessContextForCasl, 'admins'>
+> = {
     [space.space_uuid]: {
         organizationUuid: space.organization_uuid,
         projectUuid: publicSpace.projectUuid,
@@ -233,7 +239,9 @@ describe('DashboardService', () => {
         pinnedListModel: {} as PinnedListModel,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
         searchModel: searchModel as unknown as SearchModel,
-        schedulerService: {} as SchedulerService,
+        schedulerService: {
+            softDeleteByDashboardUuid: vi.fn(),
+        } as unknown as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         savedChartService: {} as SavedChartService, // Mock for test
@@ -978,6 +986,88 @@ describe('DashboardService', () => {
             }),
         );
     });
+
+    describe.each(['delete', 'softDelete'] as const)(
+        '%s with direct dashboard access',
+        (method) => {
+            test.each([
+                {
+                    directRole: SpaceMemberRole.EDITOR,
+                    spaceRole: null,
+                    allowed: false,
+                },
+                {
+                    directRole: SpaceMemberRole.VIEWER,
+                    spaceRole: null,
+                    allowed: false,
+                },
+                {
+                    directRole: SpaceMemberRole.ADMIN,
+                    spaceRole: null,
+                    allowed: true,
+                },
+                {
+                    directRole: SpaceMemberRole.EDITOR,
+                    spaceRole: SpaceMemberRole.EDITOR,
+                    allowed: true,
+                },
+                {
+                    directRole: SpaceMemberRole.EDITOR,
+                    spaceRole: SpaceMemberRole.VIEWER,
+                    allowed: false,
+                },
+            ])(
+                'direct $directRole and space $spaceRole: allowed=$allowed',
+                async ({ directRole, spaceRole, allowed }) => {
+                    const editor = {
+                        ...user,
+                        role: OrganizationMemberRole.EDITOR,
+                        ability: defineUserAbility(
+                            { ...user, role: OrganizationMemberRole.EDITOR },
+                            [],
+                        ),
+                    };
+                    const accessRow = {
+                        userUuid: user.userUuid,
+                        hasDirectAccess: true,
+                        projectRole: undefined,
+                        inheritedRole: undefined,
+                        inheritedFrom: undefined,
+                    };
+                    spacePermissionService.resolveAccess.mockResolvedValueOnce({
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                        inheritsFromOrgOrProject: false,
+                        directOnly: spaceRole === null,
+                        access: [
+                            {
+                                ...accessRow,
+                                role: directRole,
+                                grantedVia: 'dashboard' as const,
+                            },
+                            ...(spaceRole
+                                ? [{ ...accessRow, role: spaceRole }]
+                                : []),
+                        ],
+                    });
+
+                    const result = service[method](editor, dashboardUuid);
+
+                    if (allowed) {
+                        await expect(result).resolves.toBeUndefined();
+                    } else {
+                        await expect(result).rejects.toThrow(ForbiddenError);
+                        expect(
+                            dashboardModel.permanentDelete,
+                        ).not.toHaveBeenCalled();
+                        expect(
+                            dashboardModel.softDelete,
+                        ).not.toHaveBeenCalled();
+                    }
+                },
+            );
+        },
+    );
     test('should not see dashboard from other organizations', async () => {
         const anotherUser = {
             ...user,
