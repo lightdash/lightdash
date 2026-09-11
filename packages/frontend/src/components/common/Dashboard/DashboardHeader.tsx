@@ -820,45 +820,44 @@ const DashboardHeader = memo(
                                 </Tooltip>
                             )}
 
-                        {canViewDashboardComments && !isFullscreen && (
-                            <Tooltip
-                                label="Comments"
-                                position="bottom"
-                                openDelay={200}
-                                transitionProps={{
-                                    transition: 'fade',
-                                    duration: 150,
-                                }}
-                            >
-                                <Indicator
-                                    inline
-                                    label={openThreadCount}
-                                    size={14}
-                                    offset={4}
-                                    disabled={openThreadCount === 0}
-                                    color={unreadCount > 0 ? 'red' : 'gray'}
-                                    styles={{
-                                        indicator: {
-                                            fontSize: 10,
-                                            padding: 0,
-                                        },
+                        {canViewDashboardComments &&
+                            !isFullscreen &&
+                            openThreadCount > 0 && (
+                                <Tooltip
+                                    label="Comments"
+                                    position="bottom"
+                                    openDelay={200}
+                                    transitionProps={{
+                                        transition: 'fade',
+                                        duration: 150,
                                     }}
                                 >
-                                    <ActionIcon
-                                        variant="default"
-                                        size="md"
-                                        aria-label="Dashboard comments"
-                                        data-testid="dashboard-comments-button"
-                                        onClick={openCommentsPanel}
+                                    <Indicator
+                                        inline
+                                        color="red"
+                                        size={7}
+                                        offset={3}
+                                        disabled={unreadCount === 0}
                                     >
-                                        <MantineIcon
-                                            icon={IconMessages}
-                                            size="md"
-                                        />
-                                    </ActionIcon>
-                                </Indicator>
-                            </Tooltip>
-                        )}
+                                        <Button
+                                            variant="default"
+                                            size="xs"
+                                            h={28}
+                                            px={8}
+                                            aria-label="Dashboard comments"
+                                            data-testid="dashboard-comments-button"
+                                            onClick={openCommentsPanel}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconMessages}
+                                                />
+                                            }
+                                        >
+                                            {openThreadCount}
+                                        </Button>
+                                    </Indicator>
+                                </Tooltip>
+                            )}
 
                         {userCanExportData && !isFullscreen && (
                             <ShareShortLinkButton />
@@ -873,7 +872,8 @@ const DashboardHeader = memo(
                                 disabled={
                                     !userCanManageDashboard &&
                                     !userCanExportData &&
-                                    !userCanViewContentAsCode
+                                    !userCanViewContentAsCode &&
+                                    !canViewDashboardComments
                                 }
                             >
                                 <Menu.Target>
@@ -909,6 +909,20 @@ const DashboardHeader = memo(
                                         dashboardUuid={dashboard.uuid}
                                         clickedFrom="dashboard_header"
                                     />
+                                    {canViewDashboardComments &&
+                                        openThreadCount === 0 && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconMessages}
+                                                    />
+                                                }
+                                                data-testid="dashboard-comments-menu-item"
+                                                onClick={openCommentsPanel}
+                                            >
+                                                Comments
+                                            </Menu.Item>
+                                        )}
                                     {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                                     {!!userCanManageDashboard && (
                                         <>

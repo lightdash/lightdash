@@ -9,6 +9,8 @@ import {
     getTileTitle,
     groupCommentsByTile,
     REMOVED_TILE_TITLE,
+    REMOVED_TILES_SECTION_LABEL,
+    sectionGroupsByTab,
 } from './groupCommentsByTile';
 
 const comment = (commentId: string): Comment => ({
@@ -133,5 +135,56 @@ describe('getTileTitle', () => {
                 properties: { title: '', content: 'hello' },
             }),
         ).toBe('Markdown');
+    });
+});
+
+describe('sectionGroupsByTab', () => {
+    const tabs = [
+        { uuid: 'tab-1', name: 'Revenue', order: 0 },
+        { uuid: 'tab-2', name: 'Orders', order: 1 },
+    ];
+
+    it('opens a section per tab in the order the groups arrive', () => {
+        const groups = groupCommentsByTile({
+            commentsByTile: {
+                a: [comment('a1')],
+                b: [comment('b1')],
+                c: [comment('c1')],
+            },
+            tiles: [
+                chartTile('a', { x: 0, y: 0, tabUuid: 'tab-1' }),
+                chartTile('b', { x: 0, y: 3, tabUuid: 'tab-1' }),
+                chartTile('c', { x: 0, y: 0, tabUuid: 'tab-2' }),
+            ],
+            tabs,
+        });
+
+        const sections = sectionGroupsByTab(groups, tabs);
+
+        expect(
+            sections.map((section) => [
+                section.label,
+                section.groups.map((group) => group.tileUuid),
+            ]),
+        ).toEqual([
+            ['Revenue', ['a', 'b']],
+            ['Orders', ['c']],
+        ]);
+    });
+
+    it('puts removed tiles in a trailing section of their own', () => {
+        const groups = groupCommentsByTile({
+            commentsByTile: { gone: [comment('g1')], a: [comment('a1')] },
+            tiles: [chartTile('a', { x: 0, y: 0, tabUuid: 'tab-1' })],
+            tabs,
+        });
+
+        const sections = sectionGroupsByTab(groups, tabs);
+
+        expect(sections.map((section) => section.label)).toEqual([
+            'Revenue',
+            REMOVED_TILES_SECTION_LABEL,
+        ]);
+        expect(sections[1].tabUuid).toBeNull();
     });
 });

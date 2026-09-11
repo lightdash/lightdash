@@ -1,11 +1,25 @@
 .root {
+    font-family: var(--mantine-font-family);
+    min-width: 180px;
+    max-width: 280px;
+    max-height: 180px;
     overflow-y: auto;
+    padding: var(--mantine-spacing-two);
 }
 
-.itemWrapper {
+.item {
+    display: block;
     width: 100%;
+    padding: var(--mantine-spacing-two) var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-text);
+}
 
-    &:hover {
-        background-color: var(--mantine-color-blue-1);
-    }
+.item[data-selected] {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.item[data-disabled] {
+    color: var(--mantine-color-dimmed);
+    cursor: not-allowed;
 }

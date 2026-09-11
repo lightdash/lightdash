@@ -104,3 +104,40 @@ export const groupCommentsByTile = ({
 
 export const countThreads = (groups: TileCommentGroup[]): number =>
     groups.reduce((total, group) => total + group.threads.length, 0);
+
+export type TileCommentSection = {
+    /** null for tiles that are no longer on the dashboard */
+    tabUuid: string | null;
+    label: string;
+    groups: TileCommentGroup[];
+};
+
+export const REMOVED_TILES_SECTION_LABEL = 'No longer on this dashboard';
+
+/**
+ * Splits ordered tile groups into one section per dashboard tab, keeping the
+ * groups' order. Removed tiles get their own trailing section.
+ */
+export const sectionGroupsByTab = (
+    groups: TileCommentGroup[],
+    tabs: DashboardTab[],
+): TileCommentSection[] => {
+    const tabNames = new Map(tabs.map((tab) => [tab.uuid, tab.name]));
+    const sections: TileCommentSection[] = [];
+    for (const group of groups) {
+        const last = sections[sections.length - 1];
+        if (last && last.tabUuid === group.tabUuid) {
+            last.groups.push(group);
+            continue;
+        }
+        sections.push({
+            tabUuid: group.tabUuid,
+            label:
+                group.tabUuid === null
+                    ? REMOVED_TILES_SECTION_LABEL
+                    : (tabNames.get(group.tabUuid) ?? ''),
+            groups: [group],
+        });
+    }
+    return sections;
+};
