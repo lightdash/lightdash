@@ -328,6 +328,7 @@ ARG SENTRY_ENVIRONMENT=""
 
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
     npm install -g @sentry/cli; \
+    export PATH="$(npm prefix -g)/bin:${PATH}"; \
     echo "Creating Sentry releases and processing sourcemaps"; \
     # Create releases for both projects \
     sentry-cli releases new "${SENTRY_RELEASE_VERSION}" --project "${SENTRY_FRONTEND_PROJECT}"; \
