@@ -21,7 +21,8 @@ const ORG_OVERRIDE_CONFLICT_TARGET =
     '(flag_id, organization_uuid) WHERE organization_uuid IS NOT NULL AND user_uuid IS NULL';
 
 export type FeatureFlagLogicArgs = {
-    user?: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>;
+    user?: Pick<LightdashUser, 'organizationUuid'> &
+        Partial<Pick<LightdashUser, 'userUuid'>>;
     featureFlagId: string;
 };
 

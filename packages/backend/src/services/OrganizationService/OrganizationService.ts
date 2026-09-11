@@ -666,15 +666,24 @@ export class OrganizationService extends BaseService {
             ),
         );
 
+        const analyticsEnabled =
+            projects.some(
+                (project) => project.provisioningSource === 'analytics',
+            ) &&
+            auditedAbility.can(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            ) &&
+            (await isAnalyticsProjectEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            ));
+
         return projects.filter(
             (project, index) =>
                 accessResults[index] &&
                 (project.provisioningSource !== 'analytics' ||
-                    (isAnalyticsProjectEnabled() &&
-                        auditedAbility.can(
-                            'manage',
-                            subject('Organization', { organizationUuid }),
-                        ))),
+                    analyticsEnabled),
         );
     }
 

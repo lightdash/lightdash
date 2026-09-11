@@ -1,6 +1,9 @@
 import { FeatureFlags } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
+import { Knex } from 'knex';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import {
     assertAnalyticsProjectEnabled,
     createAnalyticsClient,
@@ -11,71 +14,122 @@ vi.mock('./S3AnalyticsSource', () => ({
     createS3AnalyticsSourceResolver: vi.fn(),
 }));
 vi.mock('@lightdash/warehouses', () => ({ DuckdbWarehouseClient: vi.fn() }));
-
-vi.mock('../../../config/lightdashConfig', () => ({
-    lightdashConfig: {
-        enabledFeatureFlags: new Set(),
-        disabledFeatureFlags: new Set(),
-        usageEvents: { s3: null },
-    },
-}));
+vi.mock('../../../config/lightdashConfig', async () => {
+    const { lightdashConfigMock: config } =
+        await import('../../../config/lightdashConfig.mock');
+    return { lightdashConfig: config };
+});
 
 describe('analytics project gate', () => {
+    const overrides = new Map<string, boolean>();
+    const database = vi.fn((table: string) => {
+        let org: string;
+        const builder = {
+            where: vi.fn((key: string, value: string) => {
+                if (key === 'organization_uuid') org = value;
+                return builder;
+            }),
+            whereNull: vi.fn(() => builder),
+            first: vi.fn(async () => {
+                if (table === 'feature_flags')
+                    return { default_enabled: false };
+                return overrides.has(org)
+                    ? { enabled: overrides.get(org) }
+                    : undefined;
+            }),
+        };
+        return builder;
+    });
+    const flags = new FeatureFlagModel({
+        database: database as unknown as Knex,
+        lightdashConfig: lightdashConfigMock,
+    });
+    const storage = {
+        endpoint: 'https://storage.googleapis.com',
+        bucket: 'example-bucket',
+        region: 'us-east4',
+        accessKey: 'test-writer-key',
+        secretKey: 'test-writer-secret',
+        forcePathStyle: true,
+    };
+
     beforeEach(() => {
         vi.clearAllMocks();
-        lightdashConfig.usageEvents.s3 = null;
+        overrides.clear();
+        lightdashConfig.usageEvents.s3 = storage;
         lightdashConfig.enabledFeatureFlags.clear();
         lightdashConfig.disabledFeatureFlags.clear();
-        lightdashConfig.enabledFeatureFlags.add(FeatureFlags.AnalyticsProject);
+        overrides.set('org', true);
     });
     afterEach(() => vi.unstubAllEnvs());
+
+    it('honors a Console organization flag without an ENV flag', async () => {
+        await expect(
+            assertAnalyticsProjectEnabled(flags, 'org'),
+        ).resolves.toBeUndefined();
+        await createAnalyticsClient('org', flags);
+        expect(createS3AnalyticsSourceResolver).toHaveBeenCalledWith({
+            storage,
+            organizationUuid: 'org',
+        });
+    });
+
+    it('does not enable another organization from a Console override', async () => {
+        await expect(createAnalyticsClient('other-org', flags)).rejects.toThrow(
+            /not enabled/,
+        );
+        expect(createS3AnalyticsSourceResolver).not.toHaveBeenCalled();
+    });
+
     it.each(['development', 'production'])(
-        'requires the flag and respects explicit disable in %s',
-        (environment) => {
+        'uses standard ENV precedence in %s',
+        async (environment) => {
             vi.stubEnv('NODE_ENV', environment);
-            expect(() => assertAnalyticsProjectEnabled()).not.toThrow();
-            lightdashConfig.enabledFeatureFlags.clear();
-            expect(() => createAnalyticsClient('org')).toThrow(/not enabled/);
+            overrides.clear();
+            await expect(createAnalyticsClient('org', flags)).rejects.toThrow(
+                /not enabled/,
+            );
             lightdashConfig.enabledFeatureFlags.add(
                 FeatureFlags.AnalyticsProject,
             );
+            await expect(
+                assertAnalyticsProjectEnabled(flags, 'org'),
+            ).resolves.toBeUndefined();
             lightdashConfig.disabledFeatureFlags.add(
                 FeatureFlags.AnalyticsProject,
             );
-            expect(() => createAnalyticsClient('org')).toThrow(/not enabled/);
+            // Standard resolver: ENV enable wins when both lists include a flag.
+            await expect(
+                assertAnalyticsProjectEnabled(flags, 'org'),
+            ).resolves.toBeUndefined();
+            lightdashConfig.enabledFeatureFlags.clear();
+            overrides.set('org', true);
+            await expect(createAnalyticsClient('org', flags)).rejects.toThrow(
+                /not enabled/,
+            );
             expect(createS3AnalyticsSourceResolver).not.toHaveBeenCalled();
-            expect(DuckdbWarehouseClient).not.toHaveBeenCalled();
         },
     );
 
-    it('requires configured storage rather than invoking an external login', () => {
-        expect(() => createAnalyticsClient('org')).toThrow(
+    it('requires configured storage rather than invoking an external login', async () => {
+        lightdashConfig.usageEvents.s3 = null;
+        await expect(createAnalyticsClient('org', flags)).rejects.toThrow(
             /storage is not configured/,
         );
         expect(createS3AnalyticsSourceResolver).not.toHaveBeenCalled();
     });
 
     it.each(['development', 'production'])(
-        'binds existing writer configuration to the persisted org in %s, ignoring legacy overrides',
-        (environment) => {
+        'binds writer configuration to the persisted org in %s, ignoring legacy overrides',
+        async (environment) => {
             vi.stubEnv('NODE_ENV', environment);
-            const storage = {
-                endpoint: 'https://storage.googleapis.com',
-                bucket: 'example-bucket',
-                region: 'us-east4',
-                accessKey: 'test-writer-key',
-                secretKey: 'test-writer-secret',
-                forcePathStyle: true,
-            };
-            lightdashConfig.usageEvents.s3 = storage;
+            overrides.set('persisted-org', true);
             vi.stubEnv('LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID', 'legacy-org');
             vi.stubEnv(
                 'LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID',
                 'source-org',
             );
-            vi.stubEnv('LIGHTDASH_LOCAL_ANALYTICS_START_DATE', '2026-09-07');
-            vi.stubEnv('LIGHTDASH_LOCAL_ANALYTICS_END_DATE', '2026-09-07');
-            createAnalyticsClient('persisted-org');
+            await createAnalyticsClient('persisted-org', flags);
             expect(createS3AnalyticsSourceResolver).toHaveBeenCalledWith({
                 storage,
                 organizationUuid: 'persisted-org',
@@ -87,22 +141,20 @@ describe('analytics project gate', () => {
         },
     );
 
-    it('rechecks the flag before resolving an existing client', async () => {
-        lightdashConfig.usageEvents.s3 = {
-            endpoint: 'https://storage.googleapis.com',
-            region: 'us-east4',
-            bucket: 'example-bucket',
-            accessKey: 'writer-key',
-            secretKey: 'writer-secret',
-        };
-        const resolve = vi.fn();
+    it('rechecks Console flag changes on an existing client without a restart', async () => {
+        const resolve = vi.fn().mockResolvedValue({});
         vi.mocked(createS3AnalyticsSourceResolver).mockReturnValue(resolve);
-        createAnalyticsClient('org');
+        await createAnalyticsClient('org', flags);
         const [config] = vi.mocked(DuckdbWarehouseClient).mock.calls[0];
         if (!config || config.type !== 'duckdb_parquet')
             throw new Error('Wrong client');
-        lightdashConfig.disabledFeatureFlags.add(FeatureFlags.AnalyticsProject);
+        await config.resolveSource();
+        resolve.mockClear();
+        overrides.set('org', false);
         await expect(config.resolveSource()).rejects.toThrow(/not enabled/);
         expect(resolve).not.toHaveBeenCalled();
+        overrides.set('org', true);
+        await config.resolveSource();
+        expect(resolve).toHaveBeenCalledOnce();
     });
 });

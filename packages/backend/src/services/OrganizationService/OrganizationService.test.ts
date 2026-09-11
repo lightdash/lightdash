@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
@@ -20,6 +21,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
+import { projectSummary } from '../ProjectService/ProjectService.mock';
 import {
     OrganizationService,
     type OrganizationServiceArguments,
@@ -37,6 +39,7 @@ vi.mock('@sentry/node', async (importOriginal) => {
 const projectModel = {
     hasProjects: vi.fn(async () => true),
     getProjectGroupAccesses: vi.fn(),
+    getAllByOrganizationUuid: vi.fn(),
 };
 const organizationModel = {
     get: vi.fn(async () => organization),
@@ -102,6 +105,50 @@ describe('organization service', () => {
     afterEach(() => {
         vi.clearAllMocks();
     });
+
+    it.each([true, false])(
+        'lists analytics projects according to Console enablement: %s',
+        async (enabled) => {
+            const account = buildAccount();
+            const organizationUuid = account.organization.organizationUuid!;
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'Project' },
+                {
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: { organizationUuid },
+                },
+            ]);
+            const ordinaryProject = {
+                ...projectSummary,
+                provisioningSource: null,
+            };
+            const analyticsProject = {
+                ...projectSummary,
+                projectUuid: 'analytics',
+                provisioningSource: 'analytics',
+            };
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                ordinaryProject,
+                analyticsProject,
+            ]);
+            featureFlagModel.get.mockResolvedValueOnce({
+                id: FeatureFlags.AnalyticsProject,
+                enabled,
+            });
+            await expect(
+                organizationService.getProjects(account),
+            ).resolves.toEqual(
+                enabled
+                    ? [ordinaryProject, analyticsProject]
+                    : [ordinaryProject],
+            );
+            expect(featureFlagModel.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AnalyticsProject,
+                user: { organizationUuid },
+            });
+        },
+    );
 
     describe('updateMember', () => {
         it('rejects assigning a system role above a custom-role caller', async () => {
