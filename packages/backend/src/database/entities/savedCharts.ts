@@ -264,6 +264,7 @@ export type DbSavedChartAdditionalMetric = {
     time_dimension_id?: string | null;
     granularity?: string | null;
     period_offset?: number | null;
+    comparison_mode?: string | null;
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
@@ -309,6 +310,7 @@ export type DBFilteredAdditionalMetrics = Pick<
             | 'time_dimension_id'
             | 'granularity'
             | 'period_offset'
+            | 'comparison_mode'
         >
     >;
 
