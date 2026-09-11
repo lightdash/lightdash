@@ -58,10 +58,10 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             return { id: featureFlagId, enabled: copilotConfigEnabled };
         }
 
+        // The endpoint allows anonymous callers, so fail closed like the
+        // other commercial flags instead of erroring.
         if (!user) {
-            throw new Error(
-                'User is required to check if AI copilot is enabled',
-            );
+            return { id: featureFlagId, enabled: false };
         }
 
         const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });

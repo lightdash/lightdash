@@ -37,8 +37,10 @@ export const useAiAgentButtonVisibility = () => {
         projectUuid,
     });
 
+    // The flag is always off without a registered user, so skip the request.
     const aiCopilotFlagQuery = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
+        { enabled: !!appQuery.user.data },
     );
 
     if (
@@ -46,7 +48,7 @@ export const useAiAgentButtonVisibility = () => {
         aiOrganizationSettingsQuery.isLoading ||
         appQuery.user.isLoading ||
         appQuery.health.isLoading ||
-        aiCopilotFlagQuery.isLoading
+        aiCopilotFlagQuery.isInitialLoading
     ) {
         return false;
     }
