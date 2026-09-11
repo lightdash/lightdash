@@ -171,11 +171,10 @@ export const isAiWritebackRunInProgress = (
 
 export const MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION = `Tool: run_ai_writeback
 
-Change the active Lightdash project's dbt project from a natural-language prompt. The GitHub repository and dbt sub-folder are resolved server-side from its dbt connection; never specify them.
+Change a Lightdash project's dbt project from a natural-language prompt. The GitHub repository and dbt sub-folder are resolved server-side from its dbt connection; never specify them.
 
 Safety and requirements:
 - NOT read-only or idempotent: each call can start a run and open a new pull request. Use only when the user explicitly wants a dbt change.
-- Set an active project via set_project or the X-Lightdash-Project header.
 - Requires a GitHub-backed dbt connection, the organization's GitHub App installation, and AI writeback enabled for the organization.
 
 Execution:
@@ -185,7 +184,7 @@ Execution:
 
 Input:
 - prompt: a clear, self-contained change, e.g. "Add a total_revenue metric to orders as the sum of amount".
-- With multiple dbt sources, name the intended source in the prompt, e.g. "In the marketing dbt project, ..."; never pass a source ID. If ambiguous, the run ends with status "error" and an error message listing source names/repositories. Call run_ai_writeback again with the intended source named in the prompt.
+- With multiple dbt sources, name the intended source in the prompt, e.g. "In the marketing dbt project, ..."; never pass a source ID. If ambiguous, the run ends with status "error" and an error message listing the source names. Call run_ai_writeback again with the intended source named in the prompt.
 
 Normal response (MCP CallToolResult): content contains a text message saying the run started and to poll get_ai_writeback_status; structuredContent is { aiWritebackRunUuid: string }.
 `;
@@ -195,7 +194,7 @@ export const mcpRunAiWritebackArgsSchema = z.object({
         .string()
         .min(1)
         .describe(
-            'A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.',
+            'A clear, self-contained description of the change to make to the dbt project that backs the target Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.',
         ),
 });
 
