@@ -811,6 +811,14 @@ export interface Dimension extends Field {
     isAdditionalDimension?: boolean;
     skipTimezoneConversion?: boolean;
     timestampDomain?: TimestampDomain;
+    /** Zone the compiled SQL's naive timestamp values are in, when it differs
+     *  from the connection default. Set from `wall_clock_timezone`. On Snowflake
+     *  the compiler converts the column to UTC in place, so this reads 'UTC'. */
+    sourceTimezone?: string;
+    /** Zone declared by `wall_clock_timezone`, before any compile-time
+     *  conversion. Consumers that read the raw column (MIN/MAX metrics on
+     *  Snowflake) need it; everything else reads `sourceTimezone`. */
+    wallClockTimezone?: string;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
     aiHint?: string | string[];

@@ -1531,6 +1531,10 @@
                             "enum": ["aware", "naive"],
                             "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
                         },
+                        "wall_clock_timezone": {
+                            "type": "string",
+                            "description": "Declares the IANA timezone of this column's stored wall clock (e.g. 'Africa/Johannesburg'), for a column that has no zone of its own. Implies the column is naive. Only valid on timestamp dimensions, and cannot be combined with convert_timezone: false."
+                        },
                         "hidden": {
                             "type": "boolean"
                         },
@@ -1865,6 +1869,10 @@
                                     "type": "string",
                                     "enum": ["aware", "naive"],
                                     "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
+                                },
+                                "wall_clock_timezone": {
+                                    "type": "string",
+                                    "description": "Declares the IANA timezone of this column's stored wall clock (e.g. 'Africa/Johannesburg'), for a column that has no zone of its own. Implies the column is naive. Only valid on timestamp dimensions, and cannot be combined with convert_timezone: false."
                                 },
                                 "hidden": {
                                     "type": "boolean"

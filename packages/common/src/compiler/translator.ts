@@ -64,6 +64,7 @@ import {
     type WarehouseTableSchema,
 } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
+import { isValidTimezone } from '../utils/scheduler';
 import {
     getDefaultTimeFrames,
     getTimeFramesWithProjectDefaults,
@@ -88,6 +89,7 @@ const convertTimezone = (
     default_source_tz: string,
     target_tz: string,
     adapterType: SupportedDbtAdapter,
+    declared_source_tz?: string,
 ) => {
     // todo: implement default_source_tz
     // todo: implement target_tz
@@ -101,7 +103,11 @@ const convertTimezone = (
             // TIMESTAMP_NTZ: no tz. assume default_source_tz. convert from default_source_tz to target_tz
             // TIMESTAMP_LTZ: stored in utc. returns in session tz. convert from session tz to target_tz
             // TIMESTAMP_TZ: stored with tz. returns with tz. convert from value tz to target_tz
-            return `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${timestampSql}))`;
+            // A declared source zone reads the NTZ wall clock in that zone
+            // instead of the session zone, and returns NTZ in target_tz.
+            return declared_source_tz
+                ? `CONVERT_TIMEZONE('${declared_source_tz}', 'UTC', ${timestampSql})`
+                : `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${timestampSql}))`;
         case SupportedDbtAdapter.REDSHIFT:
             // TIMESTAMP WITH TIME ZONE: stored in utc. returns utc. convert from utc to target_tz
             // TIMESTAMP WITHOUT TIME ZONE: no tz. assume utc. convert from utc to target_tz
@@ -210,6 +216,99 @@ const convertFilterAutocomplete = (
     };
 };
 
+/** Warehouses whose compiled TIMESTAMP SQL converts a declared wall clock to
+ *  UTC in place, so query time sees a UTC column. */
+const convertsWallClockAtCompileTime = (
+    adapterType: SupportedDbtAdapter,
+): boolean => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.SNOWFLAKE:
+            return true;
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.DUCKDB:
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.CLICKHOUSE:
+        case SupportedDbtAdapter.ATHENA:
+        case SupportedDbtAdapter.SPARK:
+            return false;
+        default:
+            return assertUnreachable(
+                adapterType,
+                new ParseError(`Cannot recognise warehouse ${adapterType}`),
+            );
+    }
+};
+
+const resolveWallClockTimezone = ({
+    declaration,
+    type,
+    skipTimezoneConversion,
+    timestampDomain,
+    modelName,
+    dimensionName,
+}: {
+    declaration: string;
+    type: DimensionType;
+    skipTimezoneConversion: boolean;
+    timestampDomain: TimestampDomain | undefined;
+    modelName: string;
+    dimensionName: string;
+}): { timezone: string | undefined; warnings: InlineError[] } => {
+    const context = `dimension "${dimensionName}" in dbt model "${modelName}"`;
+    if (type !== DimensionType.TIMESTAMP) {
+        return {
+            timezone: undefined,
+            warnings: [
+                {
+                    type: InlineErrorType.FIELD_ERROR,
+                    message: `"wall_clock_timezone" only applies to timestamp dimensions, so it is ignored on ${context}.`,
+                },
+            ],
+        };
+    }
+    if (skipTimezoneConversion) {
+        return {
+            timezone: undefined,
+            warnings: [
+                {
+                    type: InlineErrorType.FIELD_ERROR,
+                    message: `"wall_clock_timezone" cannot be combined with "convert_timezone: false" on ${context}. "wall_clock_timezone" is ignored.`,
+                },
+            ],
+        };
+    }
+    // Offset strings pass isValidTimezone but Snowflake's CONVERT_TIMEZONE
+    // only takes named zones.
+    const isOffsetStyle =
+        declaration.startsWith('+') || declaration.startsWith('-');
+    if (isOffsetStyle || !isValidTimezone(declaration)) {
+        return {
+            timezone: undefined,
+            warnings: [
+                {
+                    type: InlineErrorType.FIELD_ERROR,
+                    message: `"wall_clock_timezone: ${declaration}" on ${context} is not a valid timezone, so it is ignored.`,
+                },
+            ],
+        };
+    }
+    return {
+        timezone: declaration,
+        warnings:
+            timestampDomain === 'aware'
+                ? [
+                      {
+                          type: InlineErrorType.FIELD_ERROR,
+                          message: `"wall_clock_timezone" declares ${context} as a wall clock, so its "aware" timestamp domain is ignored and the dimension is read as naive.`,
+                      },
+                  ]
+                : [],
+    };
+};
+
 const convertDimension = (
     index: number,
     targetWarehouse: SupportedDbtAdapter,
@@ -240,9 +339,6 @@ const convertDimension = (
     let name = meta.dimension?.name || column.name;
     let sql = meta.dimension?.sql || defaultSql(column.name);
     let label = meta.dimension?.label || friendlyName(name);
-    if (type === DimensionType.TIMESTAMP && !disableTimestampConversion) {
-        sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
-    }
     // YAML declaration wins over the warehouse catalog. The catalog describes
     // the physical column, so its domain is dropped when custom SQL replaces
     // the column — the expression may change the domain — and for additional
@@ -254,11 +350,50 @@ const convertDimension = (
         (meta.dimension?.sql || isAdditionalDimension
             ? undefined
             : column.timestamp_domain);
-    const timestampDomain: TimestampDomain | undefined =
+    const declaredTimestampDomain: TimestampDomain | undefined =
         type === DimensionType.TIMESTAMP &&
         isTimestampDomain(rawTimestampDomain)
             ? rawTimestampDomain
             : undefined;
+
+    const resolvedWallClock =
+        meta.dimension?.wall_clock_timezone !== undefined
+            ? resolveWallClockTimezone({
+                  declaration: meta.dimension.wall_clock_timezone,
+                  type,
+                  skipTimezoneConversion:
+                      meta.dimension.convert_timezone === false,
+                  timestampDomain: declaredTimestampDomain,
+                  modelName: model.name,
+                  dimensionName: name,
+              })
+            : undefined;
+    if (resolvedWallClock) {
+        warnings?.push(...resolvedWallClock.warnings);
+    }
+    const wallClockTimezone = resolvedWallClock?.timezone;
+    // A declared wall clock asserts the column is naive, whatever the catalog says.
+    const timestampDomain: TimestampDomain | undefined = wallClockTimezone
+        ? 'naive'
+        : declaredTimestampDomain;
+    const sourceTimezone =
+        wallClockTimezone && convertsWallClockAtCompileTime(targetWarehouse)
+            ? 'UTC'
+            : wallClockTimezone;
+
+    if (type === DimensionType.TIMESTAMP) {
+        if (wallClockTimezone) {
+            sql = convertTimezone(
+                sql,
+                'UTC',
+                'UTC',
+                targetWarehouse,
+                wallClockTimezone,
+            );
+        } else if (!disableTimestampConversion) {
+            sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
+        }
+    }
     const isIntervalBase =
         timeInterval === undefined && isInterval(type, meta.dimension);
 
@@ -351,6 +486,8 @@ const convertDimension = (
             ? { skipTimezoneConversion: true }
             : {}),
         ...(timestampDomain ? { timestampDomain } : {}),
+        ...(sourceTimezone ? { sourceTimezone } : {}),
+        ...(wallClockTimezone ? { wallClockTimezone } : {}),
         groups,
         isIntervalBase,
         ...(meta.dimension && meta.dimension.tags
@@ -752,6 +889,15 @@ export const convertTable = (
                         (v) => !isTimeInterval(v.toUpperCase()),
                     );
 
+                    const isAdditional =
+                        'isAdditionalDimension' in dim &&
+                        !!dim.isAdditionalDimension;
+                    // An annotated additional dimension's SQL is already
+                    // converted, so its children carry the parent's resolved
+                    // state instead of re-resolving the annotation, which
+                    // would wrap the SQL a second time.
+                    const carriesParentWallClock =
+                        isAdditional && dim.wallClockTimezone !== undefined;
                     const dimensionMeta = {
                         ...columnMeta.dimension,
                         type: dim.type,
@@ -761,56 +907,77 @@ export const convertTable = (
                         description: dim.description,
                         hidden: dim.hidden,
                         // Additional-dim children must inherit the additional
-                        // dimension's own resolved domain, not the parent
-                        // column's annotation riding in the meta spread.
+                        // dimension's own resolved state, not the parent
+                        // column's annotations riding in the meta spread.
                         timestamp_domain: dim.timestampDomain,
+                        wall_clock_timezone: undefined,
+                        convert_timezone: dim.skipTimezoneConversion
+                            ? false
+                            : undefined,
                     };
 
                     // Generate standard interval dimensions
                     const standardDims = intervals.reduce<
                         Record<string, Dimension>
-                    >(
-                        (acc, interval) => ({
+                    >((acc, interval) => {
+                        const child = convertDimension(
+                            index,
+                            adapterType,
+                            model,
+                            tableLabel,
+                            {
+                                ...column,
+                                ...(isAdditional
+                                    ? {
+                                          name: dim.name,
+                                          meta: {
+                                              dimension: dimensionMeta,
+                                          },
+                                          // In dbt 1.10+, config.meta takes precedence over meta
+                                          // so we must set config.meta.dimension to prevent
+                                          // the base dimension's properties from overwriting
+                                          config: {
+                                              meta: {
+                                                  dimension: dimensionMeta,
+                                              },
+                                          },
+                                      }
+                                    : {}),
+                            },
+                            undefined,
+                            interval,
+                            startOfWeek,
+                            isAdditional,
+                            carriesParentWallClock
+                                ? true
+                                : disableTimestampConversion,
+                            undefined,
+                            granularityLabels,
+                        );
+                        return {
                             ...acc,
                             [`${dim.name}_${interval.toLowerCase()}`]:
-                                convertDimension(
-                                    index,
-                                    adapterType,
-                                    model,
-                                    tableLabel,
-                                    {
-                                        ...column,
-                                        ...('isAdditionalDimension' in dim &&
-                                        dim.isAdditionalDimension
-                                            ? {
-                                                  name: dim.name,
-                                                  meta: {
-                                                      dimension: dimensionMeta,
-                                                  },
-                                                  // In dbt 1.10+, config.meta takes precedence over meta
-                                                  // so we must set config.meta.dimension to prevent
-                                                  // the base dimension's properties from overwriting
-                                                  config: {
-                                                      meta: {
-                                                          dimension:
-                                                              dimensionMeta,
-                                                      },
-                                                  },
-                                              }
-                                            : {}),
-                                    },
-                                    undefined,
-                                    interval,
-                                    startOfWeek,
-                                    'isAdditionalDimension' in dim &&
-                                        dim.isAdditionalDimension,
-                                    disableTimestampConversion,
-                                    undefined,
-                                    granularityLabels,
-                                ),
-                        }),
-                        {},
-                    );
+                                carriesParentWallClock
+                                    ? {
+                                          ...child,
+                                          ...(dim.sourceTimezone
+                                              ? {
+                                                    sourceTimezone:
+                                                        dim.sourceTimezone,
+                                                }
+                                              : {}),
+                                          wallClockTimezone:
+                                              dim.wallClockTimezone,
+                                          ...(dim.timestampDomain
+                                              ? {
+                                                    timestampDomain:
+                                                        dim.timestampDomain,
+                                                }
+                                              : {}),
+                                      }
+                                    : child,
+                        };
+                    }, {});
 
                     // Generate custom granularity dimensions
                     const customDims = customIntervalNames.reduce<
@@ -867,6 +1034,15 @@ export const convertTable = (
                                     dim.isAdditionalDimension,
                                 ...(dim.skipTimezoneConversion
                                     ? { skipTimezoneConversion: true }
+                                    : {}),
+                                ...(dim.sourceTimezone
+                                    ? { sourceTimezone: dim.sourceTimezone }
+                                    : {}),
+                                ...(dim.wallClockTimezone
+                                    ? {
+                                          wallClockTimezone:
+                                              dim.wallClockTimezone,
+                                      }
                                     : {}),
                                 // Custom granularity SQL may change the base
                                 // column's domain, so keep its output unknown.
