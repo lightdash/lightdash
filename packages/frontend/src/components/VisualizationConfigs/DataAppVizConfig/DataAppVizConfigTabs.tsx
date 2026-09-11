@@ -328,7 +328,7 @@ export const ConfigTabs: FC = memo(() => {
                             setPivotDimensions(undefined);
                         }}
                         onCreateNew={
-                            canCreateApp
+                            canCreateApp && dataAppsEnabled
                                 ? () =>
                                       void navigate({
                                           pathname: chartTypeBuilderPath(
@@ -355,7 +355,7 @@ export const ConfigTabs: FC = memo(() => {
                 ) : (
                     <Text size="xs" c="dimmed">
                         Pick a chart type above
-                        {canCreateApp ? (
+                        {canCreateApp && dataAppsEnabled ? (
                             <>
                                 , or create a new one in the{' '}
                                 {isInsideChartGallery && dataAppsEnabled ? (

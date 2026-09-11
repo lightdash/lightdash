@@ -27,6 +27,7 @@ import clsx from 'clsx';
 import { useEffect, useId, useMemo, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
+import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import {
     explorerActions,
@@ -384,6 +385,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
+    const { enabled: chartTypesEnabled } = useChartTypesEnabled();
     const {
         data,
         isInitialLoading,
@@ -393,7 +395,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         fetchNextPage,
         isFetchingNextPage,
     } = useDataAppVisualizations(
-        dataAppsEnabled ? projectUuid : undefined,
+        chartTypesEnabled ? projectUuid : undefined,
         debouncedSearch,
     );
     const canCreateChartType = useCanCreateDataApp(projectUuid);
@@ -452,6 +454,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 // Official (registry-installed) types are read-only; forking
                 // them lives in the gallery page, not this inline picker.
                 onEdit:
+                    dataAppsEnabled &&
                     canEditChartType(dataAppViz) &&
                     !isOfficialChartType(dataAppViz)
                         ? () =>
@@ -487,7 +490,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
           : 0;
 
     const sections: ChartTypeGallerySection[] = [
-        ...(dataAppsEnabled
+        ...(chartTypesEnabled
             ? [
                   {
                       label: 'Custom',
@@ -507,14 +510,15 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                             : null,
                       moreCount: hiddenProjectTypes,
                       loadingMore: isFetchingNextPage,
-                      onCreateNew: canCreateChartType
-                          ? () =>
-                                dispatch(
-                                    explorerActions.startChartTypeAuthoring({
-                                        dataAppVizUuid: null,
-                                    }),
-                                )
-                          : null,
+                      onCreateNew:
+                          dataAppsEnabled && canCreateChartType
+                              ? () =>
+                                    dispatch(
+                                        explorerActions.startChartTypeAuthoring(
+                                            { dataAppVizUuid: null },
+                                        ),
+                                    )
+                              : null,
                   },
               ]
             : []),
