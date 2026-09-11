@@ -752,14 +752,16 @@ describe('AppGenerateService.installRegistryChartType', () => {
 });
 
 describe('AppGenerateService registry feature-flag gates', () => {
-    it('listRegistryChartTypes throws ForbiddenError when EnableDataApps is disabled', async () => {
+    // The library follows the ChartTypeRegistry flag alone: a customer
+    // without data apps can still browse and install chart types.
+    it('listRegistryChartTypes works with EnableDataApps disabled', async () => {
         const svc = buildService({
             featureFlags: { [FeatureFlags.EnableDataApps]: false },
         });
 
-        await expect(
-            svc.listRegistryChartTypes(fakeUser, PROJECT_UUID),
-        ).rejects.toThrow(ForbiddenError);
+        const result = await svc.listRegistryChartTypes(fakeUser, PROJECT_UUID);
+
+        expect(result.registryEnabled).toBe(true);
     });
 
     it('listRegistryChartTypes throws ForbiddenError when ChartTypeRegistry is disabled', async () => {
@@ -772,14 +774,39 @@ describe('AppGenerateService registry feature-flag gates', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('installRegistryChartType throws ForbiddenError when EnableDataApps is disabled', async () => {
+    it('installRegistryChartType works with EnableDataApps disabled', async () => {
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
         const svc = buildService({
             featureFlags: { [FeatureFlags.EnableDataApps]: false },
+            appModel: {
+                listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
+                createWithVersion: vi.fn().mockResolvedValue(undefined),
+            },
+            chartRegistryClient: {
+                downloadArtifact: vi
+                    .fn()
+                    .mockImplementation(
+                        (_entry: unknown, kind: 'source' | 'dist') =>
+                            Promise.resolve(
+                                kind === 'source' ? sourceTar : distTar,
+                            ),
+                    ),
+            },
+            s3ClientOverride: makeFakeS3(),
         });
 
-        await expect(
-            svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
-        ).rejects.toThrow(ForbiddenError);
+        const result = await svc.installRegistryChartType(
+            fakeUser,
+            PROJECT_UUID,
+            'sankey',
+        );
+
+        expect(result.action).toBe('installed');
     });
 
     it('installRegistryChartType throws ForbiddenError when ChartTypeRegistry is disabled', async () => {
@@ -839,14 +866,20 @@ describe('AppGenerateService.getRegistryAsset', () => {
         expect(result).toBeUndefined();
     });
 
-    it('throws ForbiddenError when EnableDataApps is disabled', async () => {
+    it('serves assets with EnableDataApps disabled', async () => {
+        const asset = {
+            buffer: Buffer.from('fake-png'),
+            contentType: 'image/png',
+        };
+        const getAsset = vi.fn().mockResolvedValue(asset);
         const svc = buildService({
             featureFlags: { [FeatureFlags.EnableDataApps]: false },
+            chartRegistryClient: { isEnabled: () => true, getAsset },
         });
 
         await expect(
             svc.getRegistryAsset(fakeUser, 'sankey/1.3.0/thumb.png'),
-        ).rejects.toThrow(ForbiddenError);
+        ).resolves.toBe(asset);
     });
 
     it('throws ForbiddenError when ChartTypeRegistry is disabled', async () => {

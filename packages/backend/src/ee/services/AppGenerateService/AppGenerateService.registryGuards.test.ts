@@ -1,6 +1,7 @@
 // Registry-installed chart types are read-only: content-mutating paths must
 // reject them, while delete/restore/duplicate (fork) stay open.
 import {
+    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
@@ -84,6 +85,7 @@ function buildService(
         externalConnectionModel?: Record<string, unknown>;
         projectModel?: Record<string, unknown>;
         promoteService?: Record<string, unknown>;
+        featureFlags?: Record<string, boolean>;
     } = {},
 ) {
     const appModel = {
@@ -124,7 +126,13 @@ function buildService(
     };
 
     const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
+        get: vi
+            .fn()
+            .mockImplementation(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled: overrides.featureFlags?.[featureFlagId] ?? true,
+                }),
+            ),
     };
 
     const promoteService = {
@@ -364,6 +372,28 @@ describe('read-only invariant for registry-managed apps', () => {
             PROJECT_UUID,
             USER_UUID,
         );
+    });
+
+    it('deleteApp uninstalls a registry app with data apps off, library on', async () => {
+        const { service, appModel } = buildService({
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+        appModel.getApp.mockResolvedValue(registryApp);
+
+        await expect(
+            service.deleteApp(makeUser(), PROJECT_UUID, APP_UUID),
+        ).resolves.toBeUndefined();
+    });
+
+    it('deleteApp still requires data apps for a non-registry app', async () => {
+        const { service, appModel } = buildService({
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+        appModel.getApp.mockResolvedValue(baseApp);
+
+        await expect(
+            service.deleteApp(makeUser(), PROJECT_UUID, APP_UUID),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('restoreVersion is still allowed and copies registry_version onto the new row', async () => {
