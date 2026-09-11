@@ -19,6 +19,43 @@ describe('getMcpAnalystPrompt', () => {
         expect(prompt).not.toContain('Saved Content Mode');
     });
 
+    it.each([false, true])(
+        'keeps workflow order and cross-tool safeguards without tool-specific details: sql=%s',
+        (runSqlEnabled) => {
+            const prompt = getMcpAnalystPrompt({
+                ...semanticQueryOptions,
+                runSqlEnabled,
+            });
+            expect(
+                [...prompt.matchAll(/^\d\. `([^`]+)`/gm)].map(
+                    (match) => match[1],
+                ),
+            ).toEqual([
+                'get_context',
+                'grep_fields',
+                'get_metadata',
+                'search_field_values',
+                'run_metric_query',
+                'get_query_result',
+                'render_chart',
+                'list_content',
+                'find_content',
+            ]);
+            expect(prompt).toContain('explicitly to project-scoped tools');
+            expect(prompt).toContain('select one explore at the right grain');
+            expect(prompt).toContain(
+                'use only exact field IDs returned by discovery',
+            );
+            expect(prompt).toContain('never resubmit the original query');
+            expect(prompt).toContain('render completed metric queries');
+            expect(prompt).toContain('If still ambiguous, ask the user');
+            expect(prompt).not.toContain('revenue|sales');
+            expect(prompt).not.toContain('case-sensitivity');
+            expect(prompt).not.toContain('set_agent');
+            expect(prompt).not.toContain('done/error/cancelled/expired');
+        },
+    );
+
     it('keeps the stable prompt on structured filters', () => {
         const prompt = getMcpAnalystPrompt(semanticQueryOptions);
 
