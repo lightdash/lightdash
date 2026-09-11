@@ -1,3 +1,10 @@
+# [2.193.0](https://github.com/lightdash/lightdash/compare/2.192.0...2.193.0) (2026-09-11)
+
+
+### Features
+
+* allow feature-flagged analytics projects in production ([#29009](https://github.com/lightdash/lightdash/issues/29009)) ([6ffb3da](https://github.com/lightdash/lightdash/commit/6ffb3da01c83682e965bd175f2040d947713ff8a))
+
 # [2.192.0](https://github.com/lightdash/lightdash/compare/2.191.1...2.192.0) (2026-09-10)
 
 
