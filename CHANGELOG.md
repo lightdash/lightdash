@@ -1,3 +1,10 @@
+## [2.194.1](https://github.com/lightdash/lightdash/compare/2.194.0...2.194.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* expose Sentry CLI from pnpm-managed Node ([#29038](https://github.com/lightdash/lightdash/issues/29038)) ([de52b4f](https://github.com/lightdash/lightdash/commit/de52b4fea871e2241c3cf334e3f1caa8a6d84e5e))
+
 # [2.194.0](https://github.com/lightdash/lightdash/compare/2.193.1...2.194.0) (2026-09-11)
 
 
