@@ -44488,6 +44488,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 aiMultiAgentChannelId: { dataType: 'string' },
+                aiLinksOnly: { dataType: 'boolean' },
                 aiRequireOAuth: { dataType: 'boolean' },
                 aiThreadAccessConsent: { dataType: 'boolean' },
                 slackChannelProjectMappings: {
@@ -44533,6 +44534,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 aiMultiAgentChannelId: { dataType: 'string' },
+                aiLinksOnly: { dataType: 'boolean' },
                 aiRequireOAuth: { dataType: 'boolean' },
                 hasRequiredScopes: { dataType: 'boolean', required: true },
                 aiThreadAccessConsent: { dataType: 'boolean' },

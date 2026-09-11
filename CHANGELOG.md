@@ -1,3 +1,10 @@
+# [2.202.0](https://github.com/lightdash/lightdash/compare/2.201.0...2.202.0) (2026-09-11)
+
+
+### Features
+
+* **ai:** org Slack setting to reply with links only, never post query results into Slack ([#29077](https://github.com/lightdash/lightdash/issues/29077)) ([de30dba](https://github.com/lightdash/lightdash/commit/de30dba430b64f707850e895399f27f16ceed509))
+
 # [2.201.0](https://github.com/lightdash/lightdash/compare/2.200.0...2.201.0) (2026-09-11)
 
 
