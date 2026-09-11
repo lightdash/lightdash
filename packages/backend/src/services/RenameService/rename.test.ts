@@ -952,6 +952,7 @@ describe('renameChartConfigType', () => {
                     mark: 'bar',
                     encoding: {
                         x: { field: 'payment_date' },
+                        y: { field: 'archived_payment_date' },
                     },
                 },
             },
@@ -962,6 +963,9 @@ describe('renameChartConfigType', () => {
         const config = (result as CustomVisConfig).config!;
         expect((config.spec as AnyType).data.name).toBe('invoice_data');
         expect((config.spec?.encoding as AnyType).x.field).toBe('invoice_date');
+        expect((config.spec?.encoding as AnyType).y.field).toBe(
+            'archived_payment_date',
+        );
     });
 });
 
