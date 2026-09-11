@@ -10,7 +10,6 @@ import {
     Badge,
     Box,
     Button,
-    Divider,
     Flex,
     Group,
     Loader,
@@ -299,8 +298,7 @@ const SlackSettingsPanel: FC = () => {
                                     }
                                 />
                             </Group>
-                            <Stack gap="sm">
-                                <Divider mt="sm" />
+                            <Stack gap="sm" mt="sm">
                                 <Title order={5}>Configuration</Title>
                                 <Stack gap={0}>
                                     <SlackSettingRow
