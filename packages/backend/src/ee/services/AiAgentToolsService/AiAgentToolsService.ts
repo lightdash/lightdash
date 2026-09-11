@@ -897,11 +897,19 @@ export class AiAgentToolsService extends BaseService {
     private async customChartTypesEnabled(
         context: AiAgentToolsRuntimeContext,
     ): Promise<boolean> {
-        const { enabled } = await this.featureFlagService.get({
-            user: context.user,
-            featureFlagId: FeatureFlags.EnableDataApps,
-        });
-        return enabled;
+        // Chart types are usable wherever data apps OR the chart type
+        // library is on, matching AppGenerateService.assertChartTypesEnabled.
+        const [dataApps, chartTypeLibrary] = await Promise.all([
+            this.featureFlagService.get({
+                user: context.user,
+                featureFlagId: FeatureFlags.EnableDataApps,
+            }),
+            this.featureFlagService.get({
+                user: context.user,
+                featureFlagId: FeatureFlags.ChartTypeRegistry,
+            }),
+        ]);
+        return dataApps.enabled || chartTypeLibrary.enabled;
     }
 
     static readonly CUSTOM_CHART_TYPES_INLINE_LIMIT = 10;

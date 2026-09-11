@@ -311,8 +311,11 @@ export enum FeatureFlags {
     AiDisableThreadDeletion = 'ai-disable-thread-deletion',
 
     /**
-     * Enables the chart type library tab: browsing and installing official
-     * chart types from the configured chart registry. Default: off.
+     * Enables the chart type library — browsing and installing official
+     * chart types from the configured chart registry — and, together with
+     * `EnableDataApps` as an either/or gate, usage of installed chart types
+     * (picking, configuring, rendering). Authoring, editing, and forking
+     * chart types stay behind `EnableDataApps`. Default: off.
      */
     ChartTypeRegistry = 'chart-type-registry',
 

@@ -1836,15 +1836,24 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: dataAppViz.organization_uuid,
-            },
-            featureFlagId: FeatureFlags.EnableDataApps,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('Data apps are not enabled');
+        // Chart types render wherever data apps OR the chart type library is
+        // on — a customer without data apps can still use installed types.
+        const flagUser = {
+            userUuid: account.user.id,
+            organizationUuid: dataAppViz.organization_uuid,
+        };
+        const [dataApps, chartTypeLibrary] = await Promise.all([
+            this.featureFlagModel.get({
+                user: flagUser,
+                featureFlagId: FeatureFlags.EnableDataApps,
+            }),
+            this.featureFlagModel.get({
+                user: flagUser,
+                featureFlagId: FeatureFlags.ChartTypeRegistry,
+            }),
+        ]);
+        if (!dataApps.enabled && !chartTypeLibrary.enabled) {
+            throw new ForbiddenError('Chart types are not enabled');
         }
 
         const { chart } = await this.getAuthorizedSavedChartForEmbed(
