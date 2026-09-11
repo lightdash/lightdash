@@ -60,6 +60,7 @@ type GenericEvent = {
         | EventName.ADD_CUSTOM_DIMENSION_CLICKED
         | EventName.DATE_ZOOM_CLICKED
         | EventName.COMMENTS_CLICKED
+        | EventName.DASHBOARD_COMMENTS_PANEL_OPENED
         | EventName.EMBED_DOWNLOAD_CSV_CLICKED
         | EventName.EMBED_DOWNLOAD_IMAGE_CLICKED
         | EventName.DOWNLOAD_IMAGE_CLICKED

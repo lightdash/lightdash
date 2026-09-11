@@ -159,6 +159,7 @@ export enum EventName {
     ADD_CUSTOM_DIMENSION_CLICKED = 'add_custom_dimension.clicked',
     DATE_ZOOM_CLICKED = 'date_zoom.clicked',
     COMMENTS_CLICKED = 'comments.clicked',
+    DASHBOARD_COMMENTS_PANEL_OPENED = 'dashboard_comments_panel.opened',
     NOTIFICATIONS_COMMENTS_ITEM_CLICKED = 'notifications_comments_item.clicked',
     DASHBOARD_AUTO_REFRESH_UPDATED = 'dashboard_auto_refresh.updated',
 

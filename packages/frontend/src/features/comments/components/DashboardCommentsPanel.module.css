@@ -1,0 +1,61 @@
+.body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+}
+
+.toolbar {
+    padding: 0 var(--mantine-spacing-md) var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    @mixin dark {
+        border-bottom-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.scroll {
+    flex: 1;
+    min-height: 0;
+}
+
+.group {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-ldGray-1);
+    @mixin dark {
+        border-bottom-color: var(--mantine-color-ldDark-5);
+    }
+}
+
+.group:last-child {
+    border-bottom: none;
+}
+
+.groupHeader {
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+.groupTitle {
+    min-width: 0;
+    flex: 1;
+}
+
+.tabBadge {
+    flex-shrink: 0;
+}
+
+.goToTile {
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.group:hover .goToTile,
+.group:focus-within .goToTile,
+.goToTile:focus-visible {
+    opacity: 1;
+}
+
+.empty {
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+}
