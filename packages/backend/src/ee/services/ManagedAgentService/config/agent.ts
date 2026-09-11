@@ -5,11 +5,42 @@ import {
     resolveManagedAgentPolicy,
     type ManagedAgentPolicy,
 } from '@lightdash/common';
+import type { JSONSchema7 } from 'ai';
 import { createHash } from 'crypto';
 import { produce } from 'immer';
+import type { ManagedAgentRuntime } from '../../../../config/parseConfig';
 
 export type ManagedAgentPromptOptions = {
     preAggregatesEnabled?: boolean;
+    runtime?: ManagedAgentRuntime;
+};
+
+export const AUTOPILOT_CHART_SKILL_NAME = 'developing-in-lightdash';
+export const AUTOPILOT_SLACK_SKILL_NAME = 'lightdash-agent-slack-messaging';
+
+// The managed-agents runtime reaches the semantic layer over MCP; the AI SDK
+// runtime has the equivalent tools in-process under different names.
+const getDataToolWording = (runtime: ManagedAgentRuntime) => {
+    switch (runtime) {
+        case 'anthropic-managed':
+            return {
+                skills: `You have the **"Developing in Lightdash"** skill attached. Use it when creating or fixing charts:`,
+                slackSkill: `Use the "${AUTOPILOT_SLACK_SKILL_NAME}" skill to match Lightdash's Slack tone of voice`,
+                discover: `3. The MCP connection is already pinned to this project. Use MCP tools (list_explores, find_fields) to discover the data model. Do not attempt to switch projects
+4. Use find_content (MCP) to check if a chart already exists for the topic
+5. Call run_metric_query to validate the data before creating`,
+            };
+        case 'ai-sdk':
+            return {
+                skills: `Call loadSkill with name "${AUTOPILOT_CHART_SKILL_NAME}" before creating or fixing charts:`,
+                slackSkill: `Call loadSkill with name "${AUTOPILOT_SLACK_SKILL_NAME}" and follow it to match Lightdash's Slack tone of voice`,
+                discover: `3. Use grepFields and getMetadata to discover the data model. Every field ID must come from those tools
+4. Use findContent to check if a chart already exists for the topic
+5. Call runMetricQuery to validate the data before creating`,
+            };
+        default:
+            return assertUnreachable(runtime, `Unknown runtime: ${runtime}`);
+    }
 };
 
 // Tail sections number themselves so a conditional section (pre-aggregates)
@@ -17,6 +48,7 @@ export type ManagedAgentPromptOptions = {
 const buildChecklistTailSections = (
     options: ManagedAgentPromptOptions,
 ): string => {
+    const wording = getDataToolWording(options.runtime ?? 'anthropic-managed');
     const sections: Array<{ title: string; body: string }> = [
         {
             title: 'AI Agent Usage',
@@ -50,7 +82,7 @@ const buildChecklistTailSections = (
         },
         {
             title: 'Slack Summary',
-            body: `After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash's Slack tone of voice`,
+            body: `After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. ${wording.slackSkill}`,
         },
     ];
 
@@ -136,11 +168,13 @@ export const buildManagedAgentSystemPrompt = (
             ? 'record an insight instead'
             : 'flag it instead';
 
+    const wording = getDataToolWording(options.runtime ?? 'anthropic-managed');
+
     return `You are Autopilot, a Lightdash project health agent. You run on a schedule to keep this project clean and useful.
 
 ## Skills
 
-You have the **"Developing in Lightdash"** skill attached. Use it when creating or fixing charts:
+${wording.skills}
 - It contains the full chart-as-code YAML reference, chart type guide, and field ID conventions
 - When creating charts via create_content_from_code, follow the YAML structure from the skill (sorted keys, correct chartConfig.type, contentType:        chart)
 - When fixing broken charts via fix_broken_chart, reference the skill for valid metricQuery and chartConfig shapes
@@ -204,9 +238,7 @@ Also create when you notice a gap:
 When creating, use create_content_from_code:
 1. Call get_user_questions to see what users are asking about
 2. Call get_chart_schema for the exact JSON format
-3. The MCP connection is already pinned to this project. Use MCP tools (list_explores, find_fields) to discover the data model. Do not attempt to switch projects
-4. Use find_content (MCP) to check if a chart already exists for the topic
-5. Call run_metric_query to validate the data before creating
+${wording.discover}
 6. Prefix slugs with "agent-" to identify agent-created content
 7. Place all charts in the "Agent Suggestions" space for admin review
 
@@ -224,7 +256,537 @@ ${buildChecklistTailSections(options)}
 `;
 };
 
-export const managedAgentConfig: AgentCreateParams = {
+export type AutopilotToolDefinition = {
+    name: string;
+    description: string;
+    inputSchema: JSONSchema7;
+};
+
+export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
+    {
+        description:
+            'Get the most recent actions taken by this agent on the project. Call this first to understand what you have already done in previous runs and avoid repeating yourself.',
+        inputSchema: {
+            properties: {
+                limit: {
+                    description: 'Max actions to return (default 50)',
+                    type: 'number',
+                },
+            },
+            required: [],
+            type: 'object',
+        },
+        name: 'get_recent_actions',
+    },
+    {
+        description:
+            'Get charts that have not been viewed in 3+ months. Returns uuid, name, space, last_viewed_at, views_count, and created_by.',
+        inputSchema: {
+            properties: {},
+            required: [],
+            type: 'object',
+        },
+        name: 'get_stale_charts',
+    },
+    {
+        description:
+            'Get dashboards that have not been viewed in 3+ months. Returns uuid, name, space, last_viewed_at, views_count, and created_by.',
+        inputSchema: {
+            properties: {},
+            required: [],
+            type: 'object',
+        },
+        name: 'get_stale_dashboards',
+    },
+    {
+        description:
+            'Get validation errors grouped by root cause (e.g. one group per deleted model). Without arguments, returns the COMPLETE set of groups with counts and a capped sample of affected content per group. Pass table_name to list every broken item caused by that model.',
+        inputSchema: {
+            properties: {
+                limit: {
+                    description:
+                        'Max items to return in table_name detail mode',
+                    type: 'number',
+                },
+                table_name: {
+                    description:
+                        'Root-cause model name from a summary group; switches to detail mode listing all affected content for that model',
+                    type: 'string',
+                },
+            },
+            required: [],
+            type: 'object',
+        },
+        name: 'get_broken_content',
+    },
+    {
+        description:
+            'Get preview projects older than 3 months. Returns uuid, name, created_at, and the project they were copied from.',
+        inputSchema: {
+            properties: {},
+            required: [],
+            type: 'object',
+        },
+        name: 'get_preview_projects',
+    },
+    {
+        description:
+            'Get the most viewed charts and dashboards in the last 30 days. Returns uuid, name, type, views_count, unique_viewers, space name, and whether it is pinned.',
+        inputSchema: {
+            properties: {},
+            required: [],
+            type: 'object',
+        },
+        name: 'get_popular_content',
+    },
+    {
+        description:
+            'Flag a chart, dashboard, or project in the action log. Does NOT delete or modify the content, only records an observation. Use for stale content, broken content, or old preview projects. Idempotent: flagging an already-flagged target returns the existing flag without creating a duplicate, and deleted targets are skipped — so never re-flag a list you have already processed this run.',
+        inputSchema: {
+            properties: {
+                description: {
+                    description:
+                        'Human-readable explanation of WHY you are flagging this content',
+                    type: 'string',
+                },
+                flag_type: {
+                    description: 'Why this content is being flagged',
+                    enum: ['flagged_stale', 'flagged_broken'],
+                    type: 'string',
+                },
+                metadata: {
+                    description:
+                        'Additional data (e.g., last_viewed_at, views_count, errors)',
+                    type: 'object',
+                },
+                target_name: {
+                    description: 'Name of the content',
+                    type: 'string',
+                },
+                target_type: {
+                    description: 'Type of content',
+                    enum: ['chart', 'dashboard', 'project'],
+                    type: 'string',
+                },
+                target_uuid: {
+                    description: 'UUID of the content to flag',
+                    type: 'string',
+                },
+            },
+            required: [
+                'target_uuid',
+                'target_type',
+                'target_name',
+                'flag_type',
+                'description',
+            ],
+            type: 'object',
+        },
+        name: 'flag_content',
+    },
+    {
+        description:
+            'Soft-delete a chart or dashboard. The content can be restored by an admin. Only usable on content that was flagged more than the escalation window ago and not dismissed; unflagged content is blocked, so flag_content it first. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard. At most 25 individual soft-deletes are allowed per run; further calls are blocked, so flag the remainder instead.',
+        inputSchema: {
+            properties: {
+                description: {
+                    description:
+                        'Human-readable explanation of WHY you are deleting this content',
+                    type: 'string',
+                },
+                metadata: {
+                    description:
+                        'Additional data (e.g., last_viewed_at, views_count)',
+                    type: 'object',
+                },
+                target_name: {
+                    description: 'Name of the content',
+                    type: 'string',
+                },
+                target_type: {
+                    description: 'Type of content',
+                    enum: ['chart', 'dashboard'],
+                    type: 'string',
+                },
+                target_uuid: {
+                    description: 'UUID of the chart or dashboard',
+                    type: 'string',
+                },
+            },
+            required: [
+                'target_uuid',
+                'target_type',
+                'target_name',
+                'description',
+            ],
+            type: 'object',
+        },
+        name: 'soft_delete_content',
+    },
+    {
+        description:
+            'Soft-delete every chart whose underlying model was deleted, in one call. Only use when get_broken_content shows a model-level group (the whole model no longer exists). Charts are individually recoverable; dashboards referencing the model are never deleted by this tool, flag them instead. Deletes at most 25 charts per call and reports the remainder. Per-chart guardrails still apply and skipped charts are reported with reasons.',
+        inputSchema: {
+            properties: {
+                reason: {
+                    description:
+                        'Human-readable explanation of WHY this cleanup is safe (e.g. which model was removed and when)',
+                    type: 'string',
+                },
+                table_name: {
+                    description:
+                        'The deleted model name, exactly as returned by get_broken_content',
+                    type: 'string',
+                },
+            },
+            required: ['table_name', 'reason'],
+            type: 'object',
+        },
+        name: 'bulk_delete_broken_content',
+    },
+    {
+        description:
+            'Log an actionable observation about popular content. For example: a chart is very popular but not pinned, or popular content is in a private space with limited access.',
+        inputSchema: {
+            properties: {
+                description: {
+                    description:
+                        'The insight: what is noteworthy and what should the admin consider doing',
+                    type: 'string',
+                },
+                metadata: {
+                    description:
+                        'Supporting data (e.g., views_count, unique_viewers, space_name)',
+                    type: 'object',
+                },
+                target_name: {
+                    description: 'Name of the content',
+                    type: 'string',
+                },
+                target_type: {
+                    description: 'Type of content',
+                    enum: ['chart', 'dashboard'],
+                    type: 'string',
+                },
+                target_uuid: {
+                    description: 'UUID of the content',
+                    type: 'string',
+                },
+            },
+            required: [
+                'target_uuid',
+                'target_type',
+                'target_name',
+                'description',
+            ],
+            type: 'object',
+        },
+        name: 'log_insight',
+    },
+    {
+        description:
+            'Get the full details of a chart including its metricQuery, chartConfig, and tableName. Use this to understand a chart before fixing it.',
+        inputSchema: {
+            properties: {
+                chart_uuid: {
+                    description: 'UUID of the chart',
+                    type: 'string',
+                },
+            },
+            required: ['chart_uuid'],
+            type: 'object',
+        },
+        name: 'get_chart_details',
+    },
+    {
+        description:
+            'Fix a broken chart by updating its metricQuery and/or chartConfig. Provide the chart UUID and the corrected metricQuery and chartConfig objects. This creates a new version of the chart (the old version is preserved in history).',
+        inputSchema: {
+            properties: {
+                chart_config: {
+                    description:
+                        'The corrected chartConfig object. Remove references to fields that no longer exist.',
+                    type: 'object',
+                },
+                chart_name: {
+                    description: 'Name of the chart (for logging)',
+                    type: 'string',
+                },
+                chart_uuid: {
+                    description: 'UUID of the chart to fix',
+                    type: 'string',
+                },
+                description: {
+                    description: 'What was wrong and what you fixed',
+                    type: 'string',
+                },
+                metric_query: {
+                    description:
+                        'The corrected metricQuery object. Remove invalid field references.',
+                    type: 'object',
+                },
+                table_config: {
+                    description: 'The corrected tableConfig object (optional).',
+                    type: 'object',
+                },
+            },
+            required: [
+                'chart_uuid',
+                'chart_name',
+                'metric_query',
+                'chart_config',
+                'description',
+            ],
+            type: 'object',
+        },
+        name: 'fix_broken_chart',
+    },
+    {
+        description:
+            'Get the chart-as-code JSON schema. Call this BEFORE creating any charts to understand the exact format required. The schema defines all valid field types, chart config types, and metric query structure.',
+        inputSchema: {
+            properties: {},
+            required: [],
+            type: 'object',
+        },
+        name: 'get_chart_schema',
+    },
+    {
+        description:
+            'Create a new chart from a chart-as-code JSON definition. IMPORTANT: Call get_chart_schema first to understand the format. The chart will be placed in a "Dash Suggestions" space for admin review. Explore the data model with the discovery tools and validate the query before creating.',
+        inputSchema: {
+            properties: {
+                chart_as_code: {
+                    description:
+                        'The full chart-as-code JSON definition. Must match the schema from get_chart_schema. Key: chartConfig.type must be "cartesian" for line/bar/area charts, "table" for tables, "big_number" for big numbers, "pie" for pie charts.',
+                    type: 'object',
+                },
+                description: {
+                    description:
+                        'Why this chart is useful and what gap it fills',
+                    type: 'string',
+                },
+            },
+            required: ['chart_as_code', 'description'],
+            type: 'object',
+        },
+        name: 'create_content_from_code',
+    },
+    {
+        description:
+            'Get recent questions users have asked the AI assistant. Use this to understand what users are looking for and create charts that answer common questions. Returns the prompt text, who asked it, and when.',
+        inputSchema: {
+            properties: {
+                days: {
+                    description: 'Look back this many days (default 30)',
+                    type: 'number',
+                },
+                limit: {
+                    description: 'Max questions to return (default 30)',
+                    type: 'number',
+                },
+            },
+            required: [],
+            type: 'object',
+        },
+        name: 'get_user_questions',
+    },
+    {
+        description:
+            'Reverse a previous action you took that was incorrect. Use this to restore content you wrongly soft-deleted, or dismiss flags you wrongly applied. For example if you deleted a chart that was created less than 30 days ago, or flagged your own agent-created content as stale, reverse it. Check get_recent_actions to find the action_uuid.',
+        inputSchema: {
+            properties: {
+                action_uuid: {
+                    description:
+                        'UUID of the action to reverse (from get_recent_actions)',
+                    type: 'string',
+                },
+                reason: {
+                    description:
+                        'Why this action was incorrect and should be reversed',
+                    type: 'string',
+                },
+            },
+            required: ['action_uuid', 'reason'],
+            type: 'object',
+        },
+        name: 'reverse_own_action',
+    },
+    {
+        description:
+            'Get the slowest warehouse queries in the project from the last 30 days. Returns the chart or dashboard name, execution time in ms, query context, and when it ran. Use this to flag charts or dashboards with consistently slow queries so admins can optimize them.',
+        inputSchema: {
+            properties: {
+                limit: {
+                    description: 'Max results to return (default 20)',
+                    type: 'number',
+                },
+                threshold_ms: {
+                    description:
+                        'Minimum execution time in ms to consider slow (default 2000)',
+                    type: 'number',
+                },
+            },
+            required: [],
+            type: 'object',
+        },
+        name: 'get_slow_queries',
+    },
+    {
+        description:
+            'Get users with access to this project who have shown no activity in it recently. Activity means viewing a chart, viewing a dashboard, or running a query. Returns user_uuid, name, email, role, last_active_at, and last_active_source (the signal the decision was based on), oldest first. Reporting only: never flag or delete anything based on this.',
+        inputSchema: {
+            properties: {
+                inactive_days: {
+                    description:
+                        'Days without activity before a user counts as inactive (default 90)',
+                    type: 'number',
+                },
+                limit: {
+                    description: 'Max users to return (default 30)',
+                    type: 'number',
+                },
+            },
+            required: [],
+            type: 'object',
+        },
+        name: 'get_inactive_users',
+    },
+    {
+        description:
+            "Get charts and dashboards in this project whose owner is deactivated or has left the organization. Owner means a chart's last editor and a dashboard's original author. Returns content_type, uuid, name, space, owner name, owner_status, and last_viewed_at, grouped by owner. Reporting only: content is not stale just because its owner left, so never flag or delete based on this.",
+        inputSchema: {
+            properties: {
+                limit: {
+                    description: 'Max items to return (default 30)',
+                    type: 'number',
+                },
+            },
+            required: [],
+            type: 'object',
+        },
+        name: 'get_orphaned_content',
+    },
+    {
+        description:
+            'Get AI agents in this project that are getting little or no traffic. Traffic is counted as user prompts, so an opened conversation nobody spoke in does not count as use. Agents created inside the window and the auto-provisioned system agent are excluded. Returns name, reason (never_used, no_recent_use, only_failed_sessions, low_traffic), routing_signal (router_disabled, never_a_candidate, candidate_never_suggested, suggested_never_chosen, routed), last_used_at, prompt and thread counts, and router counts. Reporting only: never delete or disable an agent based on this.',
+        inputSchema: {
+            properties: {
+                limit: {
+                    description: 'Max agents to return (default 30)',
+                    type: 'number',
+                },
+                min_prompts: {
+                    description:
+                        'Prompts in the window below which an agent counts as low traffic (default 5)',
+                    type: 'number',
+                },
+                window_days: {
+                    description:
+                        'Days of activity to look at (default 30). Agents younger than this are excluded',
+                    type: 'number',
+                },
+            },
+            required: [],
+            type: 'object',
+        },
+        name: 'get_unused_agents',
+    },
+    {
+        description:
+            'Get explores where users burn warehouse time on repeated queries that a pre-aggregate could serve. Ranks explores by total warehouse execution time over the window, with the most common query shapes, existing pre-aggregate hit/miss stats by miss reason, and a suggested pre_aggregates YAML definition that has been validated against the project semantic layer. Queries already served by a pre-aggregate are excluded from the ranking. Reporting only: propose the YAML to admins via log_insight, never write dbt files.',
+        inputSchema: {
+            properties: {
+                limit: {
+                    description:
+                        'Max candidate explores to return (default 10)',
+                    type: 'number',
+                },
+                min_queries: {
+                    description:
+                        'Minimum warehouse queries in the window for an explore to qualify (default 10)',
+                    type: 'number',
+                },
+                window_days: {
+                    description:
+                        'Days of query history to analyze (default 30)',
+                    type: 'number',
+                },
+            },
+            required: [],
+            type: 'object',
+        },
+        name: 'get_preagg_candidates',
+    },
+    {
+        description:
+            'Persist the final Slack-ready summary for this run. Call exactly once after you finish your work and have written the final Slack message.',
+        inputSchema: {
+            properties: {
+                summary: {
+                    description:
+                        'The final Slack-ready message to post for this run',
+                    type: 'string',
+                },
+            },
+            required: ['summary'],
+            type: 'object',
+        },
+        name: 'write_slack_summary',
+    },
+];
+
+const toAnthropicCustomTool = (
+    definition: AutopilotToolDefinition,
+): NonNullable<AgentCreateParams['tools']>[number] => ({
+    type: 'custom',
+    name: definition.name,
+    description: definition.description,
+    input_schema: { ...definition.inputSchema, type: 'object' },
+});
+
+// Anthropic-hosted sandbox tools: file access exists only so the agent can read
+// its attached skills.
+const managedAgentSandboxToolsets: NonNullable<AgentCreateParams['tools']> = [
+    {
+        configs: [
+            {
+                enabled: true,
+                name: 'read',
+                permission_policy: {
+                    type: 'always_allow',
+                },
+            },
+            {
+                enabled: true,
+                name: 'write',
+                permission_policy: {
+                    type: 'always_allow',
+                },
+            },
+        ],
+        default_config: {
+            enabled: false,
+            permission_policy: {
+                type: 'always_allow',
+            },
+        },
+        type: 'agent_toolset_20260401',
+    },
+    {
+        configs: [],
+        default_config: {
+            enabled: true,
+            permission_policy: {
+                type: 'always_allow',
+            },
+        },
+        mcp_server_name: 'lightdash',
+        type: 'mcp_toolset',
+    },
+];
+
+const managedAgentConfig: AgentCreateParams = {
     name: 'Lightdash Autopilot Agent',
     description: null,
     model: {
@@ -235,547 +797,28 @@ export const managedAgentConfig: AgentCreateParams = {
     mcp_servers: [],
     metadata: {},
     skills: [],
-    tools: [
-        {
-            configs: [
-                {
-                    enabled: true,
-                    name: 'read',
-                    permission_policy: {
-                        type: 'always_allow',
-                    },
-                },
-                {
-                    enabled: true,
-                    name: 'write',
-                    permission_policy: {
-                        type: 'always_allow',
-                    },
-                },
-            ],
-            default_config: {
-                enabled: false,
-                permission_policy: {
-                    type: 'always_allow',
-                },
-            },
-            type: 'agent_toolset_20260401',
-        },
-        {
-            configs: [],
-            default_config: {
-                enabled: true,
-                permission_policy: {
-                    type: 'always_allow',
-                },
-            },
-            mcp_server_name: 'lightdash',
-            type: 'mcp_toolset',
-        },
-        {
-            description:
-                'Get the most recent actions taken by this agent on the project. Call this first to understand what you have already done in previous runs and avoid repeating yourself.',
-            input_schema: {
-                properties: {
-                    limit: {
-                        description: 'Max actions to return (default 50)',
-                        type: 'number',
-                    },
-                },
-                required: [],
-                type: 'object',
-            },
-            name: 'get_recent_actions',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get charts that have not been viewed in 3+ months. Returns uuid, name, space, last_viewed_at, views_count, and created_by.',
-            input_schema: {
-                properties: {},
-                required: [],
-                type: 'object',
-            },
-            name: 'get_stale_charts',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get dashboards that have not been viewed in 3+ months. Returns uuid, name, space, last_viewed_at, views_count, and created_by.',
-            input_schema: {
-                properties: {},
-                required: [],
-                type: 'object',
-            },
-            name: 'get_stale_dashboards',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get validation errors grouped by root cause (e.g. one group per deleted model). Without arguments, returns the COMPLETE set of groups with counts and a capped sample of affected content per group. Pass table_name to list every broken item caused by that model.',
-            input_schema: {
-                properties: {
-                    limit: {
-                        description:
-                            'Max items to return in table_name detail mode',
-                        type: 'number',
-                    },
-                    table_name: {
-                        description:
-                            'Root-cause model name from a summary group; switches to detail mode listing all affected content for that model',
-                        type: 'string',
-                    },
-                },
-                required: [],
-                type: 'object',
-            },
-            name: 'get_broken_content',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get preview projects older than 3 months. Returns uuid, name, created_at, and the project they were copied from.',
-            input_schema: {
-                properties: {},
-                required: [],
-                type: 'object',
-            },
-            name: 'get_preview_projects',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get the most viewed charts and dashboards in the last 30 days. Returns uuid, name, type, views_count, unique_viewers, space name, and whether it is pinned.',
-            input_schema: {
-                properties: {},
-                required: [],
-                type: 'object',
-            },
-            name: 'get_popular_content',
-            type: 'custom',
-        },
-        {
-            description:
-                'Flag a chart, dashboard, or project in the action log. Does NOT delete or modify the content, only records an observation. Use for stale content, broken content, or old preview projects. Idempotent: flagging an already-flagged target returns the existing flag without creating a duplicate, and deleted targets are skipped — so never re-flag a list you have already processed this run.',
-            input_schema: {
-                properties: {
-                    description: {
-                        description:
-                            'Human-readable explanation of WHY you are flagging this content',
-                        type: 'string',
-                    },
-                    flag_type: {
-                        description: 'Why this content is being flagged',
-                        enum: ['flagged_stale', 'flagged_broken'],
-                        type: 'string',
-                    },
-                    metadata: {
-                        description:
-                            'Additional data (e.g., last_viewed_at, views_count, errors)',
-                        type: 'object',
-                    },
-                    target_name: {
-                        description: 'Name of the content',
-                        type: 'string',
-                    },
-                    target_type: {
-                        description: 'Type of content',
-                        enum: ['chart', 'dashboard', 'project'],
-                        type: 'string',
-                    },
-                    target_uuid: {
-                        description: 'UUID of the content to flag',
-                        type: 'string',
-                    },
-                },
-                required: [
-                    'target_uuid',
-                    'target_type',
-                    'target_name',
-                    'flag_type',
-                    'description',
-                ],
-                type: 'object',
-            },
-            name: 'flag_content',
-            type: 'custom',
-        },
-        {
-            description:
-                'Soft-delete a chart or dashboard. The content can be restored by an admin. Only usable on content that was flagged more than the escalation window ago and not dismissed; unflagged content is blocked, so flag_content it first. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard. At most 25 individual soft-deletes are allowed per run; further calls are blocked, so flag the remainder instead.',
-            input_schema: {
-                properties: {
-                    description: {
-                        description:
-                            'Human-readable explanation of WHY you are deleting this content',
-                        type: 'string',
-                    },
-                    metadata: {
-                        description:
-                            'Additional data (e.g., last_viewed_at, views_count)',
-                        type: 'object',
-                    },
-                    target_name: {
-                        description: 'Name of the content',
-                        type: 'string',
-                    },
-                    target_type: {
-                        description: 'Type of content',
-                        enum: ['chart', 'dashboard'],
-                        type: 'string',
-                    },
-                    target_uuid: {
-                        description: 'UUID of the chart or dashboard',
-                        type: 'string',
-                    },
-                },
-                required: [
-                    'target_uuid',
-                    'target_type',
-                    'target_name',
-                    'description',
-                ],
-                type: 'object',
-            },
-            name: 'soft_delete_content',
-            type: 'custom',
-        },
-        {
-            description:
-                'Soft-delete every chart whose underlying model was deleted, in one call. Only use when get_broken_content shows a model-level group (the whole model no longer exists). Charts are individually recoverable; dashboards referencing the model are never deleted by this tool, flag them instead. Deletes at most 25 charts per call and reports the remainder. Per-chart guardrails still apply and skipped charts are reported with reasons.',
-            input_schema: {
-                properties: {
-                    reason: {
-                        description:
-                            'Human-readable explanation of WHY this cleanup is safe (e.g. which model was removed and when)',
-                        type: 'string',
-                    },
-                    table_name: {
-                        description:
-                            'The deleted model name, exactly as returned by get_broken_content',
-                        type: 'string',
-                    },
-                },
-                required: ['table_name', 'reason'],
-                type: 'object',
-            },
-            name: 'bulk_delete_broken_content',
-            type: 'custom',
-        },
-        {
-            description:
-                'Log an actionable observation about popular content. For example: a chart is very popular but not pinned, or popular content is in a private space with limited access.',
-            input_schema: {
-                properties: {
-                    description: {
-                        description:
-                            'The insight: what is noteworthy and what should the admin consider doing',
-                        type: 'string',
-                    },
-                    metadata: {
-                        description:
-                            'Supporting data (e.g., views_count, unique_viewers, space_name)',
-                        type: 'object',
-                    },
-                    target_name: {
-                        description: 'Name of the content',
-                        type: 'string',
-                    },
-                    target_type: {
-                        description: 'Type of content',
-                        enum: ['chart', 'dashboard'],
-                        type: 'string',
-                    },
-                    target_uuid: {
-                        description: 'UUID of the content',
-                        type: 'string',
-                    },
-                },
-                required: [
-                    'target_uuid',
-                    'target_type',
-                    'target_name',
-                    'description',
-                ],
-                type: 'object',
-            },
-            name: 'log_insight',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get the full details of a chart including its metricQuery, chartConfig, and tableName. Use this to understand a chart before fixing it.',
-            input_schema: {
-                properties: {
-                    chart_uuid: {
-                        description: 'UUID of the chart',
-                        type: 'string',
-                    },
-                },
-                required: ['chart_uuid'],
-                type: 'object',
-            },
-            name: 'get_chart_details',
-            type: 'custom',
-        },
-        {
-            description:
-                'Fix a broken chart by updating its metricQuery and/or chartConfig. Provide the chart UUID and the corrected metricQuery and chartConfig objects. This creates a new version of the chart (the old version is preserved in history).',
-            input_schema: {
-                properties: {
-                    chart_config: {
-                        description:
-                            'The corrected chartConfig object. Remove references to fields that no longer exist.',
-                        type: 'object',
-                    },
-                    chart_name: {
-                        description: 'Name of the chart (for logging)',
-                        type: 'string',
-                    },
-                    chart_uuid: {
-                        description: 'UUID of the chart to fix',
-                        type: 'string',
-                    },
-                    description: {
-                        description: 'What was wrong and what you fixed',
-                        type: 'string',
-                    },
-                    metric_query: {
-                        description:
-                            'The corrected metricQuery object. Remove invalid field references.',
-                        type: 'object',
-                    },
-                    table_config: {
-                        description:
-                            'The corrected tableConfig object (optional).',
-                        type: 'object',
-                    },
-                },
-                required: [
-                    'chart_uuid',
-                    'chart_name',
-                    'metric_query',
-                    'chart_config',
-                    'description',
-                ],
-                type: 'object',
-            },
-            name: 'fix_broken_chart',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get the chart-as-code JSON schema. Call this BEFORE creating any charts to understand the exact format required. The schema defines all valid field types, chart config types, and metric query structure.',
-            input_schema: {
-                properties: {},
-                required: [],
-                type: 'object',
-            },
-            name: 'get_chart_schema',
-            type: 'custom',
-        },
-        {
-            description:
-                'Create a new chart from a chart-as-code JSON definition. IMPORTANT: Call get_chart_schema first to understand the format. The chart will be placed in a "Dash Suggestions" space for admin review. Use MCP tools to explore the data model and validate with run_metric_query before creating.',
-            input_schema: {
-                properties: {
-                    chart_as_code: {
-                        description:
-                            'The full chart-as-code JSON definition. Must match the schema from get_chart_schema. Key: chartConfig.type must be "cartesian" for line/bar/area charts, "table" for tables, "big_number" for big numbers, "pie" for pie charts.',
-                        type: 'object',
-                    },
-                    description: {
-                        description:
-                            'Why this chart is useful and what gap it fills',
-                        type: 'string',
-                    },
-                },
-                required: ['chart_as_code', 'description'],
-                type: 'object',
-            },
-            name: 'create_content_from_code',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get recent questions users have asked the AI assistant. Use this to understand what users are looking for and create charts that answer common questions. Returns the prompt text, who asked it, and when.',
-            input_schema: {
-                properties: {
-                    days: {
-                        description: 'Look back this many days (default 30)',
-                        type: 'number',
-                    },
-                    limit: {
-                        description: 'Max questions to return (default 30)',
-                        type: 'number',
-                    },
-                },
-                required: [],
-                type: 'object',
-            },
-            name: 'get_user_questions',
-            type: 'custom',
-        },
-        {
-            description:
-                'Reverse a previous action you took that was incorrect. Use this to restore content you wrongly soft-deleted, or dismiss flags you wrongly applied. For example if you deleted a chart that was created less than 30 days ago, or flagged your own agent-created content as stale, reverse it. Check get_recent_actions to find the action_uuid.',
-            input_schema: {
-                properties: {
-                    action_uuid: {
-                        description:
-                            'UUID of the action to reverse (from get_recent_actions)',
-                        type: 'string',
-                    },
-                    reason: {
-                        description:
-                            'Why this action was incorrect and should be reversed',
-                        type: 'string',
-                    },
-                },
-                required: ['action_uuid', 'reason'],
-                type: 'object',
-            },
-            name: 'reverse_own_action',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get the slowest warehouse queries in the project from the last 30 days. Returns the chart or dashboard name, execution time in ms, query context, and when it ran. Use this to flag charts or dashboards with consistently slow queries so admins can optimize them.',
-            input_schema: {
-                properties: {
-                    limit: {
-                        description: 'Max results to return (default 20)',
-                        type: 'number',
-                    },
-                    threshold_ms: {
-                        description:
-                            'Minimum execution time in ms to consider slow (default 2000)',
-                        type: 'number',
-                    },
-                },
-                required: [],
-                type: 'object',
-            },
-            name: 'get_slow_queries',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get users with access to this project who have shown no activity in it recently. Activity means viewing a chart, viewing a dashboard, or running a query. Returns user_uuid, name, email, role, last_active_at, and last_active_source (the signal the decision was based on), oldest first. Reporting only: never flag or delete anything based on this.',
-            input_schema: {
-                properties: {
-                    inactive_days: {
-                        description:
-                            'Days without activity before a user counts as inactive (default 90)',
-                        type: 'number',
-                    },
-                    limit: {
-                        description: 'Max users to return (default 30)',
-                        type: 'number',
-                    },
-                },
-                required: [],
-                type: 'object',
-            },
-            name: 'get_inactive_users',
-            type: 'custom',
-        },
-        {
-            description:
-                "Get charts and dashboards in this project whose owner is deactivated or has left the organization. Owner means a chart's last editor and a dashboard's original author. Returns content_type, uuid, name, space, owner name, owner_status, and last_viewed_at, grouped by owner. Reporting only: content is not stale just because its owner left, so never flag or delete based on this.",
-            input_schema: {
-                properties: {
-                    limit: {
-                        description: 'Max items to return (default 30)',
-                        type: 'number',
-                    },
-                },
-                required: [],
-                type: 'object',
-            },
-            name: 'get_orphaned_content',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get AI agents in this project that are getting little or no traffic. Traffic is counted as user prompts, so an opened conversation nobody spoke in does not count as use. Agents created inside the window and the auto-provisioned system agent are excluded. Returns name, reason (never_used, no_recent_use, only_failed_sessions, low_traffic), routing_signal (router_disabled, never_a_candidate, candidate_never_suggested, suggested_never_chosen, routed), last_used_at, prompt and thread counts, and router counts. Reporting only: never delete or disable an agent based on this.',
-            input_schema: {
-                properties: {
-                    limit: {
-                        description: 'Max agents to return (default 30)',
-                        type: 'number',
-                    },
-                    min_prompts: {
-                        description:
-                            'Prompts in the window below which an agent counts as low traffic (default 5)',
-                        type: 'number',
-                    },
-                    window_days: {
-                        description:
-                            'Days of activity to look at (default 30). Agents younger than this are excluded',
-                        type: 'number',
-                    },
-                },
-                required: [],
-                type: 'object',
-            },
-            name: 'get_unused_agents',
-            type: 'custom',
-        },
-        {
-            description:
-                'Get explores where users burn warehouse time on repeated queries that a pre-aggregate could serve. Ranks explores by total warehouse execution time over the window, with the most common query shapes, existing pre-aggregate hit/miss stats by miss reason, and a suggested pre_aggregates YAML definition that has been validated against the project semantic layer. Queries already served by a pre-aggregate are excluded from the ranking. Reporting only: propose the YAML to admins via log_insight, never write dbt files.',
-            input_schema: {
-                properties: {
-                    limit: {
-                        description:
-                            'Max candidate explores to return (default 10)',
-                        type: 'number',
-                    },
-                    min_queries: {
-                        description:
-                            'Minimum warehouse queries in the window for an explore to qualify (default 10)',
-                        type: 'number',
-                    },
-                    window_days: {
-                        description:
-                            'Days of query history to analyze (default 30)',
-                        type: 'number',
-                    },
-                },
-                required: [],
-                type: 'object',
-            },
-            name: 'get_preagg_candidates',
-            type: 'custom',
-        },
-        {
-            description:
-                'Persist the final Slack-ready summary for this run. Call exactly once after you finish your work and have written the final Slack message.',
-            input_schema: {
-                properties: {
-                    summary: {
-                        description:
-                            'The final Slack-ready message to post for this run',
-                        type: 'string',
-                    },
-                },
-                required: ['summary'],
-                type: 'object',
-            },
-            name: 'write_slack_summary',
-            type: 'custom',
-        },
-    ],
+    tools: [],
 };
 
-type RenderManagedAgentConfigArgs = {
-    lightdashSiteUrl: string;
-    projectUuid: string;
-    skillIds: string[];
+type RenderAutopilotAgentArgs = {
     toolSettings?: Record<string, boolean>;
     policy?: ManagedAgentPolicy;
     preAggregatesEnabled?: boolean;
+    runtime: ManagedAgentRuntime;
+};
+
+export type RenderedAutopilotAgent = {
+    system: string;
+    tools: AutopilotToolDefinition[];
+};
+
+type RenderManagedAgentConfigArgs = Omit<
+    RenderAutopilotAgentArgs,
+    'runtime'
+> & {
+    lightdashSiteUrl: string;
+    projectUuid: string;
+    skillIds: string[];
 };
 
 export const getManagedAgentMcpUrl = (
@@ -830,14 +873,12 @@ export const normalizeManagedAgentToolSettings = (
             ]),
     );
 
-export const renderManagedAgentConfig = ({
-    lightdashSiteUrl,
-    projectUuid,
-    skillIds,
+export const renderAutopilotAgent = ({
     toolSettings = {},
     policy,
     preAggregatesEnabled = false,
-}: RenderManagedAgentConfigArgs): AgentCreateParams => {
+    runtime,
+}: RenderAutopilotAgentArgs): RenderedAutopilotAgent => {
     const resolvedPolicy = resolveManagedAgentPolicy(policy);
     const normalizedToolSettings =
         normalizeManagedAgentToolSettings(toolSettings);
@@ -856,11 +897,41 @@ export const renderManagedAgentConfig = ({
     ]);
     const policyToolDescriptions = buildPolicyToolDescriptions(resolvedPolicy);
 
+    const baseSystem = buildManagedAgentSystemPrompt(resolvedPolicy, {
+        preAggregatesEnabled,
+        runtime,
+    });
+    const system =
+        disabledCapabilities.length > 0
+            ? `${baseSystem}\n\n## Disabled capabilities\nThe following capabilities are disabled for this project and their tools are unavailable in this run: ${disabledCapabilities.join(', ')}. Skip checklist steps that require only disabled capabilities.`
+            : baseSystem;
+
+    const tools = autopilotToolDefinitions
+        .filter((definition) => !disabledToolNames.has(definition.name))
+        .map((definition) => ({
+            ...definition,
+            description:
+                policyToolDescriptions[definition.name] ??
+                definition.description,
+        }));
+
+    return { system, tools };
+};
+
+export const renderManagedAgentConfig = ({
+    lightdashSiteUrl,
+    projectUuid,
+    skillIds,
+    ...agentArgs
+}: RenderManagedAgentConfigArgs): AgentCreateParams => {
+    const { system, tools } = renderAutopilotAgent({
+        ...agentArgs,
+        runtime: 'anthropic-managed',
+    });
+
     return produce(managedAgentConfig, (draft) => {
         // eslint-disable-next-line no-param-reassign
-        draft.system = buildManagedAgentSystemPrompt(resolvedPolicy, {
-            preAggregatesEnabled,
-        });
+        draft.system = system;
         // eslint-disable-next-line no-param-reassign
         draft.mcp_servers = [
             {
@@ -875,27 +946,11 @@ export const renderManagedAgentConfig = ({
             type: 'custom',
             version: 'latest',
         }));
-
         // eslint-disable-next-line no-param-reassign
-        draft.tools = draft.tools?.filter((tool) => {
-            if (tool.type !== 'custom') {
-                return true;
-            }
-
-            return !disabledToolNames.has(tool.name);
-        });
-
-        draft.tools?.forEach((tool) => {
-            if (tool.type === 'custom' && policyToolDescriptions[tool.name]) {
-                // eslint-disable-next-line no-param-reassign
-                tool.description = policyToolDescriptions[tool.name];
-            }
-        });
-
-        if (disabledCapabilities.length > 0) {
-            // eslint-disable-next-line no-param-reassign
-            draft.system = `${draft.system ?? ''}\n\n## Disabled capabilities\nThe following capabilities are disabled for this project and their tools are unavailable in this run: ${disabledCapabilities.join(', ')}. Skip checklist steps that require only disabled capabilities.`;
-        }
+        draft.tools = [
+            ...managedAgentSandboxToolsets,
+            ...tools.map(toAnthropicCustomTool),
+        ];
     });
 };
 
