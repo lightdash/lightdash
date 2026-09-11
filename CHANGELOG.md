@@ -1,3 +1,10 @@
+# [2.194.0](https://github.com/lightdash/lightdash/compare/2.193.1...2.194.0) (2026-09-11)
+
+
+### Features
+
+* link to saved chart page from in-dashboard chart editor ([#29037](https://github.com/lightdash/lightdash/issues/29037)) ([50bc3e8](https://github.com/lightdash/lightdash/commit/50bc3e8ff2d552eeb8a7292cc79ec8a6e9600807))
+
 ## [2.193.1](https://github.com/lightdash/lightdash/compare/2.193.0...2.193.1) (2026-09-11)
 
 
