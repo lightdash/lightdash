@@ -1,3 +1,10 @@
+## [2.198.3](https://github.com/lightdash/lightdash/compare/2.198.2...2.198.3) (2026-09-11)
+
+
+### Bug Fixes
+
+* **ai:** validate Deep Research configuration limits ([#29041](https://github.com/lightdash/lightdash/issues/29041)) ([91bf10b](https://github.com/lightdash/lightdash/commit/91bf10b7afe8a5bec13348b65d3e385f49ecd489))
+
 ## [2.198.2](https://github.com/lightdash/lightdash/compare/2.198.1...2.198.2) (2026-09-11)
 
 
