@@ -1,4 +1,7 @@
-import { type SavedChart } from '@lightdash/common';
+import {
+    type CreateSavedChartVersion,
+    type SavedChart,
+} from '@lightdash/common';
 import {
     defaultQueryExecution,
     defaultState,
@@ -15,6 +18,11 @@ interface BuildInitialStateOptions {
     minimal?: boolean;
     initialState?: Partial<ExplorerReduceState>;
     defaultLimit?: number;
+    /**
+     * Starts the session on edits made elsewhere (handed over in the url)
+     * instead of the saved chart, so they show as unsaved changes.
+     */
+    unsavedChartVersionOverride?: CreateSavedChartVersion;
 }
 
 /**
@@ -27,6 +35,7 @@ export const buildInitialExplorerState = ({
     minimal = false,
     initialState: customInitialState,
     defaultLimit,
+    unsavedChartVersionOverride,
 }: BuildInitialStateOptions): ExplorerReduceState => {
     let stateToUse: ExplorerReduceState;
 
@@ -65,7 +74,7 @@ export const buildInitialExplorerState = ({
             parameterReferences: Object.keys(savedChart.parameters ?? {}),
             parameterDefinitions: {},
             expandedSections,
-            unsavedChartVersion: {
+            unsavedChartVersion: unsavedChartVersionOverride ?? {
                 tableName: savedChart.tableName,
                 chartConfig: savedChart.chartConfig,
                 metricQuery: savedChart.metricQuery,

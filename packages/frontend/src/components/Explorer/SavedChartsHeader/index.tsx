@@ -1,70 +1,27 @@
-import { subject } from '@casl/ability';
-import {
-    DirectAccessResourceType,
-    ChartSourceType,
-    canMutateVerifiedContent,
-    ContentReviewContentType,
-    ContentType,
-    DashboardTileTypes,
-    FeatureFlags,
-    ResourceViewItemType,
-    type ResourceViewChartItem,
-} from '@lightdash/common';
+import { ContentReviewContentType, ContentType } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
-    Box,
     Button,
     Group,
-    Menu,
     Text,
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconArrowBack,
-    IconArrowsExchange,
-    IconBell,
-    IconCircleCheck,
     IconCircleCheckFilled,
-    IconCirclesRelation,
-    IconCode,
-    IconCopy,
-    IconDatabaseExport,
-    IconDots,
-    IconFolders,
-    IconFolderSymlink,
-    IconHistory,
-    IconLayoutGridAdd,
-    IconLink,
     IconMaximize,
     IconMinimize,
     IconPencil,
-    IconPin,
-    IconPinnedOff,
-    IconSend,
-    IconTrash,
-    IconUsers,
 } from '@tabler/icons-react';
-import {
-    lazy,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Link, useBlocker, useLocation, useNavigate } from 'react-router';
-import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import {
     PendingReviewBadge,
-    RequestReviewModal,
     useContentReviewEligibility,
 } from '../../../ee/features/contentReview';
-import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
 import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
 import DraftStaleAlert from '../../../features/contentAsCode/components/DraftStaleAlert';
@@ -74,53 +31,27 @@ import {
     useReopenDraftMutation,
 } from '../../../features/contentAsCode/hooks/useContentDrafts';
 import {
-    DirectAccessModal,
-    useCanManageDirectAccess,
-    useDirectAccessAvailability,
-} from '../../../features/directAccess';
-import {
     explorerActions,
     selectHasUnsavedChanges,
     selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectIsValidQuery,
     selectSavedChart,
-    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
-import {
-    usePromoteChartDiffMutation,
-    usePromoteMutation,
-} from '../../../features/promotion/hooks/usePromoteChart';
-import { ChartSchedulersModal } from '../../../features/scheduler';
-import {
-    getSchedulerUuidFromUrlParams,
-    getThresholdUuidFromUrlParams,
-    isSchedulerTypeSync,
-} from '../../../features/scheduler/utils';
+import { useSchedulerDeepLink } from '../../../features/scheduler/hooks/useSchedulerDeepLink';
 import { isLeavingTrainingCopy } from '../../../features/scopeTours/trainingCopy';
-import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
-import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
-import { useContentAction } from '../../../hooks/useContent';
-import {
-    useUnverifyChartMutation,
-    useVerifyChartMutation,
-} from '../../../hooks/useContentVerification';
-import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { useProject } from '../../../hooks/useProject';
+import { useChartPermissions } from '../../../hooks/useChartPermissions';
 import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
-import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
     defaultQueryExecution,
@@ -133,24 +64,16 @@ import { SectionName } from '../../../types/Events';
 import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
-import { useVerifiedChartSavePending } from './useVerifiedChartSavePending';
-const ChangeChartExploreModal = lazy(
-    () => import('../../common/modal/ChangeChartExploreModal'),
-);
-import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
-import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
-import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
 import PageHeader from '../../common/Page/PageHeader';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
-import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
-import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import SaveChartButton from '../SaveChartButton';
-import ChartSlugRenameModal from './ChartSlugRenameModal';
+import ChartActionsMenu from './ChartActionsMenu';
+import ChartEditActions from './ChartEditActions';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
+import { useVerifiedChartSavePending } from './useVerifiedChartSavePending';
 
 const isChartPath = (
     pathname: string,
@@ -163,25 +86,6 @@ const isChartPath = (
     return pathname.endsWith(chartPath) || pathname.includes(`${chartPath}/`);
 };
 
-/**
- * Walkthrough for manage:ContentVerification: verifying a chart from its
- * actions menu; the green check in the header is the result.
- */
-const verifyTourAction = {
-    'data-tour-anchor': 'verify-chart',
-    'data-tour-hint': 'Verify the chart',
-    'data-tour-scope': 'manage:ContentVerification',
-    'data-tour-covers': 'view:ContentVerification',
-    'data-tour-step': '2',
-    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid',
-    'data-tour-label': 'Click Verify',
-    'data-tour-title': 'Verify a chart',
-    'data-tour-interactive': 'true',
-    'data-tour-via':
-        '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="chart-actions"]',
-    'data-tour-docs':
-        'explore/verified-content.mdx#verifying-a-chart-or-dashboard:1',
-};
 const verifiedTourProps = {
     'data-tour-scope': 'manage:ContentVerification',
     'data-tour-step': '1',
@@ -193,26 +97,12 @@ const verifiedTourProps = {
 };
 
 const SavedChartsHeader: FC = () => {
-    const { data: changeChartExploreFlag } = useServerFeatureFlag(
-        FeatureFlags.ChangeChartExplore,
-    );
-    const changeChartExploreEnabled = changeChartExploreFlag?.enabled === true;
-
-    const { search, pathname } = useLocation();
+    const { search } = useLocation();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
 
-    const { data: project } = useProject(projectUuid);
-
-    const { mutate: promoteChart } = usePromoteMutation();
-    const {
-        mutate: getPromoteChartDiff,
-        data: promoteChartDiff,
-        reset: resetPromoteChartDiff,
-        isLoading: promoteChartDiffLoading,
-    } = usePromoteChartDiffMutation();
     const navigate = useNavigate();
     const dispatch = useExplorerDispatch();
 
@@ -221,7 +111,6 @@ const SavedChartsHeader: FC = () => {
     const isChartTypeAuthoring = useExplorerSelector(
         selectIsChartTypeAuthoring,
     );
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);
     const { mutate: reopenDraft, isLoading: isReopeningDraft } =
@@ -240,19 +129,7 @@ const SavedChartsHeader: FC = () => {
         hasUnsavedChanges,
     );
 
-    const { query } = useExplorerQuery();
-    const itemsMap = query.data?.fields;
-
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
-
-    const isPinned = useMemo(() => {
-        return Boolean(savedChart?.pinnedListUuid);
-    }, [savedChart?.pinnedListUuid]);
-    const { mutate: togglePinChart } = useChartPinningMutation();
-    const onChartPinning = useCallback(() => {
-        if (!savedChart) return;
-        togglePinChart({ uuid: savedChart.uuid });
-    }, [savedChart, togglePinChart]);
 
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
@@ -269,136 +146,21 @@ const SavedChartsHeader: FC = () => {
 
     const { clearDashboardStorage } = useDashboardStorage();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
-    const [isMovingChart, setIsMovingChart] = useState(false);
-    const [isDeleteModalOpen, deleteModalHandlers] = useDisclosure();
-    const [isScheduledDeliveriesModalOpen, scheduledDeliveriesModalHandlers] =
-        useDisclosure();
-    const [isThresholdAlertsModalOpen, thresholdAlertsModalHandlers] =
-        useDisclosure();
-    const [isSyncWithGoogleSheetsModalOpen, syncWithGoogleSheetsModalHandlers] =
-        useDisclosure();
-    const [isAddToDashboardModalOpen, addToDashboardModalHandlers] =
-        useDisclosure();
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-    const [isChartDuplicateModalOpen, chartDuplicateModalHandlers] =
-        useDisclosure();
-    const [isChangeExploreModalOpen, changeExploreModalHandlers] =
-        useDisclosure();
-    const [isDirectAccessModalOpen, directAccessModalHandlers] =
-        useDisclosure(false);
-    const directAccessAvailability = useDirectAccessAvailability();
-    const [isRequestReviewModalOpen, requestReviewModalHandlers] =
-        useDisclosure(false);
     const contentReview = useContentReviewEligibility({
         projectUuid,
         contentType: ContentReviewContentType.CHART,
         contentUuid: savedChart?.uuid,
         spaceUuid: savedChart?.spaceUuid,
     });
-    const canManageChartAccess = useCanManageDirectAccess({
-        projectUuid,
-        spaceUuid: savedChart?.spaceUuid ?? null,
-        createdByUserUuid: null,
-        access: savedChart?.access ?? [],
-        grantRoles: [],
-    });
-    const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
-        useDisclosure();
-    const [isChartAsCodeModalOpen, chartAsCodeModalHandlers] = useDisclosure();
-    const [isChartSlugRenameModalOpen, chartSlugRenameModalHandlers] =
-        useDisclosure();
-
-    const { user, health } = useApp();
-    const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
-        useContentAction(projectUuid);
+    const { user } = useApp();
     const updateSavedChart = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-    const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
 
-    const hasGoogleDriveEnabled =
-        health.data?.auth.google.oauth2ClientId !== undefined &&
-        health.data?.auth.google.googleDriveApiKey !== undefined;
-
-    // Capture scheduler UUID from URL for deep linking to edit mode
-    const [initialSchedulerUuid, setInitialSchedulerUuid] = useState<
-        string | undefined
-    >(() => getSchedulerUuidFromUrlParams(search) ?? undefined);
-    const [initialThresholdUuid, setInitialThresholdUuid] = useState<
-        string | undefined
-    >(() => getThresholdUuidFromUrlParams(search) ?? undefined);
-
-    const hasProcessedUrlParams = useRef(false);
-    useEffect(() => {
-        if (hasProcessedUrlParams.current) return;
-
-        const schedulerUuidFromUrlParams =
-            getSchedulerUuidFromUrlParams(search);
-        const thresholdUuidFromUrlParams =
-            getThresholdUuidFromUrlParams(search);
-
-        if (!schedulerUuidFromUrlParams && !thresholdUuidFromUrlParams) {
-            return;
-        }
-
-        hasProcessedUrlParams.current = true;
-
-        const isSync = isSchedulerTypeSync(search);
-        if (schedulerUuidFromUrlParams) {
-            if (isSync) {
-                syncWithGoogleSheetsModalHandlers.open();
-            } else {
-                scheduledDeliveriesModalHandlers.open();
-            }
-        } else if (thresholdUuidFromUrlParams) {
-            thresholdAlertsModalHandlers.open();
-        }
-
-        // Clear URL params to prevent modal from reopening on close
-        const newParams = new URLSearchParams(search);
-        newParams.delete('scheduler_uuid');
-        newParams.delete('threshold_uuid');
-        newParams.delete('isSync');
-        void navigate(
-            { pathname, search: newParams.toString() },
-            { replace: true },
-        );
-    }, [
-        search,
-        navigate,
-        pathname,
-        syncWithGoogleSheetsModalHandlers,
-        scheduledDeliveriesModalHandlers,
-        thresholdAlertsModalHandlers,
-    ]);
-
-    // Clear initial UUIDs when modals are closed so reopening shows the list
-    const wasScheduledDeliveriesModalOpen = useRef(false);
-    useEffect(() => {
-        // Only clear when transitioning from open to closed, not on initial render
-        if (
-            wasScheduledDeliveriesModalOpen.current &&
-            !isScheduledDeliveriesModalOpen
-        ) {
-            setInitialSchedulerUuid(undefined);
-        }
-        wasScheduledDeliveriesModalOpen.current =
-            isScheduledDeliveriesModalOpen;
-    }, [isScheduledDeliveriesModalOpen]);
-
-    const wasThresholdAlertsModalOpen = useRef(false);
-    useEffect(() => {
-        // Only clear when transitioning from open to closed, not on initial render
-        if (
-            wasThresholdAlertsModalOpen.current &&
-            !isThresholdAlertsModalOpen
-        ) {
-            setInitialThresholdUuid(undefined);
-        }
-        wasThresholdAlertsModalOpen.current = isThresholdAlertsModalOpen;
-    }, [isThresholdAlertsModalOpen]);
+    const schedulerDeepLink = useSchedulerDeepLink();
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
@@ -442,70 +204,13 @@ const SavedChartsHeader: FC = () => {
         return false; // allow navigation
     });
 
-    const userCanManageChart =
-        !!savedChart &&
-        !!user.data?.ability?.can(
-            'manage',
-            subject('SavedChart', { ...savedChart }),
-        ) &&
-        canMutateVerifiedContent(
-            user.data.ability,
-            {
-                organizationUuid: savedChart.organizationUuid,
-                projectUuid: savedChart.projectUuid,
-            },
-            savedChart.verification,
-            user.data.userUuid,
-        );
-
-    // Manage access that does NOT rely on a direct dashboard grant. Boundary-
-    // crossing actions (moving a chart out of its dashboard) must not be
-    // offered to grant-only users, whose server-side check stays space-only.
-    const userCanManageChartViaSpace =
-        savedChart &&
-        user.data?.ability?.can(
-            'manage',
-            subject('SavedChart', {
-                ...savedChart,
-                access: (savedChart.access ?? []).filter(
-                    (row) => row.grantedVia === undefined,
-                ),
-            }),
-        );
-
-    const userCanViewContentAsCode =
-        project &&
-        user.data?.ability.can(
-            'view',
-            subject('ContentAsCode', {
-                organizationUuid: project.organizationUuid,
-                projectUuid: project.projectUuid,
-            }),
-        );
-
-    const userCanPromoteChart =
-        savedChart &&
-        !savedChart?.dashboardUuid &&
-        user.data?.ability?.can(
-            'promote',
-            subject('SavedChart', { ...savedChart }),
-        );
-
-    const userCanManageExplore = user.data?.ability.can(
-        'manage',
-        subject('Explore', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid: savedChart?.projectUuid,
-        }),
-    );
-
-    const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
-        'create',
-        subject('ScheduledDeliveries', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
+    const {
+        canManageChart: userCanManageChart,
+        canViewContentAsCode: userCanViewContentAsCode,
+        canManageExplore: userCanManageExplore,
+        canCreateDeliveriesAndAlerts: userCanCreateDeliveriesAndAlerts,
+        canManageContentVerification,
+    } = useChartPermissions(savedChart);
 
     // Chart actions are hidden in fullscreen so the chart owns the viewport
     const showChartActions =
@@ -518,18 +223,6 @@ const SavedChartsHeader: FC = () => {
     const showFullscreenToggle =
         !isEditMode && isFullscreenEnabled && document.fullscreenEnabled;
 
-    const canManageContentVerification =
-        user.data?.ability?.can(
-            'manage',
-            subject('ContentVerification', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        ) === true;
-
-    const { mutate: verifyChart } = useVerifyChartMutation();
-    const { mutate: unverifyChart } = useUnverifyChartMutation();
-
     const isChartVerified =
         savedChart?.verification !== null &&
         savedChart?.verification !== undefined;
@@ -539,14 +232,6 @@ const SavedChartsHeader: FC = () => {
         canManageContentVerification,
         userUuid: user.data?.userUuid,
     });
-
-    const userCanPinChart = user.data?.ability.can(
-        'manage',
-        subject('PinnedItems', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
 
     const handleGoBackClick = () => {
         void navigate({
@@ -594,10 +279,6 @@ const SavedChartsHeader: FC = () => {
         navigate,
         projectUrlIdentifier,
     ]);
-
-    const promoteDisabled = !(
-        project?.upstreamProjectUuid !== undefined && userCanPromoteChart
-    );
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -811,7 +492,6 @@ const SavedChartsHeader: FC = () => {
                             )}
                             {userCanManageChart && (
                                 <>
-                                    {/* TODO: Extract this into a separate component, depending on the mode: viewing or editing */}
                                     {!isEditMode ? (
                                         <>
                                             <Button
@@ -838,51 +518,48 @@ const SavedChartsHeader: FC = () => {
                                             />
                                         </>
                                     ) : (
-                                        <>
-                                            <SaveChartButton
-                                                disabled={isChartTypeAuthoring}
-                                                onSaveModalOpenChange={
-                                                    setIsSaveModalOpen
-                                                }
-                                                verificationSavePrompt={
-                                                    verificationSavePrompt
-                                                }
-                                            />
-                                            <Button
-                                                variant="default"
-                                                size="xs"
-                                                disabled={
-                                                    isChartTypeAuthoring ||
-                                                    (isFromDashboard &&
-                                                        !hasUnsavedChanges)
-                                                }
-                                                onClick={handleCancelClick}
-                                            >
-                                                Cancel{' '}
-                                                {isFromDashboard
-                                                    ? 'changes'
-                                                    : ''}
-                                            </Button>
-
-                                            {isFromDashboard && (
-                                                <Tooltip
-                                                    offset={-1}
-                                                    label="Return to dashboard"
-                                                    position="bottom"
-                                                >
-                                                    <ActionIcon
-                                                        variant="default"
-                                                        onClick={
-                                                            handleGoBackClick
-                                                        }
+                                        <ChartEditActions
+                                            disabled={isChartTypeAuthoring}
+                                            onSaveModalOpenChange={
+                                                setIsSaveModalOpen
+                                            }
+                                            verificationSavePrompt={
+                                                verificationSavePrompt
+                                            }
+                                            cancelLabel={
+                                                isFromDashboard
+                                                    ? 'Cancel changes'
+                                                    : 'Cancel'
+                                            }
+                                            cancelDisabled={
+                                                isChartTypeAuthoring ||
+                                                (isFromDashboard &&
+                                                    !hasUnsavedChanges)
+                                            }
+                                            onCancel={handleCancelClick}
+                                            trailing={
+                                                isFromDashboard ? (
+                                                    <Tooltip
+                                                        offset={-1}
+                                                        label="Return to dashboard"
+                                                        position="bottom"
                                                     >
-                                                        <MantineIcon
-                                                            icon={IconArrowBack}
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            )}
-                                        </>
+                                                        <ActionIcon
+                                                            variant="default"
+                                                            onClick={
+                                                                handleGoBackClick
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconArrowBack
+                                                                }
+                                                            />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                ) : undefined
+                                            }
+                                        />
                                     )}
                                 </>
                             )}
@@ -921,362 +598,42 @@ const SavedChartsHeader: FC = () => {
                             </ActionIcon>
                         </Tooltip>
                     )}
-                    {/* TODO: Refactor this into its own component */}
                     {showChartActions && (
-                        <Menu
-                            position="bottom"
-                            returnFocus={!isDirectAccessModalOpen}
-                            withArrow
-                            width={200}
-                            disabled={!unsavedChartVersion.tableName}
-                        >
-                            <Menu.Dropdown>
-                                {savedChart && (
-                                    <AskAiAgentMenuItem
-                                        projectUuid={projectUuid}
-                                        chartUuid={savedChart.uuid}
-                                        clickedFrom="saved_chart_header"
-                                    />
-                                )}
-                                {/* TODO: add a create-issue entry point once the issues flow is finalized */}
-                                <Menu.Label>Manage</Menu.Label>
-                                {userCanManageChart &&
-                                    !hasUnsavedChanges &&
-                                    !chartBelongsToDashboard && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconCopy} />
-                                            }
-                                            onClick={
-                                                chartDuplicateModalHandlers.open
-                                            }
-                                        >
-                                            Duplicate
-                                        </Menu.Item>
-                                    )}
-                                {userCanManageChart &&
-                                    !chartBelongsToDashboard && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconLayoutGridAdd}
-                                                />
-                                            }
-                                            onClick={
-                                                addToDashboardModalHandlers.open
-                                            }
-                                        >
-                                            Add to dashboard
-                                        </Menu.Item>
-                                    )}
-                                {userCanManageChartViaSpace &&
-                                    savedChart?.dashboardUuid && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconFolders}
-                                                />
-                                            }
-                                            onClick={() =>
-                                                setIsMovingChart(true)
-                                            }
-                                        >
-                                            Move to space
-                                        </Menu.Item>
-                                    )}
-                                {contentReview.canRequest &&
-                                    !hasUnsavedChanges && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconSend} />
-                                            }
-                                            onClick={
-                                                requestReviewModalHandlers.open
-                                            }
-                                        >
-                                            Request review
-                                        </Menu.Item>
-                                    )}
-
-                                {!chartBelongsToDashboard &&
-                                    userCanPinChart && (
-                                        <Menu.Item
-                                            component="button"
-                                            role="menuitem"
-                                            leftSection={
-                                                isPinned ? (
-                                                    <MantineIcon
-                                                        icon={IconPinnedOff}
-                                                    />
-                                                ) : (
-                                                    <MantineIcon
-                                                        icon={IconPin}
-                                                    />
-                                                )
-                                            }
-                                            onClick={onChartPinning}
-                                        >
-                                            {isPinned
-                                                ? 'Unpin from homepage'
-                                                : 'Pin to homepage'}
-                                        </Menu.Item>
-                                    )}
-
-                                {directAccessAvailability.isAvailable &&
-                                    canManageChartAccess &&
-                                    !chartBelongsToDashboard &&
-                                    savedChart && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconUsers} />
-                                            }
-                                            onClick={
-                                                directAccessModalHandlers.open
-                                            }
-                                        >
-                                            Share
-                                        </Menu.Item>
-                                    )}
-
-                                {userCanManageChart &&
-                                    !chartBelongsToDashboard && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconFolderSymlink}
-                                                />
-                                            }
-                                            onClick={
-                                                transferToSpaceModalHandlers.open
-                                            }
-                                        >
-                                            Move chart
-                                        </Menu.Item>
-                                    )}
-
-                                {userCanManageChart && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconHistory} />
-                                        }
-                                        onClick={() =>
-                                            navigate({
-                                                pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/history`,
-                                            })
-                                        }
-                                    >
-                                        Version history
-                                    </Menu.Item>
-                                )}
-                                {changeChartExploreEnabled &&
-                                    userCanManageChart && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconArrowsExchange}
-                                                />
-                                            }
-                                            onClick={
-                                                changeExploreModalHandlers.open
-                                            }
-                                        >
-                                            Change explore
-                                        </Menu.Item>
-                                    )}
-                                {userCanPromoteChart && (
-                                    <Tooltip
-                                        label="You must enable first an upstream project in settings > Data ops"
-                                        disabled={!promoteDisabled}
-                                    >
-                                        <div>
-                                            <Menu.Item
-                                                disabled={promoteDisabled}
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconDatabaseExport
-                                                        }
-                                                    />
-                                                }
-                                                onClick={() => {
-                                                    if (savedChart)
-                                                        getPromoteChartDiff(
-                                                            savedChart?.uuid,
-                                                        );
-                                                }}
-                                            >
-                                                Promote chart
-                                            </Menu.Item>
-                                        </div>
-                                    </Tooltip>
-                                )}
-
-                                {canManageContentVerification &&
-                                    savedChart?.uuid && (
-                                        <Menu.Item
-                                            {...(isChartVerified
-                                                ? {}
-                                                : verifyTourAction)}
-                                            leftSection={
-                                                isChartVerified ? (
-                                                    <IconCircleCheckFilled
-                                                        size={18}
-                                                        color="var(--mantine-color-green-6)"
-                                                    />
-                                                ) : (
-                                                    <IconCircleCheck
-                                                        size={18}
-                                                    />
-                                                )
-                                            }
-                                            onClick={() => {
-                                                if (isChartVerified) {
-                                                    unverifyChart(
-                                                        savedChart.uuid,
-                                                    );
-                                                } else {
-                                                    verifyChart(
-                                                        savedChart.uuid,
-                                                    );
-                                                }
-                                            }}
-                                        >
-                                            {isChartVerified
-                                                ? 'Remove verification'
-                                                : 'Verify'}
-                                        </Menu.Item>
-                                    )}
-
-                                {savedChart &&
-                                    (userCanViewContentAsCode ||
-                                        userCanManageChart) && (
-                                        <>
-                                            <Menu.Divider />
-                                            <Menu.Label>
-                                                Content as code
-                                            </Menu.Label>
-                                            {userCanViewContentAsCode && (
-                                                <Menu.Item
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconCode}
-                                                        />
-                                                    }
-                                                    onClick={
-                                                        chartAsCodeModalHandlers.open
-                                                    }
-                                                >
-                                                    View as code
-                                                </Menu.Item>
-                                            )}
-                                            {userCanManageChart && (
-                                                <Menu.Item
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconLink}
-                                                        />
-                                                    }
-                                                    onClick={
-                                                        chartSlugRenameModalHandlers.open
-                                                    }
-                                                >
-                                                    Change URL slug
-                                                </Menu.Item>
-                                            )}
-                                        </>
-                                    )}
-
-                                <Menu.Divider />
-                                <Menu.Label>Integrations</Menu.Label>
-                                {userCanCreateDeliveriesAndAlerts && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconSend} />
-                                        }
-                                        onClick={
-                                            scheduledDeliveriesModalHandlers.open
-                                        }
-                                    >
-                                        Scheduled deliveries
-                                    </Menu.Item>
-                                )}
-                                {userCanCreateDeliveriesAndAlerts && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconBell} />
-                                        }
-                                        onClick={
-                                            thresholdAlertsModalHandlers.open
-                                        }
-                                    >
-                                        Alerts
-                                    </Menu.Item>
-                                )}
-                                {hasGoogleDriveEnabled &&
-                                    userCanCreateDeliveriesAndAlerts && (
-                                        <Can
-                                            I="manage"
-                                            this={subject('GoogleSheets', {
-                                                organizationUuid:
-                                                    user.data?.organizationUuid,
-                                                projectUuid,
-                                            })}
-                                        >
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconCirclesRelation
-                                                        }
-                                                    />
-                                                }
-                                                onClick={
-                                                    syncWithGoogleSheetsModalHandlers.open
-                                                }
-                                            >
-                                                Google Sheets Sync
-                                            </Menu.Item>
-                                        </Can>
-                                    )}
-
-                                {userCanManageChart && (
-                                    <>
-                                        <Menu.Divider />
-
-                                        <Box>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconTrash}
-                                                        color="red"
-                                                    />
-                                                }
-                                                color="red"
-                                                data-tour-anchor="delete-chart"
-                                                data-tour-hint="Delete the chart"
-                                                onClick={
-                                                    deleteModalHandlers.open
-                                                }
-                                            >
-                                                Delete
-                                            </Menu.Item>
-                                        </Box>
-                                    </>
-                                )}
-                            </Menu.Dropdown>
-                            <Menu.Target>
-                                <ActionIcon
-                                    variant="default"
-                                    aria-label="Chart actions"
-                                    disabled={!unsavedChartVersion.tableName}
-                                    // Anchor for scope walkthroughs (data-tour-via)
-                                    data-tour-anchor="chart-actions"
-                                    data-tour-hint="Open the chart's actions"
-                                >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Menu.Target>
-                        </Menu>
+                        <ChartActionsMenu
+                            host="page"
+                            schedulerDeepLink={schedulerDeepLink}
+                            onOpenVersionHistory={() =>
+                                navigate({
+                                    pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/history`,
+                                })
+                            }
+                            onDeleted={() => {
+                                if (dashboardUuid) {
+                                    void navigate(
+                                        `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
+                                    );
+                                } else {
+                                    void navigate(`/`);
+                                }
+                                clearDashboardStorage();
+                            }}
+                            onMovedToSpace={() => {
+                                clearDashboardStorage();
+                                void navigate(
+                                    `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/edit`,
+                                );
+                            }}
+                            onSlugRenamed={(slug) => {
+                                const routeMode = isEditMode ? 'edit' : 'view';
+                                void navigate(
+                                    {
+                                        pathname: `/projects/${projectUrlIdentifier}/saved/${slug}/${routeMode}`,
+                                        search,
+                                    },
+                                    { replace: true },
+                                );
+                            }}
+                        />
                     )}
                 </Group>
             </PageHeader>
@@ -1309,213 +666,6 @@ const SavedChartsHeader: FC = () => {
                     }
                 />
             ) : null}
-
-            {savedChart && isAddToDashboardModalOpen && projectUuid && (
-                <AddTilesToDashboardModal
-                    isOpen={isAddToDashboardModalOpen}
-                    projectUuid={projectUuid}
-                    uuid={savedChart.uuid}
-                    dashboardTileType={DashboardTileTypes.SAVED_CHART}
-                    onClose={addToDashboardModalHandlers.close}
-                />
-            )}
-            {isDeleteModalOpen && savedChart?.uuid && (
-                <ChartDeleteModal
-                    uuid={savedChart.uuid}
-                    opened={isDeleteModalOpen}
-                    onClose={deleteModalHandlers.close}
-                    onConfirm={() => {
-                        if (dashboardUuid) {
-                            void navigate(
-                                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
-                            );
-                        } else {
-                            void navigate(`/`);
-                        }
-                        clearDashboardStorage();
-                        deleteModalHandlers.close();
-                    }}
-                />
-            )}
-            {isSyncWithGoogleSheetsModalOpen && savedChart?.uuid && (
-                <GoogleSheetsSyncModal
-                    chartUuid={savedChart.uuid}
-                    opened={isSyncWithGoogleSheetsModalOpen}
-                    onClose={syncWithGoogleSheetsModalHandlers.close}
-                />
-            )}
-            {isScheduledDeliveriesModalOpen && savedChart?.uuid && (
-                <ChartSchedulersModal
-                    chartUuid={savedChart.uuid}
-                    name={savedChart.name}
-                    itemsMap={itemsMap}
-                    isOpen={isScheduledDeliveriesModalOpen}
-                    onClose={scheduledDeliveriesModalHandlers.close}
-                    initialSchedulerUuid={initialSchedulerUuid}
-                />
-            )}
-            {isThresholdAlertsModalOpen && savedChart?.uuid && (
-                <ChartSchedulersModal
-                    chartUuid={savedChart.uuid}
-                    name={savedChart.name}
-                    isThresholdAlert
-                    itemsMap={itemsMap}
-                    isOpen={isThresholdAlertsModalOpen}
-                    onClose={thresholdAlertsModalHandlers.close}
-                    initialSchedulerUuid={initialThresholdUuid}
-                />
-            )}
-            {savedChart && (
-                <MoveChartThatBelongsToDashboardModal
-                    className={'non-draggable'}
-                    projectUuid={projectUuid}
-                    uuid={savedChart.uuid}
-                    name={savedChart.name}
-                    spaceUuid={savedChart.spaceUuid}
-                    spaceName={savedChart.spaceName}
-                    opened={isMovingChart}
-                    onClose={() => setIsMovingChart(false)}
-                    onConfirm={() => {
-                        clearDashboardStorage();
-                        void navigate(
-                            `/projects/${projectUrlIdentifier}/saved/${savedChart.slug}/edit`,
-                        );
-                    }}
-                />
-            )}
-
-            {isChartDuplicateModalOpen && savedChart?.uuid && (
-                <ChartDuplicateModal
-                    opened={isChartDuplicateModalOpen}
-                    uuid={savedChart.uuid}
-                    onClose={chartDuplicateModalHandlers.close}
-                    onConfirm={chartDuplicateModalHandlers.close}
-                />
-            )}
-
-            {(promoteChartDiff || promoteChartDiffLoading) && (
-                <PromotionConfirmDialog
-                    type={'chart'}
-                    resourceName={savedChart?.name ?? ''}
-                    promotionChanges={promoteChartDiff}
-                    onClose={() => {
-                        resetPromoteChartDiff();
-                    }}
-                    onConfirm={() => {
-                        if (savedChart?.uuid) promoteChart(savedChart.uuid);
-                    }}
-                />
-            )}
-
-            {isDirectAccessModalOpen && projectUuid && savedChart && (
-                <DirectAccessModal
-                    opened={isDirectAccessModalOpen}
-                    onClose={directAccessModalHandlers.close}
-                    projectUuid={projectUuid}
-                    resource={{
-                        resourceType: DirectAccessResourceType.CHART,
-                        resourceUuid: savedChart.uuid,
-                        name: savedChart.name,
-                    }}
-                />
-            )}
-            {isRequestReviewModalOpen && projectUuid && savedChart && (
-                <RequestReviewModal
-                    projectUuid={projectUuid}
-                    contentType={ContentReviewContentType.CHART}
-                    contentUuid={savedChart.uuid}
-                    contentName={savedChart.name}
-                    opened={isRequestReviewModalOpen}
-                    onClose={requestReviewModalHandlers.close}
-                />
-            )}
-            {isTransferToSpaceModalOpen && projectUuid && (
-                <TransferItemsModal
-                    projectUuid={projectUuid}
-                    opened={isTransferToSpaceModalOpen}
-                    items={[
-                        ...(savedChart && chartViewStats.data
-                            ? [
-                                  {
-                                      data: {
-                                          ...savedChart,
-                                          firstViewedAt:
-                                              chartViewStats.data.firstViewedAt,
-                                          views: chartViewStats.data.views,
-                                      },
-                                      type: ResourceViewItemType.CHART,
-                                  } satisfies ResourceViewChartItem,
-                              ]
-                            : []),
-                    ]}
-                    isLoading={isMovingChart || isContentActionLoading}
-                    onClose={transferToSpaceModalHandlers.close}
-                    onConfirm={async (newSpaceUuid) => {
-                        if (!newSpaceUuid) {
-                            throw new Error('No space uuid provided');
-                        }
-
-                        if (savedChart) {
-                            await contentAction({
-                                action: {
-                                    type: 'move',
-                                    targetSpaceUuid: newSpaceUuid,
-                                },
-                                item: {
-                                    uuid: savedChart.uuid,
-                                    contentType: ContentType.CHART,
-                                    source: ChartSourceType.DBT_EXPLORE,
-                                },
-                            });
-                        }
-                        transferToSpaceModalHandlers.close();
-                    }}
-                />
-            )}
-
-            {isChangeExploreModalOpen &&
-                savedChart &&
-                projectUuid &&
-                savedChart.tableName && (
-                    <ChangeChartExploreModal
-                        opened={isChangeExploreModalOpen}
-                        onClose={changeExploreModalHandlers.close}
-                        projectUuid={projectUuid}
-                        chartUuid={savedChart.uuid}
-                        currentExploreName={savedChart.tableName}
-                        hasUnsavedChanges={hasUnsavedChanges && isEditMode}
-                    />
-                )}
-
-            {savedChart && projectUuid && (
-                <ChartAsCodeModal
-                    opened={isChartAsCodeModalOpen}
-                    onClose={chartAsCodeModalHandlers.close}
-                    projectUuid={projectUuid}
-                    chartUuid={savedChart.uuid}
-                    hasUnsavedChanges={hasUnsavedChanges && isEditMode}
-                />
-            )}
-            {isChartSlugRenameModalOpen && savedChart && projectUuid && (
-                <ChartSlugRenameModal
-                    opened={isChartSlugRenameModalOpen}
-                    onClose={chartSlugRenameModalHandlers.close}
-                    onRenamed={(slug) => {
-                        chartSlugRenameModalHandlers.close();
-                        const routeMode = isEditMode ? 'edit' : 'view';
-                        void navigate(
-                            {
-                                pathname: `/projects/${projectUrlIdentifier}/saved/${slug}/${routeMode}`,
-                                search,
-                            },
-                            { replace: true },
-                        );
-                    }}
-                    projectUuid={projectUuid}
-                    projectUrlIdentifier={projectUrlIdentifier}
-                    currentSlug={savedChart.slug}
-                />
-            )}
         </TrackSection>
     );
 };

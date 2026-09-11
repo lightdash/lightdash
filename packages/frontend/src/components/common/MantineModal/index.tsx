@@ -16,9 +16,10 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconTrash, type Icon as IconType } from '@tabler/icons-react';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './MantineModal.module.css';
+import { MantineModalContext } from './useMantineModalClose';
 
 /**
  * Modal variants for common action patterns.
@@ -264,6 +265,13 @@ const MantineModal: React.FC<MantineModalProps> = ({
         }
     }, [confirmBeforeClose, onClose, openConfirmClose]);
 
+    // Descendants (header actions, footers, a breadcrumb in the title) close
+    // the modal through the same path as its own close button.
+    const closeContext = useMemo(
+        () => ({ requestClose: handleClose }),
+        [handleClose],
+    );
+
     const config = VARIANT_CONFIG[variant];
 
     const isAlertDialog = role === 'alertdialog';
@@ -322,7 +330,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     };
 
     return (
-        <>
+        <MantineModalContext.Provider value={closeContext}>
             <Modal.Root
                 opened={opened}
                 onClose={handleClose}
@@ -503,7 +511,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                     </Modal.Content>
                 </Modal.Root>
             )}
-        </>
+        </MantineModalContext.Provider>
     );
 };
 

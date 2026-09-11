@@ -84,6 +84,7 @@ const ThreadChartModalInner: FC<{ chart: SavedChart; onClose: () => void }> = ({
                 dashboard={null}
                 editChart={chart}
                 customMetricsEnabled={false}
+                onBeforeOpenChartPage={noop}
                 onChartSaved={() => setMode('view')}
                 onRegistryMetricEdited={noop}
                 onRegistryMetricDeleted={noop}
