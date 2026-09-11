@@ -136,28 +136,43 @@ The `--non-interactive` flag is designed for environments where interactive prom
 
 ### Global Options
 
-| Flag | Description |
-|------|-------------|
+| Flag                | Description                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `--non-interactive` | Disable all interactive prompts. Commands auto-select defaults where possible. Designed for CI/CD and agentic coding tools. |
 
 ### Command-Specific Options
 
-| Command | Flag | Description |
-|---------|------|-------------|
-| `login` | `--token <token>` | Authenticate with personal access token (bypasses OAuth) |
-| `login` | `--email <email>` | Login with email and password |
-| `login` | `--project <uuid>` | Select a specific project by UUID after login |
-| `deploy` | `-y, --assume-yes` | Answer yes to all confirmation prompts |
-| `generate` | `-y, --assume-yes` | Answer yes to prompts |
-| `dbt run` | `-y, --assume-yes` | Answer yes to prompts |
-| `rename` | `-y, --assume-yes` | Answer yes to prompts |
+| Command    | Flag               | Description                                              |
+| ---------- | ------------------ | -------------------------------------------------------- |
+| `login`    | `--token <token>`  | Authenticate with personal access token (bypasses OAuth) |
+| `login`    | `--email <email>`  | Login with email and password                            |
+| `login`    | `--project <uuid>` | Select a specific project by UUID after login            |
+| `deploy`   | `-y, --assume-yes` | Answer yes to all confirmation prompts                   |
+| `generate` | `-y, --assume-yes` | Answer yes to prompts                                    |
+| `dbt run`  | `-y, --assume-yes` | Answer yes to prompts                                    |
+| `rename`   | `-y, --assume-yes` | Answer yes to prompts                                    |
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `CI=true` | Equivalent to `--non-interactive` |
-| `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`) |
+| Variable            | Description                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| `CI=true`           | Equivalent to `--non-interactive`                                                                |
+| `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`)                                  |
+| `LIGHTDASH_PROJECT` | Target project UUID; overrides the saved default and active preview unless `--project` is passed |
+
+For project selection in commands such as `deploy`, `download`, and `upload`,
+`--project` takes precedence over `LIGHTDASH_PROJECT`. Either override bypasses
+active-preview selection in both interactive and non-interactive runs, without
+clearing the saved preview. When `LIGHTDASH_PROJECT` overrides an active preview
+the CLI warns which preview it ignored, so a variable left in a shell profile or
+`.env` does not silently redirect commands you meant to run against the preview.
+If neither override is set (or `LIGHTDASH_PROJECT` is empty), an active preview
+remains the default in non-interactive runs; interactive runs prompt when both a
+default project and a preview are available.
+
+```bash
+LIGHTDASH_PROJECT=<target-project-uuid> lightdash deploy --non-interactive
+```
 
 Credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
 
@@ -203,6 +218,7 @@ lightdash deploy \
 ### Behavior in Non-Interactive Mode
 
 When `--non-interactive` is set (or `CI=true`):
+
 - **Project selection**: Automatically selects the first available project
 - **Confirmation prompts**: Fail with descriptive error unless `--assume-yes` is provided
 - **OAuth login**: Not available - use `--token` or `--email` with `LIGHTDASH_CLI_PASSWORD` env var instead
@@ -253,7 +269,7 @@ rm /tmp/lightdash_pass.txt
 
 The CLI supports these environment variables for authentication:
 
-| Variable | Description |
-|----------|-------------|
-| `LIGHTDASH_CLI_EMAIL` | Email for login (alternative to `--email`) |
+| Variable                 | Description                                    |
+| ------------------------ | ---------------------------------------------- |
+| `LIGHTDASH_CLI_EMAIL`    | Email for login (alternative to `--email`)     |
 | `LIGHTDASH_CLI_PASSWORD` | Password for email login (used with `--email`) |

@@ -1,6 +1,8 @@
-import { ProjectType } from '@lightdash/common';
+import { LightdashError, ProjectType } from '@lightdash/common';
+import inquirer from 'inquirer';
 import type { MockedFunction, MockInstance } from 'vitest';
-import { Config } from '../config';
+import { Config, unsetPreviewProject } from '../config';
+import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 import { logSelectedProject, selectProject } from './selectProject';
 
@@ -27,8 +29,88 @@ const mockPreviewProjectResponse = (uuid: string) => {
 };
 
 describe('selectProject', () => {
+    beforeEach(() => {
+        vi.stubEnv('LIGHTDASH_PROJECT', undefined);
+    });
+
     afterEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+    });
+
+    it.each([true, false])(
+        'uses LIGHTDASH_PROJECT instead of an active preview and warns (non-interactive: %s)',
+        async (nonInteractive) => {
+            vi.stubEnv('LIGHTDASH_PROJECT', MAIN_UUID);
+            vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(
+                nonInteractive,
+            );
+            const log = vi
+                .spyOn(GlobalState, 'log')
+                .mockImplementation(() => {});
+            mockPreviewProjectResponse(PREVIEW_UUID);
+            const config: Config = {
+                context: {
+                    project: MAIN_UUID,
+                    previewProject: PREVIEW_UUID,
+                    previewName: 'My preview',
+                },
+            };
+
+            expect(await selectProject(config)).toEqual({
+                projectUuid: MAIN_UUID,
+                isPreview: false,
+            });
+            expect(inquirer.prompt).not.toHaveBeenCalled();
+            expect(log).toHaveBeenCalledTimes(1);
+            const warning = String(log.mock.calls[0][0]);
+            expect(warning).toContain(
+                `Using project ${MAIN_UUID} from LIGHTDASH_PROJECT`,
+            );
+            expect(warning).toContain('active preview "My preview" ignored');
+            expect(warning).toContain(`--project ${PREVIEW_UUID}`);
+        },
+    );
+
+    it('clears a deleted preview instead of warning when LIGHTDASH_PROJECT is set', async () => {
+        vi.stubEnv('LIGHTDASH_PROJECT', MAIN_UUID);
+        const log = vi.spyOn(GlobalState, 'log').mockImplementation(() => {});
+        mockLightdashApi.mockRejectedValueOnce(
+            new LightdashError({
+                message: 'Not found',
+                name: 'NotFoundError',
+                statusCode: 404,
+                data: {},
+            }),
+        );
+
+        expect(
+            await selectProject({
+                context: { project: MAIN_UUID, previewProject: PREVIEW_UUID },
+            }),
+        ).toEqual({ projectUuid: MAIN_UUID, isPreview: false });
+        expect(unsetPreviewProject).toHaveBeenCalledTimes(1);
+        expect(log).not.toHaveBeenCalled();
+    });
+
+    it.each<[string, NonNullable<Config['context']>]>([
+        ['no preview is active', { project: MAIN_UUID }],
+        [
+            'LIGHTDASH_PROJECT points at the preview itself',
+            { project: MAIN_UUID, previewProject: PREVIEW_UUID },
+        ],
+    ])('does not warn when %s', async (_label, context) => {
+        const envProject = context.previewProject ?? MAIN_UUID;
+        vi.stubEnv('LIGHTDASH_PROJECT', envProject);
+        const log = vi.spyOn(GlobalState, 'log').mockImplementation(() => {});
+        mockPreviewProjectResponse(PREVIEW_UUID);
+
+        expect(await selectProject({ context })).toEqual({
+            projectUuid: envProject,
+            isPreview: false,
+        });
+        expect(log).not.toHaveBeenCalled();
     });
 
     it('returns the preview project (without prompting) when the stored main and preview UUIDs are the same', async () => {
@@ -55,37 +137,71 @@ describe('selectProject', () => {
         });
     });
 
-    it('uses an explicit --project UUID as-is, without any API call, even when a preview is active', async () => {
-        const config: Config = {
-            context: {
-                project: MAIN_UUID,
-                previewProject: PREVIEW_UUID,
-            },
-        } as Config;
-        const explicitUuid = '00000000-0000-0000-0000-000000000003';
+    it.each([undefined, MAIN_UUID])(
+        'uses an explicit --project UUID ahead of the environment (%s) and active preview',
+        async (envProject) => {
+            vi.stubEnv('LIGHTDASH_PROJECT', envProject);
+            const config: Config = {
+                context: {
+                    project: MAIN_UUID,
+                    previewProject: PREVIEW_UUID,
+                },
+            } as Config;
+            const explicitUuid = '00000000-0000-0000-0000-000000000003';
 
-        const selection = await selectProject(config, explicitUuid);
+            const selection = await selectProject(config, explicitUuid);
 
-        expect(selection).toEqual({
-            projectUuid: explicitUuid,
-            isPreview: false,
-        });
-        expect(mockLightdashApi).not.toHaveBeenCalled();
-    });
+            expect(selection).toEqual({
+                projectUuid: explicitUuid,
+                isPreview: false,
+            });
+            expect(mockLightdashApi).not.toHaveBeenCalled();
+        },
+    );
 
-    it('resolves an explicit --project slug through the org projects list', async () => {
-        const config: Config = {
-            context: { project: MAIN_UUID },
-        } as Config;
-        mockLightdashApi.mockResolvedValueOnce([
-            { projectUuid: PREVIEW_UUID, slug: 'other', name: 'Other' },
-            { projectUuid: MAIN_UUID, slug: 'jaffle-shop', name: 'Jaffle' },
-        ] as never);
+    it.each(['flag', 'env'])(
+        'resolves a project slug from the %s through the org projects list',
+        async (source) => {
+            if (source === 'env')
+                vi.stubEnv('LIGHTDASH_PROJECT', 'jaffle-shop');
+            const config: Config = {
+                context: { project: MAIN_UUID },
+            } as Config;
+            mockLightdashApi.mockResolvedValueOnce([
+                { projectUuid: PREVIEW_UUID, slug: 'other', name: 'Other' },
+                { projectUuid: MAIN_UUID, slug: 'jaffle-shop', name: 'Jaffle' },
+            ] as never);
 
-        const selection = await selectProject(config, 'jaffle-shop');
+            const selection = await selectProject(
+                config,
+                source === 'flag' ? 'jaffle-shop' : undefined,
+            );
 
-        expect(selection).toEqual({ projectUuid: MAIN_UUID, isPreview: false });
-    });
+            expect(selection).toEqual({
+                projectUuid: MAIN_UUID,
+                isPreview: false,
+            });
+        },
+    );
+
+    it.each([undefined, ''])(
+        'keeps the active preview default without an environment override (%s)',
+        async (envProject) => {
+            vi.stubEnv('LIGHTDASH_PROJECT', envProject);
+            vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(true);
+            mockPreviewProjectResponse(PREVIEW_UUID);
+
+            expect(
+                await selectProject({
+                    context: {
+                        project: MAIN_UUID,
+                        previewProject: PREVIEW_UUID,
+                    },
+                }),
+            ).toEqual({ projectUuid: PREVIEW_UUID, isPreview: true });
+            expect(inquirer.prompt).not.toHaveBeenCalled();
+        },
+    );
 
     it('returns the main project when only the main project is configured', async () => {
         const config: Config = {
