@@ -144,21 +144,23 @@ describe('ChartTypeLibrarySection', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('shows the quiet offline state when the fetch fails with no cached data', () => {
+    it('shows the offline state with a retry when the fetch fails with no cached data', () => {
         setFlag(true);
+        const refetch = vi.fn();
         mockedUseRegistryChartTypes.mockReturnValue({
             data: undefined,
             isInitialLoading: false,
             error: { name: 'Error', message: 'boom' },
+            refetch,
         } as unknown as ReturnType<typeof useRegistryChartTypes>);
         renderSection();
 
         expect(screen.getByText('Chart type library')).toBeInTheDocument();
         expect(
-            screen.getByText(
-                'The chart type library is unavailable right now.',
-            ),
+            screen.getByText(/The chart type library can't be reached/),
         ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(refetch).toHaveBeenCalled();
     });
 
     it('keeps showing cached data through a background fetch error', () => {
@@ -170,9 +172,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         expect(
-            screen.queryByText(
-                'The chart type library is unavailable right now.',
-            ),
+            screen.queryByText(/The chart type library can't be reached/),
         ).not.toBeInTheDocument();
     });
 

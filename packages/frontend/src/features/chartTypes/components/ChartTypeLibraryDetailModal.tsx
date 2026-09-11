@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconPhoto } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -16,13 +16,11 @@ import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
-import {
-    registryAssetUrl,
-    registryThumbnailPath,
-} from '../utils/registryAssetUrl';
+import { registryThumbnailPath } from '../utils/registryAssetUrl';
 import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryDetailModal.module.css';
 import DataAppVizFieldsList from './DataAppVizFieldsList';
+import RegistryAssetImage from './RegistryAssetImage';
 
 type Props = {
     projectUuid: string;
@@ -49,6 +47,20 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
         item.screenshots.length > 0
             ? [item.thumbnailDark, ...item.screenshots.slice(1)]
             : item.screenshots;
+    // Failed screenshots are dropped rather than shown as broken images
+    // (the registry may be unreachable); when none survive, the placeholder
+    // below takes over.
+    const [failedPaths, setFailedPaths] = useState<Set<string>>(new Set());
+    const visibleScreenshots = screenshots.filter(
+        (path) => !failedPaths.has(path),
+    );
+    const markFailed = (path: string) =>
+        setFailedPaths((prev) => new Set(prev).add(path));
+    const placeholderContent = (
+        <Stack align="center" justify="center" gap="xs" h="100%">
+            <MantineIcon icon={IconPhoto} size="xl" color="ldGray.5" />
+        </Stack>
+    );
 
     const handleInstall = () => {
         track({
@@ -136,40 +148,30 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
             {...footerProps}
         >
             <Stack gap="md">
-                {screenshots.length > 0 ? (
+                {visibleScreenshots.length > 0 ? (
                     <Stack gap="sm">
-                        {screenshots.map((path) => (
-                            <img
+                        {visibleScreenshots.map((path) => (
+                            <RegistryAssetImage
                                 key={path}
-                                src={registryAssetUrl(path)}
+                                path={path}
                                 alt={item.name}
                                 className={classes.screenshot}
+                                fallback={null}
+                                onLoadError={() => markFailed(path)}
                             />
                         ))}
                     </Stack>
-                ) : thumbnail ? (
+                ) : screenshots.length === 0 && thumbnail ? (
                     <Box className={classes.preview}>
-                        <img
-                            src={registryAssetUrl(thumbnail)}
+                        <RegistryAssetImage
+                            path={thumbnail}
                             alt={item.name}
                             className={classes.previewImage}
+                            fallback={placeholderContent}
                         />
                     </Box>
                 ) : (
-                    <Box className={classes.preview}>
-                        <Stack
-                            align="center"
-                            justify="center"
-                            gap="xs"
-                            h="100%"
-                        >
-                            <MantineIcon
-                                icon={IconPhoto}
-                                size="xl"
-                                color="ldGray.5"
-                            />
-                        </Stack>
-                    </Box>
+                    <Box className={classes.preview}>{placeholderContent}</Box>
                 )}
 
                 <Text fz="sm" c="ldGray.7" lh={1.55}>

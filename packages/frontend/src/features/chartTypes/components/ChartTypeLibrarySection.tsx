@@ -2,6 +2,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
+import InlineErrorState from '../../../components/common/InlineErrorState';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -105,11 +106,10 @@ const ChartTypeLibrarySection: FC<Props> = ({
             {registryQuery.isInitialLoading ? (
                 <EmptyStateLoader title="Loading chart type library…" />
             ) : isOffline ? (
-                <Paper variant="dotted" p="xl">
-                    <Text ta="center" fz="xs" c="dimmed">
-                        The chart type library is unavailable right now.
-                    </Text>
-                </Paper>
+                <InlineErrorState
+                    message="The chart type library can't be reached right now. It may be a temporary outage or a network restriction on this instance."
+                    onRetry={() => void registryQuery.refetch()}
+                />
             ) : visibleCharts.length === 0 ? (
                 <Paper variant="dotted" p="xl">
                     <Text ta="center" fz="xs" c="dimmed">

@@ -8,13 +8,11 @@ import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
-import {
-    registryAssetUrl,
-    registryThumbnailPath,
-} from '../utils/registryAssetUrl';
+import { registryThumbnailPath } from '../utils/registryAssetUrl';
 import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryCard.module.css';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
+import RegistryAssetImage from './RegistryAssetImage';
 
 const StateBadge: FC<{ item: RegistryChartTypeListItem }> = ({ item }) => {
     switch (item.state) {
@@ -54,6 +52,13 @@ type Props = {
 const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
     const { colorScheme } = useAppColorScheme();
     const thumbnail = registryThumbnailPath(item, colorScheme);
+    const placeholder = (
+        <Paper variant="dotted" h="100%" radius={0}>
+            <Stack align="center" justify="center" gap="xs" h="100%">
+                <MantineIcon icon={IconPhoto} size="xl" color="ldGray.5" />
+            </Stack>
+        </Paper>
+    );
     return (
         <PolymorphicPaperButton
             component="button"
@@ -66,26 +71,14 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
         >
             <Box className={classes.preview}>
                 {thumbnail ? (
-                    <img
-                        src={registryAssetUrl(thumbnail)}
+                    <RegistryAssetImage
+                        path={thumbnail}
                         alt={item.name}
                         className={classes.previewImage}
+                        fallback={placeholder}
                     />
                 ) : (
-                    <Paper variant="dotted" h="100%" radius={0}>
-                        <Stack
-                            align="center"
-                            justify="center"
-                            gap="xs"
-                            h="100%"
-                        >
-                            <MantineIcon
-                                icon={IconPhoto}
-                                size="xl"
-                                color="ldGray.5"
-                            />
-                        </Stack>
-                    </Paper>
+                    placeholder
                 )}
             </Box>
             <Stack gap="xs" p="sm">
