@@ -15,6 +15,7 @@ import {
     Button,
     Divider,
     Group,
+    Indicator,
     Menu,
     Popover,
     Text,
@@ -38,6 +39,7 @@ import {
     IconHistory,
     IconInfoCircle,
     IconMaximize,
+    IconMessages,
     IconMinimize,
     IconPencil,
     IconPin,
@@ -58,6 +60,10 @@ import {
     RequestReviewModal,
     useContentReviewEligibility,
 } from '../../../ee/features/contentReview';
+import {
+    DashboardCommentsPanel,
+    useDashboardCommentsSummary,
+} from '../../../features/comments';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
 import {
     DirectAccessModal,
@@ -210,6 +216,35 @@ const DashboardHeader = memo(
             grantRoles: [],
         });
         const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
+        const [isCommentsPanelOpen, commentsPanelHandlers] =
+            useDisclosure(false);
+        const {
+            canViewDashboardComments,
+            openThreadCount,
+            unreadCount,
+            markAllAsViewed,
+        } = useDashboardCommentsSummary();
+        // Opening the panel reads the dashboard's threads, the same way
+        // opening a tile's popover reads that tile's.
+        const openCommentsPanel = useCallback(() => {
+            track({
+                name: EventName.DASHBOARD_COMMENTS_PANEL_OPENED,
+                properties: {
+                    dashboardUuid,
+                    openThreads: openThreadCount,
+                    unreadNotifications: unreadCount,
+                },
+            });
+            markAllAsViewed();
+            commentsPanelHandlers.open();
+        }, [
+            track,
+            dashboardUuid,
+            openThreadCount,
+            unreadCount,
+            markAllAsViewed,
+            commentsPanelHandlers,
+        ]);
         const [isPreAggRefreshOpen, preAggRefreshHandlers] =
             useDisclosure(false);
         const [isDashboardAsCodeModalOpen, dashboardAsCodeModalHandlers] =
@@ -795,6 +830,45 @@ const DashboardHeader = memo(
                                 </Tooltip>
                             )}
 
+                        {canViewDashboardComments &&
+                            !isFullscreen &&
+                            openThreadCount > 0 && (
+                                <Tooltip
+                                    label="Comments"
+                                    position="bottom"
+                                    openDelay={200}
+                                    transitionProps={{
+                                        transition: 'fade',
+                                        duration: 150,
+                                    }}
+                                >
+                                    <Indicator
+                                        inline
+                                        color="red"
+                                        size={7}
+                                        offset={3}
+                                        disabled={unreadCount === 0}
+                                    >
+                                        <Button
+                                            variant="default"
+                                            size="xs"
+                                            h={28}
+                                            px={8}
+                                            aria-label="Dashboard comments"
+                                            data-testid="dashboard-comments-button"
+                                            onClick={openCommentsPanel}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconMessages}
+                                                />
+                                            }
+                                        >
+                                            {openThreadCount}
+                                        </Button>
+                                    </Indicator>
+                                </Tooltip>
+                            )}
+
                         {userCanExportData && !isFullscreen && (
                             <ShareShortLinkButton />
                         )}
@@ -808,7 +882,8 @@ const DashboardHeader = memo(
                                 disabled={
                                     !userCanManageDashboard &&
                                     !userCanExportData &&
-                                    !userCanViewContentAsCode
+                                    !userCanViewContentAsCode &&
+                                    !canViewDashboardComments
                                 }
                             >
                                 <Menu.Target>
@@ -844,6 +919,20 @@ const DashboardHeader = memo(
                                         dashboardUuid={dashboard.uuid}
                                         clickedFrom="dashboard_header"
                                     />
+                                    {canViewDashboardComments &&
+                                        openThreadCount === 0 && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconMessages}
+                                                    />
+                                                }
+                                                data-testid="dashboard-comments-menu-item"
+                                                onClick={openCommentsPanel}
+                                            >
+                                                Comments
+                                            </Menu.Item>
+                                        )}
                                     {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                                     {!!userCanManageDashboard && (
                                         <>
@@ -1193,6 +1282,15 @@ const DashboardHeader = memo(
                                 />
                             )}
                     </Group>
+                )}
+                {canViewDashboardComments && (
+                    <DashboardCommentsPanel
+                        opened={isCommentsPanelOpen}
+                        onClose={commentsPanelHandlers.close}
+                        activeTabUuid={activeTabUuid}
+                        dashboardTabs={dashboardTabs ?? []}
+                        onSwitchTab={(tab) => onSwitchTab?.(tab)}
+                    />
                 )}
                 {preAggregatesEnabled && preAggregateStatuses && (
                     <PreAggregateAuditDrawer
