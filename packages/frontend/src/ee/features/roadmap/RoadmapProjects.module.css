@@ -141,7 +141,7 @@
 /* Perforation between the ticket body and its stub, running notch to notch. */
 .ticketStub::before {
     content: '';
-    flex-basis: 100%;
+    flex-basis: calc(100% + 2 * (var(--mantine-spacing-lg) - var(--notch)));
     height: 1px;
     margin-inline: calc(var(--notch) - var(--mantine-spacing-lg));
     background-image: repeating-linear-gradient(
