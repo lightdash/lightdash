@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.197.0",
-  "previousVersion": "2.196.3",
-  "releaseDate": "2026-09-11T10:58:24.721Z",
+  "version": "2.197.1",
+  "previousVersion": "2.197.0",
+  "releaseDate": "2026-09-11T11:09:15.553Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260910160000_add_table_type_to_warehouse_available_tables.ts",
-        "edition": "core",
-        "tables": [
-          "warehouse_credentials_available_tables"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

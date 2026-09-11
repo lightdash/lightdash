@@ -1,3 +1,10 @@
+## [2.197.1](https://github.com/lightdash/lightdash/compare/2.197.0...2.197.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* inform user of org level scopes when updating custom role project scopes ([#27022](https://github.com/lightdash/lightdash/issues/27022)) ([97e6338](https://github.com/lightdash/lightdash/commit/97e6338ae66c82f352fdf4da1cd32b4d0e9ef0cc)), closes [/linear.app/lightdash/issue/CS-94/let-non-admins-view-the-enterprise-roadmap-grant-path-for-the-existing#agent-session-c3fbe73](https://github.com//linear.app/lightdash/issue/CS-94/let-non-admins-view-the-enterprise-roadmap-grant-path-for-the-existing/issues/agent-session-c3fbe73)
+
 # [2.197.0](https://github.com/lightdash/lightdash/compare/2.196.3...2.197.0) (2026-09-11)
 
 
