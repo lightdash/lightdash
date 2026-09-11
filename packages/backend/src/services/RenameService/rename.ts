@@ -74,10 +74,10 @@ export const createRenameFactory = ({
                 newNameExtendsOld
                     ? // skip occurrences already followed by the new suffix (already renamed)
                       new RegExp(
-                          `${from}_(?!${to.slice(from.length + 1)}_)`,
+                          `\\b${from}_(?!${to.slice(from.length + 1)}_)`,
                           'g',
                       )
-                    : new RegExp(`${from}_`, 'g'),
+                    : new RegExp(`\\b${from}_`, 'g'),
                 `${to}_`,
             );
         replaceDotFieldId = (str: string) =>
@@ -830,10 +830,14 @@ export const renameSavedChart = ({
     }
 
     if (containsModelName(chart.metricQuery)) {
-        updatedChart.metricQuery = renameMetricQuery(
-            chart.metricQuery,
-            renameMethods,
-        );
+        updatedChart.metricQuery = renameMetricQuery(chart.metricQuery, {
+            ...renameMethods,
+            // Chart explore/table identities must not match substrings of other models.
+            ...(isPrefix && {
+                replaceFull: (tableName: string) =>
+                    tableName === nameChanges.from ? nameChanges.to : tableName,
+            }),
+        });
     }
 
     if (containsModelName(chart.chartConfig)) {
