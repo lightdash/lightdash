@@ -17,6 +17,7 @@ import {
     IconAlertTriangle,
     IconChartBar,
     IconExternalLink,
+    IconHistory,
     IconPencil,
 } from '@tabler/icons-react';
 import {
@@ -422,6 +423,19 @@ const DashboardChartEditorModal: FC<Props> = ({
                                         aria-label="Open saved chart in new tab"
                                     >
                                         <MantineIcon icon={IconExternalLink} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            {dashboard && canManageChart && (
+                                <Tooltip label="Version history">
+                                    <ActionIcon
+                                        component="a"
+                                        href={`/projects/${editChart.projectUuid}/saved/${editChart.uuid}/history`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        aria-label="Version history"
+                                    >
+                                        <MantineIcon icon={IconHistory} />
                                     </ActionIcon>
                                 </Tooltip>
                             )}

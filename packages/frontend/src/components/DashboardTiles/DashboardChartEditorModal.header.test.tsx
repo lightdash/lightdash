@@ -132,7 +132,7 @@ const renderModal = (
     return { onClose };
 };
 
-describe('DashboardChartEditorModal rename', () => {
+describe('DashboardChartEditorModal header', () => {
     let chartOnServer: SavedChart;
 
     beforeEach(() => {
@@ -212,7 +212,7 @@ describe('DashboardChartEditorModal rename', () => {
         expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('hides the rename control on a verified chart the user may not mutate', async () => {
+    it('hides the rename and history controls on a verified chart the user may not mutate', async () => {
         renderModal(manageChartAbility, {
             ...editChart,
             verification: {
@@ -231,9 +231,25 @@ describe('DashboardChartEditorModal rename', () => {
         expect(
             screen.queryByRole('button', { name: 'Edit name and description' }),
         ).toBeNull();
+        expect(
+            screen.queryByRole('link', { name: 'Version history' }),
+        ).toBeNull();
     });
 
-    it('hides the rename control when the user cannot manage the chart', async () => {
+    it('links to the chart version history in a new tab', async () => {
+        renderModal(manageChartAbility);
+
+        const historyLink = await screen.findByRole('link', {
+            name: 'Version history',
+        });
+        expect(historyLink).toHaveAttribute(
+            'href',
+            '/projects/project-uuid/saved/chart-uuid/history',
+        );
+        expect(historyLink).toHaveAttribute('target', '_blank');
+    });
+
+    it('hides the rename and history controls when the user cannot manage the chart', async () => {
         renderModal(viewOnlyAbility);
 
         expect(
@@ -241,6 +257,9 @@ describe('DashboardChartEditorModal rename', () => {
         ).toBeVisible();
         expect(
             screen.queryByRole('button', { name: 'Edit name and description' }),
+        ).toBeNull();
+        expect(
+            screen.queryByRole('link', { name: 'Version history' }),
         ).toBeNull();
     });
 });
