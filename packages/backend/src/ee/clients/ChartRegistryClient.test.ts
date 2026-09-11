@@ -31,6 +31,7 @@ const entry = {
     minLightdashVersion: null,
     vizSchema: { fields: [], configOptions: [], colorPalette: null },
     thumbnail: 'charts/sankey/1.2.0/thumb.png',
+    thumbnailDark: null,
     screenshots: ['charts/sankey/1.2.0/screenshot-1.png'],
     artifacts: {
         source: {

@@ -66,6 +66,8 @@ export type ChartRegistryEntry = {
     channel?: 'stable' | 'beta';
     vizSchema: DataAppVizSchema;
     thumbnail: string | null;
+    /** Dark-scheme thumbnail variant; null = reuse `thumbnail` in both schemes */
+    thumbnailDark: string | null;
     screenshots: string[];
     // Curated Tabler icon name; copied onto the app on install and upgrade.
     icon: ChartTypeIcon | null;
@@ -87,6 +89,7 @@ const registryEntrySchema = z.object({
     channel: z.enum(['stable', 'beta']).optional(),
     vizSchema: dataAppVizSchema,
     thumbnail: z.string().nullable().default(null),
+    thumbnailDark: z.string().nullable().default(null),
     screenshots: z.array(z.string()).default([]),
     icon: chartTypeIconSchema.nullable().default(null),
     artifacts: z.object({

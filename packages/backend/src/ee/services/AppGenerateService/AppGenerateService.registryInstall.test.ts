@@ -67,6 +67,7 @@ function makeEntry(
         icon: null,
         vizSchema: VIZ_SCHEMA,
         thumbnail: null,
+        thumbnailDark: null,
         screenshots: [],
         artifacts: {
             source: { path: 'sankey/1.3.0/source.tar', sha256: 'a'.repeat(64) },

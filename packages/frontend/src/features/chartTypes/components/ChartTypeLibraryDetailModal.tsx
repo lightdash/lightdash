@@ -20,10 +20,14 @@ import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
+import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
-import { registryAssetUrl } from '../utils/registryAssetUrl';
+import {
+    registryAssetUrl,
+    registryThumbnailPath,
+} from '../utils/registryAssetUrl';
 import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryDetailModal.module.css';
 import DataAppVizFieldsList from './DataAppVizFieldsList';
@@ -43,6 +47,8 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
     const publishedAgo = useTimeAgo(item.publishedAt);
     const installMutation = useInstallRegistryChartType();
     const { track } = useTracking();
+    const { colorScheme } = useAppColorScheme();
+    const thumbnail = registryThumbnailPath(item, colorScheme);
 
     const handleInstall = () => {
         track({
@@ -147,10 +153,10 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                             ))}
                         </Group>
                     </ScrollArea>
-                ) : item.thumbnail ? (
+                ) : thumbnail ? (
                     <Box className={classes.preview}>
                         <img
-                            src={registryAssetUrl(item.thumbnail)}
+                            src={registryAssetUrl(thumbnail)}
                             alt={item.name}
                             className={classes.previewImage}
                         />
