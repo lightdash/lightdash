@@ -19332,6 +19332,11 @@
                         },
                         "type": "array"
                     },
+                    "thumbnailDark": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Dark-scheme thumbnail variant; null = reuse `thumbnail` in both schemes"
+                    },
                     "thumbnail": {
                         "type": "string",
                         "nullable": true
@@ -19377,6 +19382,7 @@
                     "artifacts",
                     "icon",
                     "screenshots",
+                    "thumbnailDark",
                     "thumbnail",
                     "vizSchema",
                     "minLightdashVersion",
@@ -61094,7 +61100,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.195.2",
+        "version": "2.196.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

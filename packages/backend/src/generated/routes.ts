@@ -17953,6 +17953,14 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
+                thumbnailDark: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 thumbnail: {
                     dataType: 'union',
                     subSchemas: [

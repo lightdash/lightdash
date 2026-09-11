@@ -1,3 +1,10 @@
+# [2.196.0](https://github.com/lightdash/lightdash/compare/2.195.2...2.196.0) (2026-09-11)
+
+
+### Features
+
+* **chart-registry:** scheme-aware gallery thumbnails via optional thumbnailDark ([#29045](https://github.com/lightdash/lightdash/issues/29045)) ([1a034f4](https://github.com/lightdash/lightdash/commit/1a034f4e6b3b2a6eb267b9a2754e9b1d7bf44a61))
+
 ## [2.195.2](https://github.com/lightdash/lightdash/compare/2.195.1...2.195.2) (2026-09-11)
 
 
