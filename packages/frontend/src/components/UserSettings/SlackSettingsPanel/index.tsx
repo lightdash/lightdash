@@ -304,8 +304,7 @@ const SlackSettingsPanel: FC = () => {
                                 <Title order={5}>Unfurling</Title>
                                 <SlackSettingRow
                                     title="Link previews"
-                                    description="Enable link unfurls"
-                                    tooltip="When enabled, Lightdash posts chart and dashboard previews when links are shared in Slack. Previews are rendered as the user who installed the Slack app, so any queries they trigger are attributed to that user. Disable to stop posting previews."
+                                    description="Post chart and dashboard previews when Lightdash links are shared in Slack. Previews run as the user who installed the Slack app, so their queries are attributed to that user."
                                     checked={form.values.unfurlsEnabled ?? true}
                                     onChange={(checked) =>
                                         setFieldValue('unfurlsEnabled', checked)
@@ -319,8 +318,7 @@ const SlackSettingsPanel: FC = () => {
                                     <Stack gap={0}>
                                         <SlackSettingRow
                                             title="AI Agents in Slack"
-                                            description="Allow AI Agents to be used from Slack"
-                                            tooltip="Turn this off to stop AI Agents being used from Slack entirely. Agents stay available in Lightdash, and scheduled deliveries, alerts and link previews keep working."
+                                            description="Let people use AI Agents from Slack. Turning this off keeps agents available in Lightdash; scheduled deliveries, alerts and link previews keep working."
                                             checked={
                                                 form.values.aiAgentsEnabled ??
                                                 true
@@ -334,8 +332,7 @@ const SlackSettingsPanel: FC = () => {
                                         />
                                         <SlackSettingRow
                                             title="AI Agents thread access consent"
-                                            description="Allow the AI Agents to access thread messages when a user mentions the bot in a thread."
-                                            tooltip="The longer the thread, the more context the AI Agents will have to work with."
+                                            description="Let AI Agents read earlier messages in a thread when someone mentions the bot there, so they have the conversation as context."
                                             disabled={aiAgentsDisabled}
                                             checked={
                                                 form.values
@@ -351,8 +348,7 @@ const SlackSettingsPanel: FC = () => {
                                         />
                                         <SlackSettingRow
                                             title="AI Agents OAuth requirement"
-                                            description="Require OAuth for AI Agent"
-                                            tooltip="When enabled, users must authenticate with OAuth to use AI Agent features."
+                                            description="People must sign in to Lightdash with OAuth before using AI Agents from Slack, so their requests run with their own permissions."
                                             disabled={aiAgentsDisabled}
                                             checked={
                                                 form.values.aiRequireOAuth ??
@@ -367,8 +363,7 @@ const SlackSettingsPanel: FC = () => {
                                         />
                                         <SlackSettingRow
                                             title="Links only, no data in Slack"
-                                            description="Reply with links only"
-                                            tooltip="When enabled, AI Agents never post query results into Slack: no chart images, no CSV files, and the agent is instructed to keep values out of its reply. Users open the results in Lightdash, where their own permissions apply. For a strict guarantee, also turn off data access on the agent."
+                                            description="AI Agents never post query results into Slack: no chart images, CSV files or values in the reply. People open results in Lightdash, where their own permissions apply. For a strict guarantee, also turn off data access on the agent."
                                             disabled={aiAgentsDisabled}
                                             checked={
                                                 form.values.aiLinksOnly ?? false
@@ -382,8 +377,7 @@ const SlackSettingsPanel: FC = () => {
                                         />
                                         <SlackSettingRow
                                             title="Automatic channel linking"
-                                            description="Enable automatic channel linking"
-                                            tooltip="Turn this off to stop bot mentions from automatically linking AI Agents to unconfigured Slack channels. Channels must then be added from Lightdash."
+                                            description="Mentioning the bot in a channel with no agent yet links an agent to it automatically. Turn this off to add channels only from Lightdash."
                                             disabled={
                                                 aiAgentsDisabled ||
                                                 isUpdatingAiOrganizationSettings

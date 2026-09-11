@@ -1,13 +1,10 @@
-import { Group, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
-import { IconHelpCircle } from '@tabler/icons-react';
+import { Group, Stack, Switch, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
 import classes from './SlackSettingRow.module.css';
 
 type Props = {
     title: string;
     description: string;
-    tooltip: string;
     checked: boolean;
     disabled?: boolean;
     onChange: (checked: boolean) => void;
@@ -16,7 +13,6 @@ type Props = {
 export const SlackSettingRow: FC<Props> = ({
     title,
     description,
-    tooltip,
     checked,
     disabled = false,
     onChange,
@@ -29,14 +25,9 @@ export const SlackSettingRow: FC<Props> = ({
         gap="md"
     >
         <Stack gap="two">
-            <Group gap="two">
-                <Title order={6} fw={500}>
-                    {title}
-                </Title>
-                <Tooltip maw={280} label={tooltip}>
-                    <MantineIcon icon={IconHelpCircle} />
-                </Tooltip>
-            </Group>
+            <Title order={6} fw={500}>
+                {title}
+            </Title>
             <Text c="dimmed" fz="sm">
                 {description}
             </Text>
