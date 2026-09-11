@@ -215,42 +215,7 @@ export const validateHandler = async (
             projectUuid,
         );
 
-    let validationTargets = options.only ? [...options.only] : [];
-    const hasPartialModelSelection =
-        Boolean(options.select?.length) ||
-        Boolean(options.models?.length) ||
-        Boolean(options.exclude?.length) ||
-        Boolean(options.selector);
-    const includesDataAppValidation =
-        validationTargets.length === 0 ||
-        validationTargets.includes(ValidationTarget.APPS);
-
-    if (hasPartialModelSelection && includesDataAppValidation) {
-        if (
-            validationTargets.length === 1 &&
-            validationTargets[0] === ValidationTarget.APPS
-        ) {
-            throw new ParameterError(
-                'Data app validation requires a full project compile. Remove the dbt model selection flags to use --only apps.',
-            );
-        }
-
-        validationTargets =
-            validationTargets.length === 0
-                ? [
-                      ValidationTarget.TABLES,
-                      ValidationTarget.CHARTS,
-                      ValidationTarget.DASHBOARDS,
-                  ]
-                : validationTargets.filter(
-                      (target) => target !== ValidationTarget.APPS,
-                  );
-        console.error(
-            styles.warning(
-                '> Skipping data app validation because dbt model selection flags produce a partial semantic layer',
-            ),
-        );
-    }
+    const validationTargets = options.only ? [...options.only] : [];
 
     await LightdashAnalytics.track({
         event: 'validate.started',
