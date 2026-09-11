@@ -48,7 +48,7 @@ Root config files (`vite.config.js`, `tsconfig.json`, ...) are read-only referen
 
 ## Publishing to the official registry
 
-Once the chart type works in an instance, it can be proposed for the official chart registry (the `lightdash/lightdash-gallery` repo, served to every Lightdash deployment with the chart type library enabled):
+Once the chart type works in an instance, it can be proposed for the official chart registry (the `lightdash/lightdash-library` repo, served to every Lightdash deployment with the chart type library enabled):
 
 1. Copy this folder into that repo under `charts/<slug>/`.
 2. Run `node scripts/prepare-chart.mjs charts/<slug>` there — it prunes the local scaffold (these skills, configs, AGENTS/README), scrubs instance-side manifest fields, and shapes the folder for the registry. The folder name becomes the **permanent official registry slug**; pass `--slug <official-slug>` if the local slug isn't the identity that should ship.
