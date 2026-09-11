@@ -1,5 +1,8 @@
 # Feature flags in preview environments
 
+For implementation standards, Console rollouts, and self-hosted ENV configuration,
+start with [Adding and operating feature flags](feature-flags.md).
+
 Preview environments (`LIGHTDASH_MODE=pr`) enable most feature flags by default
 and expose an API for toggling them, so QA can validate recent features without
 a redeploy.
@@ -69,13 +72,15 @@ Unknown flag ids are rejected, so a typo can't silently create a dead override.
 
 `FeatureFlagModel.get()` resolves in this order:
 
-1. `LIGHTDASH_ENABLE_FEATURE_FLAGS` and `LIGHTDASH_DISABLE_FEATURE_FLAGS`. Enable
-   wins when a flag is in both; disable is absolute — no override overrides it.
+1. `LIGHTDASH_ENABLE_FEATURE_FLAGS` and `LIGHTDASH_DISABLE_FEATURE_FLAGS`. When
+   only disable contains the flag, it is off regardless of stored overrides.
+   When enable contains it (including when both lists do), proceed to the
+   preview override check below before returning on.
 2. In preview environments, a stored override for the user or organization,
    consulted only for flags the environment forces on.
 3. `PREVIEW_ENABLED_FEATURE_FLAGS`, in preview environments.
 4. Per-flag config handlers (for example `EDIT_YAML_IN_UI_ENABLED`).
 5. Database: user override, then organization override, then flag default.
 
-Consulting overrides costs a couple of extra indexed lookups per flag check, in
-preview environments only.
+The preview override check adds indexed lookups to the forced-on path. Ordinary
+database-backed resolution also queries overrides outside preview environments.

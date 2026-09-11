@@ -171,6 +171,17 @@ pnpm -F backend migrate
 pnpm -F backend rollback-last
 ```
 
+## Feature flags
+
+Before adding or changing a feature flag, read [docs/feature-flags.md](docs/feature-flags.md).
+Use `FeatureFlagModel.get` / `FeatureFlagService.get` in backend services and
+`useServerFeatureFlag` in the frontend. Do not create an ENV-only or `NODE_ENV`
+rollout gate: the shared resolver supports Console database overrides and
+self-hosted ENV configuration. Keep resource authorization separate.
+Verify Console-only enablement with ENV enable unset and preview defaults off,
+including the backend action, not just UI visibility. Document scope, precedence,
+refresh/restart behavior, and remove temporary ENV overrides after rollout.
+
 ## Development Workflow
 
 1. **Package Management**: Use `pnpm` (pinned via `packageManager` in the root `package.json`, which pnpm reads directly). Install pnpm directly; do not use Corepack, npm, or yarn for workspace commands.
