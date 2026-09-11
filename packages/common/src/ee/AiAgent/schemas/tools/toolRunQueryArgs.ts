@@ -301,6 +301,8 @@ If the user mentions any time period, add an explicit date filter; never use sor
 
 Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
 
+Add a customMetrics entry only after grep_fields / get_metadata confirm no existing metric fits.
+
 This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
                 'run_metric_query',
             )}

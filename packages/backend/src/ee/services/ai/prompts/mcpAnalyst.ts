@@ -80,11 +80,6 @@ ${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${FILTER_E
 - Never mix fields from different explores in a single query
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
 - When similar field names exist in base and joined tables, match to the query's semantic level
-
-### Custom Metrics
-- Use when the explore lacks a needed aggregation
-- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
-- Reference using the pattern \`table_metricname\`
 `;
 
 export const getMcpAnalystPrompt = ({
