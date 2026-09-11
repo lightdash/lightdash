@@ -1,3 +1,10 @@
+## [2.196.3](https://github.com/lightdash/lightdash/compare/2.196.2...2.196.3) (2026-09-11)
+
+
+### Bug Fixes
+
+* prevent custom chart loading flash in dark mode ([#29048](https://github.com/lightdash/lightdash/issues/29048)) ([45ad8a5](https://github.com/lightdash/lightdash/commit/45ad8a58146d00cc89ca58e4aa1145d359bc1b8b))
+
 ## [2.196.2](https://github.com/lightdash/lightdash/compare/2.196.1...2.196.2) (2026-09-11)
 
 
