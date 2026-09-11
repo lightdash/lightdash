@@ -74,6 +74,7 @@ import {
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import { createRestrictUnverifiedSessionMiddleware } from './middlewares/restrictUnverifiedSession/restrictUnverifiedSession';
 import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
@@ -756,6 +757,11 @@ export default class App {
         // We'll also be able to add the user to Sentry for embedded users.
         expressApp.use(jwtAuthMiddleware);
         expressApp.use(sessionAccountMiddleware);
+        expressApp.use(
+            createRestrictUnverifiedSessionMiddleware({
+                hasEmailClient: Boolean(this.lightdashConfig.smtp),
+            }),
+        );
         // Must run after auth so req.user is populated. Stamps every downstream
         // log line with organization_uuid + organization_name via ExecutionContext.
         expressApp.use(requestExecutionContextMiddleware);
