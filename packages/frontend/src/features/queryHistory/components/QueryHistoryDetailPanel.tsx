@@ -288,7 +288,11 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
         if (failed) {
             return (
                 <Callout variant="danger">
-                    <Text fz="xs" ff="monospace" className="ld-pre-wrap">
+                    <Text
+                        fz="xs"
+                        ff="monospace"
+                        className={styles.errorMessage}
+                    >
                         {item.error ?? 'Query failed'}
                     </Text>
                 </Callout>
@@ -379,7 +383,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                         <TruncatedText maxWidth="100%" fz="md" fw={600}>
                             {item.title}
                         </TruncatedText>
-                        <Badge size="xs" className="ld-shrink-0">
+                        <Badge size="xs" flex="0 0 auto">
                             {getLanguageLabel(item.language)}
                         </Badge>
                         <QueryStatusBadge status={item.status} />

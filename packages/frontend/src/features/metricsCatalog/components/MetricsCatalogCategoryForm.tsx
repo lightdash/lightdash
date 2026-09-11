@@ -319,7 +319,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             gap={2}
                             w="100%"
                             mah={140}
-                            className="ld-scroll-y"
+                            className={formClasses.categoryList}
                         >
                             {filteredExistingCategories.map((category) => (
                                 <MetricCatalogCategoryFormItem

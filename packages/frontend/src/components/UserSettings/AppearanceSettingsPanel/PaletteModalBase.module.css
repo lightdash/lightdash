@@ -7,3 +7,7 @@
 .colorInputs {
     border-right: 1px solid var(--mantine-color-ldGray-2);
 }
+
+.toggleColorsButton {
+    align-self: flex-end;
+}

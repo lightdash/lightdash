@@ -167,7 +167,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}
-                    className="ld-self-end"
+                    className={classes.pagination}
                 />
             )}
         </Stack>

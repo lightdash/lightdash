@@ -45,6 +45,7 @@ import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import classes from './CustomSqlDimensionModal.module.css';
 
 type FormValues = {
     customDimensionLabel: string;
@@ -274,7 +275,7 @@ export const CustomSqlDimensionModal: FC<{
                             data-tour-suggest="Order size"
                         />
                         <Select
-                            className="ld-self-start"
+                            className={classes.dimensionTypeSelect}
                             label="Dimension Type"
                             data={Object.values(DimensionType).map((type) => ({
                                 value: type,

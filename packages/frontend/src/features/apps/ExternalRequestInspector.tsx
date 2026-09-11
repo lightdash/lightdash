@@ -178,7 +178,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                             <Group
                                 gap={4}
                                 onClick={() => setJsonExpanded((v) => !v)}
-                                className="ld-pointer"
+                                className={classes.rawJsonToggle}
                             >
                                 <ActionIcon size="xs">
                                     {jsonExpanded ? (

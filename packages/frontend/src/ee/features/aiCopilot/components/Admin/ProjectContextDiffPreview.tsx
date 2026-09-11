@@ -9,6 +9,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from './pierreDiffConfig';
+import classes from './ProjectContextDiffPreview.module.css';
 
 type ProjectContextDiffPreviewProps = {
     fileName: string;
@@ -43,7 +44,7 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
             poolOptions={PIERRE_POOL_OPTIONS}
             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
         >
-            <Paper shadow="sm" radius="md" className="ld-overflow-hidden">
+            <Paper shadow="sm" radius="md" className={classes.diffPanel}>
                 <Virtualizer style={viewportStyle}>
                     <MultiFileDiff
                         oldFile={{ name: fileName, contents: before }}

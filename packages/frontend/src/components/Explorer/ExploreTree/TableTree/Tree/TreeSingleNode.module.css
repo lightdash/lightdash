@@ -9,3 +9,7 @@
 .detailPreviewDropdown {
     overflow: auto;
 }
+
+.nodeIcon {
+    flex-shrink: 0;
+}

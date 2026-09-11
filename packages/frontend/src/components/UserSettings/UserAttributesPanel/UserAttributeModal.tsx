@@ -36,6 +36,7 @@ import {
 } from '../../../hooks/useUserAttributes';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import classes from './UserAttributeModal.module.css';
 
 type UserAttributeFormValues = {
     name: string;
@@ -312,7 +313,7 @@ const UserAttributeModal: FC<{
                             <Button
                                 size="xs"
                                 variant="default"
-                                className="ld-self-start"
+                                className={classes.addButton}
                                 leftSection={
                                     <MantineIcon icon={IconUserPlus} />
                                 }
@@ -402,7 +403,7 @@ const UserAttributeModal: FC<{
                                 <Button
                                     size="xs"
                                     variant="default"
-                                    className="ld-self-start"
+                                    className={classes.addButton}
                                     leftSection={
                                         <MantineIcon icon={IconUsersPlus} />
                                     }

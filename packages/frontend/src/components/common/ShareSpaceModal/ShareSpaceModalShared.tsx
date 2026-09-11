@@ -224,7 +224,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}
-                    className="ld-self-end"
+                    className={classes.pagination}
                 />
             )}
         </Stack>
@@ -345,7 +345,7 @@ export const GroupsAccessList: FC<GroupAccessListProps> = ({
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}
-                    className="ld-self-end"
+                    className={classes.pagination}
                 />
             )}
         </Stack>

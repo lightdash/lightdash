@@ -64,8 +64,7 @@ When creating/updating components:
 1. **Best**: No custom styles (use theme defaults and variants)
 2. **Theme extension**: For repeated patterns, add a variant or rule in `src/theme/components/<Component>.module.css` (registered in `src/theme/components/index.ts`)
 3. **Component props**: Simple overrides (1-3 props like `mt="xl" w={240}`)
-4. **Utility class**: a single layout rule Mantine has no prop for (`ld-shrink-0`, `ld-grow`, `ld-self-center`, `ld-pointer`, `ld-nowrap`, `ld-pre-wrap`, `ld-overflow-hidden`, `ld-scroll-y` in `src/styles/global.css`)
-5. **CSS modules**: Complex styling or more than 3 props
+4. **CSS modules**: Complex styling, more than 3 props, or a single rule Mantine has no prop for (`align-self`, `overflow`, `cursor`, `white-space`) as a role-named class in the file's module. `flex-shrink`/`flex-grow` are the `flex` style prop. No global utility classes.
 
 ### NEVER Use
 

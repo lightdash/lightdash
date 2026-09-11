@@ -825,7 +825,6 @@ const InfiniteResourceTable = ({
                                         w={1}
                                         h={20}
                                         color="#DEE2E6"
-                                        className="ld-self-center"
                                     />
                                     <ContentTypeFilter
                                         value={selectedContentType}
@@ -864,7 +863,6 @@ const InfiniteResourceTable = ({
                                         w={1}
                                         h={20}
                                         color="#DEE2E6"
-                                        className="ld-self-center"
                                     />
                                     <Box w={220}>
                                         <UserSelect

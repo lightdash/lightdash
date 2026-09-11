@@ -24,6 +24,7 @@ import SimpleSankey from '../SimpleSankey';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import SimpleTreemap from '../SimpleTreemap';
+import classes from './LightdashVisualization.module.css';
 import { useVisualizationContext } from './useVisualizationContext';
 
 // Lazy load SimpleMap to avoid bundling Leaflet in the main chunk
@@ -136,7 +137,7 @@ const LightdashVisualization = memo(
                             title="Unable to load visualization"
                             description={
                                 <Fragment>
-                                    <Text className="ld-pre-wrap">
+                                    <Text className={classes.errorMessage}>
                                         {apiErrorDetail.message || ''}
                                     </Text>
                                     {apiErrorDetail.data.documentationUrl && (

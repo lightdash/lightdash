@@ -16,3 +16,7 @@
         background-color: var(--mantine-color-ldGray-1);
     }
 }
+
+.skeletonBody {
+    overflow: hidden;
+}

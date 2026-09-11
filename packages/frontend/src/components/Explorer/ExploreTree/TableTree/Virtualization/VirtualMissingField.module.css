@@ -1,0 +1,7 @@
+.row {
+    overflow: hidden;
+}
+
+.rowIcon {
+    flex-shrink: 0;
+}

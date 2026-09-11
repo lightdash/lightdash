@@ -215,3 +215,7 @@
         border-left: 1px solid var(--mantine-color-ldDark-4);
     }
 }
+
+.rawJsonToggle {
+    cursor: pointer;
+}

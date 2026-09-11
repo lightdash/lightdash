@@ -261,7 +261,7 @@ const QueryRow: FC<{
                             <Group
                                 gap={4}
                                 onClick={() => setJsonExpanded((v) => !v)}
-                                className="ld-pointer"
+                                className={classes.rawJsonToggle}
                             >
                                 <ActionIcon size="xs">
                                     {jsonExpanded ? (

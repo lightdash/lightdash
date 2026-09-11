@@ -219,3 +219,7 @@
 .hoverAction:focus-visible {
     opacity: 1;
 }
+
+.lastSeen {
+    white-space: nowrap;
+}

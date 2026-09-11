@@ -395,7 +395,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     <MantineIcon
                         icon={alertIcon}
                         color={color}
-                        className="ld-shrink-0"
+                        className={styles.nodeIcon}
                     />
                 </Tooltip>
             );
@@ -474,7 +474,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
                     >
                         <HoverCard.Target>
-                            <Text truncate fz="sm" className="ld-grow">
+                            <Text truncate fz="sm" flex={1}>
                                 <Highlight
                                     component="span"
                                     highlight={searchQuery || ''}
@@ -510,12 +510,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     </HoverCard>
                     {isDashboardMetric && (
                         <Tooltip label="Only available in this dashboard">
-                            <Badge
-                                size="xs"
-                                radius="sm"
-                                px={4}
-                                className="ld-shrink-0"
-                            >
+                            <Badge size="xs" radius="sm" px={4} flex="0 0 auto">
                                 =
                             </Badge>
                         </Tooltip>
@@ -529,7 +524,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <MantineIcon
                                 icon={IconHierarchyOff}
                                 color="dimmed"
-                                className="ld-shrink-0"
+                                className={styles.nodeIcon}
                             />
                         </Tooltip>
                     )}
@@ -544,7 +539,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <ActionIcon onClick={handleFilterClick}>
                                 <MantineIcon
                                     icon={IconFilter}
-                                    className="ld-shrink-0"
+                                    className={styles.nodeIcon}
                                 />
                             </ActionIcon>
                         </Tooltip>
@@ -554,7 +549,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <ActionIcon onClick={handleDeleteClick}>
                                 <MantineIcon
                                     icon={IconTrash}
-                                    className="ld-shrink-0"
+                                    className={styles.nodeIcon}
                                 />
                             </ActionIcon>
                         </Tooltip>
@@ -564,7 +559,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <MantineIcon
                                 icon={IconAlertTriangle}
                                 color="yellow.9"
-                                className="ld-shrink-0"
+                                className={styles.nodeIcon}
                             />
                         </Tooltip>
                     ) : null}

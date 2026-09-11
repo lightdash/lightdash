@@ -1,3 +1,7 @@
+.paper {
+    overflow: hidden;
+}
+
 .root {
     & thead tr {
         background-color: var(--mantine-color-ldGray-0);

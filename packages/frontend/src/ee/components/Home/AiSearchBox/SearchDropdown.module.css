@@ -39,3 +39,7 @@
     border-top-right-radius: var(--mantine-radius-sm);
     overflow: hidden;
 }
+
+.comboboxFooter {
+    overflow: hidden;
+}

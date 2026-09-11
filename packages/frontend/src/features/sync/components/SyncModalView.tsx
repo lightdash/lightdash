@@ -34,6 +34,7 @@ import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSch
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
 import { GoogleSheetsInfoPopover } from './GoogleSheetsInfoPopover';
+import classes from './SyncModalView.module.css';
 
 const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     const { mutate: mutateSchedulerEnabled } =
@@ -149,7 +150,7 @@ export const SyncModalView: FC<Props> = ({
             {schedulers.length > 0 ? (
                 <Box
                     mah={400}
-                    className="ld-scroll-y"
+                    className={classes.syncList}
                     onScroll={
                         onScrollBottom
                             ? (e) => {
@@ -191,7 +192,7 @@ export const SyncModalView: FC<Props> = ({
                                 <Paper
                                     key={sync.schedulerUuid}
                                     p="sm"
-                                    className="ld-overflow-hidden"
+                                    className={classes.syncCard}
                                 >
                                     <Group
                                         wrap="nowrap"

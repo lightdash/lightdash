@@ -158,7 +158,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                         <MantineIcon icon={IconChevronDown} size="xs" />
                     }
                     fullWidth
-                    className="ld-self-end"
+                    className={classes.toggleColorsButton}
                 >
                     {showAllColors ? 'Show fewer colors' : 'Show all colors'}
                 </Button>

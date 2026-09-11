@@ -319,7 +319,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             </HoverCard>
             {isDashboardMetric && (
                 <Tooltip label="Only available in this dashboard">
-                    <Badge size="xs" radius="sm" px={4} className="ld-shrink-0">
+                    <Badge size="xs" radius="sm" px={4} flex="0 0 auto">
                         =
                     </Badge>
                 </Tooltip>

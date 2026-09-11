@@ -33,6 +33,7 @@ import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import classes from './RunDetailsModal.module.css';
 import {
     formatTaskName,
     formatTime,
@@ -143,7 +144,7 @@ const JobTimingInfo: FC<{
                 <Text fz="xs" c="dimmed">
                     started
                 </Text>
-                <Text fz="xs" className="ld-nowrap">
+                <Text fz="xs" className={classes.timestampCell}>
                     {startedAt ? formatTimeOnly(startedAt) : '-'}
                 </Text>
             </Stack>
@@ -151,7 +152,7 @@ const JobTimingInfo: FC<{
                 <Text fz="xs" c="dimmed">
                     {endLabel}
                 </Text>
-                <Text fz="xs" className="ld-nowrap">
+                <Text fz="xs" className={classes.timestampCell}>
                     {completedAt ? formatTimeOnly(completedAt) : '-'}
                 </Text>
             </Stack>
@@ -159,7 +160,7 @@ const JobTimingInfo: FC<{
                 <Text fz="xs" c="dimmed">
                     duration
                 </Text>
-                <Text fz="xs" className="ld-nowrap">
+                <Text fz="xs" className={classes.timestampCell}>
                     {startedAt && completedAt
                         ? formatDuration(startedAt, completedAt)
                         : '-'}

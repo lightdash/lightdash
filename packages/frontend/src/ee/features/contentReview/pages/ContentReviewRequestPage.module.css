@@ -26,3 +26,7 @@
 .inlineToggle:hover {
     text-decoration: underline;
 }
+
+.noteText {
+    white-space: pre-wrap;
+}

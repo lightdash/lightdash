@@ -117,7 +117,7 @@ export const TokensTable = () => {
 
     return (
         <>
-            <Paper className="ld-overflow-hidden">
+            <Paper className={tableStyles.paper}>
                 <Table
                     className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >

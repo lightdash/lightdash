@@ -53,3 +53,7 @@
         animation-delay: 12s;
     }
 }
+
+.errorMessage {
+    white-space: pre-wrap;
+}

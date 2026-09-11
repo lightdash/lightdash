@@ -21,7 +21,7 @@ export const DataAppVersionPill: FC<Props> = ({
     restore,
 }) => (
     <Group gap="xs" wrap="nowrap" className={classes.pill}>
-        <Text size="xs" fw={500} className="ld-nowrap">
+        <Text size="xs" fw={500} className={classes.versionLabel}>
             Viewing v{version}
         </Text>
         <Button

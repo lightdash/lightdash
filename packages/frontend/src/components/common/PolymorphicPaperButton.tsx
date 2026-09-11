@@ -5,6 +5,7 @@ import {
 } from '@mantine/core';
 import { clsx } from 'clsx';
 import { forwardRef, type Ref } from 'react';
+import classes from './PolymorphicPaperButton.module.css';
 
 /**
  * A polymorphic component that renders a paper button.
@@ -19,7 +20,7 @@ export const PolymorphicPaperButton = createPolymorphicComponent<
             <Paper
                 ref={ref}
                 {...props}
-                className={clsx('ld-pointer', className)}
+                className={clsx(classes.root, className)}
             />
         ),
     ),

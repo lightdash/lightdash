@@ -17,6 +17,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from './pierreDiffConfig';
+import classes from './ReviewPrDiffContent.module.css';
 
 type Props = {
     diff: AiAgentReviewItemPrDiff | undefined;
@@ -65,7 +66,7 @@ export const ReviewPrDiffContent: FC<Props> = ({
                     <Paper
                         key={file.path}
                         radius="md"
-                        className="ld-overflow-hidden"
+                        className={classes.diffPanel}
                     >
                         <Virtualizer style={viewportStyle}>
                             <MultiFileDiff

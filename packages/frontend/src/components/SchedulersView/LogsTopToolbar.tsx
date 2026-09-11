@@ -88,12 +88,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                                 setSearch={setSearch}
                             />
 
-                            <Divider
-                                orientation="vertical"
-                                w={1}
-                                h={20}
-                                className="ld-self-center"
-                            />
+                            <Divider orientation="vertical" w={1} h={20} />
                         </>
                     )}
 
@@ -108,12 +103,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                             >
                                 {selectedScheduler.name}
                             </Pill>
-                            <Divider
-                                orientation="vertical"
-                                w={1}
-                                h={20}
-                                className="ld-self-center"
-                            />
+                            <Divider orientation="vertical" w={1} h={20} />
                         </>
                     )}
 
@@ -145,7 +135,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                         <ActionIcon
                             size="sm"
                             onClick={resetFilters}
-                            className="ld-shrink-0"
+                            flex="0 0 auto"
                         >
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>

@@ -292,7 +292,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
 
     return (
         <Group align="flex-start" gap="md" wrap="nowrap">
-            <Stack w={280} gap="sm" className="ld-shrink-0">
+            <Stack w={280} gap="sm" flex="0 0 auto">
                 <ScrollArea.Autosize mah="72vh">
                     <Stack gap="md">
                         {openDrafts.length > 0 && (
@@ -376,11 +376,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                     </Anchor>
                                 </Group>
                             </Stack>
-                            <Group
-                                gap="xs"
-                                wrap="nowrap"
-                                className="ld-shrink-0"
-                            >
+                            <Group gap="xs" wrap="nowrap" flex="0 0 auto">
                                 {active.prUrl ? (
                                     <Button
                                         component="a"
@@ -507,7 +503,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                             poolOptions={PIERRE_POOL_OPTIONS}
                             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
                         >
-                            <Paper radius="md" className="ld-overflow-hidden">
+                            <Paper radius="md" className={classes.diffPanel}>
                                 <Virtualizer
                                     key={active.uuid}
                                     style={viewportStyle}

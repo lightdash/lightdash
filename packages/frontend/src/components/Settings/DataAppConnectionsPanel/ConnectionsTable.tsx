@@ -177,7 +177,7 @@ export const ConnectionsTable: FC<Props> = ({
     setConnectionToViewUsage,
 }) => {
     return (
-        <Paper className="ld-overflow-hidden">
+        <Paper className={tableStyles.paper}>
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 ta="left"

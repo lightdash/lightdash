@@ -652,12 +652,7 @@ const ProjectManagementPanel: FC = () => {
                         />
                     </Tooltip>
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className="ld-self-center"
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     <SegmentedControl
                         size="xs"
@@ -720,12 +715,7 @@ const ProjectManagementPanel: FC = () => {
                         ]}
                     />
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className="ld-self-center"
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     {/* Warehouse filter */}
                     <Popover width={220} position="bottom-start">
@@ -922,7 +912,7 @@ const ProjectManagementPanel: FC = () => {
                     )}
                 </Group>
 
-                <Group gap="sm" wrap="nowrap" className="ld-shrink-0">
+                <Group gap="sm" wrap="nowrap" flex="0 0 auto">
                     {hasActiveFilters && (
                         <Tooltip label="Clear all filters">
                             <ActionIcon size="sm" onClick={resetAllFilters}>

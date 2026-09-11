@@ -21,6 +21,7 @@ import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import { PalettePicker } from '../common/PalettePicker/PalettePicker';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import classes from './ProjectAppearance.module.css';
 
 type Props = { projectUuid: string };
 
@@ -100,7 +101,7 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
                             leftSection={
                                 <MantineIcon icon={IconExternalLink} />
                             }
-                            className="ld-self-end"
+                            className={classes.managePalettesLink}
                         >
                             Manage organization palettes
                         </Button>

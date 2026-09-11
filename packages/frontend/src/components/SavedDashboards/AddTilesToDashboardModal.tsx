@@ -36,6 +36,7 @@ import {
 } from '../../hooks/useSpaces';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import classes from './AddTilesToDashboardModal.module.css';
 
 interface AddTilesToDashboardModalProps {
     isOpen: boolean;
@@ -367,7 +368,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             placeholder="A few words to give your team some context"
                             autosize
                             maxRows={3}
-                            className="ld-scroll-y"
+                            className={classes.descriptionInput}
                             {...form.getInputProps('dashboardDescription')}
                         />
                         {!isLoadingSpaces && !showNewSpaceInput ? (

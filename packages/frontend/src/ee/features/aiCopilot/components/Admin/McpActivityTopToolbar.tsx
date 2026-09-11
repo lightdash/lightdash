@@ -63,23 +63,13 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <SegmentedControl
                             size="xs"
                             value={selectedStatus}
@@ -97,12 +87,7 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
 
                         {hasActiveFilters && onClearFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    className="ld-self-center"
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"

@@ -15,6 +15,7 @@ import {
     type PathMode,
     type PathPrefix,
 } from '../utils/pathRules';
+import classes from './PathRulesField.module.css';
 
 type Props = {
     label: string;
@@ -109,7 +110,7 @@ export const PathRulesField: FC<Props> = ({
                     variant="subtle"
                     size="compact-sm"
                     leftSection={<MantineIcon icon={IconPlus} />}
-                    className="ld-self-start"
+                    className={classes.addRuleButton}
                     disabled={disabled}
                     onClick={() =>
                         onPrefixesChange([...prefixes, makePathPrefix()])
