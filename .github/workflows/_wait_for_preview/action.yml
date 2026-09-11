@@ -1,0 +1,63 @@
+name: Wait for preview environment
+
+description: Polls a preview environment until its health endpoint answers 200.
+
+inputs:
+    url:
+        description: Base URL of the preview environment
+        required: true
+    timeout-seconds:
+        description: How long to wait before failing
+        required: false
+        default: '900'
+
+runs:
+    using: 'composite'
+    steps:
+        - name: Wait for preview to be healthy
+          shell: bash
+          env:
+              PREVIEW_URL: ${{ inputs.url }}
+              TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}
+          run: |
+              set -uo pipefail
+              # Probe with node, not curl: the cypress e2e image the browser
+              # suites run in has no curl, so a curl-based poll reports a
+              # connection failure that never resolves.
+              cat > "${RUNNER_TEMP:-/tmp}/preview-probe.mjs" <<'JS'
+              const url = `${process.env.PREVIEW_URL}/api/v1/health`;
+              try {
+                  const res = await fetch(url, { redirect: 'follow' });
+                  process.stdout.write(`${res.status} ${(await res.text()).slice(0, 2000)}`);
+              } catch (err) {
+                  process.stdout.write(`000 ${err.cause?.message ?? err.message ?? err}`);
+              }
+              JS
+              probe="${RUNNER_TEMP:-/tmp}/preview-probe.mjs"
+              deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
+              reported_error=no
+              while true; do
+                  out=$(node "$probe") || out="000 node could not run the probe"
+                  status=${out%% *}
+                  detail=${out#* }
+                  if [ "$status" = "200" ]; then
+                      echo "Preview ready at $PREVIEW_URL"
+                      echo "$detail"
+                      exit 0
+                  fi
+                  if [ "$status" = "000" ] && [ "$reported_error" = "no" ]; then
+                      echo "Could not connect: $detail"
+                      reported_error=yes
+                  fi
+                  if [ "$(date +%s)" -ge "$deadline" ]; then
+                      echo "Preview $PREVIEW_URL did not become healthy within ${TIMEOUT_SECONDS}s (last status: $status)"
+                      case "$status" in
+                          404) echo "A sustained 404 means no environment is serving this name, not that it is still booting." ;;
+                          000) echo "A sustained 000 means this runner never reached the host at all." ;;
+                      esac
+                      echo "$detail"
+                      exit 1
+                  fi
+                  echo "Waiting for $PREVIEW_URL (status $status)..."
+                  sleep 10
+              done
