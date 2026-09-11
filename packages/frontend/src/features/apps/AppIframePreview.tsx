@@ -247,6 +247,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 iframeNavigation.src,
             ],
         );
+        const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
         // Memoized so the bridge's message listener doesn't re-attach on every
         // parent render — AppGenerate re-renders on every keystroke (editor's
         // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
@@ -357,6 +358,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         // re-fire if `inspectorEnabled` was already true, so re-sync on load.
         const handleLoad = () => {
             handleIframeLoad();
+            setLoadedSrc(effectiveSrc);
             if (inspectorEnabled) enableInspector();
             if (lineageEnabled) enableLineage();
             highlightLineage(lineageHighlightQueryUuid ?? null);
@@ -372,7 +374,15 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 data-tour-docs="data-apps.mdx#choosing-a-template:li1"
                 ref={iframeRef}
                 src={effectiveSrc}
-                style={{ width: '100%', height: '100%', border: 'none' }}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    colorScheme,
+                    // Keep the host surface visible until the app applies its theme.
+                    visibility:
+                        loadedSrc === effectiveSrc ? 'visible' : 'hidden',
+                }}
                 title="App preview"
                 sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""
