@@ -171,32 +171,23 @@ export const isAiWritebackRunInProgress = (
 
 export const MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION = `Tool: run_ai_writeback
 
-Purpose:
-Make a change to the dbt project that backs the active Lightdash project by describing it in natural language, then open a pull request with the result. The target GitHub repository and dbt sub-folder are resolved server-side from the active project's dbt connection — you never specify them.
+Change the active Lightdash project's dbt project from a natural-language prompt. The GitHub repository and dbt sub-folder are resolved server-side from its dbt connection; never specify them.
 
-How it works:
-- This tool starts the run and returns immediately with an aiWritebackRunUuid — it does NOT wait for the run to finish.
-- In the background: a sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project. If the agent changes any files, a branch is committed, pushed, and a pull request is opened.
-- Call get_ai_writeback_status with the returned aiWritebackRunUuid to check progress and get the pull request URL once the run finishes. The run typically takes a few minutes (cloning, running the agent, opening the PR) — poll every 10-15 seconds rather than immediately looping.
-- Clients that declare the MCP Tasks extension (io.modelcontextprotocol/tasks) in their per-request capabilities instead receive a task handle (resultType: "task", taskId = the run id) and should poll tasks/get / cancel via tasks/cancel rather than calling get_ai_writeback_status.
+Safety and requirements:
+- NOT read-only or idempotent: each call can start a run and open a new pull request. Use only when the user explicitly wants a dbt change.
+- Set an active project via set_project or the X-Lightdash-Project header.
+- Requires a GitHub-backed dbt connection, the organization's GitHub App installation, and AI writeback enabled for the organization.
 
-Requirements:
-- An active project must be set first via set_project (or the X-Lightdash-Project header).
-- The project's dbt connection must be GitHub-backed, and the organization must have the GitHub App installed.
-- The AI writeback feature must be enabled for the organization.
+Execution:
+- Returns immediately with aiWritebackRunUuid; does not wait for completion. A background sandbox clones the project's GitHub repository and runs the prompt through Claude Code CLI against dbt. If files change, a branch is committed and pushed, and a pull request opened.
+- Runs usually take a few minutes. Poll get_ai_writeback_status every 10-15 seconds with aiWritebackRunUuid for progress and the pull request URL.
+- Clients declaring io.modelcontextprotocol/tasks in per-request capabilities instead get a task handle (resultType: "task", taskId = run id). Poll tasks/get and cancel via tasks/cancel, rather than using get_ai_writeback_status.
 
-Important:
-- This tool is NOT read-only and NOT idempotent — each call can start a run that opens a new pull request. Use it only when the user explicitly wants to change their dbt project.
-- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the run finishes with status "error" and an error message listing the sources by name and repository — call run_ai_writeback again naming the intended source in the prompt itself (e.g. "In jaffle-2, add ..."). You never pass an id.
+Input:
+- prompt: a clear, self-contained change, e.g. "Add a total_revenue metric to orders as the sum of amount".
+- With multiple dbt sources, name the intended source in the prompt, e.g. "In the marketing dbt project, ..."; never pass a source ID. If ambiguous, the run ends with status "error" and an error message listing source names/repositories. Call run_ai_writeback again with the intended source named in the prompt.
 
-Parameters:
-- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. "Add a 'total_revenue' metric to the orders model as the sum of amount"). When the project has more than one dbt source, name the intended source here (e.g. "In the marketing dbt project, ...").
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<human-readable message telling you the run started and to poll get_ai_writeback_status>" }]
-- structuredContent: {
-    aiWritebackRunUuid: string   // pass this to get_ai_writeback_status
-  }
+Normal response (MCP CallToolResult): content contains a text message saying the run started and to poll get_ai_writeback_status; structuredContent is { aiWritebackRunUuid: string }.
 `;
 
 export const mcpRunAiWritebackArgsSchema = z.object({
