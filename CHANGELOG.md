@@ -1,3 +1,17 @@
+## [2.196.1](https://github.com/lightdash/lightdash/compare/2.196.0...2.196.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **charts:** keep outside legend labels inside the reserved legend area ([#29047](https://github.com/lightdash/lightdash/issues/29047)) ([3850e93](https://github.com/lightdash/lightdash/commit/3850e935514d04df38252324d997441590384a2d))
+* **sql-runner:** list views and external tables in the Databricks and Trino catalog ([#29013](https://github.com/lightdash/lightdash/issues/29013)) ([e03d634](https://github.com/lightdash/lightdash/commit/e03d634a73a6bfe7a3b453a4ebf0635269e5789c))
+* **sql-runner:** list views and materialized views in the Postgres and Redshift catalog ([#29011](https://github.com/lightdash/lightdash/issues/29011)) ([4c48c23](https://github.com/lightdash/lightdash/commit/4c48c238f8d13b12ed23640eb8417229cfa6c5eb))
+
+
+### Performance Improvements
+
+* **sql-runner:** virtualize the table browser and drop the 100-table cap ([#29012](https://github.com/lightdash/lightdash/issues/29012)) ([2c311e9](https://github.com/lightdash/lightdash/commit/2c311e94e37b4976ab30cb0cce674470b62d86ba))
+
 # [2.196.0](https://github.com/lightdash/lightdash/compare/2.195.2...2.196.0) (2026-09-11)
 
 
