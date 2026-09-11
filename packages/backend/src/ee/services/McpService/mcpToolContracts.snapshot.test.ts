@@ -212,6 +212,7 @@ const mcpTextConfigurations = mcpOptionCombinations.map((options) => ({
     ...registrationOnlyFeatures,
     ...options,
 }));
+
 const warnedInstructionLengths = new Set<number>();
 
 const inputSchemaRequirements = z.object({
@@ -434,8 +435,8 @@ describe('MCP tool contracts', () => {
             await mcpService.createServer(makeMcpServerOptions(options));
             // Existing instruction overages cannot grow; lower these as text shrinks.
             const instructionCeilings = options.runSqlEnabled
-                ? { structured: 2412, expression: 2549 }
-                : { structured: 1615, expression: 1752 };
+                ? { structured: 1922, expression: 2036 }
+                : { structured: 1358, expression: 1472 };
             const instructionCeiling = options.runMetricQueryEnabled
                 ? instructionCeilings[
                       options.filterExpressionsEnabled
