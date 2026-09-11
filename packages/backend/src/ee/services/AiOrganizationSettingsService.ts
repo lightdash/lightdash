@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    AI_DEEP_RESEARCH_MAX_WORKERS,
     AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
     BYO_AI_PROVIDERS,
@@ -109,6 +110,17 @@ export const findUnconfiguredProviderKeyWrites = (
             !configuredProviders[provider],
     );
 
+const DEEP_RESEARCH_LIMIT_BOUNDS: Record<
+    keyof AiDeepResearchLimits,
+    { min: number; max: number }
+> = {
+    maxTokens: { min: 1, max: 10_000_000 },
+    maxSteps: { min: 1, max: 1_000 },
+    maxToolCalls: { min: AI_DEEP_RESEARCH_MAX_WORKERS + 1, max: 1_000 },
+    maxWarehouseQueries: { min: 1, max: 1_000 },
+    deadlineMs: { min: 1_000, max: 3_600_000 },
+};
+
 export const validateDeepResearchLimits = (
     limits: AiDeepResearchLimits,
 ): void => {
@@ -117,6 +129,12 @@ export const validateDeepResearchLimits = (
     ).forEach(([key, value]) => {
         if (!Number.isInteger(value) || value <= 0) {
             throw new ParameterError(`${key} must be a positive integer`);
+        }
+        const bounds = DEEP_RESEARCH_LIMIT_BOUNDS[key];
+        if (bounds && (value < bounds.min || value > bounds.max)) {
+            throw new ParameterError(
+                `${key} must be between ${bounds.min} and ${bounds.max}`,
+            );
         }
     });
 };

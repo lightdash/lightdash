@@ -40,6 +40,23 @@ describe('validateDeepResearchLimits', () => {
         ).not.toThrow();
     });
 
+    it('allows positive integer values in unrecognized fields', () => {
+        const limits = { ...AI_DEEP_RESEARCH_DEFAULT_LIMITS, extraLimit: 1 };
+
+        expect(() => validateDeepResearchLimits(limits)).not.toThrow();
+    });
+
+    it.each([0, -1, 1.5, 'invalid'])(
+        'rejects invalid values in unrecognized fields: %s',
+        (extraLimit) => {
+            const limits = { ...AI_DEEP_RESEARCH_DEFAULT_LIMITS, extraLimit };
+
+            expect(() => validateDeepResearchLimits(limits)).toThrow(
+                'extraLimit must be a positive integer',
+            );
+        },
+    );
+
     it.each([
         ['maxTokens', 0],
         ['maxToolCalls', -1],
@@ -411,6 +428,61 @@ describe('upsertSettings model validation', () => {
         ).rejects.toThrow('maxToolCalls must be a positive integer');
         expect(upsert).not.toHaveBeenCalled();
     });
+
+    it.each([
+        ['maxToolCalls', 1],
+        ['maxToolCalls', 2],
+        ['deadlineMs', 1],
+        ['deadlineMs', 999],
+        ['maxTokens', 10_000_001],
+        ['maxSteps', 1_001],
+        ['maxToolCalls', 1_001],
+        ['maxWarehouseQueries', 1_001],
+        ['deadlineMs', 3_600_001],
+    ] as const)(
+        'rejects out-of-range %s=%s before writing',
+        async (key, value) => {
+            const { service, upsert } = buildService();
+
+            await expect(
+                service.upsertSettings(user, {
+                    deepResearchLimits: {
+                        ...AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                        [key]: value,
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        {
+            maxTokens: 1,
+            maxSteps: 1,
+            maxToolCalls: 3,
+            maxWarehouseQueries: 1,
+            deadlineMs: 1_000,
+        },
+        {
+            maxTokens: 10_000_000,
+            maxSteps: 1_000,
+            maxToolCalls: 1_000,
+            maxWarehouseQueries: 1_000,
+            deadlineMs: 3_600_000,
+        },
+    ])(
+        'persists inclusive limit boundaries: %j',
+        async (deepResearchLimits) => {
+            const { service, upsert } = buildService();
+
+            await service.upsertSettings(user, { deepResearchLimits });
+
+            expect(upsert).toHaveBeenCalledWith('org-uuid', {
+                deepResearchLimits,
+            });
+        },
+    );
 
     it('forwards valid Deep Research limits to the model', async () => {
         const { service, upsert } = buildService();
