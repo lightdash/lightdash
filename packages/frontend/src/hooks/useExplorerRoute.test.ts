@@ -1,4 +1,4 @@
-import { ChartType } from '@lightdash/common';
+import { ChartType, type CreateSavedChartVersion } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import { createElement, useState, type ComponentProps } from 'react';
 import { Provider } from 'react-redux';
@@ -10,8 +10,10 @@ import {
 } from '../features/explorer/store';
 import { renderWithProviders } from '../testing/testUtils';
 import {
+    getSavedChartEditUrlFromCreateSavedChartVersion,
     parseChartFromExplorerSearchParams,
     parseDataAppVizUuidFromSearchParams,
+    tryParseCreateSavedChartVersionParam,
     useExplorerRoute,
     useExplorerUrlState,
 } from './useExplorerRoute';
@@ -285,5 +287,77 @@ describe('parseDataAppVizUuidFromSearchParams', () => {
         expect(
             parseDataAppVizUuidFromSearchParams('?dataAppVizUuid=not-a-uuid'),
         ).toBeNull();
+    });
+});
+
+describe('getSavedChartEditUrlFromCreateSavedChartVersion', () => {
+    const createSavedChart: CreateSavedChartVersion = {
+        tableName: 'payments',
+        metricQuery: {
+            exploreName: 'payments',
+            dimensions: ['payments_payment_method'],
+            metrics: ['payments_total_revenue'],
+            filters: {},
+            sorts: [],
+            limit: 25,
+            tableCalculations: [],
+        },
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: { layout: {}, eChartsConfig: {} },
+        },
+        tableConfig: { columnOrder: [] },
+    };
+
+    it('carries the unsaved version and the dashboard to the edit route', () => {
+        const { pathname, search } =
+            getSavedChartEditUrlFromCreateSavedChartVersion({
+                projectUuid: 'project-1',
+                chartSlug: 'revenue-per-payment-method',
+                createSavedChart,
+                fromDashboardUuid: 'dashboard-1',
+            });
+
+        expect(pathname).toBe(
+            '/projects/project-1/saved/revenue-per-payment-method/edit',
+        );
+        const params = new URLSearchParams(search);
+        expect(params.get('fromDashboard')).toBe('dashboard-1');
+        expect(parseChartFromExplorerSearchParams(`?${search}`)).toEqual(
+            createSavedChart,
+        );
+    });
+
+    it('omits the dashboard when the editor is not hosted in one', () => {
+        const { search } = getSavedChartEditUrlFromCreateSavedChartVersion({
+            projectUuid: 'project-1',
+            chartSlug: 'revenue-per-payment-method',
+            createSavedChart,
+            fromDashboardUuid: null,
+        });
+
+        expect(new URLSearchParams(search).get('fromDashboard')).toBeNull();
+    });
+
+    it('does not inherit the current page search params', () => {
+        window.history.replaceState({}, '', '/dashboard?fromSpace=space-1');
+
+        const { search } = getSavedChartEditUrlFromCreateSavedChartVersion({
+            projectUuid: 'project-1',
+            chartSlug: 'revenue-per-payment-method',
+            createSavedChart,
+            fromDashboardUuid: null,
+        });
+
+        expect(new URLSearchParams(search).get('fromSpace')).toBeNull();
+        expect(new URLSearchParams(search).get('isExploreFromHere')).toBeNull();
+    });
+});
+
+describe('tryParseCreateSavedChartVersionParam', () => {
+    it('ignores a malformed param instead of throwing', () => {
+        expect(
+            tryParseCreateSavedChartVersionParam('not-json'),
+        ).toBeUndefined();
     });
 });

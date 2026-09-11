@@ -163,6 +163,23 @@ const explorerSlice = createSlice({
             state.unsavedColorPaletteUuid =
                 action.payload?.colorPaletteUuid ?? null;
         },
+        // Server-owned metadata (name, pin, verification, slug...) without the
+        // version or palette, so a mid-session refetch leaves staged edits
+        // and the staged palette alone (setSavedChart would reset them).
+        setSavedChartMetadata: (state, action: PayloadAction<SavedChart>) => {
+            if (!state.savedChart) return;
+            const {
+                metricQuery,
+                chartConfig,
+                tableConfig,
+                pivotConfig,
+                parameters,
+                colorPaletteUuid,
+                merge,
+                ...metadata
+            } = action.payload;
+            state.savedChart = { ...state.savedChart, ...metadata };
+        },
         setColorPaletteUuid: (state, action: PayloadAction<string | null>) => {
             state.unsavedColorPaletteUuid = action.payload;
         },

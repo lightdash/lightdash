@@ -1,12 +1,9 @@
-import {
-    canMutateVerifiedContent,
-    type DashboardChartTile,
-    type SavedChart,
-} from '@lightdash/common';
+import { type DashboardChartTile, type SavedChart } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useChartPermissions } from '../../hooks/useChartPermissions';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import { useDashboardChartEdit } from '../../providers/Dashboard/useDashboardChartEdit';
@@ -42,23 +39,12 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
     const userCanManageExplore = user.data?.ability?.can('manage', 'Explore');
 
     // Otherwise the menu opens an editor that only fails on save.
-    const userCanMutateThisChart =
-        !chart ||
-        !user.data ||
-        canMutateVerifiedContent(
-            user.data.ability,
-            {
-                organizationUuid: chart.organizationUuid,
-                projectUuid: chart.projectUuid,
-            },
-            chart.verification,
-            user.data.userUuid,
-        );
+    const { canMutateVerification } = useChartPermissions(chart);
 
     if (!tile.properties.savedChartUuid || !userCanManageExplore) return null;
 
     // Edit over the dashboard when the host offers it and the chart is loaded.
-    if (onEditChart && chart && userCanMutateThisChart) {
+    if (onEditChart && chart && canMutateVerification) {
         return (
             <Menu.Item
                 leftSection={<MantineIcon icon={IconFilePencil} />}

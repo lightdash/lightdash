@@ -189,10 +189,10 @@ const ExplorerHeader: FC = memo(() => {
 
                 <RefreshButton size="xs" />
 
-                {/* For saved charts the main app saves from SavedChartsHeader.
-                    Embeds and modal hosts have no such header, so they edit
-                    saved charts here and keep the button ("Save changes") */}
-                {(!savedChart || isEmbedded || isModalHosted) &&
+                {/* Saved charts save from the page header (SavedChartsHeader)
+                    or the editor modal's header actions. Embeds have no such
+                    header, so they keep the button ("Save changes") here */}
+                {(!savedChart || (isEmbedded && !isModalHosted)) &&
                     (!isEmbedded || canCreateEmbedSavedChart) && (
                         <Tooltip
                             disabled={buttonDisabledMessage === null}

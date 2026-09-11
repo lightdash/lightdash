@@ -324,3 +324,58 @@ describe('explorerSlice chart type authoring', () => {
         expect(cleared.unsavedChartVersion.tableName).toBe('orders');
     });
 });
+
+describe('explorerSlice saved chart metadata', () => {
+    const savedChart = {
+        uuid: 'chart-uuid',
+        name: 'Old name',
+        description: 'Old description',
+        pinnedListUuid: null,
+        verification: null,
+        colorPaletteUuid: 'saved-palette',
+        metricQuery: { metrics: ['orders_count'] },
+    } as unknown as Parameters<typeof explorerActions.setSavedChartMetadata>[0];
+
+    it('merges server metadata without touching the version or the staged palette', () => {
+        const withChart = explorerReducer(
+            undefined,
+            explorerActions.setSavedChart(savedChart),
+        );
+        const withStagedPalette = explorerReducer(
+            withChart,
+            explorerActions.setColorPaletteUuid('staged-palette'),
+        );
+
+        const result = explorerReducer(
+            withStagedPalette,
+            explorerActions.setSavedChartMetadata({
+                ...savedChart,
+                name: 'New name',
+                description: 'New description',
+                pinnedListUuid: 'pinned-list',
+                colorPaletteUuid: 'server-palette',
+                metricQuery: { metrics: ['orders_total'] },
+            } as unknown as Parameters<
+                typeof explorerActions.setSavedChartMetadata
+            >[0]),
+        );
+
+        expect(result.savedChart?.name).toBe('New name');
+        expect(result.savedChart?.description).toBe('New description');
+        expect(result.savedChart?.pinnedListUuid).toBe('pinned-list');
+        expect(result.savedChart?.metricQuery).toEqual({
+            metrics: ['orders_count'],
+        });
+        expect(result.savedChart?.colorPaletteUuid).toBe('saved-palette');
+        expect(result.unsavedColorPaletteUuid).toBe('staged-palette');
+    });
+
+    it('ignores metadata for a session with no saved chart', () => {
+        const result = explorerReducer(
+            undefined,
+            explorerActions.setSavedChartMetadata(savedChart),
+        );
+
+        expect(result.savedChart).toBeUndefined();
+    });
+});

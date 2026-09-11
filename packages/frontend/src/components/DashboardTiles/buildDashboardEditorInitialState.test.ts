@@ -1,5 +1,4 @@
 import {
-    ChartType,
     MetricType,
     type AdditionalMetric,
     type SavedChart,
@@ -10,6 +9,7 @@ import {
     explorerActions,
     selectHasUnsavedChanges,
 } from '../../features/explorer/store';
+import { mockSavedChartResponse } from '../../testing/savedChartResponse.mock';
 import { buildDashboardEditorInitialState } from './buildDashboardEditorInitialState';
 
 const registryMetric: AdditionalMetric = {
@@ -21,31 +21,7 @@ const registryMetric: AdditionalMetric = {
     baseDimensionName: 'first_name',
 };
 
-const editChart = {
-    uuid: 'chart-uuid',
-    name: 'Revenue per payment method',
-    tableName: 'payments',
-    metricQuery: {
-        exploreName: 'payments',
-        dimensions: ['payments_payment_method'],
-        metrics: ['payments_total_revenue'],
-        filters: {},
-        sorts: [],
-        limit: 500,
-        tableCalculations: [],
-        additionalMetrics: [],
-    },
-    chartConfig: {
-        type: ChartType.CARTESIAN,
-        config: {
-            layout: { xField: 'payments_payment_method', yField: [] },
-            eChartsConfig: { series: [] },
-        },
-    },
-    tableConfig: { columnOrder: [] },
-    pivotConfig: undefined,
-    colorPaletteUuid: 'palette-uuid',
-} as unknown as SavedChart;
+const editChart = mockSavedChartResponse();
 
 const buildStore = (seededMetrics: AdditionalMetric[]) =>
     createExplorerStore({

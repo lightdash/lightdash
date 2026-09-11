@@ -88,8 +88,11 @@ const Dashboard: FC = () => {
         mode?: string;
     }>();
 
-    const { clearIsEditingDashboardChart, clearDashboardStorage } =
-        useDashboardStorage();
+    const {
+        clearIsEditingDashboardChart,
+        clearDashboardStorage,
+        storeDashboard,
+    } = useDashboardStorage();
 
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -982,6 +985,35 @@ const Dashboard: FC = () => {
         ],
     );
 
+    // A chart the dashboard owns has no home to come back to, so the dashboard
+    // rides along in session storage, exactly as a tile's "Edit chart" link does.
+    const handleBeforeOpenChartPage = useCallback(() => {
+        if (!chartToEdit || chartToEdit.dashboardUuid !== dashboardUuid) return;
+        storeDashboard(
+            dashboardTiles,
+            dashboardFilters,
+            haveTilesChanged,
+            haveFiltersChanged,
+            dashboardUuid,
+            dashboard?.name,
+            activeTab?.uuid,
+            dashboardTabs,
+            dashboard?.slug,
+        );
+    }, [
+        chartToEdit,
+        storeDashboard,
+        dashboardTiles,
+        dashboardFilters,
+        haveTilesChanged,
+        haveFiltersChanged,
+        dashboardUuid,
+        dashboard?.name,
+        dashboard?.slug,
+        activeTab?.uuid,
+        dashboardTabs,
+    ]);
+
     if (isDashboardLoading) {
         return <PageSpinner />;
     }
@@ -1245,6 +1277,7 @@ const Dashboard: FC = () => {
                             customMetricsEnabled={
                                 isDashboardCustomMetricsEnabled
                             }
+                            onBeforeOpenChartPage={handleBeforeOpenChartPage}
                             onChartSaved={handleChartEditorSaved}
                             onRegistryMetricEdited={handleRegistryMetricEdited}
                             onRegistryMetricDeleted={
