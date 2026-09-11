@@ -101,8 +101,9 @@ engineering sense: no branch, nothing to promote.
   step text taken from cited docs sentences, links allowlisted to the docs site. `check.ts` enforces the rules
   (one control per step, docs anchors exist, no typed steps without a suggestion, titles and bodies within
   length, routes known) and CI runs it with `scope-tours-check.yml`; `smoke.ts` completes every tour on a running
-  instance by clicking only what it highlights, and `scope-tours-smoke.yml` runs that. The skill
-  `.claude/skills/add-scope-walkthrough` is the recipe for adding one.
+  instance by clicking only what it highlights. The smoke runs by hand, not in CI, so a product change that keeps
+  every marker but changes the click path passes CI. The skill `.claude/skills/add-scope-walkthrough` is the
+  recipe for adding one; `maintaining-walkthroughs.md` covers what to do when a product change breaks one.
 - **Host and kit.** `features/scopeTours/ScopeTourHost.tsx` mounts on project routes, reads the tour for the
   scope in the URL, requests a copy when the current project is the training project, and drives
   `components/common/GuidedTour`: an overlay that blocks everything but the highlighted control, a card with the

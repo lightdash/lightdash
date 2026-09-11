@@ -65,3 +65,14 @@ jobs:
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
               run: pnpm scope-tours:check
+            - name: Point the author at the guide
+              if: failure()
+              env:
+                  GUIDE_URL: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/docs/learn/maintaining-walkthroughs.md
+              run: |
+                  echo "::error title=Learn walkthrough checks failed::A walkthrough is built from data-tour-* attributes in the frontend. What the failed step means and who fixes it: docs/learn/maintaining-walkthroughs.md"
+                  {
+                      echo '### Learn walkthrough checks failed'
+                      echo
+                      echo "A walkthrough is built from \`data-tour-*\` attributes in the frontend. The first failed step above is the one to read; [maintaining-walkthroughs.md]($GUIDE_URL) explains what it means and who fixes it."
+                  } >> "$GITHUB_STEP_SUMMARY"
