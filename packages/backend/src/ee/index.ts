@@ -32,7 +32,6 @@ import { failInFlightAiAgentStreams } from './aiAgentShutdown';
 import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
 import { ChartRegistryClient } from './clients/ChartRegistryClient';
 import LicenseClient from './clients/License/LicenseClient';
-import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AgentOnboardingRunModel } from './models/AgentOnboardingRunModel';
@@ -1365,7 +1364,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     managedAgentModel: models.getManagedAgentModel(),
                     analyticsModel: models.getAnalyticsModel(),
-                    organizationModel: models.getOrganizationModel(),
                     projectModel: models.getProjectModel(),
                     validationModel: models.getValidationModel(),
                     savedChartModel: models.getSavedChartModel(),
@@ -1375,12 +1373,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
-                    serviceAccountModel: models.getServiceAccountModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     slackClient: clients.getSlackClient(),
-                    managedAgentClient: new ManagedAgentClient({
-                        lightdashConfig: context.lightdashConfig,
-                    }),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
@@ -1469,11 +1463,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     database,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),
-            managedAgentModel: ({ database, utils }) =>
-                new ManagedAgentModel({
-                    database,
-                    encryptionUtil: utils.getEncryptionUtil(),
-                }),
+            managedAgentModel: ({ database }) =>
+                new ManagedAgentModel({ database }),
             mobilePushNotificationModel: ({ database, utils }) =>
                 new MobilePushNotificationModel({
                     database,
