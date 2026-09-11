@@ -1,4 +1,7 @@
-import { type PartitionColumn } from '@lightdash/common';
+import {
+    type PartitionColumn,
+    type WarehouseTableType,
+} from '@lightdash/common';
 import Fuse from 'fuse.js';
 import { type TablesBySchema } from '../hooks/useTables';
 
@@ -18,6 +21,7 @@ export type TableRow =
           schema: string;
           table: string;
           partitionColumn: PartitionColumn | undefined;
+          tableType: WarehouseTableType | undefined;
       };
 
 export const filterTablesBySchema = (
@@ -67,6 +71,7 @@ export const buildTableRows = (
                     schema: schemaName,
                     table,
                     partitionColumn: tables[table].partitionColumn,
+                    tableType: tables[table].tableType,
                 }),
             ),
         ];

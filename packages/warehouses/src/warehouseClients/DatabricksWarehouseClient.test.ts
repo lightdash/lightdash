@@ -451,6 +451,7 @@ describe('DatabricksWarehouseClient getAllTables', () => {
                     table_catalog: 'main',
                     table_schema: 'analytics',
                     table_name: 'orders_view',
+                    table_type: 'MATERIALIZED_VIEW',
                 },
             ],
             fields: {},
@@ -459,10 +460,15 @@ describe('DatabricksWarehouseClient getAllTables', () => {
         const tables = await warehouse.getAllTables();
 
         const [query] = runQuery.mock.calls[0];
-        expect(query).not.toContain('table_type');
+        expect(query).not.toContain('table_type =');
         expect(query).toContain("table_schema <> 'information_schema'");
         expect(tables).toEqual([
-            { database: 'main', schema: 'analytics', table: 'orders_view' },
+            {
+                database: 'main',
+                schema: 'analytics',
+                table: 'orders_view',
+                tableType: 'materialized_view',
+            },
         ]);
     });
 });

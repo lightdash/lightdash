@@ -185,6 +185,13 @@ describe('PostgresWarehouseClient', () => {
                             table_catalog: 'warehouse',
                             table_schema: 'public',
                             table_name: 'orders_view',
+                            table_type: 'VIEW',
+                        },
+                        {
+                            table_catalog: 'warehouse',
+                            table_schema: 'public',
+                            table_name: 'orders_mv',
+                            table_type: 'MATERIALIZED VIEW',
                         },
                     ],
                     fields: {},
@@ -202,6 +209,13 @@ describe('PostgresWarehouseClient', () => {
                     database: 'warehouse',
                     schema: 'public',
                     table: 'orders_view',
+                    tableType: 'view',
+                },
+                {
+                    database: 'warehouse',
+                    schema: 'public',
+                    table: 'orders_mv',
+                    tableType: 'materialized_view',
                 },
             ]);
         });

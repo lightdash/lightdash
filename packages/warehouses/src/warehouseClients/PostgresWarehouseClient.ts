@@ -4,6 +4,7 @@ import {
     CreatePostgresLikeCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
     setCatalogTimestampDomain,
@@ -714,7 +715,7 @@ export class PostgresClient<
     async getAllTables() {
         const supportsMatviews = await this.supportsMatviews();
         const query = `
-            SELECT table_catalog, table_schema, table_name
+            SELECT table_catalog, table_schema, table_name, table_type
             FROM information_schema.tables
             WHERE table_type IN ('BASE TABLE', 'VIEW', 'FOREIGN')
                 AND table_schema NOT IN ('information_schema', 'pg_catalog')
@@ -724,7 +725,8 @@ export class PostgresClient<
             UNION ALL
             SELECT current_database() AS table_catalog,
                    schemaname AS table_schema,
-                   matviewname AS table_name
+                   matviewname AS table_name,
+                   'MATERIALIZED VIEW' AS table_type
             FROM pg_catalog.pg_matviews
             WHERE schemaname NOT IN ('information_schema', 'pg_catalog')`
                     : ''
@@ -736,6 +738,7 @@ export class PostgresClient<
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 

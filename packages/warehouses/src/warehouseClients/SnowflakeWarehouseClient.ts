@@ -3,6 +3,7 @@ import {
     CreateSnowflakeCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     isWeekDay,
     Metric,
     MetricType,
@@ -1818,9 +1819,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             SELECT
                 TABLE_CATALOG as "table_catalog",
                 TABLE_SCHEMA as "table_schema",
-                TABLE_NAME as "table_name"
+                TABLE_NAME as "table_name",
+                TABLE_TYPE as "table_type"
             FROM information_schema.tables
-            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'MATERIALIZED VIEW', 'EXTERNAL TABLE')
             ${whereSql}
             ORDER BY 1,2,3
         `;
@@ -1838,6 +1840,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 

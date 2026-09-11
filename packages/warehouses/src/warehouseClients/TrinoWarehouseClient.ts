@@ -2,6 +2,7 @@ import {
     AnyType,
     CreateTrinoCredentials,
     DimensionType,
+    getWarehouseTableType,
     Metric,
     MetricType,
     getErrorMessage as originalGetErrorMessage,
@@ -537,7 +538,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             : '';
         const filterSystemTables = `AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
         const query = `
-            SELECT table_catalog, table_schema, table_name
+            SELECT table_catalog, table_schema, table_name, table_type
             FROM information_schema.tables
             WHERE table_type IN ('BASE TABLE', 'VIEW')
                 ${whereSql}
@@ -549,6 +550,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 }

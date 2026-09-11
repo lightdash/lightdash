@@ -1,4 +1,4 @@
-import { PartitionType } from '@lightdash/common';
+import { PartitionType, WarehouseTableType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     buildTableRows,
@@ -14,7 +14,11 @@ const partitionColumn = {
 const tablesBySchema: SchemaTables[] = [
     {
         schema: 'jaffle',
-        tables: { customers: {}, orders: { partitionColumn }, payments: {} },
+        tables: {
+            customers: {},
+            orders: { partitionColumn },
+            payments: { tableType: WarehouseTableType.VIEW },
+        },
     },
     { schema: 'staging', tables: { stg_orders: {} } },
 ];
@@ -60,6 +64,11 @@ describe('buildTableRows', () => {
             schema: 'jaffle',
             table: 'orders',
             partitionColumn,
+            tableType: undefined,
+        });
+        expect(rows[3]).toMatchObject({
+            table: 'payments',
+            tableType: WarehouseTableType.VIEW,
         });
     });
 });

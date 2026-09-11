@@ -1,6 +1,7 @@
 import {
     AnyType,
     CreateRedshiftCredentials,
+    getWarehouseTableType,
     RedshiftAuthenticationType,
     SupportedDbtAdapter,
     WarehouseCatalog,
@@ -137,7 +138,7 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
     async getAllTables() {
         if (!(await this.isRedshift())) return super.getAllTables();
         const query = `
-            SELECT table_catalog, table_schema, table_name
+            SELECT table_catalog, table_schema, table_name, table_type
             FROM svv_tables
             WHERE table_catalog = $1
                 AND table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_internal')
@@ -150,6 +151,7 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 

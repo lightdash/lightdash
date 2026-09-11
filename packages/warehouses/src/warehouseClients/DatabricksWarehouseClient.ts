@@ -12,6 +12,7 @@ import {
     DatabricksAuthenticationType,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
     ParseError,
@@ -677,7 +678,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
     // tables, views, materialized views, streaming tables and foreign tables
     async getAllTables() {
         const query = `
-            SELECT table_catalog, table_schema, table_name
+            SELECT table_catalog, table_schema, table_name, table_type
             FROM information_schema.tables
             WHERE table_schema <> 'information_schema'
             ORDER BY 1,2,3
@@ -687,6 +688,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 

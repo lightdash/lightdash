@@ -240,6 +240,7 @@ describe('TrinoWarehouseClient getAllTables', () => {
                     table_catalog: 'hive',
                     table_schema: 'analytics',
                     table_name: 'orders_view',
+                    table_type: 'VIEW',
                 },
             ],
             fields: {},
@@ -250,7 +251,12 @@ describe('TrinoWarehouseClient getAllTables', () => {
         const [query] = runQuery.mock.calls[0];
         expect(query).toContain("table_type IN ('BASE TABLE', 'VIEW')");
         expect(tables).toEqual([
-            { database: 'hive', schema: 'analytics', table: 'orders_view' },
+            {
+                database: 'hive',
+                schema: 'analytics',
+                table: 'orders_view',
+                tableType: 'view',
+            },
         ]);
     });
 });
