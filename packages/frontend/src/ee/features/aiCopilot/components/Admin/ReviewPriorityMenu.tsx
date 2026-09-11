@@ -1,5 +1,5 @@
 import { type AiAgentReviewItemPriority } from '@lightdash/common';
-import { Menu, UnstyledButton } from '@mantine/core';
+import { Group, Menu, Tooltip, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import { useUpdateAiAgentReviewItemPriority } from '../../hooks/useAiAgentAdmin';
@@ -7,10 +7,13 @@ import {
     reviewPriorityColors,
     reviewPriorityLabels,
 } from './reviewItemDetails';
+import { ReviewPriorityBars } from './ReviewPriorityBars';
 
 type Props = {
     fingerprint: string;
     priority: AiAgentReviewItemPriority;
+    /** `badge` = dot + label; `bars` = compact signal-strength glyph (board cards). */
+    variant?: 'badge' | 'bars';
     /** Render as a bare dot + label (no chip) — e.g. in the issue rail. */
     bordered?: boolean;
     /** Extra class for the badge — e.g. rail typography overrides. */
@@ -28,6 +31,7 @@ const priorities: AiAgentReviewItemPriority[] = [
 export const ReviewPriorityMenu: FC<Props> = ({
     fingerprint,
     priority,
+    variant = 'badge',
     bordered = true,
     className,
 }) => {
@@ -37,16 +41,29 @@ export const ReviewPriorityMenu: FC<Props> = ({
         <Menu width={160} position="bottom-start">
             <Menu.Target>
                 <UnstyledButton
-                    aria-label="Change priority"
+                    display="inline-flex"
+                    aria-label={`Priority: ${reviewPriorityLabels[priority]}`}
+                    className={variant === 'bars' ? className : undefined}
                     onClick={(event) => event.stopPropagation()}
                     onPointerDown={(event) => event.stopPropagation()}
                 >
-                    <CategoryBadge
-                        color={reviewPriorityColors[priority]}
-                        label={reviewPriorityLabels[priority]}
-                        bordered={bordered}
-                        className={className}
-                    />
+                    {variant === 'bars' ? (
+                        <Tooltip
+                            label={reviewPriorityLabels[priority]}
+                            openDelay={300}
+                        >
+                            <Group>
+                                <ReviewPriorityBars priority={priority} />
+                            </Group>
+                        </Tooltip>
+                    ) : (
+                        <CategoryBadge
+                            color={reviewPriorityColors[priority]}
+                            label={reviewPriorityLabels[priority]}
+                            bordered={bordered}
+                            className={className}
+                        />
+                    )}
                 </UnstyledButton>
             </Menu.Target>
             <Menu.Dropdown
@@ -65,6 +82,9 @@ export const ReviewPriorityMenu: FC<Props> = ({
                                 fingerprint,
                                 priority: nextPriority,
                             })
+                        }
+                        leftSection={
+                            <ReviewPriorityBars priority={nextPriority} />
                         }
                     >
                         {reviewPriorityLabels[nextPriority]}

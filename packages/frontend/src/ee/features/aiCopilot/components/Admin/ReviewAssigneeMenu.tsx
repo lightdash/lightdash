@@ -24,6 +24,8 @@ type Props = {
     className?: string;
     /** Compact avatar + name row (e.g. the issue rail) instead of avatar only. */
     withName?: boolean;
+    /** Avatar size for the avatar-only trigger. */
+    avatarSize?: number;
 };
 
 export const ReviewAssigneeMenu: FC<Props> = ({
@@ -32,6 +34,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
     assignedToUserUuid,
     className,
     withName = false,
+    avatarSize = 26,
 }) => {
     // Source the candidate list from the same hook the project users & groups
     // table uses, so anyone who can access the project is assignable — not just
@@ -87,7 +90,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                 {assignee ? (
                                     <LightdashUserAvatar
                                         name={assigneeName ?? undefined}
-                                        size={withName ? 18 : 'sm'}
+                                        size={withName ? 18 : avatarSize}
                                         radius="xl"
                                         userUuid={assignee.userUuid}
                                         avatarUrl={assignee.avatarUrl}
@@ -95,7 +98,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                     />
                                 ) : (
                                     <LightdashUserAvatar
-                                        size={withName ? 18 : 'sm'}
+                                        size={withName ? 18 : avatarSize}
                                         radius="xl"
                                         variant="light"
                                         color="gray"

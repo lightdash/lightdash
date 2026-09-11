@@ -2,12 +2,11 @@ import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import {
     Badge,
     Box,
-    Button,
-    Code,
     Group,
     Stack,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconArrowUpRight,
@@ -112,7 +111,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                     }
                 }}
             >
-                <Stack gap={8}>
+                <Stack gap={10}>
                     <Group
                         justify="space-between"
                         align="flex-start"
@@ -128,21 +127,28 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     Example
                                 </Badge>
                             )}
-                            <Text fz="sm" fw={500} lineClamp={2}>
+                            <Text
+                                fw={500}
+                                c="ldGray.9"
+                                lineClamp={2}
+                                className={styles.cardTitle}
+                            >
                                 {title}
                             </Text>
-                            {targetAnchor && (
-                                <Code
-                                    fz="xs"
-                                    c="dimmed"
-                                    w="fit-content"
-                                    maw="100%"
-                                >
-                                    {targetAnchor}
-                                </Code>
-                            )}
                         </Stack>
                         <Group gap={8} wrap="nowrap" align="center">
+                            {!isExample && (
+                                <ReviewPriorityMenu
+                                    fingerprint={item.fingerprint}
+                                    priority={item.priority}
+                                    variant="bars"
+                                    className={
+                                        item.priority === 'none'
+                                            ? styles.priorityNone
+                                            : undefined
+                                    }
+                                />
+                            )}
                             <Tooltip
                                 position="top"
                                 label={`First seen ${formatReviewDate(
@@ -151,7 +157,11 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     item.lastSeenAt,
                                 )}`}
                             >
-                                <Text fz="xs" c="dimmed" className="ld-nowrap">
+                                <Text
+                                    fz="xs"
+                                    c="ldGray.5"
+                                    className="ld-nowrap"
+                                >
                                     {formatRelativeReviewDate(item.lastSeenAt)}
                                 </Text>
                             </Tooltip>
@@ -164,7 +174,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         justify="space-between"
                         align="center"
                     >
-                        <Group gap={6} wrap="wrap">
+                        <Group gap="sm" wrap="wrap">
                             <CategoryBadge
                                 color={
                                     reviewRootCauseColors[item.primaryRootCause]
@@ -172,13 +182,10 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                 label={
                                     reviewRootCauseLabels[item.primaryRootCause]
                                 }
+                                bordered={false}
+                                tooltip={targetAnchor ?? undefined}
+                                className={styles.categoryLabel}
                             />
-                            {!isExample && (
-                                <ReviewPriorityMenu
-                                    fingerprint={item.fingerprint}
-                                    priority={item.priority}
-                                />
-                            )}
                         </Group>
 
                         {!isExample && (
@@ -190,6 +197,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                 }
                                 fingerprint={item.fingerprint}
                                 assignedToUserUuid={item.assignedToUserUuid}
+                                avatarSize={18}
                                 className={
                                     item.assignedToUserUuid
                                         ? undefined
@@ -250,50 +258,46 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                     </Box>
                 ))}
 
-            {startKind !== null &&
-                (isExample ? (
-                    <Button
-                        data-tour="reviews-pr"
-                        size="compact-xs"
-                        disabled
-                        leftSection={<MantineIcon icon={IconBolt} size={12} />}
-                        className={styles.startAction}
-                    >
-                        Start fix
-                    </Button>
-                ) : (
-                    <Button
-                        size="compact-xs"
-                        leftSection={
-                            <MantineIcon
-                                icon={isRetry ? IconRefresh : IconBolt}
-                                size={12}
-                            />
+            {startKind !== null && (
+                <UnstyledButton
+                    data-tour={isExample ? 'reviews-pr' : undefined}
+                    disabled={isExample || createWriteback.isLoading}
+                    className={`${styles.cardFooter} ${styles.startFooter}`}
+                    onPointerDown={(e: React.PointerEvent) =>
+                        e.stopPropagation()
+                    }
+                    onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        if (isExample) return;
+                        updateStatus.mutate({
+                            fingerprint: item.fingerprint,
+                            body: {
+                                status: 'in_progress',
+                                dismissedReason: null,
+                            },
+                        });
+                        if (startKind === 'modal') {
+                            setPreviewOpen(true);
+                        } else {
+                            createWriteback.mutate(item.fingerprint);
                         }
-                        loading={createWriteback.isLoading}
-                        className={styles.startAction}
-                        onPointerDown={(e: React.PointerEvent) =>
-                            e.stopPropagation()
-                        }
-                        onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            updateStatus.mutate({
-                                fingerprint: item.fingerprint,
-                                body: {
-                                    status: 'in_progress',
-                                    dismissedReason: null,
-                                },
-                            });
-                            if (startKind === 'modal') {
-                                setPreviewOpen(true);
-                            } else {
-                                createWriteback.mutate(item.fingerprint);
-                            }
-                        }}
-                    >
-                        {isRetry ? 'Retry fix' : 'Start fix'}
-                    </Button>
-                ))}
+                    }}
+                >
+                    <Group gap={6} align="center">
+                        <MantineIcon
+                            icon={isRetry ? IconRefresh : IconBolt}
+                            size={13}
+                        />
+                        <Text fz="xs" c="ldGray.7">
+                            {createWriteback.isLoading
+                                ? 'Starting…'
+                                : isRetry
+                                  ? 'Retry fix'
+                                  : 'Start fix'}
+                        </Text>
+                    </Group>
+                </UnstyledButton>
+            )}
 
             {startKind === 'modal' && (
                 <ProjectContextWritebackModal

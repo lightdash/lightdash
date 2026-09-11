@@ -40,15 +40,11 @@
 .cardExample .cardBody {
     cursor: default;
 }
-/* The sample card's action is disabled, but Mantine's disabled colours (grey
-   text on grey) clashed with the filled background this class forces, which read
-   as broken in dark mode. Keep it looking like the real button. */
-.cardExample .startAction,
-.cardExample .startAction:disabled {
+/* The sample card's action is disabled but should still read as the real
+   footer, not greyed out — the tour spotlights it. */
+.cardExample .startFooter:disabled {
     opacity: 1;
-    background: var(--mantine-color-indigo-filled);
-    color: var(--mantine-color-white);
-    border-color: transparent;
+    cursor: default;
 }
 .cardFooter {
     display: flex;
@@ -67,23 +63,15 @@
 .cardFooter:hover {
     background: var(--mantine-color-default-hover);
 }
-.startAction {
-    position: absolute;
-    top: var(--mantine-spacing-xs);
-    right: var(--mantine-spacing-xs);
-    opacity: 0;
-    transition:
-        opacity 120ms ease,
-        transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
-    background: var(--mantine-color-indigo-filled);
-    box-shadow: var(--mantine-shadow-sm);
+/* Start/Retry action as a footer row, same shape as the workspace row so
+   every card action lives in one place. */
+.startFooter {
+    width: 100%;
+    font: inherit;
+    color: var(--mantine-color-text);
 }
-.card:hover .startAction,
-.cardSelected .startAction {
-    opacity: 1;
-}
-.startAction:active {
-    transform: scale(0.96);
+.startFooter:disabled {
+    cursor: default;
 }
 .assigneeUnassigned {
     opacity: 0.4;
@@ -211,5 +199,26 @@
     }
 }
 .assigneeTrigger {
+    display: inline-flex;
+    align-items: center;
     cursor: pointer;
+}
+/* Unset priority is the common case; keep the control reachable on hover
+   without every card announcing "No priority". */
+.priorityNone {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+.card:hover .priorityNone {
+    opacity: 1;
+}
+/* One step below the title so title, category, timestamp read as three levels. */
+.categoryLabel {
+    color: var(--mantine-color-ldGray-6);
+}
+/* Between the xs and sm steps: 12px felt small for the card's lead line, 14px
+   outweighed the rest of the card. */
+.cardTitle {
+    font-size: 13px;
+    line-height: 1.4;
 }
