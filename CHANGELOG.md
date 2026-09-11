@@ -1,3 +1,10 @@
+## [2.193.1](https://github.com/lightdash/lightdash/compare/2.193.0...2.193.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* make release scripts compatible with pnpm 12 ([#29036](https://github.com/lightdash/lightdash/issues/29036)) ([bfe7be1](https://github.com/lightdash/lightdash/commit/bfe7be1d54e181f963273154159be02ef9d827a8))
+
 # [2.193.0](https://github.com/lightdash/lightdash/compare/2.192.0...2.193.0) (2026-09-11)
 
 
