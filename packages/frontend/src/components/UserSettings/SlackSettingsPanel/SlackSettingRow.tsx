@@ -31,7 +31,7 @@ export const SlackSettingRow: FC<Props> = ({
             </Text>
         </Stack>
         <Switch
-            className="ld-shrink-0"
+            flex="0 0 auto"
             aria-label={title}
             checked={checked}
             disabled={disabled}
