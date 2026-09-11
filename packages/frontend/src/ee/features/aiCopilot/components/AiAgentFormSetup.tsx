@@ -859,7 +859,7 @@ export const AiAgentFormSetup = ({
                                                 className={classes.switchLink}
                                             >
                                                 Configure which schemas and
-                                                tables it can query
+                                                catalogs it can query
                                             </Anchor>
                                         </>
                                     }

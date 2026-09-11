@@ -330,7 +330,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                           element: (
                               <ProjectSettingsPage
                                   title="Agent data scope"
-                                  description="Limit which schemas an AI agent can read when it writes raw SQL."
+                                  description="Limit which schemas and catalogs an AI agent can read when it writes raw SQL."
                               >
                                   <SettingsAgentDataScope
                                       projectUuid={projectUuid}
