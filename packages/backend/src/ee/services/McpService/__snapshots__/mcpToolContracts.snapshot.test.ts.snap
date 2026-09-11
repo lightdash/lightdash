@@ -40,11 +40,6 @@ Before writing filter expressions, read the shared skill referenced by run_metri
 - Never mix fields from different explores in a single query
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
 - When similar field names exist in base and joined tables, match to the query's semantic level
-
-### Custom Metrics
-- Use when the explore lacks a needed aggregation
-- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
-- Reference using the pattern \`table_metricname\`
 "
 `;
 
@@ -85,11 +80,6 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 - Never mix fields from different explores in a single query
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
 - When similar field names exist in base and joined tables, match to the query's semantic level
-
-### Custom Metrics
-- Use when the explore lacks a needed aggregation
-- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
-- Reference using the pattern \`table_metricname\`
 "
 `;
 
@@ -140,11 +130,6 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 - Never mix fields from different explores in a single query
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
 - When similar field names exist in base and joined tables, match to the query's semantic level
-
-### Custom Metrics
-- Use when the explore lacks a needed aggregation
-- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
-- Reference using the pattern \`table_metricname\`
 ",
       "title": "Lightdash Data Analyst",
     },
@@ -2409,6 +2394,8 @@ If any selected field is marked "requires parameters" in field discovery or meta
 If the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.
 
 Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
+
+Add a customMetrics entry only after grep_fields / get_metadata confirm no existing metric fits.
 
 This tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.
 
@@ -11135,6 +11122,8 @@ If any selected field is marked "requires parameters" in field discovery or meta
 If the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.
 
 Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
+
+Add a customMetrics entry only after grep_fields / get_metadata confirm no existing metric fits.
 
 This tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.
 

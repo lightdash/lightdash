@@ -21,7 +21,8 @@ describe('getMcpAnalystPrompt', () => {
         expect(prompt).not.toContain('### Time Filtering');
         expect(prompt).not.toContain('inThePast');
         expect(prompt).toContain('render completed metric queries');
-        expect(prompt).toContain('### Custom Metrics');
+        expect(prompt).not.toContain('### Custom Metrics');
+        expect(prompt).not.toContain('table_metricname');
         expect(prompt).not.toContain('Saved Content Mode');
     });
 
