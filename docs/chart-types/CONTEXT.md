@@ -17,7 +17,7 @@ app/viz side and this glossary for the registry/library side.
 The static index and artifacts a Lightdash deployment reads installable
 chart types from: an `index.json` catalog plus, per published version,
 prebuilt `dist.tar`/`source.tar` with sha256 digests and screenshots. The
-official registry is the `lightdash/lightdash-gallery` repo served from
+official registry is the `lightdash/lightdash-library` repo served from
 GitHub Pages; a deployment points at exactly one registry URL.
 _Avoid_: marketplace, store, hub, gallery (that is the in-product page)
 

@@ -7,13 +7,13 @@ Custom chart types themselves (viz schema, explorer behaviour, saved-chart
 version pinning) are data apps — see the "Custom chart types" section of
 [`docs/data-apps.md`](./data-apps.md). The registry's own repo, publish
 pipeline, and authoring runbook are documented in
-[lightdash/lightdash-gallery](https://github.com/lightdash/lightdash-gallery).
+[lightdash/lightdash-library](https://github.com/lightdash/lightdash-library).
 
 ---
 
 ## What it is
 
-- The official registry (`lightdash/lightdash-gallery`, served from GitHub
+- The official registry (`lightdash/lightdash-library`, served from GitHub
   Pages) publishes prebuilt custom chart types. A Lightdash deployment
   points at one registry URL; the in-product chart type gallery gains a
   **chart type library** section to browse them and install them per
@@ -31,7 +31,7 @@ pipeline, and authoring runbook are documented in
   screenshots.
 - The contract is shared code: `chartRegistryIndexSchema` and the semver
   helpers in `packages/common/src/ee/apps/registry.ts` validate the index
-  both in the product (on fetch) and in the gallery repo's CI (on publish).
+  both in the product (on fetch) and in the registry repo's CI (on publish).
   Entries carry slug, name, description, semver version, tags, changelog,
   `minLightdashVersion`, the viz schema, a curated icon, screenshots, and
   artifact digests.
@@ -40,7 +40,7 @@ pipeline, and authoring runbook are documented in
   publish pipeline digest-verifies already-published versions and hard-fails
   on drift rather than overwriting. Old versions stay served forever.
 - Registry charts are template-deps-only: no dependencies beyond the data
-  app template's own `package.json`, enforced by gallery CI.
+  app template's own `package.json`, enforced by the registry repo's CI.
 
 ## Listing in product
 
@@ -113,6 +113,6 @@ pipeline, and authoring runbook are documented in
   section, and detail/fork/uninstall modals.
 - `packages/backend/src/database/migrations/20260831121540_add_chart_registry_provenance.ts`
   — provenance and fork-lineage columns.
-- [lightdash/lightdash-gallery](https://github.com/lightdash/lightdash-gallery)
+- [lightdash/lightdash-library](https://github.com/lightdash/lightdash-library)
   — the official registry: seed charts, publish pipeline, validation CI,
   and the authoring/publishing runbook.
