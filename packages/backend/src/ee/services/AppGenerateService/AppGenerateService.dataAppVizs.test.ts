@@ -4,6 +4,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     ForbiddenError,
     getUserAbilityBuilder,
+    MissingConfigError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -300,6 +301,85 @@ describe('AppGenerateService data app vizs', () => {
             await expect(listed(OrganizationMemberRole.VIEWER)).rejects.toThrow(
                 ForbiddenError,
             );
+        });
+    });
+
+    describe('who can read a chart type schema', () => {
+        // Registry installs are space-less and authored by the installer, so
+        // the schema read must follow the listing's manage:Explore gate —
+        // a view:DataApp check would deny everyone but installer and admins.
+        const someoneElsesViz = makeDataAppVizRow({
+            space_uuid: null,
+            created_by_user_uuid: 'someone-else',
+        });
+        const readSchema = async (role: OrganizationMemberRole) => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(someoneElsesViz),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                role,
+                'editor-1',
+            );
+            return service.getDataAppVisualization(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            );
+        };
+
+        it.each([
+            OrganizationMemberRole.INTERACTIVE_VIEWER,
+            OrganizationMemberRole.EDITOR,
+            OrganizationMemberRole.DEVELOPER,
+            OrganizationMemberRole.ADMIN,
+        ])('lets a %s read a schema they did not author', async (role) => {
+            const result = await readSchema(role);
+            expect(result.dataAppVizUuid).toBe('data-app-viz-1');
+        });
+
+        it('refuses a viewer the schema', async () => {
+            await expect(
+                readSchema(OrganizationMemberRole.VIEWER),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('who can see a chart type thumbnail', () => {
+        const chartTypeApp = {
+            app_id: 'data-app-viz-1',
+            project_uuid: 'project-1',
+            organization_uuid: 'org-1',
+            space_uuid: null,
+            created_by_user_uuid: 'someone-else',
+            template: DATA_APP_VIZ_TEMPLATE,
+        };
+        const getThumbnail = async (role: OrganizationMemberRole) => {
+            const appModel = {
+                getApp: vi.fn().mockResolvedValue(chartTypeApp),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                role,
+                'editor-1',
+            );
+            return service.getThumbnailUrl(user, 'project-1', 'data-app-viz-1');
+        };
+
+        it('gates a chart type thumbnail on the explore, not app view', async () => {
+            // Passing the ability gate surfaces the fixture's missing
+            // app-runtime storage instead of a ForbiddenError.
+            await expect(
+                getThumbnail(OrganizationMemberRole.EDITOR),
+            ).rejects.toThrow(MissingConfigError);
+        });
+
+        it('refuses a viewer the thumbnail', async () => {
+            await expect(
+                getThumbnail(OrganizationMemberRole.VIEWER),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 
