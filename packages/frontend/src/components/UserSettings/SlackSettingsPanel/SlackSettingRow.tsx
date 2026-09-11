@@ -25,10 +25,8 @@ export const SlackSettingRow: FC<Props> = ({
         gap="md"
     >
         <Stack gap="two">
-            <Title order={6} fw={500}>
-                {title}
-            </Title>
-            <Text c="dimmed" fz="sm">
+            <Title order={6}>{title}</Title>
+            <Text c="dimmed" fz="xs">
                 {description}
             </Text>
         </Stack>
