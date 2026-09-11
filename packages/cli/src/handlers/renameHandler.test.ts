@@ -1,4 +1,9 @@
-import { RenameType, SchedulerJobStatus } from '@lightdash/common';
+import {
+    Project,
+    ProjectType,
+    RenameType,
+    SchedulerJobStatus,
+} from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
@@ -34,6 +39,7 @@ const emptyResults = {
 
 const RENAME_JOB_ID = 'rename-job-id';
 const VALIDATION_JOB_ID = 'validation-job-id';
+const PREVIEW_PROJECT = '33333333-3333-4333-8333-333333333333';
 
 describe('renameHandler follow-up validation', () => {
     let errorOutput: string[];
@@ -60,6 +66,15 @@ describe('renameHandler follow-up validation', () => {
             }
             if (url.includes('/validate?jobId=')) {
                 return [];
+            }
+            if (
+                method === 'GET' &&
+                url === `/api/v1/projects/${PREVIEW_PROJECT}`
+            ) {
+                return {
+                    projectUuid: PREVIEW_PROJECT,
+                    type: ProjectType.PREVIEW,
+                } as Project;
             }
             throw new Error(`Unexpected API call: ${method} ${url}`);
         });
@@ -109,7 +124,7 @@ describe('renameHandler follow-up validation', () => {
                     apiKey: 'test-key',
                     serverUrl: 'http://localhost',
                     project: envProject,
-                    previewProject: '33333333-3333-4333-8333-333333333333',
+                    previewProject: PREVIEW_PROJECT,
                     previewName: 'Stale preview',
                 },
             });
@@ -124,8 +139,15 @@ describe('renameHandler follow-up validation', () => {
                     url: `/api/v1/projects/${expectedProject}/rename`,
                 }),
             );
-            expect(errorOutput.join('\n')).toContain(expectedProject);
-            expect(errorOutput.join('\n')).not.toContain('Stale preview');
+            const output = errorOutput.join('\n');
+            expect(output).toContain(`Renaming in project: ${expectedProject}`);
+            if (explicitProject) {
+                expect(output).not.toContain('Stale preview');
+            } else {
+                expect(output).toContain(
+                    'active preview "Stale preview" ignored',
+                );
+            }
         },
     );
 

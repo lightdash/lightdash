@@ -44,12 +44,52 @@ const validatePreviewProject = async (
     }
 };
 
+const warnIgnoredPreview = async (
+    config: Config,
+    projectUuid: string,
+): Promise<void> => {
+    const previewProject = await validatePreviewProject(
+        config.context?.previewProject,
+    );
+    if (!previewProject || previewProject === projectUuid) {
+        return;
+    }
+    const previewName = config.context?.previewName;
+    const previewLabel = previewName ? `"${previewName}"` : previewProject;
+    GlobalState.log(
+        styles.warning(
+            `\nUsing project ${projectUuid} from LIGHTDASH_PROJECT; active preview ${previewLabel} ignored.\nPass --project ${previewProject} or unset LIGHTDASH_PROJECT to target the preview.\n`,
+        ),
+    );
+};
+
+/**
+ * Resolves an explicit project override: `--project` wins over
+ * LIGHTDASH_PROJECT, and either one bypasses an active preview.
+ * Returns undefined when neither is set.
+ */
+export const resolveProjectOverride = async (
+    config: Config,
+    explicitProject: string | undefined,
+): Promise<string | undefined> => {
+    if (explicitProject) {
+        return resolveProjectFlag(explicitProject);
+    }
+    const envProject = process.env.LIGHTDASH_PROJECT;
+    if (!envProject) {
+        return undefined;
+    }
+    const projectUuid = await resolveProjectFlag(envProject);
+    await warnIgnoredPreview(config, projectUuid);
+    return projectUuid;
+};
+
 /**
  * Resolves which project to use, prompting the user if there's an active preview.
  *
  * Priority:
  * 1. If `explicitProject` is provided (via --project flag), use it
- * 2. If LIGHTDASH_PROJECT is set, use it
+ * 2. If LIGHTDASH_PROJECT is set, use it (warns when a preview is ignored)
  * 3. If there's an active preview and we're in interactive mode, ask the user
  * 4. In non-interactive mode with active preview, use preview project
  * 5. Fall back to the main project
@@ -58,12 +98,12 @@ export const selectProject = async (
     config: Config,
     explicitProject?: string,
 ): Promise<ProjectSelection | undefined> => {
-    const projectOverride = explicitProject || process.env.LIGHTDASH_PROJECT;
-    if (projectOverride) {
-        return {
-            projectUuid: await resolveProjectFlag(projectOverride),
-            isPreview: false,
-        };
+    const overrideProjectUuid = await resolveProjectOverride(
+        config,
+        explicitProject,
+    );
+    if (overrideProjectUuid) {
+        return { projectUuid: overrideProjectUuid, isPreview: false };
     }
 
     const mainProject = config.context?.project;

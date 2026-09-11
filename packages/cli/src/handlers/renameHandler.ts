@@ -17,7 +17,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
-import { resolveProjectFlag } from './resolveProjectFlag';
+import { resolveProjectOverride } from './selectProject';
 import {
     getJobState,
     getValidation,
@@ -90,10 +90,14 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         );
     }
 
-    const projectOverride = options.project || process.env.LIGHTDASH_PROJECT;
-    const projectUuid = projectOverride
-        ? await resolveProjectFlag(projectOverride)
-        : config.context.previewProject || config.context.project;
+    const overrideProjectUuid = await resolveProjectOverride(
+        config,
+        options.project,
+    );
+    const projectUuid =
+        overrideProjectUuid ||
+        config.context.previewProject ||
+        config.context.project;
     if (!projectUuid) {
         throw new LightdashError({
             message: 'No project selected. Run lightdash config set-project',
@@ -104,7 +108,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
     }
 
     // Log current project info
-    if (projectOverride) {
+    if (overrideProjectUuid) {
         console.error(
             `\n${styles.success('Renaming in project:')} ${projectUuid}\n`,
         );
