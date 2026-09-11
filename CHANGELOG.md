@@ -1,3 +1,10 @@
+## [2.197.2](https://github.com/lightdash/lightdash/compare/2.197.1...2.197.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **chart-registry:** detail modal screenshots fit the modal and follow the scheme ([#29051](https://github.com/lightdash/lightdash/issues/29051)) ([1e9d795](https://github.com/lightdash/lightdash/commit/1e9d795f7fa8793b51c1bd313a61255685be21c2))
+
 ## [2.197.1](https://github.com/lightdash/lightdash/compare/2.197.0...2.197.1) (2026-09-11)
 
 
