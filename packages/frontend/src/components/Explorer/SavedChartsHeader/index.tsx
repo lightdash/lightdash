@@ -97,7 +97,7 @@ const verifiedTourProps = {
 };
 
 const SavedChartsHeader: FC = () => {
-    const { search } = useLocation();
+    const { pathname, search } = useLocation();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const dashboardUuid = useSearchParams('fromDashboard');
@@ -181,6 +181,9 @@ const SavedChartsHeader: FC = () => {
             hasUnsavedChanges &&
             isEditMode &&
             !isSaveModalOpen &&
+            // A search-only write is the page keeping its own url up to date,
+            // not the user leaving it
+            nextLocation.pathname !== pathname &&
             !isLeavingTrainingCopy(nextLocation) &&
             !isChartPath(
                 nextLocation.pathname,

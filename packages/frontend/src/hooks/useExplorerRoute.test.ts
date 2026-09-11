@@ -1,12 +1,21 @@
 import { ChartType, type CreateSavedChartVersion } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
-import { createElement, useState, type ComponentProps } from 'react';
+import { act, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createElement, useEffect, useState, type ComponentProps } from 'react';
 import { Provider } from 'react-redux';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import {
+    MemoryRouter,
+    Route,
+    Routes,
+    useLocation,
+    useNavigate,
+} from 'react-router';
 import { describe, expect, it } from 'vitest';
 import {
     buildInitialExplorerState,
     createExplorerStore,
+    explorerActions,
+    useExplorerDispatch,
 } from '../features/explorer/store';
 import { renderWithProviders } from '../testing/testUtils';
 import {
@@ -16,6 +25,7 @@ import {
     tryParseCreateSavedChartVersionParam,
     useExplorerRoute,
     useExplorerUrlState,
+    useSavedChartEditRoute,
 } from './useExplorerRoute';
 
 const searchFromPayload = (payload: unknown) =>
@@ -69,6 +79,10 @@ const renderExplorerRouteAt = (initialPath: string) => {
         ),
     );
 };
+
+/** Lets every queued navigation land, so a redundant one is visible. */
+const settleNavigations = () =>
+    act(() => new Promise((resolve) => setTimeout(resolve, 50)));
 
 const currentDestination = () =>
     new URL(
@@ -181,6 +195,259 @@ describe('useExplorerRoute', () => {
                 currentDestination().searchParams.get('chartSidebar'),
             ).toBeNull();
         });
+    });
+});
+
+const savedRouteChartVersion = (
+    tableName: string,
+): CreateSavedChartVersion => ({
+    tableName,
+    metricQuery: {
+        exploreName: tableName,
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    },
+    chartConfig: {
+        type: ChartType.CARTESIAN,
+        config: { layout: {}, eChartsConfig: {} },
+    },
+    tableConfig: { columnOrder: [] },
+});
+
+const SavedRouteLocation = ({ enabled }: { enabled: boolean }) => {
+    useSavedChartEditRoute({ enabled });
+    const dispatch = useExplorerDispatch();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [locationWrites, setLocationWrites] = useState(0);
+
+    useEffect(() => {
+        setLocationWrites((writes) => writes + 1);
+    }, [location]);
+
+    return createElement(
+        'div',
+        null,
+        createElement(
+            'div',
+            { 'data-testid': 'location' },
+            `${location.pathname}${location.search}`,
+        ),
+        createElement(
+            'div',
+            { 'data-testid': 'location-writes' },
+            String(locationWrites),
+        ),
+        createElement(
+            'button',
+            {
+                type: 'button',
+                onClick: () => dispatch(explorerActions.setRowLimit(42)),
+            },
+            'change the limit',
+        ),
+        createElement(
+            'button',
+            {
+                type: 'button',
+                onClick: () =>
+                    void navigate(
+                        { search: `${location.search}&other=1` },
+                        { replace: true },
+                    ),
+            },
+            'write another param',
+        ),
+    );
+};
+
+const SavedRouteHarness = ({
+    tableName,
+    enabled,
+}: {
+    tableName: string;
+    enabled: boolean;
+}) => {
+    const [store] = useState(() =>
+        createExplorerStore({
+            explorer: buildInitialExplorerState({
+                initialState: {
+                    unsavedChartVersion: savedRouteChartVersion(tableName),
+                },
+            }),
+        }),
+    );
+
+    return createElement(
+        Provider,
+        { store } as ComponentProps<typeof Provider>,
+        createElement(SavedRouteLocation, { enabled }),
+    );
+};
+
+const renderSavedRouteAt = (
+    initialPath: string,
+    { tableName = 'payments', enabled = true, browserPath = '' } = {},
+) => {
+    // The params come from the router's location, never from the browser's
+    window.history.replaceState(
+        {},
+        '',
+        browserPath ||
+            `${initialPath.split('?')[0]}?isExploreFromHere=true&stale=1`,
+    );
+
+    renderWithProviders(
+        createElement(
+            MemoryRouter,
+            { initialEntries: [initialPath] },
+            createElement(
+                Routes,
+                null,
+                createElement(Route, {
+                    path: '/projects/:projectUuid/saved/:savedQueryUuid/:mode',
+                    element: createElement(SavedRouteHarness, {
+                        tableName,
+                        enabled,
+                    }),
+                }),
+            ),
+        ),
+    );
+};
+
+describe('useSavedChartEditRoute', () => {
+    it('writes the chart version when the store changes', async () => {
+        const user = userEvent.setup();
+        renderSavedRouteAt('/projects/project-1/saved/chart-1/edit');
+
+        await waitFor(() =>
+            expect(
+                parseChartFromExplorerSearchParams(currentDestination().search)
+                    ?.metricQuery.limit,
+            ).toBe(500),
+        );
+
+        await user.click(screen.getByText('change the limit'));
+
+        await waitFor(() =>
+            expect(
+                parseChartFromExplorerSearchParams(currentDestination().search)
+                    ?.metricQuery.limit,
+            ).toBe(42),
+        );
+    });
+
+    it('keeps the params the page was opened with', async () => {
+        renderSavedRouteAt(
+            '/projects/project-1/saved/chart-1/edit?fromDashboard=dashboard-1&dateZoom=week&fromSpace=space-1',
+        );
+
+        await waitFor(() => {
+            const destination = currentDestination();
+            expect(destination.searchParams.get('fromDashboard')).toBe(
+                'dashboard-1',
+            );
+            expect(destination.searchParams.get('dateZoom')).toBe('week');
+            expect(destination.searchParams.get('fromSpace')).toBe('space-1');
+            expect(
+                destination.searchParams.get('create_saved_chart_version'),
+            ).not.toBeNull();
+        });
+    });
+
+    it('does not mark the session as explored from here', async () => {
+        renderSavedRouteAt('/projects/project-1/saved/chart-1/edit');
+
+        await waitFor(() =>
+            expect(
+                currentDestination().searchParams.get(
+                    'create_saved_chart_version',
+                ),
+            ).not.toBeNull(),
+        );
+        expect(
+            currentDestination().searchParams.get('isExploreFromHere'),
+        ).toBeNull();
+        expect(currentDestination().searchParams.get('stale')).toBeNull();
+    });
+
+    it('leaves a slug pathname untouched', async () => {
+        renderSavedRouteAt(
+            '/projects/jaffle-shop/saved/revenue-per-payment-method/edit',
+        );
+
+        await waitFor(() =>
+            expect(
+                currentDestination().searchParams.get(
+                    'create_saved_chart_version',
+                ),
+            ).not.toBeNull(),
+        );
+        expect(currentDestination().pathname).toBe(
+            '/projects/jaffle-shop/saved/revenue-per-payment-method/edit',
+        );
+    });
+
+    it('writes nothing before the page resets the store', async () => {
+        renderSavedRouteAt('/projects/project-1/saved/chart-1/edit', {
+            tableName: '',
+        });
+
+        await settleNavigations();
+
+        expect(screen.getByTestId('location-writes')).toHaveTextContent('1');
+        expect(
+            currentDestination().searchParams.get('create_saved_chart_version'),
+        ).toBeNull();
+    });
+
+    it('writes nothing in view mode', async () => {
+        renderSavedRouteAt('/projects/project-1/saved/chart-1/view', {
+            enabled: false,
+        });
+
+        await settleNavigations();
+
+        expect(screen.getByTestId('location-writes')).toHaveTextContent('1');
+        expect(
+            currentDestination().searchParams.get('create_saved_chart_version'),
+        ).toBeNull();
+    });
+
+    it('does not write back a page the browser has already left', async () => {
+        renderSavedRouteAt('/projects/project-1/saved/chart-1/edit', {
+            browserPath: '/projects/project-1/saved/chart-1/view',
+        });
+
+        await settleNavigations();
+
+        expect(screen.getByTestId('location-writes')).toHaveTextContent('1');
+        expect(
+            currentDestination().searchParams.get('create_saved_chart_version'),
+        ).toBeNull();
+    });
+
+    it('does not navigate when another writer leaves the version alone', async () => {
+        const user = userEvent.setup();
+        renderSavedRouteAt('/projects/project-1/saved/chart-1/edit');
+
+        await waitFor(() =>
+            expect(screen.getByTestId('location-writes')).toHaveTextContent(
+                '2',
+            ),
+        );
+
+        await user.click(screen.getByText('write another param'));
+        await settleNavigations();
+
+        expect(currentDestination().searchParams.get('other')).toBe('1');
+        // The foreign write only; the version is unchanged, so nothing follows it
+        expect(screen.getByTestId('location-writes')).toHaveTextContent('3');
     });
 });
 

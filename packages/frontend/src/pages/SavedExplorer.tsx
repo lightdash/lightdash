@@ -1,6 +1,7 @@
+import { type SavedChart } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { lazy, memo, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useLocation, useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
@@ -15,11 +16,16 @@ import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    useExplorerDispatch,
+    useExplorerStore,
 } from '../features/explorer/store';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
-import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute';
+import {
+    tryParseCreateSavedChartVersionParam,
+    useSavedChartEditRoute,
+} from '../hooks/useExplorerRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
@@ -31,34 +37,93 @@ const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
 );
 
-const SavedExplorerContent = memo(() => {
-    const { mode } = useParams<{ mode?: string }>();
-    const isEditMode = mode === 'edit';
-    const rightSidebarProps = useChartGalleryRightSidebar({
-        enabled: isEditMode,
-    });
+type SavedExplorerContentProps = {
+    savedChart: SavedChart;
+    defaultLimit: number | undefined;
+};
 
-    // Run the query effects hook - orchestrates all query effects
-    useExplorerQueryEffects();
+const SavedExplorerContent = memo(
+    ({ savedChart, defaultLimit }: SavedExplorerContentProps) => {
+        const { mode } = useParams<{ mode?: string }>();
+        const isEditMode = mode === 'edit';
+        const store = useExplorerStore();
+        const dispatch = useExplorerDispatch();
+        const { search } = useLocation();
+        const rightSidebarProps = useChartGalleryRightSidebar({
+            enabled: isEditMode,
+        });
 
-    return (
-        <Page
-            title={undefined} // Will be set by SavedChartsHeader
-            header={<SavedChartsHeader />}
-            sidebar={
-                <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyExplorePanel />
-                </Suspense>
+        // Edits handed over from the in-dashboard chart editor, read once per
+        // chart session: from here on the url follows the edits, so reading it
+        // again would restart the session on every change.
+        const [handedOverChartVersion] = useState(() => {
+            const versionParam = new URLSearchParams(search).get(
+                'create_saved_chart_version',
+            );
+            return isEditMode && versionParam !== null
+                ? tryParseCreateSavedChartVersionParam(versionParam)
+                : undefined;
+        });
+
+        // Reset store state when data/mode changes
+        useEffect(() => {
+            const currentSavedChart = store.getState().explorer.savedChart;
+            const isNewChart = currentSavedChart?.uuid !== savedChart.uuid;
+            const isExploreChanged =
+                currentSavedChart?.tableName !== savedChart.tableName;
+
+            if (isNewChart || isExploreChanged) {
+                dispatch(
+                    explorerActions.reset(
+                        buildInitialExplorerState({
+                            savedChart,
+                            isEditMode,
+                            expandedSections: [ExplorerSection.VISUALIZATION],
+                            defaultLimit,
+                            unsavedChartVersionOverride: handedOverChartVersion,
+                        }),
+                    ),
+                );
+            } else {
+                dispatch(explorerActions.setSavedChart(savedChart));
             }
-            isSidebarOpen={isEditMode}
-            {...rightSidebarProps}
-            withFullHeight
-            withPaddedContent
-        >
-            <Explorer />
-        </Page>
-    );
-});
+        }, [
+            savedChart,
+            store,
+            dispatch,
+            isEditMode,
+            defaultLimit,
+            handedOverChartVersion,
+        ]);
+
+        useEffect(() => {
+            dispatch(explorerActions.setIsEditMode(isEditMode));
+        }, [isEditMode, dispatch]);
+
+        useSavedChartEditRoute({ enabled: isEditMode });
+
+        // Run the query effects hook - orchestrates all query effects
+        useExplorerQueryEffects();
+
+        return (
+            <Page
+                title={undefined} // Will be set by SavedChartsHeader
+                header={<SavedChartsHeader />}
+                sidebar={
+                    <Suspense fallback={<LoadingSkeleton />}>
+                        <LazyExplorePanel />
+                    </Suspense>
+                }
+                isSidebarOpen={isEditMode}
+                {...rightSidebarProps}
+                withFullHeight
+                withPaddedContent
+            >
+                <Explorer />
+            </Page>
+        );
+    },
+);
 
 const SavedExplorer = () => {
     const { health } = useApp();
@@ -68,8 +133,6 @@ const SavedExplorer = () => {
         savedQueryUuid: string;
         mode?: string;
     }>();
-
-    const isEditMode = mode === 'edit';
 
     const { setDashboardChartInfo } = useDashboardStorage();
 
@@ -100,55 +163,6 @@ const SavedExplorer = () => {
 
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
-
-    // Edits handed over from the in-dashboard chart editor. Only the reset
-    // that builds a chart's session applies them, so a refetch cannot wipe
-    // them. Keyed on the one param, so other search writes on this page (the
-    // merge provider, deep-link cleanup) do not re-run that reset either.
-    const { search } = useLocation();
-    const urlChartVersionParam = new URLSearchParams(search).get(
-        'create_saved_chart_version',
-    );
-    const urlChartVersion = useMemo(
-        () =>
-            isEditMode && urlChartVersionParam !== null
-                ? tryParseCreateSavedChartVersionParam(urlChartVersionParam)
-                : undefined,
-        [isEditMode, urlChartVersionParam],
-    );
-
-    // Reset store state when data/mode changes
-    useEffect(() => {
-        if (!data) return;
-
-        const currentSavedChart = store.getState().explorer.savedChart;
-        const isNewChart = currentSavedChart?.uuid !== data.uuid;
-        const isExploreChanged =
-            currentSavedChart?.tableName !== data.tableName;
-
-        if (isNewChart || isExploreChanged) {
-            const initialState = buildInitialExplorerState({
-                savedChart: data,
-                isEditMode,
-                expandedSections: [ExplorerSection.VISUALIZATION],
-                defaultLimit: health.data?.query.defaultLimit,
-                unsavedChartVersionOverride: urlChartVersion,
-            });
-            store.dispatch(explorerActions.reset(initialState));
-        } else {
-            store.dispatch(explorerActions.setSavedChart(data));
-        }
-    }, [
-        data,
-        store,
-        isEditMode,
-        health.data?.query.defaultLimit,
-        urlChartVersion,
-    ]);
-
-    useEffect(() => {
-        store.dispatch(explorerActions.setIsEditMode(isEditMode));
-    }, [isEditMode, store]);
 
     // Check for error first
     if (error) {
@@ -203,7 +217,10 @@ const SavedExplorer = () => {
                 savedMerge={data?.merge ?? null}
                 readOnly={mode !== 'edit'}
             >
-                <SavedExplorerContent />
+                <SavedExplorerContent
+                    savedChart={data}
+                    defaultLimit={health.data?.query.defaultLimit}
+                />
             </MergeProvider>
         </Provider>
     );
