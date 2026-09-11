@@ -12,14 +12,14 @@ queries. It does not require dbt or a MotherDuck account.
 
 ## Current implementation versus rollout intent
 
-| Area                   | Implemented                                                                                     | Still required for production                                                    |
-| ---------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Project                | Internal `PREVIEW` project with `provisioning_source=analytics`; both Query Events and AI Usage | Final metadata-project lifecycle and role design                                 |
-| Entry point            | Session-authenticated, org-admin-only create-or-get endpoint                                    | Admin navigation/button; no connector setup UI                                   |
-| Enablement             | `analytics-project` flag plus development mode and explicit local org binding                   | Reviewed production enablement; setting the flag alone cannot enable production  |
-| Source org             | Explicit local-org → source-org configuration                                                   | Derive source org from the persisted, authorized project; remove local overrides |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB               | Dedicated read-only source credentials, tracked in PROD-11103                    |
-| Models                 | Backend-owned `query_events` and `ai_usage` explores                                            | Reevaluate other streams, metadata enrichment and additional event coverage      |
+| Area                   | Implemented                                                                                     | Still required for production                                               |
+| ---------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Project                | Internal `PREVIEW` project with `provisioning_source=analytics`; both Query Events and AI Usage | Final metadata-project lifecycle and role design                            |
+| Entry point            | Session-authenticated, org-admin-only create-or-get endpoint                                    | Admin navigation/button; no connector setup UI                              |
+| Enablement             | Explicit deployment `analytics-project` flag in all environments; disable takes precedence      | Controlled live verification before customer rollout                        |
+| Source org             | Persisted, authorized project org; legacy local overrides ignored                               | Live shared-instance isolation verification                                 |
+| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB               | Verify effective IAM; read-only hardening is deferred (PROD-11103)          |
+| Models                 | Backend-owned `query_events` and `ai_usage` explores                                            | Reevaluate other streams, metadata enrichment and additional event coverage |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production provisioning, resource-name enrichment, exports
@@ -76,8 +76,8 @@ writer or nightly process, or establish an exactly-once delivery guarantee.
 [`ProjectService.ensureAnalyticsProject`](../../packages/backend/src/services/ProjectService/ProjectService.ts)
 backs `POST /api/v1/org/analytics-project`:
 
-1. Check the session's organization, org-management permission, feature flag and
-   development-only gate. No org, bucket, path or credential is accepted in the request.
+1. Check the session's organization, org-management permission and feature flag.
+   No org, bucket, path or credential is accepted in the request.
 2. Verify signed-Parquet access before creating a project. Model compilation is
    in memory, but the endpoint includes this storage round trip.
 3. Acquire the per-org advisory lock and look for `provisioning_source=analytics`.
@@ -180,12 +180,11 @@ cryptographic revocation of previously issued capabilities or returned data.
 
 ### Org isolation: implemented boundary and remaining risk
 
-[`localAnalyticsProject`](../../packages/backend/src/services/ProjectService/analyticsProject/localAnalyticsProject.ts)
-requires the logged-in project's org to match `LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID`.
-It reads files for `LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID`. This deliberate
-development mapping lets a local org explore an explicitly selected source org;
-it is not production tenant binding. Production execution is rejected even with
-the feature flag enabled. Disabling the flag takes precedence over enabling it.
+[`analyticsProjectClient`](../../packages/backend/src/services/ProjectService/analyticsProject/analyticsProjectClient.ts)
+reads files for the persisted project's org after service authorization checks.
+Legacy local org/source-org overrides are ignored in all environments. Production
+execution requires the explicit deployment feature flag; disable takes precedence.
+See [live testing](live-testing.md) for rollout and remaining trust boundaries.
 
 The prefix filter is a backend authorization boundary, not bucket IAM. Storage
 signatures enforce the exact object/method capability passed to DuckDB, but the
@@ -202,7 +201,7 @@ no Terraform/IAM change or read-only cutover is included in this stack.
 
 ## Operations, verification and rollout
 
-- Follow [local testing](local-testing.md) for feature flags, explicit source-org
+- Follow [local testing](local-testing.md) for feature flags, persisted-org
   binding and the browser-console provisioning request. Keep capture
   disabled for a read-only local test; never copy another worktree's DB settings.
 - Follow [credential verification](credentials.md) for real-bucket read-only
@@ -218,9 +217,9 @@ no Terraform/IAM change or read-only cutover is included in this stack.
   behavior require further work before production (PROD-11111). Caps fail rather
   than silently exposing only part of the history. Historical availability is
   limited by retained files, not their age; one-year workloads remain unbenchmarked.
-- Before rollout: remove local org overrides, finish production authorization and
-  role restrictions, switch to read-only source credentials, review all query and
-  cached-result surfaces, and add the admin entry point. Hidden UI and folder
+- Before customer rollout: verify production authorization, role restrictions,
+  effective IAM, and query/cached-result surfaces. Dedicated read-only credentials
+  are optional deferred hardening (PROD-11103). Hidden UI and folder
   separation are not substitutes for access control.
 
 The read path has been exercised against real GCS with native DuckDB and via the
