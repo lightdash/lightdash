@@ -1,3 +1,10 @@
+# [2.198.0](https://github.com/lightdash/lightdash/compare/2.197.3...2.198.0) (2026-09-11)
+
+
+### Features
+
+* **sql-runner:** filter the table browser by relation type ([#29017](https://github.com/lightdash/lightdash/issues/29017)) ([3ea1fcd](https://github.com/lightdash/lightdash/commit/3ea1fcd069302df98f99fbaa7e4e825b70cba68d))
+
 ## [2.197.3](https://github.com/lightdash/lightdash/compare/2.197.2...2.197.3) (2026-09-11)
 
 
