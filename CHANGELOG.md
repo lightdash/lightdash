@@ -1,3 +1,15 @@
+# [2.195.0](https://github.com/lightdash/lightdash/compare/2.194.2...2.195.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **cli:** prioritize LIGHTDASH_PROJECT over active previews ([#28921](https://github.com/lightdash/lightdash/issues/28921)) ([cf08d22](https://github.com/lightdash/lightdash/commit/cf08d22a6adea18cbb94edc94ef2160b824a2ef4))
+
+
+### Features
+
+* **roadmap:** remove organization-roadmap flag, gate on valid license ([#29016](https://github.com/lightdash/lightdash/issues/29016)) ([03e1bf5](https://github.com/lightdash/lightdash/commit/03e1bf5485a65ff2d48727e099bd8f51b1009bfc))
+
 ## [2.194.2](https://github.com/lightdash/lightdash/compare/2.194.1...2.194.2) (2026-09-11)
 
 
