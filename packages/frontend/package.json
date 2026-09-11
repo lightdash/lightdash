@@ -202,6 +202,6 @@
         "vite-plugin-css-injected-by-js": "4.0.1",
         "vite-plugin-monaco-editor": "1.1.0",
         "vite-plugin-svgr": "4.5.0",
-        "vitest": "4.1.6"
+        "vitest": "4.1.11"
     }
 }
