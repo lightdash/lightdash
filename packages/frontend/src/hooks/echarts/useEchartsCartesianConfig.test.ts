@@ -3,9 +3,10 @@ import {
     CartesianSeriesType,
     createConditionalFormattingConfigWithSingleColor,
     DimensionType,
-    REFERENCE_LINE_Z,
     FieldType,
     FilterOperator,
+    getLegendStyle,
+    REFERENCE_LINE_Z,
     TimeFrames,
     transformToPercentageStacking,
     type CartesianChart,
@@ -16,7 +17,6 @@ import {
     type ResultRow,
     type Series,
 } from '@lightdash/common';
-import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/styles/legendStyles';
 import dayjs from 'dayjs';
 import timezonePlugin from 'dayjs/plugin/timezone';
 import utcPlugin from 'dayjs/plugin/utc';
