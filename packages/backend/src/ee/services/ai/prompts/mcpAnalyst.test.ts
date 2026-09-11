@@ -26,16 +26,16 @@ describe('getMcpAnalystPrompt', () => {
         expect(prompt).not.toContain(MCP_FILTER_EXPRESSION_GUIDANCE_SECTION);
     });
 
-    it('includes canonical filter expression guidance when enabled', () => {
+    it('defers detailed filter expression guidance to the shared skill when enabled', () => {
         const prompt = getMcpAnalystPrompt({
             ...semanticQueryOptions,
             filterExpressionsEnabled: true,
         });
 
-        expect(prompt).toContain(MCP_FILTER_EXPRESSION_GUIDANCE_SECTION);
-        expect(prompt).toContain(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION);
-        expect(prompt).toContain('`queryConfig.filters`');
-        expect(prompt).toContain('`search_field_values.filters`');
+        expect(prompt).not.toContain(MCP_FILTER_EXPRESSION_GUIDANCE_SECTION);
+        expect(prompt).not.toContain(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION);
+        expect(prompt).toContain('read the shared skill');
+        expect(prompt).toContain('run_metric_query and search_field_values');
         expect(prompt).toContain('### Table Calculations');
     });
 

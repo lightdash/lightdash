@@ -1,4 +1,5 @@
-import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from './filterGuidance';
+const FILTER_EXPRESSION_SKILL_REMINDER =
+    '### Filter Expressions\nBefore writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values.';
 
 // Only offered to sessions whose tools/list actually includes run_sql
 // (gated on manage:SqlRunner).
@@ -84,7 +85,7 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. **Get started with context**
 - When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
 - If still ambiguous, ask the user which data source they want — do NOT guess
 
-${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${MCP_FILTER_EXPRESSION_GUIDANCE_SECTION}\n\n` : ''}### Time Filtering
+${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n\n` : ''}### Time Filtering
 - If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
 - Use the \`inThePast\` operator for relative windows
 - Date fields from joined tables work identically in filters

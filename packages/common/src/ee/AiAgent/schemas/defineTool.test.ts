@@ -66,11 +66,14 @@ describe('defineTool', () => {
 
         agentDescriptions.forEach((description) => {
             expect(description).toContain('the Lightdash Agent system prompt');
+            expect(description).not.toContain('filter-expressions');
+            expect(description).not.toContain('read_skill');
         });
         mcpDescriptions.forEach((description) => {
             expect(description).toContain(
-                'the Lightdash MCP server instructions',
+                'Before writing filter expressions, read the `filter-expressions` skill.',
             );
+            expect(description).not.toContain('MCP server instructions');
         });
         [...agentDescriptions, ...mcpDescriptions].forEach((description) => {
             expect(description).not.toContain(

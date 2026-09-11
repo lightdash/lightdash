@@ -1,4 +1,5 @@
 import { BuiltInSkills } from './builtInSkills';
+import { FILTER_EXPRESSION_SKILL } from './filterExpressionSkill';
 
 describe('BuiltInSkills', () => {
     const artifactSkill = 'mcp-artifact-integration';
@@ -46,6 +47,43 @@ describe('BuiltInSkills', () => {
     ])('prevents Agent direct reads of %s', async (name) => {
         expect(await BuiltInSkills.getAiAgentSkill(name)).toBeUndefined();
     });
+
+    it('serves the generated filter-expression skill identically through native resources and fallback tools', async () => {
+        const name = 'filter-expressions';
+        const uri = `skill://lightdash/${name}/SKILL.md`;
+        expect(
+            (await BuiltInSkills.listSkillToolReferences()).map(
+                (skill) => skill.name,
+            ),
+        ).toContain(name);
+        expect(
+            (await BuiltInSkills.listMcpResources()).map(
+                (resource) => resource.uri,
+            ),
+        ).toContain(uri);
+        expect(
+            await BuiltInSkills.getMcpResourceBody('skill://index.json'),
+        ).toContain(`"name": "${name}"`);
+        const body = await BuiltInSkills.getMcpResourceBody(uri);
+        // Markdown formatting inserts blank lines; every content line must match.
+        expect(body?.split('\n').filter(Boolean)).toEqual(
+            FILTER_EXPRESSION_SKILL.split('\n').filter(Boolean),
+        );
+        expect((await BuiltInSkills.readSkillTool(name))?.body).toBe(body);
+    });
+
+    it('never advertises the filter-expression skill to Agents', async () => {
+        expect(
+            (await BuiltInSkills.getAiAgentSkills()).map(({ name }) => name),
+        ).not.toContain('filter-expressions');
+    });
+
+    it.each(['filter-expressions', '  FILTER-EXPRESSIONS  '])(
+        'prevents Agent direct reads of %s',
+        async (name) => {
+            expect(await BuiltInSkills.getAiAgentSkill(name)).toBeUndefined();
+        },
+    );
 
     it('loads the developing-in-lightdash skill with its resources', async () => {
         const skills = await BuiltInSkills.getAiAgentSkills();
