@@ -189,6 +189,7 @@ export async function buildChartRegistryFixture({
         icon: null,
         vizSchema: FIXTURE_VIZ_SCHEMA,
         thumbnail: `${relPrefix}/thumb.png`,
+        thumbnailDark: null,
         screenshots: [`${relPrefix}/screenshot-1.png`],
         artifacts: {
             source: {

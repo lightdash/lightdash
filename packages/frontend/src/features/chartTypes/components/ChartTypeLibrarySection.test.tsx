@@ -68,6 +68,7 @@ const makeItem = (
         colorPalette: null,
     },
     thumbnail: null,
+    thumbnailDark: null,
     screenshots: [],
     artifacts: {
         source: { path: 'source.zip', sha256: 'a'.repeat(64) },
