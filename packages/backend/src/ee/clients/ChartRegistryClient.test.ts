@@ -132,6 +132,111 @@ describe('ChartRegistryClient', () => {
         expect(fetchImpl).toHaveBeenCalledTimes(2);
     });
 
+    it('forceRefresh fetches even when the cache is fresh and updates it', async () => {
+        const updated = {
+            ...index,
+            charts: [{ ...index.charts[0], version: '1.3.0' }],
+        };
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse(index))
+            .mockResolvedValueOnce(jsonResponse(updated));
+        const client = makeClient(fetchImpl);
+
+        await client.getIndex();
+        const refreshed = await client.getIndex({ forceRefresh: true });
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+        expect(refreshed.charts[0].version).toBe('1.3.0');
+        // The forced result replaces the cache for later plain reads.
+        expect((await client.getIndex()).charts[0].version).toBe('1.3.0');
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to the stale cache when a forced refresh fails', async () => {
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse(index))
+            .mockRejectedValueOnce(new Error('network down'));
+        const client = makeClient(fetchImpl);
+
+        const first = await client.getIndex();
+        const second = await client.getIndex({ forceRefresh: true });
+        expect(second).toBe(first);
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it('revalidates with the stored ETag and keeps the index on 304', async () => {
+        vi.useFakeTimers();
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ...jsonResponse(index),
+                etag: 'W/"abc"',
+            })
+            .mockResolvedValueOnce({
+                status: 304,
+                body: Buffer.alloc(0),
+                contentType: null,
+            });
+        const client = makeClient(fetchImpl);
+
+        const first = await client.getIndex();
+        await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+        const second = await client.getIndex();
+        expect(second).toBe(first);
+        expect(fetchImpl).toHaveBeenNthCalledWith(
+            2,
+            `${BASE}/index.json`,
+            expect.any(Number),
+            { headers: { 'if-none-match': 'W/"abc"' } },
+        );
+        // The 304 refreshed the TTL: an immediate third read stays cached.
+        const third = await client.getIndex();
+        expect(third).toBe(first);
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it('sends If-Modified-Since when only Last-Modified was stored', async () => {
+        vi.useFakeTimers();
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ...jsonResponse(index),
+                lastModified: 'Thu, 11 Sep 2026 10:00:00 GMT',
+            })
+            .mockResolvedValueOnce({
+                status: 304,
+                body: Buffer.alloc(0),
+                contentType: null,
+            });
+        const client = makeClient(fetchImpl);
+
+        await client.getIndex();
+        await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+        await client.getIndex();
+        expect(fetchImpl).toHaveBeenNthCalledWith(
+            2,
+            `${BASE}/index.json`,
+            expect.any(Number),
+            {
+                headers: {
+                    'if-modified-since': 'Thu, 11 Sep 2026 10:00:00 GMT',
+                },
+            },
+        );
+    });
+
+    it('rejects a non-2xx index response when nothing is cached', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue({
+            status: 404,
+            body: Buffer.from('not found'),
+            contentType: 'text/plain',
+        });
+        await expect(makeClient(fetchImpl).getIndex()).rejects.toThrow(
+            'status 404',
+        );
+    });
+
     it('rejects an invalid index loudly', async () => {
         const fetchImpl = vi
             .fn()
