@@ -1,3 +1,17 @@
+# [2.199.0](https://github.com/lightdash/lightdash/compare/2.198.6...2.199.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **preview:** copy dashboards before their charts so preview content copy needs no per-row updates ([#29061](https://github.com/lightdash/lightdash/issues/29061)) ([2805fa7](https://github.com/lightdash/lightdash/commit/2805fa7790f665885a7d06ff4c4cc91f4b803bba))
+
+
+### Features
+
+* add roadmap link to main navbar ([#29062](https://github.com/lightdash/lightdash/issues/29062)) ([7097378](https://github.com/lightdash/lightdash/commit/709737802223b84d1b1857b2ffe38ddfc2648f8b))
+* **audit:** record direct access grant provenance ([#29040](https://github.com/lightdash/lightdash/issues/29040)) ([03a29e7](https://github.com/lightdash/lightdash/commit/03a29e7fc1eeb0c39f520f25a50f5d5d4c2b434c))
+* **dashboards:** reserve direct deletion for full access ([#29076](https://github.com/lightdash/lightdash/issues/29076)) ([972bb26](https://github.com/lightdash/lightdash/commit/972bb261608b5df76f09267185e2fbd311ed9d0c))
+
 ## [2.198.6](https://github.com/lightdash/lightdash/compare/2.198.5...2.198.6) (2026-09-11)
 
 

@@ -14352,6 +14352,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                grantSourceUuid: { dataType: 'string' },
                 grantedVia: { ref: 'GrantSource' },
                 inheritedFrom: {
                     dataType: 'union',
