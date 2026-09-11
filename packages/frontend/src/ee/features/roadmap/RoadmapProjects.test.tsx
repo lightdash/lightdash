@@ -297,6 +297,23 @@ describe('following roadmap projects', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('renders the shared catalog when private requests return 403', async () => {
+        vi.spyOn(roadmapApi, 'getRequests').mockRejectedValue({
+            status: 'error',
+            error: { statusCode: 403, name: 'ForbiddenError' },
+        });
+        renderRoadmap();
+        expect(
+            await screen.findByRole('button', { name: 'Open Project direct' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Your organization has no feature requests yet.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText("Your roadmap isn't set up yet"),
+        ).not.toBeInTheDocument();
+    });
+
     it('does not offer following inside an already followed project modal', async () => {
         renderRoadmap();
         await userEvent.click(

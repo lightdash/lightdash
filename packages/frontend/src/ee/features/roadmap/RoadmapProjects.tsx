@@ -774,14 +774,21 @@ export function RoadmapProjects({
             ? boardQueries.some((column) => column.loading)
             : projectsQuery.isInitialLoading ||
               (showTickets && ticketsQuery.isInitialLoading));
-    const errors =
+    const projectErrors =
         initializingInterest || view === 'table'
-            ? [projectsQuery.error, showTickets ? ticketsQuery.error : null]
-            : boardQueries.map((column) => column.error);
-    const unavailable = errors.some(
-        (error) => error?.error?.statusCode === 403,
-    );
-    const failed = errors.some(Boolean);
+            ? [projectsQuery.error]
+            : boardQueries.map((column) => column.projectError);
+    const requestErrors =
+        initializingInterest || view === 'table'
+            ? [showTickets ? ticketsQuery.error : null]
+            : boardQueries.map((column) => column.requestError);
+    const isForbidden = (error: (typeof projectErrors)[number]) =>
+        error?.error?.statusCode === 403;
+    const unavailable = projectErrors.some(isForbidden);
+    const requestsForbidden = requestErrors.some(isForbidden);
+    const failed =
+        projectErrors.some(Boolean) ||
+        requestErrors.some((error) => Boolean(error) && !isForbidden(error));
     const back = () => {
         setSelectedProject(null);
         setProjectSearch('');
@@ -1058,14 +1065,18 @@ export function RoadmapProjects({
                                     ? hasFilters
                                         ? 'No matching tickets'
                                         : 'No followed tickets in this project'
-                                    : hasFilters
-                                      ? 'No matching projects or tickets'
-                                      : 'No roadmap items yet'
+                                    : requestsForbidden && !showProjects
+                                      ? 'No feature requests yet'
+                                      : hasFilters
+                                        ? 'No matching projects or tickets'
+                                        : 'No roadmap items yet'
                             }
                             description={
                                 projectBoard
                                     ? 'Only your organization’s visible requests in this project appear here.'
-                                    : 'Projects and tickets you follow will appear here.'
+                                    : requestsForbidden && !showProjects
+                                      ? 'Your organization has no feature requests yet.'
+                                      : 'Projects and tickets you follow will appear here.'
                             }
                             action={
                                 hasFilters ? (
@@ -1082,6 +1093,11 @@ export function RoadmapProjects({
                 </Box>
             ) : (
                 <>
+                    {requestsForbidden && showTickets && (
+                        <Text fz="xs" c="dimmed" px="xl" pt="md">
+                            Your organization has no feature requests yet.
+                        </Text>
+                    )}
                     {view === 'board' ? (
                         <Board
                             key={selectedProjectId ?? 'roadmap'}

@@ -64,10 +64,8 @@ function useColumn(
             enabled &&
             ((options.showProjects && projects.isInitialLoading) ||
                 (options.showTickets && tickets.isInitialLoading)),
-        error: enabled
-            ? ((options.showProjects ? projects.error : null) ??
-              (options.showTickets ? tickets.error : null))
-            : null,
+        projectError: enabled && options.showProjects ? projects.error : null,
+        requestError: enabled && options.showTickets ? tickets.error : null,
         hasNextPage:
             (options.showProjects && projects.hasNextPage) ||
             (options.showTickets && tickets.hasNextPage),
