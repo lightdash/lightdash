@@ -131,6 +131,9 @@ type FailedRequest = {
     // Rendered inside a host application (SDK or embed): the viewer gets the
     // generic message and no diagnostics, which would name the Lightdash host.
     hosted: boolean;
+    // Only flows where a proxy or VPN is a likely culprit (warehouse
+    // connection setup) opt in; everything else keeps the generic message.
+    diagnose: boolean;
 };
 
 const handleError = async (
@@ -150,6 +153,17 @@ const handleError = async (
     // Surface the real transport error (abort, CORS, DNS, connection reset)
     // instead of silently masking it as the generic message below.
     console.error('Failed to reach the Lightdash server:', err);
+    if (request.hosted || !request.diagnose) {
+        return {
+            status: 'error',
+            error: {
+                name: 'NetworkError',
+                statusCode: 500,
+                message: GENERIC_NETWORK_FAILURE_MESSAGE,
+                data: {},
+            },
+        };
+    }
     const diagnostics = await diagnoseTransportFailure({
         ...request,
         error: err,
@@ -165,10 +179,8 @@ const handleError = async (
         error: {
             name: 'NetworkError',
             statusCode: 500,
-            message: request.hosted
-                ? GENERIC_NETWORK_FAILURE_MESSAGE
-                : networkFailureMessage(diagnostics),
-            data: request.hosted ? {} : diagnostics,
+            message: networkFailureMessage(diagnostics),
+            data: diagnostics,
         },
     };
 };
@@ -179,6 +191,9 @@ type LightdashApiPropsBase = {
     version?: 'v1' | 'v2';
     signal?: AbortSignal;
     sensitive?: boolean;
+    // Probe the server on a transport failure and tell the user what blocked
+    // the request. Opt in only where a proxy or VPN is a plausible cause.
+    diagnoseTransportFailures?: boolean;
 };
 
 type LightdashApiPropsGetOrDelete = LightdashApiPropsBase & {
@@ -205,6 +220,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     version = 'v1',
     signal,
     sensitive = false,
+    diagnoseTransportFailures = false,
 }: LightdashApiProps): Promise<T> => {
     const baseUrl = sessionStorage.getItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
@@ -286,6 +302,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                 apiPrefix,
                 traceId: sentryTrace?.split('-')[0] ?? null,
                 hosted: baseUrl !== null || !!embed?.token,
+                diagnose: diagnoseTransportFailures,
             });
             networkHistory.push(
                 sensitive
@@ -321,6 +338,7 @@ export const lightdashApiStream = ({
     headers,
     version = 'v1',
     signal,
+    diagnoseTransportFailures = false,
 }: LightdashApiProps) => {
     const baseUrl = sessionStorage.getItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
@@ -361,6 +379,7 @@ export const lightdashApiStream = ({
                 apiPrefix,
                 traceId: sentryTrace?.split('-')[0] ?? null,
                 hosted: baseUrl !== null || !!embed?.token,
+                diagnose: diagnoseTransportFailures,
             });
             throw new Error(apiError.error.message);
         }
