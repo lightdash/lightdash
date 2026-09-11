@@ -1,3 +1,10 @@
+## [2.198.2](https://github.com/lightdash/lightdash/compare/2.198.1...2.198.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **chart-registry:** point the default registry URL at the renamed lightdash-library repo ([#29068](https://github.com/lightdash/lightdash/issues/29068)) ([d48d998](https://github.com/lightdash/lightdash/commit/d48d998b949d143e36f4df2d2b21b06bd1064a71))
+
 ## [2.198.1](https://github.com/lightdash/lightdash/compare/2.198.0...2.198.1) (2026-09-11)
 
 
