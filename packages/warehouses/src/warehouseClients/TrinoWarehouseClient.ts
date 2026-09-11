@@ -496,28 +496,6 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         );
     }
 
-    async getTables(
-        schema?: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
-        const query = `
-            SELECT table_catalog, table_schema, table_name
-            FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE' 
-            ${schemaFilter}
-            ORDER BY 1,2,3
-        `;
-        const { rows } = await this.runQuery(query, tags);
-        return this.parseWarehouseCatalog(
-            rows,
-            convertDataTypeToDimensionType,
-            getTrinoTimestampDomain,
-        );
-    }
-
     async getFields(
         tableName: string,
         schema?: string,
@@ -561,7 +539,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE'
+            WHERE table_type IN ('BASE TABLE', 'VIEW')
                 ${whereSql}
                 ${filterSystemTables}
             ORDER BY 1, 2, 3

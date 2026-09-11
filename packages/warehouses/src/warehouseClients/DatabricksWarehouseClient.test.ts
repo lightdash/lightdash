@@ -441,3 +441,28 @@ describe('DatabricksSqlBuilder escaping', () => {
         expect(escapedBlock).toBe('test  value');
     });
 });
+
+describe('DatabricksWarehouseClient getAllTables', () => {
+    it('lists every relation type in Unity Catalog, not only managed tables', async () => {
+        const warehouse = new DatabricksWarehouseClient(credentials);
+        const runQuery = vi.spyOn(warehouse, 'runQuery').mockResolvedValueOnce({
+            rows: [
+                {
+                    table_catalog: 'main',
+                    table_schema: 'analytics',
+                    table_name: 'orders_view',
+                },
+            ],
+            fields: {},
+        });
+
+        const tables = await warehouse.getAllTables();
+
+        const [query] = runQuery.mock.calls[0];
+        expect(query).not.toContain('table_type');
+        expect(query).toContain("table_schema <> 'information_schema'");
+        expect(tables).toEqual([
+            { database: 'main', schema: 'analytics', table: 'orders_view' },
+        ]);
+    });
+});
