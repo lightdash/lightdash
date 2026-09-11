@@ -37,7 +37,6 @@ export function FollowProjectModal({
             withCloseButton={!isLoading}
             actions={
                 <Button
-                    color="indigo"
                     type="submit"
                     form="follow-roadmap-project-form"
                     loading={isLoading}

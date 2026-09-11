@@ -1,7 +1,5 @@
 import { type RoadmapProjectGroup } from '@lightdash/common';
 import { Button } from '@mantine/core';
-import { IconStar } from '@tabler/icons-react';
-import MantineIcon from '../../../components/common/MantineIcon';
 
 export type FollowProjectAction = {
     isLoading: boolean;
@@ -28,12 +26,8 @@ export function FollowProjectButton({
 
     return (
         <Button
-            color="indigo"
             className={className}
             size={compact ? 'compact-xs' : 'xs'}
-            leftSection={
-                <MantineIcon icon={IconStar} size={compact ? 12 : 16} />
-            }
             loading={isLoading}
             disabled={isSubmitted}
             onClick={onFollow}
