@@ -3888,7 +3888,7 @@ describe('AsyncQueryService', () => {
                 vi.spyOn(
                     analyticsClient,
                     'assertAnalyticsProjectEnabled',
-                ).mockImplementation(() => {
+                ).mockImplementation(async () => {
                     if (reason === 'disabled')
                         throw new ForbiddenError('analytics disabled');
                 });

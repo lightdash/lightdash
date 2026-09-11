@@ -694,15 +694,18 @@ describe('ProjectService', () => {
         };
         beforeEach(() => {
             testAnalyticsStorage.mockResolvedValue(undefined);
-            vi.spyOn(analyticsClient, 'createAnalyticsClient').mockReturnValue({
+            vi.spyOn(
+                analyticsClient,
+                'createAnalyticsClient',
+            ).mockResolvedValue({
                 test: testAnalyticsStorage,
-            } as unknown as ReturnType<
-                typeof analyticsClient.createAnalyticsClient
+            } as unknown as Awaited<
+                ReturnType<typeof analyticsClient.createAnalyticsClient>
             >);
             vi.spyOn(
                 analyticsClient,
                 'assertAnalyticsProjectEnabled',
-            ).mockImplementation(() => undefined);
+            ).mockResolvedValue(undefined);
         });
         afterEach(() => {
             vi.restoreAllMocks();
@@ -825,9 +828,9 @@ describe('ProjectService', () => {
 
         test.each([
             { enabled: false, disabled: false, environment: 'development' },
-            { enabled: true, disabled: true, environment: 'development' },
+            { enabled: false, disabled: true, environment: 'development' },
             { enabled: false, disabled: false, environment: 'production' },
-            { enabled: true, disabled: true, environment: 'production' },
+            { enabled: false, disabled: true, environment: 'production' },
         ])(
             'blocks creation and refresh in $environment when enabled=$enabled, disabled=$disabled',
             async ({ enabled, disabled, environment }) => {
@@ -871,7 +874,7 @@ describe('ProjectService', () => {
             },
         );
 
-        test('allows an authorized production org with the flag enabled and binds its storage source', async () => {
+        test('allows an authorized production org enabled through Console without ENV and binds its storage source', async () => {
             projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
                 { ...defaultProject, provisioningSource: 'analytics' },
             ]);
@@ -882,14 +885,31 @@ describe('ProjectService', () => {
             vi.spyOn(
                 lightdashConfigMock.enabledFeatureFlags,
                 'has',
-            ).mockReturnValue(true);
+            ).mockReturnValue(false);
             vi.spyOn(
                 lightdashConfigMock.disabledFeatureFlags,
                 'has',
             ).mockReturnValue(false);
-            await service.ensureAnalyticsProject(admin);
+            const flags = {
+                get: vi.fn().mockResolvedValue({
+                    id: FeatureFlags.AnalyticsProject,
+                    enabled: true,
+                }),
+            } as unknown as FeatureFlagModel;
+            const enabledService = getMockedProjectService(
+                lightdashConfigMock,
+                {
+                    featureFlagModel: flags,
+                },
+            );
+            await enabledService.ensureAnalyticsProject(admin);
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AnalyticsProject,
+                user: { organizationUuid: admin.organizationUuid },
+            });
             expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
                 admin.organizationUuid,
+                flags,
             );
         });
 

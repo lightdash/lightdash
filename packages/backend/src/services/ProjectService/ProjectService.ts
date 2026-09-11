@@ -827,7 +827,11 @@ export class ProjectService extends BaseService {
             provisioningSource: 'analytics',
         });
         // Fail before creating a project if the signed file reads cannot authenticate.
-        await createAnalyticsClient(organizationUuid).test();
+        const analyticsClient = await createAnalyticsClient(
+            organizationUuid,
+            this.featureFlagModel,
+        );
+        await analyticsClient.test();
         // Both models are backend-owned. Compilation itself needs no warehouse IO.
         const explores = createAnalyticsExplores();
         return this.projectModel.runInAnalyticsProvisioningLock(
@@ -2315,8 +2319,9 @@ export class ProjectService extends BaseService {
                 throw new ForbiddenError('Invalid internal analytics project');
             }
             return {
-                warehouseClient: createAnalyticsClient(
+                warehouseClient: await createAnalyticsClient(
                     project.organizationUuid,
+                    this.featureFlagModel,
                 ),
                 sshTunnel,
                 tunnelConnectMs: null,
@@ -2860,7 +2865,10 @@ export class ProjectService extends BaseService {
                 'Analytics project belongs to another organization',
             );
         }
-        assertAnalyticsProjectEnabled();
+        await assertAnalyticsProjectEnabled(
+            this.featureFlagModel,
+            project.organizationUuid,
+        );
         if (
             this.createAuditedAbility(account).cannot(
                 'manage',
