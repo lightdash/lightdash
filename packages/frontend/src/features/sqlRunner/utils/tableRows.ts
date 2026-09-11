@@ -1,6 +1,7 @@
 import {
+    assertUnreachable,
+    WarehouseTableType,
     type PartitionColumn,
-    type WarehouseTableType,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import { type TablesBySchema } from '../hooks/useTables';
@@ -24,18 +25,56 @@ export type TableRow =
           tableType: WarehouseTableType | undefined;
       };
 
+export type TableTypeFilter = 'tables' | 'views';
+
+const isView = (tableType: WarehouseTableType | undefined) =>
+    tableType === WarehouseTableType.VIEW ||
+    tableType === WarehouseTableType.MATERIALIZED_VIEW;
+
+// Untyped rows (cached before the type existed) count as tables
+const matchesTableTypeFilter = (
+    tableType: WarehouseTableType | undefined,
+    filter: TableTypeFilter | null,
+): boolean => {
+    switch (filter) {
+        case null:
+            return true;
+        case 'views':
+            return isView(tableType);
+        case 'tables':
+            return !isView(tableType);
+        default:
+            return assertUnreachable(filter, 'Unknown table type filter');
+    }
+};
+
+export const catalogHasViews = (tablesBySchema: SchemaTables[]): boolean =>
+    tablesBySchema.some(({ tables }) =>
+        Object.values(tables).some(({ tableType }) => isView(tableType)),
+    );
+
+const searchTableNames = (tableNames: string[], search: string): string[] => {
+    if (!search) return tableNames;
+    const fuse = new Fuse(tableNames, {
+        threshold: 0.3,
+        isCaseSensitive: false,
+        ignoreLocation: true,
+    });
+    return fuse.search(search).map((result) => result.item);
+};
+
+// Schemas left with no matching table are dropped
 export const filterTablesBySchema = (
     tablesBySchema: SchemaTables[],
     search: string,
+    typeFilter: TableTypeFilter | null,
 ): SchemaTables[] =>
     tablesBySchema
         .map(({ schema, tables }) => {
-            const fuse = new Fuse(Object.keys(tables), {
-                threshold: 0.3,
-                isCaseSensitive: false,
-                ignoreLocation: true,
-            });
-            const matches = fuse.search(search).map((result) => result.item);
+            const typed = Object.keys(tables).filter((table) =>
+                matchesTableTypeFilter(tables[table].tableType, typeFilter),
+            );
+            const matches = searchTableNames(typed, search);
             return {
                 schema,
                 tables: Object.fromEntries(

@@ -2,6 +2,7 @@ import { PartitionType, WarehouseTableType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     buildTableRows,
+    catalogHasViews,
     filterTablesBySchema,
     type SchemaTables,
 } from './tableRows';
@@ -75,7 +76,7 @@ describe('buildTableRows', () => {
 
 describe('filterTablesBySchema', () => {
     it('keeps matching tables and drops schemas without matches', () => {
-        const filtered = filterTablesBySchema(tablesBySchema, 'orders');
+        const filtered = filterTablesBySchema(tablesBySchema, 'orders', null);
 
         expect(filtered).toEqual([
             { schema: 'jaffle', tables: { orders: { partitionColumn } } },
@@ -84,6 +85,45 @@ describe('filterTablesBySchema', () => {
     });
 
     it('returns nothing when no table matches', () => {
-        expect(filterTablesBySchema(tablesBySchema, 'zzz')).toEqual([]);
+        expect(filterTablesBySchema(tablesBySchema, 'zzz', null)).toEqual([]);
+    });
+
+    it('keeps only views, treating untyped rows as tables', () => {
+        expect(filterTablesBySchema(tablesBySchema, '', 'views')).toEqual([
+            {
+                schema: 'jaffle',
+                tables: { payments: { tableType: WarehouseTableType.VIEW } },
+            },
+        ]);
+        expect(filterTablesBySchema(tablesBySchema, '', 'tables')).toEqual([
+            {
+                schema: 'jaffle',
+                tables: { customers: {}, orders: { partitionColumn } },
+            },
+            { schema: 'staging', tables: { stg_orders: {} } },
+        ]);
+    });
+
+    it('combines the type filter with the search', () => {
+        expect(filterTablesBySchema(tablesBySchema, 'orders', 'views')).toEqual(
+            [],
+        );
+        expect(
+            filterTablesBySchema(tablesBySchema, 'payments', 'views'),
+        ).toEqual([
+            {
+                schema: 'jaffle',
+                tables: { payments: { tableType: WarehouseTableType.VIEW } },
+            },
+        ]);
+    });
+});
+
+describe('catalogHasViews', () => {
+    it('is true only when some table is a view or materialized view', () => {
+        expect(catalogHasViews(tablesBySchema)).toBe(true);
+        expect(
+            catalogHasViews([{ schema: 'raw', tables: { a: {}, b: {} } }]),
+        ).toBe(false);
     });
 });
