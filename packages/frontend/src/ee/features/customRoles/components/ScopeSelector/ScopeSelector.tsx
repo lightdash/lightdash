@@ -515,7 +515,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                     />
                 </Group>
                 <Group justify="space-between">
-                    <Stack gap="two">
+                    <Stack gap="xs">
                         <Text fz="sm" c="dimmed">
                             {selectedCount} of {totalScopes}{' '}
                             <Text span fw={600} inherit>
