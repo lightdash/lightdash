@@ -3,8 +3,19 @@ import {
     type DashboardCustomMetricAffectedChart,
     type SavedChart,
 } from '@lightdash/common';
-import { Anchor, Button, Group, Text } from '@mantine/core';
-import { IconAlertTriangle, IconChartBar } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Anchor,
+    Button,
+    Group,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlertTriangle,
+    IconChartBar,
+    IconExternalLink,
+} from '@tabler/icons-react';
 import {
     useCallback,
     useLayoutEffect,
@@ -28,6 +39,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
 import { ModalHostedContext } from '../../providers/Explorer/useIsModalHosted';
+import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import Page from '../common/Page/Page';
 import TruncatedText from '../common/TruncatedText';
@@ -315,9 +327,29 @@ const DashboardChartEditorModal: FC<Props> = ({
                         </>
                     )}
                     {editChart ? (
-                        <TruncatedText fw={600} fz="md" maxWidth="100%" miw={0}>
-                            {`Edit ${editChart.name}`}
-                        </TruncatedText>
+                        <>
+                            <TruncatedText
+                                fw={600}
+                                fz="md"
+                                maxWidth="100%"
+                                miw={0}
+                            >
+                                {`Edit ${editChart.name}`}
+                            </TruncatedText>
+                            {dashboard && (
+                                <Tooltip label="Open saved chart in new tab">
+                                    <ActionIcon
+                                        component="a"
+                                        href={`/projects/${editChart.projectUuid}/saved/${editChart.uuid}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        aria-label="Open saved chart in new tab"
+                                    >
+                                        <MantineIcon icon={IconExternalLink} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </>
                     ) : (
                         <Text fw={600}>New chart</Text>
                     )}
