@@ -3,15 +3,7 @@ import {
     assertUnreachable,
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    ScrollArea,
-    SimpleGrid,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconPhoto } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import Callout from '../../../components/common/Callout';
@@ -49,6 +41,14 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
     const { track } = useTracking();
     const { colorScheme } = useAppColorScheme();
     const thumbnail = registryThumbnailPath(item, colorScheme);
+    // screenshots[0] is the thumbnail by registry convention — swap it for
+    // the dark variant when the app is in dark mode.
+    const screenshots =
+        colorScheme === 'dark' &&
+        item.thumbnailDark &&
+        item.screenshots.length > 0
+            ? [item.thumbnailDark, ...item.screenshots.slice(1)]
+            : item.screenshots;
 
     const handleInstall = () => {
         track({
@@ -136,23 +136,17 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
             {...footerProps}
         >
             <Stack gap="md">
-                {item.screenshots.length > 0 ? (
-                    <ScrollArea type="auto" offsetScrollbars>
-                        <Group
-                            gap="sm"
-                            wrap="nowrap"
-                            className={classes.screenshotRow}
-                        >
-                            {item.screenshots.map((path) => (
-                                <img
-                                    key={path}
-                                    src={registryAssetUrl(path)}
-                                    alt={item.name}
-                                    className={classes.screenshot}
-                                />
-                            ))}
-                        </Group>
-                    </ScrollArea>
+                {screenshots.length > 0 ? (
+                    <Stack gap="sm">
+                        {screenshots.map((path) => (
+                            <img
+                                key={path}
+                                src={registryAssetUrl(path)}
+                                alt={item.name}
+                                className={classes.screenshot}
+                            />
+                        ))}
+                    </Stack>
                 ) : thumbnail ? (
                     <Box className={classes.preview}>
                         <img
