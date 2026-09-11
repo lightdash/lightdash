@@ -4250,6 +4250,24 @@ export class ProjectModel {
             const previewDashboardUuidBySource = new Map(
                 dashboardMapping.map((m) => [m.uuid, m.newUuid]),
             );
+            // Dashboard content is only copied when its dashboard was
+            const hasCopiedDashboard = <
+                T extends { dashboard_uuid: string | null },
+            >(
+                row: T,
+            ): row is T & { dashboard_uuid: string } =>
+                row.dashboard_uuid !== null &&
+                previewDashboardUuidBySource.has(row.dashboard_uuid);
+            const getPreviewDashboardUuid = (sourceDashboardUuid: string) => {
+                const previewDashboardUuid =
+                    previewDashboardUuidBySource.get(sourceDashboardUuid);
+                if (!previewDashboardUuid) {
+                    throw new UnexpectedServerError(
+                        `Missing preview dashboard mapping for ${sourceDashboardUuid}`,
+                    );
+                }
+                return previewDashboardUuid;
+            };
 
             // .dP"Y8    db    Yb    dP 888888 8888b.      .dP"Y8  dP"Yb  88
             // `Ybo."   dPYb    Yb  dP  88__    8I  Yb     `Ybo." dP   Yb 88
@@ -4339,12 +4357,8 @@ export class ProjectModel {
                 .whereNull(`${SavedSqlTableName}.deleted_at`)
                 .select<DbSavedSql[]>(`${SavedSqlTableName}.*`);
 
-            // A chart whose dashboard was not copied has no home in the preview
-            const savedSQLInDashboards = sourceSavedSQLInDashboards.filter(
-                (d) =>
-                    d.dashboard_uuid !== null &&
-                    previewDashboardUuidBySource.has(d.dashboard_uuid),
-            );
+            const savedSQLInDashboards =
+                sourceSavedSQLInDashboards.filter(hasCopiedDashboard);
 
             Logger.info(
                 `Copying ${savedSQLInDashboards.length} SQL charts in dashboards on ${previewProjectUuid}, skipping ${
@@ -4359,19 +4373,11 @@ export class ProjectModel {
                           trx,
                           SavedSqlTableName,
                           savedSQLInDashboards.map((d) => {
-                              const newDashboardUuid = d.dashboard_uuid
-                                  ? previewDashboardUuidBySource.get(
-                                        d.dashboard_uuid,
-                                    )
-                                  : undefined;
-                              if (!newDashboardUuid) {
-                                  throw new Error(
-                                      `Chart ${d.saved_sql_uuid} has no copied dashboard`,
-                                  );
-                              }
                               const createSavedSQL: CloneSavedSQL = {
                                   ...replaceProjectUuid(d, previewProjectUuid),
-                                  dashboard_uuid: newDashboardUuid,
+                                  dashboard_uuid: getPreviewDashboardUuid(
+                                      d.dashboard_uuid,
+                                  ),
                                   search_vector: undefined,
                                   saved_sql_uuid: undefined,
                                   space_uuid: null,
@@ -4523,12 +4529,8 @@ export class ProjectModel {
                 .whereNull(`${SavedChartsTableName}.deleted_at`)
                 .select<DbSavedChart[]>(`${SavedChartsTableName}.*`);
 
-            // A chart whose dashboard was not copied has no home in the preview
-            const chartsInDashboards = sourceChartsInDashboards.filter(
-                (d) =>
-                    d.dashboard_uuid !== null &&
-                    previewDashboardUuidBySource.has(d.dashboard_uuid),
-            );
+            const chartsInDashboards =
+                sourceChartsInDashboards.filter(hasCopiedDashboard);
 
             Logger.info(
                 `Copying ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}, skipping ${
@@ -4542,21 +4544,13 @@ export class ProjectModel {
                           trx,
                           SavedChartsTableName,
                           chartsInDashboards.map((d) => {
-                              const newDashboardUuid = d.dashboard_uuid
-                                  ? previewDashboardUuidBySource.get(
-                                        d.dashboard_uuid,
-                                    )
-                                  : undefined;
-                              if (!newDashboardUuid) {
-                                  throw new Error(
-                                      `Chart in dashboard ${d.saved_query_id} has no copied dashboard`,
-                                  );
-                              }
                               const createChart: CloneChart = {
                                   ...replaceProjectUuid(d, previewProjectUuid),
                                   search_vector: undefined,
                                   space_id: null,
-                                  dashboard_uuid: newDashboardUuid,
+                                  dashboard_uuid: getPreviewDashboardUuid(
+                                      d.dashboard_uuid,
+                                  ),
                               };
                               delete createChart.search_vector;
                               delete createChart.saved_query_id;

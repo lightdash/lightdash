@@ -18,7 +18,7 @@ const projectUuid = SEED_PROJECT.project_uuid;
 describe('Preview content copy', () => {
     let admin: ApiClient;
     const tracker = new TestResourceTracker();
-    let previewProjectUuid: string | undefined;
+    let previewProjectUuid: string | null = null;
     let sourceDashboard: Dashboard;
     let sourceChart: SavedChart;
 
@@ -52,7 +52,6 @@ describe('Preview content copy', () => {
                 tabs: [],
                 tiles: [
                     {
-                        tabUuid: undefined,
                         type: DashboardTileTypes.SAVED_CHART,
                         x: 0,
                         y: 0,
@@ -80,8 +79,9 @@ describe('Preview content copy', () => {
             name: uniqueName('preview content copy'),
             copyContent: true,
         });
+        // Capture before asserting so a failed assertion still cleans the project up
+        previewProjectUuid = previewResponse.body.results?.projectUuid ?? null;
         expect(previewResponse.status).toBe(200);
-        previewProjectUuid = previewResponse.body.results.projectUuid;
 
         const dashboardsResponse = await admin.get<{
             results: DashboardBasicDetails[];
@@ -90,12 +90,14 @@ describe('Preview content copy', () => {
         const previewDashboardSummary = dashboardsResponse.body.results.find(
             (dashboard) => dashboard.name === sourceDashboard.name,
         );
-        expect(previewDashboardSummary).toBeDefined();
-        expect(previewDashboardSummary?.uuid).not.toBe(sourceDashboard.uuid);
+        if (!previewDashboardSummary) {
+            throw new Error('Dashboard was not copied into the preview');
+        }
+        expect(previewDashboardSummary.uuid).not.toBe(sourceDashboard.uuid);
 
         const previewDashboardResponse = await admin.get<{
             results: Dashboard;
-        }>(`${apiUrl}/dashboards/${previewDashboardSummary?.uuid}`);
+        }>(`${apiUrl}/dashboards/${previewDashboardSummary.uuid}`);
         expect(previewDashboardResponse.status).toBe(200);
         const previewDashboard = previewDashboardResponse.body.results;
         expect(previewDashboard.projectUuid).toBe(previewProjectUuid);
@@ -103,12 +105,11 @@ describe('Preview content copy', () => {
         const chartTile = previewDashboard.tiles.find(
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
         );
-        expect(chartTile).toBeDefined();
-        const previewChartUuid =
-            chartTile?.type === DashboardTileTypes.SAVED_CHART
-                ? chartTile.properties.savedChartUuid
-                : null;
-        expect(previewChartUuid).toBeTruthy();
+        if (chartTile?.type !== DashboardTileTypes.SAVED_CHART) {
+            throw new Error('Chart tile was not copied into the preview');
+        }
+        const previewChartUuid = chartTile.properties.savedChartUuid;
+        expect(previewChartUuid).not.toBeNull();
         expect(previewChartUuid).not.toBe(sourceChart.uuid);
 
         const previewChartResponse = await admin.get<{ results: SavedChart }>(
