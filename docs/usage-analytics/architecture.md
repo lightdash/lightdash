@@ -16,7 +16,7 @@ queries. It does not require dbt or a MotherDuck account.
 | ---------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Project                | Internal `PREVIEW` project with `provisioning_source=analytics`; both Query Events and AI Usage | Final metadata-project lifecycle and role design                            |
 | Entry point            | Session-authenticated, org-admin-only create-or-get endpoint                                    | Admin navigation/button; no connector setup UI                              |
-| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags       | Controlled live verification before customer rollout                        |
+| Enablement             | Explicit deployment `analytics-project` flag in all environments; disable takes precedence      | Controlled live verification before customer rollout                        |
 | Source org             | Persisted, authorized project org; legacy local overrides ignored                               | Live shared-instance isolation verification                                 |
 | Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB               | Verify effective IAM; read-only hardening is deferred (PROD-11103)          |
 | Models                 | Backend-owned `query_events` and `ai_usage` explores                                            | Reevaluate other streams, metadata enrichment and additional event coverage |
@@ -183,7 +183,7 @@ cryptographic revocation of previously issued capabilities or returned data.
 [`analyticsProjectClient`](../../packages/backend/src/services/ProjectService/analyticsProject/analyticsProjectClient.ts)
 reads files for the persisted project's org after service authorization checks.
 Legacy local org/source-org overrides are ignored in all environments. Production
-execution uses the standard feature-flag resolver for the target organization.
+execution requires the explicit deployment feature flag; disable takes precedence.
 See [live testing](live-testing.md) for rollout and remaining trust boundaries.
 
 The prefix filter is a backend authorization boundary, not bucket IAM. Storage

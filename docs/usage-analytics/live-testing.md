@@ -10,15 +10,11 @@ change is required. Read-only credential hardening is deferred in PROD-11103.
 1. Verify the existing usage-events endpoint, bucket and credentials are correct
    for the deployment and that its org has compacted Parquet data. Confirm effective
    IAM does not grant the identity access to other deployments' buckets.
-2. Enable `analytics-project` for the intended organization in Console, or add it
-   to `LIGHTDASH_ENABLE_FEATURE_FLAGS` for deployment-wide enablement. Backend
-   checks use the standard flag resolver with the target organization, including
-   on file reads. Console organization overrides are read without an analytics
-   flag cache; no restart is needed. ENV changes require a deployment/restart.
-   Standard precedence applies: ENV enable wins, then ENV disable, then database
-   organization override/default (preview overrides follow preview rules).
+2. Add `analytics-project` to `LIGHTDASH_ENABLE_FEATURE_FLAGS`, preserving other
+   flags. Ensure it is not in `LIGHTDASH_DISABLE_FEATURE_FLAGS`; disable wins.
+   This is an explicit deployment-wide backend gate, not a per-org rollout flag.
    Do not change `NODE_ENV` or enable unrelated deployments.
-3. After deploying this code, sign in as an organization admin.
+3. Use normal deployment/restart handling, then sign in as an organization admin.
    In Organization settings → Lightdash analytics, create the project, open its
    dashboards and Explore, and exercise Sync content.
 4. Verify both AI usage and query events, non-admin and cross-org denial, then
@@ -33,9 +29,8 @@ development. Local demos with mismatched source and project orgs must use matchi
 fixtures; they can no longer read another org through an override.
 
 No flags are enabled or infrastructure applied by this code change. Live production
-verification remains pending deployment. Roll back by disabling the organization
-flag in Console when no ENV enable forces it on, or remove the ENV enable and
-explicitly disable it. Leave projects/content intact. Issued signed URLs remain valid until
+verification remains pending deployment. Roll back by explicitly disabling the
+feature and leaving projects/content intact. Issued signed URLs remain valid until
 expiry (up to 15 minutes); flag-off does not revoke data already returned.
 
 ## Accepted boundary

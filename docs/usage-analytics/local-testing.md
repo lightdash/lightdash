@@ -122,8 +122,7 @@ slice does not issue export URLs that outlive these checks.
 
 Actual GCS reads and isolated MinIO tests verify the signed-URL path; AWS S3 and
 production multi-tenant rollout remain unverified.
-Production execution supports Console organization flags or ENV enablement through
-the standard feature-flag resolver; see [live testing](live-testing.md).
+Production execution requires explicit deployment feature enablement.
 
 ## Incremental PR stack
 
