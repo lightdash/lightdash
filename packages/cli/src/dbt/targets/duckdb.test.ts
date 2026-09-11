@@ -5,6 +5,16 @@ import {
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
+import {
+    mkdirSync,
+    mkdtempSync,
+    realpathSync,
+    rmSync,
+    symlinkSync,
+    writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { convertDuckdbSchema } from './duckdb';
 
 describe('convertDuckdbSchema', () => {
@@ -166,6 +176,104 @@ describe('convertDuckdbSchema', () => {
                 type: DucklakeDataPathType.LOCAL,
                 path: '/tmp/ducklake-data',
             },
+        });
+    });
+
+    describe('local file paths', () => {
+        let dataDir: string;
+        let outsideDir: string;
+        const previousEnv = process.env.PLAYGROUND_DATA_DIR;
+
+        beforeEach(() => {
+            dataDir = realpathSync(
+                mkdtempSync(path.join(tmpdir(), 'ld-playground-')),
+            );
+            outsideDir = realpathSync(
+                mkdtempSync(path.join(tmpdir(), 'ld-outside-')),
+            );
+            writeFileSync(path.join(dataDir, 'jaffle_shop.duckdb'), '');
+            writeFileSync(path.join(outsideDir, 'secret.duckdb'), '');
+            mkdirSync(path.join(dataDir, 'nested'));
+            writeFileSync(path.join(dataDir, 'nested', 'deep.duckdb'), '');
+            symlinkSync(
+                path.join(outsideDir, 'secret.duckdb'),
+                path.join(dataDir, 'escape.duckdb'),
+            );
+            process.env.PLAYGROUND_DATA_DIR = dataDir;
+        });
+
+        afterEach(() => {
+            if (previousEnv === undefined)
+                delete process.env.PLAYGROUND_DATA_DIR;
+            else process.env.PLAYGROUND_DATA_DIR = previousEnv;
+            rmSync(dataDir, { recursive: true, force: true });
+            rmSync(outsideDir, { recursive: true, force: true });
+        });
+
+        test('resolves a file inside PLAYGROUND_DATA_DIR to embedded credentials', () => {
+            expect(
+                convertDuckdbSchema({
+                    type: 'duckdb',
+                    path: path.join(dataDir, 'jaffle_shop.duckdb'),
+                    schema: 'jaffle',
+                }),
+            ).toEqual({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.EMBEDDED,
+                dataset: 'jaffle_shop',
+                schema: 'jaffle',
+            });
+        });
+
+        test('rejects a file outside PLAYGROUND_DATA_DIR', () => {
+            expect(() =>
+                convertDuckdbSchema({
+                    type: 'duckdb',
+                    path: path.join(outsideDir, 'secret.duckdb'),
+                    schema: 'jaffle',
+                }),
+            ).toThrow(ParseError);
+        });
+
+        test('rejects a symlink that escapes PLAYGROUND_DATA_DIR', () => {
+            expect(() =>
+                convertDuckdbSchema({
+                    type: 'duckdb',
+                    path: path.join(dataDir, 'escape.duckdb'),
+                    schema: 'jaffle',
+                }),
+            ).toThrow(ParseError);
+        });
+
+        test('rejects a file in a subdirectory of PLAYGROUND_DATA_DIR', () => {
+            expect(() =>
+                convertDuckdbSchema({
+                    type: 'duckdb',
+                    path: path.join(dataDir, 'nested', 'deep.duckdb'),
+                    schema: 'jaffle',
+                }),
+            ).toThrow(ParseError);
+        });
+
+        test('rejects a missing file', () => {
+            expect(() =>
+                convertDuckdbSchema({
+                    type: 'duckdb',
+                    path: path.join(dataDir, 'missing.duckdb'),
+                    schema: 'jaffle',
+                }),
+            ).toThrow(ParseError);
+        });
+
+        test('rejects every local path when PLAYGROUND_DATA_DIR is unset', () => {
+            delete process.env.PLAYGROUND_DATA_DIR;
+            expect(() =>
+                convertDuckdbSchema({
+                    type: 'duckdb',
+                    path: path.join(dataDir, 'jaffle_shop.duckdb'),
+                    schema: 'jaffle',
+                }),
+            ).toThrow(ParseError);
         });
     });
 });
