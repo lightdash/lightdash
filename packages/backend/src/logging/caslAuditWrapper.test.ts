@@ -91,6 +91,220 @@ describe('CaslAuditWrapper', () => {
         vi.clearAllMocks();
     });
 
+    describe('direct grant provenance', () => {
+        const grant = {
+            userUuid: mockUser.userUuid,
+            role: 'editor',
+            grantedVia: 'dashboard',
+            grantSourceUuid: 'grant-dashboard',
+        };
+        const provenance = [
+            {
+                grantedVia: 'dashboard',
+                grantSourceUuid: 'grant-dashboard',
+            },
+        ];
+        const createGrantWrapper = (auditEnabled = true) => {
+            const logger = createMockLogger();
+            const ability = defineAbility((can, cannot) => {
+                can(['view', 'update'], 'Dashboard', {
+                    access: {
+                        $elemMatch: {
+                            userUuid: mockUser.userUuid,
+                            role: 'editor',
+                        },
+                    },
+                });
+                can('view', 'Dashboard', {
+                    access: {
+                        $elemMatch: {
+                            userUuid: mockUser.userUuid,
+                            role: 'viewer',
+                        },
+                    },
+                });
+                can(['view', 'update'], 'Dashboard', { isAdmin: true });
+                cannot('update', 'Dashboard', { locked: true });
+            });
+            return {
+                logger,
+                wrapper: new CaslAuditWrapper(ability, mockUser, {
+                    auditLogger: logger,
+                    auditEnabled,
+                }),
+            };
+        };
+
+        it.each(['view', 'update'])(
+            'records the source of a grant-dependent %s',
+            (action) => {
+                const { logger, wrapper } = createGrantWrapper();
+                expect(
+                    wrapper.can(
+                        action,
+                        createDashboard('content', { access: [grant] }),
+                    ),
+                ).toBe(true);
+                expect(logger.mock.calls[0][0].resource.metadata).toEqual({
+                    dashboardUuid: 'content',
+                    directGrants: provenance,
+                });
+            },
+        );
+
+        it('records an editor grant when inherited access only permits viewing', () => {
+            const { logger, wrapper } = createGrantWrapper();
+            const dashboard = createDashboard('content', {
+                access: [
+                    { userUuid: mockUser.userUuid, role: 'viewer' },
+                    grant,
+                ],
+            });
+            expect(wrapper.can('view', dashboard)).toBe(true);
+            expect(logger.mock.calls[0][0].resource.metadata).toEqual({
+                dashboardUuid: 'content',
+            });
+            expect(wrapper.cannot('update', dashboard)).toBe(false);
+            expect(logger.mock.calls[1][0].resource.metadata).toEqual({
+                dashboardUuid: 'content',
+                directGrants: provenance,
+            });
+        });
+
+        it.each([
+            {
+                name: 'administrator',
+                attributes: { isAdmin: true, access: [grant] },
+                allowed: true,
+            },
+            {
+                name: 'inherited editor',
+                attributes: {
+                    access: [
+                        { userUuid: mockUser.userUuid, role: 'editor' },
+                        grant,
+                    ],
+                },
+                allowed: true,
+            },
+            {
+                name: 'denied action',
+                attributes: { locked: true, access: [grant] },
+                allowed: false,
+            },
+            {
+                name: 'another user',
+                attributes: { access: [{ ...grant, userUuid: 'other-user' }] },
+                allowed: false,
+            },
+            {
+                name: 'insufficient role',
+                attributes: { access: [{ ...grant, role: 'viewer' }] },
+                allowed: false,
+            },
+            {
+                name: 'legacy grant without source',
+                attributes: {
+                    access: [{ ...grant, grantSourceUuid: undefined }],
+                },
+                allowed: true,
+            },
+        ])(
+            'does not attribute $name to a direct grant',
+            ({ attributes, allowed }) => {
+                const { logger, wrapper } = createGrantWrapper();
+                expect(
+                    wrapper.can(
+                        'update',
+                        createDashboard('content', attributes),
+                    ),
+                ).toBe(allowed);
+                expect(logger.mock.calls[0][0].resource.metadata).toEqual({
+                    dashboardUuid: 'content',
+                });
+            },
+        );
+
+        it('deduplicates user and group grants and excludes insufficient grants', () => {
+            const { logger, wrapper } = createGrantWrapper();
+            expect(
+                wrapper.can(
+                    'update',
+                    createDashboard('content', {
+                        access: [
+                            grant,
+                            { ...grant },
+                            {
+                                ...grant,
+                                role: 'viewer',
+                                grantSourceUuid: 'unrelated',
+                            },
+                            {
+                                ...grant,
+                                userUuid: 'other-user',
+                                grantSourceUuid: 'other-user-grant',
+                            },
+                        ],
+                    }),
+                ),
+            ).toBe(true);
+            expect(logger.mock.calls[0][0].resource.metadata).toEqual({
+                dashboardUuid: 'content',
+                directGrants: provenance,
+            });
+        });
+
+        it('keeps grant provenance on each resource in a bulk event', () => {
+            const { logger, wrapper } = createGrantWrapper();
+            expect(
+                wrapper.canBulk('update', [
+                    createDashboard('one', { access: [grant] }),
+                    createDashboard('two', {
+                        access: [
+                            { ...grant, grantSourceUuid: 'second-dashboard' },
+                        ],
+                    }),
+                    createDashboard('three', {
+                        access: [
+                            { userUuid: mockUser.userUuid, role: 'editor' },
+                        ],
+                    }),
+                ]),
+            ).toEqual([true, true, true]);
+            expect(logger.mock.calls[0][0].resource.metadata).toEqual({
+                resources: [
+                    { dashboardUuid: 'one', directGrants: provenance },
+                    {
+                        dashboardUuid: 'two',
+                        directGrants: [
+                            {
+                                grantedVia: 'dashboard',
+                                grantSourceUuid: 'second-dashboard',
+                            },
+                        ],
+                    },
+                    { dashboardUuid: 'three' },
+                ],
+            });
+        });
+
+        it('preserves decisions with auditing disabled', () => {
+            const { logger, wrapper } = createGrantWrapper(false);
+            expect(
+                wrapper.can(
+                    'update',
+                    createDashboard('content', { access: [grant] }),
+                ),
+            ).toBe(true);
+            expect(
+                wrapper.canBulk('update', [
+                    createDashboard('content', { access: [grant] }),
+                ]),
+            ).toEqual([true]);
+            expect(logger).not.toHaveBeenCalled();
+        });
+    });
+
     describe('can method', () => {
         it('should return the same result as the original ability', () => {
             const mockLogger = createMockLogger();
