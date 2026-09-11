@@ -34,7 +34,7 @@ overrides:
   handlebars: 4.7.9
   basic-ftp: 5.3.1
   'vite@>=7.0.0 <7.3.2': 7.3.5
-  systeminformation: 5.31.6
+  systeminformation: 5.31.7
   'path-to-regexp@0.1.12': 0.1.13
   'ajv@<6.14.0': 6.15.0
   'ajv@>=8.0.0 <8.18.0': 8.18.0
@@ -60,8 +60,8 @@ minimumReleaseAgeExclude:
   - dompurify@3.4.0
   # Renovate security update: yaml@2.8.3
   - yaml@2.8.3
-  # Renovate security update: systeminformation@5.31.6
-  - systeminformation@5.31.6
+  # Renovate security update: systeminformation@5.31.6 || 5.31.7
+  - systeminformation@5.31.6 || 5.31.7
   # Renovate security update: basic-ftp@5.3.1
   - basic-ftp@5.3.1
   # Renovate security update: uuid@11.1.1
