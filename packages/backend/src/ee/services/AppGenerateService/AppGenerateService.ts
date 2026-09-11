@@ -8782,7 +8782,12 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to install chart types',
         );
 
-        const entry = await this.chartRegistryClient.getEntry(chartSlug);
+        // Install/upgrade is an explicit "check the registry now" action —
+        // bypass the index TTL so a just-published version installs
+        // immediately instead of returning "unchanged" until expiry.
+        const entry = await this.chartRegistryClient.getEntry(chartSlug, {
+            forceRefresh: true,
+        });
         if (!entry) {
             throw new NotFoundError(
                 `Chart type "${chartSlug}" not found in the registry`,
