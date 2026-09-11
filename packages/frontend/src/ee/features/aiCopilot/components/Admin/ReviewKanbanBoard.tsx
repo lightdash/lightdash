@@ -644,10 +644,10 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                             bg={`${lane.color}.5`}
                                             style={{ borderRadius: 3 }}
                                         />
-                                        <Text fz="sm" fw={600}>
+                                        <Text fz="xs" fw={600}>
                                             {lane.label}
                                         </Text>
-                                        <Badge size="sm">{all.length}</Badge>
+                                        <Badge size="xs">{all.length}</Badge>
                                     </Group>
                                     <DroppableLane
                                         laneId={lane.id}

@@ -1,20 +1,6 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Button,
-    Code,
-    Group,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import {
-    IconArrowUpRight,
-    IconBolt,
-    IconLayoutColumns,
-    IconRefresh,
-} from '@tabler/icons-react';
+import { Badge, Box, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconBolt, IconLayoutColumns, IconRefresh } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { Link } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
@@ -112,7 +98,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                     }
                 }}
             >
-                <Stack gap={8}>
+                <Stack gap={10}>
                     <Group
                         justify="space-between"
                         align="flex-start"
@@ -128,21 +114,28 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     Example
                                 </Badge>
                             )}
-                            <Text fz="sm" fw={500} lineClamp={2}>
+                            <Text
+                                fw={500}
+                                c="ldGray.9"
+                                lineClamp={2}
+                                className={styles.cardTitle}
+                            >
                                 {title}
                             </Text>
-                            {targetAnchor && (
-                                <Code
-                                    fz="xs"
-                                    c="dimmed"
-                                    w="fit-content"
-                                    maw="100%"
-                                >
-                                    {targetAnchor}
-                                </Code>
-                            )}
                         </Stack>
                         <Group gap={8} wrap="nowrap" align="center">
+                            {!isExample && (
+                                <ReviewPriorityMenu
+                                    fingerprint={item.fingerprint}
+                                    priority={item.priority}
+                                    variant="bars"
+                                    className={
+                                        item.priority === 'none'
+                                            ? styles.priorityNone
+                                            : undefined
+                                    }
+                                />
+                            )}
                             <Tooltip
                                 position="top"
                                 label={`First seen ${formatReviewDate(
@@ -151,7 +144,11 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     item.lastSeenAt,
                                 )}`}
                             >
-                                <Text fz="xs" c="dimmed" className="ld-nowrap">
+                                <Text
+                                    fz="xs"
+                                    c="ldGray.5"
+                                    className="ld-nowrap"
+                                >
                                     {formatRelativeReviewDate(item.lastSeenAt)}
                                 </Text>
                             </Tooltip>
@@ -164,7 +161,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         justify="space-between"
                         align="center"
                     >
-                        <Group gap={6} wrap="wrap">
+                        <Group gap="sm" wrap="wrap">
                             <CategoryBadge
                                 color={
                                     reviewRootCauseColors[item.primaryRootCause]
@@ -172,128 +169,136 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                 label={
                                     reviewRootCauseLabels[item.primaryRootCause]
                                 }
+                                bordered={false}
+                                tooltip={targetAnchor ?? undefined}
+                                className={styles.categoryLabel}
                             />
+                        </Group>
+
+                        <Group gap={10} wrap="nowrap" align="center">
+                            {activityLabel && (
+                                <Group gap={6} wrap="nowrap" align="center">
+                                    {isAgentRunning ? (
+                                        <AiAgentIcon size={13} animated />
+                                    ) : (
+                                        <Box
+                                            pos="relative"
+                                            w={6}
+                                            h={6}
+                                            bg="indigo.5"
+                                            className={styles.pulse}
+                                            style={{ borderRadius: '50%' }}
+                                        />
+                                    )}
+                                    <Text fz="xs" c="ldGray.6">
+                                        {activityLabel}
+                                    </Text>
+                                </Group>
+                            )}
+                            {hasWorkspace &&
+                                !activityLabel &&
+                                (isExample ? (
+                                    <Box
+                                        data-tour="reviews-workspace"
+                                        className={styles.inlineAction}
+                                    >
+                                        <MantineIcon
+                                            icon={IconLayoutColumns}
+                                            size={13}
+                                        />
+                                        <Text fz="xs">Workspace</Text>
+                                    </Box>
+                                ) : (
+                                    <Tooltip
+                                        label="Open workspace"
+                                        openDelay={300}
+                                    >
+                                        <Box
+                                            component={Link}
+                                            to={workspaceHref}
+                                            onClick={(
+                                                e: React.MouseEvent<HTMLAnchorElement>,
+                                            ) => e.stopPropagation()}
+                                            className={styles.inlineAction}
+                                        >
+                                            <MantineIcon
+                                                icon={IconLayoutColumns}
+                                                size={13}
+                                            />
+                                            <Text fz="xs">Workspace</Text>
+                                        </Box>
+                                    </Tooltip>
+                                ))}
+                            {startKind !== null && (
+                                <Button
+                                    data-tour={
+                                        isExample ? 'reviews-pr' : undefined
+                                    }
+                                    variant="light"
+                                    color="gray"
+                                    size="compact-xs"
+                                    h={20}
+                                    px={6}
+                                    disabled={isExample}
+                                    loading={createWriteback.isLoading}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={
+                                                isRetry ? IconRefresh : IconBolt
+                                            }
+                                            size={12}
+                                        />
+                                    }
+                                    className={
+                                        isRetry || isExample
+                                            ? styles.cardAction
+                                            : `${styles.cardAction} ${styles.hoverAction}`
+                                    }
+                                    onPointerDown={(e: React.PointerEvent) =>
+                                        e.stopPropagation()
+                                    }
+                                    onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation();
+                                        updateStatus.mutate({
+                                            fingerprint: item.fingerprint,
+                                            body: {
+                                                status: 'in_progress',
+                                                dismissedReason: null,
+                                            },
+                                        });
+                                        if (startKind === 'modal') {
+                                            setPreviewOpen(true);
+                                        } else {
+                                            createWriteback.mutate(
+                                                item.fingerprint,
+                                            );
+                                        }
+                                    }}
+                                >
+                                    {isRetry ? 'Retry fix' : 'Start fix'}
+                                </Button>
+                            )}
                             {!isExample && (
-                                <ReviewPriorityMenu
+                                <ReviewAssigneeMenu
+                                    projectUuid={
+                                        item.projectUuid ??
+                                        item.latestFinding?.projectUuid ??
+                                        null
+                                    }
                                     fingerprint={item.fingerprint}
-                                    priority={item.priority}
+                                    assignedToUserUuid={item.assignedToUserUuid}
+                                    avatarSize={18}
+                                    className={
+                                        item.assignedToUserUuid
+                                            ? undefined
+                                            : styles.assigneeUnassigned
+                                    }
                                 />
                             )}
                         </Group>
-
-                        {!isExample && (
-                            <ReviewAssigneeMenu
-                                projectUuid={
-                                    item.projectUuid ??
-                                    item.latestFinding?.projectUuid ??
-                                    null
-                                }
-                                fingerprint={item.fingerprint}
-                                assignedToUserUuid={item.assignedToUserUuid}
-                                className={
-                                    item.assignedToUserUuid
-                                        ? undefined
-                                        : styles.assigneeUnassigned
-                                }
-                            />
-                        )}
                     </Group>
                 </Stack>
             </Box>
-
-            {hasWorkspace &&
-                (activityLabel ? (
-                    <Box className={styles.cardFooter}>
-                        <Group gap={6} align="center">
-                            {isAgentRunning ? (
-                                <AiAgentIcon size={14} animated />
-                            ) : (
-                                <Box
-                                    pos="relative"
-                                    w={7}
-                                    h={7}
-                                    bg="indigo.5"
-                                    className={styles.pulse}
-                                    style={{ borderRadius: '50%' }}
-                                />
-                            )}
-                            <Text fz="xs" c="dimmed">
-                                {activityLabel}
-                            </Text>
-                        </Group>
-                    </Box>
-                ) : isExample ? (
-                    <Box
-                        data-tour="reviews-workspace"
-                        className={styles.cardFooter}
-                    >
-                        <Group gap={6} align="center">
-                            <MantineIcon icon={IconLayoutColumns} size={13} />
-                            <Text fz="xs">Open workspace</Text>
-                        </Group>
-                        <MantineIcon icon={IconArrowUpRight} size={14} />
-                    </Box>
-                ) : (
-                    <Box
-                        component={Link}
-                        to={workspaceHref}
-                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                            e.stopPropagation()
-                        }
-                        className={styles.cardFooter}
-                    >
-                        <Group gap={6} align="center">
-                            <MantineIcon icon={IconLayoutColumns} size={13} />
-                            <Text fz="xs">Open workspace</Text>
-                        </Group>
-                        <MantineIcon icon={IconArrowUpRight} size={14} />
-                    </Box>
-                ))}
-
-            {startKind !== null &&
-                (isExample ? (
-                    <Button
-                        data-tour="reviews-pr"
-                        size="compact-xs"
-                        disabled
-                        leftSection={<MantineIcon icon={IconBolt} size={12} />}
-                        className={styles.startAction}
-                    >
-                        Start fix
-                    </Button>
-                ) : (
-                    <Button
-                        size="compact-xs"
-                        leftSection={
-                            <MantineIcon
-                                icon={isRetry ? IconRefresh : IconBolt}
-                                size={12}
-                            />
-                        }
-                        loading={createWriteback.isLoading}
-                        className={styles.startAction}
-                        onPointerDown={(e: React.PointerEvent) =>
-                            e.stopPropagation()
-                        }
-                        onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            updateStatus.mutate({
-                                fingerprint: item.fingerprint,
-                                body: {
-                                    status: 'in_progress',
-                                    dismissedReason: null,
-                                },
-                            });
-                            if (startKind === 'modal') {
-                                setPreviewOpen(true);
-                            } else {
-                                createWriteback.mutate(item.fingerprint);
-                            }
-                        }}
-                    >
-                        {isRetry ? 'Retry fix' : 'Start fix'}
-                    </Button>
-                ))}
 
             {startKind === 'modal' && (
                 <ProjectContextWritebackModal
