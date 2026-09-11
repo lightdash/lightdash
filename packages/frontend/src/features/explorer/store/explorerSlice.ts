@@ -163,6 +163,16 @@ const explorerSlice = createSlice({
             state.unsavedColorPaletteUuid =
                 action.payload?.colorPaletteUuid ?? null;
         },
+        // Name and description only, so a rename mid-session leaves the
+        // staged palette alone (setSavedChart would reset it).
+        setSavedChartMetadata: (
+            state,
+            action: PayloadAction<Pick<SavedChart, 'name' | 'description'>>,
+        ) => {
+            if (!state.savedChart) return;
+            state.savedChart.name = action.payload.name;
+            state.savedChart.description = action.payload.description;
+        },
         setColorPaletteUuid: (state, action: PayloadAction<string | null>) => {
             state.unsavedColorPaletteUuid = action.payload;
         },

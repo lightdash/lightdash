@@ -1,4 +1,6 @@
+import { subject } from '@casl/ability';
 import {
+    canMutateVerifiedContent,
     type AdditionalMetric,
     type DashboardCustomMetricAffectedChart,
     type SavedChart,
@@ -15,9 +17,11 @@ import {
     IconAlertTriangle,
     IconChartBar,
     IconExternalLink,
+    IconPencil,
 } from '@tabler/icons-react';
 import {
     useCallback,
+    useEffect,
     useLayoutEffect,
     useMemo,
     useRef,
@@ -27,9 +31,11 @@ import {
 import { Provider } from 'react-redux';
 import {
     createExplorerStore,
+    explorerActions,
     selectActiveFields,
     selectHasUnsavedChanges,
     selectSavedChart,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
 import { MergeProvider } from '../../features/mergeQuery/context/MergeContext';
@@ -38,9 +44,12 @@ import { useDeleteDashboardCustomMetric } from '../../hooks/dashboard/useUpdateD
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
+import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
+import useApp from '../../providers/App/useApp';
 import { ModalHostedContext } from '../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import ChartUpdateModal from '../common/modal/ChartUpdateModal';
 import Page from '../common/Page/Page';
 import TruncatedText from '../common/TruncatedText';
 import Explorer from '../Explorer';
@@ -50,9 +59,14 @@ import ExploreSideBar from '../Explorer/ExploreSideBar';
 import PageSpinner from '../PageSpinner';
 import { buildDashboardEditorInitialState } from './buildDashboardEditorInitialState';
 
+type ChartMetadata = Pick<SavedChart, 'name' | 'description'>;
+type RenamedChart = Pick<SavedChart, 'uuid' | 'name' | 'description'>;
+
 type ContentProps = {
     exploreId: string;
     editChart?: SavedChart;
+    /** Name and description saved from the header; null until renamed. */
+    chartMetadata: ChartMetadata | null;
     seededMetrics: AdditionalMetric[];
     onDirtyChange: (isDirty: boolean) => void;
     onExploreSelect: (exploreName: string) => void;
@@ -91,6 +105,7 @@ const DashboardChartEditorView: FC<
 const DashboardChartEditorContent: FC<ContentProps> = ({
     exploreId,
     editChart,
+    chartMetadata,
     seededMetrics,
     onDirtyChange,
     onExploreSelect,
@@ -114,6 +129,7 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
         <Provider store={store}>
             <ExplorerEffects />
             <UnsavedChangesBridge onDirtyChange={onDirtyChange} />
+            <SavedChartMetadataBridge metadata={chartMetadata} />
             <DashboardChartEditorView
                 editChart={editChart}
                 onExploreSelect={onExploreSelect}
@@ -127,6 +143,25 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
 // Query effects must run inside the store Provider.
 const ExplorerEffects: FC = () => {
     useExplorerQueryEffects();
+    return null;
+};
+
+// Keeps the session's saved chart in step with a rename made from the header.
+const SavedChartMetadataBridge: FC<{ metadata: ChartMetadata | null }> = ({
+    metadata,
+}) => {
+    const dispatch = useExplorerDispatch();
+    const savedChart = useExplorerSelector(selectSavedChart);
+    useEffect(() => {
+        if (!metadata || !savedChart) return;
+        if (
+            metadata.name === savedChart.name &&
+            metadata.description === savedChart.description
+        ) {
+            return;
+        }
+        dispatch(explorerActions.setSavedChartMetadata(metadata));
+    }, [metadata, savedChart, dispatch]);
     return null;
 };
 
@@ -175,6 +210,37 @@ const DashboardChartEditorModal: FC<Props> = ({
 }) => {
     const [pickedExploreId, setPickedExploreId] = useState<string>();
     const exploreId = editChart ? editChart.tableName : pickedExploreId;
+
+    const ability = useAbilityContext();
+    const { user } = useApp();
+    // Same gate as the chart page: manage the chart, and its verification
+    const canManageChart =
+        editChart !== undefined &&
+        ability.can('manage', subject('SavedChart', { ...editChart })) &&
+        canMutateVerifiedContent(
+            ability,
+            {
+                organizationUuid: editChart.organizationUuid,
+                projectUuid: editChart.projectUuid,
+            },
+            editChart.verification,
+            user.data?.userUuid,
+        );
+    // The rename dialog reports what it saved; the tile's copy in editChart
+    // is otherwise the freshest source, so no cache read here.
+    const [renamedChart, setRenamedChart] = useState<RenamedChart | null>(null);
+    const chartMetadata = useMemo<ChartMetadata | null>(
+        () =>
+            renamedChart && renamedChart.uuid === editChart?.uuid
+                ? {
+                      name: renamedChart.name,
+                      description: renamedChart.description,
+                  }
+                : null,
+        [renamedChart, editChart?.uuid],
+    );
+    const chartName = chartMetadata?.name ?? editChart?.name;
+    const [isRenamingChart, setIsRenamingChart] = useState(false);
 
     const {
         seededMetrics,
@@ -334,8 +400,18 @@ const DashboardChartEditorModal: FC<Props> = ({
                                 maxWidth="100%"
                                 miw={0}
                             >
-                                {`Edit ${editChart.name}`}
+                                {`Edit ${chartName}`}
                             </TruncatedText>
+                            {dashboard && canManageChart && (
+                                <Tooltip label="Edit name and description">
+                                    <ActionIcon
+                                        aria-label="Edit name and description"
+                                        onClick={() => setIsRenamingChart(true)}
+                                    >
+                                        <MantineIcon icon={IconPencil} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
                             {dashboard && (
                                 <Tooltip label="Open saved chart in new tab">
                                     <ActionIcon
@@ -370,6 +446,7 @@ const DashboardChartEditorModal: FC<Props> = ({
                         }-${editChart?.uuid ?? 'new'}`}
                         exploreId={exploreId ?? ''}
                         editChart={editChart}
+                        chartMetadata={chartMetadata}
                         seededMetrics={seededMetrics}
                         onDirtyChange={handleDirtyChange}
                         onExploreSelect={setPickedExploreId}
@@ -413,6 +490,21 @@ const DashboardChartEditorModal: FC<Props> = ({
                     onBack={() => setRegistryDeletePreview(null)}
                     onConfirm={handleConfirmRegistryDelete}
                 />
+                {editChart && dashboard && canManageChart && (
+                    <ChartUpdateModal
+                        opened={isRenamingChart}
+                        uuid={editChart.uuid}
+                        onClose={() => setIsRenamingChart(false)}
+                        onConfirm={(chart) => {
+                            setRenamedChart({
+                                uuid: chart.uuid,
+                                name: chart.name,
+                                description: chart.description,
+                            });
+                            setIsRenamingChart(false);
+                        }}
+                    />
+                )}
             </ModalHostedContext.Provider>
         </MantineModal>
     );

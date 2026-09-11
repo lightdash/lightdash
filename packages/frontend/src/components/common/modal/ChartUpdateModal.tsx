@@ -16,7 +16,7 @@ import MantineModal from '../MantineModal';
 
 interface ChartUpdateModalProps extends Pick<ModalProps, 'opened' | 'onClose'> {
     uuid: string;
-    onConfirm?: () => void;
+    onConfirm?: (chart: SavedChart) => void;
 }
 
 type FormState = Pick<SavedChart, 'name' | 'description'>;
@@ -60,11 +60,11 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     }
 
     const handleConfirm = form.onSubmit(async (data) => {
-        await mutateAsync({
+        const updatedChart = await mutateAsync({
             name: data.name,
             description: data.description,
         });
-        onConfirm?.();
+        onConfirm?.(updatedChart);
     });
 
     return (

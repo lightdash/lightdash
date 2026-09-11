@@ -324,3 +324,47 @@ describe('explorerSlice chart type authoring', () => {
         expect(cleared.unsavedChartVersion.tableName).toBe('orders');
     });
 });
+
+describe('explorerSlice saved chart metadata', () => {
+    const savedChart = {
+        uuid: 'chart-uuid',
+        name: 'Old name',
+        description: 'Old description',
+        colorPaletteUuid: 'saved-palette',
+    } as unknown as Parameters<typeof explorerActions.setSavedChart>[0];
+
+    it('renames the saved chart without touching the staged palette', () => {
+        const withChart = explorerReducer(
+            undefined,
+            explorerActions.setSavedChart(savedChart),
+        );
+        const withStagedPalette = explorerReducer(
+            withChart,
+            explorerActions.setColorPaletteUuid('staged-palette'),
+        );
+
+        const result = explorerReducer(
+            withStagedPalette,
+            explorerActions.setSavedChartMetadata({
+                name: 'New name',
+                description: 'New description',
+            }),
+        );
+
+        expect(result.savedChart?.name).toBe('New name');
+        expect(result.savedChart?.description).toBe('New description');
+        expect(result.unsavedColorPaletteUuid).toBe('staged-palette');
+    });
+
+    it('ignores metadata for a session with no saved chart', () => {
+        const result = explorerReducer(
+            undefined,
+            explorerActions.setSavedChartMetadata({
+                name: 'New name',
+                description: undefined,
+            }),
+        );
+
+        expect(result.savedChart).toBeUndefined();
+    });
+});
