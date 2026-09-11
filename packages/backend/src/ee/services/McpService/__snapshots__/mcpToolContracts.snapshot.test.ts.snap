@@ -41,77 +41,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 - Use the SQL dialect appropriate for the connected warehouse
 
 ### Filter Expressions
-
-For \`run_metric_query\`, set \`queryConfig.filters\` to null when no query filters are needed. Otherwise, \`dimensions\`, \`metrics\`, and \`tableCalculations\` are independent string expressions or null.
-
-- A non-null category contains one raw string expression.
-- Choose the category from discovered field metadata (its dimension/metric kind), never from a field name or whether a numeric field sounds metric-like. A raw numeric dimension belongs in \`dimensions\`; only metrics and custom metrics belong in \`metrics\`.
-- A field used only to restrict rows stays in its filter expression. Do not add it to \`queryConfig.dimensions\` unless the user asked to group by or display it: extra selected dimensions change aggregation and table-calculation grain.
-- Table calculations belong only in \`tableCalculations\`.
-- Each category is flat and uses AND or OR, never both.
-- The three categories combine implicitly with AND.
-- Aggregation custom metric filters are flat AND expressions.
-- Omit \`search_field_values.filters\` for an unscoped search. When present, it is one flat dimension expression string and is AND-only.
-- The tool schema is authoritative for where each string is placed.
-
-Raw placement examples:
-- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
-- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
-- metrics: orders_total_order_amount greaterThan=100
-- tableCalculations: rank lessThanOrEqual=10
-
-- Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
-- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
-
-### string
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`startsWith=<value>[,<value>...] [1+ values]\`
-- \`endsWith=<value>[,<value>...] [1+ values]\`
-- \`include=<value>[,<value>...] [1+ values]\`
-- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
-
-### number
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`lessThan=<value> [1 value]\`
-- \`lessThanOrEqual=<value> [1 value]\`
-- \`greaterThan=<value> [1 value]\`
-- \`greaterThanOrEqual=<value> [1 value]\`
-- \`inBetween=<first value>,<second value> [2 values]\`
-- \`notInBetween=<first value>,<second value> [2 values]\`
-
-### date
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`lessThan=<value> [1 value]\`
-- \`lessThanOrEqual=<value> [1 value]\`
-- \`greaterThan=<value> [1 value]\`
-- \`greaterThanOrEqual=<value> [1 value]\`
-- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`inTheCurrent=<unit> [1 unit]\`
-- \`notInTheCurrent=<unit> [1 unit]\`
-- \`inBetween=<first value>,<second value> [2 values]\`
-- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
-
-### boolean
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value> [1 value]\`
-- \`notEquals=<value> [1 value]\`
+Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values.
 
 ### Time Filtering
 - If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
@@ -11289,7 +11219,7 @@ Stop on terminal errors and correct the request before retrying.
 
 When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
 
-Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow the Lightdash MCP server instructions.",
+Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability. Each category uses AND or OR, never both; categories combine with AND. Conditional custom metric filters are AND-only. Before writing filter expressions, read the \`filter-expressions\` skill.",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "properties": {
@@ -11876,7 +11806,7 @@ Usage Tips:
 - Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
-- Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint; for supported operators, quoting, and examples, follow the Lightdash MCP server instructions.
+- Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint. Before writing filter expressions, read the \`filter-expressions\` skill.
 ",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
