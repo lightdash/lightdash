@@ -1,3 +1,11 @@
+## [2.197.3](https://github.com/lightdash/lightdash/compare/2.197.2...2.197.3) (2026-09-11)
+
+
+### Bug Fixes
+
+* **chart-registry:** install bypasses the index TTL; expiry revalidates with ETag ([#29054](https://github.com/lightdash/lightdash/issues/29054)) ([5300f87](https://github.com/lightdash/lightdash/commit/5300f87db536e670936a58b47dca0760443be145))
+* explain skipped joins in compile warnings and query errors ([#29003](https://github.com/lightdash/lightdash/issues/29003)) ([ccb2d91](https://github.com/lightdash/lightdash/commit/ccb2d91479e1cb2243f121661add06a6f34128e8))
+
 ## [2.197.2](https://github.com/lightdash/lightdash/compare/2.197.1...2.197.2) (2026-09-11)
 
 
