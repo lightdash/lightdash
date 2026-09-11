@@ -1,3 +1,10 @@
+## [2.198.5](https://github.com/lightdash/lightdash/compare/2.198.4...2.198.5) (2026-09-11)
+
+
+### Bug Fixes
+
+* **formatting:** serialise struct and array cells as JSON instead of [object Object] ([#29052](https://github.com/lightdash/lightdash/issues/29052)) ([d84cf9e](https://github.com/lightdash/lightdash/commit/d84cf9e1393cac7d18a60a54b8f5ba33d66eefd8))
+
 ## [2.198.4](https://github.com/lightdash/lightdash/compare/2.198.3...2.198.4) (2026-09-11)
 
 
