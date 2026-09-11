@@ -914,3 +914,38 @@ describe('getSystemPromptV2 data apps', () => {
         expect(content).not.toContain('{{generate_data_app_section}}');
     });
 });
+
+describe('getSystemPromptV2 Slack links only', () => {
+    const noDataInSlackRule =
+        'This organization does not allow query results to be shared in Slack';
+
+    test('forbids values in the reply while the model still gets the rows', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+            slackLinksOnly: true,
+        });
+        expect(content).toContain(noDataInSlackRule);
+        expect(content).toContain('Do not summarize them');
+        expect(content).not.toContain('call out trends');
+    });
+
+    test('keeps the no-results guidance when the agent has no data access', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: false,
+            slackLinksOnly: true,
+        });
+        expect(content).toContain(noDataInSlackRule);
+        expect(content).toContain('You do not see the actual query results');
+    });
+
+    test('is absent by default', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+        });
+        expect(content).not.toContain(noDataInSlackRule);
+        expect(content).toContain('call out trends');
+    });
+});

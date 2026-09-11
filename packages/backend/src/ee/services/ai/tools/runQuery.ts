@@ -97,6 +97,7 @@ type Dependencies = {
     /** Deep Research report charts must cite the execution they came from. */
     exposeQueryUuid: boolean;
     enableDataAccess: boolean;
+    slackLinksOnly: boolean;
     // Project-level parameter definitions; model-level ones come from the explore.
     projectParameterDefinitions: ParameterDefinitions;
     enableMergeQueries: boolean;
@@ -411,6 +412,7 @@ export const getRunQuery = ({
     maxContextRows,
     exposeQueryUuid,
     enableDataAccess,
+    slackLinksOnly,
     projectParameterDefinitions,
     enableMergeQueries,
     enableFilterExpressions,
@@ -610,7 +612,10 @@ export const getRunQuery = ({
                                       }),
                         });
 
-                    if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                    if (
+                        !enableDataAccess &&
+                        (!isSlackPrompt(prompt) || slackLinksOnly)
+                    ) {
                         await createMergeArtifactHook();
                         return {
                             result: 'Success',
@@ -633,7 +638,7 @@ export const getRunQuery = ({
                     await createMergeArtifactHook();
 
                     let chartImageUrl: string | undefined;
-                    if (isSlackPrompt(prompt)) {
+                    if (isSlackPrompt(prompt) && !slackLinksOnly) {
                         chartImageUrl = await sendSlackVisualization({
                             prompt,
                             queryTool,
@@ -795,7 +800,10 @@ export const getRunQuery = ({
                     });
 
                 // Early artifact creation for non-data-access mode
-                if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                if (
+                    !enableDataAccess &&
+                    (!isSlackPrompt(prompt) || slackLinksOnly)
+                ) {
                     await createOrUpdateArtifactHook();
                     return {
                         result: `Success`,
@@ -850,7 +858,7 @@ export const getRunQuery = ({
                 const artifact = await createOrUpdateArtifactHook();
 
                 let chartImageUrl: string | undefined;
-                if (isSlackPrompt(prompt)) {
+                if (isSlackPrompt(prompt) && !slackLinksOnly) {
                     chartImageUrl = await sendSlackVisualization({
                         prompt,
                         queryTool,

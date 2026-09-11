@@ -135,6 +135,7 @@ const executeTool = async (
     enableDataAccess = true,
     prompt: AiWebAppPrompt | SlackPrompt = makePrompt(),
     exposeQueryUuid = false,
+    slackLinksOnly = false,
 ) => {
     const queryTool = getRunQuery({
         updateProgress: vi.fn().mockResolvedValue(undefined),
@@ -150,6 +151,7 @@ const executeTool = async (
         maxContextRows: Number.POSITIVE_INFINITY,
         exposeQueryUuid,
         enableDataAccess,
+        slackLinksOnly,
         resolveCustomChartType: vi.fn().mockResolvedValue(null),
         exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
     });
@@ -192,6 +194,7 @@ describe('getRunQuery', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
@@ -255,6 +258,7 @@ describe('getRunQuery', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
@@ -357,6 +361,7 @@ describe('getRunQuery', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
@@ -399,6 +404,7 @@ describe('getRunQuery', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
@@ -506,6 +512,7 @@ describe('getRunQuery', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
@@ -580,6 +587,7 @@ describe('getRunQuery', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
@@ -637,6 +645,7 @@ describe('getRunQuery', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn<ExportCustomChartTypeImageFn>(),
         });
@@ -822,6 +831,7 @@ describe('getRunQuery custom chart types', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType,
             exportCustomChartTypeImage,
         });
@@ -1016,6 +1026,7 @@ describe('getRunQuery custom chart types', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue({
                 dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
                 schema: vizSchema,
@@ -1127,6 +1138,7 @@ describe('getRunQuery custom chart types', () => {
                 maxContextRows: Number.POSITIVE_INFINITY,
                 exposeQueryUuid: false,
                 enableDataAccess: true,
+                slackLinksOnly: false,
                 resolveCustomChartType: vi.fn().mockResolvedValue({
                     dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
                     schema: vizSchema,
@@ -1339,6 +1351,7 @@ describe('getRunQuery parameters', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
@@ -1462,6 +1475,7 @@ describe('getRunQuery parameters', () => {
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             enableDataAccess: true,
+            slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
@@ -1496,5 +1510,101 @@ describe('getRunQuery parameters', () => {
         expect(runAsyncQuery).not.toHaveBeenCalled();
         expect(output.metadata.status).toBe('error');
         expect(output.result).toContain('single value');
+    });
+});
+
+describe('getRunQuery Slack links only', () => {
+    const executeLinksOnly = async ({
+        enableDataAccess,
+        slackLinksOnly,
+    }: {
+        enableDataAccess: boolean;
+        slackLinksOnly: boolean;
+    }) => {
+        const runAsyncQuery = vi.fn().mockResolvedValue({
+            queryUuid: 'query-uuid',
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        }) as RunAsyncQueryFn;
+        const sendFile = vi
+            .fn()
+            .mockResolvedValue(
+                'https://lightdash.example/api/v1/slack/card-image/abc',
+            ) as SendFileFn;
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue({
+            artifactUuid: 'artifact-uuid',
+            versionUuid: 'version-uuid',
+        });
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: false,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
+            sendFile,
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess,
+            slackLinksOnly,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+        const output = await queryTool.execute!(toolInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+        return { output, runAsyncQuery, sendFile, createOrUpdateArtifact };
+    };
+
+    it('posts neither a chart image nor a CSV into Slack while the model still sees the rows', async () => {
+        const { output, runAsyncQuery, sendFile } = await executeLinksOnly({
+            enableDataAccess: true,
+            slackLinksOnly: true,
+        });
+
+        expect(runAsyncQuery).toHaveBeenCalledTimes(1);
+        expect(sendFile).not.toHaveBeenCalled();
+        expect(output.metadata).toMatchObject({
+            status: 'success',
+            chartImageUrl: undefined,
+        });
+        expect(output.result).toContain('one');
+    });
+
+    it('skips the query entirely when the agent has no data access', async () => {
+        const { output, runAsyncQuery, sendFile, createOrUpdateArtifact } =
+            await executeLinksOnly({
+                enableDataAccess: false,
+                slackLinksOnly: true,
+            });
+
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+        expect(sendFile).not.toHaveBeenCalled();
+        expect(createOrUpdateArtifact).toHaveBeenCalledTimes(1);
+        expect(output.result).toBe('Success');
+    });
+
+    it('keeps posting the chart image when the setting is off', async () => {
+        const { output, sendFile } = await executeLinksOnly({
+            enableDataAccess: true,
+            slackLinksOnly: false,
+        });
+
+        expect(sendFile).toHaveBeenCalledWith(
+            expect.objectContaining({ filename: 'lightdash-chart.png' }),
+        );
+        expect(output.metadata).toMatchObject({
+            chartImageUrl:
+                'https://lightdash.example/api/v1/slack/card-image/abc',
+        });
     });
 });

@@ -43,6 +43,7 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxQueryLimit: number;
     enableDataAccess: boolean;
+    slackLinksOnly: boolean;
     sqlScope?: SqlScope | null;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
@@ -105,6 +106,7 @@ export const getRunSql = ({
     createOrUpdateArtifact,
     maxQueryLimit,
     enableDataAccess,
+    slackLinksOnly,
     sqlScope = null,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
@@ -351,7 +353,7 @@ export const getRunSql = ({
 
                     // chat.update can't attach files, so a full CSV for large
                     // results still goes as a separate message.
-                    if (rowCount > LARGE_RESULT_THRESHOLD) {
+                    if (rowCount > LARGE_RESULT_THRESHOLD && !slackLinksOnly) {
                         await sendFile({
                             channelId: prompt.slackChannelId,
                             threadTs: prompt.slackThreadTs,

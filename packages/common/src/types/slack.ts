@@ -24,6 +24,7 @@ export type SlackAppCustomSettings = {
     slackChannelProjectMappings?: SlackChannelProjectMapping[];
     aiThreadAccessConsent?: boolean;
     aiRequireOAuth?: boolean;
+    aiLinksOnly?: boolean;
     aiMultiAgentChannelId?: string;
     aiMultiAgentProjectUuids?: string[] | null;
     unfurlsEnabled?: boolean;
