@@ -1,3 +1,11 @@
+## [2.195.1](https://github.com/lightdash/lightdash/compare/2.195.0...2.195.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **feature-flags:** fail closed on the ai-copilot flag for anonymous callers ([#29044](https://github.com/lightdash/lightdash/issues/29044)) ([d6e107a](https://github.com/lightdash/lightdash/commit/d6e107a9e3e8912fc46cd9498d01422f299792e6))
+* honor Console flags for internal analytics projects ([#29042](https://github.com/lightdash/lightdash/issues/29042)) ([3bcedd2](https://github.com/lightdash/lightdash/commit/3bcedd26a91588e69375111cb60a8bd941676d69))
+
 # [2.195.0](https://github.com/lightdash/lightdash/compare/2.194.2...2.195.0) (2026-09-11)
 
 

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.195.0",
-  "previousVersion": "2.194.2",
-  "releaseDate": "2026-09-11T08:58:51.251Z",
+  "version": "2.195.1",
+  "previousVersion": "2.195.0",
+  "releaseDate": "2026-09-11T09:24:33.379Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -41,11 +41,5 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "organization-roadmap-flag-removed",
-      "reason": "The OrganizationRoadmap member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; the enterprise roadmap is now available to every organization on an instance whose license key validated at boot, gated per user by the existing view:Roadmap permission.",
-      "requiredStop": false
-    }
-  ]
+  "declaredBreaks": []
 }
