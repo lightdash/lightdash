@@ -492,7 +492,7 @@ const DashboardHeader = memo(
                                 color="blue"
                                 variant="dot"
                                 size="sm"
-                                className="ld-pointer"
+                                className={headerClasses.draftsBadge}
                             >
                                 {dashboard.draftsAwaitingReview} draft
                                 {dashboard.draftsAwaitingReview === 1

@@ -117,7 +117,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 )}
             </Group>
 
-            <Group gap="xs" wrap="nowrap" className="ld-shrink-0">
+            <Group gap="xs" wrap="nowrap" flex="0 0 auto">
                 {dashboard.canDateZoom && (
                     <Box
                         className={embedContractClass('ld-dashboard-date-zoom')}

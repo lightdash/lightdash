@@ -41,6 +41,7 @@ import { isBitbucketCloudConnection } from '../../utils/isBitbucketCloudConnecti
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
+import classes from './HeaderCreate.module.css';
 
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
@@ -360,7 +361,9 @@ export const HeaderCreate: FC = () => {
                                             position="top"
                                             disabled={canSaveChart}
                                         >
-                                            <Group className="ld-pointer">
+                                            <Group
+                                                className={classes.menuOption}
+                                            >
                                                 <Menu.Item
                                                     disabled={!canSaveChart}
                                                     onClick={() => {
@@ -408,7 +411,9 @@ export const HeaderCreate: FC = () => {
                                             position="top"
                                             disabled={canCreateVirtualView}
                                         >
-                                            <Group className="ld-pointer">
+                                            <Group
+                                                className={classes.menuOption}
+                                            >
                                                 <Menu.Item
                                                     disabled={
                                                         !canCreateVirtualView
@@ -472,7 +477,9 @@ export const HeaderCreate: FC = () => {
                                                     );
                                             }}
                                         >
-                                            <Group className="ld-pointer">
+                                            <Group
+                                                className={classes.menuOption}
+                                            >
                                                 <Menu.Item
                                                     disabled={
                                                         writeBackDisabledMessage !==

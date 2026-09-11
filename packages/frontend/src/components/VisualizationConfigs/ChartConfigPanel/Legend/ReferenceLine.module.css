@@ -1,3 +1,7 @@
 .panelStack {
     border-radius: var(--mantine-radius-sm);
 }
+
+.positionLabel {
+    white-space: nowrap;
+}

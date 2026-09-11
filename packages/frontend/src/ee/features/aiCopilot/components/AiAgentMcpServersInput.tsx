@@ -69,6 +69,7 @@ import {
     MCP_TOOL_TOKEN_WARNING_THRESHOLD,
 } from '../utils/mcpToolTokenEstimates';
 import { AgentSettingsSubsection } from './AgentSettingsSubsection';
+import classes from './AiAgentMcpServersInput.module.css';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
@@ -1541,7 +1542,7 @@ export const AiAgentMcpServersInput = ({
                                         key={mcpServer.uuid}
                                         radius="md"
                                         p={0}
-                                        className="ld-overflow-hidden"
+                                        className={classes.serverCard}
                                     >
                                         <Group
                                             justify="space-between"

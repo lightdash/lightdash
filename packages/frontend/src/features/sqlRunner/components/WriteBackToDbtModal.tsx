@@ -34,6 +34,7 @@ import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
 import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
 import { isBitbucketCloudConnection } from '../utils/isBitbucketCloudConnection';
+import classes from './WriteBackToDbtModal.module.css';
 
 const validationSchema = z.object({
     name: z.string().min(1, 'Name is required'),
@@ -202,7 +203,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                         'noopener,noreferrer',
                                     );
                                 }}
-                                className="ld-pointer"
+                                className={classes.previewLink}
                                 title={`Open "${writePreviewData?.url}" in new tab`}
                             >
                                 {writePreviewData?.repo}

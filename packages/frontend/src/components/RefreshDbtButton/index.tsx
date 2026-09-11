@@ -25,6 +25,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { useIsGitProject } from '../Explorer/WriteBackModal/hooks';
+import classes from './RefreshDbtButton.module.css';
 
 type RefreshMode = 'dbt' | 'dbt-and-content';
 
@@ -154,7 +155,7 @@ const RefreshDbtButton: FC<{
         return (
             <Popover withArrow width={300}>
                 <Popover.Target>
-                    <Box className="ld-pointer">
+                    <Box className={classes.popoverTarget}>
                         <Button
                             size="xs"
                             variant="outline"

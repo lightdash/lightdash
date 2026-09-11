@@ -132,7 +132,7 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                 </Stack>
             </Group>
 
-            <Group gap="xs" wrap="nowrap" className="ld-shrink-0">
+            <Group gap="xs" wrap="nowrap" flex="0 0 auto">
                 <Select
                     size="xs"
                     w={120}
@@ -258,7 +258,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
             <Select
                 size="xs"
                 w={120}
-                className="ld-shrink-0"
+                flex="0 0 auto"
                 aria-label="Role for new assignment"
                 data={ROLE_OPTIONS}
                 value={selectedRole}
@@ -269,7 +269,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
             />
             <Button
                 size="xs"
-                className="ld-shrink-0"
+                flex="0 0 auto"
                 disabled={!selectedPrincipal || isMutating}
                 onClick={handleAdd}
             >

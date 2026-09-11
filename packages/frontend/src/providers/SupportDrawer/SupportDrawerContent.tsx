@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState, type FC } from 'react';
 import { lightdashApi, networkHistory } from '../../api';
 import MantineIcon from '../../components/common/MantineIcon';
 import useToaster from '../../hooks/toaster/useToaster';
+import classes from './SupportDrawerContent.module.css';
 
 type SupportDrawerContentProps = {
     // Add props here
@@ -166,7 +167,11 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 We will also share your Lightdash logs and your recent network
                 requests to help us investigate this issue.
             </Text>
-            <Button mt="xs" className="ld-self-end" onClick={handleShare}>
+            <Button
+                mt="xs"
+                className={classes.submitButton}
+                onClick={handleShare}
+            >
                 Share
             </Button>
         </Stack>

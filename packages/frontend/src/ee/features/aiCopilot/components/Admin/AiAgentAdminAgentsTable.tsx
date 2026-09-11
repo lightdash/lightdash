@@ -575,12 +575,7 @@ const AiAgentAdminAgentsTable = () => {
                             placeholder="Search agents"
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={
@@ -589,12 +584,7 @@ const AiAgentAdminAgentsTable = () => {
                             tooltipLabel="Filter agents by project"
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <Switch
                             size="xs"
                             label="Hide preview projects"
@@ -608,12 +598,7 @@ const AiAgentAdminAgentsTable = () => {
 
                         {hasActiveFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    className="ld-self-center"
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"

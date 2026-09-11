@@ -73,7 +73,7 @@ export const SyncModalForm: FC<Props> = ({
                         >
                             <TimeZonePicker
                                 size="sm"
-                                className="ld-grow"
+                                flex={1}
                                 placeholder={`Project Default ${
                                     projectDefaultOffsetString
                                         ? `(UTC ${projectDefaultOffsetString})`

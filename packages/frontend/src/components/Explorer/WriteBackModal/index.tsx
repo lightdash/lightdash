@@ -42,6 +42,7 @@ import {
     useWriteBackCustomMetrics,
 } from './hooks';
 import { convertToDbt, getItemId, getItemLabel, match } from './utils';
+import classes from './WriteBackModal.module.css';
 import { BIN_ORDERING_WRITE_BACK_WARNING } from './writeBackSupport';
 
 const prDisabledMessage =
@@ -466,7 +467,7 @@ const MultipleItemsModalContent = ({
                             {BIN_ORDERING_WRITE_BACK_WARNING}
                         </Callout>
                     ) : null}
-                    <Paper h="100%" className="ld-scroll-y">
+                    <Paper h="100%" className={classes.previewPane}>
                         <CodeBlock
                             code={
                                 previewError ||

@@ -7,9 +7,8 @@ the [Frontend Style Guide](../../.cursor/rules/frontend.mdc). Key points:
 -   **Prefer Mantine components over raw HTML elements** - `Box` instead of `<div>`, `Text` instead of `<p>`/`<span>` for copy, `Group`/`Stack` for flex layouts. This applies even when mirroring existing code that uses raw elements - older files predate the rule and are not a licence to copy the pattern
 -   **Styling hierarchy**:
     1. Inline-style component props (≤3 simple layout props like `mt`, `p`, `w`)
-    2. CSS modules (default choice when more than 3 inline-style props are needed or when component props aren't available)
-    3. For a single layout rule Mantine has no prop for (`flex-shrink`, `align-self`, `overflow`, `cursor`, `white-space`), use the `ld-*` utility classes in `src/styles/global.css` (`ld-shrink-0`, `ld-grow`, `ld-self-center`, `ld-pointer`, `ld-nowrap`, ...) instead of a one-line module or an inline `style`
-    4. Theme extensions for reusable styles
+    2. CSS modules (default choice when more than 3 inline-style props are needed or when component props aren't available). This includes single rules Mantine has no prop for (`align-self`, `overflow`, `cursor`, `white-space`): add a role-named class (`.scrollableBody`, `.clickableRow`) to the file's module. `flex-shrink: 0` and `flex-grow: 1` are the `flex` style prop (`flex="0 0 auto"`, `flex={1}`). No global utility classes.
+    3. Theme extensions for reusable styles
 -   **NEVER use** `styles`(v8) or `sx`(v6) props or `style`(v6/v8)
 -   **Colors**: Prefer default component colors (auto-theme switching). For custom colors, use `ldGray.X` and `ldDark.X`, not standard `gray.X`
 -   **Prop changes** - `spacing` → `gap`, `noWrap` → `wrap="nowrap"`, `sx` → `style` (v6)

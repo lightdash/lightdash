@@ -253,7 +253,7 @@ const WaitingCard: FC<{
                     variant="default"
                     loading={isCancelling}
                     onClick={() => cancel(request.uuid)}
-                    className="ld-shrink-0"
+                    flex="0 0 auto"
                 >
                     Cancel request
                 </Button>
@@ -390,7 +390,7 @@ const ThreadMessage: FC<
             <LightdashUserAvatar size={28} userUuid={user.userUuid} fz="xs">
                 {getUserInitials(user)}
             </LightdashUserAvatar>
-            <Stack gap="sm" className="ld-grow">
+            <Stack gap="sm" flex={1}>
                 <Group gap={6} wrap="wrap">
                     <Text fz="sm" fw={500}>
                         {getUserFullName(user)}
@@ -441,7 +441,7 @@ const RequestMessage: FC<{
             date={request.createdAt}
         >
             {request.requestNote && (
-                <Text fz="sm" className="ld-pre-wrap">
+                <Text fz="sm" className={classes.noteText}>
                     {request.requestNote}
                 </Text>
             )}
@@ -476,7 +476,7 @@ const OutcomeMessage: FC<{ request: ContentReviewRequestDetail }> = ({
 }) => {
     if (request.reviewedAt === null) return null;
     const note = request.reviewNote && (
-        <Text fz="sm" className="ld-pre-wrap">
+        <Text fz="sm" className={classes.noteText}>
             {request.reviewNote}
         </Text>
     );
@@ -666,7 +666,7 @@ export const ContentReviewRequestDetailView: FC<{
                         variant={isReviewing ? 'filled' : 'default'}
                         size="xs"
                         leftSection={<MantineIcon icon={IconExternalLink} />}
-                        className="ld-shrink-0"
+                        flex="0 0 auto"
                     >
                         Open {getContentTypeNoun(request.contentType)}
                     </Button>

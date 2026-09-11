@@ -11,3 +11,7 @@
     border: 1px solid var(--mantine-color-default-border);
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
+
+.versionLabel {
+    white-space: nowrap;
+}

@@ -1785,7 +1785,7 @@ const AppGenerate: FC = () => {
                                     justify="center"
                                     p="xs"
                                     onClick={loadEarlierMessages}
-                                    className="ld-pointer"
+                                    className={classes.loadEarlierRow}
                                 >
                                     {isFetchingNextPage ? (
                                         <Loader size="xs" />

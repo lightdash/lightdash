@@ -126,7 +126,7 @@ export const QueryHistoryTable: FC<Props> = ({
                                     <Text
                                         fz="xs"
                                         c="dimmed"
-                                        className="ld-nowrap"
+                                        className={styles.tableMeta}
                                     >
                                         {`${windowCount.toLocaleString()} ${
                                             windowCount === 1 ? 'run' : 'runs'
@@ -289,7 +289,11 @@ export const QueryHistoryTable: FC<Props> = ({
                 Cell: ({ row }) => {
                     if (row.original.kind === 'window') {
                         return (
-                            <Text fz="xs" c="dimmed" className="ld-nowrap">
+                            <Text
+                                fz="xs"
+                                c="dimmed"
+                                className={styles.tableMeta}
+                            >
                                 {getWindowRangeLabel(row.original.window)}
                             </Text>
                         );
@@ -301,7 +305,7 @@ export const QueryHistoryTable: FC<Props> = ({
                     }
                     if (row.original.kind !== 'query') return null;
                     return (
-                        <Text c="dimmed" className="ld-nowrap">
+                        <Text c="dimmed" className={styles.tableMeta}>
                             {formatWhen(row.original.item.createdAt)}
                         </Text>
                     );

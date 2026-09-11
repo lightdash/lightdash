@@ -435,7 +435,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             }}
                         />
                         <Group wrap="nowrap" flex="1" gap="sm">
-                            <Config.Label className="ld-nowrap">
+                            <Config.Label className={classes.positionLabel}>
                                 Position
                             </Config.Label>
                             <SegmentedControl

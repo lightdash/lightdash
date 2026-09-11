@@ -322,7 +322,10 @@ const FieldSelectComponent = <T extends Item = Item>({
                     openDelay={500}
                 >
                     <Group wrap="nowrap" gap={rest.size} maw="100%">
-                        <FieldIcon className="ld-shrink-0" item={fieldItem} />
+                        <FieldIcon
+                            className={classes.optionIcon}
+                            item={fieldItem}
+                        />
                         <Text
                             span
                             fz="xs"

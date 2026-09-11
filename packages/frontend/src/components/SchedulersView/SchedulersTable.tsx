@@ -56,6 +56,7 @@ import {
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
+import classes from './SchedulersTable.module.css';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import { SchedulersViewTab } from './SchedulersViewConstants';
 import {
@@ -478,7 +479,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         size="xs"
                                     />
                                 }
-                                className="ld-pointer"
+                                className={classes.statusFilterBadge}
                                 onClick={() => {
                                     setSearchParams({
                                         tab: SchedulersViewTab.RUN_HISTORY,

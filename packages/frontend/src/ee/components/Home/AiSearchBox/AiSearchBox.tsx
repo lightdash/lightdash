@@ -185,7 +185,7 @@ const AiSearchBoxInner: FC<Props> = ({
         aiRouterConfigQuery.isLoading
     ) {
         return (
-            <Paper className="ld-overflow-hidden" p="md">
+            <Paper className={styles.loadingCard} p="md">
                 <Group wrap="nowrap" align="center">
                     <Skeleton circle height={38} width={38} />
                     <Skeleton height={36} flex={1} />

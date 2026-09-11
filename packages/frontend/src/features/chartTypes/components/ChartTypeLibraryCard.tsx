@@ -86,7 +86,7 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
                     <Text fz={13} fw={600} truncate="end">
                         {item.name}
                     </Text>
-                    <Group gap={4} wrap="nowrap" className="ld-shrink-0">
+                    <Group gap={4} wrap="nowrap" flex="0 0 auto">
                         {item.channel === 'beta' && <ChartTypeBetaBadge />}
                         <OfficialChartTypeBadge />
                     </Group>

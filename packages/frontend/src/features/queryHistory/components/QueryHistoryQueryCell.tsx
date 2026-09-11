@@ -17,7 +17,7 @@ export const QueryStatusBadge: FC<{ status: QueryHistoryStatus }> = ({
         return (
             <Badge
                 size="xs"
-                className="ld-shrink-0"
+                flex="0 0 auto"
                 leftSection={<Loader size={8} color="gray" />}
             >
                 Running
@@ -27,19 +27,19 @@ export const QueryStatusBadge: FC<{ status: QueryHistoryStatus }> = ({
     switch (status) {
         case QueryHistoryStatus.ERROR:
             return (
-                <Badge size="xs" color="red" className="ld-shrink-0">
+                <Badge size="xs" color="red" flex="0 0 auto">
                     Failed
                 </Badge>
             );
         case QueryHistoryStatus.CANCELLED:
             return (
-                <Badge size="xs" className="ld-shrink-0">
+                <Badge size="xs" flex="0 0 auto">
                     Cancelled
                 </Badge>
             );
         case QueryHistoryStatus.EXPIRED:
             return (
-                <Badge size="xs" className="ld-shrink-0">
+                <Badge size="xs" flex="0 0 auto">
                     Expired
                 </Badge>
             );
@@ -70,7 +70,7 @@ export const QueryHistoryQueryCell: FC<Props> = ({ item }) => {
                         <Box
                             component="span"
                             display="inline-flex"
-                            className="ld-shrink-0"
+                            flex="0 0 auto"
                         >
                             <MantineIcon
                                 icon={IconBolt}

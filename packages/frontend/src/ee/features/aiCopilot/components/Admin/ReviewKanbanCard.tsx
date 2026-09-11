@@ -147,7 +147,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                 <Text
                                     fz="xs"
                                     c="ldGray.5"
-                                    className="ld-nowrap"
+                                    className={styles.lastSeen}
                                 >
                                     {formatRelativeReviewDate(item.lastSeenAt)}
                                 </Text>

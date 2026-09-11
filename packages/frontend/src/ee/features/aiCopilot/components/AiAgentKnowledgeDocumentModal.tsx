@@ -35,6 +35,7 @@ import {
     useAiAgentDocumentContent,
     useUpdateAiAgentDocumentContent,
 } from '../hooks/useAiAgentDocuments';
+import classes from './AiAgentKnowledgeDocumentModal.module.css';
 
 const MARKDOWN_REMARK_PLUGINS = [remarkFrontmatter];
 
@@ -194,7 +195,7 @@ const LoadedDocumentModal = ({
                     <Box
                         data-color-mode={colorScheme}
                         h="100%"
-                        className="ld-scroll-y"
+                        className={classes.markdownViewer}
                     >
                         <MDEditor.Markdown
                             source={form.values.content}

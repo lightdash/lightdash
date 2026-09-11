@@ -93,68 +93,38 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             debounceMs={300}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
                             hidePreviewProjects={hidePreviewProjects}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
                             hidePreviewProjects={hidePreviewProjects}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <UsersFilter
                             selectedUserUuids={selectedUserUuids}
                             setSelectedUserUuids={setSelectedUserUuids}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <FeedbackFilter
                             selectedFeedback={selectedFeedback}
                             setSelectedFeedback={setSelectedFeedback}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <SourceFilter
                             selectedSource={selectedSource}
                             setSelectedSource={setSelectedSource}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className="ld-self-center"
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <Switch
                             size="xs"
                             label="Hide preview projects"
@@ -168,12 +138,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
 
                         {hasActiveFilters && onClearFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    className="ld-self-center"
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"

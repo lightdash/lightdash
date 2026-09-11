@@ -509,3 +509,7 @@
     margin-top: var(--mantine-spacing-xs);
     opacity: 0.9;
 }
+
+.loadEarlierRow {
+    cursor: pointer;
+}

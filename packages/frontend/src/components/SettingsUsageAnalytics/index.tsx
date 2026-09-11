@@ -3,6 +3,7 @@ import { IconLayoutDashboard } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../common/MantineIcon';
+import classes from './SettingsUsageAnalytics.module.css';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
@@ -16,7 +17,7 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
             <Card
                 component={Link}
                 shadow="sm"
-                className="ld-pointer"
+                className={classes.linkCard}
                 to={`/projects/${projectUuid}/user-activity`}
             >
                 <Group>

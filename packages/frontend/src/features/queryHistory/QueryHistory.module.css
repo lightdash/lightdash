@@ -134,3 +134,11 @@
     font-size: var(--mantine-font-size-xs);
     line-height: var(--mantine-line-height-md);
 }
+
+.tableMeta {
+    white-space: nowrap;
+}
+
+.errorMessage {
+    white-space: pre-wrap;
+}

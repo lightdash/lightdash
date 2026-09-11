@@ -19,6 +19,7 @@ import {
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { CUSTOM_WIDTH_OPTIONS } from '../../scheduler/constants';
+import classes from './PreviewAndCustomizeScreenshot.module.css';
 
 type PreviewAndCustomizeScreenshotProps = {
     containerWidth?: number | undefined;
@@ -163,7 +164,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                     onClick={() => setIsImageModalOpen(false)}
                     w="100%"
                     h="100%"
-                    className="ld-pointer"
+                    className={classes.previewImage}
                 />
             </Modal>
         </Box>

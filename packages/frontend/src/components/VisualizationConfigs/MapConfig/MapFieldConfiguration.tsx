@@ -78,8 +78,8 @@ const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
     const isVisible = isFieldVisible(fieldId);
 
     return (
-        <Group gap="xs" wrap="nowrap" className="ld-grow">
-            <Box className="ld-grow">
+        <Group gap="xs" wrap="nowrap" flex={1}>
+            <Box flex={1}>
                 <MapFieldConfigurationInput
                     fieldId={fieldId}
                     defaultLabel={defaultLabel}

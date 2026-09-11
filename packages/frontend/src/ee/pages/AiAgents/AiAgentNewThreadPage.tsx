@@ -413,7 +413,9 @@ const AiAgentNewThreadPage: FC = () => {
                                         >
                                             <Text
                                                 size="sm"
-                                                className="ld-pre-wrap"
+                                                className={
+                                                    styles.agentInstruction
+                                                }
                                             >
                                                 {agent.instruction}
                                             </Text>
@@ -428,7 +430,7 @@ const AiAgentNewThreadPage: FC = () => {
                                 c="dimmed"
                                 ta="center"
                                 maw={600}
-                                className="ld-pre-wrap"
+                                className={styles.agentDescription}
                                 data-tour-scope="view:AiAgent"
                                 data-tour-result="1"
                                 data-tour-label="Read the agent description"

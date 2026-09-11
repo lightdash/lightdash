@@ -280,7 +280,10 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
             <Divider />
 
             {threadData && (
-                <Box mah="calc(100vh - 150px)" className="ld-scroll-y">
+                <Box
+                    mah="calc(100vh - 150px)"
+                    className={styles.scrollableBody}
+                >
                     {selectedReviewItem ? (
                         <>
                             <Stack p="md" gap="md">

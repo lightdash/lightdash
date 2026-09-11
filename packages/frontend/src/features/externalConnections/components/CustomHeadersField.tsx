@@ -52,7 +52,7 @@ export const CustomHeadersField: FC<Props> = ({
                     <TextInput
                         aria-label="Header name"
                         placeholder="anthropic-version"
-                        className="ld-grow"
+                        flex={1}
                         value={row.name}
                         disabled={disabled}
                         onChange={(e) =>
@@ -62,7 +62,7 @@ export const CustomHeadersField: FC<Props> = ({
                     <TextInput
                         aria-label="Header value"
                         placeholder="2023-06-01"
-                        className="ld-grow"
+                        flex={1}
                         value={row.value}
                         disabled={disabled}
                         onChange={(e) =>
