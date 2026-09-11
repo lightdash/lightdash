@@ -176,6 +176,7 @@ const makeAgentTools = (
         generateVisualization: getGenerateVisualization({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
+            slackLinksOnly: false,
             enableMergeQueries,
             enableFilterExpressions,
             getPrompt: noop,
@@ -201,6 +202,7 @@ const makeAgentTools = (
         runSql: getRunSql({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
+            slackLinksOnly: false,
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,

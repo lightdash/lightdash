@@ -11135,12 +11135,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // Slack OAuth is required, otherwise the actor is the workspace
         // installer.
         let hasTrustedPromptUserIdentity = true;
+        let slackLinksOnly = false;
         if (isSlackPrompt(prompt) && user.organizationUuid) {
             const slackSettings =
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                     user.organizationUuid,
                 );
             hasTrustedPromptUserIdentity = !!slackSettings?.aiRequireOAuth;
+            slackLinksOnly = !!slackSettings?.aiLinksOnly;
         }
         const promptProject = await this.projectModel.get(prompt.projectUuid);
 
@@ -11574,6 +11576,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             slackChannelId: isSlackPrompt(prompt)
                 ? prompt.slackChannelId
                 : null,
+            slackLinksOnly,
             warehouseType,
             warehouseSchema,
             sqlScope: agentSqlScope,

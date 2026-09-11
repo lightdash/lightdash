@@ -1067,6 +1067,7 @@ describe('getAgentTools workstream tool gate', () => {
             toolHints: [],
             userId: 'user-1',
             useSlackStreamCard: false,
+            slackLinksOnly: false,
             ...flags,
         }) as unknown as AiAgentArgs;
 

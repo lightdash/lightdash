@@ -39,7 +39,18 @@ import { getRunSqlSection } from './systemV2RunSql';
 import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
+import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+
+const getDataAccessSection = (
+    enableDataAccess: boolean,
+    slackLinksOnly: boolean,
+): string => {
+    if (slackLinksOnly) return getSlackLinksOnlySection(enableDataAccess);
+    return enableDataAccess
+        ? DATA_ACCESS_ENABLED_SECTION
+        : DATA_ACCESS_DISABLED_SECTION;
+};
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
@@ -69,6 +80,8 @@ export const getSystemPromptV2 = (args: {
     // Originating Slack channel for "this channel" scheduling targets; null on
     // web and MCP prompts.
     slackChannelId?: string | null;
+    // Org Slack setting: the answer may not carry query results into Slack.
+    slackLinksOnly?: boolean;
     canRunSql?: boolean;
     // When composer queries are on, the standalone runSql tool is withheld
     // and raw SQL runs as `sql` nodes inside runComposerQueries instead.
@@ -100,6 +113,7 @@ export const getSystemPromptV2 = (args: {
         enableGenerateDataApp = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
+        slackLinksOnly = false,
         canRunSql = false,
         enableComposerQueries = false,
         enableMergeQueries = false,
@@ -292,9 +306,7 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{data_access_section}}',
-            enableDataAccess
-                ? DATA_ACCESS_ENABLED_SECTION
-                : DATA_ACCESS_DISABLED_SECTION,
+            getDataAccessSection(enableDataAccess, slackLinksOnly),
         )
         .replace(
             '{{run_sql_section}}',

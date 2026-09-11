@@ -81,6 +81,7 @@ const formSchema = z.object({
     ),
     aiThreadAccessConsent: z.boolean().optional(),
     aiRequireOAuth: z.boolean().optional(),
+    aiLinksOnly: z.boolean().optional(),
     aiMultiAgentChannelId: z.string().min(1, 'Channel is required').optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
     unfurlsEnabled: z.boolean().optional(),
@@ -119,6 +120,7 @@ const SlackSettingsPanel: FC = () => {
             slackChannelProjectMappings: [],
             aiThreadAccessConsent: false,
             aiRequireOAuth: false,
+            aiLinksOnly: false,
             aiMultiAgentChannelId: undefined,
             aiMultiAgentProjectUuids: null,
             unfurlsEnabled: true,
@@ -141,6 +143,7 @@ const SlackSettingsPanel: FC = () => {
             aiThreadAccessConsent:
                 slackInstallation.aiThreadAccessConsent ?? false,
             aiRequireOAuth: slackInstallation.aiRequireOAuth ?? false,
+            aiLinksOnly: slackInstallation.aiLinksOnly ?? false,
             aiMultiAgentChannelId:
                 slackInstallation.aiMultiAgentChannelId ?? undefined,
             aiMultiAgentProjectUuids:
@@ -411,6 +414,35 @@ const SlackSettingsPanel: FC = () => {
                                             onChange={(event) => {
                                                 setFieldValue(
                                                     'aiRequireOAuth',
+                                                    event.currentTarget.checked,
+                                                );
+                                            }}
+                                        />
+                                    </Stack>
+
+                                    <Stack gap="sm">
+                                        <Group gap="two">
+                                            <Title order={6} fw={500}>
+                                                Links only, no data in Slack
+                                            </Title>
+
+                                            <Tooltip
+                                                maw={300}
+                                                label="When enabled, AI Agents never post query results into Slack: no chart images, no CSV files, and the agent is instructed to keep values out of its reply. Users open the results in Lightdash, where their own permissions apply. For a strict guarantee, also turn off data access on the agent."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                />
+                                            </Tooltip>
+                                        </Group>
+
+                                        <Switch
+                                            label="Reply with links only"
+                                            disabled={aiAgentsDisabled}
+                                            checked={form.values.aiLinksOnly}
+                                            onChange={(event) => {
+                                                setFieldValue(
+                                                    'aiLinksOnly',
                                                     event.currentTarget.checked,
                                                 );
                                             }}
