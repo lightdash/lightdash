@@ -1,3 +1,10 @@
+## [2.198.6](https://github.com/lightdash/lightdash/compare/2.198.5...2.198.6) (2026-09-11)
+
+
+### Bug Fixes
+
+* **cli:** validate data apps with model selection ([#29075](https://github.com/lightdash/lightdash/issues/29075)) ([18e41e7](https://github.com/lightdash/lightdash/commit/18e41e71bb9340d2015e30639db1010cd34e985c))
+
 ## [2.198.5](https://github.com/lightdash/lightdash/compare/2.198.4...2.198.5) (2026-09-11)
 
 
