@@ -84,17 +84,13 @@ const roadmapServiceResponse: RoadmapResponse = {
 
 const buildService = ({
     licenseKey = 'test-license-key',
-    flagEnabled = true,
     baseUrl = 'https://roadmap.lightdash.com',
-}: { licenseKey?: string; flagEnabled?: boolean; baseUrl?: string } = {}) =>
+}: { licenseKey?: string; baseUrl?: string } = {}) =>
     new RoadmapService({
         lightdashConfig: {
             license: { licenseKey },
             roadmap: { baseUrl },
         } as LightdashConfig,
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({ enabled: flagEnabled }),
-        },
     });
 
 describe('RoadmapService', () => {
@@ -154,15 +150,6 @@ describe('RoadmapService', () => {
         expect(fetchMock.mock.calls[0][0]).toBe(
             `http://127.0.0.1:8081/api/v1/roadmap/organizations/${sessionOrgUuid}?pageSize=100`,
         );
-    });
-
-    it('denies access when the feature flag is disabled', async () => {
-        const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
-
-        await expect(
-            buildService({ flagEnabled: false }).getRoadmap(account),
-        ).rejects.toThrow(ForbiddenError);
-        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('denies access when the user cannot view the roadmap for their organization', async () => {
@@ -347,10 +334,7 @@ describe('RoadmapService', () => {
     it('gates both endpoints before provider requests and keeps authorization errors stable', async () => {
         const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
         await Promise.all(
-            [
-                buildService({ flagEnabled: false }),
-                buildService({ licenseKey: '' }),
-            ].map(async (service) => {
+            [buildService({ licenseKey: '' })].map(async (service) => {
                 await expect(service.getProjects(account)).rejects.toThrow();
                 await expect(
                     service.getRoadmap(account, { projectId: 'null' }),
@@ -623,7 +607,7 @@ describe('RoadmapService', () => {
             expect(fetchMock).not.toHaveBeenCalled();
         });
 
-        it('requires roadmap access, its feature flag and a configured license', async () => {
+        it('requires roadmap access and a configured license key', async () => {
             const wrongOrg = account();
             wrongOrg.user.ability = viewRoadmapAbility(otherOrgUuid);
             wrongOrg.user.abilityRules = wrongOrg.user.ability.rules;
@@ -631,13 +615,6 @@ describe('RoadmapService', () => {
                 buildService().followProject(wrongOrg, projectId, {
                     note: 'Use case',
                 }),
-            ).rejects.toThrow(ForbiddenError);
-            await expect(
-                buildService({ flagEnabled: false }).followProject(
-                    account(),
-                    projectId,
-                    { note: 'Use case' },
-                ),
             ).rejects.toThrow(ForbiddenError);
             await expect(
                 buildService({ licenseKey: '' }).followProject(

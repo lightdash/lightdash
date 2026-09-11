@@ -167,7 +167,6 @@ const Settings: FC = () => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
-        isOrganizationRoadmapLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
@@ -929,9 +928,6 @@ const Settings: FC = () => {
     const isAwaitingAiSettingsRoute =
         isAiOrganizationSettingsLoading &&
         Boolean(matchPath('/generalSettings/ai/*', location.pathname));
-    const isAwaitingRoadmapRoute =
-        isOrganizationRoadmapLoading &&
-        Boolean(matchPath('/generalSettings/roadmap', location.pathname));
     const isAwaitingDataAppsRoute =
         isDataAppsFlagLoading &&
         Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
@@ -948,7 +944,6 @@ const Settings: FC = () => {
         isActiveProjectUuidLoading ||
         isProjectLoading ||
         isAwaitingAiSettingsRoute ||
-        isAwaitingRoadmapRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute
     ) {

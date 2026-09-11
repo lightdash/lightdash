@@ -20,6 +20,10 @@
         "mobile-push-installation-uuid-path-params": {
             "reason": "PUT and DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} now validate installationUuid as a UUID and reject other strings with a 400. Installation identifiers are server-generated UUIDs, and only the Lightdash mobile apps call these endpoints with the identifier they received, so no existing caller is affected.",
             "requiredStop": false
+        },
+        "organization-roadmap-flag-removed": {
+            "reason": "The OrganizationRoadmap member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; the enterprise roadmap is now available to every organization on an instance whose license key validated at boot, gated per user by the existing view:Roadmap permission.",
+            "requiredStop": false
         }
     }
 }

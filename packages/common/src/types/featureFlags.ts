@@ -189,11 +189,6 @@ export enum FeatureFlags {
     ProLimits = 'pro-limits',
 
     /**
-     * Show the organization roadmap and enable its read-only API proxy.
-     */
-    OrganizationRoadmap = 'organization-roadmap',
-
-    /**
      * Allow a single Lightdash project to connect to multiple dbt sources
      * (repos/CLI deploys). Each source stores its latest compiled manifest in
      * S3; on every deploy or preview the backend merges all sources' manifests

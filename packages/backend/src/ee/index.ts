@@ -570,10 +570,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                     }),
                 }),
-            roadmapService: ({ context, repository }) =>
+            roadmapService: ({ context }) =>
                 new RoadmapService({
                     lightdashConfig: context.lightdashConfig,
-                    featureFlagService: repository.getFeatureFlagService(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
