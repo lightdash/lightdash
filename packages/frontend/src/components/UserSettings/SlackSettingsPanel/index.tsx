@@ -320,7 +320,7 @@ const SlackSettingsPanel: FC = () => {
                                         <>
                                             <SlackSettingRow
                                                 title="AI Agents in Slack"
-                                                description="Let people talk to AI Agents from Slack. Deliveries, alerts and link previews are unaffected."
+                                                description="Let people talk to AI Agents from Slack."
                                                 checked={
                                                     form.values
                                                         .aiAgentsEnabled ?? true
@@ -365,7 +365,7 @@ const SlackSettingsPanel: FC = () => {
                                             />
                                             <SlackSettingRow
                                                 title="Links only, no data in Slack"
-                                                description="Never post query results into Slack. People open results in Lightdash, where their permissions apply."
+                                                description="Never post query results into Slack. People open results in Lightdash."
                                                 disabled={aiAgentsDisabled}
                                                 checked={
                                                     form.values.aiLinksOnly ??
@@ -380,7 +380,7 @@ const SlackSettingsPanel: FC = () => {
                                             />
                                             <SlackSettingRow
                                                 title="Automatic channel linking"
-                                                description="Mentioning the bot in a new channel links an agent to it. Turn off to add channels only from Lightdash."
+                                                description="Mentioning the bot in a new channel links an agent to it."
                                                 disabled={
                                                     aiAgentsDisabled ||
                                                     isUpdatingAiOrganizationSettings
