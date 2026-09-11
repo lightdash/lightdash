@@ -49,21 +49,6 @@ Before writing filter expressions, read the shared skill referenced by run_metri
 ### Pagination
 - Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
 
-### Visualization
-- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
-- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
-- For time series: use \`line\` with \`xAxisType: 'time'\`
-- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
-- For single values or detailed data: use \`table\`
-- Always provide axis labels
-
-### Table Calculations
-Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
-- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
-- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
-- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
-- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
-
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
 - Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
@@ -116,21 +101,6 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 
 ### Pagination
 - Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
-
-### Visualization
-- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
-- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
-- For time series: use \`line\` with \`xAxisType: 'time'\`
-- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
-- For single values or detailed data: use \`table\`
-- Always provide axis labels
-
-### Table Calculations
-Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
-- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
-- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
-- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
-- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
@@ -194,21 +164,6 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 
 ### Pagination
 - Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
-
-### Visualization
-- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
-- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
-- For time series: use \`line\` with \`xAxisType: 'time'\`
-- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
-- For single values or detailed data: use \`table\`
-- Always provide axis labels
-
-### Table Calculations
-Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
-- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
-- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
-- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
-- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
@@ -2474,6 +2429,8 @@ Usage tips:
       "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
+
+Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
 
 This tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.
 
@@ -7095,6 +7052,12 @@ All branches of an IF must return the same type.",
 Use when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.
 Pass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the \`queryUuid: <id>\` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.
 
+Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
+- For time series: use \`line\` with \`xAxisType: 'time'\`.
+- For categorical comparisons: use \`bar\` or \`horizontal_bar\`.
+- For single values or detailed data: use \`table\`.
+- Always provide axis labels.
+
 The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
 
 When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
@@ -11190,6 +11153,8 @@ exports[`MCP tool contracts > matches the filter-expression run_metric_query too
   "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
+
+Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
 
 This tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.
 

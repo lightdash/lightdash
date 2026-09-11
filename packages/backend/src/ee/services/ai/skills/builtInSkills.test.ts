@@ -1,3 +1,4 @@
+import { parse as parseFormula } from '@lightdash/formula';
 import { BuiltInSkills } from './builtInSkills';
 import { FILTER_EXPRESSION_SKILL } from './filterExpressionSkill';
 
@@ -72,18 +73,56 @@ describe('BuiltInSkills', () => {
         expect((await BuiltInSkills.readSkillTool(name))?.body).toBe(body);
     });
 
-    it('never advertises the filter-expression skill to Agents', async () => {
+    it('serves the table-calculations skill through native resources and fallback tools with valid formula examples', async () => {
+        const name = 'table-calculations';
+        const uri = `skill://lightdash/${name}/SKILL.md`;
         expect(
-            (await BuiltInSkills.getAiAgentSkills()).map(({ name }) => name),
-        ).not.toContain('filter-expressions');
+            (await BuiltInSkills.listSkillToolReferences()).map(
+                (skill) => skill.name,
+            ),
+        ).toContain(name);
+        expect(
+            (await BuiltInSkills.listMcpResources()).map(
+                (resource) => resource.uri,
+            ),
+        ).toContain(uri);
+        expect(
+            await BuiltInSkills.getMcpResourceBody('skill://index.json'),
+        ).toContain(`"name": "${name}"`);
+        const body = await BuiltInSkills.getMcpResourceBody(uri);
+        expect(body).toContain('queryConfig.tableCalculations');
+        expect((await BuiltInSkills.readSkillTool(name))?.body).toBe(body);
+        const examples = body
+            ?.split('\n')
+            .filter((line) => line.startsWith('- '))
+            .flatMap((line) =>
+                [...line.matchAll(/`([^`]+)`/g)].map((match) => match[1]),
+            );
+        expect(examples).toHaveLength(9);
+        for (const formula of examples ?? []) {
+            expect(() => parseFormula(`=${formula}`)).not.toThrow();
+        }
     });
 
-    it.each(['filter-expressions', '  FILTER-EXPRESSIONS  '])(
-        'prevents Agent direct reads of %s',
+    it.each(['filter-expressions', 'table-calculations'])(
+        'never advertises the MCP-only %s skill to Agents',
         async (name) => {
-            expect(await BuiltInSkills.getAiAgentSkill(name)).toBeUndefined();
+            expect(
+                (await BuiltInSkills.getAiAgentSkills()).map(
+                    (skill) => skill.name,
+                ),
+            ).not.toContain(name);
         },
     );
+
+    it.each([
+        'filter-expressions',
+        '  FILTER-EXPRESSIONS  ',
+        'table-calculations',
+        '  TABLE-CALCULATIONS  ',
+    ])('prevents Agent direct reads of %s', async (name) => {
+        expect(await BuiltInSkills.getAiAgentSkill(name)).toBeUndefined();
+    });
 
     it('loads the developing-in-lightdash skill with its resources', async () => {
         const skills = await BuiltInSkills.getAiAgentSkills();

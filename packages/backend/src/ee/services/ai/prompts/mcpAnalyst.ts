@@ -91,21 +91,6 @@ ${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${FILTER_E
 ### Pagination
 - Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
 
-### Visualization
-- \`run_metric_query\` returns metric-query data;${runSqlEnabled ? ' `run_sql` returns SQL data;' : ''} \`render_chart\` renders visuals for completed metric queries
-- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
-- For time series: use \`line\` with \`xAxisType: 'time'\`
-- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
-- For single values or detailed data: use \`table\`
-- Always provide axis labels
-
-### Table Calculations
-Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
-- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
-- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
-- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
-- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
-
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
 - Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
