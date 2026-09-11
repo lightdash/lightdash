@@ -16,6 +16,7 @@ import {
     type ResultRow,
     type Series,
 } from '@lightdash/common';
+import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/styles/legendStyles';
 import dayjs from 'dayjs';
 import timezonePlugin from 'dayjs/plugin/timezone';
 import utcPlugin from 'dayjs/plugin/utc';
@@ -36,6 +37,8 @@ import {
     getPinnedDayTickFormatter,
     getStackTotalSeries,
     getTimeAxisPinnedTickValues,
+    composeLegendConfig,
+    getOutsideLegendLabelWidth,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
     relocateMarkLinesToVisibleSeries,
@@ -43,6 +46,10 @@ import {
     selectContinuousDateRange,
     transformStack100ByValueAxis,
 } from './useEchartsCartesianConfig';
+import {
+    LEGEND_INTERACTION_HINT,
+    type LegendDoubleClickTooltip,
+} from './useLegendDoubleClickTooltip';
 
 dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
@@ -2552,6 +2559,16 @@ describe('mergeLegendSettings', () => {
         expect(result.bottom).toBeUndefined();
     });
 
+    test('uses the provided outside label width', () => {
+        const result = mergeLegendSettings(
+            { placement: 'outsideRight' },
+            selected,
+            series,
+            220,
+        );
+        expect(result.textStyle).toEqual({ overflow: 'truncate', width: 220 });
+    });
+
     test("placement 'custom' is treated as no override", () => {
         const result = mergeLegendSettings(
             { placement: 'custom', orient: 'vertical', right: '5' },
@@ -2564,6 +2581,116 @@ describe('mergeLegendSettings', () => {
             selected,
         });
         expect(result).not.toHaveProperty('placement');
+    });
+});
+
+describe('getOutsideLegendLabelWidth', () => {
+    const squareStyle = getLegendStyle('square');
+
+    test('falls back to a fixed width when the chart width is unknown', () => {
+        expect(getOutsideLegendLabelWidth(null, '25%', squareStyle)).toBe(150);
+        expect(getOutsideLegendLabelWidth(0, '25%', squareStyle)).toBe(150);
+    });
+
+    test('derives the width from a percentage legend area', () => {
+        // 250px area - 20px margin - 10px box padding - 12px icon - 5px gap - 2px text padding
+        expect(getOutsideLegendLabelWidth(1000, '25%', squareStyle)).toBe(201);
+    });
+
+    test('accepts pixel legend areas with or without a unit', () => {
+        expect(getOutsideLegendLabelWidth(1000, '300px', squareStyle)).toBe(
+            251,
+        );
+        expect(getOutsideLegendLabelWidth(1000, '300', squareStyle)).toBe(251);
+    });
+
+    test('accounts for the wider line icon', () => {
+        expect(
+            getOutsideLegendLabelWidth(1000, '25%', getLegendStyle('line')),
+        ).toBe(195);
+    });
+
+    test('never drops below the minimum on narrow charts', () => {
+        expect(getOutsideLegendLabelWidth(200, '25%', squareStyle)).toBe(40);
+    });
+
+    test('falls back when the legend area cannot be parsed', () => {
+        expect(getOutsideLegendLabelWidth(1000, 'auto', squareStyle)).toBe(150);
+    });
+});
+
+describe('composeLegendConfig', () => {
+    const series = [{ name: 'A' }, { name: 'B' }] as any;
+    const selected = { A: true, B: true };
+    const legendStyle = getLegendStyle('square');
+    const doubleClickTooltip: LegendDoubleClickTooltip = {
+        show: true,
+        backgroundColor: '#fff',
+        borderColor: '#ddd',
+        borderWidth: 0,
+        borderRadius: 4,
+        textStyle: { color: '#333', fontSize: 12, fontWeight: 400 },
+        padding: [4, 8],
+        extraCssText: '',
+        formatter: () => LEGEND_INTERACTION_HINT,
+    };
+
+    test('keeps outside-legend truncation alongside the shared typography', () => {
+        const merged = mergeLegendSettings(
+            { placement: 'outsideRight' },
+            selected,
+            series,
+            200,
+        );
+        const result = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(result.textStyle).toEqual({
+            ...legendStyle.textStyle,
+            overflow: 'truncate',
+            width: 200,
+        });
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            right: '2%',
+            icon: 'roundRect',
+            itemWidth: 12,
+        });
+    });
+
+    test('shows the full label above the hint when labels can be truncated', () => {
+        const merged = mergeLegendSettings(
+            { placement: 'outsideLeft' },
+            selected,
+            series,
+        );
+        const { tooltip } = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(tooltip).toMatchObject({ show: true, borderRadius: 4 });
+        const html = tooltip.formatter({ name: '<Long> & wordy label' });
+        expect(html).toContain('&lt;Long&gt; &amp; wordy label');
+        expect(html).toContain(LEGEND_INTERACTION_HINT);
+    });
+
+    test('leaves in-chart legends with the plain hint tooltip and typography', () => {
+        const merged = mergeLegendSettings(
+            { orient: 'horizontal', top: '0' },
+            selected,
+            series,
+        );
+        const result = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(result.tooltip).toBe(doubleClickTooltip);
+        expect(result.textStyle).toEqual(legendStyle.textStyle);
     });
 });
 

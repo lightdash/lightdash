@@ -86,6 +86,7 @@ import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/sty
 import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
 import {
+    format as echartsFormat,
     type DefaultLabelFormatterCallbackParams,
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
@@ -117,7 +118,11 @@ import {
     resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
 } from './timezoneShift';
-import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
+import {
+    LEGEND_INTERACTION_HINT,
+    useLegendDoubleClickTooltip,
+    type LegendDoubleClickTooltip,
+} from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -422,13 +427,30 @@ const removeEmptyProperties = <
     );
 };
 
+/** Label width used when the chart width is unknown, e.g. chart export. */
+const OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH = 150;
+const OUTSIDE_LEGEND_MIN_LABEL_WIDTH = 40;
+const OUTSIDE_LEGEND_MARGIN_PERCENT = 2;
+/** Gap ECharts leaves between a legend icon and its label. */
+const ECHARTS_LEGEND_ICON_LABEL_GAP = 5;
+/** ECharts' default legend padding, 5px on each side. */
+const ECHARTS_LEGEND_BOX_PADDING = 10;
+
+type OutsideLegendTextStyle = { overflow: 'truncate'; width: number };
+
+export type MergedLegendSettings = Record<string, unknown> & {
+    textStyle?: OutsideLegendTextStyle;
+    tooltip?: { show: boolean };
+};
+
 export const mergeLegendSettings = <
     T extends Record<string, any> = Record<any, any>,
 >(
     legendConfig: T | undefined,
     legendsSelected: LegendValues,
     series: EChartsSeries[],
-): Record<string, unknown> => {
+    outsideLabelWidth: number = OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH,
+): MergedLegendSettings => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
     if (!normalizedConfig || Object.keys(normalizedConfig).length === 0) {
         return {
@@ -447,8 +469,8 @@ export const mergeLegendSettings = <
     // the full label via the legend's built-in tooltip.
     const outsideLegendOverflow = {
         textStyle: {
-            overflow: 'truncate',
-            width: 150,
+            overflow: 'truncate' as const,
+            width: outsideLabelWidth,
         },
         tooltip: { show: true },
     };
@@ -465,7 +487,7 @@ export const mergeLegendSettings = <
             // pagination still works for legends with many series.
             top: 'middle',
             height: '80%',
-            right: '2%',
+            right: `${OUTSIDE_LEGEND_MARGIN_PERCENT}%`,
             left: undefined,
             bottom: undefined,
             ...outsideLegendOverflow,
@@ -480,7 +502,7 @@ export const mergeLegendSettings = <
             orient: 'vertical',
             top: 'middle',
             height: '80%',
-            left: '2%',
+            left: `${OUTSIDE_LEGEND_MARGIN_PERCENT}%`,
             right: undefined,
             bottom: undefined,
             ...outsideLegendOverflow,
@@ -496,6 +518,83 @@ export const mergeLegendSettings = <
         top: 'bottom' in rest ? undefined : 0,
         ...rest,
         selected: legendsSelected,
+    };
+};
+
+/** Resolves a legend area width ('25%', '300px' or '300') to pixels. */
+const parseLegendAreaWidth = (
+    value: string,
+    chartWidth: number,
+): number | null => {
+    const match = value.trim().match(/^(\d+(?:\.\d+)?)(%|px)?$/);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    return match[2] === '%' ? (chartWidth * amount) / 100 : amount;
+};
+
+type LegendStyle = ReturnType<typeof getLegendStyle>;
+
+/**
+ * Widest label that still fits inside the reserved outside-legend area once
+ * the legend margin, box padding, icon and icon gap are taken out.
+ */
+export const getOutsideLegendLabelWidth = (
+    chartWidth: number | null,
+    legendAreaWidth: string,
+    legendStyle: Pick<LegendStyle, 'itemWidth' | 'textStyle'>,
+): number => {
+    if (chartWidth === null || chartWidth <= 0) {
+        return OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH;
+    }
+    const areaWidth = parseLegendAreaWidth(legendAreaWidth, chartWidth);
+    if (areaWidth === null) return OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH;
+
+    const margin = (chartWidth * OUTSIDE_LEGEND_MARGIN_PERCENT) / 100;
+    const [, paddingRight = 0, , paddingLeft = 0] =
+        legendStyle.textStyle.padding;
+    const available =
+        areaWidth -
+        margin -
+        ECHARTS_LEGEND_BOX_PADDING -
+        legendStyle.itemWidth -
+        ECHARTS_LEGEND_ICON_LABEL_GAP -
+        paddingLeft -
+        paddingRight;
+    return Math.max(OUTSIDE_LEGEND_MIN_LABEL_WIDTH, Math.floor(available));
+};
+
+const getLegendItemName = (params: unknown): string =>
+    typeof params === 'object' &&
+    params !== null &&
+    'name' in params &&
+    typeof params.name === 'string'
+        ? params.name
+        : '';
+
+/**
+ * Layers the shared legend typography over the merged legend settings without
+ * dropping the outside-placement truncation, and shows the full label in the
+ * hover tooltip whenever labels can be truncated.
+ */
+export const composeLegendConfig = (
+    mergedLegend: MergedLegendSettings,
+    legendStyle: LegendStyle,
+    doubleClickTooltip: LegendDoubleClickTooltip,
+) => {
+    const isTruncated = mergedLegend.textStyle?.overflow === 'truncate';
+    return {
+        ...mergedLegend,
+        ...legendStyle,
+        textStyle: { ...legendStyle.textStyle, ...mergedLegend.textStyle },
+        tooltip: isTruncated
+            ? {
+                  ...doubleClickTooltip,
+                  formatter: (params: unknown) =>
+                      `<div style="font-weight: 500">${echartsFormat.encodeHTML(
+                          getLegendItemName(params),
+                      )}</div>${LEGEND_INTERACTION_HINT}`,
+              }
+            : doubleClickTooltip,
     };
 };
 
@@ -3254,6 +3353,7 @@ export const relocateMarkLinesToVisibleSeries = (
 const useEchartsCartesianConfig = (
     validCartesianConfigLegend?: LegendValues,
     isInDashboard?: boolean,
+    chartWidth: number | null = null,
 ) => {
     const {
         visualizationConfig,
@@ -4341,12 +4441,6 @@ const useEchartsCartesianConfig = (
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
     const legendConfigWithInstructionsTooltip = useMemo(() => {
-        const mergedLegendConfig = mergeLegendSettings(
-            validCartesianConfig?.eChartsConfig.legend,
-            validCartesianConfigLegend,
-            series,
-        );
-
         // Use line icon only for line/area charts, otherwise use square with border radius
         const hasOnlyLineCharts = series.every(
             (s) =>
@@ -4358,12 +4452,33 @@ const useEchartsCartesianConfig = (
             hasOnlyLineCharts ? 'line' : 'square',
         );
 
-        return {
-            ...mergedLegendConfig,
-            ...legendStyle,
-            tooltip: legendDoubleClickTooltip,
-        };
+        const legendAreaWidth =
+            validCartesianConfig?.eChartsConfig.legend?.placement ===
+            'outsideLeft'
+                ? currentGrid.left
+                : currentGrid.right;
+        const outsideLabelWidth = getOutsideLegendLabelWidth(
+            chartWidth,
+            legendAreaWidth,
+            legendStyle,
+        );
+
+        const mergedLegendConfig = mergeLegendSettings(
+            validCartesianConfig?.eChartsConfig.legend,
+            validCartesianConfigLegend,
+            series,
+            outsideLabelWidth,
+        );
+
+        return composeLegendConfig(
+            mergedLegendConfig,
+            legendStyle,
+            legendDoubleClickTooltip,
+        );
     }, [
+        chartWidth,
+        currentGrid.left,
+        currentGrid.right,
         legendDoubleClickTooltip,
         validCartesianConfig?.eChartsConfig.legend,
         validCartesianConfigLegend,
