@@ -3,6 +3,7 @@ import {
     ChartKind,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
+    getSdkFeatureTargetForTemplate,
     isApiError,
     isAppVersionInProgress,
     MAX_APP_FILES_PER_VERSION,
@@ -1066,6 +1067,7 @@ const AppGenerate: FC = () => {
         renderedManifest: renderedSdkManifest,
         onSdkManifest: handleSdkManifest,
     } = useSdkUpgradeStatus({
+        target: getSdkFeatureTargetForTemplate(appPersistedTemplate),
         bundleKey:
             activeAppUuid && latestReadyVersion !== null
                 ? `${activeAppUuid}:${latestReadyVersion.version}`
