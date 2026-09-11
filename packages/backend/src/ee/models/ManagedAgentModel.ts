@@ -17,7 +17,6 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { usersInProjectSql } from '../../models/AnalyticsModelSql';
-import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
     ManagedAgentProtectionsTableName,
@@ -44,17 +43,8 @@ import {
 export class ManagedAgentModel {
     private readonly database: Knex;
 
-    private readonly encryptionUtil: EncryptionUtil;
-
-    constructor({
-        database,
-        encryptionUtil,
-    }: {
-        database: Knex;
-        encryptionUtil: EncryptionUtil;
-    }) {
+    constructor({ database }: { database: Knex }) {
         this.database = database;
-        this.encryptionUtil = encryptionUtil;
     }
 
     // --- Settings ---
@@ -114,86 +104,6 @@ export class ManagedAgentModel {
                 );
             }
         });
-    }
-
-    async getServiceAccountToken(projectUuid: string): Promise<string | null> {
-        const row = await this.database(ManagedAgentSettingsTableName)
-            .where({ project_uuid: projectUuid })
-            .select('service_account_token')
-            .first();
-        if (!row?.service_account_token) {
-            return null;
-        }
-        return this.encryptionUtil.decrypt(row.service_account_token);
-    }
-
-    async setServiceAccountToken(
-        projectUuid: string,
-        token: string,
-    ): Promise<void> {
-        const encrypted = this.encryptionUtil.encrypt(token);
-        await this.database(ManagedAgentSettingsTableName)
-            .where({ project_uuid: projectUuid })
-            .update({ service_account_token: encrypted });
-    }
-
-    async getAnthropicResourceIds(projectUuid: string): Promise<{
-        agentId: string | null;
-        agentConfigHash: string | null;
-        agentVersion: number | null;
-        environmentId: string | null;
-        vaultId: string | null;
-        vaultConfigHash: string | null;
-    }> {
-        const row = await this.database(ManagedAgentSettingsTableName)
-            .where({ project_uuid: projectUuid })
-            .select(
-                'anthropic_agent_id',
-                'anthropic_agent_config_hash',
-                'anthropic_agent_version',
-                'anthropic_environment_id',
-                'anthropic_vault_id',
-                'anthropic_vault_config_hash',
-            )
-            .first();
-        return {
-            agentId: row?.anthropic_agent_id ?? null,
-            agentConfigHash: row?.anthropic_agent_config_hash ?? null,
-            agentVersion: row?.anthropic_agent_version ?? null,
-            environmentId: row?.anthropic_environment_id ?? null,
-            vaultId: row?.anthropic_vault_id ?? null,
-            vaultConfigHash: row?.anthropic_vault_config_hash ?? null,
-        };
-    }
-
-    async setAnthropicAgentState(
-        projectUuid: string,
-        agentId: string,
-        agentConfigHash: string,
-        agentVersion: number,
-    ): Promise<void> {
-        await this.database(ManagedAgentSettingsTableName)
-            .where({ project_uuid: projectUuid })
-            .update({
-                anthropic_agent_id: agentId,
-                anthropic_agent_config_hash: agentConfigHash,
-                anthropic_agent_version: agentVersion,
-            });
-    }
-
-    async setAnthropicResourceIds(
-        projectUuid: string,
-        environmentId: string,
-        vaultId: string,
-        vaultConfigHash: string,
-    ): Promise<void> {
-        await this.database(ManagedAgentSettingsTableName)
-            .where({ project_uuid: projectUuid })
-            .update({
-                anthropic_environment_id: environmentId,
-                anthropic_vault_id: vaultId,
-                anthropic_vault_config_hash: vaultConfigHash,
-            });
     }
 
     async getSettings(

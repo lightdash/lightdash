@@ -58,7 +58,7 @@ const telemetry = getAiCallTelemetry({
     keyManagement: null,
 });
 
-const agent = renderAutopilotAgent({ runtime: 'ai-sdk' });
+const agent = renderAutopilotAgent();
 
 const baseArgs = {
     callOptions: {},

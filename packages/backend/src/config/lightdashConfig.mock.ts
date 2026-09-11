@@ -389,9 +389,6 @@ export const lightdashConfigMock: LightdashConfig = {
         projectId: 'test-project-id',
     },
     managedAgent: {
-        runtime: 'anthropic-managed',
-        anthropicApiKey: null,
-        skillIds: [],
         schedule: '0 0 * * *',
         sessionTimeoutMs: 300000,
         maxSteps: 120,

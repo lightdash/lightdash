@@ -1,17 +1,20 @@
 import { Ability } from '@casl/ability';
 import {
     AnyType,
-    ProjectMemberRole,
-    ServiceAccountScope,
+    ManagedAgentRunStatus,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
-import type { ManagedAgentRuntime } from '../../../config/parseConfig';
+import { getModel } from '../ai/models';
+import { runAutopilotAgent } from './AutopilotAgentRunner';
 import { ManagedAgentService } from './ManagedAgentService';
+
+vi.mock('../ai/models', () => ({ getModel: vi.fn() }));
+vi.mock('./AutopilotAgentRunner', () => ({ runAutopilotAgent: vi.fn() }));
 
 const ORGANIZATION_UUID = 'organization-uuid';
 const PROJECT_UUID = 'project-uuid';
-const SERVICE_ACCOUNT_UUID = 'service-account-uuid';
+const RUN_UUID = 'run-uuid';
 const USER_UUID = 'user-uuid';
 
 const settings = {
@@ -25,108 +28,101 @@ const settings = {
     updatedAt: new Date('2026-08-03T00:00:00.000Z'),
 };
 
+const abilityRules = [
+    {
+        action: 'update',
+        subject: 'Project',
+        conditions: {
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+        },
+    },
+    {
+        action: 'view',
+        subject: 'Project',
+        conditions: {
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+        },
+    },
+] as const;
+
 const user = {
     userUuid: USER_UUID,
     organizationUuid: ORGANIZATION_UUID,
-    ability: new Ability<PossibleAbilities>([
-        {
-            action: 'update',
-            subject: 'Project',
-            conditions: {
-                organizationUuid: ORGANIZATION_UUID,
-                projectUuid: PROJECT_UUID,
-            },
-        },
-    ]),
+    ability: new Ability<PossibleAbilities>([...abilityRules]),
+    abilityRules,
 } as AnyType as SessionUser;
 
 const buildService = ({
-    projectGrants = [
-        {
-            projectUuid: PROJECT_UUID,
-            role: ProjectMemberRole.EDITOR,
-            roleUuid: null,
-        },
-    ],
-    serviceAccountScopes = [ServiceAccountScope.SYSTEM_MEMBER],
-    serviceAccountTokens = [null, 'service-account-token'],
     suggestionsSpaces = [],
-    runtime = 'anthropic-managed',
 }: {
-    projectGrants?: Array<{
-        projectUuid: string;
-        role: ProjectMemberRole;
-        roleUuid: string | null;
-    }>;
-    serviceAccountScopes?: ServiceAccountScope[];
-    serviceAccountTokens?: Array<string | null>;
     suggestionsSpaces?: Array<{
         uuid: string;
         inheritParentPermissions: boolean;
     }>;
-    runtime?: ManagedAgentRuntime;
 } = {}) => {
     const managedAgentModel = {
         getSettings: vi.fn().mockResolvedValue(settings),
         upsertSettings: vi.fn().mockResolvedValue(settings),
-        getServiceAccountToken: vi
-            .fn()
-            .mockResolvedValueOnce(serviceAccountTokens[0])
-            .mockResolvedValueOnce(serviceAccountTokens[1]),
-        setServiceAccountToken: vi.fn().mockResolvedValue(undefined),
-        getAnthropicResourceIds: vi.fn().mockResolvedValue({
-            agentId: null,
-            agentConfigHash: null,
-            agentVersion: null,
-            environmentId: null,
-            vaultId: null,
-            vaultConfigHash: null,
+        getRun: vi.fn().mockResolvedValue({
+            triggeredBy: 'cron',
+            startedAt: new Date('2026-09-11T00:00:00.000Z'),
         }),
+        setRunSessionId: vi.fn().mockResolvedValue(undefined),
+        finishRun: vi.fn().mockResolvedValue(undefined),
+        getActionCountsByTypeForRun: vi.fn().mockResolvedValue({}),
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({
             organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            name: 'Jaffle shop',
         }),
-        createServiceAccountProjectAccess: vi.fn().mockResolvedValue(undefined),
-        getServiceAccountProjectGrants: vi
-            .fn()
-            .mockResolvedValue(projectGrants),
-        setServiceAccountProjectAccess: vi.fn().mockResolvedValue(undefined),
-    };
-    const serviceAccountModel = {
-        create: vi.fn().mockResolvedValue({
-            uuid: SERVICE_ACCOUNT_UUID,
-            token: 'service-account-token',
-        }),
-        delete: vi.fn().mockResolvedValue(undefined),
-        findByToken: vi.fn().mockResolvedValue({
-            uuid: SERVICE_ACCOUNT_UUID,
-            description: `Autopilot (${PROJECT_UUID})`,
-            scopes: serviceAccountScopes,
-        }),
-        update: vi.fn().mockResolvedValue(undefined),
     };
     const schedulerClient = {
         scheduleManagedAgentHeartbeat: vi.fn().mockResolvedValue(undefined),
         cancelManagedAgentHeartbeat: vi.fn().mockResolvedValue(undefined),
     };
-
-    const managedAgentClient = {
-        syncAgent: vi.fn().mockResolvedValue(undefined),
+    const orgAiCopilotConfigResolver = {
+        getCopilotConfig: vi.fn().mockResolvedValue({
+            telemetryEnabled: false,
+        }),
+    };
+    const aiAgentToolsService = {
+        createRuntime: vi.fn().mockReturnValue({
+            listExplores: vi.fn().mockResolvedValue([]),
+            getProjectParameterDefinitions: vi.fn().mockResolvedValue({}),
+            getVerifiedFieldUsage: vi.fn().mockResolvedValue(new Map()),
+            findExplores: vi.fn(),
+            findContent: vi.fn(),
+            getDashboardCharts: vi.fn(),
+            runAsyncQuery: vi.fn(),
+            searchFieldValues: vi.fn(),
+            getExplore: vi.fn(),
+            loadSkill: vi.fn(),
+        }),
     };
     const service = new ManagedAgentService({
         lightdashConfig: {
-            managedAgent: { schedule: '0 0 * * *', runtime },
+            siteUrl: 'https://lightdash.example.com',
+            managedAgent: {
+                schedule: '0 0 * * *',
+                sessionTimeoutMs: 600_000,
+                maxSteps: 120,
+            },
+            preAggregates: { enabled: false },
+            ai: {
+                copilot: {
+                    maxQueryLimit: 500,
+                    toolDescriptionMaxChars: 600,
+                    telemetryEnabled: false,
+                },
+            },
         },
         analytics: { track: vi.fn() },
         managedAgentModel,
         analyticsModel: {},
-        organizationModel: {
-            get: vi.fn().mockResolvedValue({
-                name: 'Organization',
-                organizationUuid: ORGANIZATION_UUID,
-            }),
-        },
         projectModel,
         validationModel: {},
         savedChartModel: {},
@@ -135,203 +131,129 @@ const buildService = ({
             find: vi.fn().mockResolvedValue(suggestionsSpaces),
         },
         spacePermissionService: {},
-        userModel: {},
+        userModel: {
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
+        },
         featureFlagModel: {},
-        serviceAccountModel,
         schedulerClient,
         slackClient: {},
-        managedAgentClient,
+        orgAiCopilotConfigResolver,
+        aiAgentToolsService,
     } as AnyType);
 
     return {
-        managedAgentClient,
         managedAgentModel,
         projectModel,
         schedulerClient,
         service,
-        serviceAccountModel,
     };
 };
 
 describe('ManagedAgentService.updateSettings', () => {
-    it('skips the MCP service account and agent sync on the AI SDK runtime', async () => {
-        const {
-            managedAgentClient,
-            managedAgentModel,
-            schedulerClient,
-            service,
-            serviceAccountModel,
-        } = buildService({ runtime: 'ai-sdk' });
+    it('schedules the first heartbeat when Autopilot is enabled', async () => {
+        const { schedulerClient, service } = buildService();
 
         await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
             enabled: true,
         });
 
-        expect(serviceAccountModel.create).not.toHaveBeenCalled();
-        expect(managedAgentModel.setServiceAccountToken).not.toHaveBeenCalled();
-        expect(managedAgentClient.syncAgent).not.toHaveBeenCalled();
         expect(
             schedulerClient.scheduleManagedAgentHeartbeat,
         ).toHaveBeenCalledWith('0 0 * * *', PROJECT_UUID);
     });
 
-    it('creates a project-scoped service account for MCP authentication', async () => {
-        const {
-            managedAgentClient,
-            managedAgentModel,
-            projectModel,
-            service,
-            serviceAccountModel,
-        } = buildService();
+    it('cancels the pending heartbeat when Autopilot is disabled', async () => {
+        const { schedulerClient, service } = buildService();
 
         await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(serviceAccountModel.create).toHaveBeenCalledWith({
-            user,
-            data: {
-                organizationUuid: ORGANIZATION_UUID,
-                description: `Autopilot (${PROJECT_UUID})`,
-                expiresAt: null,
-                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
-            },
-        });
-        expect(
-            projectModel.createServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(PROJECT_UUID, SERVICE_ACCOUNT_UUID, {
-            role: ProjectMemberRole.EDITOR,
-            roleUuid: undefined,
-        });
-        expect(managedAgentModel.setServiceAccountToken).toHaveBeenCalledWith(
-            PROJECT_UUID,
-            'service-account-token',
-        );
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: PROJECT_UUID,
-                serviceAccountPat: 'service-account-token',
-            }),
-        );
-    });
-
-    it('restricts an existing organization-scoped account before syncing the agent', async () => {
-        const {
-            managedAgentClient,
-            projectModel,
-            service,
-            serviceAccountModel,
-        } = buildService({
-            projectGrants: [
-                {
-                    projectUuid: 'another-project-uuid',
-                    role: ProjectMemberRole.ADMIN,
-                    roleUuid: null,
-                },
-            ],
-            serviceAccountScopes: [ServiceAccountScope.ORG_ADMIN],
-            serviceAccountTokens: [
-                'existing-service-account-token',
-                'existing-service-account-token',
-            ],
-        });
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
+            enabled: false,
         });
 
         expect(
-            projectModel.setServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-            [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                },
-            ],
-            { makeProjectScoped: true },
-        );
-        expect(serviceAccountModel.update).not.toHaveBeenCalled();
-        expect(
-            projectModel.setServiceAccountProjectAccess.mock
-                .invocationCallOrder[0],
-        ).toBeLessThan(
-            managedAgentClient.syncAgent.mock.invocationCallOrder[0],
-        );
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledOnce();
+            schedulerClient.cancelManagedAgentHeartbeat,
+        ).toHaveBeenCalledWith(PROJECT_UUID);
+    });
+});
+
+describe('ManagedAgentService.runHeartbeat', () => {
+    beforeEach(() => {
+        vi.mocked(getModel).mockReturnValue({
+            model: { modelId: 'mock-model', provider: 'anthropic' },
+            callOptions: {},
+            providerOptions: undefined,
+            keyManagement: 'lightdash-managed',
+        } as AnyType);
     });
 
-    it('replaces multiple grants on an existing member-scoped account', async () => {
-        const { projectModel, service } = buildService({
-            projectGrants: [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                    roleUuid: null,
-                },
-                {
-                    projectUuid: 'another-project-uuid',
-                    role: ProjectMemberRole.VIEWER,
-                    roleUuid: null,
-                },
-            ],
-            serviceAccountTokens: [
-                'existing-service-account-token',
-                'existing-service-account-token',
-            ],
+    it('runs the agent as the enabling user with the project policy and records the outcome', async () => {
+        vi.mocked(runAutopilotAgent).mockResolvedValue({
+            slackSummary: 'Flagged 2 stale charts.',
+            stepCount: 7,
+            stopReason: 'end_turn',
         });
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(
-            projectModel.setServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-            [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                },
-            ],
-            { makeProjectScoped: true },
-        );
-    });
-
-    it('deletes a new service account when its project grant cannot be created', async () => {
-        const { projectModel, service, serviceAccountModel } = buildService();
-        const grantError = new Error('project grant failed');
-        projectModel.createServiceAccountProjectAccess.mockRejectedValue(
-            grantError,
-        );
-
-        await expect(
-            service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-                enabled: true,
-            }),
-        ).rejects.toBe(grantError);
-
-        expect(serviceAccountModel.delete).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-        );
-    });
-
-    it('resolves the agent audience from the suggestions space when it exists', async () => {
-        const { managedAgentClient, service } = buildService({
+        const { managedAgentModel, service } = buildService({
             suggestionsSpaces: [
                 { uuid: 'space-uuid', inheritParentPermissions: false },
             ],
         });
 
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
+        await service.runHeartbeat(PROJECT_UUID, RUN_UUID);
 
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledWith(
+        expect(managedAgentModel.setRunSessionId).toHaveBeenCalledWith(
+            RUN_UUID,
+            RUN_UUID,
+        );
+        expect(runAutopilotAgent).toHaveBeenCalledWith(
             expect.objectContaining({
-                policy: expect.objectContaining({ audience: 'admins' }),
+                projectName: 'Jaffle shop',
+                maxSteps: 120,
+                timeoutMs: 600_000,
+                agent: expect.objectContaining({
+                    system: expect.stringContaining('admin-only'),
+                }),
+            }),
+        );
+        expect(managedAgentModel.finishRun).toHaveBeenCalledWith(RUN_UUID, {
+            status: ManagedAgentRunStatus.COMPLETED,
+            actionCount: 0,
+            summary: 'Flagged 2 stale charts.',
+            error: null,
+        });
+    });
+
+    it('marks a run that hit the step cap as an error but keeps its summary', async () => {
+        vi.mocked(runAutopilotAgent).mockResolvedValue({
+            slackSummary: 'Partial.',
+            stepCount: 120,
+            stopReason: 'step_cap',
+        });
+        const { managedAgentModel, service } = buildService();
+
+        await service.runHeartbeat(PROJECT_UUID, RUN_UUID);
+
+        expect(managedAgentModel.finishRun).toHaveBeenCalledWith(
+            RUN_UUID,
+            expect.objectContaining({
+                status: ManagedAgentRunStatus.ERROR,
+                summary: 'Partial.',
+                error: expect.stringContaining('stopped after 120 steps'),
+            }),
+        );
+    });
+
+    it('records a provider failure on the run', async () => {
+        vi.mocked(runAutopilotAgent).mockRejectedValue(
+            new Error('invalid api key'),
+        );
+        const { managedAgentModel, service } = buildService();
+
+        await service.runHeartbeat(PROJECT_UUID, RUN_UUID);
+
+        expect(managedAgentModel.finishRun).toHaveBeenCalledWith(
+            RUN_UUID,
+            expect.objectContaining({
+                status: ManagedAgentRunStatus.ERROR,
+                error: 'invalid api key',
             }),
         );
     });

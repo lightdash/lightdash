@@ -997,22 +997,6 @@ test('explains that Bedrock skip-auth does not configure backend credentials', (
     );
 });
 
-test('does not reuse an Anthropic gateway token for Managed Agent', () => {
-    process.env.ANTHROPIC_API_KEY = 'gateway-token';
-    process.env.ANTHROPIC_BASE_URL = 'https://anthropic-gateway.example';
-
-    expect(parseConfig().managedAgent.anthropicApiKey).toBeNull();
-
-    process.env.MANAGED_AGENT_ANTHROPIC_API_KEY = 'managed-agent-key';
-    expect(parseConfig().managedAgent.anthropicApiKey).toBe(
-        'managed-agent-key',
-    );
-
-    delete process.env.MANAGED_AGENT_ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_BASE_URL;
-    expect(parseConfig().managedAgent.anthropicApiKey).toBe('gateway-token');
-});
-
 test('Should default AI tool description max chars to 600', () => {
     expect(parseConfig().ai.copilot.toolDescriptionMaxChars).toEqual(600);
 });
