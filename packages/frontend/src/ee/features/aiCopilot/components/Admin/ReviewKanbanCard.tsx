@@ -1,19 +1,6 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Group,
-    Stack,
-    Text,
-    Tooltip,
-    UnstyledButton,
-} from '@mantine/core';
-import {
-    IconArrowUpRight,
-    IconBolt,
-    IconLayoutColumns,
-    IconRefresh,
-} from '@tabler/icons-react';
+import { Badge, Box, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconBolt, IconLayoutColumns, IconRefresh } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { Link } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
@@ -188,116 +175,130 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             />
                         </Group>
 
-                        {!isExample && (
-                            <ReviewAssigneeMenu
-                                projectUuid={
-                                    item.projectUuid ??
-                                    item.latestFinding?.projectUuid ??
-                                    null
-                                }
-                                fingerprint={item.fingerprint}
-                                assignedToUserUuid={item.assignedToUserUuid}
-                                avatarSize={18}
-                                className={
-                                    item.assignedToUserUuid
-                                        ? undefined
-                                        : styles.assigneeUnassigned
-                                }
-                            />
-                        )}
+                        <Group gap={10} wrap="nowrap" align="center">
+                            {activityLabel && (
+                                <Group gap={6} wrap="nowrap" align="center">
+                                    {isAgentRunning ? (
+                                        <AiAgentIcon size={13} animated />
+                                    ) : (
+                                        <Box
+                                            pos="relative"
+                                            w={6}
+                                            h={6}
+                                            bg="indigo.5"
+                                            className={styles.pulse}
+                                            style={{ borderRadius: '50%' }}
+                                        />
+                                    )}
+                                    <Text fz="xs" c="ldGray.6">
+                                        {activityLabel}
+                                    </Text>
+                                </Group>
+                            )}
+                            {hasWorkspace &&
+                                !activityLabel &&
+                                (isExample ? (
+                                    <Box
+                                        data-tour="reviews-workspace"
+                                        className={styles.inlineAction}
+                                    >
+                                        <MantineIcon
+                                            icon={IconLayoutColumns}
+                                            size={13}
+                                        />
+                                        <Text fz="xs">Workspace</Text>
+                                    </Box>
+                                ) : (
+                                    <Tooltip
+                                        label="Open workspace"
+                                        openDelay={300}
+                                    >
+                                        <Box
+                                            component={Link}
+                                            to={workspaceHref}
+                                            onClick={(
+                                                e: React.MouseEvent<HTMLAnchorElement>,
+                                            ) => e.stopPropagation()}
+                                            className={styles.inlineAction}
+                                        >
+                                            <MantineIcon
+                                                icon={IconLayoutColumns}
+                                                size={13}
+                                            />
+                                            <Text fz="xs">Workspace</Text>
+                                        </Box>
+                                    </Tooltip>
+                                ))}
+                            {startKind !== null && (
+                                <Button
+                                    data-tour={
+                                        isExample ? 'reviews-pr' : undefined
+                                    }
+                                    variant="light"
+                                    color="gray"
+                                    size="compact-xs"
+                                    h={20}
+                                    px={6}
+                                    disabled={isExample}
+                                    loading={createWriteback.isLoading}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={
+                                                isRetry ? IconRefresh : IconBolt
+                                            }
+                                            size={12}
+                                        />
+                                    }
+                                    className={
+                                        isRetry || isExample
+                                            ? styles.cardAction
+                                            : `${styles.cardAction} ${styles.hoverAction}`
+                                    }
+                                    onPointerDown={(e: React.PointerEvent) =>
+                                        e.stopPropagation()
+                                    }
+                                    onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation();
+                                        updateStatus.mutate({
+                                            fingerprint: item.fingerprint,
+                                            body: {
+                                                status: 'in_progress',
+                                                dismissedReason: null,
+                                            },
+                                        });
+                                        if (startKind === 'modal') {
+                                            setPreviewOpen(true);
+                                        } else {
+                                            createWriteback.mutate(
+                                                item.fingerprint,
+                                            );
+                                        }
+                                    }}
+                                >
+                                    {isRetry ? 'Retry fix' : 'Start fix'}
+                                </Button>
+                            )}
+                            {!isExample && (
+                                <ReviewAssigneeMenu
+                                    projectUuid={
+                                        item.projectUuid ??
+                                        item.latestFinding?.projectUuid ??
+                                        null
+                                    }
+                                    fingerprint={item.fingerprint}
+                                    assignedToUserUuid={item.assignedToUserUuid}
+                                    avatarSize={18}
+                                    className={
+                                        item.assignedToUserUuid
+                                            ? undefined
+                                            : styles.assigneeUnassigned
+                                    }
+                                />
+                            )}
+                        </Group>
                     </Group>
                 </Stack>
             </Box>
-
-            {hasWorkspace &&
-                (activityLabel ? (
-                    <Box className={styles.cardFooter}>
-                        <Group gap={6} align="center">
-                            {isAgentRunning ? (
-                                <AiAgentIcon size={14} animated />
-                            ) : (
-                                <Box
-                                    pos="relative"
-                                    w={7}
-                                    h={7}
-                                    bg="indigo.5"
-                                    className={styles.pulse}
-                                    style={{ borderRadius: '50%' }}
-                                />
-                            )}
-                            <Text fz="xs" c="dimmed">
-                                {activityLabel}
-                            </Text>
-                        </Group>
-                    </Box>
-                ) : isExample ? (
-                    <Box
-                        data-tour="reviews-workspace"
-                        className={styles.cardFooter}
-                    >
-                        <Group gap={6} align="center">
-                            <MantineIcon icon={IconLayoutColumns} size={13} />
-                            <Text fz="xs">Open workspace</Text>
-                        </Group>
-                        <MantineIcon icon={IconArrowUpRight} size={14} />
-                    </Box>
-                ) : (
-                    <Box
-                        component={Link}
-                        to={workspaceHref}
-                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                            e.stopPropagation()
-                        }
-                        className={styles.cardFooter}
-                    >
-                        <Group gap={6} align="center">
-                            <MantineIcon icon={IconLayoutColumns} size={13} />
-                            <Text fz="xs">Open workspace</Text>
-                        </Group>
-                        <MantineIcon icon={IconArrowUpRight} size={14} />
-                    </Box>
-                ))}
-
-            {startKind !== null && (
-                <UnstyledButton
-                    data-tour={isExample ? 'reviews-pr' : undefined}
-                    disabled={isExample || createWriteback.isLoading}
-                    className={`${styles.cardFooter} ${styles.startFooter}`}
-                    onPointerDown={(e: React.PointerEvent) =>
-                        e.stopPropagation()
-                    }
-                    onClick={(e: React.MouseEvent) => {
-                        e.stopPropagation();
-                        if (isExample) return;
-                        updateStatus.mutate({
-                            fingerprint: item.fingerprint,
-                            body: {
-                                status: 'in_progress',
-                                dismissedReason: null,
-                            },
-                        });
-                        if (startKind === 'modal') {
-                            setPreviewOpen(true);
-                        } else {
-                            createWriteback.mutate(item.fingerprint);
-                        }
-                    }}
-                >
-                    <Group gap={6} align="center">
-                        <MantineIcon
-                            icon={isRetry ? IconRefresh : IconBolt}
-                            size={13}
-                        />
-                        <Text fz="xs" c="ldGray.7">
-                            {createWriteback.isLoading
-                                ? 'Starting…'
-                                : isRetry
-                                  ? 'Retry fix'
-                                  : 'Start fix'}
-                        </Text>
-                    </Group>
-                </UnstyledButton>
-            )}
 
             {startKind === 'modal' && (
                 <ProjectContextWritebackModal
