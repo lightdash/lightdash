@@ -455,34 +455,26 @@ function ProjectCard({
 
 function TicketCard({
     ticket,
-    stacked,
     onClick,
 }: {
     ticket: RoadmapItem;
-    stacked: boolean;
     onClick: () => void;
 }) {
     return (
         <UnstyledButton
             className={classes.ticketCard}
-            data-stacked={stacked || undefined}
             onClick={onClick}
             aria-label={`Open ticket ${ticket.title}`}
         >
-            <Group
-                gap="xs"
-                wrap="nowrap"
-                align="flex-start"
-                className={classes.ticketRow}
-            >
+            <Stack gap="xs">
                 <Text className={classes.ticketTitle}>{ticket.title}</Text>
-                <Group gap={6} wrap="nowrap" className={classes.ticketMeta}>
+                <Group gap={6} wrap="nowrap" className={classes.ticketStub}>
                     <Text fz="xs" c="ldGray.5" className={classes.ticketId}>
                         {ticket.ticketId}
                     </Text>
                     <ItemPriority priority={ticket.priority} />
                 </Group>
-            </Group>
+            </Stack>
         </UnstyledButton>
     );
 }
@@ -862,7 +854,6 @@ export function RoadmapProjects({
                 card: (
                     <TicketCard
                         ticket={ticket}
-                        stacked={projectBoard}
                         onClick={() => setSelectedTicket(ticket)}
                     />
                 ),
