@@ -1103,24 +1103,16 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { queryUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
+        );
+        this.assertCanViewQueryHistory(
+            account,
+            projectUuid,
+            organizationUuid,
+            queryHistory,
         );
 
         const previousStatus = queryHistory.status;
@@ -1403,7 +1395,24 @@ export class AsyncQueryService extends ProjectService {
         queryHistory: QueryHistory,
     ): Promise<void> {
         await this.assertAnalyticsProjectAccess(account, project);
-        const { organizationUuid } = project;
+        await this.assertQueryHistoryReadAccess(
+            account,
+            projectUuid,
+            project.organizationUuid,
+            queryHistory,
+        );
+    }
+
+    /**
+     * Chart embed tokens only hold a project grant scoped to their explores,
+     * so a bare project check refuses them; fall back to the query's explore.
+     */
+    private assertCanViewQueryHistory(
+        account: Account,
+        projectUuid: string,
+        organizationUuid: string,
+        queryHistory: QueryHistory,
+    ): void {
         const { queryUuid } = queryHistory;
         const auditedAbility = this.createAuditedAbility(account);
         const canViewProject = auditedAbility.can(
@@ -1440,7 +1449,20 @@ export class AsyncQueryService extends ProjectService {
         if (isForbidden) {
             throw new ForbiddenError();
         }
+    }
 
+    private async assertQueryHistoryReadAccess(
+        account: Account,
+        projectUuid: string,
+        organizationUuid: string,
+        queryHistory: QueryHistory,
+    ): Promise<void> {
+        this.assertCanViewQueryHistory(
+            account,
+            projectUuid,
+            organizationUuid,
+            queryHistory,
+        );
         await this.assertSavedChartQuerySourceAccess(
             account,
             projectUuid,
@@ -1738,30 +1760,16 @@ export class AsyncQueryService extends ProjectService {
 
         const project = await this.projectModel.getSummary(projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
-        const { organizationUuid } = project;
-
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { queryUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
         );
-        await this.assertSavedChartQuerySourceAccess(
+        await this.assertQueryHistoryReadAccess(
             account,
             projectUuid,
+            project.organizationUuid,
             queryHistory,
         );
 
@@ -1870,30 +1878,15 @@ export class AsyncQueryService extends ProjectService {
 
         const { organizationUuid } = account.organization;
 
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid: payload.projectUuid,
-                    metadata: {
-                        queryUuid: payload.queryUuid,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         const queryHistory = await this.queryHistoryModel.get(
             payload.queryUuid,
             payload.projectUuid,
             account,
         );
-        await this.assertSavedChartQuerySourceAccess(
+        await this.assertQueryHistoryReadAccess(
             account,
             payload.projectUuid,
+            project.organizationUuid,
             queryHistory,
         );
 
@@ -2076,28 +2069,15 @@ export class AsyncQueryService extends ProjectService {
         }
         const { organizationUuid } = project;
 
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { queryUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
         );
-        await this.assertSavedChartQuerySourceAccess(
+        await this.assertQueryHistoryReadAccess(
             account,
             projectUuid,
+            organizationUuid,
             queryHistory,
         );
 
