@@ -9273,3 +9273,153 @@ describe('DuckDB source queries on the worker', () => {
         expect(model.getDuckdbExecution).not.toHaveBeenCalled();
     });
 });
+
+describe('chart embed token query history access', () => {
+    const buildChartEmbedAccount = (explores: string[]) =>
+        fromJwt({
+            decodedToken: {
+                user: { externalId: 'external-user-123' },
+                content: { type: 'chart', contentId: 'source-chart-uuid' },
+            },
+            embed: {
+                projectUuid,
+                organization: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    name: 'Test Organization',
+                    createdAt: new Date('2024-01-01'),
+                },
+                encodedSecret: 'test-encoded-secret',
+                dashboardUuids: [],
+                allowAllDashboards: false,
+                chartUuids: ['source-chart-uuid'],
+                allowAllCharts: true,
+                allowAllApps: false,
+                appUuids: [],
+                createdAt: '2024-01-01',
+                user: null,
+            },
+            source: 'test-jwt-token',
+            content: {
+                type: 'chart',
+                dashboardUuid: undefined,
+                chartUuids: ['source-chart-uuid'],
+                explores,
+            },
+            userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+        });
+
+    const buildFixture = (explores: string[]) => {
+        const account = buildChartEmbedAccount(explores);
+        const history: QueryHistory = {
+            queryUuid: 'source-query-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            context: QueryExecutionContext.CHART,
+            status: QueryHistoryStatus.READY,
+            requestParameters: { chartUuid: 'source-chart-uuid' },
+            metricQuery: metricQueryMock,
+            fields: validExplore.tables.a.dimensions,
+            columns: expectedColumns,
+            resultsFileName: 'results.jsonl',
+            resultsExpiresAt: new Date(Date.now() + 60_000),
+            totalRowCount: 1,
+            defaultPageSize: 10,
+            createdAt: new Date(),
+            createdBy: account.user.id,
+            createdByUserUuid: account.user.id,
+            createdByAccount: null,
+            createdByActorType: account.authentication.type,
+            warehouseQueryId: null,
+            warehouseQueryMetadata: null,
+            compiledSql: 'select 1',
+            usedParameters: null,
+            warehouseExecutionTimeMs: null,
+            error: null,
+            erroredAt: null,
+            cacheKey: 'cache-key',
+            pivotConfiguration: null,
+            pivotValuesColumns: null,
+            pivotTotalColumnCount: null,
+            resultsCreatedAt: new Date(),
+            resultsUpdatedAt: new Date(),
+            originalColumns: expectedColumns,
+            preAggregateCompiledSql: null,
+            preAggregateExecution: null,
+            preAggregateFallbackReason: null,
+            processingStartedAt: null,
+        };
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);
+        service.exportsStorageClient = {
+            isEnabled: () => true,
+        } as FileStorageClient;
+        (service as AnyType).schedulerClient = {
+            downloadAsyncQueryResults: vi.fn(async () => ({
+                jobId: 'export-job-uuid',
+            })),
+        };
+        vi.spyOn(
+            service as unknown as {
+                downloadAsyncQueryResultsAsFormattedFile: () => Promise<{
+                    fileUrl: string;
+                    truncated: boolean;
+                }>;
+            },
+            'downloadAsyncQueryResultsAsFormattedFile',
+        ).mockResolvedValue({ fileUrl: 'export.csv', truncated: false });
+        return { account, service };
+    };
+
+    const operations = ['stream', 'cancel', 'schedule', 'download'] as const;
+
+    const run = (
+        service: AsyncQueryService,
+        account: Account,
+        operation: (typeof operations)[number],
+    ) => {
+        const args = { account, projectUuid, queryUuid: 'source-query-uuid' };
+        switch (operation) {
+            case 'stream':
+                return service.getResultsStream(args);
+            case 'cancel':
+                return service.cancelAsyncQuery(args);
+            case 'schedule':
+                return service.scheduleDownloadAsyncQueryResults({
+                    ...args,
+                    type: DownloadFileType.CSV,
+                });
+            case 'download':
+                return service.download({
+                    ...args,
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                });
+            default:
+                return assertUnreachable(operation, 'Unknown query operation');
+        }
+    };
+
+    it.each(operations)(
+        'allows a chart token scoped to the query explore through %s',
+        async (operation) => {
+            const { account, service } = buildFixture([validExplore.name]);
+            await run(service, account, operation);
+            expect(service.queryHistoryModel.get).toHaveBeenCalledWith(
+                'source-query-uuid',
+                projectUuid,
+                account,
+            );
+        },
+    );
+
+    it.each(operations)(
+        'refuses a chart token scoped to another explore through %s',
+        async (operation) => {
+            const { account, service } = buildFixture(['other_explore']);
+            await expect(run(service, account, operation)).rejects.toThrow(
+                ForbiddenError,
+            );
+        },
+    );
+});
