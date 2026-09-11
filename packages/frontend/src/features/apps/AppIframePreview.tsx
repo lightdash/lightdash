@@ -380,7 +380,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                     border: 'none',
                     colorScheme,
                     // Keep the host surface visible until the app applies its theme.
-                    visibility: loadedSrc === effectiveSrc ? 'visible' : 'hidden',
+                    visibility:
+                        loadedSrc === effectiveSrc ? 'visible' : 'hidden',
                 }}
                 title="App preview"
                 sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
