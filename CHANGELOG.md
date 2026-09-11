@@ -1,3 +1,10 @@
+## [2.194.2](https://github.com/lightdash/lightdash/compare/2.194.1...2.194.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **roadmap:** show shared catalog when org has no private requests ([#29018](https://github.com/lightdash/lightdash/issues/29018)) ([d13a2c4](https://github.com/lightdash/lightdash/commit/d13a2c493a1a9b0aa180738cd559914f8be38359))
+
 ## [2.194.1](https://github.com/lightdash/lightdash/compare/2.194.0...2.194.1) (2026-09-11)
 
 
