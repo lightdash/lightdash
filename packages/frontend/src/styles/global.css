@@ -131,8 +131,11 @@ strong {
 .ld-mention {
     padding: 0.1em 0.35em;
     border-radius: var(--mantine-radius-sm);
-    background-color: var(--mantine-color-ldGray-1);
-    color: var(--mantine-color-text);
+    background-color: light-dark(
+        var(--mantine-color-blue-0),
+        var(--mantine-color-blue-light)
+    );
+    color: var(--mantine-color-blue-light-color);
     font-weight: 500;
     box-decoration-break: clone;
 }
