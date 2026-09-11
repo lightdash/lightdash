@@ -46,9 +46,6 @@ Before writing filter expressions, read the shared skill referenced by run_metri
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
 - When similar field names exist in base and joined tables, match to the query's semantic level
 
-### Pagination
-- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
-
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
 - Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
@@ -98,9 +95,6 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 - Never mix fields from different explores in a single query
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
 - When similar field names exist in base and joined tables, match to the query's semantic level
-
-### Pagination
-- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
@@ -161,9 +155,6 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 - Never mix fields from different explores in a single query
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
 - When similar field names exist in base and joined tables, match to the query's semantic level
-
-### Pagination
-- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
@@ -1393,7 +1384,7 @@ Usage tips:
             "type": "string",
           },
           "page": {
-            "description": "Use this to paginate through the results. Starts at 1.",
+            "description": "Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".",
             "exclusiveMinimum": 0,
             "type": "number",
           },

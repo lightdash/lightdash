@@ -34,7 +34,7 @@ const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
                     .positive()
                     .nullable()
                     .describe(
-                        'Use this to paginate through the results. Starts at 1.',
+                        'Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".',
                     ),
             }),
         ) as ToolSchemaBuilder<$Schema & { page: z.ZodNullable<z.ZodNumber> }>,
