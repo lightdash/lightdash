@@ -1,6 +1,7 @@
 import {
     ChartType,
     DashboardTileTypes,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     type AnonymousAccount,
@@ -456,7 +457,7 @@ describe('EmbedService data app viz rendering', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('checks EnableDataApps before loading the authorized saved chart', async () => {
+    it('checks the chart type flags before loading the authorized saved chart', async () => {
         const savedChartModel = { get: vi.fn() };
         const service = buildService({
             appModel: {
@@ -479,6 +480,50 @@ describe('EmbedService data app viz rendering', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(savedChartModel.get).not.toHaveBeenCalled();
+    });
+
+    it('renders with data apps off when the chart type library is on', async () => {
+        const savedChartModel = {
+            get: vi.fn().mockResolvedValue(makeSavedChart()),
+        };
+        const service = buildService({
+            appModel: {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 1 })),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion()),
+            },
+            featureFlagModel: {
+                get: vi
+                    .fn()
+                    .mockImplementation(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            enabled:
+                                featureFlagId ===
+                                FeatureFlags.ChartTypeRegistry,
+                        }),
+                    ),
+            },
+            savedChartModel,
+        });
+
+        await expect(
+            service.getEmbedDataAppVizRenderMetadata(
+                chartAccount(),
+                PROJECT_UUID,
+                SAVED_CHART_UUID,
+                DATA_APP_VIZ_UUID,
+            ),
+        ).resolves.toMatchObject({ state: 'ready', version: 1 });
     });
 
     it.each(['dataApp', 'aiAgent', 'metricsCatalog', 'apiAccess'] as const)(
