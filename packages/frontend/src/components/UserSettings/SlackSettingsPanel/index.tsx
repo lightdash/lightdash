@@ -50,6 +50,7 @@ import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../common/SlackChannelSelect';
 import { ProjectSelect } from './ProjectSelect';
+import { SlackSettingRow } from './SlackSettingRow';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 
@@ -301,185 +302,102 @@ const SlackSettingsPanel: FC = () => {
                             <Stack gap="sm">
                                 <Divider mt="sm" />
                                 <Title order={5}>Unfurling</Title>
-                                <Group gap="two">
-                                    <Title order={6} fw={500}>
-                                        Link previews
-                                    </Title>
-                                    <Tooltip
-                                        maw={280}
-                                        label="When enabled, Lightdash posts chart and dashboard previews when links are shared in Slack. Previews are rendered as the user who installed the Slack app, so any queries they trigger are attributed to that user. Disable to stop posting previews."
-                                    >
-                                        <MantineIcon icon={IconHelpCircle} />
-                                    </Tooltip>
-                                </Group>
-                                <Switch
-                                    label="Enable link unfurls"
+                                <SlackSettingRow
+                                    title="Link previews"
+                                    description="Enable link unfurls"
+                                    tooltip="When enabled, Lightdash posts chart and dashboard previews when links are shared in Slack. Previews are rendered as the user who installed the Slack app, so any queries they trigger are attributed to that user. Disable to stop posting previews."
                                     checked={form.values.unfurlsEnabled ?? true}
-                                    onChange={(event) => {
-                                        setFieldValue(
-                                            'unfurlsEnabled',
-                                            event.currentTarget.checked,
-                                        );
-                                    }}
+                                    onChange={(checked) =>
+                                        setFieldValue('unfurlsEnabled', checked)
+                                    }
                                 />
                             </Stack>
                             {isAiCopilotEnabledOrTrial && (
                                 <Stack gap="sm">
                                     <Divider mt="sm" />
                                     <Title order={5}>AI in Slack</Title>
-                                    <Group gap="two">
-                                        <Title order={6} fw={500}>
-                                            AI Agents in Slack
-                                        </Title>
-
-                                        <Tooltip
-                                            maw={280}
-                                            label="Turn this off to stop AI Agents being used from Slack entirely. Agents stay available in Lightdash, and scheduled deliveries, alerts and link previews keep working."
-                                        >
-                                            <MantineIcon
-                                                icon={IconHelpCircle}
-                                            />
-                                        </Tooltip>
-                                    </Group>
-
-                                    <Switch
-                                        label="Allow AI Agents to be used from Slack"
-                                        checked={
-                                            form.values.aiAgentsEnabled ?? true
-                                        }
-                                        onChange={(event) => {
-                                            setFieldValue(
-                                                'aiAgentsEnabled',
-                                                event.currentTarget.checked,
-                                            );
-                                        }}
-                                    />
-
-                                    <Group gap="two">
-                                        <Title order={6} fw={500}>
-                                            AI Agents thread access consent
-                                        </Title>
-
-                                        <Tooltip
-                                            maw={250}
-                                            label="The longer the thread, the more context the AI Agents will have to work with."
-                                        >
-                                            <MantineIcon
-                                                icon={IconHelpCircle}
-                                            />
-                                        </Tooltip>
-                                    </Group>
-
-                                    <Text c="dimmed" fz="xs">
-                                        Allow the AI Agents to access thread
-                                        messages when a user mentions the bot in
-                                        a thread.
-                                    </Text>
-
-                                    <Switch
-                                        label="Allow AI to access thread messages"
-                                        disabled={aiAgentsDisabled}
-                                        checked={
-                                            form.values.aiThreadAccessConsent ??
-                                            false
-                                        }
-                                        onChange={(event) => {
-                                            setFieldValue(
-                                                'aiThreadAccessConsent',
-                                                event.currentTarget.checked,
-                                            );
-                                        }}
-                                    />
-
-                                    <Stack gap="sm">
-                                        <Group gap="two">
-                                            <Title order={6} fw={500}>
-                                                AI Agents OAuth requirement
-                                            </Title>
-
-                                            <Tooltip
-                                                maw={250}
-                                                label="When enabled, users must authenticate with OAuth to use AI Agent features."
-                                            >
-                                                <MantineIcon
-                                                    icon={IconHelpCircle}
-                                                />
-                                            </Tooltip>
-                                        </Group>
-
-                                        <Switch
-                                            label="Require OAuth for AI Agent"
+                                    <Stack gap={0}>
+                                        <SlackSettingRow
+                                            title="AI Agents in Slack"
+                                            description="Allow AI Agents to be used from Slack"
+                                            tooltip="Turn this off to stop AI Agents being used from Slack entirely. Agents stay available in Lightdash, and scheduled deliveries, alerts and link previews keep working."
+                                            checked={
+                                                form.values.aiAgentsEnabled ??
+                                                true
+                                            }
+                                            onChange={(checked) =>
+                                                setFieldValue(
+                                                    'aiAgentsEnabled',
+                                                    checked,
+                                                )
+                                            }
+                                        />
+                                        <SlackSettingRow
+                                            title="AI Agents thread access consent"
+                                            description="Allow the AI Agents to access thread messages when a user mentions the bot in a thread."
+                                            tooltip="The longer the thread, the more context the AI Agents will have to work with."
                                             disabled={aiAgentsDisabled}
-                                            checked={form.values.aiRequireOAuth}
-                                            onChange={(event) => {
+                                            checked={
+                                                form.values
+                                                    .aiThreadAccessConsent ??
+                                                false
+                                            }
+                                            onChange={(checked) =>
+                                                setFieldValue(
+                                                    'aiThreadAccessConsent',
+                                                    checked,
+                                                )
+                                            }
+                                        />
+                                        <SlackSettingRow
+                                            title="AI Agents OAuth requirement"
+                                            description="Require OAuth for AI Agent"
+                                            tooltip="When enabled, users must authenticate with OAuth to use AI Agent features."
+                                            disabled={aiAgentsDisabled}
+                                            checked={
+                                                form.values.aiRequireOAuth ??
+                                                false
+                                            }
+                                            onChange={(checked) =>
                                                 setFieldValue(
                                                     'aiRequireOAuth',
-                                                    event.currentTarget.checked,
-                                                );
-                                            }}
+                                                    checked,
+                                                )
+                                            }
                                         />
-                                    </Stack>
-
-                                    <Stack gap="sm">
-                                        <Group gap="two">
-                                            <Title order={6} fw={500}>
-                                                Links only, no data in Slack
-                                            </Title>
-
-                                            <Tooltip
-                                                maw={300}
-                                                label="When enabled, AI Agents never post query results into Slack: no chart images, no CSV files, and the agent is instructed to keep values out of its reply. Users open the results in Lightdash, where their own permissions apply. For a strict guarantee, also turn off data access on the agent."
-                                            >
-                                                <MantineIcon
-                                                    icon={IconHelpCircle}
-                                                />
-                                            </Tooltip>
-                                        </Group>
-
-                                        <Switch
-                                            label="Reply with links only"
+                                        <SlackSettingRow
+                                            title="Links only, no data in Slack"
+                                            description="Reply with links only"
+                                            tooltip="When enabled, AI Agents never post query results into Slack: no chart images, no CSV files, and the agent is instructed to keep values out of its reply. Users open the results in Lightdash, where their own permissions apply. For a strict guarantee, also turn off data access on the agent."
                                             disabled={aiAgentsDisabled}
-                                            checked={form.values.aiLinksOnly}
-                                            onChange={(event) => {
+                                            checked={
+                                                form.values.aiLinksOnly ?? false
+                                            }
+                                            onChange={(checked) =>
                                                 setFieldValue(
                                                     'aiLinksOnly',
-                                                    event.currentTarget.checked,
-                                                );
-                                            }}
-                                        />
-                                    </Stack>
-
-                                    <Stack gap="sm">
-                                        <Group gap="two">
-                                            <Title order={6} fw={500}>
-                                                Automatic channel linking
-                                            </Title>
-                                            <Tooltip
-                                                maw={280}
-                                                label="Turn this off to stop bot mentions from automatically linking AI Agents to unconfigured Slack channels. Channels must then be added from Lightdash."
-                                            >
-                                                <MantineIcon
-                                                    icon={IconHelpCircle}
-                                                />
-                                            </Tooltip>
-                                        </Group>
-                                        <Switch
-                                            label="Enable automatic channel linking"
-                                            checked={
-                                                !form.values
-                                                    .requireExplicitSlackChannelLinking
+                                                    checked,
+                                                )
                                             }
+                                        />
+                                        <SlackSettingRow
+                                            title="Automatic channel linking"
+                                            description="Enable automatic channel linking"
+                                            tooltip="Turn this off to stop bot mentions from automatically linking AI Agents to unconfigured Slack channels. Channels must then be added from Lightdash."
                                             disabled={
                                                 aiAgentsDisabled ||
                                                 isUpdatingAiOrganizationSettings
                                             }
-                                            onChange={(event) => {
+                                            checked={
+                                                !form.values
+                                                    .requireExplicitSlackChannelLinking
+                                            }
+                                            onChange={(checked) =>
                                                 setFieldValue(
                                                     'requireExplicitSlackChannelLinking',
-                                                    !event.currentTarget
-                                                        .checked,
-                                                );
-                                            }}
+                                                    !checked,
+                                                )
+                                            }
                                         />
                                     </Stack>
 
