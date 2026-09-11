@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import dayjsTimezone from 'dayjs/plugin/timezone';
+import isPlainObject from 'lodash/isPlainObject';
 import moment, { type MomentInput } from 'moment-timezone';
 import {
     addLocale,
@@ -532,9 +533,20 @@ export function formatNumberValue(
     }
 }
 
+// Warehouse clients that don't serialise STRUCT/ARRAY cells hand over plain
+// objects and arrays; template-string coercion would print [object Object].
+const isStructuredValue = (value: unknown): boolean =>
+    Array.isArray(value) || isPlainObject(value);
+
+const formatStructuredValue = (value: unknown): string =>
+    isStructuredValue(value) ? JSON.stringify(value) : `${value}`;
+
 export function applyDefaultFormat(value: unknown) {
     if (value === null) return '∅';
     if (value === undefined) return '-';
+    // Before the number check: Number([]) is 0, so an empty array would
+    // otherwise format as a blank number.
+    if (isStructuredValue(value)) return JSON.stringify(value);
     if (!isNumber(value)) {
         return `${value}`;
     }
@@ -1464,7 +1476,7 @@ export function formatItemValue(
                 case TableCalculationType.STRING:
                 case DimensionType.STRING:
                 case MetricType.STRING:
-                    return `${value}`;
+                    return formatStructuredValue(value);
                 case DimensionType.BOOLEAN:
                 case MetricType.BOOLEAN:
                 case TableCalculationType.BOOLEAN:
