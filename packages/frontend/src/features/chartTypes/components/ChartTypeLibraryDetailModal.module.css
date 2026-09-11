@@ -19,15 +19,11 @@
     object-fit: cover;
 }
 
-.screenshotRow {
-    display: flex;
-    gap: var(--mantine-spacing-sm);
-}
-
+/* Screenshots fit the modal width and keep their natural aspect ratio —
+   the modal must never grow with (or side-scroll for) a wide capture. */
 .screenshot {
-    height: 220px;
-    flex-shrink: 0;
+    width: 100%;
+    height: auto;
     border: 1px solid var(--mantine-color-ldGray-1);
     border-radius: var(--mantine-radius-md);
-    object-fit: cover;
 }
