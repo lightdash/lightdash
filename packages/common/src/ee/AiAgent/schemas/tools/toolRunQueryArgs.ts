@@ -297,6 +297,8 @@ The tool handles execution and chart artifacts. It returns a result summary and 
 
 ${RUN_QUERY_PARAMETER_GUIDANCE}
 
+If the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.
+
 Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
 
 This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
