@@ -1,4 +1,8 @@
-import { sanitizeHtml, type Comment } from '@lightdash/common';
+import {
+    HTML_SANITIZE_DEFAULT_RULES,
+    sanitizeHtml,
+    type Comment,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -23,6 +27,15 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
 import styles from './CommentDetail.module.css';
 import { CommentTimestamp } from './CommentTimestamp';
+
+// Mentions are stored as styled spans; render them as the mention pill instead.
+const COMMENT_RENDER_RULES = {
+    ...HTML_SANITIZE_DEFAULT_RULES,
+    allowedAttributes: { span: ['class'] },
+    transformTags: {
+        span: () => ({ tagName: 'span', attribs: { class: 'ld-mention' } }),
+    },
+};
 
 type Props = {
     comment: Comment;
@@ -54,7 +67,7 @@ export const CommentDetail: FC<Props> = ({
      * precaution we also sanitize it before rendering.
      */
     const sanitizedCommentTextHtml = useMemo(
-        () => sanitizeHtml(comment.textHtml),
+        () => sanitizeHtml(comment.textHtml, COMMENT_RENDER_RULES),
         [comment.textHtml],
     );
 

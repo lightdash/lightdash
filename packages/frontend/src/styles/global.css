@@ -126,3 +126,13 @@ strong {
 .ld-pre-wrap {
     white-space: pre-wrap;
 }
+
+/* An @mention inside a comment, in the editor and once rendered. */
+.ld-mention {
+    padding: 0.1em 0.35em;
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-text);
+    font-weight: 500;
+    box-decoration-break: clone;
+}
