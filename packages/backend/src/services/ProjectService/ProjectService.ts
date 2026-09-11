@@ -338,6 +338,12 @@ import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtGitCacheContext } from '../../projectAdapters/dbtGitProjectAdapter';
+import {
+    configureDbtGitProjectCache,
+    invalidateDbtGitProjectCacheProject,
+    resolveLiveDbtGitCacheIdentities,
+} from '../../projectAdapters/dbtGitProjectCache';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -776,6 +782,42 @@ export class ProjectService extends BaseService {
         this.onProjectCreated = onProjectCreated;
         this.provisionPlaygroundProject = provisionPlaygroundProject;
         this.provisionTrainingProject = provisionTrainingProject;
+        configureDbtGitProjectCache({
+            root: lightdashConfig.dbt.gitCacheRoot,
+            maxBytes: lightdashConfig.dbt.gitCacheMaxBytes,
+            maxAgeMs: lightdashConfig.dbt.gitCacheMaxAgeMs,
+            livenessCheck: async (identities) => {
+                const primaryProjectUuids = [
+                    ...new Set(
+                        identities
+                            .filter(
+                                ({ sourceType }) => sourceType === 'primary',
+                            )
+                            .map(({ projectUuid }) => projectUuid),
+                    ),
+                ];
+                const additionalSourceUuids = [
+                    ...new Set(
+                        identities
+                            .filter(
+                                ({ sourceType }) => sourceType === 'additional',
+                            )
+                            .map(({ sourceUuid }) => sourceUuid),
+                    ),
+                ];
+                const [projects, sources] = await Promise.all([
+                    projectModel.getDbtSourceIdentityRows(primaryProjectUuids),
+                    projectDbtSourcesModel.getSourceIdentityRows(
+                        additionalSourceUuids,
+                    ),
+                ]);
+                return resolveLiveDbtGitCacheIdentities({
+                    identities,
+                    primaryRows: projects,
+                    additionalRows: sources,
+                });
+            },
+        });
     }
 
     /**
@@ -3489,6 +3531,8 @@ export class ProjectService extends BaseService {
                         user,
                         'project_create',
                         method,
+                        undefined,
+                        { projectType: createProject.type, jobUuid },
                     ),
             );
 
@@ -4232,6 +4276,8 @@ export class ProjectService extends BaseService {
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
+            const { dbtSourceUuid: primaryDbtSourceUuid } =
+                await this.projectModel.getDbtSourceIdentity(projectUuid);
             timings.testAdapter.start = performance.now();
             const {
                 adapter: primaryAdapter,
@@ -4248,6 +4294,12 @@ export class ProjectService extends BaseService {
                         user,
                         'project_update',
                         method,
+                        {
+                            projectUuid,
+                            sourceUuid: primaryDbtSourceUuid,
+                            sourceType: 'primary',
+                        },
+                        { projectType: updatedProject.type, jobUuid },
                     ),
             );
             timings.testAdapter.end = performance.now();
@@ -4269,6 +4321,8 @@ export class ProjectService extends BaseService {
                                     projectUuid,
                                     organizationUuid: user.organizationUuid,
                                     userUuid: user.userUuid,
+                                    jobUuid,
+                                    projectType: updatedProject.type,
                                     primary: {
                                         adapter: primaryAdapter,
                                         warehouseCredentials,
@@ -4488,6 +4542,12 @@ export class ProjectService extends BaseService {
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         context: 'project_create' | 'project_update',
         method: RequestMethod,
+        cacheIdentity?: {
+            projectUuid: string;
+            sourceUuid: string;
+            sourceType: 'primary';
+        },
+        cacheContext?: DbtGitCacheContext,
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -4521,6 +4581,9 @@ export class ProjectService extends BaseService {
                 dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
                 this.analytics,
+                undefined,
+                cacheIdentity,
+                cacheContext,
             );
             await adapter.test();
             this.analytics.track({
@@ -4874,6 +4937,9 @@ export class ProjectService extends BaseService {
         } else {
             await this.projectModel.delete(projectUuid);
         }
+        await invalidateDbtGitProjectCacheProject(projectUuid).catch(
+            () => undefined,
+        );
 
         this.analytics.track({
             event: 'project.deleted',
@@ -4891,7 +4957,10 @@ export class ProjectService extends BaseService {
 
         const results = await Promise.allSettled(
             expiredProjects.map(({ projectUuid }) =>
-                this.projectModel.delete(projectUuid).then(() => {
+                this.projectModel.delete(projectUuid).then(async () => {
+                    await invalidateDbtGitProjectCacheProject(
+                        projectUuid,
+                    ).catch(() => undefined);
                     this.logger.info(
                         `Deleted expired preview project: ${projectUuid}`,
                     );
@@ -4914,6 +4983,7 @@ export class ProjectService extends BaseService {
     private async buildAdapter(
         projectUuid: string,
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        jobUuid?: string,
     ): Promise<{
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         adapter: ProjectAdapter;
@@ -5095,6 +5165,8 @@ export class ProjectService extends BaseService {
         };
         const dbtVersionOption =
             project.dbtVersion || DefaultSupportedDbtVersion;
+        const { dbtSourceUuid } =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
         const adapter = await projectAdapterFromConfig(
             dbtConnection,
             sshTunnel.overrideCredentials,
@@ -5102,6 +5174,13 @@ export class ProjectService extends BaseService {
             dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
+            undefined,
+            {
+                projectUuid,
+                sourceUuid: dbtSourceUuid,
+                sourceType: 'primary',
+            },
+            { projectType: project.type, jobUuid },
         );
         return {
             adapter,
@@ -5129,6 +5208,12 @@ export class ProjectService extends BaseService {
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
         },
+        cacheIdentity: {
+            projectUuid: string;
+            sourceUuid: string;
+            sourceType: 'additional';
+        },
+        cacheContext?: DbtGitCacheContext,
     ): Promise<ProjectAdapter> {
         const resolvedConnection =
             await this.resolveDbtConnectionInstallationId(
@@ -5145,6 +5230,9 @@ export class ProjectService extends BaseService {
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
+            undefined,
+            cacheIdentity,
+            cacheContext,
         );
     }
 
@@ -5285,10 +5373,12 @@ export class ProjectService extends BaseService {
         sources,
         manifestFetchAdapters,
         jobUuid,
+        projectType,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
         jobUuid?: string;
+        projectType?: ProjectType;
         primary: {
             adapter: ProjectAdapter;
             warehouseCredentials: CreateWarehouseCredentials;
@@ -5307,6 +5397,7 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
+        const primaryStartedAt = Date.now();
         const [
             {
                 manifest: rawPrimaryManifest,
@@ -5317,6 +5408,30 @@ export class ProjectService extends BaseService {
             primary.adapter.getDbtManifest(),
             this.projectModel.getDbtSourceIdentity(projectUuid),
         ]);
+        const primaryDurationMs = Date.now() - primaryStartedAt;
+        const primaryModelCount = Object.values(
+            rawPrimaryManifest.nodes,
+        ).filter((node) => node.resource_type === 'model').length;
+        const primaryFetchMetrics = primary.adapter.getFetchMetrics?.();
+        const primaryFetchMetricsMessage = primaryFetchMetrics
+            ? ` cloneMode=${primaryFetchMetrics.cloneMode} depsMode=${primaryFetchMetrics.depsMode} cloneDurationMs=${primaryFetchMetrics.cloneDurationMs} depsDurationMs=${primaryFetchMetrics.depsDurationMs}`
+            : '';
+        this.logger.info(
+            `dbt.compile.sourceFetched projectUuid=${projectUuid} sourceName=${identity.dbtSourceName} durationMs=${primaryDurationMs} models=${primaryModelCount}${primaryFetchMetricsMessage}`,
+            {
+                event: 'dbt.compile.sourceFetched',
+                projectUuid,
+                jobUuid: jobUuid ?? null,
+                sourceName: identity.dbtSourceName,
+                durationMs: primaryDurationMs,
+                modelCount: primaryModelCount,
+                selectedModelCount: primarySelectedModelIds?.length ?? null,
+                cloneMode: primaryFetchMetrics?.cloneMode ?? null,
+                depsMode: primaryFetchMetrics?.depsMode ?? null,
+                cloneDurationMs: primaryFetchMetrics?.cloneDurationMs ?? null,
+                depsDurationMs: primaryFetchMetrics?.depsDurationMs ?? null,
+            },
+        );
         const selectedPrimaryManifest = manifestWithCompilationSelection(
             rawPrimaryManifest,
             primarySelectedModelIds,
@@ -5416,6 +5531,12 @@ export class ProjectService extends BaseService {
                         source.warehouseLocation,
                         organizationUuid,
                         shared,
+                        {
+                            projectUuid,
+                            sourceUuid: source.projectDbtSourceUuid,
+                            sourceType: 'additional',
+                        },
+                        { projectType, jobUuid },
                     );
                 } catch (e) {
                     throw new ParameterError(
@@ -5458,8 +5579,12 @@ export class ProjectService extends BaseService {
                     const sourceModelCount = Object.values(
                         manifest.nodes,
                     ).filter((node) => node.resource_type === 'model').length;
+                    const fetchMetrics = sourceAdapter.getFetchMetrics?.();
+                    const fetchMetricsMessage = fetchMetrics
+                        ? ` cloneMode=${fetchMetrics.cloneMode} depsMode=${fetchMetrics.depsMode} cloneDurationMs=${fetchMetrics.cloneDurationMs} depsDurationMs=${fetchMetrics.depsDurationMs}`
+                        : '';
                     this.logger.info(
-                        `dbt.compile.sourceFetched projectUuid=${projectUuid} sourceName=${source.name} durationMs=${sourceDurationMs} models=${sourceModelCount}`,
+                        `dbt.compile.sourceFetched projectUuid=${projectUuid} sourceName=${source.name} durationMs=${sourceDurationMs} models=${sourceModelCount}${fetchMetricsMessage}`,
                         {
                             event: 'dbt.compile.sourceFetched',
                             projectUuid,
@@ -5469,6 +5594,12 @@ export class ProjectService extends BaseService {
                             modelCount: sourceModelCount,
                             selectedModelCount:
                                 sourceSelectedModelIds?.length ?? null,
+                            cloneMode: fetchMetrics?.cloneMode ?? null,
+                            depsMode: fetchMetrics?.depsMode ?? null,
+                            cloneDurationMs:
+                                fetchMetrics?.cloneDurationMs ?? null,
+                            depsDurationMs:
+                                fetchMetrics?.depsDurationMs ?? null,
                         },
                     );
                     return {
@@ -5663,11 +5794,13 @@ export class ProjectService extends BaseService {
         manifestFetchAdapters,
         onDbtSourceCount,
         jobUuid,
+        projectType,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
         userUuid: string;
         jobUuid?: string;
+        projectType?: ProjectType;
         primary: {
             adapter: ProjectAdapter;
             warehouseCredentials: CreateWarehouseCredentials;
@@ -5702,6 +5835,7 @@ export class ProjectService extends BaseService {
             sources,
             manifestFetchAdapters,
             jobUuid,
+            projectType,
         });
     }
 
@@ -8931,7 +9065,7 @@ export class ProjectService extends BaseService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const buildResult = await this.buildAdapter(projectUuid, user);
+        const buildResult = await this.buildAdapter(projectUuid, user, jobUuid);
         const { sshTunnel } = buildResult;
         let { adapter } = buildResult;
         // Adapters built only to read a source's manifest (git clones); destroyed in finally.
@@ -8949,6 +9083,8 @@ export class ProjectService extends BaseService {
                     organizationUuid: project.organizationUuid,
                     userUuid: user.userUuid,
                     primary: buildResult,
+                    jobUuid,
+                    projectType: project.type,
                     manifestFetchAdapters,
                     onDbtSourceCount: (count) => {
                         dbtSourceCount = count;
@@ -11378,6 +11514,9 @@ export class ProjectService extends BaseService {
 
         try {
             await this.projectModel.delete(previewProject.project.projectUuid);
+            await invalidateDbtGitProjectCacheProject(
+                previewProject.project.projectUuid,
+            ).catch(() => undefined);
         } catch (e) {
             Sentry.captureException(e);
             this.logger.error(
@@ -11700,6 +11839,9 @@ export class ProjectService extends BaseService {
             );
         }
         await this.projectModel.delete(copyProjectUuid);
+        await invalidateDbtGitProjectCacheProject(copyProjectUuid).catch(
+            () => undefined,
+        );
     }
 
     /*

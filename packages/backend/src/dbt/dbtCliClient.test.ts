@@ -1,10 +1,11 @@
 import { DbtError, SupportedDbtVersions } from '@lightdash/common';
-import execa from 'execa';
+import { ChildProcess } from 'child_process';
+import execa, { type ExecaReturnValue } from 'execa';
 import * as fs from 'fs/promises';
 import { DbtCliClient } from './dbtCliClient';
 import {
     cliArgs as cliArgsWithoutVersion,
-    cliMockImplementation,
+    cliMocks,
     expectedCommandOptions,
     expectedDbtOptions,
     expectedPackages,
@@ -12,7 +13,73 @@ import {
     packagesYml,
 } from './dbtCliClient.mock';
 
-const execaMock = execa as unknown as import('vitest').Mock;
+type ExecaString = (
+    file: string,
+    args?: readonly string[],
+    options?: execa.Options,
+) => execa.ExecaChildProcess;
+
+const execaMock = vi.mocked(execa as ExecaString);
+
+function mockProcessKill(signal?: NodeJS.Signals | number): boolean;
+function mockProcessKill(signal?: string, options?: execa.KillOptions): void;
+function mockProcessKill(): boolean {
+    return true;
+}
+
+const successfulExecaResult = (): ExecaReturnValue => ({
+    command: 'dbt',
+    escapedCommand: 'dbt',
+    exitCode: 0,
+    stdout: '',
+    stderr: '',
+    failed: false,
+    timedOut: false,
+    killed: false,
+    isCanceled: false,
+    ...cliMocks.success,
+});
+
+const createExecaProcess = (
+    result: Promise<ExecaReturnValue>,
+    cancel: () => void = vi.fn(),
+    pid?: number,
+): execa.ExecaChildProcess => {
+    const child = Object.assign(new ChildProcess(), {
+        then: result.then.bind(result),
+        catch: result.catch.bind(result),
+        finally: result.finally.bind(result),
+        [Symbol.toStringTag]: 'Promise',
+        cancel,
+        kill: mockProcessKill,
+        pid,
+    });
+    return child;
+};
+
+const createSuccessfulExecaProcess = () =>
+    createExecaProcess(Promise.resolve(successfulExecaResult()));
+
+const createFailedExecaProcess = () =>
+    createExecaProcess(Promise.reject(cliMocks.error));
+
+const createPendingExecaProcess = (pid?: number, cancelRejects = true) => {
+    let resolve: (value: ExecaReturnValue) => void = () => undefined;
+    let reject: (reason: unknown) => void = () => undefined;
+    const result = new Promise<ExecaReturnValue>(
+        (resolveResult, rejectResult) => {
+            resolve = resolveResult;
+            reject = rejectResult;
+        },
+    );
+    const cancel = vi.fn(() => {
+        if (cancelRejects) {
+            reject(Object.assign(new Error('cancelled'), { isCanceled: true }));
+        }
+    });
+    const process = createExecaProcess(result, cancel, pid);
+    return { process, cancel, resolve };
+};
 
 vi.mock('fs/promises', () => ({
     readFile: vi.fn(),
@@ -35,7 +102,7 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             );
         });
         it('should install dependencies with success', async () => {
-            execaMock.mockImplementationOnce(cliMockImplementation.success);
+            execaMock.mockReturnValueOnce(createSuccessfulExecaProcess());
 
             const client = new DbtCliClient(cliArgs);
             const dbtExec = client.getDbtExec();
@@ -49,14 +116,14 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             );
         });
         it('should error on install dependencies', async () => {
-            execaMock.mockImplementationOnce(cliMockImplementation.error);
+            execaMock.mockReturnValueOnce(createFailedExecaProcess());
 
             const client = new DbtCliClient(cliArgs);
 
             await expect(client.installDeps()).rejects.toThrowError(DbtError);
         });
         it('should get manifest with success', async () => {
-            execaMock.mockImplementationOnce(cliMockImplementation.success);
+            execaMock.mockReturnValueOnce(createSuccessfulExecaProcess());
             vi.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
                 JSON.stringify(manifestMock),
             );
@@ -118,7 +185,7 @@ describe('DbtCliClient environment', () => {
         vi.mocked(fs.mkdtemp).mockResolvedValue(
             '/tmp/dbt_target_test' as never,
         );
-        execaMock.mockImplementation(cliMockImplementation.success);
+        execaMock.mockImplementation(createSuccessfulExecaProcess);
     });
 
     afterEach(() => {
@@ -127,7 +194,7 @@ describe('DbtCliClient environment', () => {
 
     it('does not extend the backend environment', async () => {
         await new DbtCliClient(cliArgs).installDeps();
-        const [, , options] = execaMock.mock.calls[0];
+        const options = execaMock.mock.calls[0]?.[2];
 
         expect(options).toMatchObject({ extendEnv: false });
     });
@@ -137,8 +204,8 @@ describe('DbtCliClient environment', () => {
         vi.stubEnv('PATH', '/usr/local/bin');
 
         await new DbtCliClient(cliArgs).installDeps();
-        const [, , options] = execaMock.mock.calls[0];
-        const { env } = options as { env: Record<string, string> };
+        const options = execaMock.mock.calls[0]?.[2];
+        const env = options?.env ?? {};
 
         expect(env).not.toHaveProperty('LIGHTDASH_SECRET');
         expect(Object.values(env)).not.toContain('not-for-dbt');
@@ -152,9 +219,9 @@ describe('DbtCliClient environment', () => {
             ...cliArgs,
             environmentVariableAllowlist: ['UTILS_PII_SALT'],
         }).installDeps();
-        const [, , options] = execaMock.mock.calls[0];
+        const options = execaMock.mock.calls[0]?.[2];
 
-        expect((options as { env: Record<string, string> }).env).toMatchObject({
+        expect(options?.env).toMatchObject({
             UTILS_PII_SALT: 'machine-owned-salt',
         });
     });
@@ -164,8 +231,8 @@ describe('DbtCliClient environment', () => {
             ...cliArgs,
             gitConfigGlobalPath: '/tmp/lightdash-gitconfig',
         }).installDeps();
-        const [, , options] = execaMock.mock.calls[0];
-        const { env } = options as { env: Record<string, string> };
+        const options = execaMock.mock.calls[0]?.[2];
+        const env = options?.env ?? {};
 
         expect(env.GIT_CONFIG_GLOBAL).toEqual('/tmp/lightdash-gitconfig');
         expect(env.GIT_TERMINAL_PROMPT).toEqual('0');
@@ -173,7 +240,7 @@ describe('DbtCliClient environment', () => {
     });
 
     it('adds the GitHub App installation hint to dbt deps errors', async () => {
-        execaMock.mockImplementationOnce(cliMockImplementation.error);
+        execaMock.mockReturnValueOnce(createFailedExecaProcess());
 
         await expect(
             new DbtCliClient({
@@ -191,10 +258,111 @@ describe('DbtCliClient environment', () => {
             ...cliArgs,
             environment: { DBT_TARGET_PATH: '/tmp/attacker' },
         }).installDeps();
-        const [, , options] = execaMock.mock.calls[0];
+        const options = execaMock.mock.calls[0]?.[2];
 
-        expect((options as { env: Record<string, string> }).env).toMatchObject({
+        expect(options?.env).toMatchObject({
             DBT_TARGET_PATH: '/tmp/dbt_target_test',
         });
     });
+});
+
+describe('DbtCliClient cancellation', () => {
+    const cliArgs = {
+        ...cliArgsWithoutVersion,
+        dbtVersion: SupportedDbtVersions.V1_10,
+    };
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.mocked(fs.mkdtemp).mockResolvedValue(
+            '/tmp/dbt_target_test' as never,
+        );
+    });
+
+    it('cancels an active dbt process when its signal aborts', async () => {
+        const pending = createPendingExecaProcess(12345);
+        const kill = vi.spyOn(process, 'kill').mockReturnValue(true);
+        execaMock.mockReturnValueOnce(pending.process);
+        const controller = new AbortController();
+        const client = new DbtCliClient(cliArgs);
+        client.setAbortSignal(controller.signal);
+        try {
+            const command = client.installDeps();
+            const result = command.then(
+                () => undefined,
+                (error: unknown) => error,
+            );
+            await vi.waitFor(() => expect(execaMock).toHaveBeenCalledTimes(1));
+            controller.abort();
+
+            expect(await result).toMatchObject({ isCanceled: true });
+            expect(pending.cancel).toHaveBeenCalledTimes(1);
+            expect(kill).toHaveBeenCalledWith(-12345, 'SIGKILL');
+        } finally {
+            kill.mockRestore();
+        }
+    });
+
+    it('removes the abort listener after a dbt process completes', async () => {
+        const pending = createPendingExecaProcess();
+        execaMock.mockReturnValueOnce(pending.process);
+        const controller = new AbortController();
+        const client = new DbtCliClient(cliArgs);
+        client.setAbortSignal(controller.signal);
+
+        const command = client.installDeps();
+        await vi.waitFor(() => expect(execaMock).toHaveBeenCalledTimes(1));
+        pending.resolve({
+            all: '',
+            stdout: '',
+        } as ExecaReturnValue);
+        await command;
+        controller.abort();
+
+        expect(pending.cancel).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            state: 'exited',
+            exitCode: 0,
+            signalCode: null,
+        },
+        {
+            state: 'signalled',
+            exitCode: null,
+            signalCode: 'SIGTERM' as NodeJS.Signals,
+        },
+    ])(
+        'does not kill the process group after a $state child is awaiting settlement',
+        async ({ exitCode, signalCode }) => {
+            const pending = createPendingExecaProcess(12345, false);
+            const processWithLifecycle = Object.defineProperties(
+                pending.process,
+                {
+                    exitCode: { configurable: true, value: exitCode },
+                    signalCode: { configurable: true, value: signalCode },
+                },
+            );
+            const kill = vi.spyOn(process, 'kill').mockReturnValue(true);
+            execaMock.mockReturnValueOnce(processWithLifecycle);
+            const controller = new AbortController();
+            const client = new DbtCliClient(cliArgs);
+            client.setAbortSignal(controller.signal);
+            try {
+                const command = client.installDeps();
+                await vi.waitFor(() =>
+                    expect(execaMock).toHaveBeenCalledTimes(1),
+                );
+                controller.abort();
+
+                expect(pending.cancel).toHaveBeenCalledTimes(1);
+                expect(kill).not.toHaveBeenCalled();
+                pending.resolve(successfulExecaResult());
+                await command;
+            } finally {
+                kill.mockRestore();
+            }
+        },
+    );
 });

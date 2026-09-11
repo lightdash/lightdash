@@ -1,0 +1,2091 @@
+import * as fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import Logger from '../logging/logger';
+import {
+    acquireDbtGitProjectCache,
+    configureDbtGitProjectCache,
+    dbtGitCacheIdentityKey,
+    invalidateDbtGitProjectCacheSource,
+    invalidateOwnedDbtGitCacheLease,
+    maintainDbtGitProjectCache,
+    releaseDbtGitProjectCache,
+    resolveLiveDbtGitCacheIdentities,
+    type DbtGitCacheIdentity,
+    type DbtGitCacheLease,
+} from './dbtGitProjectCache';
+
+vi.mock('fs/promises', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('fs/promises')>();
+    return {
+        ...actual,
+        access: vi.fn(actual.access),
+        readFile: vi.fn(actual.readFile),
+        rename: vi.fn(actual.rename),
+        rm: vi.fn(actual.rm),
+    };
+});
+
+vi.mock('../logging/logger', () => ({
+    default: {
+        warn: vi.fn(),
+    },
+}));
+
+const roots: string[] = [];
+
+const identity = (index: number): DbtGitCacheIdentity => ({
+    projectUuid: 'project',
+    sourceUuid: `source-${index}`,
+    sourceType: 'additional',
+});
+
+const configure = async (
+    overrides: Partial<{ maxBytes: number; maxAgeMs: number }> = {},
+) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'dbt-cache-test-'));
+    roots.push(root);
+    configureDbtGitProjectCache({
+        root,
+        maxBytes: overrides.maxBytes ?? 1024 * 1024,
+        maxAgeMs: overrides.maxAgeMs ?? 60_000,
+        livenessCheck: async (identities) =>
+            new Set(identities.map(dbtGitCacheIdentityKey)),
+    });
+    return root;
+};
+
+const entryDirectories = async (root: string) =>
+    (await fs.readdir(root)).filter((name) => /^[a-f0-9]{64}$/.test(name));
+
+const tombstoneDirectories = async (root: string) =>
+    (await fs.readdir(root)).filter((name) => name.startsWith('.tombstone-'));
+
+const staleOwner = (overrides: Record<string, unknown> = {}) => ({
+    leaseId: '00000000-0000-4000-8000-000000000001',
+    hostname: os.hostname(),
+    pid: 2147483647,
+    processStartTime: '1',
+    heartbeatAt: Date.now() - 10 * 60_000,
+    ...overrides,
+});
+
+const retainEntries = async (count: number) =>
+    Array.from({ length: count }).reduce<Promise<DbtGitCacheLease[]>>(
+        async (pendingLeases, _, index) => {
+            const leases = await pendingLeases;
+            const lease = await acquireDbtGitProjectCache(
+                identity(index),
+                `repository-${index}`,
+            );
+            await fs.mkdir(lease!.checkoutDirectory);
+            await releaseDbtGitProjectCache(lease!, 1);
+            return [...leases, lease!];
+        },
+        Promise.resolve([]),
+    );
+
+afterEach(async () => {
+    vi.clearAllMocks();
+    await Promise.all(
+        roots
+            .splice(0)
+            .map((root) => fs.rm(root, { recursive: true, force: true })),
+    );
+});
+
+describe('dbt git project cache', () => {
+    it('uses exact primary and additional source membership semantics', () => {
+        const identities: DbtGitCacheIdentity[] = [
+            {
+                projectUuid: 'explicit-primary-project',
+                sourceUuid: 'explicit-primary-source',
+                sourceType: 'primary',
+            },
+            {
+                projectUuid: 'fallback-primary-project',
+                sourceUuid: 'fallback-primary-project',
+                sourceType: 'primary',
+            },
+            {
+                projectUuid: 'wrong-fallback-project',
+                sourceUuid: 'wrong-fallback-source',
+                sourceType: 'primary',
+            },
+            {
+                projectUuid: 'additional-project',
+                sourceUuid: 'additional-source',
+                sourceType: 'additional',
+            },
+            {
+                projectUuid: 'wrong-additional-project',
+                sourceUuid: 'additional-source',
+                sourceType: 'additional',
+            },
+        ];
+        const live = resolveLiveDbtGitCacheIdentities({
+            identities,
+            primaryRows: [
+                {
+                    projectUuid: 'explicit-primary-project',
+                    dbtSourceUuid: 'explicit-primary-source',
+                },
+                {
+                    projectUuid: 'fallback-primary-project',
+                    dbtSourceUuid: null,
+                },
+                {
+                    projectUuid: 'wrong-fallback-project',
+                    dbtSourceUuid: null,
+                },
+            ],
+            additionalRows: [
+                {
+                    projectUuid: 'additional-project',
+                    projectDbtSourceUuid: 'additional-source',
+                },
+            ],
+        });
+        expect(live).toEqual(
+            new Set(
+                identities
+                    .slice(0, 2)
+                    .concat(identities[3])
+                    .map(dbtGitCacheIdentityKey),
+            ),
+        );
+    });
+
+    it('retains simultaneous fitting checkouts for different sources', async () => {
+        await configure();
+        const leases = await Promise.all(
+            Array.from({ length: 14 }, async (_, index) => {
+                const lease = await acquireDbtGitProjectCache(
+                    identity(index),
+                    `repository-${index}`,
+                );
+                expect(lease).toBeDefined();
+                await fs.mkdir(lease!.checkoutDirectory);
+                await fs.writeFile(
+                    path.join(lease!.checkoutDirectory, 'dbt_project.yml'),
+                    'name: test\n',
+                );
+                return lease!;
+            }),
+        );
+        await Promise.all(
+            leases.map((lease) => releaseDbtGitProjectCache(lease, 100)),
+        );
+        const reused = await Promise.all(
+            Array.from({ length: 14 }, (_, index) =>
+                acquireDbtGitProjectCache(
+                    identity(index),
+                    `repository-${index}`,
+                ),
+            ),
+        );
+        expect(reused.every((lease) => lease?.reused)).toBe(true);
+        await Promise.all(
+            reused.map((lease) => releaseDbtGitProjectCache(lease!, 100)),
+        );
+    });
+
+    it('deletes an invalidated active entry on release', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(lease).toBeDefined();
+        await fs.mkdir(lease!.checkoutDirectory);
+        await invalidateDbtGitProjectCacheSource('project', 'source-1');
+        await releaseDbtGitProjectCache(lease!, 100);
+        expect(await entryDirectories(root)).toHaveLength(0);
+        expect(lease).toMatchObject({
+            retained: false,
+            retentionReason: 'invalidated',
+        });
+    });
+
+    it('reports successful and declined retention outcomes on leases', async () => {
+        await configure({ maxBytes: 100 });
+        const retained = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(retained!.checkoutDirectory);
+        await releaseDbtGitProjectCache(retained!, 100);
+        expect(retained).toMatchObject({ retained: true });
+        expect(retained?.retentionReason).toBeUndefined();
+
+        const declined = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(declined!.checkoutDirectory);
+        await releaseDbtGitProjectCache(declined!, 101);
+        expect(declined).toMatchObject({
+            retained: false,
+            retentionReason: 'entry-too-large',
+        });
+    });
+
+    it('declines retention after lease ownership changes', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const currentOwner = JSON.parse(
+            await fs.readFile(
+                path.join(lease!.entryDirectory, 'lease', 'owner.json'),
+                'utf8',
+            ),
+        );
+        const replacementOwner = staleOwner({
+            leaseId: '00000000-0000-4000-8000-000000000002',
+            pid: process.pid,
+            processStartTime: currentOwner.processStartTime,
+            heartbeatAt: Date.now(),
+        });
+        await fs.writeFile(
+            path.join(lease!.entryDirectory, 'lease', 'owner.json'),
+            JSON.stringify(replacementOwner),
+        );
+
+        await releaseDbtGitProjectCache(lease!, 100);
+
+        expect(lease).toMatchObject({
+            retained: false,
+            retentionReason: 'lease-lost',
+        });
+        expect(
+            JSON.parse(
+                await fs.readFile(
+                    path.join(lease!.entryDirectory, 'metadata.json'),
+                    'utf8',
+                ),
+            ),
+        ).toMatchObject({ state: 'active' });
+        expect(
+            JSON.parse(
+                await fs.readFile(
+                    path.join(lease!.entryDirectory, 'lease', 'owner.json'),
+                    'utf8',
+                ),
+            ),
+        ).toEqual(replacementOwner);
+    });
+
+    it('reports a busy cache miss', async () => {
+        await configure();
+        const active = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        const onMiss = vi.fn();
+
+        const contender = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+            onMiss,
+        );
+
+        expect(contender).toBeUndefined();
+        expect(onMiss).toHaveBeenCalledExactlyOnceWith('busy');
+        await invalidateOwnedDbtGitCacheLease(active!);
+    });
+
+    it('reports a corrupt cache miss', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const { entryDirectory } = seed!;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        await fs.mkdir(entryDirectory, { mode: 0o700 });
+        const onMiss = vi.fn();
+
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+            onMiss,
+        );
+
+        expect(lease).toBeUndefined();
+        expect(onMiss).toHaveBeenCalledWith('corrupt');
+        expect(await entryDirectories(root)).toHaveLength(1);
+    });
+
+    it('does not let an old release delete a reacquired generation', async () => {
+        const root = await configure();
+        const oldLease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(oldLease).toBeDefined();
+        await invalidateOwnedDbtGitCacheLease(oldLease!);
+        const newLease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(newLease).toBeDefined();
+        await fs.mkdir(newLease!.checkoutDirectory);
+        await releaseDbtGitProjectCache(oldLease!, 100);
+        expect(await entryDirectories(root)).toHaveLength(1);
+        await releaseDbtGitProjectCache(newLease!, 100);
+        const reused = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(reused?.reused).toBe(true);
+        await releaseDbtGitProjectCache(reused!, 100);
+    });
+
+    it('does not let paused tombstone cleanup delete a new generation', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rm = vi.mocked(fs.rm);
+        let startCleanup: () => void = () => undefined;
+        let finishCleanup: () => void = () => undefined;
+        const cleanupStarted = new Promise<void>((resolve) => {
+            startCleanup = resolve;
+        });
+        const cleanupFinished = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        let paused = false;
+        rm.mockImplementation(async (target, options) => {
+            if (
+                !paused &&
+                typeof target === 'string' &&
+                path.basename(target).startsWith('.tombstone-')
+            ) {
+                paused = true;
+                startCleanup();
+                await cleanupFinished;
+            }
+            return actualFs.rm(target, options);
+        });
+        try {
+            await invalidateOwnedDbtGitCacheLease(lease!);
+            await cleanupStarted;
+            const replacement = await acquireDbtGitProjectCache(
+                identity(1),
+                'repository',
+            );
+            expect(replacement?.reused).toBe(false);
+            await fs.mkdir(replacement!.checkoutDirectory);
+            await fs.writeFile(
+                path.join(replacement!.checkoutDirectory, 'current'),
+                'current',
+            );
+            finishCleanup();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            await expect(
+                fs.readFile(
+                    path.join(replacement!.checkoutDirectory, 'current'),
+                    'utf8',
+                ),
+            ).resolves.toBe('current');
+            await releaseDbtGitProjectCache(replacement!, 100);
+        } finally {
+            finishCleanup();
+            rm.mockImplementation(actualFs.rm);
+        }
+    });
+
+    it('drains an in-flight heartbeat before lease release and reacquire', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        let startHeartbeat: () => void = () => undefined;
+        let finishHeartbeat: () => void = () => undefined;
+        const heartbeatStarted = new Promise<void>((resolve) => {
+            startHeartbeat = resolve;
+        });
+        const heartbeatFinished = new Promise<void>((resolve) => {
+            finishHeartbeat = resolve;
+        });
+        let pauseHeartbeat = true;
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (
+                pauseHeartbeat &&
+                typeof newPath === 'string' &&
+                path.basename(newPath).startsWith('.heartbeat-') &&
+                typeof oldPath === 'string' &&
+                path.basename(oldPath).startsWith('.heartbeat-')
+            ) {
+                pauseHeartbeat = false;
+                startHeartbeat();
+                await heartbeatFinished;
+            }
+            return actualFs.rename(oldPath, newPath);
+        });
+        try {
+            lease!.heartbeat?.schedule();
+            await heartbeatStarted;
+            let released = false;
+            const release = releaseDbtGitProjectCache(lease!, 100).then(() => {
+                released = true;
+            });
+            await Promise.resolve();
+            expect(released).toBe(false);
+            finishHeartbeat();
+            await release;
+            expect(lease?.invalidated).toBe(false);
+            expect(lease?.signal.aborted).toBe(false);
+            const replacement = await acquireDbtGitProjectCache(
+                identity(1),
+                'repository',
+            );
+            expect(replacement?.reused).toBe(true);
+            const ownerPath = path.join(
+                replacement!.entryDirectory,
+                'lease',
+                'owner.json',
+            );
+            const ownerBefore = await fs.readFile(ownerPath, 'utf8');
+            await Promise.resolve();
+            expect(await fs.readFile(ownerPath, 'utf8')).toBe(ownerBefore);
+            await releaseDbtGitProjectCache(replacement!, 100);
+        } finally {
+            finishHeartbeat();
+            rename.mockImplementation(actualFs.rename);
+        }
+    });
+
+    it('aborts an invalidated lease after heartbeat ownership loss', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(lease?.signal.aborted).toBe(false);
+        await fs.mkdir(lease!.checkoutDirectory);
+        const ownerPath = path.join(
+            lease!.entryDirectory,
+            'lease',
+            'owner.json',
+        );
+        const currentOwner = JSON.parse(await fs.readFile(ownerPath, 'utf8'));
+        const replacementOwner = staleOwner({
+            leaseId: '00000000-0000-4000-8000-000000000002',
+            pid: process.pid,
+            processStartTime: currentOwner.processStartTime,
+            heartbeatAt: Date.now(),
+        });
+        await fs.writeFile(ownerPath, JSON.stringify(replacementOwner));
+
+        lease!.heartbeat?.schedule();
+
+        await expect.poll(() => lease!.signal.aborted).toBe(true);
+        expect(lease?.invalidated).toBe(true);
+        await releaseDbtGitProjectCache(lease!, 100);
+        expect(JSON.parse(await fs.readFile(ownerPath, 'utf8'))).toEqual(
+            replacementOwner,
+        );
+    });
+
+    it('times out a heartbeat write without overwriting a replacement owner', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        let startHeartbeat: () => void = () => undefined;
+        let finishHeartbeat: () => void = () => undefined;
+        const heartbeatStarted = new Promise<void>((resolve) => {
+            startHeartbeat = resolve;
+        });
+        const heartbeatFinished = new Promise<void>((resolve) => {
+            finishHeartbeat = resolve;
+        });
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (
+                typeof newPath === 'string' &&
+                path.basename(newPath).startsWith('.heartbeat-')
+            ) {
+                startHeartbeat();
+                await heartbeatFinished;
+            }
+            return actualFs.rename(oldPath, newPath);
+        });
+        vi.useFakeTimers();
+        try {
+            lease!.heartbeat?.schedule();
+            await heartbeatStarted;
+            const ownerPath = path.join(
+                lease!.entryDirectory,
+                'lease',
+                'owner.json',
+            );
+            const currentOwner = JSON.parse(
+                await actualFs.readFile(ownerPath, 'utf8'),
+            );
+            const replacementOwner = staleOwner({
+                leaseId: '00000000-0000-4000-8000-000000000002',
+                pid: process.pid,
+                processStartTime: currentOwner.processStartTime,
+                heartbeatAt: Date.now(),
+            });
+            await actualFs.writeFile(
+                ownerPath,
+                JSON.stringify(replacementOwner),
+            );
+
+            await vi.advanceTimersByTimeAsync(30_001);
+
+            expect(lease?.invalidated).toBe(true);
+            expect(lease?.signal.aborted).toBe(true);
+            await expect(
+                releaseDbtGitProjectCache(lease!, 100),
+            ).resolves.toBeUndefined();
+            finishHeartbeat();
+            await vi.advanceTimersByTimeAsync(0);
+            expect(
+                JSON.parse(await actualFs.readFile(ownerPath, 'utf8')),
+            ).toEqual(replacementOwner);
+        } finally {
+            finishHeartbeat();
+            vi.useRealTimers();
+            rename.mockImplementation(actualFs.rename);
+        }
+    });
+
+    it('times out a heartbeat owner read without blocking lease release', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const ownerPath = path.join(
+            lease!.entryDirectory,
+            'lease',
+            'owner.json',
+        );
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        let startRead: () => void = () => undefined;
+        let finishRead: () => void = () => undefined;
+        const readStarted = new Promise<void>((resolve) => {
+            startRead = resolve;
+        });
+        const readFinished = new Promise<void>((resolve) => {
+            finishRead = resolve;
+        });
+        let pauseRead = true;
+        readFile.mockImplementation(async (...args) => {
+            if (pauseRead && args[0] === ownerPath) {
+                pauseRead = false;
+                startRead();
+                await readFinished;
+            }
+            return actualFs.readFile(...args);
+        });
+        vi.useFakeTimers();
+        try {
+            lease!.heartbeat?.schedule();
+            await readStarted;
+
+            await vi.advanceTimersByTimeAsync(30_001);
+
+            expect(lease?.invalidated).toBe(true);
+            expect(lease?.signal.aborted).toBe(true);
+            await expect(
+                releaseDbtGitProjectCache(lease!, 100),
+            ).resolves.toBeUndefined();
+        } finally {
+            finishRead();
+            await vi.advanceTimersByTimeAsync(0);
+            vi.useRealTimers();
+            readFile.mockImplementation(actualFs.readFile);
+        }
+    });
+
+    it('counts a failed tombstone cleanup against retained capacity', async () => {
+        const root = await configure({ maxBytes: 1_000 });
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rm = vi.mocked(fs.rm);
+        let failTombstone = true;
+        rm.mockImplementation(async (target, options) => {
+            if (
+                failTombstone &&
+                typeof target === 'string' &&
+                path.basename(target).startsWith('.tombstone-')
+            ) {
+                failTombstone = false;
+                throw new Error('cleanup failed');
+            }
+            return actualFs.rm(target, options);
+        });
+        try {
+            await invalidateOwnedDbtGitCacheLease(lease!);
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(1);
+            await expect
+                .poll(async () => {
+                    const [tombstone] = await tombstoneDirectories(root);
+                    return fs
+                        .access(path.join(root, tombstone!, 'lease'))
+                        .then(() => true)
+                        .catch(() => false);
+                })
+                .toBe(false);
+            const candidate = await acquireDbtGitProjectCache(
+                identity(2),
+                'repository-2',
+            );
+            await fs.mkdir(candidate!.checkoutDirectory);
+            await releaseDbtGitProjectCache(candidate!, 100);
+            const next = await acquireDbtGitProjectCache(
+                identity(2),
+                'repository-2',
+            );
+            expect(next?.reused).toBe(false);
+            await invalidateOwnedDbtGitCacheLease(next!);
+        } finally {
+            rm.mockImplementation(actualFs.rm);
+        }
+        await maintainDbtGitProjectCache();
+        await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+    });
+
+    it('charges known tombstone bytes without reusing another publication reservation', async () => {
+        const root = await configure({ maxBytes: 150 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rm = vi.mocked(fs.rm);
+        let startCleanup: () => void = () => undefined;
+        let finishCleanup: () => void = () => undefined;
+        const cleanupStarted = new Promise<void>((resolve) => {
+            startCleanup = resolve;
+        });
+        const cleanupFinished = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        rm.mockImplementation(async (target, options) => {
+            if (
+                typeof target === 'string' &&
+                path.basename(target).startsWith(`.tombstone-${first!.key}-`)
+            ) {
+                startCleanup();
+                await cleanupFinished;
+            }
+            return actualFs.rm(target, options);
+        });
+        try {
+            const secondRelease = releaseDbtGitProjectCache(second!, 100);
+            await cleanupStarted;
+            await secondRelease;
+            expect(second).toMatchObject({ retained: true });
+            expect(await tombstoneDirectories(root)).toHaveLength(1);
+
+            const third = await acquireDbtGitProjectCache(
+                identity(3),
+                'repository-3',
+            );
+            await fs.mkdir(third!.checkoutDirectory);
+            await releaseDbtGitProjectCache(third!, 1);
+            expect(third).toMatchObject({
+                retained: true,
+                retentionReason: undefined,
+            });
+            await expect(fs.access(second!.entryDirectory)).rejects.toThrow();
+            const thirdAgain = await acquireDbtGitProjectCache(
+                identity(3),
+                'repository-3',
+            );
+            expect(thirdAgain?.reused).toBe(true);
+            await releaseDbtGitProjectCache(thirdAgain!, 1);
+
+            finishCleanup();
+            await secondRelease;
+            const secondAgain = await acquireDbtGitProjectCache(
+                identity(2),
+                'repository-2',
+            );
+            expect(secondAgain?.reused).toBe(false);
+            await invalidateOwnedDbtGitCacheLease(secondAgain!);
+        } finally {
+            finishCleanup();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            rm.mockImplementation(actualFs.rm);
+        }
+    });
+
+    it('reserves enough idle victim bytes before optimistic publication', async () => {
+        const root = await configure({ maxBytes: 250 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        await releaseDbtGitProjectCache(second!, 100);
+        const third = await acquireDbtGitProjectCache(
+            identity(3),
+            'repository-3',
+        );
+        await fs.mkdir(third!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rm = vi.mocked(fs.rm);
+        let cleanupCount = 0;
+        let startCleanup: () => void = () => undefined;
+        let finishCleanup: () => void = () => undefined;
+        const cleanupStarted = new Promise<void>((resolve) => {
+            startCleanup = resolve;
+        });
+        const cleanupFinished = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        rm.mockImplementation(async (target, options) => {
+            if (
+                typeof target === 'string' &&
+                [first!.key, second!.key].some((key) =>
+                    path.basename(target).startsWith(`.tombstone-${key}-`),
+                )
+            ) {
+                cleanupCount += 1;
+                if (cleanupCount === 2) startCleanup();
+                await cleanupFinished;
+            }
+            return actualFs.rm(target, options);
+        });
+        try {
+            const release = releaseDbtGitProjectCache(third!, 250);
+            await cleanupStarted;
+
+            await release;
+            expect(third).toMatchObject({ retained: true });
+            expect(await tombstoneDirectories(root)).toHaveLength(2);
+            finishCleanup();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            const reused = await acquireDbtGitProjectCache(
+                identity(3),
+                'repository-3',
+            );
+            expect(reused?.reused).toBe(true);
+            await releaseDbtGitProjectCache(reused!, 250);
+        } finally {
+            finishCleanup();
+            rm.mockImplementation(actualFs.rm);
+        }
+    });
+
+    it('releases untouched victim leases after a multi-victim rename failure', async () => {
+        await configure({ maxBytes: 250 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        await releaseDbtGitProjectCache(second!, 100);
+        const third = await acquireDbtGitProjectCache(
+            identity(3),
+            'repository-3',
+        );
+        await fs.mkdir(third!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        const error = new Error('rename failed') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (oldPath === first!.entryDirectory) throw error;
+            return actualFs.rename(oldPath, newPath);
+        });
+        try {
+            await expect(
+                releaseDbtGitProjectCache(third!, 250),
+            ).rejects.toThrow('rename failed');
+        } finally {
+            rename.mockImplementation(actualFs.rename);
+        }
+
+        const untouched = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        expect(untouched?.reused).toBe(true);
+        await invalidateOwnedDbtGitCacheLease(untouched!);
+        await invalidateOwnedDbtGitCacheLease(third!);
+    });
+
+    it('allows only one contender to reclaim a stale entry lease', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(first).toBeDefined();
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(staleOwner()),
+        );
+        const contenders = await Promise.all([
+            acquireDbtGitProjectCache(identity(1), 'repository'),
+            acquireDbtGitProjectCache(identity(1), 'repository'),
+        ]);
+        expect(contenders.filter(Boolean)).toHaveLength(1);
+        await releaseDbtGitProjectCache(contenders.find(Boolean)!, 100);
+    });
+
+    it('reclaims a foreign-host lease after five stale intervals', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(
+                staleOwner({
+                    hostname: 'terminated-pod',
+                    heartbeatAt: Date.now() - 11 * 60_000,
+                }),
+            ),
+        );
+
+        const reclaimed = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+
+        expect(reclaimed?.reused).toBe(true);
+        await releaseDbtGitProjectCache(reclaimed!, 100);
+    });
+
+    it('protects a foreign-host lease within five stale intervals', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(
+                staleOwner({
+                    hostname: 'active-pod',
+                    heartbeatAt: Date.now() - 9 * 60_000,
+                }),
+            ),
+        );
+
+        await expect(
+            acquireDbtGitProjectCache(identity(1), 'repository'),
+        ).resolves.toBeUndefined();
+        await expect(fs.access(leaseDirectory)).resolves.toBeUndefined();
+    });
+
+    it('ages an unchanged future-dated foreign heartbeat from first observation', async () => {
+        const root = await configure({ maxAgeMs: 20 * 60_000 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        const owner = staleOwner({
+            hostname: 'clock-skewed-pod',
+            heartbeatAt: Date.now() - 11 * 60_000,
+        });
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(owner),
+        );
+        await fs.writeFile(
+            path.join(leaseDirectory, `.heartbeat-${owner.leaseId}.json`),
+            JSON.stringify({
+                ...owner,
+                heartbeatAt: Date.now() + 60 * 60_000,
+            }),
+        );
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        try {
+            await expect(
+                acquireDbtGitProjectCache(identity(1), 'repository'),
+            ).resolves.toBeUndefined();
+
+            clock.now += 11 * 60_000;
+            const reclaimed = await acquireDbtGitProjectCache(
+                identity(1),
+                'repository',
+            );
+
+            expect(reclaimed?.reused).toBe(true);
+            await releaseDbtGitProjectCache(reclaimed!, 100);
+        } finally {
+            now.mockRestore();
+        }
+    });
+
+    it('evicts the oldest of 256 future heartbeat observations', async () => {
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        const maxAgeMs = 20 * 60_000;
+        const observeFutureHeartbeat = async (index: number) => {
+            const root = await configure({ maxAgeMs });
+            const cacheIdentity = identity(index);
+            const repositoryIdentity = `repository-${index}`;
+            const lease = await acquireDbtGitProjectCache(
+                cacheIdentity,
+                repositoryIdentity,
+            );
+            await fs.mkdir(lease!.checkoutDirectory);
+            await releaseDbtGitProjectCache(lease!, 100);
+            const leaseDirectory = path.join(lease!.entryDirectory, 'lease');
+            const owner = staleOwner({
+                leaseId: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+                hostname: `clock-skewed-pod-${index}`,
+                heartbeatAt: clock.now - 11 * 60_000,
+            });
+            await fs.mkdir(leaseDirectory);
+            await fs.writeFile(
+                path.join(leaseDirectory, 'owner.json'),
+                JSON.stringify(owner),
+            );
+            await fs.writeFile(
+                path.join(leaseDirectory, `.heartbeat-${owner.leaseId}.json`),
+                JSON.stringify({
+                    ...owner,
+                    heartbeatAt: clock.now + 60 * 60_000,
+                }),
+            );
+            await expect(
+                acquireDbtGitProjectCache(cacheIdentity, repositoryIdentity),
+            ).resolves.toBeUndefined();
+            return { root, cacheIdentity, repositoryIdentity };
+        };
+        const selectFixture = (fixture: {
+            root: string;
+            cacheIdentity: DbtGitCacheIdentity;
+            repositoryIdentity: string;
+        }) => {
+            configureDbtGitProjectCache({
+                root: fixture.root,
+                maxBytes: 1024 * 1024,
+                maxAgeMs,
+                livenessCheck: async (identities) =>
+                    new Set(identities.map(dbtGitCacheIdentityKey)),
+            });
+        };
+        try {
+            const oldest = await observeFutureHeartbeat(1_000);
+            const newest = await Array.from({ length: 256 }).reduce<
+                Promise<Awaited<ReturnType<typeof observeFutureHeartbeat>>>
+            >(async (pending, _, index) => {
+                await pending;
+                return observeFutureHeartbeat(index + 2_000);
+            }, Promise.resolve(oldest));
+            clock.now += 11 * 60_000;
+
+            selectFixture(newest);
+            const reclaimedNewest = await acquireDbtGitProjectCache(
+                newest.cacheIdentity,
+                newest.repositoryIdentity,
+            );
+            expect(reclaimedNewest?.reused).toBe(true);
+            await releaseDbtGitProjectCache(reclaimedNewest!, 100);
+
+            selectFixture(oldest);
+            await expect(
+                acquireDbtGitProjectCache(
+                    oldest.cacheIdentity,
+                    oldest.repositoryIdentity,
+                ),
+            ).resolves.toBeUndefined();
+        } finally {
+            now.mockRestore();
+        }
+    }, 30_000);
+
+    it('serializes concurrent reclaim of a stale reservation lock', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(0), 'seed');
+        await fs.mkdir(seed!.checkoutDirectory);
+        await releaseDbtGitProjectCache(seed!, 100);
+        const reservationLock = path.join(root, '.reservation-lock');
+        await fs.mkdir(reservationLock);
+        await fs.writeFile(
+            path.join(reservationLock, 'owner.json'),
+            JSON.stringify(staleOwner()),
+        );
+        const contenders = await Promise.all([
+            acquireDbtGitProjectCache(identity(1), 'repository-1'),
+            acquireDbtGitProjectCache(identity(2), 'repository-2'),
+        ]);
+        expect(contenders.every(Boolean)).toBe(true);
+        await Promise.all(
+            contenders.map((lease) => invalidateOwnedDbtGitCacheLease(lease!)),
+        );
+    });
+
+    it('protects a stale lease when a fresh orphan reclaim claim exists', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(staleOwner()),
+        );
+        await fs.writeFile(
+            path.join(leaseDirectory, '.reclaim.json'),
+            JSON.stringify({
+                claimId: '00000000-0000-4000-8000-000000000002',
+                claimant: staleOwner({
+                    leaseId: '00000000-0000-4000-8000-000000000002',
+                    pid: process.pid,
+                }),
+            }),
+        );
+        await expect(
+            acquireDbtGitProjectCache(identity(1), 'repository'),
+        ).resolves.toBeUndefined();
+        await expect(fs.access(leaseDirectory)).resolves.toBeUndefined();
+    });
+
+    it('reclaims a stale lease after an orphan reclaim claim ages', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(staleOwner()),
+        );
+        const claimPath = path.join(leaseDirectory, '.reclaim.json');
+        await fs.writeFile(
+            claimPath,
+            JSON.stringify({
+                claimId: '00000000-0000-4000-8000-000000000002',
+                claimant: staleOwner({
+                    leaseId: '00000000-0000-4000-8000-000000000002',
+                    heartbeatAt: Date.now() + 60 * 60_000,
+                }),
+            }),
+        );
+        const agedAt = new Date(Date.now() - 3 * 60_000);
+        await fs.utimes(claimPath, agedAt, agedAt);
+
+        const reclaimed = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+
+        expect(reclaimed?.reused).toBe(true);
+        await releaseDbtGitProjectCache(reclaimed!, 100);
+    });
+
+    it('does not reclaim a malformed lease owner', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(staleOwner({ pid: 1.5, heartbeatAt: Infinity })),
+        );
+        await expect(
+            acquireDbtGitProjectCache(identity(1), 'repository'),
+        ).resolves.toBeUndefined();
+        await expect(fs.access(leaseDirectory)).resolves.toBeUndefined();
+    });
+
+    it('protects a lease when process identity cannot be read', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(
+                staleOwner({
+                    pid: process.pid,
+                    processStartTime: '1',
+                }),
+            ),
+        );
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        readFile.mockImplementation(
+            async (...args: Parameters<typeof fs.readFile>) => {
+                if (args[0] === `/proc/${process.pid}/stat`) {
+                    const error = new Error(
+                        'permission denied',
+                    ) as NodeJS.ErrnoException;
+                    error.code = 'EACCES';
+                    throw error;
+                }
+                return actualFs.readFile(...args);
+            },
+        );
+        try {
+            await expect(
+                acquireDbtGitProjectCache(identity(1), 'repository'),
+            ).resolves.toBeUndefined();
+            await expect(fs.access(leaseDirectory)).resolves.toBeUndefined();
+        } finally {
+            readFile.mockImplementation(actualFs.readFile);
+        }
+    });
+
+    it('evicts retained entries to fit the configured byte bound', async () => {
+        await configure({ maxBytes: 150 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        await releaseDbtGitProjectCache(second!, 100);
+        const reusedSecond = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        expect(reusedSecond?.reused).toBe(true);
+        const recreatedFirst = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        expect(recreatedFirst?.reused).toBe(false);
+        await invalidateOwnedDbtGitCacheLease(recreatedFirst!);
+        await releaseDbtGitProjectCache(reusedSecond!, 100);
+    });
+
+    it('declines retention when entry enumeration exhausts its deadline', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        let advanceClock = true;
+        readFile.mockImplementation(async (...args) => {
+            const result = await actualFs.readFile(...args);
+            if (
+                advanceClock &&
+                args[0] === path.join(lease!.entryDirectory, 'metadata.json')
+            ) {
+                advanceClock = false;
+                clock.now += 3_001;
+            }
+            return result;
+        });
+        try {
+            await releaseDbtGitProjectCache(lease!, 100);
+
+            expect(lease).toMatchObject({
+                retained: false,
+                retentionReason: 'publication-deadline',
+            });
+        } finally {
+            now.mockRestore();
+            readFile.mockImplementation(actualFs.readFile);
+        }
+    });
+
+    it('releases selected victims when leasing crosses the retention deadline', async () => {
+        await configure({ maxBytes: 150 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        const victimOwnerPath = path.join(
+            first!.entryDirectory,
+            'lease',
+            'owner.json',
+        );
+        let advanceClock = true;
+        rename.mockImplementation(async (source, destination) => {
+            await actualFs.rename(source, destination);
+            if (advanceClock && destination === victimOwnerPath) {
+                advanceClock = false;
+                clock.now += 3_001;
+            }
+        });
+        try {
+            await releaseDbtGitProjectCache(second!, 100);
+
+            expect(second).toMatchObject({
+                retained: false,
+                retentionReason: 'publication-deadline',
+            });
+            const firstAgain = await acquireDbtGitProjectCache(
+                identity(1),
+                'repository-1',
+            );
+            expect(firstAgain?.reused).toBe(true);
+            await releaseDbtGitProjectCache(firstAgain!, 100);
+        } finally {
+            now.mockRestore();
+            rename.mockImplementation(actualFs.rename);
+        }
+    });
+
+    it('does not publish after victim retirement crosses the retention deadline', async () => {
+        const root = await configure({ maxBytes: 150 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        const secondMetadataPath = path.join(
+            second!.entryDirectory,
+            'metadata.json',
+        );
+        let metadataReads = 0;
+        readFile.mockImplementation(async (...args) => {
+            const result = await actualFs.readFile(...args);
+            if (args[0] === secondMetadataPath) {
+                metadataReads += 1;
+                if (metadataReads === 2) clock.now += 3_001;
+            }
+            return result;
+        });
+        try {
+            await releaseDbtGitProjectCache(second!, 100);
+
+            expect(second).toMatchObject({
+                retained: false,
+                retentionReason: 'publication-deadline',
+            });
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            expect(await entryDirectories(root)).toHaveLength(0);
+        } finally {
+            now.mockRestore();
+            readFile.mockImplementation(actualFs.readFile);
+        }
+    });
+
+    it('counts every hash-shaped root entry before creating another', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(0), 'seed');
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        await Promise.all(
+            Array.from({ length: 128 }, (_, index) =>
+                fs.writeFile(
+                    path.join(root, index.toString(16).padStart(64, '0')),
+                    'unowned',
+                ),
+            ),
+        );
+        const onMiss = vi.fn();
+        await expect(
+            acquireDbtGitProjectCache(identity(1), 'repository', onMiss),
+        ).resolves.toBeUndefined();
+        expect(onMiss).toHaveBeenCalledWith('entry-cap');
+        expect(await entryDirectories(root)).toHaveLength(128);
+    });
+
+    it('reports an admission timeout while waiting for the reservation lock', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(0), 'seed');
+        await fs.mkdir(seed!.checkoutDirectory);
+        await releaseDbtGitProjectCache(seed!, 1);
+        const reservationLock = path.join(root, '.reservation-lock');
+        await fs.mkdir(reservationLock);
+        await fs.writeFile(
+            path.join(reservationLock, 'owner.json'),
+            JSON.stringify(
+                staleOwner({
+                    hostname: 'active-pod',
+                    heartbeatAt: Date.now(),
+                }),
+            ),
+        );
+        const onMiss = vi.fn();
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        const clock = { now: Date.now(), advanced: false };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        readFile.mockImplementation(
+            async (...args: Parameters<typeof fs.readFile>) => {
+                if (
+                    !clock.advanced &&
+                    args[0] === path.join(reservationLock, 'owner.json')
+                ) {
+                    clock.advanced = true;
+                    clock.now += 4_000;
+                }
+                return actualFs.readFile(...args);
+            },
+        );
+        try {
+            await expect(
+                acquireDbtGitProjectCache(identity(1), 'repository', onMiss),
+            ).resolves.toBeUndefined();
+            expect(onMiss).toHaveBeenCalledExactlyOnceWith('admission-timeout');
+        } finally {
+            now.mockRestore();
+            readFile.mockImplementation(actualFs.readFile);
+        }
+    });
+
+    it('evicts the least recently used retained entry on admission', async () => {
+        const root = await configure();
+        const leases = await retainEntries(128);
+        const oldestMetadataPath = path.join(
+            leases[0].entryDirectory,
+            'metadata.json',
+        );
+        const oldestMetadata = JSON.parse(
+            await fs.readFile(oldestMetadataPath, 'utf8'),
+        );
+        await fs.writeFile(
+            oldestMetadataPath,
+            JSON.stringify({
+                ...oldestMetadata,
+                lastUsedAt: Date.now() - 30_000,
+            }),
+        );
+
+        const admitted = await acquireDbtGitProjectCache(
+            identity(128),
+            'repository-128',
+        );
+
+        expect(admitted?.reused).toBe(false);
+        expect(await entryDirectories(root)).toHaveLength(128);
+        await expect(fs.access(leases[0].entryDirectory)).rejects.toThrow();
+        await expect(
+            fs.access(leases[1].entryDirectory),
+        ).resolves.toBeUndefined();
+        await invalidateOwnedDbtGitCacheLease(admitted!);
+    });
+
+    it('does not evict an active retained entry on admission', async () => {
+        const root = await configure();
+        const leases = await retainEntries(128);
+        const oldestMetadataPath = path.join(
+            leases[0].entryDirectory,
+            'metadata.json',
+        );
+        const secondMetadataPath = path.join(
+            leases[1].entryDirectory,
+            'metadata.json',
+        );
+        const oldestMetadata = JSON.parse(
+            await fs.readFile(oldestMetadataPath, 'utf8'),
+        );
+        const secondMetadata = JSON.parse(
+            await fs.readFile(secondMetadataPath, 'utf8'),
+        );
+        await fs.writeFile(
+            oldestMetadataPath,
+            JSON.stringify({
+                ...oldestMetadata,
+                lastUsedAt: Date.now() - 30_000,
+            }),
+        );
+        await fs.writeFile(
+            secondMetadataPath,
+            JSON.stringify({
+                ...secondMetadata,
+                lastUsedAt: Date.now() - 20_000,
+            }),
+        );
+        const active = await acquireDbtGitProjectCache(
+            identity(0),
+            'repository-0',
+        );
+
+        const admitted = await acquireDbtGitProjectCache(
+            identity(128),
+            'repository-128',
+        );
+
+        expect(active?.reused).toBe(true);
+        expect(admitted?.reused).toBe(false);
+        expect(await entryDirectories(root)).toHaveLength(128);
+        await expect(
+            fs.access(leases[0].entryDirectory),
+        ).resolves.toBeUndefined();
+        await expect(fs.access(leases[1].entryDirectory)).rejects.toThrow();
+        await releaseDbtGitProjectCache(active!, 1);
+        await invalidateOwnedDbtGitCacheLease(admitted!);
+    });
+
+    it('falls back after the admission cleanup budget without late publication', async () => {
+        const root = await configure();
+        const leases = await retainEntries(128);
+        const oldestMetadataPath = path.join(
+            leases[0].entryDirectory,
+            'metadata.json',
+        );
+        const oldestMetadata = JSON.parse(
+            await fs.readFile(oldestMetadataPath, 'utf8'),
+        );
+        await fs.writeFile(
+            oldestMetadataPath,
+            JSON.stringify({
+                ...oldestMetadata,
+                lastUsedAt: Date.now() - 30_000,
+            }),
+        );
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rm = vi.mocked(fs.rm);
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        let startCleanup: () => void = () => undefined;
+        let finishCleanup: () => void = () => undefined;
+        const cleanupStarted = new Promise<void>((resolve) => {
+            startCleanup = resolve;
+        });
+        const cleanupFinished = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        rm.mockImplementation(async (target, options) => {
+            if (
+                typeof target === 'string' &&
+                path.basename(target).startsWith(`.tombstone-${leases[0].key}-`)
+            ) {
+                clock.now += 3_001;
+                startCleanup();
+                await cleanupFinished;
+            }
+            return actualFs.rm(target, options);
+        });
+        try {
+            const onMiss = vi.fn();
+            const admission = acquireDbtGitProjectCache(
+                identity(128),
+                'repository-128',
+                onMiss,
+            );
+            await cleanupStarted;
+
+            await expect(admission).resolves.toBeUndefined();
+            expect(onMiss).toHaveBeenCalledExactlyOnceWith('admission-timeout');
+            finishCleanup();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            expect(await entryDirectories(root)).toHaveLength(127);
+
+            const retry = await acquireDbtGitProjectCache(
+                identity(128),
+                'repository-128',
+            );
+            expect(retry?.reused).toBe(false);
+            await invalidateOwnedDbtGitCacheLease(retry!);
+        } finally {
+            finishCleanup();
+            now.mockRestore();
+            rm.mockImplementation(actualFs.rm);
+        }
+    }, 10_000);
+
+    it('retains a fresh checkout when background victim cleanup fails', async () => {
+        const root = await configure({ maxBytes: 150 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rm = vi.mocked(fs.rm);
+        let failCleanup = true;
+        rm.mockImplementation(async (target, options) => {
+            if (
+                failCleanup &&
+                typeof target === 'string' &&
+                path.basename(target).startsWith(`.tombstone-${first!.key}-`)
+            ) {
+                failCleanup = false;
+                throw new Error('cleanup failed');
+            }
+            return actualFs.rm(target, options);
+        });
+        try {
+            await releaseDbtGitProjectCache(second!, 100);
+
+            expect(second).toMatchObject({ retained: true });
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(1);
+            await maintainDbtGitProjectCache();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            const reused = await acquireDbtGitProjectCache(
+                identity(2),
+                'repository-2',
+            );
+            expect(reused?.reused).toBe(true);
+            await releaseDbtGitProjectCache(reused!, 100);
+        } finally {
+            rm.mockImplementation(actualFs.rm);
+        }
+    });
+
+    it('reclaims an interrupted tombstone with a missing marker after the grace period', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        await releaseDbtGitProjectCache(lease!, 100);
+        const tombstone = path.join(
+            root,
+            `.tombstone-${lease!.key}-00000000-0000-4000-8000-000000000001`,
+        );
+        await fs.rename(lease!.entryDirectory, tombstone);
+        await fs.rm(path.join(tombstone, '.lightdash-cache-entry.json'));
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(tombstone, stale, stale);
+
+        await maintainDbtGitProjectCache();
+
+        expect(await tombstoneDirectories(root)).toHaveLength(0);
+        const replacement = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(replacement!.checkoutDirectory);
+        await releaseDbtGitProjectCache(replacement!, 100);
+        const reused = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(reused?.reused).toBe(true);
+        await releaseDbtGitProjectCache(reused!, 100);
+    });
+
+    it('reclaims a metadata-less crashed acquisition after the grace period', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const { key } = seed!;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        const entryDirectory = path.join(root, key);
+        await fs.mkdir(entryDirectory, { mode: 0o700 });
+        const marker = path.join(entryDirectory, '.lightdash-cache-entry.json');
+        await fs.writeFile(marker, JSON.stringify({ version: 1, key }), {
+            mode: 0o600,
+        });
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(marker, stale, stale);
+
+        await maintainDbtGitProjectCache();
+
+        expect(await entryDirectories(root)).toHaveLength(0);
+    });
+
+    it('protects a metadata-less entry with an unreadable lease owner', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const { key } = seed!;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        const entryDirectory = path.join(root, key);
+        const markerPath = path.join(
+            entryDirectory,
+            '.lightdash-cache-entry.json',
+        );
+        const ownerPath = path.join(entryDirectory, 'lease', 'owner.json');
+        await fs.mkdir(path.dirname(ownerPath), {
+            recursive: true,
+            mode: 0o700,
+        });
+        await fs.writeFile(markerPath, JSON.stringify({ version: 1, key }), {
+            mode: 0o600,
+        });
+        await fs.writeFile(ownerPath, JSON.stringify(staleOwner()));
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(markerPath, stale, stale);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        const error = new Error('permission denied') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        readFile.mockImplementation(async (...args) => {
+            if (args[0] === ownerPath) throw error;
+            return actualFs.readFile(...args);
+        });
+        try {
+            await maintainDbtGitProjectCache();
+
+            await expect(fs.access(entryDirectory)).resolves.toBeUndefined();
+            expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+                'Failed to read dbt git cache lease owner',
+                { error },
+            );
+        } finally {
+            readFile.mockImplementation(actualFs.readFile);
+        }
+    });
+
+    it('protects a metadata-less entry with an owner-less lease directory', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const { key } = seed!;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        const entryDirectory = path.join(root, key);
+        const markerPath = path.join(
+            entryDirectory,
+            '.lightdash-cache-entry.json',
+        );
+        await fs.mkdir(path.join(entryDirectory, 'lease'), {
+            recursive: true,
+            mode: 0o700,
+        });
+        await fs.writeFile(markerPath, JSON.stringify({ version: 1, key }), {
+            mode: 0o600,
+        });
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(markerPath, stale, stale);
+
+        await maintainDbtGitProjectCache();
+
+        await expect(fs.access(entryDirectory)).resolves.toBeUndefined();
+    });
+
+    it('reclaims orphaned root marker writes only after the grace period', async () => {
+        const root = await configure();
+        const temporaryPath = path.join(
+            root,
+            '.lightdash-dbt-git-cache.json.00000000-0000-4000-8000-000000000001.tmp',
+        );
+        await fs.writeFile(temporaryPath, '{}', { mode: 0o600 });
+
+        await maintainDbtGitProjectCache();
+        await expect(fs.access(temporaryPath)).resolves.toBeUndefined();
+
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(temporaryPath, stale, stale);
+        await maintainDbtGitProjectCache();
+        await expect(fs.access(temporaryPath)).rejects.toThrow();
+    });
+
+    it('drains reserved cleanup when a debris reservation fails', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const { key } = seed!;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        const abandonedPath = path.join(root, key);
+        await fs.mkdir(abandonedPath, { mode: 0o700 });
+        const temporaryPath = path.join(
+            root,
+            '.lightdash-dbt-git-cache.json.00000000-0000-4000-8000-000000000001.tmp',
+        );
+        await fs.writeFile(temporaryPath, '{}', { mode: 0o600 });
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(abandonedPath, stale, stale);
+        await fs.utimes(temporaryPath, stale, stale);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        const error = new Error('rename failed') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (oldPath === temporaryPath) throw error;
+            return actualFs.rename(oldPath, newPath);
+        });
+        try {
+            await maintainDbtGitProjectCache();
+
+            await expect(fs.access(abandonedPath)).rejects.toThrow();
+            await expect(fs.access(temporaryPath)).resolves.toBeUndefined();
+            expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+                'Failed to reserve dbt git cache root debris cleanup',
+                { error },
+            );
+        } finally {
+            rename.mockImplementation(actualFs.rename);
+        }
+    });
+
+    it('drains other reservations when an abandoned entry rename fails', async () => {
+        const root = await configure();
+        const seeds = await Promise.all([
+            acquireDbtGitProjectCache(identity(1), 'repository-1'),
+            acquireDbtGitProjectCache(identity(2), 'repository-2'),
+        ]);
+        await Promise.all(
+            seeds.map((seed) => invalidateOwnedDbtGitCacheLease(seed!)),
+        );
+        const failedPath = path.join(root, seeds[0]!.key);
+        const drainedPath = path.join(root, seeds[1]!.key);
+        await fs.mkdir(failedPath, { mode: 0o700 });
+        await fs.mkdir(drainedPath, { mode: 0o700 });
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(failedPath, stale, stale);
+        await fs.utimes(drainedPath, stale, stale);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        const error = new Error('rename failed') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (oldPath === failedPath) throw error;
+            return actualFs.rename(oldPath, newPath);
+        });
+        try {
+            await maintainDbtGitProjectCache();
+
+            await expect(fs.access(failedPath)).resolves.toBeUndefined();
+            await expect(fs.access(drainedPath)).rejects.toThrow();
+            expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+                'Failed to reserve abandoned dbt git cache entry cleanup',
+                { error },
+            );
+        } finally {
+            rename.mockImplementation(actualFs.rename);
+        }
+    });
+
+    it('protects an active unowned entry during abandoned object cleanup', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const marker = path.join(
+            lease!.entryDirectory,
+            '.lightdash-cache-entry.json',
+        );
+        await fs.rm(marker);
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(lease!.entryDirectory, stale, stale);
+
+        await maintainDbtGitProjectCache();
+
+        await expect(fs.access(lease!.entryDirectory)).resolves.toBeUndefined();
+        await fs.writeFile(
+            marker,
+            JSON.stringify({ version: 1, key: lease!.key }),
+            { mode: 0o600 },
+        );
+        await releaseDbtGitProjectCache(lease!, 100);
+    });
+
+    it('warns with a reason when corrupt root state declines retention', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        await fs.mkdir(path.join(root, '0'.repeat(64)), { mode: 0o700 });
+
+        await releaseDbtGitProjectCache(lease!, 100);
+
+        expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+            'Declined dbt git cache retention',
+            {
+                reason: 'corrupt-root-entry',
+                paths: [path.join(root, '0'.repeat(64))],
+            },
+        );
+    });
+
+    it('removes missing identities and retains entries on liveness errors', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        configureDbtGitProjectCache({
+            root,
+            maxBytes: 1024,
+            maxAgeMs: 60_000,
+            livenessCheck: async () => {
+                throw new Error('database unavailable');
+            },
+        });
+        await maintainDbtGitProjectCache();
+        expect(await entryDirectories(root)).toHaveLength(1);
+        configureDbtGitProjectCache({
+            root,
+            maxBytes: 1024,
+            maxAgeMs: 60_000,
+            livenessCheck: async () => new Set(),
+        });
+        await maintainDbtGitProjectCache();
+        expect(await entryDirectories(root)).toHaveLength(0);
+    });
+
+    it('defers maintenance deletion until an active lease releases', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        configureDbtGitProjectCache({
+            root,
+            maxBytes: 1024,
+            maxAgeMs: 60_000,
+            livenessCheck: async () => new Set(),
+        });
+        await maintainDbtGitProjectCache();
+        expect(await entryDirectories(root)).toHaveLength(1);
+        await releaseDbtGitProjectCache(lease!, 100);
+        expect(await entryDirectories(root)).toHaveLength(0);
+    });
+
+    it('rejects an expired entry when it is acquired', async () => {
+        const root = await configure({ maxAgeMs: 1 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 5);
+        });
+        const next = await acquireDbtGitProjectCache(identity(1), 'repository');
+        expect(next?.reused).toBe(false);
+        await invalidateOwnedDbtGitCacheLease(next!);
+        expect(await entryDirectories(root)).toHaveLength(0);
+    });
+
+    it('refuses a symlinked cache root', async () => {
+        const target = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'dbt-cache-target-'),
+        );
+        const link = `${target}-link`;
+        roots.push(target, link);
+        await fs.symlink(target, link);
+        configureDbtGitProjectCache({
+            root: link,
+            maxBytes: 1024,
+            maxAgeMs: 60_000,
+            livenessCheck: async () => new Set(),
+        });
+        await expect(
+            acquireDbtGitProjectCache(identity(1), 'repository'),
+        ).rejects.toThrow('cache root');
+    });
+
+    it.each([0, -1])(
+        'disables the cache without creating its root for maxBytes %s',
+        async (maxBytes) => {
+            const parent = await fs.mkdtemp(
+                path.join(os.tmpdir(), 'dbt-cache-disabled-test-'),
+            );
+            roots.push(parent);
+            const root = path.join(parent, 'cache');
+            configureDbtGitProjectCache({
+                root,
+                maxBytes,
+                maxAgeMs: 60_000,
+                livenessCheck: async () => new Set(),
+            });
+            const onMiss = vi.fn();
+
+            await expect(
+                acquireDbtGitProjectCache(identity(1), 'repository', onMiss),
+            ).resolves.toBeUndefined();
+
+            expect(onMiss).toHaveBeenCalledWith('disabled');
+            await expect(fs.access(root)).rejects.toThrow();
+            await maintainDbtGitProjectCache();
+            await invalidateDbtGitProjectCacheSource('project', 'source-1');
+            await expect(fs.access(root)).rejects.toThrow();
+        },
+    );
+
+    it('expires retained entries and defers active entry deletion when disabled', async () => {
+        const root = await configure();
+        const retained = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(retained!.checkoutDirectory);
+        await releaseDbtGitProjectCache(retained!, 100);
+        const active = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(active!.checkoutDirectory);
+        configureDbtGitProjectCache({
+            root,
+            maxBytes: 0,
+            maxAgeMs: 60_000,
+            livenessCheck: async () => new Set(),
+        });
+
+        await maintainDbtGitProjectCache();
+
+        await expect(fs.access(retained!.entryDirectory)).rejects.toThrow();
+        await expect(
+            fs.access(active!.checkoutDirectory),
+        ).resolves.toBeUndefined();
+        await expect(
+            fs.access(path.join(active!.entryDirectory, 'pending-delete')),
+        ).resolves.toBeUndefined();
+        await releaseDbtGitProjectCache(active!, 100);
+        await expect(fs.access(active!.entryDirectory)).rejects.toThrow();
+    });
+
+    it('invalidates retained entries while disabled', async () => {
+        const root = await configure();
+        const retained = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(retained!.checkoutDirectory);
+        await releaseDbtGitProjectCache(retained!, 100);
+        configureDbtGitProjectCache({
+            root,
+            maxBytes: 0,
+            maxAgeMs: 60_000,
+            livenessCheck: async () => new Set(),
+        });
+
+        await invalidateDbtGitProjectCacheSource('project', 'source-1');
+
+        await expect(fs.access(retained!.entryDirectory)).rejects.toThrow();
+    });
+
+    it('warns when a filesystem inspection error is swallowed', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const access = vi.mocked(fs.access);
+        const error = new Error('permission denied') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        access.mockRejectedValueOnce(error);
+
+        await releaseDbtGitProjectCache(lease!, 100);
+
+        expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+            'Failed to inspect dbt git cache path',
+            { error },
+        );
+    });
+});

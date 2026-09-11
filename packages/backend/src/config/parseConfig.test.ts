@@ -54,6 +54,34 @@ describe('usage events storage endpoint', () => {
     });
 });
 
+describe('dbt git cache config', () => {
+    it.each(['0', '-1'])('preserves the disabled byte limit %s', (limit) => {
+        process.env.DBT_GIT_CACHE_MAX_BYTES = limit;
+        expect(parseConfig().dbt.gitCacheMaxBytes).toBe(Number(limit));
+    });
+
+    it('reads an explicit cache root', () => {
+        process.env.DBT_GIT_CACHE_ROOT = '/var/cache/lightdash';
+        expect(parseConfig().dbt.gitCacheRoot).toBe('/var/cache/lightdash');
+    });
+
+    it('uses conservative defaults', () => {
+        expect(parseConfig().dbt).toMatchObject({
+            gitCacheMaxBytes: 2 * 1024 * 1024 * 1024,
+            gitCacheMaxAgeMs: 24 * 60 * 60 * 1000,
+        });
+    });
+
+    it('reads byte and age overrides', () => {
+        process.env.DBT_GIT_CACHE_MAX_BYTES = '4096';
+        process.env.DBT_GIT_CACHE_MAX_AGE_MS = '60000';
+        expect(parseConfig().dbt).toMatchObject({
+            gitCacheMaxBytes: 4096,
+            gitCacheMaxAgeMs: 60_000,
+        });
+    });
+});
+
 describe('mobile login config', () => {
     it('is available by default', () => {
         expect(parseConfig().auth.mobileLogin).toEqual({ enabled: true });

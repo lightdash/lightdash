@@ -40,6 +40,56 @@ type DbtCliArgs = {
     dbtDepsErrorHint?: string;
 };
 
+export const runAbortableProcess = async (
+    command: string,
+    args: readonly string[],
+    options: execa.Options,
+    signal: AbortSignal | undefined,
+): Promise<ExecaReturnValue> => {
+    signal?.throwIfAborted();
+    const child = execa(
+        command,
+        args,
+        signal && process.platform !== 'win32'
+            ? { ...options, detached: true }
+            : options,
+    );
+    const abort = () => {
+        child.cancel();
+        if (
+            process.platform === 'win32' ||
+            child.pid === undefined ||
+            child.exitCode !== null ||
+            child.signalCode !== null
+        ) {
+            return;
+        }
+        try {
+            process.kill(-child.pid, 'SIGKILL');
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
+                Logger.warn('Failed to terminate aborted process group', {
+                    error: {
+                        name:
+                            error instanceof Error
+                                ? error.name
+                                : 'UnknownError',
+                        message: getErrorMessage(error),
+                        code: (error as NodeJS.ErrnoException).code,
+                    },
+                });
+            }
+        }
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
+    try {
+        return await child;
+    } finally {
+        signal?.removeEventListener('abort', abort);
+    }
+};
+
 enum DbtCommands {
     DBT_1_4 = 'dbt',
     DBT_1_5 = 'dbt1.5',
@@ -75,6 +125,8 @@ export class DbtCliClient implements DbtClient {
 
     dbtDepsErrorHint?: string;
 
+    private abortSignal: AbortSignal | undefined;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -102,6 +154,14 @@ export class DbtCliClient implements DbtClient {
 
     getSelector(): string | undefined {
         return this.selector;
+    }
+
+    setAbortSignal(signal: AbortSignal | undefined): void {
+        this.abortSignal = signal;
+    }
+
+    private throwIfAborted(): void {
+        this.abortSignal?.throwIfAborted();
     }
 
     // Each client gets its own dbt target directory so that concurrent
@@ -176,8 +236,10 @@ export class DbtCliClient implements DbtClient {
         logs: DbtLog[];
         stdout: string;
     }> {
+        this.throwIfAborted();
         const dbtExec = this.getDbtExec();
         const targetPath = await this._getTargetDirectory();
+        this.throwIfAborted();
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -202,22 +264,28 @@ export class DbtCliClient implements DbtClient {
                     this.dbtVersion
                 }": ${dbtExec} ${dbtArgs.join(' ')}`,
             );
-            const dbtProcess = await execa(dbtExec, dbtArgs, {
-                all: true,
-                stdio: ['pipe', 'pipe', process.stderr],
-                extendEnv: false,
-                env: getDbtProcessEnvironment({
-                    processEnvironment: process.env,
-                    environmentVariableAllowlist:
-                        this.environmentVariableAllowlist,
-                    projectEnvironment: this.environment,
-                    targetPath,
-                    gitConfigGlobalPath: this.gitConfigGlobalPath,
-                }),
-            });
+            const { abortSignal } = this;
+            const result = await runAbortableProcess(
+                dbtExec,
+                dbtArgs,
+                {
+                    all: true,
+                    stdio: ['pipe', 'pipe', process.stderr],
+                    extendEnv: false,
+                    env: getDbtProcessEnvironment({
+                        processEnvironment: process.env,
+                        environmentVariableAllowlist:
+                            this.environmentVariableAllowlist,
+                        projectEnvironment: this.environment,
+                        targetPath,
+                        gitConfigGlobalPath: this.gitConfigGlobalPath,
+                    }),
+                },
+                abortSignal,
+            );
             return {
-                logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
-                stdout: dbtProcess.stdout,
+                logs: DbtCliClient.parseDbtJsonLogs(result.all),
+                stdout: result.stdout,
             };
         } catch (e) {
             Logger.error(
