@@ -30,13 +30,6 @@ export type DbManagedAgentSettings = {
     enabled: boolean;
     schedule_cron: string;
     enabled_by_user_uuid: string | null;
-    service_account_token: Buffer | null;
-    anthropic_agent_id: string | null;
-    anthropic_agent_config_hash: string | null;
-    anthropic_agent_version: number | null;
-    anthropic_environment_id: string | null;
-    anthropic_vault_id: string | null;
-    anthropic_vault_config_hash: string | null;
     slack_channel_id: string | null;
     tool_settings: Record<string, boolean>;
     policy: Record<string, unknown>;
@@ -54,13 +47,6 @@ export type DbManagedAgentSettingsCreate = Pick<
             | 'enabled'
             | 'schedule_cron'
             | 'enabled_by_user_uuid'
-            | 'service_account_token'
-            | 'anthropic_agent_id'
-            | 'anthropic_agent_config_hash'
-            | 'anthropic_agent_version'
-            | 'anthropic_environment_id'
-            | 'anthropic_vault_id'
-            | 'anthropic_vault_config_hash'
             | 'slack_channel_id'
             | 'tool_settings'
             | 'policy'
@@ -74,13 +60,6 @@ export type DbManagedAgentSettingsUpdate = Partial<
         | 'enabled'
         | 'schedule_cron'
         | 'enabled_by_user_uuid'
-        | 'service_account_token'
-        | 'anthropic_agent_id'
-        | 'anthropic_agent_config_hash'
-        | 'anthropic_agent_version'
-        | 'anthropic_environment_id'
-        | 'anthropic_vault_id'
-        | 'anthropic_vault_config_hash'
         | 'slack_channel_id'
         | 'tool_settings'
         | 'policy'
