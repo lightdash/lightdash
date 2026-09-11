@@ -1,3 +1,13 @@
+## [2.198.1](https://github.com/lightdash/lightdash/compare/2.198.0...2.198.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **mcp:** clarify project context guidance ([#29039](https://github.com/lightdash/lightdash/issues/29039)) ([fbf1af5](https://github.com/lightdash/lightdash/commit/fbf1af5de931fd0cb1d2c01b01e3d3d5f1bfbaaf))
+* **mcp:** correct writeback guidance ([#29030](https://github.com/lightdash/lightdash/issues/29030)) ([8c39042](https://github.com/lightdash/lightdash/commit/8c39042e05ef605ecbf2de9af53b5e3ed2146545))
+* **mcp:** shorten find_content guidance ([#29029](https://github.com/lightdash/lightdash/issues/29029)) ([d66baaa](https://github.com/lightdash/lightdash/commit/d66baaa9cfdcf2ca543b8043da14e1ac55567e56))
+* **mcp:** shorten writeback guidance ([#29033](https://github.com/lightdash/lightdash/issues/29033)) ([ed6177e](https://github.com/lightdash/lightdash/commit/ed6177eb4e45d4377bb3f5238c78ff0d39ef1a53))
+
 # [2.198.0](https://github.com/lightdash/lightdash/compare/2.197.3...2.198.0) (2026-09-11)
 
 
