@@ -9,7 +9,7 @@ const semanticQueryOptions = {
 };
 
 describe('getMcpAnalystPrompt', () => {
-    it('keeps workflow guidance without table-calculation or visualization manuals', () => {
+    it('keeps workflow guidance without tool-specific manuals', () => {
         const prompt = getMcpAnalystPrompt(semanticQueryOptions);
 
         expect(prompt).toContain('Query Building Workflow');
@@ -18,6 +18,8 @@ describe('getMcpAnalystPrompt', () => {
         expect(prompt).not.toContain('MOVING_AVG');
         expect(prompt).not.toContain('### Visualization');
         expect(prompt).not.toContain('xAxisType');
+        expect(prompt).not.toContain('### Time Filtering');
+        expect(prompt).not.toContain('inThePast');
         expect(prompt).toContain('render completed metric queries');
         expect(prompt).toContain('### Custom Metrics');
         expect(prompt).not.toContain('Saved Content Mode');
