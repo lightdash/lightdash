@@ -1,3 +1,10 @@
+## [2.198.4](https://github.com/lightdash/lightdash/compare/2.198.3...2.198.4) (2026-09-11)
+
+
+### Bug Fixes
+
+* **embed:** let chart embed tokens read and cancel their queries ([#29073](https://github.com/lightdash/lightdash/issues/29073)) ([2c7c697](https://github.com/lightdash/lightdash/commit/2c7c697dbe7dd752919e0511fad57600bcd236c9))
+
 ## [2.198.3](https://github.com/lightdash/lightdash/compare/2.198.2...2.198.3) (2026-09-11)
 
 
