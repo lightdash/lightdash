@@ -42894,6 +42894,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseTableType: {
+        dataType: 'refEnum',
+        enums: ['table', 'view', 'materialized_view', 'external'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseTablesCatalog: {
         dataType: 'refAlias',
         type: {
@@ -42908,6 +42913,7 @@ const models: TsoaRoute.Models = {
                     additionalProperties: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            tableType: { ref: 'WarehouseTableType' },
                             partitionColumn: { ref: 'PartitionColumn' },
                         },
                     },

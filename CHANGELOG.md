@@ -1,3 +1,10 @@
+# [2.197.0](https://github.com/lightdash/lightdash/compare/2.196.3...2.197.0) (2026-09-11)
+
+
+### Features
+
+* **sql-runner:** show the relation type in the table browser ([#29014](https://github.com/lightdash/lightdash/issues/29014)) ([85eecb3](https://github.com/lightdash/lightdash/commit/85eecb31ffee9317d22f076a72ef069cb0fb92be))
+
 ## [2.196.3](https://github.com/lightdash/lightdash/compare/2.196.2...2.196.3) (2026-09-11)
 
 
