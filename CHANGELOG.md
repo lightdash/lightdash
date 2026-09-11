@@ -1,3 +1,10 @@
+## [2.195.2](https://github.com/lightdash/lightdash/compare/2.195.1...2.195.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **frontend:** only diagnose transport failures on warehouse connection requests ([#29046](https://github.com/lightdash/lightdash/issues/29046)) ([5f78bb1](https://github.com/lightdash/lightdash/commit/5f78bb1c74d41e7c6b636e4cd22cc0f3b12b4fcf)), closes [#28875](https://github.com/lightdash/lightdash/issues/28875)
+
 ## [2.195.1](https://github.com/lightdash/lightdash/compare/2.195.0...2.195.1) (2026-09-11)
 
 
