@@ -155,6 +155,36 @@
         transparent 2px 5px
     );
 }
+/* Narrow columns (project board): the stub moves under the title and the notches sit at the ends of the tear. */
+.ticketCard[data-stacked] .ticketRow {
+    flex-direction: column;
+    align-items: stretch;
+}
+.ticketCard[data-stacked] .ticketMeta {
+    flex-wrap: wrap;
+    margin-block: 0;
+}
+.ticketCard[data-stacked] .ticketMeta::before {
+    flex-basis: 100%;
+    width: auto;
+    height: 1px;
+    margin-right: 0;
+    margin-inline: calc(var(--notch) - var(--mantine-spacing-lg));
+    background-image: repeating-linear-gradient(
+        to right,
+        var(--mantine-color-default-border) 0 2px,
+        transparent 2px 5px
+    );
+}
+.ticketCard[data-stacked] .ticketId {
+    line-height: 1rem;
+}
+.ticketCard[data-stacked]::before,
+.ticketCard[data-stacked]::after {
+    top: auto;
+    margin-top: 0;
+    bottom: calc(var(--mantine-spacing-sm) + 1rem + 6px - var(--notch));
+}
 .priorityNone {
     opacity: 0;
     transition: opacity 120ms ease;
