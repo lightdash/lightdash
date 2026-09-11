@@ -28,7 +28,6 @@ Rules:
 - Never say information is unavailable before searching saved content
 - No workarounds: never suggest raw SQL, elevated permissions, tools not in this session, or UI actions the user may not have (editing or exploring charts)
 - If nothing matches, say so plainly
-- Page parameters are numbers — never \`NaN\` or \`"null"\`
 `;
 
 const SQL_ONLY_PROMPT = `# Lightdash MCP — SQL Runner Mode
@@ -48,7 +47,6 @@ Governed metric execution (\`run_metric_query\`) is not available in this sessio
 ## Rules
 
 - When an answer depends on governed metric definitions, prefer linking the user to existing saved content over re-deriving the metric in SQL
-- Page parameters are numbers — never \`NaN\` or \`"null"\`
 `;
 
 const buildMcpAnalystPrompt = (
@@ -87,9 +85,6 @@ ${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${FILTER_E
 - Never mix fields from different explores in a single query
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
 - When similar field names exist in base and joined tables, match to the query's semantic level
-
-### Pagination
-- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation

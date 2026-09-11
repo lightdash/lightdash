@@ -396,6 +396,37 @@ describe('MCP tool contracts', () => {
     );
 
     it.each(mcpTextConfigurations)(
+        'keeps pagination guidance on registered input fields: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        async (options) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(makeMcpServerOptions(options));
+            const paginatedTools = mockRegisteredMcpTools.filter(
+                ({ config }) => config.inputSchema.page !== undefined,
+            );
+            expect(paginatedTools.map(({ name }) => name)).toContain(
+                McpToolName.LIST_CONTENT,
+            );
+            for (const { config } of paginatedTools) {
+                expect(schemaToJson(config.inputSchema, 'input')).toMatchObject(
+                    {
+                        properties: {
+                            page: {
+                                description:
+                                    'Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".',
+                            },
+                        },
+                    },
+                );
+            }
+            const instructions = getLatestMcpServerInstructions();
+            expect(instructions).not.toContain('### Pagination');
+            expect(instructions).not.toContain('Page parameters');
+            expect(instructions).not.toContain('NaN');
+        },
+    );
+
+    it.each(mcpTextConfigurations)(
         'ratchets MCP server instruction lengths: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
         async (options) => {
             const configuration = JSON.stringify(options);
@@ -403,8 +434,8 @@ describe('MCP tool contracts', () => {
             await mcpService.createServer(makeMcpServerOptions(options));
             // Existing instruction overages cannot grow; lower these as text shrinks.
             const instructionCeilings = options.runSqlEnabled
-                ? { structured: 2944, expression: 3081 }
-                : { structured: 2147, expression: 2284 };
+                ? { structured: 2852, expression: 2989 }
+                : { structured: 2055, expression: 2192 };
             const instructionCeiling = options.runMetricQueryEnabled
                 ? instructionCeilings[
                       options.filterExpressionsEnabled
