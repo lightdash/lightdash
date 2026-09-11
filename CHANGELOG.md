@@ -1,3 +1,10 @@
+## [2.196.2](https://github.com/lightdash/lightdash/compare/2.196.1...2.196.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **underlying-data:** only include unnested tables the source query reached ([#29050](https://github.com/lightdash/lightdash/issues/29050)) ([51f8cc5](https://github.com/lightdash/lightdash/commit/51f8cc5994e9bcad3c07dbdc00935e996a4444fc))
+
 ## [2.196.1](https://github.com/lightdash/lightdash/compare/2.196.0...2.196.1) (2026-09-11)
 
 
