@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
     canMutateVerifiedContent,
+    getDashboardDeleteAccess,
     ContentReviewContentType,
     ContentType,
     ResourceViewItemType,
@@ -312,6 +313,15 @@ const DashboardHeader = memo(
                 },
                 dashboard.verification,
                 user.data.userUuid,
+            );
+        const userCanDeleteDashboard =
+            userCanManageDashboard &&
+            user.data?.ability.can(
+                'delete',
+                subject('Dashboard', {
+                    ...dashboard,
+                    access: getDashboardDeleteAccess(dashboard.access ?? []),
+                }),
             );
         const userCanRefreshPreAggregates =
             user.data?.ability.can(
@@ -1110,7 +1120,7 @@ const DashboardHeader = memo(
                                         </>
                                     )}
 
-                                    {userCanManageDashboard && (
+                                    {userCanDeleteDashboard && (
                                         <>
                                             <Menu.Divider />
                                             <Menu.Item

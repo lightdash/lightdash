@@ -4,6 +4,7 @@ import {
     ChartSourceType,
     ContentReviewContentType,
     DirectAccessResourceType,
+    getDashboardDeleteAccess,
     isResourceViewDataAppItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
@@ -236,6 +237,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const isFavorited = favoritesContext?.isFavorited(item.data.uuid) ?? false;
 
     let userCanManage = false;
+    let userCanDelete = false;
     switch (item.type) {
         case ResourceViewItemType.CHART: {
             const userAccess = spaces.find(
@@ -299,6 +301,22 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             ...(userAccess ? [userAccess] : []),
                             ...grantAccess,
                         ],
+                    }),
+                ) === true;
+            userCanDelete =
+                user.data?.ability?.can(
+                    'delete',
+                    subject('Dashboard', {
+                        ...item.data,
+                        projectUuid,
+                        organizationUuid,
+                        access: getDashboardDeleteAccess([
+                            ...(userAccess ? [userAccess] : []),
+                            ...grantAccess.map((access) => ({
+                                ...access,
+                                grantedVia: 'dashboard' as const,
+                            })),
+                        ]),
                     }),
                 ) === true;
             break;
@@ -805,35 +823,37 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 </Menu.Item>
                             )}
 
-                            {allowDelete && (
-                                <>
-                                    <Menu.Divider />
+                            {allowDelete &&
+                                (item.type !== ResourceViewItemType.DASHBOARD ||
+                                    userCanDelete) && (
+                                    <>
+                                        <Menu.Divider />
 
-                                    <Menu.Item
-                                        component="button"
-                                        role="menuitem"
-                                        color="red"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconTrash}
-                                                size={18}
-                                            />
-                                        }
-                                        onClick={() => {
-                                            onAction({
-                                                type: ResourceViewItemAction.DELETE,
-                                                item,
-                                            });
-                                        }}
-                                    >
-                                        Delete{' '}
-                                        {item.type ===
-                                        ResourceViewItemType.DATA_APP
-                                            ? 'data app'
-                                            : item.type}
-                                    </Menu.Item>
-                                </>
-                            )}
+                                        <Menu.Item
+                                            component="button"
+                                            role="menuitem"
+                                            color="red"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconTrash}
+                                                    size={18}
+                                                />
+                                            }
+                                            onClick={() => {
+                                                onAction({
+                                                    type: ResourceViewItemAction.DELETE,
+                                                    item,
+                                                });
+                                            }}
+                                        >
+                                            Delete{' '}
+                                            {item.type ===
+                                            ResourceViewItemType.DATA_APP
+                                                ? 'data app'
+                                                : item.type}
+                                        </Menu.Item>
+                                    </>
+                                )}
                         </>
                     )}
                 </Menu.Dropdown>
