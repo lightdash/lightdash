@@ -563,7 +563,7 @@ export class SpacePermissionService extends BaseService {
                     baselineContext,
                     userUuid,
                     grantRoles,
-                    grantTarget.source,
+                    grantTarget,
                 ),
             );
         });
@@ -573,7 +573,7 @@ export class SpacePermissionService extends BaseService {
         spaceContext: SpaceAccessContextForCasl,
         userUuid: string,
         grantRoles: SpaceMemberRole[],
-        grantedVia: GrantSource,
+        grantTarget: DirectGrantTarget,
     ): AccessContextForCasl {
         const hasSpacePath =
             spaceContext.access.some(
@@ -591,7 +591,8 @@ export class SpacePermissionService extends BaseService {
                     projectRole: undefined,
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
-                    grantedVia,
+                    grantedVia: grantTarget.source,
+                    grantSourceUuid: grantTarget.resourceUuid,
                 })),
             ],
             directOnly: !hasSpacePath,

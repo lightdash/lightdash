@@ -1989,6 +1989,7 @@ describe('resolveAccess', () => {
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
                     grantedVia: 'dashboard',
+                    grantSourceUuid: 'dashboard-uuid',
                 },
                 {
                     userUuid: 'user-uuid',
@@ -1998,6 +1999,7 @@ describe('resolveAccess', () => {
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
                     grantedVia: 'dashboard',
+                    grantSourceUuid: 'dashboard-uuid',
                 },
             ],
             directOnly: true,
@@ -2133,11 +2135,13 @@ describe('resolveAccess', () => {
                     userUuid: 'user-uuid',
                     role: SpaceMemberRole.VIEWER,
                     grantedVia: 'app',
+                    grantSourceUuid: 'app-uuid',
                 },
                 {
                     userUuid: 'user-uuid',
                     role: SpaceMemberRole.EDITOR,
                     grantedVia: 'app',
+                    grantSourceUuid: 'app-uuid',
                 },
             ],
         });
@@ -2714,6 +2718,7 @@ describe('resolveAccess space-saved chart target', () => {
                 userUuid: 'user-uuid',
                 role: SpaceMemberRole.EDITOR,
                 grantedVia: 'saved_chart',
+                grantSourceUuid: 'chart-uuid',
             }),
         ]);
         expect(result.directOnly).toBe(true);
@@ -2815,6 +2820,7 @@ describe('resolveAccess saved SQL chart target', () => {
                 userUuid: 'user-uuid',
                 role: SpaceMemberRole.VIEWER,
                 grantedVia: 'sql_chart',
+                grantSourceUuid: 'saved-sql-uuid',
             }),
         ]);
         expect(result.directOnly).toBe(true);
@@ -2918,7 +2924,10 @@ describe('resolveAccess chart ownership routing', () => {
         });
 
         expect(result.access).toEqual([
-            expect.objectContaining({ grantedVia: 'dashboard' }),
+            expect.objectContaining({
+                grantedVia: 'dashboard',
+                grantSourceUuid: 'dashboard-uuid',
+            }),
         ]);
         expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
             ['dashboard-uuid'],
