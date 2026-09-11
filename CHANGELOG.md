@@ -1,3 +1,10 @@
+# [2.203.0](https://github.com/lightdash/lightdash/compare/2.202.0...2.203.0) (2026-09-11)
+
+
+### Features
+
+* **roadmap:** quieter board cards with priority glyphs and ticket stubs ([#29096](https://github.com/lightdash/lightdash/issues/29096)) ([cd2d1a2](https://github.com/lightdash/lightdash/commit/cd2d1a2a88be23f0ae75db0f6116f492e66475e0))
+
 # [2.202.0](https://github.com/lightdash/lightdash/compare/2.201.0...2.202.0) (2026-09-11)
 
 

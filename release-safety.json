@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.202.0",
-  "previousVersion": "2.201.0",
-  "releaseDate": "2026-09-11T15:51:14.066Z",
+  "version": "2.203.0",
+  "previousVersion": "2.202.0",
+  "releaseDate": "2026-09-11T17:14:56.465Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260911090000_slack_setting_ai_links_only.ts",
-        "edition": "core",
-        "tables": [
-          "slack_auth_tokens"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
