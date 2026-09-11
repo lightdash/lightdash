@@ -13,6 +13,7 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
+import { useChartTypesEnabled } from '../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { chartTypeBuilderPath } from '../../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
@@ -210,8 +211,10 @@ export const ConfigTabs: React.FC = memo(() => {
     );
     const isAiEnabled = aiCustomVizFlag?.enabled ?? false;
 
-    // Without data apps there are no custom chart types, so Vega is the only
+    // Without chart types there is nothing to switch to, so Vega is the only
     // custom chart type there is and a picker would offer a choice of one.
+    const { enabled: chartTypesEnabled } = useChartTypesEnabled();
+    // Creating a chart type is authoring, so those affordances need data apps.
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
@@ -255,7 +258,7 @@ export const ConfigTabs: React.FC = memo(() => {
     return (
         <>
             <Stack>
-                {dataAppsEnabled && !isInsideChartGallery && (
+                {chartTypesEnabled && !isInsideChartGallery && (
                     <CustomChartTypeSection
                         projectUuid={projectUuid ?? ''}
                         selected={{ kind: 'builtInVega' }}
@@ -268,9 +271,13 @@ export const ConfigTabs: React.FC = memo(() => {
                             selectProjectChartType(picked, itemsMap ?? {})
                         }
                         // Clearing leaves Vega for the empty project-type state.
-                        onClear={canCreateApp ? createProjectChartType : null}
+                        onClear={
+                            dataAppsEnabled && canCreateApp
+                                ? createProjectChartType
+                                : null
+                        }
                         onCreateNew={
-                            canCreateApp
+                            dataAppsEnabled && canCreateApp
                                 ? () =>
                                       void navigate({
                                           pathname: chartTypeBuilderPath(

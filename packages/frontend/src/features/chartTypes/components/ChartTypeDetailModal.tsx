@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getAppDisplayName,
     isOfficialChartType,
     type DataAppViz,
@@ -11,6 +12,7 @@ import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -48,6 +50,11 @@ const ChartTypeDetailModal: FC<Props> = ({
 }) => {
     const canEdit = useCanEditDataApp(projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(projectUuid);
+    // Forking and editing are authoring: they need data apps, unlike
+    // install/upgrade/uninstall which follow the chart type library.
+    const dataAppsEnabled =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
     const isDetailActive = isActive && !isForkOpen;
@@ -127,39 +134,44 @@ const ChartTypeDetailModal: FC<Props> = ({
                     )
                 }
                 actions={
-                    isOfficial ? (
-                        canFork && (
-                            <Button
-                                variant="default"
-                                leftSection={<MantineIcon icon={IconGitFork} />}
-                                onClick={() => {
-                                    track({
-                                        name: EventName.CHART_TYPE_FORK_MODAL_OPENED,
-                                        properties: {
-                                            projectUuid,
-                                            registrySlug:
-                                                dataAppViz.registrySlug,
-                                        },
-                                    });
-                                    setIsForkOpen(true);
-                                }}
-                            >
-                                Fork to customize
-                            </Button>
-                        )
-                    ) : (
-                        <Button
-                            component={Link}
-                            to={chartTypeBuilderPath(
-                                projectUuid,
-                                dataAppViz.slug,
-                            )}
-                            variant="default"
-                            leftSection={<MantineIcon icon={IconFilePencil} />}
-                        >
-                            Edit
-                        </Button>
-                    )
+                    isOfficial
+                        ? dataAppsEnabled &&
+                          canFork && (
+                              <Button
+                                  variant="default"
+                                  leftSection={
+                                      <MantineIcon icon={IconGitFork} />
+                                  }
+                                  onClick={() => {
+                                      track({
+                                          name: EventName.CHART_TYPE_FORK_MODAL_OPENED,
+                                          properties: {
+                                              projectUuid,
+                                              registrySlug:
+                                                  dataAppViz.registrySlug,
+                                          },
+                                      });
+                                      setIsForkOpen(true);
+                                  }}
+                              >
+                                  Fork to customize
+                              </Button>
+                          )
+                        : dataAppsEnabled && (
+                              <Button
+                                  component={Link}
+                                  to={chartTypeBuilderPath(
+                                      projectUuid,
+                                      dataAppViz.slug,
+                                  )}
+                                  variant="default"
+                                  leftSection={
+                                      <MantineIcon icon={IconFilePencil} />
+                                  }
+                              >
+                                  Edit
+                              </Button>
+                          )
                 }
                 onConfirm={onPreview}
                 confirmLabel="Preview in explorer"

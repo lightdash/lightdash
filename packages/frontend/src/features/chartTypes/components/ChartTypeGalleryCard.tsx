@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getAppDisplayName,
     isOfficialChartType,
     type DataAppViz,
@@ -25,6 +26,7 @@ import { Link } from 'react-router';
 import { FloatingActionsPill } from '../../../components/common/FloatingActionsPill';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
@@ -52,6 +54,10 @@ const ChartTypeGalleryCard: FC<Props> = ({
 }) => {
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(dataAppViz.projectUuid);
+    // Forking and editing are authoring, so they need data apps on.
+    const dataAppsEnabled =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
     const displayName = getAppDisplayName(
@@ -100,7 +106,8 @@ const ChartTypeGalleryCard: FC<Props> = ({
                 </Stack>
                 <FloatingActionsPill className={classes.menuHost}>
                     {isOfficial
-                        ? canFork && (
+                        ? dataAppsEnabled &&
+                          canFork && (
                               <Tooltip label="Fork to customize">
                                   <ActionIcon
                                       size="sm"
@@ -114,7 +121,8 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                   </ActionIcon>
                               </Tooltip>
                           )
-                        : canEdit && (
+                        : dataAppsEnabled &&
+                          canEdit && (
                               <Tooltip label="Edit">
                                   <ActionIcon
                                       size="sm"

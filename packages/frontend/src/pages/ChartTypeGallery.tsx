@@ -29,6 +29,7 @@ import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGal
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
 import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
+import { useChartTypesEnabled } from '../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
@@ -46,7 +47,10 @@ const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
     const { user } = useApp();
     const [searchParams, setSearchParams] = useSearchParams();
-    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const chartTypesEnabled = useChartTypesEnabled();
+    const dataAppsEnabled =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
     const chartTypeRegistryFlag = useServerFeatureFlag(
         FeatureFlags.ChartTypeRegistry,
     );
@@ -123,11 +127,11 @@ const ChartTypeGallery = () => {
         return null;
     }
 
-    if (dataAppsFlag.isLoading) {
+    if (chartTypesEnabled.isLoading) {
         return null;
     }
 
-    if (!dataAppsFlag.data?.enabled) {
+    if (!chartTypesEnabled.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
@@ -189,30 +193,32 @@ const ChartTypeGallery = () => {
                                             setSearch(e.currentTarget.value)
                                         }
                                     />
-                                    <Can
-                                        I="create"
-                                        this={subject('DataApp', {
-                                            organizationUuid:
-                                                user.data?.organizationUuid,
-                                            projectUuid,
-                                        })}
-                                    >
-                                        <Button
-                                            size="xs"
-                                            component={Link}
-                                            to={chartTypeBuilderPath(
+                                    {dataAppsEnabled && (
+                                        <Can
+                                            I="create"
+                                            this={subject('DataApp', {
+                                                organizationUuid:
+                                                    user.data?.organizationUuid,
                                                 projectUuid,
-                                            )}
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconPlus}
-                                                    size={15}
-                                                />
-                                            }
+                                            })}
                                         >
-                                            New chart type
-                                        </Button>
-                                    </Can>
+                                            <Button
+                                                size="xs"
+                                                component={Link}
+                                                to={chartTypeBuilderPath(
+                                                    projectUuid,
+                                                )}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                        size={15}
+                                                    />
+                                                }
+                                            >
+                                                New chart type
+                                            </Button>
+                                        </Can>
+                                    )}
                                 </Group>
                             )}
 
