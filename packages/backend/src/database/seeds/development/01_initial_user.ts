@@ -271,6 +271,10 @@ export async function seed(knex: Knex): Promise<void> {
             warehouseCredentials,
             {
                 warehouseCatalog: undefined,
+                warehouseCatalogFetchedAt: null,
+                missingWarehouseTables: null,
+                manualWarehouseCatalogRefresh: null,
+                warehouseCatalogMaxAgeMs: null,
                 onWarehouseCatalogChange: () => {},
             },
             SupportedDbtVersions.V1_12,

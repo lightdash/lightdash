@@ -59,6 +59,7 @@ import {
     getCatalogTimestampDomain,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
+    type WarehouseCatalogTable,
     type WarehouseNestedColumnShape,
     type WarehouseSqlBuilder,
     type WarehouseTableSchema,
@@ -2037,6 +2038,7 @@ export const attachTypesToModels = (
     throwOnMissingCatalogEntry: boolean = true,
     caseSensitiveMatching: boolean = true,
     onDiagnostics?: (diagnostics: AttachTypesDiagnostics) => void,
+    knownMissingTables: WarehouseCatalogTable[] = [],
 ): DbtModelNode[] => {
     const startedAt = Date.now();
     let exactLookups = 0;
@@ -2060,6 +2062,19 @@ export const attachTypesToModels = (
         `${database}\u0000${schema}\u0000${table}`;
     const foldedKey = (database: string, schema: string, table: string) =>
         key(database.toLowerCase(), schema.toLowerCase(), table.toLowerCase());
+    const knownMissingIndex = new Set(
+        knownMissingTables.map(({ database, schema, table }) =>
+            caseSensitiveMatching
+                ? key(database, schema, table)
+                : foldedKey(database, schema, table),
+        ),
+    );
+    const isKnownMissing = (database: string, schema: string, table: string) =>
+        knownMissingIndex.has(
+            caseSensitiveMatching
+                ? key(database, schema, table)
+                : foldedKey(database, schema, table),
+        );
 
     let catalogTableCount = 0;
     Object.keys(warehouseCatalog).forEach((database) => {
@@ -2125,11 +2140,15 @@ export const attachTypesToModels = (
     };
 
     // Check that all models appear in the warehouse
-    models.forEach(({ database, schema, name }) => {
-        if (lookup(database, schema, name) === undefined) {
+    models.forEach(({ database, schema, name, alias }) => {
+        const tableName = alias || name;
+        if (
+            lookup(database, schema, tableName) === undefined &&
+            !isKnownMissing(database, schema, tableName)
+        ) {
             if (throwOnMissingCatalogEntry) {
                 throw new MissingCatalogEntryError(
-                    `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
+                    `Model "${tableName}" was expected in your target warehouse at "${database}.${schema}.${tableName}". Does the table exist in your target data warehouse?`,
                     {},
                 );
             }
@@ -2190,7 +2209,10 @@ export const attachTypesToModels = (
             }
         }
         missingLookups += 1;
-        if (throwOnMissingCatalogEntry) {
+        if (
+            throwOnMissingCatalogEntry &&
+            !(hit === undefined && isKnownMissing(database, schema, tableName))
+        ) {
             throw new MissingCatalogEntryError(
                 `Column "${columnName}" from model "${tableName}" does not exist.\n "${tableName}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${tableName}. Try rerunning dbt to update your warehouse.`,
                 {},

@@ -181,6 +181,59 @@ describe('attachTypesToModels', () => {
             )[0],
         ).toEqual(expectedModelWithType);
     });
+    it('should reuse a known missing table without changing the missing outcome', () => {
+        expect(
+            attachTypesToModels([model], {}, true, true, undefined, [
+                {
+                    database: model.database,
+                    schema: model.schema,
+                    table: model.name,
+                },
+            ]),
+        ).toEqual([model]);
+    });
+    it('should match known missing tables case-insensitively for Snowflake', () => {
+        expect(
+            attachTypesToModels([model], {}, true, false, undefined, [
+                {
+                    database: model.database.toUpperCase(),
+                    schema: model.schema.toUpperCase(),
+                    table: model.name.toUpperCase(),
+                },
+            ]),
+        ).toEqual([model]);
+    });
+    it('should refetch for a missing column when the table exists despite a stale negative entry', () => {
+        expect(() =>
+            attachTypesToModels(
+                [model],
+                warehouseSchemaWithMissingColumn,
+                true,
+                true,
+                undefined,
+                [
+                    {
+                        database: model.database,
+                        schema: model.schema,
+                        table: model.name,
+                    },
+                ],
+            ),
+        ).toThrowError(
+            'Column "myColumnName" from model "myTable" does not exist.\n "myTable.myColumnName" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
+        );
+    });
+    it('should use the model alias for the presence preflight', () => {
+        const aliasedModel = {
+            ...model,
+            name: 'logicalName',
+            alias: 'myTable',
+        };
+        expect(
+            attachTypesToModels([aliasedModel], warehouseSchema, true)[0]
+                .columns.myColumnName.data_type,
+        ).toEqual(DimensionType.STRING);
+    });
     it('should throw an error when column has wrong case', async () => {
         expect(() =>
             attachTypesToModels(

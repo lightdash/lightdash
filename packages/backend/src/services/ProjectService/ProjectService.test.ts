@@ -56,6 +56,7 @@ import {
     type RegisteredAccount,
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
+    type WarehouseClient,
     type WarehouseLocation,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
@@ -249,6 +250,7 @@ const projectModel = {
     getCachedExploreNames: vi.fn(async () => []),
     getWarehouseFromCache: vi.fn(async () => undefined),
     saveWarehouseToCache: vi.fn(async () => undefined),
+    invalidateWarehouseCacheForManualRefresh: vi.fn(async () => undefined),
     saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
     saveExploreStreamToCache: vi.fn<ProjectModel['saveExploreStreamToCache']>(
         async (_projectUuid, explores) => {
@@ -425,6 +427,7 @@ const getMockedProjectService = (
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
             | 'projectDbtSourcesModel'
+            | 'warehouseAvailableTablesModel'
         >
     > = {},
 ) =>
@@ -454,7 +457,9 @@ const getMockedProjectService = (
         userWarehouseCredentialsModel: {
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
-        warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
+        warehouseAvailableTablesModel:
+            overrides.warehouseAvailableTablesModel ??
+            ({} as WarehouseAvailableTablesModel),
         emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         downloadFileModel:
@@ -903,6 +908,160 @@ describe('ProjectService', () => {
             expect(
                 analyticsClient.assertAnalyticsProjectEnabled,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('populateWarehouseTablesCache', () => {
+        const makeManualRefreshHarness = (
+            userWarehouseCredentialsUuid: string | null = null,
+        ) => {
+            const createAvailableTablesForProjectWarehouseCredentials = vi.fn(
+                async () => undefined,
+            );
+            const createAvailableTablesForUserWarehouseCredentials = vi.fn(
+                async () => undefined,
+            );
+            const getTablesForProjectWarehouseCredentials = vi.fn(
+                async () => null,
+            );
+            const warehouseAvailableTablesModel = {
+                createAvailableTablesForProjectWarehouseCredentials,
+                createAvailableTablesForUserWarehouseCredentials,
+                getTablesForProjectWarehouseCredentials,
+            } as unknown as WarehouseAvailableTablesModel;
+            const manualRefreshService = getMockedProjectService(
+                lightdashConfigMock,
+                { warehouseAvailableTablesModel },
+            );
+            const getAllTables = vi.fn(async () => [
+                {
+                    database: 'analytics',
+                    schema: 'public',
+                    table: 'orders',
+                },
+            ]);
+            const disconnect = vi.fn(async () => undefined);
+            vi.spyOn(
+                manualRefreshService as unknown as {
+                    getWarehouseCredentials: () => Promise<unknown>;
+                },
+                'getWarehouseCredentials',
+            ).mockResolvedValue({
+                type: WarehouseTypes.POSTGRES,
+                userWarehouseCredentialsUuid,
+            });
+            vi.spyOn(
+                manualRefreshService,
+                '_getWarehouseClient',
+            ).mockResolvedValue({
+                warehouseClient: {
+                    getAllTables,
+                } as unknown as WarehouseClient,
+                sshTunnel: { disconnect } as never,
+                tunnelConnectMs: null,
+            });
+            return {
+                service: manualRefreshService,
+                createAvailableTablesForProjectWarehouseCredentials: vi.mocked(
+                    createAvailableTablesForProjectWarehouseCredentials,
+                ),
+                createAvailableTablesForUserWarehouseCredentials: vi.mocked(
+                    createAvailableTablesForUserWarehouseCredentials,
+                ),
+                getTablesForProjectWarehouseCredentials: vi.mocked(
+                    getTablesForProjectWarehouseCredentials,
+                ),
+                getAllTables: vi.mocked(getAllTables),
+                disconnect: vi.mocked(disconnect),
+                invalidateWarehouseCacheForManualRefresh: vi.mocked(
+                    projectModel.invalidateWarehouseCacheForManualRefresh,
+                ),
+            };
+        };
+
+        beforeEach(() => {
+            vi.mocked(projectModel.invalidateWarehouseCacheForManualRefresh)
+                .mockReset()
+                .mockResolvedValue(undefined);
+        });
+
+        it('invalidates the compile catalog after a successful manual table-list refresh', async () => {
+            const harness = makeManualRefreshHarness();
+
+            await expect(
+                harness.service.populateWarehouseTablesCache(user, projectUuid),
+            ).resolves.toEqual({
+                analytics: {
+                    public: {
+                        orders: { partitionColumn: undefined },
+                    },
+                },
+            });
+            expect(
+                harness.createAvailableTablesForProjectWarehouseCredentials,
+            ).toHaveBeenCalledOnce();
+            expect(
+                harness.invalidateWarehouseCacheForManualRefresh,
+            ).toHaveBeenCalledWith(projectUuid);
+            expect(harness.disconnect).toHaveBeenCalledOnce();
+        });
+
+        it('does not invalidate the project compile catalog after a per-user table-list refresh', async () => {
+            const harness = makeManualRefreshHarness(
+                'user-warehouse-credentials-uuid',
+            );
+
+            await harness.service.populateWarehouseTablesCache(
+                user,
+                projectUuid,
+            );
+
+            expect(
+                harness.createAvailableTablesForUserWarehouseCredentials,
+            ).toHaveBeenCalledWith(
+                'user-warehouse-credentials-uuid',
+                expect.any(Array),
+            );
+            expect(
+                harness.invalidateWarehouseCacheForManualRefresh,
+            ).not.toHaveBeenCalled();
+            expect(harness.disconnect).toHaveBeenCalledOnce();
+        });
+
+        it('does not invalidate the compile catalog when an automatic table-list cache miss is populated', async () => {
+            const harness = makeManualRefreshHarness();
+
+            await expect(
+                harness.service.getWarehouseTables(user, projectUuid),
+            ).resolves.toEqual({
+                analytics: {
+                    public: {
+                        orders: { partitionColumn: undefined },
+                    },
+                },
+            });
+            expect(
+                harness.getTablesForProjectWarehouseCredentials,
+            ).toHaveBeenCalledWith(projectUuid);
+            expect(
+                harness.createAvailableTablesForProjectWarehouseCredentials,
+            ).toHaveBeenCalledOnce();
+            expect(
+                harness.invalidateWarehouseCacheForManualRefresh,
+            ).not.toHaveBeenCalled();
+            expect(harness.disconnect).toHaveBeenCalledOnce();
+        });
+
+        it('disconnects the SSH tunnel when compile catalog invalidation fails', async () => {
+            const harness = makeManualRefreshHarness();
+            harness.invalidateWarehouseCacheForManualRefresh.mockRejectedValueOnce(
+                new Error('invalidation failed'),
+            );
+
+            await expect(
+                harness.service.populateWarehouseTablesCache(user, projectUuid),
+            ).rejects.toThrow('invalidation failed');
+            expect(harness.disconnect).toHaveBeenCalledOnce();
         });
     });
 
@@ -4587,6 +4746,10 @@ describe('ProjectService', () => {
                 warehouseCredentials: warehouseClientMock.credentials,
                 cachedWarehouse: {
                     warehouseCatalog: undefined,
+                    warehouseCatalogFetchedAt: null,
+                    missingWarehouseTables: null,
+                    manualWarehouseCatalogRefresh: null,
+                    warehouseCatalogMaxAgeMs: null,
                     onWarehouseCatalogChange: vi.fn(),
                 },
                 dbtVersionOption: DefaultSupportedDbtVersion,

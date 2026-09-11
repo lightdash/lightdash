@@ -28,6 +28,10 @@ describe('DbtGithubProjectAdapter', () => {
             environmentVariableAllowlist: [],
             cachedWarehouse: {
                 warehouseCatalog: {},
+                warehouseCatalogFetchedAt: null,
+                missingWarehouseTables: null,
+                manualWarehouseCatalogRefresh: null,
+                warehouseCatalogMaxAgeMs: null,
                 onWarehouseCatalogChange: vi.fn(),
             },
             dbtVersion: SupportedDbtVersions.V1_7,

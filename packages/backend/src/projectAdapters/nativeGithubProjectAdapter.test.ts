@@ -58,7 +58,14 @@ describe('native GitHub server compilation', () => {
                 dbname: 'postgres',
                 schema: 'public',
             },
-            { warehouseCatalog: undefined, onWarehouseCatalogChange: vi.fn() },
+            {
+                warehouseCatalog: undefined,
+                warehouseCatalogFetchedAt: null,
+                missingWarehouseTables: null,
+                manualWarehouseCatalogRefresh: null,
+                warehouseCatalogMaxAgeMs: null,
+                onWarehouseCatalogChange: vi.fn(),
+            },
             SupportedDbtVersions.V1_10,
             [],
         );

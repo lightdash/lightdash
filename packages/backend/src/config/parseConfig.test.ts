@@ -1,6 +1,7 @@
 import {
     ALL_TASK_NAMES,
     DbtProjectType,
+    DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS,
     LightdashMode,
     OrganizationMemberRole,
     ParameterError,
@@ -10,6 +11,7 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import { VERSION } from '../version';
+import { lightdashConfigMock } from './lightdashConfig.mock';
 import {
     getFloatArrayFromEnvironmentVariable,
     getFloatFromEnvironmentVariable,
@@ -51,6 +53,17 @@ describe('usage events storage endpoint', () => {
             'https://storage.googleapis.com',
         );
         expect(process.env.S3_ENDPOINT).toBe('mock_endpoint');
+    });
+});
+
+describe('warehouse catalog cache config', () => {
+    it('uses the shared default in parsed and mock config', () => {
+        expect(parseConfig().dbt.warehouseCatalogCacheMaxAgeMs).toBe(
+            DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS,
+        );
+        expect(lightdashConfigMock.dbt.warehouseCatalogCacheMaxAgeMs).toBe(
+            DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS,
+        );
     });
 });
 

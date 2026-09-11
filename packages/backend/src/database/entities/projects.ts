@@ -6,6 +6,7 @@ import {
     ProjectDefaults,
     ProjectType,
     TableSelectionType,
+    type WarehouseCatalogTable,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -134,6 +135,19 @@ export type DbCachedExploreStaging = DbCachedExplore & {
 export type DbCachedWarehouse = {
     project_uuid: string;
     warehouse: AnyType;
+    fetched_at: Date | null;
+    missing_tables:
+        | WarehouseCatalogTable[]
+        | { refreshReason: 'manual' }
+        | null;
 };
 
-export type CachedWarehouseTable = Knex.CompositeTableType<DbCachedWarehouse>;
+type WriteDbCachedWarehouse = Omit<DbCachedWarehouse, 'missing_tables'> & {
+    missing_tables: DbCachedWarehouse['missing_tables'] | string;
+};
+
+export type CachedWarehouseTable = Knex.CompositeTableType<
+    DbCachedWarehouse,
+    WriteDbCachedWarehouse,
+    Partial<WriteDbCachedWarehouse>
+>;

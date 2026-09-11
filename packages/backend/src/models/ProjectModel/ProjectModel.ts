@@ -63,6 +63,7 @@ import {
     WarehouseCredentials,
     WarehouseTypes,
     type SummaryExplore,
+    type WarehouseCatalogTable,
 } from '@lightdash/common';
 import {
     buildMotherduckConnectionString,
@@ -2675,31 +2676,76 @@ export class ProjectModel {
         };
     }
 
-    async getWarehouseFromCache(
-        projectUuid: string,
-    ): Promise<WarehouseCatalog | undefined> {
+    async getWarehouseFromCache(projectUuid: string): Promise<
+        | {
+              warehouseCatalog: WarehouseCatalog;
+              fetchedAt: Date | null;
+              missingTables: WarehouseCatalogTable[] | null;
+              manualRefreshRequested: boolean;
+          }
+        | undefined
+    > {
         const warehouses = await this.database(CachedWarehouseTableName)
-            .select(['warehouse'])
+            .select(['warehouse', 'fetched_at', 'missing_tables'])
             .where('project_uuid', projectUuid)
             .limit(1);
-        if (warehouses.length > 0) return warehouses[0].warehouse;
+        if (warehouses.length > 0) {
+            const [warehouse] = warehouses;
+            const manualRefreshRequested =
+                typeof warehouse.missing_tables === 'object' &&
+                warehouse.missing_tables !== null &&
+                !Array.isArray(warehouse.missing_tables) &&
+                warehouse.missing_tables.refreshReason === 'manual';
+            return {
+                warehouseCatalog: warehouse.warehouse,
+                fetchedAt:
+                    warehouse.fetched_at === null
+                        ? null
+                        : new Date(warehouse.fetched_at),
+                missingTables: Array.isArray(warehouse.missing_tables)
+                    ? warehouse.missing_tables
+                    : null,
+                manualRefreshRequested,
+            };
+        }
         return undefined;
     }
 
     async saveWarehouseToCache(
         projectUuid: string,
-        warehouse: WarehouseCatalog,
+        cache: {
+            warehouseCatalog: WarehouseCatalog;
+            fetchedAt: Date;
+            missingTables: WarehouseCatalogTable[];
+        },
     ): Promise<DbCachedWarehouse> {
         const [cachedWarehouse] = await this.database(CachedWarehouseTableName)
             .insert({
                 project_uuid: projectUuid,
-                warehouse: JSON.stringify(warehouse),
+                warehouse: JSON.stringify(cache.warehouseCatalog),
+                fetched_at: cache.fetchedAt,
+                missing_tables: JSON.stringify(cache.missingTables),
             })
             .onConflict('project_uuid')
             .merge()
             .returning('*');
 
         return cachedWarehouse;
+    }
+
+    async invalidateWarehouseCacheForManualRefresh(
+        projectUuid: string,
+    ): Promise<void> {
+        const missingTables = { refreshReason: 'manual' } as const;
+        await this.database(CachedWarehouseTableName)
+            .insert({
+                project_uuid: projectUuid,
+                warehouse: {},
+                fetched_at: null,
+                missing_tables: missingTables,
+            })
+            .onConflict('project_uuid')
+            .merge({ missing_tables: missingTables });
     }
 
     async getProjectMemberAccess(

@@ -1,5 +1,6 @@
 import {
     ALL_TASK_NAMES,
+    DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS,
     LightdashMode,
     OrganizationMemberRole,
 } from '@lightdash/common';
@@ -122,6 +123,8 @@ export const lightdashConfigMock: LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: [],
         sourceFetchConcurrency: undefined,
+        warehouseCatalogCacheMaxAgeMs:
+            DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS,
     },
     dashboard: {
         maxTilesPerTab: 50,
