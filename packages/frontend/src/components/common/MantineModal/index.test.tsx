@@ -1,7 +1,15 @@
-import { MantineProvider } from '@mantine/core';
+import { Button, MantineProvider, Modal } from '@mantine/core';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MantineModal, { type MantineModalProps } from './index';
+import { useMantineModalClose } from './useMantineModalClose';
+
+// Stands in for a host's own control (a Cancel button in the header, a
+// breadcrumb in the title) that has to close the modal it sits in.
+const CloseFromInside = () => {
+    const { requestClose } = useMantineModalClose();
+    return <Button onClick={requestClose}>Leave</Button>;
+};
 
 const renderModal = (props: Partial<MantineModalProps> = {}) => {
     const onClose = vi.fn();
@@ -71,6 +79,81 @@ describe('MantineModal accessibility', () => {
         expect(
             screen.getByRole('dialog', { name: 'Share dashboard' }),
         ).toBeVisible();
+    });
+
+    it('closes from a control inside the modal', async () => {
+        const user = userEvent.setup();
+        const { onClose } = renderModal({ children: <CloseFromInside /> });
+        await user.click(screen.getByRole('button', { name: 'Leave' }));
+        expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it('sends a control inside the modal through the unsaved changes confirmation', async () => {
+        const user = userEvent.setup();
+        const { onClose } = renderModal({
+            confirmBeforeClose: true,
+            children: <CloseFromInside />,
+        });
+        await user.click(screen.getByRole('button', { name: 'Leave' }));
+        const confirmation = await screen.findByRole('dialog', {
+            name: 'Unsaved changes',
+        });
+        expect(onClose).not.toHaveBeenCalled();
+        await user.click(
+            within(confirmation).getByRole('button', {
+                name: 'Discard changes',
+            }),
+        );
+        expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it('keeps Escape on the topmost layer when a modal is nested in another', async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        const onNestedClose = vi.fn();
+        render(
+            <MantineProvider env="test">
+                <MantineModal opened title="Edit chart" onClose={onClose}>
+                    <MantineModal
+                        opened
+                        title="Version history"
+                        onClose={onNestedClose}
+                    >
+                        <Button>Restore</Button>
+                    </MantineModal>
+                </MantineModal>
+            </MantineProvider>,
+        );
+
+        // Mantine's focus trap keeps focus in the topmost modal; jsdom does
+        // not move it on its own
+        await user.click(screen.getByRole('button', { name: 'Restore' }));
+        await user.keyboard('{Escape}');
+        expect(onNestedClose).toHaveBeenCalledOnce();
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('keeps Escape on a plain Mantine modal nested in it', async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        const onNestedClose = vi.fn();
+        render(
+            <MantineProvider env="test">
+                <MantineModal opened title="Edit chart" onClose={onClose}>
+                    <Modal
+                        opened
+                        title="Scheduled deliveries"
+                        onClose={onNestedClose}
+                    >
+                        nested
+                    </Modal>
+                </MantineModal>
+            </MantineProvider>,
+        );
+
+        await user.keyboard('{Escape}');
+        expect(onNestedClose).toHaveBeenCalledOnce();
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it('discards edits only after explicit confirmation', async () => {

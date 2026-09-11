@@ -1,0 +1,7 @@
+.sidebar {
+    overflow-y: hidden;
+}
+
+.versionList {
+    overflow-y: auto;
+}
