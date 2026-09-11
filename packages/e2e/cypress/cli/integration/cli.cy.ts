@@ -63,8 +63,15 @@ describe('deploy', () => {
 describe('preview', () => {
     const previewName = `e2e preview ${new Date().getTime()}`;
 
+    after(() => {
+        cy.login();
+        cy.deleteProjectsByName([previewName]);
+    });
+
     it('Should start-preview', () => {
         cy.login();
+        // A failed attempt may have created the preview before timing out.
+        cy.deleteProjectsByName([previewName]);
         cy.getApiToken().then((apiToken) => {
             cy.exec(
                 `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,

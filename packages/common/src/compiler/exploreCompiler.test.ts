@@ -165,6 +165,57 @@ test('Should throw error when missing base table', () => {
     );
 });
 
+test('Missing joins explain model selection and identify the alias', () => {
+    const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+        allowPartialCompilation: true,
+    });
+    const result = partialCompiler.compileExplore({
+        ...exploreMissingJoinTable,
+        joinedTables: [{ table: 'b', alias: 'account', sqlOn: '' }],
+    });
+
+    expect(result.joinedTables).toEqual([]);
+    expect(result.warnings).toEqual([
+        {
+            type: InlineErrorType.MISSING_TABLE,
+            message:
+                'Join "account" to table "b" was skipped because the model is not available in this Lightdash project. Check that the model exists, is included by the project\'s tags/selector, and compiles successfully, then refresh the project.',
+        },
+    ]);
+});
+
+test('Dependent joins point to the skipped alias and its unavailable model', () => {
+    const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+        allowPartialCompilation: true,
+    });
+    const result = partialCompiler.compileExplore({
+        ...simpleJoinedExplore,
+        joinedTables: [
+            {
+                table: 'accounts',
+                alias: 'account',
+                sqlOn: '${a.dim1} = ${account.dim1}',
+            },
+            {
+                table: 'b',
+                alias: 'details',
+                sqlOn: '${account.dim1} = ${details.dim1}',
+            },
+        ],
+    });
+
+    expect(result.joinedTables).toEqual([]);
+    expect(Object.keys(result.tables)).toEqual(['a']);
+    expect(result.warnings).toEqual([
+        expect.objectContaining({ type: InlineErrorType.MISSING_TABLE }),
+        {
+            type: InlineErrorType.SKIPPED_JOIN,
+            message:
+                'Join "details" was skipped because it depends on skipped join "account" (table "accounts"). Resolve the missing-table warning for that join, then refresh the project.',
+        },
+    ]);
+});
+
 test('Should throw error when missing joined table', () => {
     expect(() => compiler.compileExplore(exploreMissingJoinTable)).toThrowError(
         CompileError,

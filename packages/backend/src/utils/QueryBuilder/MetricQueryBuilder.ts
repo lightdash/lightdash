@@ -2740,6 +2740,7 @@ export class MetricQueryBuilder {
         const { tablesWithMetricInflation, joinWithoutRelationship } =
             findTablesWithMetricInflation({
                 tables: explore.tables,
+                warnings: explore.warnings,
                 possibleJoins: explore.joinedTables,
                 baseTable: explore.baseTable,
                 joinedTables,

@@ -1,5 +1,7 @@
 import { intersection } from 'lodash';
+import { CompileError } from '../types/errors';
 import {
+    InlineErrorType,
     JoinRelationship,
     type CompiledExploreJoin,
     type CompiledTable,
@@ -17,6 +19,7 @@ export type FindTablesWithMetricInflationArgs = {
     baseTable: Explore['baseTable'];
     /** Tables the query actually joins. */
     joinedTables: Set<string>;
+    warnings?: Explore['warnings'];
 };
 
 /*
@@ -140,6 +143,7 @@ export const findTablesWithMetricInflation = ({
     joinedTables,
     possibleJoins,
     tables,
+    warnings,
 }: FindTablesWithMetricInflationArgs): {
     tablesWithMetricInflation: Set<string>;
     joinWithoutRelationship: Set<string>;
@@ -148,6 +152,26 @@ export const findTablesWithMetricInflation = ({
     const tablesWithMetricInflation = new Set<string>();
     const joinWithoutRelationship = new Set<string>();
     const tablesWithoutPrimaryKey = new Set<string>();
+
+    const missingJoin = [...joinedTables].find(
+        (table) =>
+            table !== baseTable &&
+            !possibleJoins.some((join) => join.table === table),
+    );
+    if (missingJoin) {
+        const joinWarnings = (warnings ?? []).filter(
+            ({ type }) =>
+                type === InlineErrorType.MISSING_TABLE ||
+                type === InlineErrorType.SKIPPED_JOIN,
+        );
+        throw new CompileError(
+            `Join "${missingJoin}" is not available for base table "${baseTable}". Check the model's compilation warnings and the project's tags/selector, then refresh the project.${
+                joinWarnings.length > 0
+                    ? ` Join compilation warnings: ${joinWarnings.map(({ message }) => message).join(' ')}`
+                    : ''
+            }`,
+        );
+    }
 
     // Check if any join has a many-to-many relationship
     const hasManyToManyJoin = Array.from(joinedTables).some((joinedTable) => {
@@ -181,12 +205,10 @@ export const findTablesWithMetricInflation = ({
                 return;
             }
 
+            // All query joins were validated above.
             const join = possibleJoins.find(
                 (possibleJoin) => possibleJoin.table === joinedTable,
-            );
-            if (!join) {
-                throw new Error(`Join ${joinedTable} not found`);
-            }
+            )!;
             if (!join.tablesReferences) {
                 // Skip, as we can't detect inflation without knowing table references in join SQL
                 return;
