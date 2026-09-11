@@ -6,6 +6,7 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import type { ManagedAgentRuntime } from '../../../config/parseConfig';
 import { ManagedAgentService } from './ManagedAgentService';
 
 const ORGANIZATION_UUID = 'organization-uuid';
@@ -50,6 +51,7 @@ const buildService = ({
     serviceAccountScopes = [ServiceAccountScope.SYSTEM_MEMBER],
     serviceAccountTokens = [null, 'service-account-token'],
     suggestionsSpaces = [],
+    runtime = 'anthropic-managed',
 }: {
     projectGrants?: Array<{
         projectUuid: string;
@@ -62,6 +64,7 @@ const buildService = ({
         uuid: string;
         inheritParentPermissions: boolean;
     }>;
+    runtime?: ManagedAgentRuntime;
 } = {}) => {
     const managedAgentModel = {
         getSettings: vi.fn().mockResolvedValue(settings),
@@ -105,6 +108,7 @@ const buildService = ({
     };
     const schedulerClient = {
         scheduleManagedAgentHeartbeat: vi.fn().mockResolvedValue(undefined),
+        cancelManagedAgentHeartbeat: vi.fn().mockResolvedValue(undefined),
     };
 
     const managedAgentClient = {
@@ -112,7 +116,7 @@ const buildService = ({
     };
     const service = new ManagedAgentService({
         lightdashConfig: {
-            managedAgent: { schedule: '0 0 * * *' },
+            managedAgent: { schedule: '0 0 * * *', runtime },
         },
         analytics: { track: vi.fn() },
         managedAgentModel,
@@ -143,12 +147,34 @@ const buildService = ({
         managedAgentClient,
         managedAgentModel,
         projectModel,
+        schedulerClient,
         service,
         serviceAccountModel,
     };
 };
 
 describe('ManagedAgentService.updateSettings', () => {
+    it('skips the MCP service account and agent sync on the AI SDK runtime', async () => {
+        const {
+            managedAgentClient,
+            managedAgentModel,
+            schedulerClient,
+            service,
+            serviceAccountModel,
+        } = buildService({ runtime: 'ai-sdk' });
+
+        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
+            enabled: true,
+        });
+
+        expect(serviceAccountModel.create).not.toHaveBeenCalled();
+        expect(managedAgentModel.setServiceAccountToken).not.toHaveBeenCalled();
+        expect(managedAgentClient.syncAgent).not.toHaveBeenCalled();
+        expect(
+            schedulerClient.scheduleManagedAgentHeartbeat,
+        ).toHaveBeenCalledWith('0 0 * * *', PROJECT_UUID);
+    });
+
     it('creates a project-scoped service account for MCP authentication', async () => {
         const {
             managedAgentClient,

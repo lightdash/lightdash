@@ -1381,6 +1381,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     managedAgentClient: new ManagedAgentClient({
                         lightdashConfig: context.lightdashConfig,
                     }),
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        aiModelCatalog,
+                    }),
+                    aiAgentToolsService:
+                        repository.getAiAgentToolsService<AiAgentToolsService>(),
                 }),
             deployService: ({ models, clients, repository, context }) =>
                 new DeployService({
