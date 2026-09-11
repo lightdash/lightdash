@@ -72,7 +72,7 @@ import Analytics, {
 import { EventEmitter } from 'events';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { LightdashConfig } from '../config/parseConfig';
+import { LightdashConfig, ManagedAgentRuntime } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import Logger from '../logging/logger';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -2319,6 +2319,7 @@ export type ManagedAgentRunCompletedEvent = BaseTrack & {
         runUuid: string;
         triggeredBy: 'cron' | 'manual' | 'on_enable';
         status: 'completed' | 'error';
+        runtime: ManagedAgentRuntime;
         durationMs: number;
         actionCount: number;
         actionCountsByType: Record<string, number>;

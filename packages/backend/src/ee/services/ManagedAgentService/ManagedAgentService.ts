@@ -17,10 +17,12 @@ import {
     ParameterError,
     ProjectMemberRole,
     ProjectType,
+    QueryExecutionContext,
     ServiceAccountScope,
     ValidationErrorType,
     ValidationSourceType,
     type ChartConfig,
+    type Explore,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
     type ManagedAgentAudience,
@@ -36,10 +38,13 @@ import {
     type ValidationResponse,
 } from '@lightdash/common';
 import type { KnownBlock } from '@slack/bolt';
+import type { ToolSet } from 'ai';
 import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
+import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import type { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { OrganizationModel } from '../../../models/OrganizationModel';
@@ -58,7 +63,27 @@ import {
 } from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
+import { getModel } from '../ai/models';
+import type { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import { getFindContent } from '../ai/tools/findContent';
+import { getGetDashboardCharts } from '../ai/tools/getDashboardCharts';
+import { getGetMetadata } from '../ai/tools/getMetadata';
+import { getGrepFields } from '../ai/tools/grepFields';
+import { getLoadSkill } from '../ai/tools/loadSkill';
+import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
+import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../ai/utils/aiCallTelemetry';
+import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import {
+    runAutopilotAgent,
+    type AutopilotAgentRunResult,
+} from './AutopilotAgentRunner';
+import { renderAutopilotAgent } from './config/agent';
 import { buildPreAggCandidateSuggestion } from './preAggCandidates';
+import { loadAutopilotSkill } from './skills';
 import {
     buildManagedAgentToolListResult,
     formatManagedAgentToolListResult,
@@ -155,6 +180,33 @@ type ManagedAgentServiceDependencies = {
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     managedAgentClient: ManagedAgentClient;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    aiAgentToolsService: AiAgentToolsService;
+};
+
+type HeartbeatSessionResult = {
+    sessionId: string;
+    slackSummary: string | null;
+    error: string | null;
+};
+
+const describeAutopilotStop = (
+    result: AutopilotAgentRunResult,
+    timeoutMs: number,
+): string | null => {
+    switch (result.stopReason) {
+        case 'end_turn':
+            return null;
+        case 'step_cap':
+            return `Autopilot stopped after ${result.stepCount} steps before finishing its checklist`;
+        case 'timeout':
+            return `Autopilot timed out after ${Math.round(timeoutMs / 60000)} minutes at step ${result.stepCount}`;
+        default:
+            return assertUnreachable(
+                result.stopReason,
+                `Unknown stop reason: ${result.stopReason}`,
+            );
+    }
 };
 
 export class ManagedAgentService extends BaseService {
@@ -192,6 +244,10 @@ export class ManagedAgentService extends BaseService {
 
     private readonly managedAgentClient: ManagedAgentClient;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
+    private readonly aiAgentToolsService: AiAgentToolsService;
+
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
@@ -211,6 +267,8 @@ export class ManagedAgentService extends BaseService {
         this.schedulerClient = deps.schedulerClient;
         this.slackClient = deps.slackClient;
         this.managedAgentClient = deps.managedAgentClient;
+        this.orgAiCopilotConfigResolver = deps.orgAiCopilotConfigResolver;
+        this.aiAgentToolsService = deps.aiAgentToolsService;
     }
 
     // --- Validation helpers ---
@@ -308,22 +366,16 @@ export class ManagedAgentService extends BaseService {
         const organization = await this.organizationModel.get(
             project.organizationUuid,
         );
-        const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+        const { toolSettings, policy } =
+            await this.getAutopilotRenderArgs(projectUuid);
 
         return {
             projectUuid,
             serviceAccountPat: serviceAccountToken,
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
             skillIds: this.lightdashConfig.managedAgent.skillIds,
-            toolSettings: settings?.toolSettings ?? {},
-            policy: {
-                ...policy,
-                audience: await this.resolveSuggestionsAudience(
-                    projectUuid,
-                    policy.audience,
-                ),
-            },
+            toolSettings,
+            policy,
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
@@ -355,6 +407,32 @@ export class ManagedAgentService extends BaseService {
                 );
             },
         };
+    }
+
+    // Policy and capability settings feed the prompt and tool list on both
+    // runtimes; the audience is resolved from the suggestions space each time.
+    private async getAutopilotRenderArgs(projectUuid: string): Promise<{
+        toolSettings: Record<string, boolean>;
+        policy: ManagedAgentPolicy;
+    }> {
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+        return {
+            toolSettings: settings?.toolSettings ?? {},
+            policy: {
+                ...policy,
+                audience: await this.resolveSuggestionsAudience(
+                    projectUuid,
+                    policy.audience,
+                ),
+            },
+        };
+    }
+
+    private usesManagedAgentsApi(): boolean {
+        return (
+            this.lightdashConfig.managedAgent.runtime === 'anthropic-managed'
+        );
     }
 
     private async ensureProjectScopedServiceAccount(
@@ -1206,9 +1284,9 @@ export class ManagedAgentService extends BaseService {
             effectiveUpdate,
         );
 
-        // Create a service account for MCP auth if one doesn't exist yet.
-        // Service accounts use Bearer auth which the MCP endpoint accepts.
-        if (update.enabled) {
+        // The managed-agents runtime reaches our MCP server with a service
+        // account; the AI SDK runtime runs tools in-process and needs none.
+        if (update.enabled && this.usesManagedAgentsApi()) {
             const existingToken =
                 await this.managedAgentModel.getServiceAccountToken(
                     projectUuid,
@@ -1230,7 +1308,9 @@ export class ManagedAgentService extends BaseService {
                     `Created service account for managed agent in project ${projectUuid}`,
                 );
             }
+        }
 
+        if (update.enabled) {
             // Schedule the first heartbeat job
             const schedule =
                 getManagedAgentScheduleCron(settings.schedule) ??
@@ -1245,9 +1325,10 @@ export class ManagedAgentService extends BaseService {
         }
 
         if (
-            update.enabled ||
-            update.toolSettings !== undefined ||
-            update.policy !== undefined
+            this.usesManagedAgentsApi() &&
+            (update.enabled ||
+                update.toolSettings !== undefined ||
+                update.policy !== undefined)
         ) {
             await this.syncProjectAgentConfig(projectUuid);
         }
@@ -1535,22 +1616,8 @@ export class ManagedAgentService extends BaseService {
             return;
         }
 
-        const serviceAccountToken =
-            await this.managedAgentModel.getServiceAccountToken(projectUuid);
-        if (!serviceAccountToken) {
-            this.logger.warn(
-                `No service account token for project ${projectUuid}, skipping heartbeat`,
-            );
-            await this.failRunSafely(ctx, 'No service account token');
-            return;
-        }
-
         this.logger.info(`Running heartbeat for project: ${projectUuid}`);
 
-        const sessionConfig = await this.getSessionConfig(
-            projectUuid,
-            serviceAccountToken,
-        );
         let sessionId = '';
         let slackSummary = '';
         let runError: string | null = null;
@@ -1581,14 +1648,14 @@ export class ManagedAgentService extends BaseService {
         };
 
         try {
-            const result = await this.managedAgentClient.runSession(
-                sessionConfig,
-                projectUuid,
+            const result = await this.runHeartbeatSession(
+                ctx,
                 onToolCall,
                 onSessionCreated,
             );
             sessionId = result.sessionId;
             slackSummary = result.slackSummary ?? '';
+            runError = result.error;
             this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
         } catch (error) {
             this.logger.error(
@@ -1636,6 +1703,208 @@ export class ManagedAgentService extends BaseService {
                 error: runError,
             });
         }
+    }
+
+    private async runHeartbeatSession(
+        ctx: HeartbeatContext,
+        onToolCall: (
+            toolName: string,
+            input: Record<string, unknown>,
+        ) => Promise<string>,
+        onSessionCreated: (sessionId: string) => void,
+    ): Promise<HeartbeatSessionResult> {
+        const { runtime } = this.lightdashConfig.managedAgent;
+        switch (runtime) {
+            case 'anthropic-managed':
+                return this.runManagedAgentSession(
+                    ctx.projectUuid,
+                    onToolCall,
+                    onSessionCreated,
+                );
+            case 'ai-sdk':
+                return this.runAiSdkSession(ctx, onToolCall, onSessionCreated);
+            default:
+                return assertUnreachable(
+                    runtime,
+                    `Unknown managed agent runtime: ${runtime}`,
+                );
+        }
+    }
+
+    private async runManagedAgentSession(
+        projectUuid: string,
+        onToolCall: (
+            toolName: string,
+            input: Record<string, unknown>,
+        ) => Promise<string>,
+        onSessionCreated: (sessionId: string) => void,
+    ): Promise<HeartbeatSessionResult> {
+        const serviceAccountToken =
+            await this.managedAgentModel.getServiceAccountToken(projectUuid);
+        if (!serviceAccountToken) {
+            throw new NotFoundError(
+                `No service account token for project ${projectUuid}`,
+            );
+        }
+        const sessionConfig = await this.getSessionConfig(
+            projectUuid,
+            serviceAccountToken,
+        );
+        const result = await this.managedAgentClient.runSession(
+            sessionConfig,
+            projectUuid,
+            onToolCall,
+            onSessionCreated,
+        );
+        return {
+            sessionId: result.sessionId,
+            slackSummary: result.slackSummary,
+            error: null,
+        };
+    }
+
+    // The run uuid doubles as the session id: actions and the activity page
+    // key on it, and there is no external session to reference.
+    private async runAiSdkSession(
+        ctx: HeartbeatContext,
+        onToolCall: (
+            toolName: string,
+            input: Record<string, unknown>,
+        ) => Promise<string>,
+        onSessionCreated: (sessionId: string) => void,
+    ): Promise<HeartbeatSessionResult> {
+        const { projectUuid, organizationUuid, runUuid } = ctx;
+        onSessionCreated(runUuid);
+
+        const actor = await this.getAutopilotActor(projectUuid);
+        await this.assertActorCanViewProject(actor, projectUuid);
+
+        const [{ toolSettings, policy }, project, copilotConfig] =
+            await Promise.all([
+                this.getAutopilotRenderArgs(projectUuid),
+                this.projectModel.getSummary(projectUuid),
+                this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    organizationUuid,
+                ),
+            ]);
+        const agent = renderAutopilotAgent({
+            toolSettings,
+            policy,
+            preAggregatesEnabled: this.lightdashConfig.preAggregates.enabled,
+            runtime: 'ai-sdk',
+        });
+        const { model, callOptions, providerOptions, keyManagement } = getModel(
+            copilotConfig,
+            { enableReasoning: true },
+        );
+        const { tools: dataTools, availableExplores } =
+            await this.buildAutopilotDataTools(
+                actor,
+                projectUuid,
+                organizationUuid,
+            );
+        const telemetry = getAiCallTelemetry({
+            functionId: 'autopilotHeartbeat',
+            feature: 'managed-agent',
+            organizationUuid,
+            projectUuid,
+            userUuid: actor.userUuid,
+            ...getLanguageModelAttribution(model),
+            keyManagement,
+            recordIO: copilotConfig.telemetryEnabled,
+        });
+        const { sessionTimeoutMs, maxSteps } =
+            this.lightdashConfig.managedAgent;
+
+        const result = await runAutopilotAgent({
+            model,
+            callOptions,
+            providerOptions,
+            agent,
+            dataTools,
+            availableExplores,
+            executeTool: onToolCall,
+            projectName: project.name,
+            maxSteps,
+            timeoutMs: sessionTimeoutMs,
+            telemetry,
+        });
+
+        return {
+            sessionId: runUuid,
+            slackSummary: result.slackSummary,
+            error: describeAutopilotStop(result, sessionTimeoutMs),
+        };
+    }
+
+    // The semantic-layer and content tools Autopilot needs to create and fix
+    // charts, taken from the same tool set the chat agents use.
+    private async buildAutopilotDataTools(
+        actor: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<{ tools: ToolSet; availableExplores: Explore[] }> {
+        const runtime = this.aiAgentToolsService.createRuntime({
+            user: actor,
+            account: fromSession(actor),
+            organizationUuid,
+            projectUuid,
+            source: 'ai_agent',
+            catalogSearchContext: CatalogSearchContext.AI_AGENT,
+            defaultQueryExecutionContext: QueryExecutionContext.AI,
+            tags: null,
+            spaceAccess: null,
+        });
+        const [availableExplores, projectParameterDefinitions] =
+            await Promise.all([
+                runtime.listExplores(),
+                runtime.getProjectParameterDefinitions(),
+            ]);
+        const verifiedFieldUsage = await runtime
+            .getVerifiedFieldUsage()
+            .catch(() => new Map<string, number>());
+        const { siteUrl } = this.lightdashConfig;
+        const { maxQueryLimit, toolDescriptionMaxChars } =
+            this.lightdashConfig.ai.copilot;
+
+        const tools: ToolSet = {
+            grepFields: getGrepFields({
+                availableExplores,
+                findExplores: runtime.findExplores,
+                verifiedFieldUsage,
+            }),
+            getMetadata: getGetMetadata({
+                availableExplores,
+                projectParameterDefinitions,
+            }),
+            findContent: getFindContent({
+                findContent: runtime.findContent,
+                siteUrl,
+                toolDescriptionMaxChars,
+                dashboardDetailsToolName: 'getDashboardCharts',
+                trackCoverage: () => {},
+            }),
+            getDashboardCharts: getGetDashboardCharts({
+                getDashboardCharts: runtime.getDashboardCharts,
+                siteUrl,
+                pageSize: 20,
+            }),
+            runMetricQuery: getRunMetricQuery({
+                runAsyncQuery: runtime.runAsyncQuery,
+                maxLimit: maxQueryLimit,
+            }),
+            searchFieldValues: getSearchFieldValues({
+                searchFieldValues: runtime.searchFieldValues,
+                getExplore: runtime.getExplore,
+                enableFilterExpressions: false,
+            }),
+            loadSkill: getLoadSkill({
+                loadSkill: (name) =>
+                    loadAutopilotSkill(name, runtime.loadSkill),
+            }),
+        };
+
+        return { tools, availableExplores };
     }
 
     private async loadHeartbeatContext(
@@ -1732,6 +2001,7 @@ export class ManagedAgentService extends BaseService {
                 runUuid: ctx.runUuid,
                 triggeredBy: ctx.triggeredBy,
                 status: outcome.status,
+                runtime: this.lightdashConfig.managedAgent.runtime,
                 durationMs: Date.now() - ctx.startedAtMs,
                 actionCount: outcome.actionCount,
                 actionCountsByType: outcome.actionCountsByType,

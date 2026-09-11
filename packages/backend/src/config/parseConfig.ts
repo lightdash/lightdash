@@ -404,6 +404,16 @@ const parseApiExpiration = (envVariable: string): Date | null => {
     return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
 };
 
+// Which engine runs Autopilot heartbeats: the in-process AI SDK loop on the
+// org's copilot provider, or a hosted session on Anthropic's Managed Agents API.
+export const MANAGED_AGENT_RUNTIMES = {
+    AI_SDK: 'ai-sdk',
+    ANTHROPIC_MANAGED: 'anthropic-managed',
+} as const;
+
+export type ManagedAgentRuntime =
+    (typeof MANAGED_AGENT_RUNTIMES)[keyof typeof MANAGED_AGENT_RUNTIMES];
+
 const parseEnum = <T>(
     value: string | undefined,
     enumObj?: AnyType,
@@ -1715,10 +1725,12 @@ export type LightdashConfig = {
         projectId?: string;
     };
     managedAgent: {
+        runtime: ManagedAgentRuntime;
         anthropicApiKey: string | null;
         skillIds: string[];
         schedule: string;
         sessionTimeoutMs: number;
+        maxSteps: number;
     };
     aiWriteback: {
         /**
@@ -3679,6 +3691,11 @@ export const parseConfig = (): LightdashConfig => {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
         managedAgent: {
+            runtime:
+                parseEnum<ManagedAgentRuntime>(
+                    process.env.MANAGED_AGENT_RUNTIME,
+                    MANAGED_AGENT_RUNTIMES,
+                ) ?? 'anthropic-managed',
             anthropicApiKey:
                 process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
                 (!process.env.ANTHROPIC_BASE_URL
@@ -3694,6 +3711,10 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '600000',
                 10,
             ), // 10 minutes default
+            maxSteps: parseInt(
+                process.env.MANAGED_AGENT_MAX_STEPS || '120',
+                10,
+            ),
         },
         aiWriteback: {
             legacyAnthropicApiKey:
