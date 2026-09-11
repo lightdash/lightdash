@@ -40,6 +40,8 @@ import {
     getCustomSqlFieldKey,
     getEffectiveFieldAiHints,
     getErrorMessage,
+    getSdkFeaturesForTarget,
+    getSdkFeatureTargetForTemplate,
     getVisibleDataAppClaudeModels,
     isChartTypeIcon,
     isDashboardChartTileType,
@@ -120,9 +122,11 @@ import {
     type RegistryChartTypeListItem,
     type RegistryChartTypeState,
     type SavedChart,
+    type SdkFeatureTarget,
     type SessionUser,
     type TogglePinnedItemInfo,
     type UpgradeAppRequestBody,
+    type UpgradeCandidateFeature,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { Knex } from 'knex';
@@ -6765,8 +6769,32 @@ export class AppGenerateService extends BaseService {
      * this composed instruction is what the pipeline actually sends —
      * mirrors the theme-change prompt pattern.
      */
-    private static buildUpgradePrompt(body: UpgradeAppRequestBody): string {
-        const candidates = (body.candidateFeatures ?? []).slice(0, 20);
+    /**
+     * The client computes candidates from its own registry, but the registry
+     * is the same for every bundle kind, so re-check applicability here: a
+     * chart type never gets query/Sheets/delivery features, an app never
+     * gets viz-context ones. Keys the registry does not know are dropped too.
+     */
+    private static applicableCandidateFeatures(
+        body: UpgradeAppRequestBody,
+        target: SdkFeatureTarget,
+    ): UpgradeCandidateFeature[] {
+        const applicableKeys = new Set(
+            getSdkFeaturesForTarget(target).map((f) => f.key),
+        );
+        return (body.candidateFeatures ?? [])
+            .filter((f) => applicableKeys.has(f.key))
+            .slice(0, 20);
+    }
+
+    private static buildUpgradePrompt(
+        body: UpgradeAppRequestBody,
+        target: SdkFeatureTarget,
+    ): string {
+        const candidates = AppGenerateService.applicableCandidateFeatures(
+            body,
+            target,
+        );
         const featureStep =
             candidates.length > 0
                 ? [
@@ -6809,7 +6837,10 @@ export class AppGenerateService extends BaseService {
     private static buildDataAppVizUpgradeStatusMessage(
         body: UpgradeAppRequestBody,
     ): string {
-        const candidates = (body.candidateFeatures ?? []).slice(0, 20);
+        const candidates = AppGenerateService.applicableCandidateFeatures(
+            body,
+            'chart_type',
+        );
         if (body.reportedFeatures === undefined) {
             return [
                 'Upgraded to the latest chart SDK.',
@@ -6937,6 +6968,7 @@ export class AppGenerateService extends BaseService {
         });
 
         const claudeEffort = resolveClaudeEffort(newVersion, app.template);
+        const sdkFeatureTarget = getSdkFeatureTargetForTemplate(app.template);
 
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
@@ -6944,7 +6976,10 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
-            prompt: AppGenerateService.buildUpgradePrompt(body),
+            prompt: AppGenerateService.buildUpgradePrompt(
+                body,
+                sdkFeatureTarget,
+            ),
             isIteration: true,
             isUpgrade: true,
             ...(app.template === DATA_APP_VIZ_TEMPLATE
