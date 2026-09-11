@@ -1,3 +1,15 @@
+# [2.200.0](https://github.com/lightdash/lightdash/compare/2.199.0...2.200.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **data-apps:** scope SDK upgrade offers to the bundle kind ([#29049](https://github.com/lightdash/lightdash/issues/29049)) ([fd2d575](https://github.com/lightdash/lightdash/commit/fd2d5757c2405f2d310afa1cfb92fec2906073d2))
+
+
+### Features
+
+* **ai-reviews:** calm down the issues board card ([#29080](https://github.com/lightdash/lightdash/issues/29080)) ([5aecd7b](https://github.com/lightdash/lightdash/commit/5aecd7b4e5c43fd27dbd2563234a9db7c631c698))
+
 # [2.199.0](https://github.com/lightdash/lightdash/compare/2.198.6...2.199.0) (2026-09-11)
 
 
