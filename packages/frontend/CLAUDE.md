@@ -34,6 +34,16 @@ The theme lives in `src/theme/`: `colors.ts` (neutral ramps, `primary` is the in
 -   **Shared controls**: `CopyActionIcon`, `FavoriteActionIcon`, `ConfirmDeleteButton` and `FilterFacet` in `components/common` replace the hand-rolled copy, star, two-click delete and faceted-filter patterns.
 -   **Number inputs**: Always use `NumberInput` from `components/common/NumberInput`. Prefer `onNumberChange` (fires `number`, or `undefined` on clear; never transient strings). Integer-only by default; decimal fields opt in via `decimalScale={n}` or `decimalScale="unlimited"`. Raw `onChange` only for `form.getInputProps()` spreads.
 
+## 🎓 Learn walkthroughs (`data-tour-*` attributes)
+
+Attributes named `data-tour-*` are steps in Learn walkthroughs, the in-app training generated from the product (`docs/learn/architecture.md`). They are not test ids and not dead code.
+
+-   **Before changing a component**, check it: `git grep -n 'data-tour-' -- <file>`. When refactoring, keep every attribute on the equivalent control; when a control moves to another component, its attributes move with it. Renaming a `data-tour-nav` or `data-tour-anchor` value means updating every path that names it.
+-   **After changing a marked component**, run `pnpm scope-tours:generate`, `pnpm scope-tours:order` and `pnpm scope-tours:check` (docs from `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`) and commit any change to `src/features/scopeTours/generated.ts` and `curriculum.ts`.
+-   **If the change alters what a user clicks through** (a new dialog or menu, a control moved, disabled, or shown only under some configuration), run `pnpm scope-tours:smoke` for the affected walkthroughs. CI cannot catch this.
+-   **Never change product UI to make a walkthrough pass.** Adapt the walkthrough instead.
+-   Finding affected walkthroughs, running the smoke, what each failure means and who fixes it: `docs/learn/maintaining-walkthroughs.md`.
+
 ## ⚛️ State Management
 
 ### Don't sync props/server-state into `useState` via `useEffect`
