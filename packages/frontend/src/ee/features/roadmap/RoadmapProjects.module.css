@@ -249,6 +249,10 @@
         pointer-events: auto;
     }
 }
+/* Keeps long titles clear of the hover-revealed follow button. */
+.projectCard:has(.projectFollowAction) .projectTitle {
+    padding-right: 5rem;
+}
 .projectCardBody {
     display: flex;
     flex-direction: column;
