@@ -22,6 +22,7 @@ import {
     IconCircleCheckFilled,
     IconDots,
     IconEdit,
+    IconExternalLink,
     IconGripVertical,
     IconLink,
     IconTrash,
@@ -100,11 +101,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     const copyTileLink = useCopyTileLink(tile);
     const canCopyTileLink = !minimal && copyTileLink !== null;
+    // The title is the only link to the chart page and hidden titles have
+    // none, so the pill carries one in view mode.
+    const canViewChart = !minimal && !isEditMode && !!titleHref;
 
     const hasMenuContent = isEditMode || !!extraMenuItems || canCopyTileLink;
     const isVerified = verification !== null && verification !== undefined;
     const hasHeaderContent =
-        hasMenuContent || isVerified || hasNonMenuHeaderContent;
+        hasMenuContent || isVerified || hasNonMenuHeaderContent || canViewChart;
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
@@ -157,6 +161,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         color: 'var(--mantine-color-green-6)',
                                     }}
                                 />
+                            </Tooltip>
+                        )}
+
+                        {canViewChart && (
+                            <Tooltip label="View chart">
+                                <ActionIcon
+                                    component="a"
+                                    size="sm"
+                                    href={titleHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    aria-label="View chart"
+                                >
+                                    <MantineIcon icon={IconExternalLink} />
+                                </ActionIcon>
                             </Tooltip>
                         )}
 
