@@ -281,26 +281,25 @@ export const MergeProvider: FC<
         // chart in view mode is not being modified; its merge lives in the
         // chart, and echoing it into the URL says otherwise.
         if (readOnly) return;
-        setSearchParams(
-            (current) => {
-                const next = new URLSearchParams(current);
-                if (isMerging) {
-                    next.set(
-                        MERGE_URL_PARAM,
-                        serializeMergeState({
-                            focus,
-                            additionalSources,
-                            joinParts,
-                            joinType,
-                        }),
-                    );
-                } else {
-                    next.delete(MERGE_URL_PARAM);
-                }
-                return next;
-            },
-            { replace: true },
-        );
+        // Only write when the merge param changes: setSearchParams always
+        // navigates, and a needless replace would reissue the params this
+        // render captured, dropping one a host set in the same update.
+        const next = new URLSearchParams(searchParams);
+        if (isMerging) {
+            next.set(
+                MERGE_URL_PARAM,
+                serializeMergeState({
+                    focus,
+                    additionalSources,
+                    joinParts,
+                    joinType,
+                }),
+            );
+        } else {
+            next.delete(MERGE_URL_PARAM);
+        }
+        if (next.toString() === searchParams.toString()) return;
+        setSearchParams(next, { replace: true });
     }, [
         readOnly,
         isMerging,
@@ -308,6 +307,7 @@ export const MergeProvider: FC<
         additionalSources,
         joinParts,
         joinType,
+        searchParams,
         setSearchParams,
     ]);
 

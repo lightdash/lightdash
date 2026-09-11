@@ -162,6 +162,15 @@ describe('MergeProvider', () => {
         expect(executeMergeQuery).not.toHaveBeenCalled();
     });
 
+    it('leaves the url alone while nothing about the merge changes', () => {
+        // A host may set its own search param in the same update that mounts
+        // this provider; a needless write would reissue the params captured a
+        // render earlier and drop it.
+        renderHook(() => useMerge(), { wrapper });
+
+        expect(setSearchParams).not.toHaveBeenCalled();
+    });
+
     it('publishes join type changes immediately', () => {
         const { result } = renderHook(() => useMerge(), { wrapper });
 

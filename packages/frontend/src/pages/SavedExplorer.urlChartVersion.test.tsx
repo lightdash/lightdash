@@ -1,5 +1,5 @@
 import { ChartType, type SavedChart } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,6 +35,13 @@ vi.mock('../components/Explorer', async () => {
                     {unsavedChartVersion.metricQuery.limit}|
                     {String(hasUnsavedChanges)}|{paletteUuid}
                 </div>
+                <div data-testid="search">{search}</div>
+                <button
+                    type="button"
+                    onClick={() => dispatch(explorerActions.setRowLimit(42))}
+                >
+                    change the limit
+                </button>
                 <button
                     type="button"
                     onClick={() =>
@@ -125,6 +132,8 @@ const urlChartVersion = {
 
 const renderSavedExplorer = (search: string, mode: 'edit' | 'view') => {
     const path = `/projects/${PROJECT_UUID}/saved/${savedChart.slug}/${mode}${search}`;
+    // The url sync leaves a page the browser has already left alone
+    window.history.replaceState({}, '', path);
     renderWithProviders(
         <MemoryRouter initialEntries={[path]}>
             <Routes>
@@ -205,6 +214,39 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
 
         expect(screen.getByTestId('session')).toHaveTextContent(
             '25|true|staged-palette',
+        );
+
+        // The url follows the edits from here on; that write is not a new
+        // session either
+        await user.click(screen.getByText('change the limit'));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('search')).toHaveTextContent(
+                'limit%22%3A42',
+            ),
+        );
+        expect(screen.getByTestId('session')).toHaveTextContent(
+            '42|true|staged-palette',
+        );
+    });
+
+    it('reopens the url it wrote with nothing left unsaved', async () => {
+        renderSavedExplorer('', 'edit');
+
+        await waitFor(() =>
+            expect(screen.getByTestId('search')).toHaveTextContent(
+                'create_saved_chart_version',
+            ),
+        );
+        const writtenSearch = screen.getByTestId('search').textContent ?? '';
+        cleanup();
+
+        renderSavedExplorer(writtenSearch, 'edit');
+
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent(
+                '500|false',
+            ),
         );
     });
 });

@@ -12,7 +12,7 @@ import {
     type Metric,
     type MetricQuery,
 } from '@lightdash/common';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
     useLocation,
     useNavigate,
@@ -135,10 +135,10 @@ export const getSavedChartEditUrlFromCreateSavedChartVersion = ({
     };
 };
 
-export const getExplorerUrlFromCreateSavedChartVersion = (
+/** The explore route's url without the serialised chart version. */
+const getExplorerBaseUrl = (
     projectUuid: string | undefined,
-    createSavedChart: CreateSavedChartVersion,
-    preserveLongUrl?: boolean,
+    tableName: string,
 ): { pathname: string; search: string } => {
     if (!projectUuid) {
         return { pathname: '', search: '' };
@@ -146,18 +146,35 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     // Preserve existing search params (like fromSpace, fromDashboard, etc)
     const newParams = new URLSearchParams(window.location.search);
 
+    // Always set isExploreFromHere to true when creating the url for shareable links this ensures the query is executed when the url is loaded
+    newParams.set('isExploreFromHere', 'true');
+
+    return {
+        pathname: `/projects/${projectUuid}/tables/${tableName}`,
+        search: newParams.toString(),
+    };
+};
+
+export const getExplorerUrlFromCreateSavedChartVersion = (
+    projectUuid: string | undefined,
+    createSavedChart: CreateSavedChartVersion,
+    preserveLongUrl?: boolean,
+): { pathname: string; search: string } => {
+    const { pathname, search } = getExplorerBaseUrl(
+        projectUuid,
+        createSavedChart.tableName,
+    );
+    if (!projectUuid) {
+        return { pathname, search };
+    }
+
+    const newParams = new URLSearchParams(search);
     newParams.set(
         'create_saved_chart_version',
         stringifyCreateSavedChartVersion(createSavedChart, preserveLongUrl),
     );
 
-    // Always set isExploreFromHere to true when creating the url for shareable links this ensures the query is executed when the url is loaded
-    newParams.set('isExploreFromHere', 'true');
-
-    return {
-        pathname: `/projects/${projectUuid}/tables/${createSavedChart.tableName}`,
-        search: newParams.toString(),
-    };
+    return { pathname, search: newParams.toString() };
 };
 
 export const useDateZoomGranularitySearch = ():
@@ -336,8 +353,72 @@ export const tryParseCreateSavedChartVersionParam = (
     }
 };
 
-export const useExplorerRoute = () => {
+/**
+ * Keeps the address bar on the unsaved chart version: every change to it is
+ * serialised into `create_saved_chart_version` and replaced into the url, so a
+ * reload or a shared link reopens the session in progress. The caller owns the
+ * pathname and the params the version joins.
+ */
+const useChartVersionUrlSync = ({
+    enabled,
+    getTarget,
+    currentSearch,
+}: {
+    enabled: boolean;
+    /** Returns null when there is nothing to write. */
+    getTarget: (
+        unsavedChartVersion: CreateSavedChartVersion,
+    ) => { pathname: string; search: string } | null;
+    /** When given, a write that changes nothing does not navigate. */
+    currentSearch?: string;
+}) => {
     const navigate = useNavigate();
+
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const isVisualizationConfigOpen = useExplorerSelector(
+        selectIsVisualizationConfigOpen,
+    );
+    const chartSidebarStep = useExplorerSelector(selectChartSidebarStep);
+
+    useEffect(() => {
+        if (!enabled) return;
+
+        const target = getTarget(unsavedChartVersion);
+        if (!target) return;
+
+        const searchParams = new URLSearchParams(target.search);
+        searchParams.set(
+            'create_saved_chart_version',
+            stringifyCreateSavedChartVersion(unsavedChartVersion),
+        );
+        searchParams.delete('dataAppVizUuid');
+        if (isVisualizationConfigOpen) {
+            searchParams.set(CHART_SIDEBAR_PARAM, chartSidebarStep);
+        } else {
+            searchParams.delete(CHART_SIDEBAR_PARAM);
+        }
+
+        const search = searchParams.toString();
+        if (
+            currentSearch !== undefined &&
+            search === new URLSearchParams(currentSearch).toString()
+        ) {
+            return;
+        }
+
+        void navigate({ pathname: target.pathname, search }, { replace: true });
+    }, [
+        enabled,
+        getTarget,
+        currentSearch,
+        navigate,
+        unsavedChartVersion,
+        isVisualizationConfigOpen,
+        chartSidebarStep,
+    ]);
+};
+
+export const useExplorerRoute = () => {
     const pathParams = useParams<{
         projectUuid: string;
         tableId: string | undefined;
@@ -345,56 +426,56 @@ export const useExplorerRoute = () => {
 
     const dispatch = useExplorerDispatch();
 
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
-    const isVisualizationConfigOpen = useExplorerSelector(
-        selectIsVisualizationConfigOpen,
+
+    const { projectUuid, tableId } = pathParams;
+    const getTarget = useCallback(
+        (unsavedChartVersion: CreateSavedChartVersion) =>
+            getExplorerBaseUrl(projectUuid, unsavedChartVersion.tableName),
+        [projectUuid],
     );
-    const chartSidebarStep = useExplorerSelector(selectChartSidebarStep);
 
     // Update url params based on pristine state
-    // Only sync URL when we're actually on a table page (pathParams.tableId exists)
-    useEffect(() => {
-        if (pathParams.tableId && metricQuery && tableName) {
-            const explorerUrl = getExplorerUrlFromCreateSavedChartVersion(
-                pathParams.projectUuid,
-                unsavedChartVersion,
-            );
-            const searchParams = new URLSearchParams(explorerUrl.search);
-            searchParams.delete('dataAppVizUuid');
-            if (isVisualizationConfigOpen) {
-                searchParams.set(CHART_SIDEBAR_PARAM, chartSidebarStep);
-            } else {
-                searchParams.delete(CHART_SIDEBAR_PARAM);
-            }
-            void navigate(
-                {
-                    ...explorerUrl,
-                    search: searchParams.toString(),
-                },
-                { replace: true },
-            );
-        }
-    }, [
-        metricQuery,
-        navigate,
-        pathParams.projectUuid,
-        pathParams.tableId,
-        unsavedChartVersion,
-        tableName,
-        isVisualizationConfigOpen,
-        chartSidebarStep,
-    ]);
+    // Only sync URL when we're actually on a table page (tableId exists)
+    useChartVersionUrlSync({
+        enabled: Boolean(tableId && metricQuery && tableName),
+        getTarget,
+    });
 
     useEffect(() => {
-        if (!pathParams.tableId) {
+        if (!tableId) {
             dispatch(explorerActions.reset(defaultState));
             dispatch(explorerActions.resetQueryExecution());
         } else {
-            dispatch(explorerActions.setTableName(pathParams.tableId));
+            dispatch(explorerActions.setTableName(tableId));
         }
-    }, [pathParams.tableId, dispatch]);
+    }, [tableId, dispatch]);
+};
+
+/**
+ * The saved chart's edit page follows its edits the way the explore page does.
+ * Only the search changes: the pathname carries the project and chart the user
+ * opened, which may be slugs.
+ */
+export const useSavedChartEditRoute = ({ enabled }: { enabled: boolean }) => {
+    const { pathname, search } = useLocation();
+    const tableName = useExplorerSelector(selectTableName);
+
+    const getTarget = useCallback(() => {
+        // A navigation away moves the address bar before this render sees the
+        // new location; writing then would pull the page back to where it was
+        if (window.location.pathname !== pathname) return null;
+        return { pathname, search };
+    }, [pathname, search]);
+
+    useChartVersionUrlSync({
+        // The store holds an empty version for a commit, until the page's
+        // reset lands; writing that would put an empty chart in the url.
+        enabled: enabled && tableName !== '',
+        getTarget,
+        currentSearch: search,
+    });
 };
 
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
