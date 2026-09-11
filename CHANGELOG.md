@@ -1,3 +1,17 @@
+# [2.201.0](https://github.com/lightdash/lightdash/compare/2.200.0...2.201.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **chart-registry:** graceful fallback when the chart library registry is unreachable ([#29070](https://github.com/lightdash/lightdash/issues/29070)) ([05c89da](https://github.com/lightdash/lightdash/commit/05c89dacf9b6ca223a7452f6ef2bc8b9cd89a4f2)), closes [#29074](https://github.com/lightdash/lightdash/issues/29074)
+* **dashboards:** open the chart page from the tile hover pill ([#29081](https://github.com/lightdash/lightdash/issues/29081)) ([6d74b05](https://github.com/lightdash/lightdash/commit/6d74b054d33f3485e2912497911d08dd640299ef))
+* **sdk:** style the metrics catalog header tooltip in embeds ([#29083](https://github.com/lightdash/lightdash/issues/29083)) ([af9d878](https://github.com/lightdash/lightdash/commit/af9d878f623275dc72a8ceb96e9f2df7e7b2ec8c))
+
+
+### Features
+
+* **dashboards:** view all comments on a dashboard in one panel ([#29071](https://github.com/lightdash/lightdash/issues/29071)) ([311a5ac](https://github.com/lightdash/lightdash/commit/311a5ac3e9b0c1503ec6fe3ca7344acde053e37a))
+
 # [2.200.0](https://github.com/lightdash/lightdash/compare/2.199.0...2.200.0) (2026-09-11)
 
 
