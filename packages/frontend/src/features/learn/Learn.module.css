@@ -428,14 +428,30 @@
         box-shadow 0.12s ease;
 }
 
-.card:hover {
+.card:not(.cardSoon):hover {
     transform: translateY(-1px);
     box-shadow: 0 8px 22px
         light-dark(rgba(16, 16, 20, 0.08), rgba(0, 0, 0, 0.4));
 }
 
 .cardSoon {
-    opacity: 0.7;
+    background: transparent;
+    border-style: dashed;
+    color: var(--mantine-color-dimmed);
+    transition: none;
+}
+
+.cardSoon .band {
+    background: var(--lu-sunken);
+}
+
+.cardSoon .blob {
+    background: transparent;
+    color: var(--mantine-color-dimmed);
+}
+
+.cardSoon .foot {
+    color: var(--mantine-color-dimmed);
 }
 
 .band {
