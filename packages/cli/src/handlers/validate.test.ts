@@ -89,7 +89,7 @@ const brokenChartError = {
     lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
 };
 
-describe('validateHandler warehouse column validation', () => {
+describe('validateHandler', () => {
     let errorOutput: string[];
     let validationResults: unknown[] = [];
 
@@ -217,48 +217,59 @@ describe('validateHandler warehouse column validation', () => {
         expect(skipWarnings()).toEqual([]);
     });
 
-    test('skips data app validation when dbt selection produces a partial semantic layer', async () => {
+    test.each([
+        { select: ['orders'] },
+        { models: ['orders'] },
+        { exclude: ['customers'] },
+        { selector: 'marts' },
+    ])('validates data apps with model selection %j', async (selection) => {
+        const only = [ValidationTarget.CHARTS, ValidationTarget.APPS];
         await validateHandler({
             ...baseOptions,
-            only: [ValidationTarget.CHARTS, ValidationTarget.APPS],
-            select: ['orders'],
+            ...selection,
+            only,
         });
 
-        const validationRequest = vi
-            .mocked(lightdashApi)
-            .mock.calls.find(
-                ([request]) =>
-                    request.method === 'POST' &&
-                    request.url.endsWith('/validate'),
-            );
-        expect(validationRequest).toBeDefined();
-        expect(JSON.parse(String(validationRequest![0].body))).toEqual(
+        expect(compile).toHaveBeenCalledTimes(1);
+        expect(compile).toHaveBeenCalledWith(
+            expect.objectContaining(selection),
+        );
+        expect(lightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
-                validationTargets: [ValidationTarget.CHARTS],
+                method: 'POST',
+                url: `/api/v1/projects/${baseOptions.project}/validate`,
+                body: JSON.stringify({ explores: [], validationTargets: only }),
             }),
         );
-        expect(
-            errorOutput.some((line) =>
-                line.includes('Skipping data app validation'),
-            ),
-        ).toBe(true);
     });
 
-    test('rejects apps-only validation against a partial semantic layer', async () => {
-        await expect(
-            validateHandler({
+    test.each([
+        { only: [] },
+        { only: Object.values(ValidationTarget) },
+        { only: [ValidationTarget.APPS] },
+    ])(
+        'preserves validation targets %j with model selection',
+        async ({ only }) => {
+            await validateHandler({
                 ...baseOptions,
-                only: [ValidationTarget.APPS],
+                only,
                 select: ['orders'],
-            }),
-        ).rejects.toThrow(
-            'Data app validation requires a full project compile',
-        );
+            });
 
-        expect(compile).not.toHaveBeenCalled();
-    });
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'POST',
+                    url: `/api/v1/projects/${baseOptions.project}/validate`,
+                    body: JSON.stringify({
+                        explores: [],
+                        validationTargets: only,
+                    }),
+                }),
+            );
+        },
+    );
 
-    test('prints the latest data app version author and date', async () => {
+    test('fails selected apps-only validation and prints the latest version author and date', async () => {
         vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
         vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
             if (method === 'POST' && url.endsWith('/validate')) {
@@ -293,9 +304,12 @@ describe('validateHandler warehouse column validation', () => {
         await validateHandler({
             ...baseOptions,
             only: [ValidationTarget.APPS],
+            select: ['orders'],
         });
 
+        expect(process.exit).toHaveBeenCalledWith(1);
         const output = errorOutput.join('\n');
+        expect(output).toContain('Dimension does not exist');
         expect(output).toContain('Ada Lovelace');
         expect(output).toContain('2026-08-06');
     });

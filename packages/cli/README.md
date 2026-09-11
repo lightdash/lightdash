@@ -22,6 +22,22 @@ Commands:
 
 eg: `ligthdash test` Runs `dbt test`
 
+## Project validation
+
+`lightdash validate` checks existing project content against locally compiled
+models. Data apps are included by default, or use `--only apps` to check only
+their stored data references:
+
+```shell
+lightdash validate --profiles-dir ../profiles/ --select path:models/marts --only apps
+```
+
+With `--select`, `--models`, `--exclude`, or `--selector`, data apps are checked
+against the compiled selection. App references to models outside that selection
+fail validation, as do broken references within it. The command exits non-zero
+on errors. It does not fall back to a full-project compile or require additional
+warehouse access for app validation.
+
 ## AI agents as code
 
 AI-agent project configuration can be downloaded into
