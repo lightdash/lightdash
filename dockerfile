@@ -209,6 +209,7 @@ COPY packages/common/package.json ./packages/common/
 COPY packages/formula/package.json ./packages/formula/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
+COPY packages/cli/package.json ./packages/cli/
 COPY packages/backend/src/ee/services/McpService/mcp-chart-app/package.json ./packages/backend/src/ee/services/McpService/mcp-chart-app/
 COPY packages/frontend/package.json ./packages/frontend/
 
@@ -306,6 +307,18 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
     turbo build --filter=@lightdash/frontend; \
     fi
 
+# Build CLI package (ships in the image for the Learn developer sandbox)
+FROM prod-builder AS build-cli
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
+COPY packages/cli/tsconfig.json ./packages/cli/
+COPY packages/cli/src/ ./packages/cli/src/
+# postbuild vendors the data-app template into dist/vendor
+COPY sandboxes/data-apps/template/ ./sandboxes/data-apps/template/
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
+    turbo build --filter=@lightdash/cli
+
 # -----------------------------
 # Stage 4: final build assembly
 # -----------------------------
@@ -317,6 +330,7 @@ COPY --from=build-formula /usr/app/packages/formula/dist/ ./packages/formula/dis
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/warehouses/dist/
 COPY --from=build-backend /usr/app/packages/backend/dist/ ./packages/backend/dist/
 COPY --from=build-frontend /usr/app/packages/frontend/build/ ./packages/frontend/build/
+COPY --from=build-cli /usr/app/packages/cli/dist/ ./packages/cli/dist/
 
 # Install Sentry CLI and process sourcemaps if environment variables are set
 ARG SENTRY_AUTH_TOKEN=""
@@ -364,6 +378,10 @@ RUN rm -rf node_modules \
 ENV NODE_ENV production
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --prod --frozen-lockfile --prefer-offline
+
+# The CLI must start with the production node_modules just installed; a
+# missing runtime dependency fails the build here rather than in a learner's terminal.
+RUN node packages/cli/dist/index.js --version
 
 # Keep the versioned playground bundle in a late layer so bundle-only updates
 # do not invalidate production dependency installation or sourcemap processing.
@@ -442,6 +460,12 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
+
+# `lightdash` on PATH for the Learn developer sandbox. The CLI itself arrives
+# with the application layers in the prod stage (COPY --link only there), so
+# this wrapper is written here and dangles until then.
+RUN printf '#!/bin/sh\nexec node /usr/app/packages/cli/dist/index.js "$@"\n' > /usr/local/bin/lightdash \
+    && chmod 755 /usr/local/bin/lightdash
 
 # The runtime working directory is set here, not after the application layers.
 # WORKDIR compiles to a mkdir even when the path already exists, and any
