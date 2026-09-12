@@ -48,18 +48,46 @@ const modelNames = new Set(
         .map((f) => f.path.slice(f.path.lastIndexOf('/') + 1, -'.sql'.length)),
 );
 // A shipped explore need not have its own model file: Lightdash's dbt yaml spec
-// lets a model's `meta.spotlight`/`explores` config define additional explores
-// (a `meta.explores:` block) that reuse the parent model's table and joins.
-// Detect those by scanning bundled model yaml files for mapping keys.
+// lets a model's `meta.explores` config define additional explores (an
+// `explores:` block) that reuse the parent model's table and joins. Detect
+// those by scanning bundled model yaml files for keys directly under an
+// `explores:` mapping only - not every `<name>:` key (metrics and dimensions
+// use the same shape and must not count).
+const collectYamlExploreNames = (content: string): string[] => {
+    const names: string[] = [];
+    let exploresIndent: number | null = null;
+    let childIndent: number | null = null;
+    for (const line of content.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (exploresIndent !== null) {
+            if (trimmed === '') continue;
+            const indent = line.length - line.trimStart().length;
+            if (indent <= exploresIndent) {
+                exploresIndent = null;
+                childIndent = null;
+            } else {
+                const match = /^([a-z0-9_]+):$/.exec(trimmed);
+                if (match) {
+                    if (childIndent === null) childIndent = indent;
+                    if (indent === childIndent) names.push(match[1]);
+                }
+                continue;
+            }
+        }
+        if (trimmed === 'explores:') {
+            exploresIndent = line.length - line.trimStart().length;
+            childIndent = null;
+        }
+    }
+    return names;
+};
 const yamlExploreNames = new Set(
     learnBundle.files
         .filter((f) => f.path.startsWith('models/') && f.path.endsWith('.yml'))
-        .flatMap((f) => f.content.split(/\r?\n/))
-        .flatMap((line) => {
-            const match = /^([a-z0-9_]+):$/.exec(line.trim());
-            return match ? [match[1]] : [];
-        }),
+        .flatMap((f) => collectYamlExploreNames(f.content)),
 );
+assert.ok(yamlExploreNames.has('orders_with_custom_dims'));
+assert.ok(!yamlExploreNames.has('unique_order_count'));
 for (const explore of shippedExplores) {
     assert.ok(
         modelNames.has(explore.name) || yamlExploreNames.has(explore.name),
