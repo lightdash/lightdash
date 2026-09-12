@@ -15,6 +15,26 @@ const sourceDbtProjectDir = path.join(
 );
 
 /**
+ * Copies a dbt project directory (skipping any `target` directory segment)
+ * and rewrites its `dbt_project.yml` materializations to `view`, so the copy
+ * is ready to feed into `collectLearnBundle` or a `dbt run`.
+ */
+export const prepareDbtProjectCopy = async (
+    sourceDir: string,
+    destinationDir: string,
+): Promise<void> => {
+    await cp(sourceDir, destinationDir, {
+        recursive: true,
+        filter: (source) => !source.split(path.sep).includes('target'),
+    });
+    const projectFile = path.join(destinationDir, 'dbt_project.yml');
+    await writeFile(
+        projectFile,
+        replaceTableMaterializations(await readFile(projectFile, 'utf8')),
+    );
+};
+
+/**
  * Writes the learn bundle from a prepared dbt project directory (one whose
  * dbt_project.yml already has view materializations). Returns the bundle size.
  */
@@ -37,15 +57,7 @@ const main = async () => {
     );
     const projectDir = path.join(tempRoot, 'dbt');
     try {
-        await cp(sourceDbtProjectDir, projectDir, {
-            recursive: true,
-            filter: (source) => !source.includes(`${path.sep}target`),
-        });
-        const projectFile = path.join(projectDir, 'dbt_project.yml');
-        await writeFile(
-            projectFile,
-            replaceTableMaterializations(await readFile(projectFile, 'utf8')),
-        );
+        await prepareDbtProjectCopy(sourceDbtProjectDir, projectDir);
         const count = await writeLearnBundle(projectDir);
         console.log(`Built learn bundle: ${count} files`);
     } finally {

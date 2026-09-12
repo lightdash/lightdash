@@ -4,7 +4,11 @@ import path from 'node:path';
 export type LearnBundleFile = { path: string; content: string };
 export type LearnBundle = { version: 1; files: LearnBundleFile[] };
 
-const ROOT_FILES = new Set(['dbt_project.yml', 'lightdash.config.yml']);
+const ROOT_FILES = new Set([
+    'dbt_project.yml',
+    'lightdash.config.yml',
+    'LICENSE',
+]);
 const INCLUDED_DIRECTORIES = new Set(['models', 'macros', 'data']);
 const INCLUDED_EXTENSIONS = new Set(['.sql', '.yml', '.yaml', '.md', '.csv']);
 
@@ -23,6 +27,8 @@ export const truncateCsvToHeader = (content: string): string => {
     return `${header}\n`;
 };
 
+// Symlinked entries are neither a directory nor a file under `withFileTypes`,
+// so they are deliberately skipped rather than followed.
 const walk = async (root: string, directory: string): Promise<string[]> => {
     const entries = await readdir(path.join(root, directory), {
         withFileTypes: true,

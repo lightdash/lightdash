@@ -10,7 +10,6 @@ import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-    cp,
     mkdir,
     mkdtemp,
     readdir,
@@ -24,9 +23,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { DbtLocalProjectAdapter } from '../../packages/backend/src/projectAdapters/dbtLocalProjectAdapter';
-import { writeLearnBundle } from './build-learn';
+import { prepareDbtProjectCopy, writeLearnBundle } from './build-learn';
 import { playgroundContent } from './content';
-import { replaceTableMaterializations } from './projectYaml';
 
 type DuckDbConnection = {
     closeSync(): void;
@@ -213,13 +211,7 @@ const main = async () => {
         path.join(tmpdir(), 'lightdash-playground-dbt-'),
     );
     const dbtProjectDir = path.join(tempProjectRoot, 'dbt');
-    await cp(sourceDbtProjectDir, dbtProjectDir, {
-        recursive: true,
-        filter: (source) => !source.includes(`${path.sep}target`),
-    });
-    const projectFile = path.join(dbtProjectDir, 'dbt_project.yml');
-    const projectYaml = await readFile(projectFile, 'utf8');
-    await writeFile(projectFile, replaceTableMaterializations(projectYaml));
+    await prepareDbtProjectCopy(sourceDbtProjectDir, dbtProjectDir);
     const learnFileCount = await writeLearnBundle(dbtProjectDir);
     const profiles = `jaffle_shop:
   target: jaffle
