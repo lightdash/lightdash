@@ -8,7 +8,7 @@ import {
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
-import { realpathSync } from 'node:fs';
+import { realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { Target } from '../types';
 
@@ -249,6 +249,7 @@ const parseDucklake = (target: DuckdbTarget): CreateDuckdbCredentials => {
     };
 };
 
+// Keep identical to EMBEDDED_DATASET_PATTERN in packages/warehouses/src/warehouseClients/DuckdbWarehouseClient.ts
 const EMBEDDED_DATASET_PATTERN = /^[a-z0-9_-]+$/;
 
 /**
@@ -268,6 +269,7 @@ const parseEmbeddedLocalPath = (
     try {
         realDirectory = realpathSync(dataDirectory);
         realFile = realpathSync(path.resolve(filePath));
+        if (!statSync(realFile).isFile()) return undefined;
     } catch {
         return undefined;
     }
