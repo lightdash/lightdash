@@ -34,7 +34,7 @@ const main = async () => {
     assert.equal(isLearnBundlePath('target/manifest.json'), false);
     assert.equal(isLearnBundlePath('README.md'), false);
     assert.equal(isLearnBundlePath('CLAUDE.md'), false);
-    assert.equal(isLearnBundlePath('LICENSE'), false);
+    assert.equal(isLearnBundlePath('LICENSE'), true);
 
     const root = await mkdtemp(path.join(tmpdir(), 'learn-bundle-'));
     try {
