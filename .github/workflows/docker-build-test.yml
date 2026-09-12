@@ -61,6 +61,7 @@ on:
       - dockerfile
       - docker/**
       - scripts/ci/**
+      - packages/cli/**
       - .github/workflows/docker-build-test.yml
   workflow_dispatch:
 
