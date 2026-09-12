@@ -195,6 +195,8 @@ describe('convertDuckdbSchema', () => {
             writeFileSync(path.join(outsideDir, 'secret.duckdb'), '');
             mkdirSync(path.join(dataDir, 'nested'));
             writeFileSync(path.join(dataDir, 'nested', 'deep.duckdb'), '');
+            writeFileSync(path.join(dataDir, 'My-Shop.duckdb'), '');
+            mkdirSync(path.join(dataDir, 'dir.duckdb'));
             symlinkSync(
                 path.join(outsideDir, 'secret.duckdb'),
                 path.join(dataDir, 'escape.duckdb'),
@@ -260,6 +262,26 @@ describe('convertDuckdbSchema', () => {
                 convertDuckdbSchema({
                     type: 'duckdb',
                     path: path.join(dataDir, 'missing.duckdb'),
+                    schema: 'jaffle',
+                }),
+            ).toThrow(ParseError);
+        });
+
+        test('rejects a dataset name outside the embedded pattern', () => {
+            expect(() =>
+                convertDuckdbSchema({
+                    type: 'duckdb',
+                    path: path.join(dataDir, 'My-Shop.duckdb'),
+                    schema: 'jaffle',
+                }),
+            ).toThrow(ParseError);
+        });
+
+        test('rejects a directory named like a database', () => {
+            expect(() =>
+                convertDuckdbSchema({
+                    type: 'duckdb',
+                    path: path.join(dataDir, 'dir.duckdb'),
                     schema: 'jaffle',
                 }),
             ).toThrow(ParseError);
