@@ -1489,6 +1489,9 @@ const findAndOverrideChartFilter = (
                   settings: overridingDashboardFilter.settings,
               }),
               operator: overridingDashboardFilter.operator,
+              ...(overridingDashboardFilter.singleValue && {
+                  singleValue: overridingDashboardFilter.singleValue,
+              }),
           }
         : item;
 };
@@ -1589,6 +1592,9 @@ const convertDashboardFilterRuleToFilterRule = (
     }),
     ...(dashboardFilterRule.disabled && {
         disabled: dashboardFilterRule.disabled,
+    }),
+    ...(dashboardFilterRule.singleValue && {
+        singleValue: dashboardFilterRule.singleValue,
     }),
 });
 

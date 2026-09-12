@@ -118,6 +118,8 @@ export interface FilterRule<
     disabled?: boolean;
     /** Whether this filter is required */
     required?: boolean;
+    /** Whether this filter restricts selection to a single value */
+    singleValue?: boolean;
     /**
      * Overrides the field/explore case-sensitivity for this rule only.
      * Used by internal features like autocomplete search that must always
@@ -190,7 +192,6 @@ export type DashboardFilterRule<
 > = FilterRule<O, T, V, S> & {
     tileTargets?: DashboardTileTargets;
     label: undefined | string;
-    singleValue?: boolean;
     /**
      * Dashboard filters sharing a requiredGroupId form an "any-one required"
      * group: the dashboard is locked until at least one member has a value.

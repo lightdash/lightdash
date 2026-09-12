@@ -264,6 +264,36 @@ describe('addDashboardFiltersToMetricQuery', () => {
         expect(dimensionRules).toHaveLength(1);
     });
 
+    test('preserves singleValue restriction when converting dashboard filter for Explore from here', () => {
+        // Regression: issue #29099 — singleValue was dropped by
+        // convertDashboardFilterRuleToFilterRule, so the restriction was lost
+        // when a viewer clicked "Explore from here" on a tile.
+        const singleValueDashboardFilter: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'single-value-filter',
+                    label: undefined,
+                    target: { fieldId: 'a_dim1', tableName: 'test' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['foo'],
+                    singleValue: true,
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            singleValueDashboardFilter,
+        );
+        const dimensionRules = (result.filters.dimensions as AndFilterGroup)
+            .and;
+        const applied = dimensionRules.find(
+            (r) => (r as FilterRule).target?.fieldId === 'a_dim1',
+        ) as FilterRule;
+        expect(applied?.singleValue).toBe(true);
+    });
+
     test('keeps a value-less IN_THE_CURRENT dashboard filter — it compiles from settings, not values', () => {
         const relativeDateFilter: DashboardFilters = {
             dimensions: [
