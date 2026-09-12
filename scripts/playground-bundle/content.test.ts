@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { playgroundContent } from './content';
 
@@ -24,15 +25,26 @@ assert.equal(
     'Content serialization must preserve the shipped bundle bytes',
 );
 
-const learnBundle = JSON.parse(
-    readFileSync(
-        new URL(
-            '../../packages/backend/assets/learn/jaffle-dbt.json',
-            import.meta.url,
-        ),
-        'utf8',
+const learnBundleJson = readFileSync(
+    new URL(
+        '../../packages/backend/assets/learn/jaffle-dbt.json',
+        import.meta.url,
     ),
-) as { version: number; files: { path: string; content: string }[] };
+    'utf8',
+);
+const learnBundle = JSON.parse(learnBundleJson) as {
+    version: number;
+    files: { path: string; content: string }[];
+};
+const shippedShasums = readFileSync(
+    new URL('../../packages/backend/assets/learn/SHA256SUMS', import.meta.url),
+    'utf8',
+);
+assert.equal(
+    createHash('sha256').update(learnBundleJson).digest('hex'),
+    shippedShasums.trim().split(/\s+/)[0],
+    'SHA256SUMS is stale; run pnpm build:learn-bundle',
+);
 const shippedExplores = JSON.parse(
     readFileSync(
         new URL(
