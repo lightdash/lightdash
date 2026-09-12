@@ -24,6 +24,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { DbtLocalProjectAdapter } from '../../packages/backend/src/projectAdapters/dbtLocalProjectAdapter';
+import { writeLearnBundle } from './build-learn';
 import { playgroundContent } from './content';
 import { replaceTableMaterializations } from './projectYaml';
 
@@ -219,6 +220,7 @@ const main = async () => {
     const projectFile = path.join(dbtProjectDir, 'dbt_project.yml');
     const projectYaml = await readFile(projectFile, 'utf8');
     await writeFile(projectFile, replaceTableMaterializations(projectYaml));
+    const learnFileCount = await writeLearnBundle(dbtProjectDir);
     const profiles = `jaffle_shop:
   target: jaffle
   outputs:
@@ -291,7 +293,7 @@ const main = async () => {
             .join('\n');
         await writeFile(checksumsPath, `${checksums}\n`);
         console.log(
-            `Built playground bundle: ${seedCount} seeds, ${explores.length} explores`,
+            `Built playground bundle: ${seedCount} seeds, ${explores.length} explores, learn bundle ${learnFileCount} files`,
         );
     } finally {
         process.env.PATH = previousPath;
