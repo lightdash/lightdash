@@ -331,9 +331,6 @@ COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/wareh
 COPY --from=build-backend /usr/app/packages/backend/dist/ ./packages/backend/dist/
 COPY --from=build-frontend /usr/app/packages/frontend/build/ ./packages/frontend/build/
 COPY --from=build-cli /usr/app/packages/cli/dist/ ./packages/cli/dist/
-# The CLI must start with the production node_modules installed above; a
-# missing dependency fails the build here rather than in a learner's terminal.
-RUN node packages/cli/dist/index.js --version
 
 # Install Sentry CLI and process sourcemaps if environment variables are set
 ARG SENTRY_AUTH_TOKEN=""
@@ -381,6 +378,10 @@ RUN rm -rf node_modules \
 ENV NODE_ENV production
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --prod --frozen-lockfile --prefer-offline
+
+# The CLI must start with the production node_modules just installed; a
+# missing runtime dependency fails the build here rather than in a learner's terminal.
+RUN node packages/cli/dist/index.js --version
 
 # Keep the versioned playground bundle in a late layer so bundle-only updates
 # do not invalidate production dependency installation or sourcemap processing.
