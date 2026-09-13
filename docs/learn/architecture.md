@@ -111,6 +111,25 @@ subcommand allowlist is short on purpose: `lightdash compile|deploy|validate|lin
 `GET /api/v1/health` reports `learnSandbox.enabled`, which is true only when personal access tokens are enabled
 and both `lightdash` and `dbt` are resolvable on the child's PATH.
 
+#### Workspace page
+
+The learner reaches the sandbox at `/projects/<copy>/learn/workspace`, inside the project layout. The route
+resolves its own access: it opens only on a preview whose upstream is the training project, and only while the
+sandbox gate is open, so the shared training project and every real project redirect to the library rather than
+answering with an error. The page is three panes over the copy (the file tree, a YAML editor and the terminal)
+under a strip carrying the copy's name and a `Back to library` link. Tours drive it through
+`data-tour-anchor="workspace-file"`, `"workspace-editor"`, `"terminal-command"` and `"terminal-run"`, read
+progress from `data-learn-editor-state` (`saved`/`dirty`/`saving`/`readonly`) and wait on the output pane's
+`data-tour-busy` and `data-tour-status`; `data-learn-workspace`, `data-learn-file`, `data-learn-editable`,
+`data-learn-terminal-output` and `data-learn-back-to-library` are there for tests and walkthrough verification.
+
+Edits are held per file in the page and autosaved rather than saved by a button: on editor blur, and again
+before every run, so a command never runs against a file the learner has changed on screen but not on disk. A
+save that fails leaves the edit in the editor and reports the reason in a toast. The terminal parses the typed
+command in the browser before asking for anything, so an input that is not `lightdash` or `dbt` never becomes a
+request. A run the server refuses because a command is already in flight is not an error: the reply names the
+running command, and the pane attaches to its output and streams it to the end.
+
 Two knobs exist for that PATH and for where the child sends its API calls. `LEARN_SANDBOX_PATH_PREFIX` is a
 colon-separated list of directories prepended to the child's PATH (default `/usr/local/dbt1.12/bin`); it is how a
 deployment points the sandbox at the dbt and `lightdash` binaries it ships, and on a developer machine it is how
