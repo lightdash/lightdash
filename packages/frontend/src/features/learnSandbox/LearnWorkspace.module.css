@@ -14,8 +14,62 @@
     --lu-muted: var(--mantine-color-ldGray-5);
 
     height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+}
+
+.workspaceHeader {
+    flex-shrink: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--lu-border);
+    background: var(--lu-surface);
+}
+
+.panels {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Every panel is a flex column so the pane inside it can own the scroll. */
+.panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.treePane {
+    flex: 1;
+    min-height: 0;
+    background: var(--lu-sunken);
+}
+
+.handleVertical,
+.handleHorizontal {
+    flex-shrink: 0;
+    background: var(--lu-border);
+    transition: background 150ms ease;
+}
+
+.handleVertical {
+    width: 1px;
+}
+
+.handleHorizontal {
+    height: 1px;
+}
+
+.handleVertical:hover,
+.handleHorizontal:hover,
+.handleVertical[data-resize-handle-active],
+.handleHorizontal[data-resize-handle-active] {
+    background: var(--lu-accent);
+}
+
+.editorEmpty {
+    flex: 1;
+    min-height: 0;
 }
 
 .fileTreeNode {
