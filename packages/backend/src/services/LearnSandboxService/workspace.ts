@@ -47,6 +47,9 @@ export const renderProfiles = (databasePath: string): string => `jaffle_shop:
         memory_limit: 256MB
 `;
 
+const isUnsafeBundlePath = (relative: string): boolean =>
+    relative.startsWith('/') || relative.split('/').includes('..');
+
 export const materialiseWorkspace = async (args: {
     bundle: LearnBundle;
     overlay: { path: string; content: string }[];
@@ -60,10 +63,20 @@ export const materialiseWorkspace = async (args: {
         await writeFile(target, content);
     };
     for (const file of args.bundle.files) {
+        if (isUnsafeBundlePath(file.path)) {
+            throw new Error(
+                `Refusing to materialise unsafe bundle path: ${file.path}`,
+            );
+        }
         // eslint-disable-next-line no-await-in-loop
         await write(file.path, file.content);
     }
     for (const file of args.overlay) {
+        if (!isEditablePath(file.path)) {
+            throw new Error(
+                `Refusing to materialise non-editable overlay path: ${file.path}`,
+            );
+        }
         // eslint-disable-next-line no-await-in-loop
         await write(file.path, file.content);
     }

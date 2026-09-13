@@ -44,6 +44,21 @@ describe('buildArgv', () => {
             ],
         });
     });
+    it('accepts --path . for uploading the whole project', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'lightdash',
+                    subcommand: 'upload',
+                    args: ['--path', '.'],
+                },
+                ws,
+            ),
+        ).toEqual({
+            ok: true,
+            argv: ['lightdash', 'upload', '--path', '.'],
+        });
+    });
     it.each([
         ['unknown tool', { tool: 'bash' as never, subcommand: 'x', args: [] }],
         ['dbt run', { tool: 'dbt', subcommand: 'run', args: [] }],
@@ -74,6 +89,18 @@ describe('buildArgv', () => {
                 tool: 'lightdash',
                 subcommand: 'upload',
                 args: ['--path', '/etc'],
+            },
+        ],
+        [
+            'flag-like selector value',
+            { tool: 'dbt', subcommand: 'ls', args: ['--select', '-x'] },
+        ],
+        [
+            'flag-like path value',
+            {
+                tool: 'lightdash',
+                subcommand: 'upload',
+                args: ['--path', '--charts'],
             },
         ],
         [
