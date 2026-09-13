@@ -51,13 +51,17 @@ const findExecutable = async (
     return false;
 };
 
-let cache:
-    | { at: number; result: Promise<{ lightdash: boolean; dbt: boolean }> }
-    | undefined;
+type SandboxRuntimeDetection = {
+    lightdash: boolean;
+    dbt: boolean;
+    node: boolean;
+};
+
+let cache: { at: number; result: Promise<SandboxRuntimeDetection> } | undefined;
 
 export const detectSandboxRuntime = (
     env: NodeJS.ProcessEnv = process.env,
-): Promise<{ lightdash: boolean; dbt: boolean }> => {
+): Promise<SandboxRuntimeDetection> => {
     const now = Date.now();
     if (cache && now - cache.at < RUNTIME_DETECTION_CACHE_MS) {
         return cache.result;
@@ -68,7 +72,8 @@ export const detectSandboxRuntime = (
     const result = Promise.all([
         findExecutable('lightdash', dirs),
         findExecutable('dbt', dirs),
-    ]).then(([lightdash, dbt]) => ({ lightdash, dbt }));
+        findExecutable('node', dirs),
+    ]).then(([lightdash, dbt, node]) => ({ lightdash, dbt, node }));
     cache = { at: now, result };
     return result;
 };

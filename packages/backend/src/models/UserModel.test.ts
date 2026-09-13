@@ -651,8 +651,8 @@ describe('UserModel', () => {
                     'manage',
                     subject('DeployProject', {
                         projectUuid: 'training',
-                        type: 'PREVIEW',
-                        createdByUserUuid: humanDetails.user_uuid,
+                        type: 'TRAINING',
+                        createdByUserUuid: null,
                     }),
                 ),
             ).toBe(false);
