@@ -6,7 +6,7 @@ import { PageName } from '../types/Events';
 
 const LearnWorkspace: FC = () => (
     <TrackPage name={PageName.LEARN_WORKSPACE}>
-        <Page title="Workspace" noContentPadding>
+        <Page title="Workspace" noContentPadding withFullHeight>
             <LearnWorkspacePage />
         </Page>
     </TrackPage>

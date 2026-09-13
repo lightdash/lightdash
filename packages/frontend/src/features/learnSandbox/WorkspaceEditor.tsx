@@ -100,6 +100,11 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             },
         ]);
         onChangeRef.current(model.getValue());
+        // The tour's append has to leave the caret where typing would leave
+        // it: the page autosaves on blur, and text dropped into an editor
+        // that never held focus would never blur, so it would sit unsaved
+        // until the learner ran a command.
+        ed.focus();
     }, []);
 
     const handleBeforeMount: BeforeMount = useCallback((monaco) => {
