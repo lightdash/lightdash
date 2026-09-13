@@ -152,6 +152,9 @@ export const BaseResponse: HealthState = {
         enabled: false,
         retentionDays: 30,
     },
+    learnSandbox: {
+        enabled: false,
+    },
     dashboardComments: {
         enabled: true,
     },

@@ -45,6 +45,10 @@ vi.spyOn(validLicenseService, 'getLicenseStatus').mockReturnValue({
     valid: true,
 });
 
+const learnSandboxServiceMock = {
+    isRuntimeAvailable: vi.fn(async () => false),
+};
+
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
@@ -53,6 +57,7 @@ describe('health', () => {
         migrationModel: migrationModel as unknown as MigrationModel,
         organizationSettingsModel:
             organizationSettingsModel as unknown as OrganizationSettingsModel,
+        learnSandboxService: learnSandboxServiceMock,
     });
 
     afterEach(() => {
@@ -103,6 +108,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            learnSandboxService: learnSandboxServiceMock,
         });
 
         expect(
@@ -130,6 +136,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            learnSandboxService: learnSandboxServiceMock,
         });
 
         await expect(service.getHealthState(undefined)).resolves.toEqual({
@@ -185,6 +192,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            learnSandboxService: learnSandboxServiceMock,
         });
         expect(
             (await licensedService.getHealthState(undefined))
@@ -207,6 +215,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            learnSandboxService: learnSandboxServiceMock,
         });
 
         expect(
@@ -224,6 +233,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            learnSandboxService: learnSandboxServiceMock,
         });
 
         expect(
@@ -245,6 +255,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            learnSandboxService: learnSandboxServiceMock,
         });
         expect(await service.getHealthState(undefined)).toEqual({
             ...BaseResponse,
@@ -316,6 +327,7 @@ describe('health', () => {
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             readinessService: { getReadiness },
+            learnSandboxService: learnSandboxServiceMock,
         });
 
         await expect(service.getHealthState(undefined)).resolves.toEqual({
@@ -352,6 +364,7 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
             });
 
             const result = await service.getHealthState(userMock);
@@ -373,6 +386,7 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
             });
 
             const userWithEmail = { ...userMock, email: testEmail };
