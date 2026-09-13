@@ -15,5 +15,4 @@ export const useWorkspaceFile = (projectUuid: string, path: string | null) =>
         queryFn: () => getWorkspaceFile(projectUuid, path!),
         enabled: !!path,
         retry: false,
-        keepPreviousData: true,
     });
