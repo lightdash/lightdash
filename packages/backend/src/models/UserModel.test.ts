@@ -617,6 +617,47 @@ describe('UserModel', () => {
             });
         });
 
+        it("grants the sandbox deploy scopes on the learner's copy only", async () => {
+            const model = createHumanModel();
+            model.getTrainingProjects = vi.fn(async () => [
+                {
+                    projectUuid: 'training',
+                    projectType: ProjectType.TRAINING,
+                    createdByUserUuid: null,
+                },
+                {
+                    projectUuid: 'copy',
+                    projectType: ProjectType.PREVIEW,
+                    createdByUserUuid: humanDetails.user_uuid,
+                },
+            ]);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DeployProject', {
+                        projectUuid: 'copy',
+                        type: 'PREVIEW',
+                        createdByUserUuid: humanDetails.user_uuid,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DeployProject', {
+                        projectUuid: 'training',
+                        type: 'PREVIEW',
+                        createdByUserUuid: humanDetails.user_uuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
         it('unions org and project extra roles into a human user ability', async () => {
             const model = createHumanModel();
 

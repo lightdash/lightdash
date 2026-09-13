@@ -171,6 +171,13 @@ export type MobilePushLiveActivityStartJobPayload = TraceTaskBase & {
     liveActivityStartAttemptUuid: UUID;
 };
 
+export type LearnSandboxCommandPayload = TraceTaskBase & {
+    commandUuid: string;
+    projectUuid: string;
+    organizationUuid: string;
+    userUuid: string;
+};
+
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
@@ -252,6 +259,7 @@ export const SCHEDULER_TASKS = {
     POLL_EMAIL_WHITELABEL: 'pollEmailWhitelabelVerification',
     CLEAN_WAREHOUSE_CONNECT_CODES: 'cleanWarehouseConnectCodes',
     BACKFILL_DEFAULT_USER_SPACES: 'backfillDefaultUserSpaces',
+    LEARN_SANDBOX_COMMAND: 'learnSandboxCommand',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -300,6 +308,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
     [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: BackfillDefaultUserSpacesPayload;
+    [SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND]: LearnSandboxCommandPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;

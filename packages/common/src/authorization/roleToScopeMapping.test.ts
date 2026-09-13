@@ -11,6 +11,7 @@ import {
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
     isSystemRole,
+    LEARN_SANDBOX_SCOPES,
     TRAINING_PROJECT_EXCLUDED_SCOPES,
 } from './roleToScopeMapping';
 import {
@@ -98,6 +99,30 @@ describe('roleToScopeMapping', () => {
                 'manage:Validation',
                 'manage:DataApp',
             ].forEach((scope) => expect(trainee).toContain(scope));
+        });
+
+        describe('LEARN_SANDBOX_SCOPES', () => {
+            it('is exactly the two deploy scopes the sandbox needs', () => {
+                expect([...LEARN_SANDBOX_SCOPES]).toEqual([
+                    'manage:DeployProject@self',
+                    'create:Job',
+                ]);
+            });
+            it('only names scopes the trainee set excludes on purpose', () => {
+                LEARN_SANDBOX_SCOPES.forEach((scope) =>
+                    expect(TRAINING_PROJECT_EXCLUDED_SCOPES).toContain(scope),
+                );
+            });
+            it('never contains a project-breaking scope', () => {
+                [
+                    'manage:Project',
+                    'update:Project',
+                    'delete:Project',
+                    'manage:CompileProject',
+                ].forEach((scope) =>
+                    expect(LEARN_SANDBOX_SCOPES).not.toContain(scope),
+                );
+            });
         });
     });
 
