@@ -27,6 +27,7 @@ import {
     type DeliveryCaptureManifest,
     type EmailNotificationPayload,
     type Filters,
+    type LearnSandboxCommandPayload,
     type MetricQuery,
     type NotificationPayloadBase,
     type ReadyQueryResultsPage,
@@ -1090,6 +1091,68 @@ describe('compileProject', () => {
         ).rejects.toThrow(compileError);
 
         expect(replaceCustomFields).not.toHaveBeenCalled();
+    });
+});
+
+describe('learnSandboxCommand', () => {
+    it('runs the command through LearnSandboxService', async () => {
+        const runCommand = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            learnSandboxService: asDep<'learnSandboxService'>({
+                runCommand,
+            }),
+        });
+        const payload: LearnSandboxCommandPayload = {
+            commandUuid: 'command-1',
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+            userUuid: 'user-1',
+        };
+
+        await (
+            task as unknown as {
+                learnSandboxCommand(
+                    jobId: string,
+                    scheduledTime: Date,
+                    commandPayload: LearnSandboxCommandPayload,
+                ): Promise<void>;
+            }
+        ).learnSandboxCommand('scheduler-job-1', new Date(), payload);
+
+        expect(runCommand).toHaveBeenCalledWith(payload);
+    });
+
+    it('propagates errors from the sandbox run', async () => {
+        const runError = new Error('sandbox run failed');
+        const task = makeTaskWithDeps({
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            learnSandboxService: asDep<'learnSandboxService'>({
+                runCommand: vi.fn().mockRejectedValue(runError),
+            }),
+        });
+        const payload: LearnSandboxCommandPayload = {
+            commandUuid: 'command-1',
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+            userUuid: 'user-1',
+        };
+
+        await expect(
+            (
+                task as unknown as {
+                    learnSandboxCommand(
+                        jobId: string,
+                        scheduledTime: Date,
+                        commandPayload: LearnSandboxCommandPayload,
+                    ): Promise<void>;
+                }
+            ).learnSandboxCommand('scheduler-job-1', new Date(), payload),
+        ).rejects.toThrow(runError);
     });
 });
 

@@ -162,6 +162,7 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getEmailWhitelabelService(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        learnSandboxService: context.serviceRepository.getLearnSandboxService(),
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
