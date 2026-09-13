@@ -1,6 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { Anchor, Box, Center, Group, ScrollArea, Text } from '@mantine/core';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useRef, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -45,6 +45,11 @@ const Workspace: FC<WorkspaceProps> = ({
     // Errors the page itself raises (a rejected command, a command that never
     // left the browser); the poller's own errors arrive on `output.error`.
     const [terminalError, setTerminalError] = useState<string | null>(null);
+    const pendingSaveRef = useRef<{
+        path: string;
+        content: string;
+        promise: Promise<boolean>;
+    } | null>(null);
 
     const { data: files } = useWorkspaceFiles(projectUuid);
     const { data: file } = useWorkspaceFile(projectUuid, selectedPath);
@@ -55,6 +60,16 @@ const Workspace: FC<WorkspaceProps> = ({
     const draft = selectedPath === null ? undefined : drafts[selectedPath];
     const isDirty = draft !== undefined && draft !== file?.content;
 
+    // A command is attached but its first poll has not landed: the terminal
+    // stays busy across that gap rather than flashing its empty state
+    // between the request resolving and the output arriving.
+    const isAwaitingFirstPoll =
+        activeCommandUuid !== null &&
+        output.status === null &&
+        output.error === null;
+    const isRunning =
+        output.isActive || runCommand.isLoading || isAwaitingFirstPoll;
+
     const handleChange = useCallback(
         (content: string) => {
             if (selectedPath === null) return;
@@ -63,33 +78,65 @@ const Workspace: FC<WorkspaceProps> = ({
         [selectedPath],
     );
 
-    const saveIfDirty = useCallback(async () => {
+    /**
+     * Saves the current draft and answers whether the file on disk now
+     * matches the editor: true when there was nothing to save or the save
+     * succeeded, false when it failed (and was reported in a toast).
+     * Blurring the editor and then running immediately would otherwise send
+     * the same write twice, so a save in flight for the same path and
+     * content is awaited rather than repeated.
+     */
+    const saveIfDirty = useCallback(async (): Promise<boolean> => {
         const path = selectedPath;
-        if (path === null || !file || !isDirty || draft === undefined) return;
-        try {
-            await saveFile.mutateAsync({ path, content: draft });
-            setDrafts((prev) => {
-                const { [path]: _saved, ...rest } = prev;
-                return rest;
-            });
-        } catch (e) {
-            showToastApiError({
-                title: 'Could not save the file',
-                apiError: (e as ApiError).error,
-            });
-        }
+        if (path === null || !file || !isDirty || draft === undefined)
+            return true;
+        const pending = pendingSaveRef.current;
+        if (pending && pending.path === path && pending.content === draft)
+            return pending.promise;
+        const promise = (async () => {
+            try {
+                await saveFile.mutateAsync({ path, content: draft });
+                setDrafts((prev) => {
+                    const { [path]: _saved, ...rest } = prev;
+                    return rest;
+                });
+                return true;
+            } catch (e) {
+                showToastApiError({
+                    title: 'Could not save the file',
+                    apiError: (e as ApiError).error,
+                });
+                return false;
+            } finally {
+                const current = pendingSaveRef.current;
+                if (current?.path === path && current.content === draft)
+                    pendingSaveRef.current = null;
+            }
+        })();
+        pendingSaveRef.current = { path, content: draft, promise };
+        return promise;
     }, [draft, file, isDirty, saveFile, selectedPath, showToastApiError]);
 
     const handleRun = useCallback(async () => {
-        await saveIfDirty();
+        setTerminalError(null);
+        // A command that runs against a file the save did not reach would
+        // report on the old contents, which reads as the edit having had no
+        // effect; say so instead of running.
+        if (!(await saveIfDirty())) {
+            setTerminalError('The file could not be saved, so nothing ran');
+            return;
+        }
         const parsed = parseCommand(commandInput);
         if ('error' in parsed) {
             setTerminalError(parsed.error);
             return;
         }
+        // Drop the finished command before asking for the next one so the
+        // pane empties: a rejected run must not read as a footnote under the
+        // previous command's output and status.
+        setActiveCommandUuid(null);
         try {
             const { commandUuid } = await runCommand.mutateAsync(parsed);
-            setTerminalError(null);
             setActiveCommandUuid(commandUuid);
         } catch (e) {
             const message =
@@ -99,7 +146,6 @@ const Workspace: FC<WorkspaceProps> = ({
             // to that command's output instead of reporting a failure.
             const running = activeCommandFromError(message);
             if (running !== null) {
-                setTerminalError(null);
                 setActiveCommandUuid(running);
                 return;
             }
@@ -200,9 +246,7 @@ const Workspace: FC<WorkspaceProps> = ({
                                 value={commandInput}
                                 onValueChange={setCommandInput}
                                 onRun={() => void handleRun()}
-                                running={
-                                    output.isActive || runCommand.isLoading
-                                }
+                                running={isRunning}
                                 disabled={saveFile.isLoading}
                                 output={{
                                     ...output,
