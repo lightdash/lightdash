@@ -80,14 +80,16 @@ const FileTreeNode: FC<FileTreeNodeProps> = ({
                 }
                 active={isSelected}
                 onClick={handleClick}
-                data-tour-anchor={!isDirectory ? 'workspace-file' : undefined}
-                data-tour-hint={!isDirectory ? 'Open the file' : undefined}
-                data-tour-hint-named={!isDirectory ? 'Open {value}' : undefined}
-                data-tour-value={!isDirectory ? node.path : undefined}
-                data-learn-file={!isDirectory ? node.path : undefined}
-                data-learn-editable={
-                    !isDirectory ? String(!!node.editable) : undefined
-                }
+                {...(!isDirectory
+                    ? {
+                          'data-tour-anchor': 'workspace-file',
+                          'data-tour-hint': 'Open the file',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': node.path,
+                          'data-learn-file': node.path,
+                          'data-learn-editable': String(!!node.editable),
+                      }
+                    : {})}
             />
             {isDirectory &&
                 isExpanded &&

@@ -109,4 +109,60 @@ describe('useCommandOutput', () => {
 
         vi.useRealTimers();
     });
+
+    it('sanitizes each chunk of text as it is accumulated', async () => {
+        vi.useFakeTimers();
+        const api = vi.mocked(lightdashApi);
+        api.mockResolvedValueOnce({
+            commandUuid: 'c',
+            status: 'done',
+            exitCode: 0,
+            argv: ['dbt', 'parse'],
+            chunks: [
+                {
+                    seq: 1,
+                    stream: 'stdout',
+                    text: `[31mred[0m text`,
+                },
+            ],
+            startedAt: 's',
+            finishedAt: 'f',
+        } as never);
+
+        const { result } = renderHook(() => useCommandOutput('p', 'c'));
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+
+        expect(result.current.chunks[0].text).toBe('red text');
+
+        vi.useRealTimers();
+    });
+
+    it('does not set an error from a poll that resolves after the effect stopped', async () => {
+        vi.useFakeTimers();
+        const api = vi.mocked(lightdashApi);
+        let rejectPoll: (reason: unknown) => void = () => {};
+        api.mockImplementationOnce(
+            () =>
+                new Promise((_resolve, reject) => {
+                    rejectPoll = reject;
+                }),
+        );
+
+        const { result, unmount } = renderHook(() =>
+            useCommandOutput('p', 'c'),
+        );
+
+        unmount();
+        rejectPoll({ status: 'error', error: { message: 'boom' } });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+
+        expect(result.current.error).toBeNull();
+
+        vi.useRealTimers();
+    });
 });

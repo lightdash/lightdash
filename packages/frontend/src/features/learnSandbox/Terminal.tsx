@@ -6,7 +6,6 @@ import { Box, Button, Group, ScrollArea, Stack } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import {
     useEffect,
-    useMemo,
     useRef,
     type FC,
     type KeyboardEvent,
@@ -15,7 +14,6 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 // eslint-disable-next-line css-modules/no-unused-class -- classes shared across learnSandbox files
 import styles from './LearnWorkspace.module.css';
-import { sanitizeTerminalText } from './terminalText';
 
 const BOTTOM_THRESHOLD_PX = 32;
 
@@ -42,11 +40,10 @@ const EMPTY_STATE_LABEL = 'Run a command to see its output here';
 const getStatusLabel = (
     status: LearnCommandStatus | null,
     exitCode: number | null,
-    hasChunks: boolean,
 ): string => {
     switch (status) {
         case null:
-            return hasChunks ? '' : EMPTY_STATE_LABEL;
+            return '';
         case 'queued':
             return 'Queued';
         case 'running':
@@ -81,7 +78,6 @@ type TerminalProps = {
     running: boolean;
     disabled: boolean;
     output: TerminalOutput;
-    commandSuggestion?: string;
 };
 
 /**
@@ -98,7 +94,6 @@ const Terminal: FC<TerminalProps> = ({
     running,
     disabled,
     output,
-    commandSuggestion,
 }) => {
     const viewportRef = useRef<HTMLDivElement>(null);
     const shouldFollowRef = useRef(true);
@@ -138,24 +133,13 @@ const Terminal: FC<TerminalProps> = ({
         output.startedAt,
         output.finishedAt,
     );
-    const statusLabel = getStatusLabel(
-        output.status,
-        output.exitCode,
-        output.chunks.length > 0,
-    );
+    const statusLabel = getStatusLabel(output.status, output.exitCode);
     const statusText =
         statusLabel && elapsedSeconds !== null
             ? `${statusLabel} · ${elapsedSeconds}s`
             : statusLabel;
-
-    const sanitizedChunks = useMemo(
-        () =>
-            output.chunks.map((chunk) => ({
-                ...chunk,
-                text: sanitizeTerminalText(chunk.text),
-            })),
-        [output.chunks],
-    );
+    const isEmpty =
+        output.chunks.length === 0 && output.status === null && !output.error;
 
     return (
         <Box className={styles.terminalPane}>
@@ -169,13 +153,10 @@ const Terminal: FC<TerminalProps> = ({
                     }
                     onKeyDown={handleKeyDown}
                     placeholder="dbt parse"
-                    disabled={disabled}
                     data-tour-anchor="terminal-command"
                     data-tour-hint="Type the command"
                     data-tour-input="true"
-                    {...(commandSuggestion
-                        ? { 'data-tour-suggest': commandSuggestion }
-                        : {})}
+                    data-tour-suggest="dbt parse"
                 />
                 <Button
                     data-tour-anchor="terminal-run"
@@ -204,6 +185,10 @@ const Terminal: FC<TerminalProps> = ({
                 className={styles.terminalOutput}
                 data-learn-terminal-output
                 data-tour-busy={running ? 'true' : undefined}
+                data-tour-anchor={running ? 'terminal-running' : undefined}
+                data-tour-hint={
+                    running ? 'Wait for the command to finish' : undefined
+                }
             >
                 <ScrollArea
                     viewportRef={viewportRef}
@@ -211,7 +196,12 @@ const Terminal: FC<TerminalProps> = ({
                     viewportProps={{ onScroll: handleScroll }}
                 >
                     <Stack gap={4} p="md">
-                        {sanitizedChunks.map((chunk) => (
+                        {isEmpty ? (
+                            <span className={styles.terminalLine}>
+                                {EMPTY_STATE_LABEL}
+                            </span>
+                        ) : null}
+                        {output.chunks.map((chunk) => (
                             <span
                                 key={chunk.seq}
                                 className={styles.terminalLine}

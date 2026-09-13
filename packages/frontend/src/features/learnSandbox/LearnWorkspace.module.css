@@ -1,17 +1,11 @@
 /* The sandbox workspace shell, on the library's own neutrals (Learn.module.css). */
 .shell {
     --lu-accent: var(--mantine-color-ldBrandViolet-6);
-    --lu-track: var(--mantine-color-ldGray-2);
-    --lu-done-fg: light-dark(
-        var(--mantine-color-green-7),
-        var(--mantine-color-green-4)
-    );
     --lu-surface: var(--mantine-color-background-0);
     --lu-sunken: var(--mantine-color-ldGray-1);
     --lu-border: var(--mantine-color-ldGray-2);
     --lu-ink: var(--mantine-color-ldGray-9);
     --lu-secondary: var(--mantine-color-ldGray-7);
-    --lu-muted: var(--mantine-color-ldGray-5);
 
     height: 100%;
     min-height: 0;
@@ -74,6 +68,11 @@
 
 .fileTreeNode {
     border-radius: 0;
+}
+
+.fileTreeNode[data-active] {
+    background: var(--lu-surface);
+    box-shadow: inset 2px 0 0 var(--lu-accent);
 }
 
 .chevron {
