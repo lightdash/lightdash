@@ -1539,6 +1539,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getEmailWhitelabelService(),
                 warehouseConnectCodeModel:
                     context.models.getWarehouseConnectCodeModel(),
+                learnSandboxService:
+                    context.serviceRepository.getLearnSandboxService(),
                 managedAgentService:
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
                 appGenerateService:

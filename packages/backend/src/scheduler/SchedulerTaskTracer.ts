@@ -360,6 +360,9 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: () => ({}),
+    [SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND]: (payload) => ({
+        projectUuid: payload.projectUuid,
+    }),
 } as const;
 
 const getTagsFromPayload = <T extends SchedulerTaskName>(

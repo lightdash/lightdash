@@ -51,10 +51,7 @@ import { GroupsService } from './GroupService';
 import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { JiraAppService } from './JiraAppService/JiraAppService';
-import {
-    LearnSandboxService,
-    type LearnSandboxSchedulerClient,
-} from './LearnSandboxService/LearnSandboxService';
+import { LearnSandboxService } from './LearnSandboxService/LearnSandboxService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { LinearAppService } from './LinearAppService/LinearAppService';
@@ -1624,9 +1621,7 @@ export class ServiceRepository
                     personalAccessTokenService:
                         this.getPersonalAccessTokenService(),
                     userService: this.getUserService(),
-                    // TODO(CS-280 task 5): drop the cast once SchedulerClient.learnSandboxCommand exists
-                    schedulerClient:
-                        this.clients.getSchedulerClient() as unknown as LearnSandboxSchedulerClient,
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }

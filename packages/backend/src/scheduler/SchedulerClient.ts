@@ -1366,6 +1366,39 @@ export class SchedulerClient {
         return { jobId };
     }
 
+    async learnSandboxCommand(payload: {
+        commandUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        userUuid: string;
+    }): Promise<string> {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const id = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND,
+            payload,
+            now,
+            JobPriority.HIGH,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND,
+            jobId: id,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+                createdByUserUuid: payload.userUuid,
+                commandUuid: payload.commandUuid,
+            },
+        });
+
+        return id;
+    }
+
     async materializePreAggregate(
         payload: MaterializePreAggregatePayload,
         scheduledAt: Date = new Date(),

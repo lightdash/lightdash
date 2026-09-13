@@ -132,6 +132,7 @@ import {
     type GoogleChatNotificationPayload,
     type GsheetColumn,
     type ItemsMap,
+    type LearnSandboxCommandPayload,
     type MaterializePreAggregatePayload,
     type MetricQuery,
     type MsTeamsBatchNotificationPayload,
@@ -192,6 +193,7 @@ import { DeployService } from '../services/DeployService';
 import { EmailWhitelabelService } from '../services/EmailWhitelabelService/EmailWhitelabelService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
+import { LearnSandboxService } from '../services/LearnSandboxService/LearnSandboxService';
 import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
@@ -262,6 +264,7 @@ export type SchedulerTaskArguments = {
     organizationSettingsModel: OrganizationSettingsModel;
     emailWhitelabelService: EmailWhitelabelService;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
+    learnSandboxService: LearnSandboxService;
 };
 
 /**
@@ -557,6 +560,8 @@ export default class SchedulerTask {
 
     protected readonly warehouseConnectCodeModel: WarehouseConnectCodeModel;
 
+    protected readonly learnSandboxService: LearnSandboxService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -588,6 +593,7 @@ export default class SchedulerTask {
         this.organizationSettingsModel = args.organizationSettingsModel;
         this.emailWhitelabelService = args.emailWhitelabelService;
         this.warehouseConnectCodeModel = args.warehouseConnectCodeModel;
+        this.learnSandboxService = args.learnSandboxService;
     }
 
     /**
@@ -5840,6 +5846,30 @@ export default class SchedulerTask {
                 );
 
                 return {}; // Don't pollute with more details
+            },
+        );
+    }
+
+    protected async learnSandboxCommand(
+        jobId: string,
+        scheduledTime: Date,
+        payload: LearnSandboxCommandPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    commandUuid: payload.commandUuid,
+                },
+            },
+            async () => {
+                await this.learnSandboxService.runCommand(payload);
+                return {};
             },
         );
     }
