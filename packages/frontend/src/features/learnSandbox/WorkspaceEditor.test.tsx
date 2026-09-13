@@ -189,6 +189,9 @@ describe('WorkspaceEditor', () => {
             }),
         ]);
         expect(onChange).toHaveBeenCalledWith('existing\nx');
+        // Without focus the appended text could never blur, and the page's
+        // autosave runs on blur.
+        expect(stubs.editor.focus).toHaveBeenCalled();
     });
 
     it('does not prefix a newline when the model is empty', () => {
