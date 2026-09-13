@@ -59,3 +59,82 @@
     flex: 1;
     min-height: 0;
 }
+
+.terminalPane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.terminalBar {
+    flex-shrink: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--lu-border);
+}
+
+.terminalInput {
+    flex: 1;
+    min-width: 0;
+    padding: 6px var(--mantine-spacing-sm);
+    border: 1px solid var(--lu-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--lu-sunken);
+    color: var(--lu-ink);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-sm);
+}
+
+.terminalInput:focus {
+    outline: none;
+    border-color: var(--lu-accent);
+}
+
+.terminalChips {
+    flex-shrink: 0;
+    padding: 0 var(--mantine-spacing-md) var(--mantine-spacing-xs);
+}
+
+.terminalOutput {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    border-top: 1px solid var(--lu-border);
+}
+
+.terminalViewport {
+    flex: 1;
+    min-height: 0;
+    background: var(--ld-color-page);
+}
+
+.terminalLine,
+.terminalErrorLine {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+}
+
+.terminalLine {
+    color: var(--mantine-color-text);
+}
+
+.terminalLine[data-stream='stderr'] {
+    color: var(--mantine-color-red-light-color);
+}
+
+.terminalErrorLine {
+    color: var(--mantine-color-red-light-color);
+}
+
+.terminalFooter {
+    flex-shrink: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-top: 1px solid var(--lu-border);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--lu-secondary);
+}
