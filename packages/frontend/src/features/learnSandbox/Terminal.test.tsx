@@ -128,13 +128,30 @@ describe('Terminal', () => {
         expect(screen.getByRole('button', { name: /run/i })).toBeDisabled();
     });
 
+    it('has an accessible name for the command input', () => {
+        renderTerminal({ value: 'dbt parse' });
+
+        expect(screen.getByLabelText('Command')).toHaveValue('dbt parse');
+    });
+
     it('calls onRun when Enter is pressed in the command input', async () => {
         const { onRun } = renderTerminal({ value: 'dbt parse' });
 
-        await userEvent.click(screen.getByRole('textbox'));
+        await userEvent.click(screen.getByLabelText('Command'));
         await userEvent.keyboard('{Enter}');
 
         expect(onRun).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call onRun on Enter, and disables Run, when the command is blank or whitespace', async () => {
+        const { onRun } = renderTerminal({ value: '   ' });
+
+        expect(screen.getByRole('button', { name: /run/i })).toBeDisabled();
+
+        await userEvent.click(screen.getByLabelText('Command'));
+        await userEvent.keyboard('{Enter}');
+
+        expect(onRun).not.toHaveBeenCalled();
     });
 
     it('renders output.error as a visible line', () => {
@@ -157,11 +174,40 @@ describe('Terminal', () => {
         expect(onValueChange).toHaveBeenCalledWith('dbt parse');
     });
 
+    it('disables the quick command chips while running', () => {
+        renderTerminal({ running: true });
+
+        expect(
+            screen.getByRole('button', { name: 'dbt parse' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'lightdash compile' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'lightdash deploy' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'lightdash validate' }),
+        ).toBeDisabled();
+    });
+
     it('shows the empty-state message in the status footer before anything has run', () => {
         renderTerminal();
 
         expect(
             screen.getByText('Run a command to see its output here'),
         ).toHaveAttribute('data-tour-status', 'true');
+    });
+
+    it('shows Failed with no exit suffix when exitCode is null', () => {
+        renderTerminal({ output: { status: 'error', exitCode: null } });
+
+        expect(screen.getByText('Failed')).toBeInTheDocument();
+    });
+
+    it('shows Failed (exit N) when exitCode is present', () => {
+        renderTerminal({ output: { status: 'error', exitCode: 1 } });
+
+        expect(screen.getByText('Failed (exit 1)')).toBeInTheDocument();
     });
 });
