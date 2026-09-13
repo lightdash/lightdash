@@ -38,6 +38,16 @@ export class OutputBuffer {
         return this.lastError;
     }
 
+    /**
+     * The highest sequence number handed out so far. Lets a caller that
+     * needs to persist one more line after `close()` (because `error` shows
+     * the buffer already lost a batch) mint a sequence number consistent
+     * with everything already appended, without reaching into private state.
+     */
+    get lastSeq(): number {
+        return this.seq;
+    }
+
     constructor(
         private readonly opts: {
             secrets: string[];

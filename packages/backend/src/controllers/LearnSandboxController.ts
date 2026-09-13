@@ -81,7 +81,10 @@ export class LearnSandboxController extends BaseController {
     }
 
     /**
-     * Save the content of a single file in the learner's sandbox workspace
+     * Save the content of a single file in the learner's sandbox workspace.
+     * The path is URL-encoded (e.g. `models%2Forders.yml`); tsoa/Express
+     * decode it (including any encoded slashes) before it reaches this
+     * handler, so `path` already holds the plain file path.
      * @summary Save workspace file
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])

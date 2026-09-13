@@ -103,6 +103,15 @@ describe('LearnWorkspaceModel', () => {
         expect(claimed).toBe(false);
     });
 
+    it('countFiles counts the overlay rows for a project', async () => {
+        tracker.on.select('learn_workspace_files').response([{ count: '3' }]);
+        const count = await model.countFiles('p1');
+        expect(count).toBe(3);
+        const [q] = tracker.history.select;
+        expect(q.sql).toMatch(/count/i);
+        expect(q.bindings).toEqual(expect.arrayContaining(['p1']));
+    });
+
     it('failStaleRunning fails long-running rows and returns their token info', async () => {
         tracker.on.update('learn_commands').response([
             {

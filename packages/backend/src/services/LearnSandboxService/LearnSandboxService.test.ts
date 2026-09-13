@@ -1,9 +1,16 @@
-import { Ability } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    buildAbilityFromScopes,
+    ConflictError,
     FeatureFlags,
+    ForbiddenError,
+    getTrainingProjectScopes,
+    getTrainingProjectViewerScopes,
+    LEARN_SANDBOX_SCOPES,
     NotFoundError,
     ParameterError,
     ProjectType,
+    type MemberAbility,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -20,6 +27,7 @@ import path from 'node:path';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LearnSandboxService } from './LearnSandboxService';
+import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from './runtime';
 
 const user: SessionUser = {
     ...defaultSessionUser,
@@ -63,6 +71,7 @@ describe('LearnSandboxService', () => {
     const files = {
         listFiles: vi.fn(),
         getFile: vi.fn(),
+        countFiles: vi.fn(),
         upsertFile: vi.fn(),
         createCommand: vi.fn(),
         getCommand: vi.fn(),
@@ -81,28 +90,43 @@ describe('LearnSandboxService', () => {
             enabled: true,
         })),
     };
+    type ProjectSummaryFixture = {
+        projectUuid: string;
+        organizationUuid: string;
+        type: ProjectType;
+        upstreamProjectUuid: string | undefined;
+        createdByUserUuid: string | null;
+        provisioningSource: string | null;
+        name: string;
+        slug: string;
+    };
     const projectModel = {
-        getSummary: vi.fn(async (uuid: string) => ({
-            projectUuid: uuid,
-            organizationUuid: 'org',
-            type: ProjectType.PREVIEW,
-            upstreamProjectUuid: 'training',
-            createdByUserUuid: user.userUuid,
-            name: 'copy',
-            slug: 'copy',
-        })),
+        getSummary: vi.fn(
+            async (uuid: string): Promise<ProjectSummaryFixture> => ({
+                projectUuid: uuid,
+                organizationUuid: 'org',
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: 'training',
+                createdByUserUuid: user.userUuid,
+                provisioningSource: 'training',
+                name: 'copy',
+                slug: 'copy',
+            }),
+        ),
     };
     const schedulerClient = { learnSandboxCommand: vi.fn(async () => 'job-1') };
+    const personalAccessTokenService = {
+        createPersonalAccessToken: vi.fn(),
+        deletePersonalAccessToken: vi.fn(async () => undefined),
+    };
+    const userService = { getSessionByUserUuidAndOrg: vi.fn(async () => user) };
     const service = new LearnSandboxService({
         lightdashConfig,
         learnWorkspaceModel: files as never,
         projectModel,
         featureFlagModel,
-        personalAccessTokenService: {
-            createPersonalAccessToken: vi.fn(),
-            deletePersonalAccessToken: vi.fn(),
-        },
-        userService: { getSessionByUserUuidAndOrg: vi.fn() },
+        personalAccessTokenService,
+        userService,
         schedulerClient,
     });
 
@@ -146,7 +170,51 @@ describe('LearnSandboxService', () => {
         ).rejects.toThrow(ParameterError);
     });
 
+    it('rejects a path longer than 255 characters', async () => {
+        const longPath = `models/${'a'.repeat(250)}.yml`;
+        expect(longPath.length).toBeGreaterThan(255);
+        await expect(
+            service.saveFile(user, 'copy', longPath, 'version: 2\n'),
+        ).rejects.toThrow(ParameterError);
+        expect(files.upsertFile).not.toHaveBeenCalled();
+    });
+
+    it('rejects a new file once the workspace already has 200 overlay files', async () => {
+        files.getFile.mockResolvedValueOnce(undefined);
+        files.countFiles.mockResolvedValueOnce(200);
+        await expect(
+            service.saveFile(
+                user,
+                'copy',
+                'models/new_file.yml',
+                'version: 2\n',
+            ),
+        ).rejects.toThrow('Workspace file limit reached');
+        expect(files.upsertFile).not.toHaveBeenCalled();
+    });
+
+    it('allows saving over an existing overlay file without counting against the limit', async () => {
+        files.getFile.mockResolvedValueOnce({
+            path: 'models/orders.yml',
+            content: 'version: 1\n',
+        });
+        await service.saveFile(
+            user,
+            'copy',
+            'models/orders.yml',
+            'version: 2\n',
+        );
+        expect(files.upsertFile).toHaveBeenCalledWith(
+            'copy',
+            'models/orders.yml',
+            'version: 2\n',
+        );
+        expect(files.countFiles).not.toHaveBeenCalled();
+    });
+
     it('saves a valid model file', async () => {
+        files.getFile.mockResolvedValueOnce(undefined);
+        files.countFiles.mockResolvedValueOnce(5);
         await service.saveFile(
             user,
             'copy',
@@ -191,6 +259,76 @@ describe('LearnSandboxService', () => {
                 args: [],
             }),
         ).rejects.toThrow('A command is already running in this workspace');
+    });
+
+    it('409s with the active command uuid in the message for a queued command', async () => {
+        files.findActiveCommand.mockResolvedValueOnce({
+            command_uuid: 'c-queued',
+            status: 'queued',
+        });
+        await expect(
+            service.enqueueCommand(user, 'copy', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
+        ).rejects.toThrow(
+            'A command is already running in this workspace (command c-queued)',
+        );
+        expect(files.failStaleRunning).not.toHaveBeenCalled();
+    });
+
+    it('409s for a running command still inside the grace window, without touching failStaleRunning', async () => {
+        files.findActiveCommand.mockResolvedValueOnce({
+            command_uuid: 'c-fresh',
+            status: 'running',
+            started_at: new Date(Date.now() - 1_000),
+        });
+        await expect(
+            service.enqueueCommand(user, 'copy', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
+        ).rejects.toThrow(
+            'A command is already running in this workspace (command c-fresh)',
+        );
+        expect(files.failStaleRunning).not.toHaveBeenCalled();
+    });
+
+    it('fails a stale running command, revokes its token, and proceeds to enqueue a new one', async () => {
+        const staleStartedAt = new Date(
+            Date.now() -
+                (LEARN_SANDBOX_COMMAND_TIMEOUT_MS + 5 * 60 * 1000 + 1_000),
+        );
+        files.findActiveCommand.mockResolvedValueOnce({
+            command_uuid: 'c-stale',
+            status: 'running',
+            started_at: staleStartedAt,
+        });
+        files.failStaleRunning.mockResolvedValueOnce([
+            {
+                command_uuid: 'c-stale',
+                pat_uuid: 'pat-stale',
+                project_uuid: 'copy',
+                user_uuid: user.userUuid,
+            },
+        ]);
+        files.createCommand.mockResolvedValueOnce({ commandUuid: 'c-new' });
+        const result = await service.enqueueCommand(user, 'copy', {
+            tool: 'dbt',
+            subcommand: 'parse',
+            args: [],
+        });
+        expect(result).toEqual({ commandUuid: 'c-new' });
+        expect(files.failStaleRunning).toHaveBeenCalledOnce();
+        expect(
+            personalAccessTokenService.deletePersonalAccessToken,
+        ).toHaveBeenCalledWith(expect.anything(), 'pat-stale');
+        expect(files.clearToken).toHaveBeenCalledWith('c-stale');
+        expect(schedulerClient.learnSandboxCommand).toHaveBeenCalledWith(
+            expect.objectContaining({ commandUuid: 'c-new' }),
+        );
     });
 
     it('falls back to the database unique index for the 409 when the pre-check races', async () => {
@@ -251,10 +389,132 @@ describe('LearnSandboxService', () => {
         const out = await service.getOutput(user, 'copy', 'c1', 2);
         expect(out.chunks).toEqual([{ seq: 3, stream: 'stdout', text: 'ok' }]);
         expect(files.readOutput).toHaveBeenCalledWith('c1', 2);
+        expect(out.startedAt).toBeNull();
+        expect(out.finishedAt).toBeNull();
+    });
+
+    it('maps started_at/finished_at to ISO strings in the output response', async () => {
+        files.getCommand.mockResolvedValueOnce({
+            command_uuid: 'c1',
+            project_uuid: 'copy',
+            status: 'done',
+            exit_code: 0,
+            argv: ['dbt', 'parse'],
+            started_at: new Date('2026-09-13T10:00:00.000Z'),
+            finished_at: new Date('2026-09-13T10:00:05.000Z'),
+        });
+        files.readOutput.mockResolvedValueOnce([]);
+        const out = await service.getOutput(user, 'copy', 'c1', 0);
+        expect(out.startedAt).toBe('2026-09-13T10:00:00.000Z');
+        expect(out.finishedAt).toBe('2026-09-13T10:00:05.000Z');
     });
 
     it('rejects access to a project the user cannot manage', async () => {
         await expect(service.listFiles(user, 'other')).rejects.toThrow();
+    });
+
+    it('403s for a real project, even one the ability check alone would allow', async () => {
+        projectModel.getSummary.mockResolvedValueOnce({
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            type: ProjectType.DEFAULT,
+            upstreamProjectUuid: undefined,
+            createdByUserUuid: user.userUuid,
+            provisioningSource: null,
+            name: 'copy',
+            slug: 'copy',
+        });
+        await expect(service.listFiles(user, 'copy')).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it("403s for another learner's training copy (different createdByUserUuid)", async () => {
+        projectModel.getSummary.mockResolvedValueOnce({
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: 'training',
+            createdByUserUuid: 'someone-else-uuid',
+            provisioningSource: 'training',
+            name: 'copy',
+            slug: 'copy',
+        });
+        await expect(service.listFiles(user, 'copy')).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('403s for a non-training preview the caller created themselves', async () => {
+        projectModel.getSummary.mockResolvedValueOnce({
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: undefined,
+            createdByUserUuid: user.userUuid,
+            provisioningSource: null,
+            name: 'copy',
+            slug: 'copy',
+        });
+        await expect(service.listFiles(user, 'copy')).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it("grants access via the real trainee ability pipeline on the learner's own training copy, and denies it on the shared training project", async () => {
+        files.listFiles.mockResolvedValue([]);
+        const buildTraineeUser = (
+            scopes: string[],
+            context: {
+                projectUuid: string;
+                projectType: ProjectType;
+                projectCreatedByUserUuid: string | null;
+            },
+        ): SessionUser => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...context,
+                    userUuid: user.userUuid,
+                    scopes,
+                    isEnterprise: false,
+                    permissionsConfig: { pat: lightdashConfig.auth.pat },
+                },
+                builder,
+            );
+            return { ...user, ability: builder.build() };
+        };
+
+        const traineeUser = buildTraineeUser(
+            [...getTrainingProjectScopes(), ...LEARN_SANDBOX_SCOPES],
+            {
+                projectUuid: 'copy2',
+                projectType: ProjectType.PREVIEW,
+                projectCreatedByUserUuid: user.userUuid,
+            },
+        );
+        await expect(
+            service.listFiles(traineeUser, 'copy2'),
+        ).resolves.toBeDefined();
+
+        projectModel.getSummary.mockResolvedValueOnce({
+            projectUuid: 'training-project',
+            organizationUuid: 'org',
+            type: ProjectType.TRAINING,
+            upstreamProjectUuid: undefined,
+            createdByUserUuid: null,
+            provisioningSource: 'training',
+            name: 'Training',
+            slug: 'training',
+        });
+        const viewerUser = buildTraineeUser(getTrainingProjectViewerScopes(), {
+            projectUuid: 'training-project',
+            projectType: ProjectType.TRAINING,
+            projectCreatedByUserUuid: null,
+        });
+        await expect(
+            service.listFiles(viewerUser, 'training-project'),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('404s reading output for a command outside the project', async () => {
@@ -423,6 +683,7 @@ describe('LearnSandboxService.runCommand', () => {
     const files = {
         listFiles: vi.fn(),
         getFile: vi.fn(),
+        countFiles: vi.fn(),
         upsertFile: vi.fn(),
         createCommand: vi.fn(),
         getCommand: vi.fn(),
@@ -448,6 +709,7 @@ describe('LearnSandboxService.runCommand', () => {
             type: ProjectType.PREVIEW,
             upstreamProjectUuid: 'training',
             createdByUserUuid: user.userUuid,
+            provisioningSource: 'training',
             name: 'copy',
             slug: 'copy',
         })),
@@ -589,6 +851,43 @@ describe('LearnSandboxService.runCommand', () => {
                 pat_uuid: null,
             }),
         );
+    });
+
+    it("uses the fetched command row's project/user, not the payload's, for the overlay, LIGHTDASH_PROJECT and the PAT session", async () => {
+        await writeFile(
+            path.join(bin, 'dbt'),
+            '#!/bin/sh\necho "project=$LIGHTDASH_PROJECT"\nexit 0\n',
+            { mode: 0o755 },
+        );
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c-m1',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'queued',
+            argv: ['dbt', 'parse'],
+            pat_uuid: null,
+        });
+        files.listFiles.mockResolvedValue([]);
+        const appended: { text: string }[] = [];
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            appended.push(...chunks);
+        });
+        const { service, userService } = buildService();
+        // The scheduler payload deliberately disagrees with the command
+        // row: only the row's values should ever reach the workspace.
+        await service.runCommand({
+            commandUuid: 'c-m1',
+            projectUuid: 'wrong-project-from-payload',
+            organizationUuid: 'org',
+            userUuid: 'wrong-user-from-payload',
+        });
+        expect(files.listFiles).toHaveBeenCalledWith('copy');
+        expect(userService.getSessionByUserUuidAndOrg).toHaveBeenCalledWith(
+            user.userUuid,
+            'org',
+        );
+        const text = appended.map((c) => c.text).join('');
+        expect(text).toContain('project=copy');
     });
 
     it('marks a non-zero exit as error and still revokes the PAT', async () => {
@@ -771,6 +1070,45 @@ describe('LearnSandboxService.runCommand', () => {
         expect(files.updateCommand).toHaveBeenLastCalledWith(
             'c5',
             expect.objectContaining({ status: 'error' }),
+        );
+    });
+
+    it('tells the learner some output was lost when the buffer fails to flush once, and still reports the real exit status', async () => {
+        await writeFile(
+            path.join(bin, 'dbt'),
+            '#!/bin/sh\necho "hello"\nexit 0\n',
+            { mode: 0o755 },
+        );
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c6',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'queued',
+            argv: ['dbt', 'parse'],
+            pat_uuid: null,
+        });
+        files.listFiles.mockResolvedValue([]);
+        const appended: { text: string }[] = [];
+        let flushCalls = 0;
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            flushCalls += 1;
+            if (flushCalls === 1) {
+                throw new Error('disk full');
+            }
+            appended.push(...chunks);
+        });
+        const { service } = buildService();
+        await service.runCommand({
+            commandUuid: 'c6',
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            userUuid: user.userUuid,
+        });
+        const text = appended.map((c) => c.text).join('');
+        expect(text).toContain('Some output could not be stored');
+        expect(files.updateCommand).toHaveBeenLastCalledWith(
+            'c6',
+            expect.objectContaining({ status: 'done', exit_code: 0 }),
         );
     });
 });

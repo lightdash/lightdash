@@ -7,6 +7,7 @@ import {
     isUserWithOrg,
     NotFoundError,
     ParameterError,
+    ProjectType,
     RequestMethod,
     type Account,
     type LearnCommandOutput,
@@ -45,9 +46,16 @@ import {
 } from './workspace';
 
 const MAX_FILE_BYTES = 64 * 1024;
+const MAX_PATH_LENGTH = 255;
+const MAX_OVERLAY_FILES = 200;
 const STALE_WORKSPACE_MS = 60 * 60 * 1000;
 const STALE_RUNNING_GRACE_MS = 5 * 60 * 1000;
 const POSTGRES_UNIQUE_VIOLATION = '23505';
+// Set by provisionTrainingProject on both the shared TRAINING project and
+// every learner's PREVIEW copy of it.
+const TRAINING_PROVISIONING_SOURCE = 'training';
+export const ACTIVE_COMMAND_CONFLICT_MESSAGE =
+    'A command is already running in this workspace';
 
 const isUniqueViolation = (error: unknown): boolean =>
     typeof error === 'object' &&
@@ -177,6 +185,22 @@ export class LearnSandboxService extends BaseService {
                 'You do not have access to this workspace',
             );
         }
+        // The ability check above only proves the caller can deploy to
+        // *some* project (e.g. `manage:DeployProject@self` on any preview
+        // they created). The sandbox must be scoped further, to only the
+        // caller's own training copy: a real project, another learner's
+        // copy, or a preview created for something other than Learn would
+        // otherwise let the sandbox run arbitrary dbt/lightdash commands
+        // against it.
+        if (
+            project.type !== ProjectType.PREVIEW ||
+            project.provisioningSource !== TRAINING_PROVISIONING_SOURCE ||
+            project.createdByUserUuid !== user.userUuid
+        ) {
+            throw new ForbiddenError(
+                'You do not have access to this workspace',
+            );
+        }
     }
 
     async listFiles(
@@ -242,6 +266,11 @@ export class LearnSandboxService extends BaseService {
         if (!isEditablePath(filePath)) {
             throw new ParameterError(`Cannot edit ${filePath}`);
         }
+        if (filePath.length > MAX_PATH_LENGTH) {
+            throw new ParameterError(
+                `Path is too long: ${filePath} exceeds ${MAX_PATH_LENGTH} characters`,
+            );
+        }
         if (Buffer.byteLength(content, 'utf8') > MAX_FILE_BYTES) {
             throw new ParameterError(
                 `File is too large: ${filePath} exceeds ${MAX_FILE_BYTES} bytes`,
@@ -252,6 +281,19 @@ export class LearnSandboxService extends BaseService {
             throw new ParameterError(
                 `Invalid YAML in ${filePath}: ${yamlError}`,
             );
+        }
+        // Only a brand new overlay path counts against the cap: overwriting
+        // an existing one never grows the workspace.
+        const existing = await this.learnWorkspaceModel.getFile(
+            projectUuid,
+            filePath,
+        );
+        if (!existing) {
+            const fileCount =
+                await this.learnWorkspaceModel.countFiles(projectUuid);
+            if (fileCount >= MAX_OVERLAY_FILES) {
+                throw new ParameterError('Workspace file limit reached');
+            }
         }
         await this.learnWorkspaceModel.upsertFile(
             projectUuid,
@@ -272,8 +314,28 @@ export class LearnSandboxService extends BaseService {
         const active =
             await this.learnWorkspaceModel.findActiveCommand(projectUuid);
         if (active) {
-            throw new ConflictError(
-                'A command is already running in this workspace',
+            const staleCutoff =
+                Date.now() - (this.commandTimeoutMs + STALE_RUNNING_GRACE_MS);
+            const isStaleRunning =
+                active.status === 'running' &&
+                active.started_at !== null &&
+                new Date(active.started_at).getTime() < staleCutoff;
+            if (!isStaleRunning) {
+                throw new ConflictError(
+                    `${ACTIVE_COMMAND_CONFLICT_MESSAGE} (command ${active.command_uuid})`,
+                );
+            }
+            // The active row has been 'running' for longer than a worker
+            // could plausibly still be executing it (a crashed/killed
+            // scheduler run): reuse the same stale-recovery path `sweep()`
+            // uses, so its PAT is revoked and the row is failed before this
+            // request creates a new one, instead of leaving the workspace
+            // permanently locked.
+            const staleRows = await this.learnWorkspaceModel.failStaleRunning(
+                new Date(staleCutoff),
+            );
+            await Promise.all(
+                staleRows.map((row) => this.sweepCommandToken(row)),
             );
         }
         const result = buildArgv(
@@ -295,9 +357,7 @@ export class LearnSandboxService extends BaseService {
             // partial unique index is the real guard against two concurrent
             // commands for the same project.
             if (isUniqueViolation(error)) {
-                throw new ConflictError(
-                    'A command is already running in this workspace',
-                );
+                throw new ConflictError(ACTIVE_COMMAND_CONFLICT_MESSAGE);
             }
             throw error;
         }
@@ -331,6 +391,12 @@ export class LearnSandboxService extends BaseService {
             exitCode: command.exit_code,
             argv: command.argv,
             chunks,
+            startedAt: command.started_at
+                ? new Date(command.started_at).toISOString()
+                : null,
+            finishedAt: command.finished_at
+                ? new Date(command.finished_at).toISOString()
+                : null,
         };
     }
 
@@ -370,9 +436,14 @@ export class LearnSandboxService extends BaseService {
                 ),
         });
         try {
+            // The payload only identifies which row to fetch (and is used
+            // for logging below); the row itself — not the payload — is the
+            // source of truth for whose workspace/PAT this run touches, so
+            // a stale or forged payload can't point the run at a different
+            // project or mint a token for a different user.
             account = fromSession(
                 await this.userService.getSessionByUserUuidAndOrg(
-                    payload.userUuid,
+                    command.user_uuid,
                     payload.organizationUuid,
                 ),
             );
@@ -398,7 +469,7 @@ export class LearnSandboxService extends BaseService {
             await materialiseWorkspace({
                 bundle: await loadLearnBundle(),
                 overlay: await this.learnWorkspaceModel.listFiles(
-                    payload.projectUuid,
+                    command.project_uuid,
                 ),
                 workspaceDir,
                 profiles: { databasePath: runtime.databasePath },
@@ -409,7 +480,7 @@ export class LearnSandboxService extends BaseService {
                 pathPrefix: runtime.pathPrefix,
                 apiUrl: runtime.apiUrl,
                 siteUrl: this.lightdashConfig.siteUrl,
-                projectUuid: payload.projectUuid,
+                projectUuid: command.project_uuid,
                 apiKey: token,
                 workspaceDir,
                 projectDir,
@@ -487,6 +558,34 @@ export class LearnSandboxService extends BaseService {
             throw e;
         } finally {
             await buffer.close();
+            if (buffer.error) {
+                const priorError = buffer.error;
+                this.logger.warn(
+                    `Learn sandbox: command ${payload.commandUuid} lost output when the buffer failed to flush: ${getErrorMessage(priorError)}`,
+                );
+                const fallbackText = 'Some output could not be stored\n';
+                buffer.push('stderr', fallbackText);
+                const fallbackSeq = buffer.lastSeq;
+                await buffer.flush();
+                // `buffer.error` never clears on a successful flush — it
+                // only ever gets overwritten by a new failure — so an
+                // unchanged reference here means this flush went through.
+                if (buffer.error !== priorError) {
+                    await this.learnWorkspaceModel
+                        .appendOutput(payload.commandUuid, [
+                            {
+                                seq: fallbackSeq,
+                                stream: 'stderr',
+                                text: fallbackText,
+                            },
+                        ])
+                        .catch((directError) => {
+                            this.logger.warn(
+                                `Learn sandbox: command ${payload.commandUuid} could not persist the fallback output line either: ${getErrorMessage(directError)}`,
+                            );
+                        });
+                }
+            }
             await rm(workspaceDir, { recursive: true, force: true }).catch(
                 () => undefined,
             );
@@ -616,6 +715,6 @@ export class LearnSandboxService extends BaseService {
             return false;
         }
         const runtime = await detectSandboxRuntime();
-        return runtime.lightdash && runtime.dbt;
+        return runtime.lightdash && runtime.dbt && runtime.node;
     }
 }

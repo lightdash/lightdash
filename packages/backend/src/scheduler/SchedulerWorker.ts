@@ -1531,17 +1531,28 @@ export class SchedulerWorker extends SchedulerTask {
                     Logger.info(
                         `Expired preview projects cleanup completed. Deleted: ${deletedCount}`,
                     );
-
-                    const swept = await this.learnSandboxService.sweep();
-                    Logger.info(
-                        `Learn sandbox sweep: ${swept.tokensDeleted} tokens, ${swept.workspacesRemoved} workspaces`,
-                    );
                 } catch (error) {
                     Logger.error(
                         'Error during expired preview projects cleanup:',
                         error,
                     );
                     throw error;
+                }
+
+                // The learn sandbox sweep is a separate housekeeping
+                // concern (revoking stale PATs, clearing stale
+                // workspaces): a failure here shouldn't be reported as a
+                // failure of the (already-successful) preview projects
+                // cleanup job above, nor prevent it from being marked done.
+                try {
+                    const swept = await this.learnSandboxService.sweep();
+                    Logger.info(
+                        `Learn sandbox sweep: ${swept.tokensDeleted} tokens, ${swept.workspacesRemoved} workspaces`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        `Learn sandbox sweep failed: ${getErrorMessage(error)}`,
+                    );
                 }
             },
             [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: async () => {
