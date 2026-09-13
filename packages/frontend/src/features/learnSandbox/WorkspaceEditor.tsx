@@ -1,7 +1,6 @@
 import { lightdashDbtYamlSchema } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import type { editor } from 'monaco-editor';
-import { configureMonacoYaml } from 'monaco-yaml';
 import { useCallback, useRef, type FC } from 'react';
 import { type TourEditable } from '../../components/common/GuidedTour/GuidedTour';
 import Editor, {
@@ -10,6 +9,7 @@ import Editor, {
     type OnMount,
 } from '../../components/MonacoEditor';
 import { useEditorTheme } from '../../hooks/useEditorTheme';
+import { configureLightdashYaml } from '../../utils/monacoYaml';
 import {
     getLightdashMonacoTheme,
     MONACO_DEFAULT_OPTIONS,
@@ -17,12 +17,12 @@ import {
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
 
-/** Registers the dbt YAML schema against Monaco once per session (see
- * CodeEditorPane's configureYamlSchema, which isn't exported). Re-running
- * `update` on an existing registration is harmless. */
-let yamlConfiguration: ReturnType<typeof configureMonacoYaml> | undefined;
+/** Registers the dbt YAML schema against the single shared monaco-yaml
+ * instance (see configureLightdashYaml — monaco-yaml only allows one
+ * configured instance per monaco module, so every editor must route
+ * through that shared singleton rather than holding its own). */
 const configureLearnYaml = (monaco: Monaco) => {
-    const options = {
+    configureLightdashYaml(monaco, {
         enableSchemaRequest: false,
         schemas: [
             {
@@ -31,12 +31,7 @@ const configureLearnYaml = (monaco: Monaco) => {
                 schema: lightdashDbtYamlSchema as Record<string, unknown>,
             },
         ],
-    };
-    if (yamlConfiguration) {
-        void yamlConfiguration.update(options);
-    } else {
-        yamlConfiguration = configureMonacoYaml(monaco, options);
-    }
+    });
 };
 
 type EditorState = 'saved' | 'dirty' | 'saving' | 'readonly';
@@ -73,33 +68,39 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const { monaco: monacoTheme } = useEditorTheme();
 
-    const appendToEditor = useCallback(
-        (value: string) => {
-            const ed = editorRef.current;
-            if (!ed) return;
-            const model = ed.getModel();
-            if (!model) return;
-            const current = model.getValue();
-            const prefix =
-                current.length === 0 || current.endsWith('\n') ? '' : '\n';
-            const line = model.getLineCount();
-            const col = model.getLineMaxColumn(line);
-            ed.executeEdits('learn-tour', [
-                {
-                    range: {
-                        startLineNumber: line,
-                        startColumn: col,
-                        endLineNumber: line,
-                        endColumn: col,
-                    },
-                    text: prefix + value,
-                    forceMoveMarkers: true,
+    // onMount/appendToEditor are wired up once (Monaco calls onMount a
+    // single time, and the tour attaches appendToEditor to the DOM node
+    // once), so they must read the latest onChange/onBlur through a ref
+    // rather than close over the props from the render that created them.
+    const onChangeRef = useRef(onChange);
+    onChangeRef.current = onChange;
+    const onBlurRef = useRef(onBlur);
+    onBlurRef.current = onBlur;
+
+    const appendToEditor = useCallback((value: string) => {
+        const ed = editorRef.current;
+        if (!ed) return;
+        const model = ed.getModel();
+        if (!model) return;
+        const current = model.getValue();
+        const prefix =
+            current.length === 0 || current.endsWith('\n') ? '' : '\n';
+        const line = model.getLineCount();
+        const col = model.getLineMaxColumn(line);
+        ed.executeEdits('learn-tour', [
+            {
+                range: {
+                    startLineNumber: line,
+                    startColumn: col,
+                    endLineNumber: line,
+                    endColumn: col,
                 },
-            ]);
-            onChange(model.getValue());
-        },
-        [onChange],
-    );
+                text: prefix + value,
+                forceMoveMarkers: true,
+            },
+        ]);
+        onChangeRef.current(model.getValue());
+    }, []);
 
     const handleBeforeMount: BeforeMount = useCallback((monaco) => {
         monaco.editor.defineTheme('lightdash-light', {
@@ -124,9 +125,9 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                     setValue: appendToEditor,
                 };
             }
-            ed.onDidBlurEditorText(() => onBlur());
+            ed.onDidBlurEditorText(() => onBlurRef.current());
         },
-        [appendToEditor, onBlur],
+        [appendToEditor],
     );
 
     const state: EditorState = !editable

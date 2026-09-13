@@ -83,8 +83,8 @@ describe('FileTree', () => {
             'data-tour-value',
         ]);
         expect(row).toHaveAttribute('data-tour-anchor', 'workspace-file');
-        expect(row).toHaveAttribute('data-tour-hint', 'Open orders.yml');
-        expect(row).toHaveAttribute('data-tour-hint-named', 'true');
+        expect(row).toHaveAttribute('data-tour-hint', 'Open the file');
+        expect(row).toHaveAttribute('data-tour-hint-named', 'Open {value}');
         expect(row).toHaveAttribute('data-tour-value', 'models/orders.yml');
     });
 

@@ -191,7 +191,7 @@ describe('WorkspaceEditor', () => {
         expect(onChange).toHaveBeenCalledWith('existing\nx');
     });
 
-    it('does not prefix a newline when the model is empty or already ends with one', () => {
+    it('does not prefix a newline when the model is empty', () => {
         stubs.model.content = '';
         const onChange = vi.fn();
         const { container } = renderEditor({ onChange, content: '' });
@@ -207,6 +207,27 @@ describe('WorkspaceEditor', () => {
             expect.objectContaining({ text: 'first line' }),
         ]);
         expect(onChange).toHaveBeenCalledWith('first line');
+    });
+
+    it('does not prefix a newline when the model already ends with one', () => {
+        stubs.model.content = 'existing\n';
+        const onChange = vi.fn();
+        const { container } = renderEditor({
+            onChange,
+            content: 'existing\n',
+        });
+
+        const wrapper = container.querySelector(
+            '[data-tour-anchor="workspace-editor"]',
+        ) as HTMLDivElement & {
+            tourEditor?: { setValue: (v: string) => void };
+        };
+        wrapper.tourEditor?.setValue('next line');
+
+        expect(stubs.editor.executeEdits).toHaveBeenCalledWith('learn-tour', [
+            expect.objectContaining({ text: 'next line' }),
+        ]);
+        expect(onChange).toHaveBeenCalledWith('existing\nnext line');
     });
 
     it('calls onBlur when the editor reports blur via onDidBlurEditorText', () => {
