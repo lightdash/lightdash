@@ -413,6 +413,7 @@ export class LearnSandboxService extends BaseService {
                 apiKey: token,
                 workspaceDir,
                 projectDir,
+                databasePath: runtime.databasePath,
             });
             const [bin, ...args] = command.argv;
             // No `forceKillAfterTimeout` here on purpose: it isn't part of

@@ -9,6 +9,7 @@ describe('buildSandboxEnvironment', () => {
         apiKey: 'ldpat_abc',
         workspaceDir: '/tmp/ws/copy-c1',
         projectDir: '/tmp/ws/copy-c1/project',
+        databasePath: '/srv/playground/jaffle_shop.duckdb',
     };
 
     it('never carries host cloud credentials or unrelated secrets into the child env', () => {
@@ -57,6 +58,7 @@ describe('buildSandboxEnvironment', () => {
             LIGHTDASH_URL: 'https://learn.test',
             LIGHTDASH_PROJECT: 'copy',
             LIGHTDASH_API_KEY: 'ldpat_abc',
+            PLAYGROUND_DATA_DIR: '/srv/playground',
             DBT_PROFILES_DIR: '/tmp/ws/copy-c1',
             DBT_PROJECT_DIR: '/tmp/ws/copy-c1/project',
             DBT_TARGET_PATH: '/tmp/ws/copy-c1/target',
@@ -65,6 +67,19 @@ describe('buildSandboxEnvironment', () => {
             DBT_SEND_ANONYMOUS_USAGE_STATS: 'false',
             CI: 'true',
         });
+    });
+
+    it('tells the CLI which directory holds the playground database', () => {
+        // Without this the CLI rejects the materialised duckdb profile
+        // ("Couldn't read profiles.yml file for duckdb") because it validates
+        // the local .duckdb path against its own PLAYGROUND_DATA_DIR, which
+        // is not one of the inherited allowlisted keys.
+        const env = buildSandboxEnvironment({
+            ...baseArgs,
+            databasePath: '/var/data/playground/jaffle_shop.duckdb',
+            processEnvironment: { PLAYGROUND_DATA_DIR: '/host/should-not-win' },
+        });
+        expect(env.PLAYGROUND_DATA_DIR).toBe('/var/data/playground');
     });
 
     it('prefers LEARN_SANDBOX_API_URL over siteUrl when set', () => {

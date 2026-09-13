@@ -109,6 +109,7 @@ export type BuildSandboxEnvironmentArgs = {
     apiKey: string;
     workspaceDir: string;
     projectDir: string;
+    databasePath: string;
 };
 
 export const buildSandboxEnvironment = (
@@ -129,6 +130,12 @@ export const buildSandboxEnvironment = (
         LIGHTDASH_URL: args.apiUrl ?? args.siteUrl,
         LIGHTDASH_PROJECT: args.projectUuid,
         LIGHTDASH_API_KEY: args.apiKey,
+        // The CLI only accepts a local .duckdb profile when the file sits
+        // directly inside PLAYGROUND_DATA_DIR, and it reads that from its own
+        // environment. Set it from the resolved runtime rather than
+        // allowlisting the host key, so the child is told the one directory
+        // the server actually materialised the profile against.
+        PLAYGROUND_DATA_DIR: path.dirname(args.databasePath),
         DBT_PROFILES_DIR: args.workspaceDir,
         DBT_PROJECT_DIR: args.projectDir,
         DBT_TARGET_PATH: path.join(args.workspaceDir, 'target'),
