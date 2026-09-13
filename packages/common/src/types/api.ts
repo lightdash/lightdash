@@ -265,6 +265,12 @@ import type {
 } from './jira';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type LearnProgress } from './learnProgress';
+import {
+    type ApiLearnCommandCreatedResponse,
+    type ApiLearnCommandOutputResponse,
+    type ApiLearnWorkspaceFileResponse,
+    type ApiLearnWorkspaceFilesResponse,
+} from './learnSandbox';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
@@ -1709,7 +1715,11 @@ type ApiResults =
     | ExternalSource
     | ExternalSource[]
     | ExternalSourceTablePreview
-    | StagedExternalSourceUpload;
+    | StagedExternalSourceUpload
+    | ApiLearnWorkspaceFilesResponse['results']
+    | ApiLearnWorkspaceFileResponse['results']
+    | ApiLearnCommandCreatedResponse['results']
+    | ApiLearnCommandOutputResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 
