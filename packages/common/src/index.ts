@@ -166,6 +166,7 @@ export * from './types/jira';
 export * from './types/linear';
 export * from './types/job';
 export * from './types/knex-paginate';
+export * from './types/learnSandbox';
 export * from './types/lightdashModel';
 export * from './types/lightdashProjectConfig';
 export * from './types/managedSignIn';

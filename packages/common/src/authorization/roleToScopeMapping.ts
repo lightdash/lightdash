@@ -357,6 +357,17 @@ export const getTrainingProjectViewerScopes = (): string[] => [
 ];
 
 /**
+ * Extra scopes a learner holds on their own training copy so the Learn
+ * developer sandbox can deploy into it. Deliberately not part of the trainee
+ * set: they are excluded above for the shared project and for every other
+ * surface, and only the sandbox's copy provisioning re-grants them.
+ */
+export const LEARN_SANDBOX_SCOPES: readonly string[] = [
+    'manage:DeployProject@self',
+    'create:Job',
+];
+
+/**
  * Gets only the non-enterprise scopes for a role (filters out enterprise-only features)
  */
 export const getNonEnterpriseScopesForRole = (
