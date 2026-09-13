@@ -57,14 +57,75 @@ describe('LearnWorkspaceModel', () => {
     });
 
     it('listCommandsWithTokens returns finished commands that still hold a token', async () => {
-        tracker.on
-            .select('learn_commands')
-            .response([{ command_uuid: 'c1', pat_uuid: 't1', status: 'done' }]);
+        tracker.on.select('learn_commands').response([
+            {
+                command_uuid: 'c1',
+                pat_uuid: 't1',
+                status: 'done',
+                project_uuid: 'p1',
+                user_uuid: 'u1',
+            },
+        ]);
         const rows = await model.listCommandsWithTokens();
         expect(rows).toEqual([
-            { command_uuid: 'c1', pat_uuid: 't1', status: 'done' },
+            {
+                command_uuid: 'c1',
+                pat_uuid: 't1',
+                status: 'done',
+                project_uuid: 'p1',
+                user_uuid: 'u1',
+            },
         ]);
         const [q] = tracker.history.select;
         expect(q.sql).toMatch(/"pat_uuid" is not null/i);
+        expect(q.sql).toMatch(/"project_uuid"/);
+        expect(q.sql).toMatch(/"user_uuid"/);
+    });
+
+    it('claimCommand only claims a still-queued row and reports success', async () => {
+        tracker.on.update('learn_commands').response(1);
+        const claimed = await model.claimCommand('c1');
+        expect(claimed).toBe(true);
+        const [q] = tracker.history.update;
+        expect(q.sql).toMatch(
+            /set "status" = \$\d+, "started_at" = current_timestamp/i,
+        );
+        expect(q.sql).toMatch(/"command_uuid" = \$\d+/);
+        expect(q.sql).toMatch(/"status" = \$\d+/);
+        expect(q.bindings).toEqual(
+            expect.arrayContaining(['running', 'c1', 'queued']),
+        );
+    });
+
+    it('claimCommand reports failure when nothing matched (already claimed/cancelled)', async () => {
+        tracker.on.update('learn_commands').response(0);
+        const claimed = await model.claimCommand('c1');
+        expect(claimed).toBe(false);
+    });
+
+    it('failStaleRunning fails long-running rows and returns their token info', async () => {
+        tracker.on.update('learn_commands').response([
+            {
+                command_uuid: 'c1',
+                pat_uuid: 't1',
+                project_uuid: 'p1',
+                user_uuid: 'u1',
+            },
+        ]);
+        const cutoff = new Date('2026-01-01T00:00:00Z');
+        const rows = await model.failStaleRunning(cutoff);
+        expect(rows).toEqual([
+            {
+                command_uuid: 'c1',
+                pat_uuid: 't1',
+                project_uuid: 'p1',
+                user_uuid: 'u1',
+            },
+        ]);
+        const [q] = tracker.history.update;
+        expect(q.sql).toMatch(/"status" = \$\d+/);
+        expect(q.sql).toMatch(/"started_at" < \$\d+/);
+        expect(q.sql).toMatch(/returning/i);
+        expect(q.bindings).toEqual(expect.arrayContaining(['error', cutoff]));
     });
 });

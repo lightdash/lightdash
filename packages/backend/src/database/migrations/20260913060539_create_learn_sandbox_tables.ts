@@ -52,6 +52,13 @@ export async function up(knex: Knex): Promise<void> {
         table.timestamp('started_at', { useTz: true }).nullable();
         table.timestamp('finished_at', { useTz: true }).nullable();
         table.check("status IN ('queued','running','done','error','timeout')");
+        // Real concurrency guard (belt-and-braces alongside the app-level
+        // pre-check in LearnSandboxService.enqueueCommand): at most one
+        // queued/running command per project.
+        table.unique(['project_uuid'], {
+            indexName: 'learn_commands_one_active_per_project',
+            predicate: knex.whereIn('status', ['queued', 'running']),
+        });
     });
     await knex.schema.createTable(OUTPUT, (table) => {
         table

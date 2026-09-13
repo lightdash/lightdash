@@ -7,7 +7,14 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import {
+    mkdir,
+    mkdtemp,
+    realpath,
+    rm,
+    utimes,
+    writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { defaultSessionUser } from '../../auth/account/account.mock';
@@ -31,6 +38,27 @@ const lightdashConfig = {
     siteUrl: 'https://learn.test',
 };
 
+const isAlive = (pid: number): boolean => {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+const waitUntilDead = async (pid: number): Promise<void> => {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+        if (!isAlive(pid)) {
+            return;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 50);
+        });
+    }
+};
+
 describe('LearnSandboxService', () => {
     const files = {
         listFiles: vi.fn(),
@@ -39,10 +67,12 @@ describe('LearnSandboxService', () => {
         createCommand: vi.fn(),
         getCommand: vi.fn(),
         findActiveCommand: vi.fn(),
+        claimCommand: vi.fn(),
         updateCommand: vi.fn(),
         appendOutput: vi.fn(),
         readOutput: vi.fn(),
         listCommandsWithTokens: vi.fn(),
+        failStaleRunning: vi.fn(),
         clearToken: vi.fn(),
     };
     const featureFlagModel = {
@@ -163,6 +193,32 @@ describe('LearnSandboxService', () => {
         ).rejects.toThrow('A command is already running in this workspace');
     });
 
+    it('falls back to the database unique index for the 409 when the pre-check races', async () => {
+        files.findActiveCommand.mockResolvedValueOnce(undefined);
+        files.createCommand.mockRejectedValueOnce(
+            Object.assign(new Error('duplicate key value'), { code: '23505' }),
+        );
+        await expect(
+            service.enqueueCommand(user, 'copy', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
+        ).rejects.toThrow('A command is already running in this workspace');
+    });
+
+    it('rethrows a createCommand failure that is not a unique violation', async () => {
+        files.findActiveCommand.mockResolvedValueOnce(undefined);
+        files.createCommand.mockRejectedValueOnce(new Error('db is down'));
+        await expect(
+            service.enqueueCommand(user, 'copy', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
+        ).rejects.toThrow('db is down');
+    });
+
     it('creates the command row and enqueues the task', async () => {
         files.findActiveCommand.mockResolvedValueOnce(undefined);
         files.createCommand.mockResolvedValueOnce({ commandUuid: 'c1' });
@@ -215,6 +271,154 @@ describe('LearnSandboxService', () => {
     });
 });
 
+describe('LearnSandboxService.sweep', () => {
+    const files = {
+        listFiles: vi.fn(),
+        getFile: vi.fn(),
+        upsertFile: vi.fn(),
+        createCommand: vi.fn(),
+        getCommand: vi.fn(),
+        findActiveCommand: vi.fn(),
+        claimCommand: vi.fn(),
+        updateCommand: vi.fn(),
+        appendOutput: vi.fn(),
+        readOutput: vi.fn(),
+        listCommandsWithTokens: vi.fn(),
+        failStaleRunning: vi.fn(),
+        clearToken: vi.fn(),
+    };
+    const projectModel = {
+        getSummary: vi.fn(async (uuid: string) => ({
+            projectUuid: uuid,
+            organizationUuid: 'org',
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: 'training',
+            createdByUserUuid: user.userUuid,
+            name: uuid,
+            slug: uuid,
+        })),
+    };
+    const userService = { getSessionByUserUuidAndOrg: vi.fn(async () => user) };
+    const personalAccessTokenService = {
+        createPersonalAccessToken: vi.fn(),
+        deletePersonalAccessToken: vi.fn(async () => undefined),
+    };
+    const schedulerClient = { learnSandboxCommand: vi.fn(async () => 'job-1') };
+    let workspaceRoot: string;
+
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        files.listCommandsWithTokens.mockResolvedValue([]);
+        files.failStaleRunning.mockResolvedValue([]);
+        workspaceRoot = await mkdtemp(path.join(tmpdir(), 'learn-sweep-ws-'));
+    });
+
+    afterEach(async () => {
+        await rm(workspaceRoot, { recursive: true, force: true });
+    });
+
+    const buildService = () =>
+        new LearnSandboxService({
+            lightdashConfig,
+            learnWorkspaceModel: files as never,
+            projectModel,
+            featureFlagModel: { get: vi.fn() },
+            personalAccessTokenService,
+            userService,
+            schedulerClient,
+            workspaceRoot,
+        });
+
+    it('revokes tokens for finished commands and for stale running commands', async () => {
+        files.listCommandsWithTokens.mockResolvedValue([
+            {
+                command_uuid: 'c-done',
+                pat_uuid: 'pat-done',
+                status: 'done',
+                project_uuid: 'p1',
+                user_uuid: 'u1',
+            },
+        ]);
+        files.failStaleRunning.mockResolvedValue([
+            {
+                command_uuid: 'c-stale',
+                pat_uuid: 'pat-stale',
+                project_uuid: 'p2',
+                user_uuid: 'u2',
+            },
+        ]);
+        const result = await buildService().sweep();
+        expect(result.tokensDeleted).toBe(2);
+        expect(
+            personalAccessTokenService.deletePersonalAccessToken,
+        ).toHaveBeenCalledWith(expect.anything(), 'pat-done');
+        expect(
+            personalAccessTokenService.deletePersonalAccessToken,
+        ).toHaveBeenCalledWith(expect.anything(), 'pat-stale');
+        expect(files.clearToken).toHaveBeenCalledWith('c-done');
+        expect(files.clearToken).toHaveBeenCalledWith('c-stale');
+    });
+
+    it('calls failStaleRunning with a cutoff based on commandTimeoutMs plus a grace window', async () => {
+        const before = Date.now();
+        await buildService().sweep();
+        const [cutoff] = files.failStaleRunning.mock.calls[0] as [Date];
+        const expectedMs = before - 120_000 - 5 * 60_000;
+        expect(cutoff.getTime()).toBeLessThanOrEqual(expectedMs + 5);
+        expect(cutoff.getTime()).toBeGreaterThan(expectedMs - 5_000);
+    });
+
+    it('clears the token reference when the project/user is gone (not-found), without counting it as revoked', async () => {
+        files.listCommandsWithTokens.mockResolvedValue([
+            {
+                command_uuid: 'c-orphan',
+                pat_uuid: 'pat-orphan',
+                status: 'done',
+                project_uuid: 'deleted-project',
+                user_uuid: 'u1',
+            },
+        ]);
+        projectModel.getSummary.mockRejectedValueOnce(
+            new NotFoundError('Cannot find project'),
+        );
+        const result = await buildService().sweep();
+        expect(result.tokensDeleted).toBe(0);
+        expect(files.clearToken).toHaveBeenCalledWith('c-orphan');
+        expect(
+            personalAccessTokenService.deletePersonalAccessToken,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('leaves the token reference in place on an unexpected error, for the next sweep to retry', async () => {
+        files.listCommandsWithTokens.mockResolvedValue([
+            {
+                command_uuid: 'c-retry',
+                pat_uuid: 'pat-retry',
+                status: 'done',
+                project_uuid: 'p1',
+                user_uuid: 'u1',
+            },
+        ]);
+        projectModel.getSummary.mockRejectedValueOnce(new Error('db timeout'));
+        const result = await buildService().sweep();
+        expect(result.tokensDeleted).toBe(0);
+        expect(files.clearToken).not.toHaveBeenCalled();
+    });
+
+    it('removes workspace directories older than an hour and keeps fresh ones', async () => {
+        const oldDir = path.join(workspaceRoot, 'copy-old');
+        const freshDir = path.join(workspaceRoot, 'copy-fresh');
+        await mkdir(oldDir, { recursive: true });
+        await mkdir(freshDir, { recursive: true });
+        const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
+        await utimes(oldDir, old, old);
+        const result = await buildService().sweep();
+        expect(result.workspacesRemoved).toBe(1);
+        await expect(rm(oldDir, { recursive: false })).rejects.toThrow();
+        await rm(freshDir, { recursive: true, force: true });
+    });
+});
+
 describe('LearnSandboxService.runCommand', () => {
     const files = {
         listFiles: vi.fn(),
@@ -223,10 +427,12 @@ describe('LearnSandboxService.runCommand', () => {
         createCommand: vi.fn(),
         getCommand: vi.fn(),
         findActiveCommand: vi.fn(),
+        claimCommand: vi.fn(),
         updateCommand: vi.fn(),
         appendOutput: vi.fn(),
         readOutput: vi.fn(),
         listCommandsWithTokens: vi.fn(),
+        failStaleRunning: vi.fn(),
         clearToken: vi.fn(),
     };
     const featureFlagModel = {
@@ -249,23 +455,71 @@ describe('LearnSandboxService.runCommand', () => {
     const schedulerClient = { learnSandboxCommand: vi.fn(async () => 'job-1') };
 
     const originalEnv = { ...process.env };
+    let workspaceRoot: string;
+    let bin: string;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        files.claimCommand.mockResolvedValue(true);
+        // Resolved so it matches what a spawned shell's `pwd` reports: on
+        // macOS os.tmpdir() lives under a /var/folders symlink that
+        // resolves to /private/var/folders.
+        workspaceRoot = await realpath(
+            await mkdtemp(path.join(tmpdir(), 'learn-run-ws-')),
+        );
+        bin = await mkdtemp(path.join(tmpdir(), 'learn-bin-'));
+        process.env.LEARN_SANDBOX_PATH_PREFIX = bin;
     });
 
-    afterEach(() => {
+    afterEach(async () => {
         process.env = { ...originalEnv };
+        await rm(workspaceRoot, { recursive: true, force: true });
+        await rm(bin, { recursive: true, force: true });
     });
 
-    it('runs a fake dbt, streams output, scrubs the token, and revokes the PAT', async () => {
-        const bin = await mkdtemp(path.join(tmpdir(), 'learn-bin-'));
+    const buildService = () => {
+        const pat = {
+            createPersonalAccessToken: vi.fn(async () => ({
+                uuid: 'pat-1',
+                token: 'ldpat_abc',
+                createdAt: new Date(),
+                lastUsedAt: null,
+                rotatedAt: null,
+                expiresAt: null,
+                description: 'Learn sandbox command',
+            })),
+            deletePersonalAccessToken: vi.fn(async () => undefined),
+        };
+        const userService = {
+            getSessionByUserUuidAndOrg: vi.fn(async () => user),
+        };
+        const service = new LearnSandboxService({
+            lightdashConfig,
+            learnWorkspaceModel: files as never,
+            projectModel,
+            featureFlagModel,
+            personalAccessTokenService: pat,
+            userService,
+            schedulerClient,
+            workspaceRoot,
+        });
+        return { service, pat, userService };
+    };
+
+    it('runs a fake dbt, streams output, scrubs the token, keeps the child in the workspace, and revokes the PAT', async () => {
         await writeFile(
             path.join(bin, 'dbt'),
-            '#!/bin/sh\necho "parse ok key=$LIGHTDASH_API_KEY project=$LIGHTDASH_PROJECT"\necho "warn" 1>&2\nexit 0\n',
+            [
+                '#!/bin/sh',
+                'echo "parse ok key=$LIGHTDASH_API_KEY project=$LIGHTDASH_PROJECT"',
+                'echo "warn" 1>&2',
+                'echo "home=$HOME profiles=$DBT_PROFILES_DIR project_dir=$DBT_PROJECT_DIR pwd=$(pwd) sentinel=$SANDBOX_HOST_SENTINEL"',
+                'exit 0',
+                '',
+            ].join('\n'),
             { mode: 0o755 },
         );
-        process.env.LEARN_SANDBOX_PATH_PREFIX = bin;
+        process.env.SANDBOX_HOST_SENTINEL = 'host-secret-should-not-leak';
         const appended: unknown[] = [];
         files.getCommand.mockResolvedValue({
             command_uuid: 'c1',
@@ -302,6 +556,7 @@ describe('LearnSandboxService.runCommand', () => {
             personalAccessTokenService: pat,
             userService,
             schedulerClient,
+            workspaceRoot,
         });
         await svc.runCommand({
             commandUuid: 'c1',
@@ -312,9 +567,16 @@ describe('LearnSandboxService.runCommand', () => {
         const text = (appended as { text: string }[])
             .map((c) => c.text)
             .join('');
+        const workspaceDir = path.join(workspaceRoot, 'copy-c1');
+        const projectDir = path.join(workspaceDir, 'project');
         expect(text).toContain('parse ok key=*** project=copy');
         expect(text).toContain('warn');
         expect(text).not.toContain('ldpat_abc');
+        expect(text).toContain(`home=${workspaceDir}`);
+        expect(text).toContain(`profiles=${workspaceDir}`);
+        expect(text).toContain(`project_dir=${projectDir}`);
+        expect(text).toContain(`pwd=${projectDir}`);
+        expect(text).not.toContain('host-secret-should-not-leak');
         expect(pat.deletePersonalAccessToken).toHaveBeenCalledWith(
             expect.anything(),
             'pat-1',
@@ -327,17 +589,14 @@ describe('LearnSandboxService.runCommand', () => {
                 pat_uuid: null,
             }),
         );
-        await rm(bin, { recursive: true, force: true });
     });
 
     it('marks a non-zero exit as error and still revokes the PAT', async () => {
-        const bin = await mkdtemp(path.join(tmpdir(), 'learn-bin-'));
         await writeFile(
             path.join(bin, 'dbt'),
             '#!/bin/sh\necho "boom" 1>&2\nexit 3\n',
             { mode: 0o755 },
         );
-        process.env.LEARN_SANDBOX_PATH_PREFIX = bin;
         files.getCommand.mockResolvedValue({
             command_uuid: 'c2',
             project_uuid: 'copy',
@@ -371,6 +630,7 @@ describe('LearnSandboxService.runCommand', () => {
             personalAccessTokenService: pat,
             userService,
             schedulerClient,
+            workspaceRoot,
         });
         await svc.runCommand({
             commandUuid: 'c2',
@@ -386,15 +646,20 @@ describe('LearnSandboxService.runCommand', () => {
             'c2',
             expect.objectContaining({ status: 'error', exit_code: 3 }),
         );
-        await rm(bin, { recursive: true, force: true });
     });
 
-    it('marks a timeout', async () => {
-        const bin = await mkdtemp(path.join(tmpdir(), 'learn-bin-'));
-        await writeFile(path.join(bin, 'sleep'), '#!/bin/sh\nsleep 5\n', {
-            mode: 0o755,
-        });
-        process.env.LEARN_SANDBOX_PATH_PREFIX = bin;
+    it('marks a timeout and kills the whole process tree, not just the shell', async () => {
+        await writeFile(
+            path.join(bin, 'sleep'),
+            [
+                '#!/bin/sh',
+                '/bin/sleep 5 &',
+                'echo "child_pid=$!"',
+                'wait',
+                '',
+            ].join('\n'),
+            { mode: 0o755 },
+        );
         files.getCommand.mockResolvedValue({
             command_uuid: 'c3',
             project_uuid: 'copy',
@@ -404,7 +669,10 @@ describe('LearnSandboxService.runCommand', () => {
             pat_uuid: null,
         });
         files.listFiles.mockResolvedValue([]);
-        files.appendOutput.mockResolvedValue(undefined);
+        const appended: { text: string }[] = [];
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            appended.push(...chunks);
+        });
         const pat = {
             createPersonalAccessToken: vi.fn(async () => ({
                 uuid: 'pat-3',
@@ -428,7 +696,11 @@ describe('LearnSandboxService.runCommand', () => {
             personalAccessTokenService: pat,
             userService,
             schedulerClient,
-            commandTimeoutMs: 200,
+            workspaceRoot,
+            // Generous relative to the immediate `echo` the fake binary does
+            // before backgrounding sleep, so the timeout firing early under
+            // load (parallel test workers) doesn't race the child_pid line.
+            commandTimeoutMs: 1_000,
         });
         await svc.runCommand({
             commandUuid: 'c3',
@@ -444,6 +716,61 @@ describe('LearnSandboxService.runCommand', () => {
             'c3',
             expect.objectContaining({ status: 'timeout' }),
         );
-        await rm(bin, { recursive: true, force: true });
+        const text = appended.map((c) => c.text).join('');
+        const match = /child_pid=(\d+)/.exec(text);
+        expect(match).not.toBeNull();
+        const childPid = Number((match as RegExpExecArray)[1]);
+        await waitUntilDead(childPid);
+        expect(isAlive(childPid)).toBe(false);
     }, 10_000);
+
+    it('does not mint a PAT when the command cannot be claimed (duplicate delivery)', async () => {
+        files.claimCommand.mockResolvedValueOnce(false);
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c4',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'running',
+            argv: ['dbt', 'parse'],
+            pat_uuid: null,
+        });
+        const { service, pat } = buildService();
+        await service.runCommand({
+            commandUuid: 'c4',
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            userUuid: user.userUuid,
+        });
+        expect(pat.createPersonalAccessToken).not.toHaveBeenCalled();
+        expect(files.updateCommand).not.toHaveBeenCalled();
+    });
+
+    it('reports a spawn failure instead of leaving the terminal blank', async () => {
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c5',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'queued',
+            argv: ['this-binary-does-not-exist-xyz'],
+            pat_uuid: null,
+        });
+        files.listFiles.mockResolvedValue([]);
+        const appended: { text: string }[] = [];
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            appended.push(...chunks);
+        });
+        const { service } = buildService();
+        await service.runCommand({
+            commandUuid: 'c5',
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            userUuid: user.userUuid,
+        });
+        const text = appended.map((c) => c.text).join('');
+        expect(text).toMatch(/ENOENT|failed to start|Command failed/i);
+        expect(files.updateCommand).toHaveBeenLastCalledWith(
+            'c5',
+            expect.objectContaining({ status: 'error' }),
+        );
+    });
 });
