@@ -90,6 +90,38 @@ metadata updates refuse a training project as upstream unless the call comes fro
 The navbar shows a copy as *Training copy* and skips the preview banner, since a copy is not a preview in the
 engineering sense: no branch, nothing to promote.
 
+### Developer sandbox
+
+Inside a copy, a learner gets a small dbt project and a terminal that runs two commands against it. The project
+is not a checkout: it is a bundle built once from the demo project (`scripts/playground-bundle`), stored beside
+the DuckDB file, and materialised into a throwaway directory for the length of a single command. CSV seeds are
+kept as their header line only, so `ref()` resolves and the bundle stays small; the rows themselves live in the
+read-only DuckDB file the profile points at. Only `models/**/*.yml` is editable, edits are stored per copy in
+`learn_workspace_files` and replayed over the bundle on each run, and everything else the learner sees is
+read-only. Writes are parsed as YAML before they are accepted, so a broken file is rejected at save time rather
+than surfacing as a confusing command failure.
+
+`LearnSandboxService` runs the command as the learner. It mints a short-lived personal access token for the run,
+passes it to the child, and deletes it when the command ends, so nothing durable is left behind; the scheduler
+sweeps any token an interrupted run orphaned. The child's environment is an explicit allowlist rather than a copy
+of the server's, because a learner's dbt YAML can read the environment back out through `env_var()`. One command
+runs at a time per copy, enforced both in the service and by a partial unique index on `learn_commands`. The
+subcommand allowlist is short on purpose: `lightdash compile|deploy|validate|lint|download|upload` and
+`dbt parse|compile|ls`. Nothing that executes SQL against the warehouse is on it, so `dbt run` is refused.
+`GET /api/v1/health` reports `learnSandbox.enabled`, which is true only when personal access tokens are enabled
+and both `lightdash` and `dbt` are resolvable on the child's PATH.
+
+Two knobs exist for that PATH and for where the child sends its API calls. `LEARN_SANDBOX_PATH_PREFIX` is a
+colon-separated list of directories prepended to the child's PATH (default `/usr/local/dbt1.12/bin`); it is how a
+deployment points the sandbox at the dbt and `lightdash` binaries it ships, and on a developer machine it is how
+you point it at a local CLI build and a dbt-duckdb virtualenv. Because the environment is an allowlist rather
+than an inheritance, whatever runs the commands must be reachable through that prefix or through the PATH the
+backend process itself inherited, `node` included. `LEARN_SANDBOX_API_URL` overrides the `LIGHTDASH_URL` the
+child talks to, which otherwise defaults to `siteUrl`; set it when the address the browser uses is not an address
+the backend host can reach itself. `PLAYGROUND_DATA_DIR` continues to name the directory holding
+`jaffle_shop.duckdb`, and the sandbox passes it through to the child, since the CLI accepts a local DuckDB
+profile only when the file sits directly inside it.
+
 ### Walkthroughs
 
 - **Markers.** A control that a scope unlocks carries `data-tour-scope`, `data-tour-step`, `data-tour-route`,
@@ -150,6 +182,10 @@ engineering sense: no branch, nothing to promote.
 - **A fresh checkout serves stale routes.** `routes.ts` is committed only by the release workflow; run
   `pnpm -F backend generate-api` after checking out a branch that adds the Learn endpoints, or every one of them
   answers 404. The Rainbow recipe does this in its build.
+- **The sandbox needs its tools on the child's PATH, not on yours.** `learnSandbox.enabled` is false when
+  `lightdash` or `dbt` is missing from `LEARN_SANDBOX_PATH_PREFIX` plus the backend's own PATH, and the terminal
+  disappears with no other explanation. The same allowlist means the child cannot see a host variable simply
+  because the shell that started the backend had it.
 - **`enable-learn` off closes Learn for the organization.** No icon, no page, no endpoints and no trainee scopes,
   even with a training project in the database. Cached session abilities expire on their existing TTL.
 
