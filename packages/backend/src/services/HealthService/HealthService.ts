@@ -12,6 +12,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
+import type { LearnSandboxService } from '../LearnSandboxService/LearnSandboxService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import type { ReadinessService } from '../ReadinessService/ReadinessService';
@@ -23,6 +24,7 @@ type HealthServiceArguments = {
     migrationModel: MigrationModel;
     organizationSettingsModel: OrganizationSettingsModel;
     readinessService?: Pick<ReadinessService, 'getReadiness'>;
+    learnSandboxService: Pick<LearnSandboxService, 'isRuntimeAvailable'>;
 };
 
 export class HealthService extends BaseService {
@@ -38,6 +40,11 @@ export class HealthService extends BaseService {
 
     private readonly readinessService?: Pick<ReadinessService, 'getReadiness'>;
 
+    private readonly learnSandboxService: Pick<
+        LearnSandboxService,
+        'isRuntimeAvailable'
+    >;
+
     constructor({
         organizationModel,
         migrationModel,
@@ -45,6 +52,7 @@ export class HealthService extends BaseService {
         licenseService,
         organizationSettingsModel,
         readinessService,
+        learnSandboxService,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -53,6 +61,7 @@ export class HealthService extends BaseService {
         this.migrationModel = migrationModel;
         this.organizationSettingsModel = organizationSettingsModel;
         this.readinessService = readinessService;
+        this.learnSandboxService = learnSandboxService;
     }
 
     private isEnterpriseEnabled(): boolean {
@@ -310,6 +319,9 @@ export class HealthService extends BaseService {
                 previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,
                 sampleDataEnabled:
                     this.lightdashConfig.appRuntime.sampleDataEnabled,
+            },
+            learnSandbox: {
+                enabled: await this.learnSandboxService.isRuntimeAvailable(),
             },
         };
     }

@@ -690,6 +690,7 @@ export class ServiceRepository
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
                     readinessService: this.readinessService,
+                    learnSandboxService: this.getLearnSandboxService(),
                 }),
         );
     }
