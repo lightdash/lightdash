@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
     },
     saveIsLoading: false,
     runIsLoading: false,
+    pollerAnswered: true,
     calls: [] as string[],
     saveMutateAsync: vi.fn(),
     runMutateAsync: vi.fn(),
@@ -69,15 +70,20 @@ vi.mock('./hooks/useRunCommand', () => ({
     }),
 }));
 
+// The real poller empties its state whenever the command it watches
+// changes, so the stand-in derives what it shows from that uuid alone.
 vi.mock('./hooks/useCommandOutput', () => ({
     useCommandOutput: (projectUuid: string, commandUuid: string | null) => {
         state.useCommandOutput(projectUuid, commandUuid);
+        const answered = commandUuid !== null && state.pollerAnswered;
         return {
-            status: null,
-            exitCode: null,
+            status: answered ? 'done' : null,
+            exitCode: answered ? 0 : null,
             startedAt: null,
             finishedAt: null,
-            chunks: [],
+            chunks: answered
+                ? [{ seq: 1, stream: 'stdout', text: `${commandUuid} output` }]
+                : [],
             error: null,
             isActive: false,
         };
@@ -169,7 +175,7 @@ vi.mock('./Terminal', () => ({
         onRun: () => void;
         running: boolean;
         disabled: boolean;
-        output: { error: string | null };
+        output: { error: string | null; chunks: { text: string }[] };
     }) => (
         <div
             data-testid="terminal"
@@ -185,6 +191,9 @@ vi.mock('./Terminal', () => ({
                 Run
             </button>
             <span data-testid="terminal-error">{output.error ?? ''}</span>
+            <span data-testid="terminal-chunks">
+                {output.chunks.map((chunk) => chunk.text).join('\n')}
+            </span>
         </div>
     ),
 }));
@@ -224,6 +233,7 @@ describe('LearnWorkspacePage', () => {
         state.file = { data: undefined };
         state.saveIsLoading = false;
         state.runIsLoading = false;
+        state.pollerAnswered = true;
         state.calls = [];
         state.saveMutateAsync = vi.fn(async () => {
             state.calls.push('save');
@@ -368,6 +378,118 @@ describe('LearnWorkspacePage', () => {
             ),
         );
         expect(state.runMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it('does not run when the save in front of it fails', async () => {
+        const user = userEvent.setup();
+        state.saveMutateAsync = vi.fn(() =>
+            Promise.reject({
+                status: 'error',
+                error: { name: 'ParameterError', message: 'Read-only file' },
+            }),
+        );
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.type(screen.getByLabelText('File'), 'x');
+        fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal-error')).toHaveTextContent(
+                'The file could not be saved, so nothing ran',
+            ),
+        );
+        expect(state.runMutateAsync).not.toHaveBeenCalled();
+        expect(screen.getByTestId('editor')).toHaveAttribute(
+            'data-dirty',
+            'true',
+        );
+    });
+
+    it('waits on the blur save instead of sending it again when Run follows', async () => {
+        const user = userEvent.setup();
+        let releaseSave = () => {};
+        state.saveMutateAsync = vi.fn(
+            () =>
+                new Promise<undefined>((resolve) => {
+                    releaseSave = () => {
+                        state.calls.push('save');
+                        resolve(undefined);
+                    };
+                }),
+        );
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.type(screen.getByLabelText('File'), 'x');
+        // Clicking the command input blurs the editor, which starts the save.
+        await user.click(screen.getByLabelText('Command'));
+        expect(state.saveMutateAsync).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+        releaseSave();
+
+        await waitFor(() => expect(state.calls).toEqual(['save', 'run']));
+        expect(state.saveMutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays busy while the attached command has yet to report', async () => {
+        const user = userEvent.setup();
+        state.pollerAnswered = false;
+        renderPage();
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(state.useCommandOutput).toHaveBeenLastCalledWith(
+                'copy-1',
+                'command-1',
+            ),
+        );
+        expect(screen.getByTestId('terminal')).toHaveAttribute(
+            'data-running',
+            'true',
+        );
+    });
+
+    it('empties the pane of the finished command when the next run is refused', async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal-chunks')).toHaveTextContent(
+                'command-1 output',
+            ),
+        );
+
+        state.runMutateAsync = vi.fn(() =>
+            Promise.reject({
+                status: 'error',
+                error: {
+                    name: 'ParameterError',
+                    message:
+                        'That command is not available in the Learn terminal',
+                },
+            }),
+        );
+        await user.clear(screen.getByLabelText('Command'));
+        await user.type(screen.getByLabelText('Command'), 'dbt run');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal-error')).toHaveTextContent(
+                'That command is not available in the Learn terminal',
+            ),
+        );
+        expect(screen.getByTestId('terminal-chunks')).toHaveTextContent('');
+        expect(state.useCommandOutput).toHaveBeenLastCalledWith('copy-1', null);
     });
 
     it('saves on editor blur and keeps the draft when the save fails', async () => {
