@@ -7,7 +7,7 @@ import type {
  * Matches the "(command <uuid>)" suffix the backend appends to the 409
  * error it returns when a command is already running in the workspace.
  */
-export const ACTIVE_COMMAND_UUID_PATTERN = /\(command ([0-9a-f-]{36})\)/;
+const ACTIVE_COMMAND_UUID_PATTERN = /\(command ([0-9a-f-]{36})\)/;
 
 export const activeCommandFromError = (message: string): string | null => {
     const match = ACTIVE_COMMAND_UUID_PATTERN.exec(message);
