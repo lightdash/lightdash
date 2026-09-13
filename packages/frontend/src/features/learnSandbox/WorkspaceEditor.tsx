@@ -51,7 +51,6 @@ type WorkspaceEditorProps = {
     dirty: boolean;
     onChange: (content: string) => void;
     onBlur: () => void;
-    tourSuggestion?: string;
 };
 
 const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
@@ -62,7 +61,6 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     dirty,
     onChange,
     onBlur,
-    tourSuggestion,
 }) => {
     const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -164,9 +162,7 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 data-tour-anchor="workspace-editor"
                 data-tour-hint="Edit the file"
                 data-tour-input="true"
-                {...(tourSuggestion
-                    ? { 'data-tour-suggest': tourSuggestion }
-                    : {})}
+                data-tour-suggest="# Edited in the Learn workspace"
             >
                 <Editor
                     path={path}

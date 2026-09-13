@@ -22,7 +22,6 @@ type RenderOverrides = {
     running?: boolean;
     disabled?: boolean;
     output?: Partial<TerminalOutput>;
-    commandSuggestion?: string;
 };
 
 const renderTerminal = (overrides: RenderOverrides = {}) => {
@@ -37,7 +36,6 @@ const renderTerminal = (overrides: RenderOverrides = {}) => {
                 running={overrides.running ?? false}
                 disabled={overrides.disabled ?? false}
                 output={{ ...EMPTY_OUTPUT, ...overrides.output }}
-                commandSuggestion={overrides.commandSuggestion}
             />
         </MantineProvider>,
     );
@@ -94,6 +92,14 @@ describe('Terminal', () => {
             '[data-learn-terminal-output]',
         );
         expect(outputRoot).toHaveAttribute('data-tour-busy', 'true');
+        expect(outputRoot).toHaveAttribute(
+            'data-tour-anchor',
+            'terminal-running',
+        );
+        expect(outputRoot).toHaveAttribute(
+            'data-tour-hint',
+            'Wait for the command to finish',
+        );
         expect(screen.getByText('Running')).toHaveAttribute(
             'data-tour-status',
             'true',
@@ -119,6 +125,7 @@ describe('Terminal', () => {
         );
 
         expect(outputRoot).not.toHaveAttribute('data-tour-busy');
+        expect(outputRoot).not.toHaveAttribute('data-tour-anchor');
         expect(screen.getByText('Finished · 8s')).toBeInTheDocument();
     });
 
@@ -132,6 +139,21 @@ describe('Terminal', () => {
         renderTerminal({ value: 'dbt parse' });
 
         expect(screen.getByLabelText('Command')).toHaveValue('dbt parse');
+    });
+
+    it('renders a static data-tour-suggest on the command input', () => {
+        renderTerminal();
+
+        expect(screen.getByLabelText('Command')).toHaveAttribute(
+            'data-tour-suggest',
+            'dbt parse',
+        );
+    });
+
+    it('never disables the command input, even while a save is in flight', () => {
+        renderTerminal({ disabled: true });
+
+        expect(screen.getByLabelText('Command')).toBeEnabled();
     });
 
     it('calls onRun when Enter is pressed in the command input', async () => {
@@ -191,12 +213,27 @@ describe('Terminal', () => {
         ).toBeDisabled();
     });
 
-    it('shows the empty-state message in the status footer before anything has run', () => {
+    it('shows the empty-state message in the output body, not the status footer, before anything has run', () => {
         renderTerminal();
 
+        const emptyMessage = screen.getByText(
+            'Run a command to see its output here',
+        );
+        expect(emptyMessage).not.toHaveAttribute('data-tour-status');
+        expect(document.querySelector('[data-tour-status]')).toHaveTextContent(
+            '',
+        );
+    });
+
+    it('hides the empty-state message and leaves data-tour-status empty when output.error is set', () => {
+        renderTerminal({ output: { error: 'Could not save the file' } });
+
         expect(
-            screen.getByText('Run a command to see its output here'),
-        ).toHaveAttribute('data-tour-status', 'true');
+            screen.queryByText('Run a command to see its output here'),
+        ).not.toBeInTheDocument();
+        expect(document.querySelector('[data-tour-status]')).toHaveTextContent(
+            '',
+        );
     });
 
     it('shows Failed with no exit suffix when exitCode is null', () => {

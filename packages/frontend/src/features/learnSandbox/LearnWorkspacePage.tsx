@@ -3,6 +3,7 @@ import { Anchor, Box, Center, Group, ScrollArea, Text } from '@mantine/core';
 import { useCallback, useRef, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate } from 'react-router';
+import InlineErrorState from '../../components/common/InlineErrorState';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import FileTree from './FileTree';
@@ -51,8 +52,16 @@ const Workspace: FC<WorkspaceProps> = ({
         promise: Promise<boolean>;
     } | null>(null);
 
-    const { data: files } = useWorkspaceFiles(projectUuid);
-    const { data: file } = useWorkspaceFile(projectUuid, selectedPath);
+    const {
+        data: files,
+        error: filesError,
+        isError: isFilesError,
+    } = useWorkspaceFiles(projectUuid);
+    const {
+        data: file,
+        error: fileError,
+        isError: isFileError,
+    } = useWorkspaceFile(projectUuid, selectedPath);
     const saveFile = useSaveWorkspaceFile(projectUuid);
     const runCommand = useRunCommand(projectUuid);
     const output = useCommandOutput(projectUuid, activeCommandUuid);
@@ -81,15 +90,19 @@ const Workspace: FC<WorkspaceProps> = ({
     /**
      * Saves the current draft and answers whether the file on disk now
      * matches the editor: true when there was nothing to save or the save
-     * succeeded, false when it failed (and was reported in a toast).
+     * succeeded, false when it failed (and was reported in a toast) or when
+     * there is a draft but the file itself has not loaded (still loading, or
+     * failed) — there is nothing to compare the draft against, so it cannot
+     * be trusted as saved.
      * Blurring the editor and then running immediately would otherwise send
      * the same write twice, so a save in flight for the same path and
      * content is awaited rather than repeated.
      */
     const saveIfDirty = useCallback(async (): Promise<boolean> => {
         const path = selectedPath;
-        if (path === null || !file || !isDirty || draft === undefined)
-            return true;
+        if (path === null || draft === undefined) return true;
+        if (!file) return false;
+        if (!isDirty) return true;
         const pending = pendingSaveRef.current;
         if (pending && pending.path === path && pending.content === draft)
             return pending.promise;
@@ -189,11 +202,21 @@ const Workspace: FC<WorkspaceProps> = ({
                     order={1}
                 >
                     <ScrollArea className={styles.treePane} py="xs">
-                        <FileTree
-                            files={files ?? []}
-                            selectedPath={selectedPath}
-                            onSelect={setSelectedPath}
-                        />
+                        {isFilesError ? (
+                            <InlineErrorState
+                                m="xs"
+                                message={
+                                    filesError?.error?.message ??
+                                    'Could not load the file tree'
+                                }
+                            />
+                        ) : (
+                            <FileTree
+                                files={files ?? []}
+                                selectedPath={selectedPath}
+                                onSelect={setSelectedPath}
+                            />
+                        )}
                     </ScrollArea>
                 </Panel>
                 <PanelResizeHandle
@@ -213,7 +236,16 @@ const Workspace: FC<WorkspaceProps> = ({
                             id="learn-workspace-editor"
                             order={1}
                         >
-                            {selectedPath !== null && file ? (
+                            {selectedPath !== null && isFileError ? (
+                                <Center className={styles.editorEmpty}>
+                                    <InlineErrorState
+                                        message={
+                                            fileError?.error?.message ??
+                                            'Could not load the file'
+                                        }
+                                    />
+                                </Center>
+                            ) : selectedPath !== null && file ? (
                                 <WorkspaceEditor
                                     path={selectedPath}
                                     content={draft ?? file.content}

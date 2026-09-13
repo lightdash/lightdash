@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
 import { getCommandOutput } from '../api';
+import { sanitizeTerminalText } from '../terminalText';
 
 const POLL_INTERVAL_MS = 500;
 
@@ -64,13 +65,17 @@ export const useCommandOutput = (
                 if (out.chunks.length > 0) {
                     after = out.chunks[out.chunks.length - 1].seq;
                 }
+                const sanitizedChunks = out.chunks.map((chunk) => ({
+                    ...chunk,
+                    text: sanitizeTerminalText(chunk.text),
+                }));
                 setState((prev) => ({
                     ...prev,
                     status: out.status,
                     exitCode: out.exitCode,
                     startedAt: out.startedAt,
                     finishedAt: out.finishedAt,
-                    chunks: [...prev.chunks, ...out.chunks],
+                    chunks: [...prev.chunks, ...sanitizedChunks],
                     error: null,
                 }));
                 if (isTerminalStatus(out.status)) {
@@ -78,6 +83,7 @@ export const useCommandOutput = (
                     clearInterval(timer);
                 }
             } catch (e) {
+                if (stopped) return;
                 setState((prev) => ({
                     ...prev,
                     error:

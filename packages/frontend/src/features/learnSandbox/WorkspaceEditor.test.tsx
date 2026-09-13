@@ -244,21 +244,13 @@ describe('WorkspaceEditor', () => {
         expect(onBlur).toHaveBeenCalledTimes(1);
     });
 
-    it('renders data-tour-suggest only when tourSuggestion is provided', () => {
-        const { container: withoutSuggestion } = renderEditor({
-            tourSuggestion: undefined,
-        });
-        expect(
-            withoutSuggestion.querySelector('[data-tour-suggest]'),
-        ).toBeNull();
+    it('renders a static data-tour-suggest on the editor wrapper', () => {
+        const { container } = renderEditor();
 
-        const { container: withSuggestion } = renderEditor({
-            tourSuggestion: 'add a metric',
-        });
         expect(
-            withSuggestion
-                .querySelector('[data-tour-suggest]')
+            container
+                .querySelector('[data-tour-anchor="workspace-editor"]')
                 ?.getAttribute('data-tour-suggest'),
-        ).toBe('add a metric');
+        ).toBe('# Edited in the Learn workspace');
     });
 });
