@@ -21,7 +21,12 @@ export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
  * an Enterprise licence, or one of the product's own feature switches on top
  * of it. The library leaves a closed module out (see availability.ts).
  */
-export type LearnGate = 'enterprise' | 'dataApps' | 'aiAgents' | 'softDelete';
+export type LearnGate =
+    | 'enterprise'
+    | 'dataApps'
+    | 'aiAgents'
+    | 'softDelete'
+    | 'sandbox';
 
 const SUBJECT_GATES: Record<string, LearnGate> = {
     DeletedContent: 'softDelete',

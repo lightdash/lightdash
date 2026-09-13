@@ -36,6 +36,7 @@ export const useLearnAvailability = () => {
             // on.
             dataApps: isEnterprise && dataAppsOn,
             aiAgents: isEnterprise && copilotOn && agentsVisible,
+            sandbox: health.data?.learnSandbox.enabled === true,
         }),
         [
             isEnterprise,
@@ -43,16 +44,20 @@ export const useLearnAvailability = () => {
             copilotOn,
             agentsVisible,
             health.data?.softDelete.enabled,
+            health.data?.learnSandbox.enabled,
         ],
     );
     const isOpen = useCallback(
         (module: LearnModule) => module.gate === null || open[module.gate],
         [open],
     );
+    /** The same gate check as `isOpen`, for callers that hold a gate rather
+     * than a module (the workspace page has no scope to look one up by). */
+    const isGateOpen = useCallback((gate: LearnGate) => open[gate], [open]);
     // The licence rides on health, which the page already waits for; the
     // other gates are their own requests. Until they have answered, isOpen
     // is provisional and anything counting the catalogue should wait.
     const isSettled =
         !dataApps.isLoading && !copilot.isLoading && !aiSettings.isLoading;
-    return { isOpen, isSettled };
+    return { isOpen, isGateOpen, isSettled };
 };
