@@ -16,9 +16,11 @@ const state = vi.hoisted(() => ({
         trainingProjectUuid?: string;
     },
     files: [] as { path: string; editable: boolean }[],
+    filesError: null as { error: { message: string } } | null,
     file: { data: undefined } as {
         data: { path: string; content: string; editable: boolean } | undefined;
     },
+    fileError: null as { error: { message: string } } | null,
     saveIsLoading: false,
     runIsLoading: false,
     pollerAnswered: true,
@@ -46,13 +48,23 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
 }));
 
 vi.mock('./hooks/useWorkspaceFiles', () => ({
-    useWorkspaceFiles: () => ({ data: state.files }),
+    useWorkspaceFiles: () => ({
+        data: state.files,
+        error: state.filesError,
+        isError: state.filesError !== null,
+    }),
 }));
 
 vi.mock('./hooks/useWorkspaceFile', () => ({
     useWorkspaceFile: (projectUuid: string, path: string | null) => {
         state.useWorkspaceFile(projectUuid, path);
-        return path ? state.file : { data: undefined };
+        return path
+            ? {
+                  ...state.file,
+                  error: state.fileError,
+                  isError: state.fileError !== null,
+              }
+            : { data: undefined, error: null, isError: false };
     },
 }));
 
@@ -230,7 +242,9 @@ describe('LearnWorkspacePage', () => {
             { path: 'models/orders.yml', editable: true },
             { path: 'dbt_project.yml', editable: false },
         ];
+        state.filesError = null;
         state.file = { data: undefined };
+        state.fileError = null;
         state.saveIsLoading = false;
         state.runIsLoading = false;
         state.pollerAnswered = true;
@@ -256,6 +270,75 @@ describe('LearnWorkspacePage', () => {
         expect(
             screen.getByRole('link', { name: 'Back to library' }),
         ).toHaveAttribute('href', '/projects/training-1/learn');
+    });
+
+    it('shows an inline error in the tree pane when the files query fails', () => {
+        state.filesError = {
+            error: { message: 'Could not reach the sandbox' },
+        };
+        renderPage();
+
+        expect(
+            screen.getByText('Could not reach the sandbox'),
+        ).toBeInTheDocument();
+        expect(screen.queryByTestId('file-tree')).not.toBeInTheDocument();
+    });
+
+    it('shows an inline error in the editor pane when the file query fails', async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        state.fileError = { error: { message: 'File not found' } };
+        await user.click(
+            screen.getByRole('button', { name: 'models/orders.yml' }),
+        );
+
+        await waitFor(() =>
+            expect(screen.getByText('File not found')).toBeInTheDocument(),
+        );
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+    });
+
+    it('does not run when there is a draft but the file has not loaded', async () => {
+        const user = userEvent.setup();
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        // fireEvent throughout: a real click or type would focus/blur the
+        // editor, and the blur autosave (against the file as it was at that
+        // instant) would save the draft away before the file query's own
+        // update is observed, hiding the case under test.
+        fireEvent.change(screen.getByLabelText('File'), {
+            target: { value: 'version: 2\nx' },
+        });
+        expect(screen.getByTestId('editor')).toHaveAttribute(
+            'data-dirty',
+            'true',
+        );
+
+        // The file query no longer has data (e.g. it started reloading and
+        // has not answered yet), but the draft the learner typed is still
+        // held by the page. A second change forces the page to re-render
+        // and read the file query's new value before Run is clicked.
+        state.file = { data: undefined };
+        fireEvent.change(screen.getByLabelText('Command'), {
+            target: { value: 'dbt parse' },
+        });
+        await waitFor(() =>
+            expect(
+                screen.getByText('Pick a file to start'),
+            ).toBeInTheDocument(),
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal-error')).toHaveTextContent(
+                'The file could not be saved, so nothing ran',
+            ),
+        );
+        expect(state.runMutateAsync).not.toHaveBeenCalled();
     });
 
     it('redirects when access says so', () => {
