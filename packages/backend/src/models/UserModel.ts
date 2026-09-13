@@ -18,6 +18,7 @@ import {
     InvalidUser,
     isOpenIdUser,
     isUserAvatarColorValue,
+    LEARN_SANDBOX_SCOPES,
     LightdashMode,
     LightdashUser,
     LightdashUserWithAbilityRules,
@@ -1341,7 +1342,7 @@ export class UserModel {
                     scopes:
                         project.projectType === ProjectType.TRAINING
                             ? viewerScopes
-                            : traineeScopes,
+                            : [...traineeScopes, ...LEARN_SANDBOX_SCOPES],
                     isEnterprise,
                     permissionsConfig: {
                         pat: this.lightdashConfig.auth.pat,
