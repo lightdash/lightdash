@@ -44,7 +44,8 @@ export const buildArgv = (
         const flag = args.shift() as string;
         if (flag === '--select' && allowed.includes('select')) {
             const value = args.shift();
-            if (!value || !validateDbtSelector(value)) return reject;
+            if (!value || value.startsWith('-') || !validateDbtSelector(value))
+                return reject;
             argv.push(flag, value);
         } else if (
             (flag === '--charts' || flag === '--dashboards') &&
@@ -53,7 +54,12 @@ export const buildArgv = (
             argv.push(flag);
         } else if (flag === '--path' && allowed.includes('path')) {
             const value = args.shift();
-            if (!value || !insideWorkspace(workspaceDir, value)) return reject;
+            if (
+                !value ||
+                value.startsWith('-') ||
+                !insideWorkspace(workspaceDir, value)
+            )
+                return reject;
             argv.push(flag, value);
         } else {
             return reject;
