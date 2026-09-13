@@ -73,4 +73,26 @@ describe('workspace helpers', () => {
             await rm(dir, { recursive: true, force: true });
         }
     });
+    it('throws when an overlay path is not editable', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'learn-ws-'));
+        try {
+            await expect(
+                materialiseWorkspace({
+                    bundle: { version: 1, files: [] },
+                    overlay: [
+                        {
+                            path: 'models/../dbt_project.yml',
+                            content: 'name: jaffle_shop\n',
+                        },
+                    ],
+                    workspaceDir: dir,
+                    profiles: { databasePath: '/data/jaffle_shop.duckdb' },
+                }),
+            ).rejects.toThrow(
+                'Refusing to materialise non-editable overlay path: models/../dbt_project.yml',
+            );
+        } finally {
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
 });

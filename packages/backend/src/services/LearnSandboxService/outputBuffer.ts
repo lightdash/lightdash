@@ -24,6 +24,12 @@ export class OutputBuffer {
 
     private flushing: Promise<void> = Promise.resolve();
 
+    private lastError: unknown;
+
+    get error(): unknown {
+        return this.lastError;
+    }
+
     constructor(
         private readonly opts: {
             secrets: string[];
@@ -87,7 +93,11 @@ export class OutputBuffer {
         this.pending = [];
         this.pendingBytes = 0;
         if (batch.length === 0) return this.flushing;
-        this.flushing = this.flushing.then(() => this.opts.onFlush(batch));
+        this.flushing = this.flushing
+            .then(() => this.opts.onFlush(batch))
+            .catch((error: unknown) => {
+                this.lastError = error;
+            });
         return this.flushing;
     }
 

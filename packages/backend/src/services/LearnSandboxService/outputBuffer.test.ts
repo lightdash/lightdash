@@ -16,7 +16,7 @@ const collect = () => {
 };
 
 describe('OutputBuffer', () => {
-    it('scrubs secrets and numbers chunks in order', async () => {
+    it('scrubs secrets, numbers chunks in order, and setSecrets replaces the list', async () => {
         const sink = collect();
         const buf = new OutputBuffer({
             secrets: ['ldpat_secret'],
@@ -24,20 +24,22 @@ describe('OutputBuffer', () => {
             onFlush: sink.onFlush,
         });
         buf.push('stdout', 'token ldpat_secret ok\n');
-        buf.push('stderr', 'err\n');
-        buf.setSecrets(['err']);
-        buf.push('stderr', 'another err line\n');
+        buf.setSecrets(['ldpat_new']);
+        buf.push('stderr', 'old ldpat_secret new ldpat_new value\n');
         await buf.close();
-        expect(sink.chunks.map((c) => c.seq)).toEqual([1, 2, 3]);
+        expect(sink.chunks.map((c) => c.seq)).toEqual([1, 2]);
         expect(sink.chunks[0]).toEqual({
             seq: 1,
             stream: 'stdout',
             text: 'token *** ok\n',
         });
-        expect(sink.chunks[2]).toEqual({
-            seq: 3,
+        // Proves replacement, not addition: the original secret set via the
+        // constructor is no longer scrubbed once setSecrets replaces it, while
+        // the newly-set secret is.
+        expect(sink.chunks[1]).toEqual({
+            seq: 2,
             stream: 'stderr',
-            text: 'another *** line\n',
+            text: 'old ldpat_secret new *** value\n',
         });
     });
     it('flushes on byte threshold before close', async () => {
@@ -54,6 +56,28 @@ describe('OutputBuffer', () => {
         });
         expect(sink.chunks).toHaveLength(1);
         await buf.close();
+    });
+    it('keeps flushing after onFlush rejects and exposes the error', async () => {
+        const delivered: { seq: number; stream: string; text: string }[] = [];
+        let calls = 0;
+        const onFlush = async (
+            batch: { seq: number; stream: string; text: string }[],
+        ) => {
+            calls += 1;
+            if (calls === 1) {
+                throw new Error('boom');
+            }
+            delivered.push(...batch);
+        };
+        const buf = new OutputBuffer({ secrets: [], flushBytes: 4, onFlush });
+        buf.push('stdout', 'first\n');
+        buf.push('stdout', 'second\n');
+        await buf.close();
+        expect(calls).toBe(2);
+        expect(delivered).toHaveLength(1);
+        expect(delivered[0].text).toBe('second\n');
+        expect(buf.error).toBeInstanceOf(Error);
+        expect((buf.error as Error).message).toBe('boom');
     });
     it('keeps head, marker, tail when output exceeds the cap', async () => {
         const sink = collect();
