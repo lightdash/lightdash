@@ -115,10 +115,49 @@ describe('buildArgv', () => {
                 args: ['--project', 'x'],
             },
         ],
+        [
+            'prototype-polluting tool name',
+            { tool: 'toString' as never, subcommand: 'parse', args: [] },
+        ],
+        [
+            'prototype-polluting subcommand: toString',
+            { tool: 'dbt', subcommand: 'toString', args: [] },
+        ],
+        [
+            'prototype-polluting subcommand: constructor',
+            { tool: 'dbt', subcommand: 'constructor', args: [] },
+        ],
+        [
+            'prototype-polluting subcommand: __proto__',
+            { tool: 'dbt', subcommand: '__proto__', args: [] },
+        ],
+        [
+            'more than 16 args, even though each pair would otherwise be valid',
+            {
+                tool: 'dbt',
+                subcommand: 'ls',
+                args: Array.from({ length: 9 }, () => [
+                    '--select',
+                    'orders',
+                ]).flat(), // 18 args
+            },
+        ],
     ] as const)('rejects %s', (_name, request) => {
         expect(buildArgv(request as never, ws)).toEqual({
             ok: false,
             message: LEARN_TERMINAL_REJECTION,
+        });
+    });
+
+    it('accepts exactly 16 args', () => {
+        const args = Array.from({ length: 8 }, () => [
+            '--select',
+            'orders',
+        ]).flat();
+        expect(args).toHaveLength(16);
+        expect(buildArgv({ tool: 'dbt', subcommand: 'ls', args }, ws)).toEqual({
+            ok: true,
+            argv: ['dbt', 'ls', ...args],
         });
     });
 });

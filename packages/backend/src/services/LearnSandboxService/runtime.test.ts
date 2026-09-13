@@ -1,4 +1,11 @@
-import { buildSandboxEnvironment } from './runtime';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import {
+    buildSandboxEnvironment,
+    detectSandboxRuntime,
+    resetSandboxRuntimeCache,
+} from './runtime';
 
 describe('buildSandboxEnvironment', () => {
     const baseArgs = {
@@ -89,5 +96,50 @@ describe('buildSandboxEnvironment', () => {
             processEnvironment: {},
         });
         expect(env.LIGHTDASH_URL).toBe('http://sandbox.internal');
+    });
+});
+
+describe('detectSandboxRuntime', () => {
+    let binDir: string;
+
+    beforeEach(async () => {
+        resetSandboxRuntimeCache();
+        binDir = await mkdtemp(path.join(tmpdir(), 'learn-runtime-bin-'));
+    });
+
+    afterEach(async () => {
+        resetSandboxRuntimeCache();
+        await rm(binDir, { recursive: true, force: true });
+    });
+
+    it('reports node as unavailable when it cannot be resolved on PATH', async () => {
+        await writeFile(path.join(binDir, 'lightdash'), '#!/bin/sh\n', {
+            mode: 0o755,
+        });
+        await writeFile(path.join(binDir, 'dbt'), '#!/bin/sh\n', {
+            mode: 0o755,
+        });
+        const result = await detectSandboxRuntime({
+            LEARN_SANDBOX_PATH_PREFIX: binDir,
+            PATH: '',
+        });
+        expect(result).toEqual({ lightdash: true, dbt: true, node: false });
+    });
+
+    it('reports node as available when it is resolvable on PATH', async () => {
+        await writeFile(path.join(binDir, 'lightdash'), '#!/bin/sh\n', {
+            mode: 0o755,
+        });
+        await writeFile(path.join(binDir, 'dbt'), '#!/bin/sh\n', {
+            mode: 0o755,
+        });
+        await writeFile(path.join(binDir, 'node'), '#!/bin/sh\n', {
+            mode: 0o755,
+        });
+        const result = await detectSandboxRuntime({
+            LEARN_SANDBOX_PATH_PREFIX: binDir,
+            PATH: '',
+        });
+        expect(result).toEqual({ lightdash: true, dbt: true, node: true });
     });
 });

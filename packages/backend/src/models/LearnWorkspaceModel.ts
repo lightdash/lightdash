@@ -49,6 +49,14 @@ export class LearnWorkspaceModel {
             .first();
     }
 
+    async countFiles(projectUuid: string): Promise<number> {
+        const row = await this.database(LearnWorkspaceFilesTableName)
+            .where('project_uuid', projectUuid)
+            .count<{ count: string }[]>({ count: '*' })
+            .first();
+        return Number(row?.count ?? 0);
+    }
+
     async upsertFile(
         projectUuid: string,
         path: string,

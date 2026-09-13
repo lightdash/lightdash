@@ -27,6 +27,8 @@ export type LearnCommandOutput = {
     exitCode: number | null;
     argv: string[];
     chunks: LearnCommandOutputChunk[];
+    startedAt: string | null;
+    finishedAt: string | null;
 };
 export type ApiLearnWorkspaceFilesResponse = {
     status: 'ok';
