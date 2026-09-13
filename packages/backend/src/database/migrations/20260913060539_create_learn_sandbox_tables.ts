@@ -57,7 +57,9 @@ export async function up(knex: Knex): Promise<void> {
         // queued/running command per project.
         table.unique(['project_uuid'], {
             indexName: 'learn_commands_one_active_per_project',
-            predicate: knex.whereIn('status', ['queued', 'running']),
+            // whereRaw, not whereIn: a partial-index predicate is DDL and
+            // Postgres rejects bind parameters in CREATE INDEX ... WHERE.
+            predicate: knex.whereRaw("status in ('queued', 'running')"),
         });
     });
     await knex.schema.createTable(OUTPUT, (table) => {
