@@ -1,5 +1,13 @@
 import { type ApiError } from '@lightdash/common';
-import { Anchor, Box, Center, Group, ScrollArea, Text } from '@mantine/core';
+import {
+    Anchor,
+    Box,
+    Center,
+    Group,
+    Loader,
+    ScrollArea,
+    Text,
+} from '@mantine/core';
 import { useCallback, useRef, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate } from 'react-router';
@@ -66,8 +74,15 @@ const Workspace: FC<WorkspaceProps> = ({
     const runCommand = useRunCommand(projectUuid);
     const output = useCommandOutput(projectUuid, activeCommandUuid);
 
+    // `file` can still hold the previously selected path's data for one
+    // render after `selectedPath` changes (react-query clears `data` once
+    // the new query starts, but the old query's result can still be in
+    // flight back to this hook); treat it as loaded only once it answers
+    // for the path currently selected, so the editor never shows one file's
+    // path or content over another's.
+    const loadedFile = file && file.path === selectedPath ? file : undefined;
     const draft = selectedPath === null ? undefined : drafts[selectedPath];
-    const isDirty = draft !== undefined && draft !== file?.content;
+    const isDirty = draft !== undefined && draft !== loadedFile?.content;
 
     // A command is attached but its first poll has not landed: the terminal
     // stays busy across that gap rather than flashing its empty state
@@ -101,7 +116,7 @@ const Workspace: FC<WorkspaceProps> = ({
     const saveIfDirty = useCallback(async (): Promise<boolean> => {
         const path = selectedPath;
         if (path === null || draft === undefined) return true;
-        if (!file) return false;
+        if (!loadedFile) return false;
         if (!isDirty) return true;
         const pending = pendingSaveRef.current;
         if (pending && pending.path === path && pending.content === draft)
@@ -128,7 +143,7 @@ const Workspace: FC<WorkspaceProps> = ({
         })();
         pendingSaveRef.current = { path, content: draft, promise };
         return promise;
-    }, [draft, file, isDirty, saveFile, selectedPath, showToastApiError]);
+    }, [draft, loadedFile, isDirty, saveFile, selectedPath, showToastApiError]);
 
     const handleRun = useCallback(async () => {
         setTerminalError(null);
@@ -245,16 +260,28 @@ const Workspace: FC<WorkspaceProps> = ({
                                         }
                                     />
                                 </Center>
-                            ) : selectedPath !== null && file ? (
+                            ) : selectedPath !== null && loadedFile ? (
                                 <WorkspaceEditor
                                     path={selectedPath}
-                                    content={draft ?? file.content}
-                                    editable={file.editable}
+                                    content={draft ?? loadedFile.content}
+                                    editable={loadedFile.editable}
                                     saving={saveFile.isLoading}
                                     dirty={isDirty}
                                     onChange={handleChange}
                                     onBlur={() => void saveIfDirty()}
                                 />
+                            ) : selectedPath !== null ? (
+                                <Center
+                                    className={styles.editorEmpty}
+                                    data-learn-editor-loading
+                                >
+                                    <Group gap="xs">
+                                        <Loader size="sm" />
+                                        <Text fz="sm" c="ldGray.6">
+                                            Loading file…
+                                        </Text>
+                                    </Group>
+                                </Center>
                             ) : (
                                 <Center className={styles.editorEmpty}>
                                     <Text fz="sm" c="ldGray.6">

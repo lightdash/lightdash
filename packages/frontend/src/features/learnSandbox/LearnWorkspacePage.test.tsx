@@ -55,16 +55,22 @@ vi.mock('./hooks/useWorkspaceFiles', () => ({
     }),
 }));
 
+// Keyed on the requested path, the way the real query is: a path other than
+// the one `state.file.data` currently holds has not answered yet, so the
+// mock reports it as still loading rather than handing back the previous
+// selection's data (there is no `keepPreviousData` any more).
 vi.mock('./hooks/useWorkspaceFile', () => ({
     useWorkspaceFile: (projectUuid: string, path: string | null) => {
         state.useWorkspaceFile(projectUuid, path);
-        return path
-            ? {
-                  ...state.file,
-                  error: state.fileError,
-                  isError: state.fileError !== null,
-              }
-            : { data: undefined, error: null, isError: false };
+        const data =
+            path && state.file.data?.path === path
+                ? state.file.data
+                : undefined;
+        return {
+            data,
+            error: state.fileError,
+            isError: state.fileError !== null,
+        };
     },
 }));
 
@@ -327,9 +333,12 @@ describe('LearnWorkspacePage', () => {
         });
         await waitFor(() =>
             expect(
-                screen.getByText('Pick a file to start'),
+                document.querySelector('[data-learn-editor-loading]'),
             ).toBeInTheDocument(),
         );
+        expect(
+            screen.queryByText('Pick a file to start'),
+        ).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
@@ -366,6 +375,36 @@ describe('LearnWorkspacePage', () => {
                 'models/orders.yml',
             ),
         );
+    });
+
+    it('shows a loading placeholder, never the previous file, while switching files', async () => {
+        const user = userEvent.setup();
+        renderPage();
+        await selectOrders(user);
+        await waitFor(() =>
+            expect(screen.getByTestId('editor')).toHaveAttribute(
+                'data-path',
+                'models/orders.yml',
+            ),
+        );
+
+        // dbt_project.yml's query has not answered (the mock's file data is
+        // still keyed to orders.yml's path); the editor must show a distinct
+        // loading state rather than orders.yml's path/content or the
+        // "Pick a file to start" empty state.
+        await user.click(
+            screen.getByRole('button', { name: 'dbt_project.yml' }),
+        );
+
+        await waitFor(() =>
+            expect(
+                document.querySelector('[data-learn-editor-loading]'),
+            ).toBeInTheDocument(),
+        );
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Pick a file to start'),
+        ).not.toBeInTheDocument();
     });
 
     it('saves the dirty draft before running the command', async () => {
