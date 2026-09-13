@@ -6,6 +6,7 @@ import { Box, Button, Group, ScrollArea, Stack } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import {
     useEffect,
+    useMemo,
     useRef,
     type FC,
     type KeyboardEvent,
@@ -53,7 +54,7 @@ const getStatusLabel = (
         case 'done':
             return 'Finished';
         case 'error':
-            return `Failed (exit ${exitCode ?? 0})`;
+            return exitCode === null ? 'Failed' : `Failed (exit ${exitCode})`;
         case 'timeout':
             return 'Timed out';
         default:
@@ -118,9 +119,18 @@ const Terminal: FC<TerminalProps> = ({
             BOTTOM_THRESHOLD_PX;
     };
 
+    const isValueEmpty = value.trim().length === 0;
+    const runDisabled = disabled || running || isValueEmpty;
+
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
         if (event.key !== 'Enter') return;
         event.preventDefault();
+        if (runDisabled) return;
+        onRun();
+    };
+
+    const handleRun = () => {
+        if (runDisabled) return;
         onRun();
     };
 
@@ -138,11 +148,21 @@ const Terminal: FC<TerminalProps> = ({
             ? `${statusLabel} · ${elapsedSeconds}s`
             : statusLabel;
 
+    const sanitizedChunks = useMemo(
+        () =>
+            output.chunks.map((chunk) => ({
+                ...chunk,
+                text: sanitizeTerminalText(chunk.text),
+            })),
+        [output.chunks],
+    );
+
     return (
         <Box className={styles.terminalPane}>
             <Group className={styles.terminalBar} gap="xs" wrap="nowrap">
                 <input
                     className={styles.terminalInput}
+                    aria-label="Command"
                     value={value}
                     onChange={(event) =>
                         onValueChange(event.currentTarget.value)
@@ -160,8 +180,8 @@ const Terminal: FC<TerminalProps> = ({
                 <Button
                     data-tour-anchor="terminal-run"
                     data-tour-hint="Run the command"
-                    disabled={disabled || running}
-                    onClick={onRun}
+                    disabled={runDisabled}
+                    onClick={handleRun}
                     leftSection={<MantineIcon icon={IconPlayerPlay} />}
                 >
                     Run
@@ -173,6 +193,7 @@ const Terminal: FC<TerminalProps> = ({
                         key={command}
                         variant="default"
                         size="compact-xs"
+                        disabled={disabled || running}
                         onClick={() => onValueChange(command)}
                     >
                         {command}
@@ -190,13 +211,13 @@ const Terminal: FC<TerminalProps> = ({
                     viewportProps={{ onScroll: handleScroll }}
                 >
                     <Stack gap={4} p="md">
-                        {output.chunks.map((chunk) => (
+                        {sanitizedChunks.map((chunk) => (
                             <span
                                 key={chunk.seq}
                                 className={styles.terminalLine}
                                 data-stream={chunk.stream}
                             >
-                                {sanitizeTerminalText(chunk.text)}
+                                {chunk.text}
                             </span>
                         ))}
                         {output.error ? (
