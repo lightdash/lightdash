@@ -97,6 +97,52 @@ export class LearnWorkspaceModel {
         return row ? mapCommand(row) : undefined;
     }
 
+    /**
+     * Atomically claims a queued command for execution: only succeeds if the
+     * row is still 'queued', so a duplicate scheduler delivery (or a
+     * cancelled/already-claimed command) is a safe no-op for every delivery
+     * after the first.
+     */
+    async claimCommand(commandUuid: string): Promise<boolean> {
+        const affected = await this.database(LearnCommandsTableName)
+            .where('command_uuid', commandUuid)
+            .andWhere('status', 'queued')
+            .update({
+                status: 'running',
+                started_at: this.database.fn.now() as unknown as Date,
+            });
+        return affected > 0;
+    }
+
+    /**
+     * Fails commands that have been 'running' for longer than `olderThan`
+     * would allow (a crashed worker, or a process the runner lost track of),
+     * so their workspace lock and PAT don't outlive the process forever.
+     * Returns just enough to let the caller revoke the associated token.
+     */
+    async failStaleRunning(
+        olderThan: Date,
+    ): Promise<
+        Pick<
+            DbLearnCommand,
+            'command_uuid' | 'pat_uuid' | 'project_uuid' | 'user_uuid'
+        >[]
+    > {
+        return this.database(LearnCommandsTableName)
+            .where('status', 'running')
+            .andWhere('started_at', '<', olderThan)
+            .update({
+                status: 'error',
+                finished_at: this.database.fn.now() as unknown as Date,
+            })
+            .returning([
+                'command_uuid',
+                'pat_uuid',
+                'project_uuid',
+                'user_uuid',
+            ]);
+    }
+
     async updateCommand(
         commandUuid: string,
         patch: Partial<
@@ -142,10 +188,23 @@ export class LearnWorkspaceModel {
     }
 
     async listCommandsWithTokens(): Promise<
-        Pick<DbLearnCommand, 'command_uuid' | 'pat_uuid' | 'status'>[]
+        Pick<
+            DbLearnCommand,
+            | 'command_uuid'
+            | 'pat_uuid'
+            | 'status'
+            | 'project_uuid'
+            | 'user_uuid'
+        >[]
     > {
         return this.database(LearnCommandsTableName)
-            .select('command_uuid', 'pat_uuid', 'status')
+            .select(
+                'command_uuid',
+                'pat_uuid',
+                'status',
+                'project_uuid',
+                'user_uuid',
+            )
             .whereNotNull('pat_uuid')
             .whereIn('status', FINISHED);
     }

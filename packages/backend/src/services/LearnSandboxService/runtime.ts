@@ -76,3 +76,65 @@ export const detectSandboxRuntime = (
 export const resetSandboxRuntimeCache = (): void => {
     cache = undefined;
 };
+
+// Explicit allowlist only. Do NOT swap this for a subtractive approach (e.g.
+// copying most of process.env and stripping known-bad keys): the host
+// container's environment can carry cloud credentials
+// (AWS_*/GOOGLE_APPLICATION_CREDENTIALS/AZURE_*/IDENTITY_HEADER/...) that a
+// learner's dbt YAML can read back out with env_var(), and a deny-list is
+// one forgotten key away from leaking them into the sandbox.
+const ALLOWED_SANDBOX_ENV_KEYS = [
+    'PATH',
+    'TMPDIR',
+    'LANG',
+    'LC_ALL',
+    'TZ',
+    'HTTP_PROXY',
+    'HTTPS_PROXY',
+    'NO_PROXY',
+    'http_proxy',
+    'https_proxy',
+    'no_proxy',
+    'NODE_EXTRA_CA_CERTS',
+    'SSL_CERT_FILE',
+    'REQUESTS_CA_BUNDLE',
+];
+
+export type BuildSandboxEnvironmentArgs = {
+    processEnvironment: NodeJS.ProcessEnv;
+    pathPrefix: string[];
+    apiUrl: string | undefined;
+    siteUrl: string;
+    projectUuid: string;
+    apiKey: string;
+    workspaceDir: string;
+    projectDir: string;
+};
+
+export const buildSandboxEnvironment = (
+    args: BuildSandboxEnvironmentArgs,
+): Record<string, string> => {
+    const inherited = ALLOWED_SANDBOX_ENV_KEYS.reduce<Record<string, string>>(
+        (acc, key) => {
+            const value = args.processEnvironment[key];
+            return value === undefined ? acc : { ...acc, [key]: value };
+        },
+        {},
+    );
+    return {
+        ...inherited,
+        PATH: [...args.pathPrefix, inherited.PATH ?? '']
+            .filter(Boolean)
+            .join(':'),
+        LIGHTDASH_URL: args.apiUrl ?? args.siteUrl,
+        LIGHTDASH_PROJECT: args.projectUuid,
+        LIGHTDASH_API_KEY: args.apiKey,
+        DBT_PROFILES_DIR: args.workspaceDir,
+        DBT_PROJECT_DIR: args.projectDir,
+        DBT_TARGET_PATH: path.join(args.workspaceDir, 'target'),
+        HOME: args.workspaceDir,
+        DBT_PARTIAL_PARSE: 'false',
+        DBT_SEND_ANONYMOUS_USAGE_STATS: 'false',
+        CI: 'true',
+    };
+};

@@ -42,6 +42,21 @@ describe('OutputBuffer', () => {
             text: 'old ldpat_secret new *** value\n',
         });
     });
+    it('catches a secret split across two pushes', async () => {
+        const sink = collect();
+        const buf = new OutputBuffer({
+            secrets: ['ldpat_secret'],
+            flushBytes: 1024,
+            flushEveryMs: 60_000,
+            onFlush: sink.onFlush,
+        });
+        buf.push('stdout', 'token ldpat_sec');
+        buf.push('stdout', 'ret ok\n');
+        await buf.close();
+        const text = sink.chunks.map((c) => c.text).join('');
+        expect(text).toBe('token *** ok\n');
+        expect(text).not.toContain('ldpat_secret');
+    });
     it('flushes on byte threshold before close', async () => {
         const sink = collect();
         const buf = new OutputBuffer({
