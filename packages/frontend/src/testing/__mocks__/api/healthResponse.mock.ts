@@ -145,6 +145,9 @@ export default function mockHealthResponse(
             enabled: false,
             retentionDays: 30,
         },
+        learnSandbox: {
+            enabled: false,
+        },
         dashboardComments: {
             enabled: true,
         },
