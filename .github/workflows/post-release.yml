@@ -136,12 +136,15 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS_IMAGE_DEPLOY }}'
       - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
       - name: Upload the published image assets
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           gcloud auth configure-docker us-docker.pkg.dev --quiet
-          python3 .github/scripts/upload-static-assets.py \
+          node .github/scripts/upload-static-assets.mts \
             --image "us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${RELEASE_TAG}-commercial" \
             --bucket lightdash-static-assets-us \
             --bucket lightdash-static-assets-eu \
