@@ -1,0 +1,10 @@
+.page {
+    min-height: 100vh;
+    background-color: var(--ld-color-page);
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+}
+
+.content {
+    max-width: 420px;
+    margin: 0 auto;
+}

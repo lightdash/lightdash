@@ -92,6 +92,7 @@ import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
+import MobileAppSettingsPanel from '../features/mobileApp/components/MobileAppSettingsPanel';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
@@ -168,6 +169,7 @@ const Settings: FC = () => {
         organization,
         project,
         isScimTokenManagementEnabled,
+        isMobileAppSetupEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
         externalSourcesFlag,
@@ -288,6 +290,12 @@ const Settings: FC = () => {
                         }
                     />
                 ),
+            });
+        }
+        if (isMobileAppSetupEnabled) {
+            allowedRoutes.push({
+                path: '/mobileApp',
+                element: <MobileAppSettingsPanel />,
             });
         }
         if (user?.ability.can('manage', 'PersonalAccessToken')) {
@@ -846,6 +854,7 @@ const Settings: FC = () => {
         dataAppsFlag?.enabled,
         dataAppAnalysisFlag?.enabled,
         externalSourcesFlag?.enabled,
+        isMobileAppSetupEnabled,
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
