@@ -1,10 +1,10 @@
 # Autopilot AI SDK rollout
 
-The AI SDK runner is opt-in while provider acceptance is being evaluated. Keep the hosted runtime, credentials and columns available for rollback during this phase.
+The AI SDK runner is the default. Only the exact provider/model pairs in the built-in qualified list below may run cleanup; every other provider or model runs in observe mode until it passes the acceptance matrix. Keep the hosted runtime, credentials and columns available for rollback during this phase.
 
 ## Configuration and attribution
 
-Set `MANAGED_AGENT_RUNTIME=ai-sdk` on both the API and scheduler processes. The default remains `anthropic-managed`. Restart both processes after changing deployment configuration; they must agree on the runtime.
+`MANAGED_AGENT_RUNTIME` defaults to `ai-sdk`. To roll back to the hosted runtime, set `MANAGED_AGENT_RUNTIME=anthropic-managed` on both the API and scheduler processes. Restart both processes after changing it; they must agree on the runtime.
 
 Autopilot resolves the organization's AI configuration before enabling and again for each run. It uses a visible, available organization default model, then an available configured provider default, then an available model. Azure uses its configured deployment directly. Configuration preflight constructs the model; it does not make a paid request or prove that a credential can access the deployment. Disabling a provider or hiding all models can prevent the next run.
 
