@@ -7,22 +7,15 @@ exports[`MCP tool contracts > matches the 'filter-expression' MCP server instruc
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
 
-0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
-1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
-   - Search with business terms and synonyms, not long natural-language phrases
-   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
-   - Pass several patterns in one call so you can compare the different angles of the request together
-   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
-2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
-   - Batch all needed explores and fields in one call
-   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
-   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
-3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
-5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
-7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
+0. \`get_context\`: select scope; pass \`projectUuid\` and, when agent-scoped, \`agentUuid\` explicitly to project-scoped tools.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: discover valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics; use \`run_sql\` for custom SQL.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search existing dashboards, charts, and Data Apps.
 
 ## Critical Rules
 
@@ -85,22 +78,15 @@ exports[`MCP tool contracts > matches the 'structured-filter' MCP server instruc
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
 
-0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
-1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
-   - Search with business terms and synonyms, not long natural-language phrases
-   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
-   - Pass several patterns in one call so you can compare the different angles of the request together
-   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
-2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
-   - Batch all needed explores and fields in one call
-   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
-   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
-3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
-5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
-7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
+0. \`get_context\`: select scope; pass \`projectUuid\` and, when agent-scoped, \`agentUuid\` explicitly to project-scoped tools.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: discover valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics; use \`run_sql\` for custom SQL.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search existing dashboards, charts, and Data Apps.
 
 ## Critical Rules
 
@@ -170,22 +156,15 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
 
-0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
-1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
-   - Search with business terms and synonyms, not long natural-language phrases
-   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
-   - Pass several patterns in one call so you can compare the different angles of the request together
-   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
-2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
-   - Batch all needed explores and fields in one call
-   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
-   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
-3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
-5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
-7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
+0. \`get_context\`: select scope; pass \`projectUuid\` and, when agent-scoped, \`agentUuid\` explicitly to project-scoped tools.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: discover valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics; use \`run_sql\` for custom SQL.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search existing dashboards, charts, and Data Apps.
 
 ## Critical Rules
 
@@ -807,7 +786,7 @@ A field annotated with \`⚠params: <names>\` depends on those Lightdash paramet
       "description": "Tool: get_metadata
 
 Purpose:
-Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
+Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
 
 Call this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
 
@@ -1991,7 +1970,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.",
+      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable or full project scope is desired, omit agentUuid; use set_agent for manual selection. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {},
@@ -10361,7 +10340,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Poll an existing run_sql or run_metric_query query. Use the exact queryUuid returned by the query tool; never invent it. This tool retrieves results without rerunning the query.
+      "description": "Poll an existing run_sql or run_metric_query query until done, error, cancelled, or expired. Use the exact queryUuid returned by the query tool; never invent it. This tool retrieves results without rerunning the query.
 
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.

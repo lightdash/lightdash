@@ -58,22 +58,15 @@ const buildMcpAnalystPrompt = (
 
 ## Query Building Workflow
 
-${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
-1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
-   - Search with business terms and synonyms, not long natural-language phrases
-   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
-   - Pass several patterns in one call so you can compare the different angles of the request together
-   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
-2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
-   - Batch all needed explores and fields in one call
-   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
-   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
-3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries${runSqlEnabled ? ', or `run_sql` for custom SQL' : ''}
-5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
-7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
+${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scope; pass \`projectUuid\` and, when agent-scoped, \`agentUuid\` explicitly to project-scoped tools.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: discover valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics${runSqlEnabled ? '; use `run_sql` for custom SQL' : ''}.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`render_chart\`: render completed metric queries when a chart is wanted.
+7. \`list_content\`: browse accessible content.
+8. \`find_content\`: search existing dashboards, charts, and Data Apps.
 
 ## Critical Rules
 

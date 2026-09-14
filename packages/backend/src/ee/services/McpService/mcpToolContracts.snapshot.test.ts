@@ -403,8 +403,8 @@ describe('MCP tool contracts', () => {
             await mcpService.createServer(makeMcpServerOptions(options));
             // Existing instruction overages cannot grow; lower these as text shrinks.
             const instructionCeilings = options.runSqlEnabled
-                ? { structured: 5483, expression: 5620 }
-                : { structured: 4659, expression: 4796 };
+                ? { structured: 4007, expression: 4144 }
+                : { structured: 3182, expression: 3319 };
             const instructionCeiling = options.runMetricQueryEnabled
                 ? instructionCeilings[
                       options.filterExpressionsEnabled
@@ -428,6 +428,87 @@ describe('MCP tool contracts', () => {
                 length,
                 `${configuration}: server instructions exceed their text ceiling; shorten the text instead of updating snapshots`,
             ).toBeLessThanOrEqual(instructionCeiling);
+        },
+    );
+
+    it.each([false, true])(
+        'keeps workflow details on their registered tools: expressions=%s',
+        async (filterExpressionsEnabled) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(
+                makeMcpServerOptions({
+                    runSqlEnabled: true,
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
+            const guidance = [
+                {
+                    name: McpToolName.GREP_FIELDS,
+                    details: [
+                        '1–5 patterns in a SINGLE call',
+                        'long natural-language phrases',
+                        'right grain',
+                    ],
+                },
+                {
+                    name: McpToolName.GET_METADATA,
+                    details: [
+                        'required filters',
+                        'filter type, case-sensitivity',
+                        'batch everything you need at once',
+                    ],
+                },
+                {
+                    name: McpToolName.GET_CONTEXT,
+                    details: [
+                        'use route_agent',
+                        'returned agentUuid explicitly',
+                        'omit agentUuid; use set_agent for manual selection',
+                    ],
+                },
+                {
+                    name: McpToolName.SEARCH_FIELD_VALUES,
+                    details: [
+                        'dimension before building a filter',
+                        'use it directly instead of searching',
+                    ],
+                },
+                {
+                    name: McpToolName.GET_QUERY_RESULT,
+                    details: [
+                        'until done, error, cancelled, or expired',
+                        'same queryUuid',
+                        'never resubmit the query',
+                    ],
+                },
+                {
+                    name: McpToolName.RENDER_CHART,
+                    details: [
+                        'Pass the exact queryUuid',
+                        'run_metric_query or get_query_result',
+                        'SQL Runner/run_sql results are not supported',
+                    ],
+                },
+                {
+                    name: McpToolName.LIST_CONTENT,
+                    details: ['direct children and content inside that space'],
+                },
+                {
+                    name: McpToolName.FIND_CONTENT,
+                    details: ['dashboards', 'Data Apps'],
+                },
+            ];
+            for (const { name, details } of guidance) {
+                const tool = mockRegisteredMcpTools.find(
+                    (registered) => registered.name === name,
+                );
+                expect(tool).toBeDefined();
+                for (const detail of details) {
+                    expect(tool?.config.description).toContain(detail);
+                }
+            }
         },
     );
 

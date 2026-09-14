@@ -4,6 +4,11 @@ import { baseOutputMetadataSchema } from '../outputMetadata';
 import { toolNameFor } from './discoveryToolNames';
 import { findExploresRequiredFilterSchema } from './toolFindExploresArgs';
 
+const exploreMetadataGuidanceByRuntime = {
+    agent: 'joined tables, table filters, and parameters',
+    mcp: 'joined tables, table filters, required filters, and parameters',
+} satisfies Record<ToolDescriptionContext['runtime'], string>;
+
 export const GET_METADATA_DESCRIPTION = ({
     runtime,
 }: ToolDescriptionContext): string => {
@@ -13,7 +18,7 @@ export const GET_METADATA_DESCRIPTION = ({
     return `Tool: ${getMetadata}
 
 Purpose:
-Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
+Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's ${exploreMetadataGuidanceByRuntime[runtime]}, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
 
 Call this AFTER ${grepFields}, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE ${visualization}. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
 
