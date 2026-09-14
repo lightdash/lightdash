@@ -5,3 +5,8 @@
 .versionList {
     overflow-y: auto;
 }
+
+.versionLink {
+    flex: 1;
+    min-width: 0;
+}

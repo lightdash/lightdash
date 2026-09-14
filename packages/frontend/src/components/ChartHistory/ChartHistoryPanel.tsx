@@ -9,6 +9,7 @@ import {
     Badge,
     Box,
     Button,
+    Group,
     Menu,
     NavLink,
     Stack,
@@ -39,6 +40,7 @@ import NoTableIcon from '../../svgs/emptystate-no-table.svg?react';
 import Callout from '../common/Callout';
 import { EmptyState } from '../common/EmptyState';
 import ErrorState from '../common/ErrorState';
+import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import Page from '../common/Page/Page';
@@ -90,7 +92,23 @@ const ChartHistoryExplorer = memo<ChartHistoryExplorerProps>(
             store.dispatch(explorerActions.reset(initialState));
         }, [chartVersionQuery.data, defaultLimit, store]);
 
-        // Early return if no data yet
+        if (chartVersionQuery.isInitialLoading) {
+            return (
+                <Box mt="md">
+                    <SuboptimalState title="Loading version..." loading />
+                </Box>
+            );
+        }
+
+        if (chartVersionQuery.error) {
+            return (
+                <InlineErrorState
+                    message="Could not load this version."
+                    onRetry={() => void chartVersionQuery.refetch()}
+                />
+            );
+        }
+
         if (!chartVersionQuery.data) {
             return null;
         }
@@ -172,99 +190,110 @@ const ChartHistoryPanel: FC<Props> = ({
                         gap="xs"
                         flex="1 1 auto"
                         className={classes.versionList}
+                        role="group"
+                        aria-label="Chart versions"
                     >
-                        {historyQuery.data?.history.map((version, index) => (
-                            <NavLink
-                                key={version.versionUuid}
-                                active={
-                                    version.versionUuid === selectedVersionUuid
-                                }
-                                leftSection={
-                                    <MantineIcon icon={IconFileAnalytics} />
-                                }
-                                label={formatTimestamp(
-                                    version.createdAt,
-                                    TimeFrames.SECOND,
-                                )}
-                                description={
-                                    <Text>
-                                        Updated by:{' '}
-                                        {version.createdBy?.firstName}{' '}
-                                        {version.createdBy?.lastName}
-                                    </Text>
-                                }
-                                rightSection={
-                                    <>
-                                        {index === 0 && (
-                                            <Tooltip
-                                                label={`This is the current version.`}
-                                            >
-                                                <Badge size="xs" color="green">
-                                                    current
-                                                </Badge>
-                                            </Tooltip>
-                                        )}
-                                        {index !== 0 &&
-                                            version.versionUuid ===
-                                                selectedVersionUuid && (
-                                                <Can
-                                                    I="manage"
-                                                    this={subject(
-                                                        'SavedChart',
-                                                        { ...chart },
-                                                    )}
-                                                >
-                                                    <Menu
-                                                        position="bottom-start"
-                                                        withArrow
-                                                        arrowPosition="center"
-                                                        offset={-4}
-                                                        closeOnItemClick
-                                                        closeOnClickOutside
-                                                    >
-                                                        <Menu.Target>
-                                                            <ActionIcon aria-label="Version actions">
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconDots
-                                                                    }
-                                                                />
-                                                            </ActionIcon>
-                                                        </Menu.Target>
+                        {historyQuery.data?.history.map((version, index) => {
+                            const isSelected =
+                                version.versionUuid === selectedVersionUuid;
+                            const formattedTimestamp = formatTimestamp(
+                                version.createdAt,
+                                TimeFrames.SECOND,
+                            );
 
-                                                        <Menu.Dropdown
-                                                            maw={320}
-                                                        >
-                                                            <Menu.Item
-                                                                component="button"
-                                                                role="menuitem"
-                                                                leftSection={
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconHistory
-                                                                        }
-                                                                    />
+                            return (
+                                <Group
+                                    key={version.versionUuid}
+                                    gap="xs"
+                                    wrap="nowrap"
+                                >
+                                    <NavLink
+                                        component="button"
+                                        type="button"
+                                        className={classes.versionLink}
+                                        active={isSelected}
+                                        aria-label={`Preview version from ${formattedTimestamp}`}
+                                        aria-pressed={isSelected}
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFileAnalytics}
+                                            />
+                                        }
+                                        label={formattedTimestamp}
+                                        description={
+                                            <Text component="span">
+                                                Updated by:{' '}
+                                                {version.createdBy?.firstName}{' '}
+                                                {version.createdBy?.lastName}
+                                            </Text>
+                                        }
+                                        rightSection={
+                                            index === 0 ? (
+                                                <Tooltip label="This is the current version.">
+                                                    <Badge
+                                                        size="xs"
+                                                        color="green"
+                                                    >
+                                                        current
+                                                    </Badge>
+                                                </Tooltip>
+                                            ) : undefined
+                                        }
+                                        onClick={() =>
+                                            selectVersionUuid(
+                                                version.versionUuid,
+                                            )
+                                        }
+                                    />
+                                    {index !== 0 && isSelected && (
+                                        <Can
+                                            I="manage"
+                                            this={subject('SavedChart', {
+                                                ...chart,
+                                            })}
+                                        >
+                                            <Menu
+                                                position="bottom-start"
+                                                withArrow
+                                                arrowPosition="center"
+                                                offset={-4}
+                                                closeOnItemClick
+                                                closeOnClickOutside
+                                            >
+                                                <Menu.Target>
+                                                    <ActionIcon aria-label="Version actions">
+                                                        <MantineIcon
+                                                            icon={IconDots}
+                                                        />
+                                                    </ActionIcon>
+                                                </Menu.Target>
+
+                                                <Menu.Dropdown maw={320}>
+                                                    <Menu.Item
+                                                        component="button"
+                                                        role="menuitem"
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconHistory
                                                                 }
-                                                                onClick={() => {
-                                                                    setIsRollbackModalOpen(
-                                                                        true,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                Restore this
-                                                                version
-                                                            </Menu.Item>
-                                                        </Menu.Dropdown>
-                                                    </Menu>
-                                                </Can>
-                                            )}
-                                    </>
-                                }
-                                onClick={() =>
-                                    selectVersionUuid(version.versionUuid)
-                                }
-                            />
-                        ))}
+                                                            />
+                                                        }
+                                                        onClick={() => {
+                                                            setIsRollbackModalOpen(
+                                                                true,
+                                                            );
+                                                        }}
+                                                    >
+                                                        Restore this version
+                                                    </Menu.Item>
+                                                </Menu.Dropdown>
+                                            </Menu>
+                                        </Can>
+                                    )}
+                                </Group>
+                            );
+                        })}
                     </Stack>
                     <Callout
                         variant="info"

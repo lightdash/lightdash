@@ -1,6 +1,8 @@
 import { Button, MantineProvider, Modal } from '@mantine/core';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import MantineModal, { type MantineModalProps } from './index';
 import { useMantineModalClose } from './useMantineModalClose';
 
@@ -9,6 +11,30 @@ import { useMantineModalClose } from './useMantineModalClose';
 const CloseFromInside = () => {
     const { requestClose } = useMantineModalClose();
     return <Button onClick={requestClose}>Leave</Button>;
+};
+
+const EscapeConsumingPortal = () => {
+    const [opened, setOpened] = useState(true);
+
+    return (
+        <>
+            <Button
+                onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        setOpened(false);
+                    }
+                }}
+            >
+                Popup target
+            </Button>
+            {opened &&
+                createPortal(
+                    <div role="status">Portaled popup</div>,
+                    document.body,
+                )}
+        </>
+    );
 };
 
 const renderModal = (props: Partial<MantineModalProps> = {}) => {
@@ -154,6 +180,32 @@ describe('MantineModal accessibility', () => {
         await user.keyboard('{Escape}');
         expect(onNestedClose).toHaveBeenCalledOnce();
         expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('lets a child consume Escape before closing the modal', async () => {
+        const user = userEvent.setup();
+        const { onClose } = renderModal({
+            children: <EscapeConsumingPortal />,
+        });
+
+        expect(screen.getByRole('status')).toHaveTextContent('Portaled popup');
+        await user.click(screen.getByRole('button', { name: 'Popup target' }));
+        await user.keyboard('{Escape}');
+
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('honors an explicit Escape override for an alert dialog', async () => {
+        const user = userEvent.setup();
+        const { onClose } = renderModal({
+            role: 'alertdialog',
+            modalRootProps: { closeOnEscape: true },
+        });
+
+        await user.keyboard('{Escape}');
+
+        expect(onClose).toHaveBeenCalledOnce();
     });
 
     it('discards edits only after explicit confirmation', async () => {

@@ -48,6 +48,7 @@ import PageSpinner from '../PageSpinner';
 import { buildDashboardEditorInitialState } from './buildDashboardEditorInitialState';
 import { DashboardChartEditorActionsPortalId } from './constants';
 import DashboardChartEditorHeaderActions from './DashboardChartEditorHeaderActions';
+import styles from './DashboardChartEditorModal.module.css';
 
 type HeaderActionHandlers = {
     onOpenChartPage: (target: { pathname: string; search: string }) => void;
@@ -431,7 +432,11 @@ const DashboardChartEditorModal: FC<Props> = ({
             onClose={closeEditor}
             confirmBeforeClose={isDirty}
             title={
-                <Group gap={6} wrap="nowrap">
+                <Group
+                    gap={6}
+                    wrap="nowrap"
+                    className={editChart ? styles.headerTitle : undefined}
+                >
                     {dashboard && (
                         <>
                             <BackToDashboardAnchor name={dashboard.name} />
@@ -471,6 +476,9 @@ const DashboardChartEditorModal: FC<Props> = ({
             fullScreen
             cancelLabel={false}
             modalBodyProps={{ px: 0, py: 0 }}
+            modalHeaderProps={
+                editChart ? { className: styles.modalHeader } : undefined
+            }
             headerActions={
                 editChart ? (
                     <Group

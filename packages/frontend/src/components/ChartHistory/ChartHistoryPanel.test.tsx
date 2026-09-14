@@ -174,6 +174,95 @@ describe('ChartHistoryPanel', () => {
         );
     });
 
+    it('exposes versions as pressed buttons and lets keyboard users select one', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+
+        const versions = await screen.findAllByRole('button', {
+            name: /Preview version from/i,
+        });
+        expect(versions).toHaveLength(2);
+        expect(versions[0]).toHaveAttribute('aria-pressed', 'true');
+        expect(versions[1]).toHaveAttribute('aria-pressed', 'false');
+
+        versions[1].focus();
+        await user.keyboard('{Enter}');
+
+        expect(versions[0]).toHaveAttribute('aria-pressed', 'false');
+        expect(versions[1]).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('shows a retryable error when the selected version cannot be loaded', async () => {
+        let previewAttempts = 0;
+        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+            if (method === 'GET' && url === '/saved/chart-uuid/history') {
+                return {
+                    history: [
+                        versionOf('current-version', '2026-09-10T10:00:00Z'),
+                        versionOf('older-version', '2026-09-01T10:00:00Z'),
+                    ],
+                };
+            }
+            if (
+                method === 'GET' &&
+                url.startsWith('/saved/chart-uuid/version/')
+            ) {
+                previewAttempts += 1;
+                if (previewAttempts === 1) {
+                    throw {
+                        error: {
+                            name: 'InternalServerError',
+                            message: 'Preview unavailable',
+                        },
+                    };
+                }
+                return {
+                    ...versionOf('current-version', '2026-09-10T10:00:00Z'),
+                    chart: versionChart,
+                };
+            }
+            return new Promise(() => {});
+        }) as typeof lightdashApi);
+
+        const user = userEvent.setup();
+        renderPanel();
+
+        expect(
+            await screen.findByText('Could not load this version.'),
+        ).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: 'Retry' }));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('preview-session')).toHaveTextContent(
+                'version-palette-uuid|region',
+            ),
+        );
+    });
+
+    it('shows a loading state while the selected version is loading', async () => {
+        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+            if (method === 'GET' && url === '/saved/chart-uuid/history') {
+                return {
+                    history: [
+                        versionOf('current-version', '2026-09-10T10:00:00Z'),
+                    ],
+                };
+            }
+            if (
+                method === 'GET' &&
+                url.startsWith('/saved/chart-uuid/version/')
+            ) {
+                return new Promise(() => {});
+            }
+            return new Promise(() => {});
+        }) as typeof lightdashApi);
+
+        renderPanel();
+
+        expect(await screen.findByText('Loading version...')).toBeVisible();
+    });
+
     it("shows the app's footer on a page and leaves it out of a modal", async () => {
         const { unmount } = renderPanel({ withSidebarFooter: true });
         expect(await screen.findAllByText(/Updated by:/)).toHaveLength(2);

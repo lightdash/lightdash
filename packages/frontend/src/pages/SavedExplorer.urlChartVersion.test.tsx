@@ -9,6 +9,21 @@ import SavedExplorer from './SavedExplorer';
 
 vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
 
+const featureFlagState = vi.hoisted(() => ({
+    inDashboardChartEditorEnabled: true,
+    isLoading: false,
+    handoverSearch: '',
+}));
+
+vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: featureFlagState.isLoading
+            ? undefined
+            : { enabled: featureFlagState.inDashboardChartEditorEnabled },
+        isLoading: featureFlagState.isLoading,
+    }),
+}));
+
 // The Explorer is out of scope; the probe reports what the session started on.
 vi.mock('../components/Explorer', async () => {
     const {
@@ -58,6 +73,27 @@ vi.mock('../components/Explorer', async () => {
                     }
                 >
                     write another param
+                </button>
+                <button
+                    type="button"
+                    onClick={() =>
+                        navigate(
+                            { search: featureFlagState.handoverSearch },
+                            { replace: true },
+                        )
+                    }
+                >
+                    restore handover param
+                </button>
+                <button
+                    type="button"
+                    onClick={() =>
+                        navigate(
+                            '/projects/9a0b7a3c-0000-4000-8000-000000000001/saved/other-chart/edit',
+                        )
+                    }
+                >
+                    open another chart
                 </button>
             </div>
         );
@@ -117,6 +153,14 @@ const savedChart = {
     dashboardName: null,
 } as unknown as SavedChart;
 
+const otherSavedChart = {
+    ...savedChart,
+    uuid: 'other-chart-uuid',
+    slug: 'other-chart',
+    name: 'Other chart',
+    metricQuery: { ...savedChart.metricQuery, limit: 750 },
+} as SavedChart;
+
 const urlChartVersion = {
     tableName: 'payments',
     metricQuery: { ...savedChart.metricQuery, limit: 25 },
@@ -124,9 +168,9 @@ const urlChartVersion = {
     tableConfig: savedChart.tableConfig,
 };
 
-const renderSavedExplorer = (search: string, mode: 'edit' | 'view') => {
+const savedExplorerRouter = (search: string, mode: 'edit' | 'view') => {
     const path = `/projects/${PROJECT_UUID}/saved/${savedChart.slug}/${mode}${search}`;
-    renderWithProviders(
+    return (
         <MemoryRouter initialEntries={[path]}>
             <Routes>
                 <Route
@@ -134,9 +178,12 @@ const renderSavedExplorer = (search: string, mode: 'edit' | 'view') => {
                     element={<SavedExplorer />}
                 />
             </Routes>
-        </MemoryRouter>,
+        </MemoryRouter>
     );
 };
+
+const renderSavedExplorer = (search: string, mode: 'edit' | 'view') =>
+    renderWithProviders(savedExplorerRouter(search, mode));
 
 const searchWithChartVersion = (payload: unknown) =>
     `?create_saved_chart_version=${encodeURIComponent(
@@ -145,7 +192,18 @@ const searchWithChartVersion = (payload: unknown) =>
 
 describe('SavedExplorer with an unsaved chart version in the url', () => {
     beforeEach(() => {
+        featureFlagState.inDashboardChartEditorEnabled = true;
+        featureFlagState.isLoading = false;
+        featureFlagState.handoverSearch =
+            searchWithChartVersion(urlChartVersion);
         vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+            if (
+                method === 'GET' &&
+                typeof url === 'string' &&
+                url.includes('/saved/other-chart')
+            ) {
+                return otherSavedChart;
+            }
             if (
                 method === 'GET' &&
                 typeof url === 'string' &&
@@ -165,6 +223,45 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
         );
     });
 
+    it('ignores the handed-over version when the dashboard editor flag is off', async () => {
+        featureFlagState.inDashboardChartEditorEnabled = false;
+        renderSavedExplorer(searchWithChartVersion(urlChartVersion), 'edit');
+
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent(
+                '500|false',
+            ),
+        );
+        expect(screen.getByTestId('search')).toHaveTextContent(
+            'create_saved_chart_version',
+        );
+    });
+
+    it('applies the handed-over version when the flag resolves after the chart', async () => {
+        featureFlagState.isLoading = true;
+        const view = renderSavedExplorer(
+            searchWithChartVersion(urlChartVersion),
+            'edit',
+        );
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent(
+                '500|false',
+            ),
+        );
+
+        featureFlagState.isLoading = false;
+        view.rerender(
+            savedExplorerRouter(
+                searchWithChartVersion(urlChartVersion),
+                'edit',
+            ),
+        );
+
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent('25|true'),
+        );
+    });
+
     it('ignores the param in view mode', async () => {
         renderSavedExplorer(searchWithChartVersion(urlChartVersion), 'view');
 
@@ -178,6 +275,25 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
     it('falls back to the saved chart when the param is malformed', async () => {
         renderSavedExplorer(
             '?create_saved_chart_version=not-json&fromDashboard=dashboard-uuid',
+            'edit',
+        );
+
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent(
+                '500|false',
+            ),
+        );
+    });
+
+    it('falls back to the saved chart when the version is for another explore', async () => {
+        renderSavedExplorer(
+            searchWithChartVersion({
+                ...urlChartVersion,
+                metricQuery: {
+                    ...urlChartVersion.metricQuery,
+                    exploreName: 'orders',
+                },
+            }),
             'edit',
         );
 
@@ -209,6 +325,22 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
         );
     });
 
+    it('does not carry a handed-over version into another chart session', async () => {
+        const user = userEvent.setup();
+        renderSavedExplorer(searchWithChartVersion(urlChartVersion), 'edit');
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent('25|true'),
+        );
+
+        await user.click(screen.getByText('open another chart'));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('session')).toHaveTextContent(
+                '750|false',
+            ),
+        );
+    });
+
     it('clears the param once applied and keeps the edits', async () => {
         renderSavedExplorer(searchWithChartVersion(urlChartVersion), 'edit');
 
@@ -223,6 +355,46 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
         );
         expect(screen.getByTestId('search')).toHaveTextContent(
             'fromDashboard=dashboard-uuid',
+        );
+        expect(screen.getByTestId('session')).toHaveTextContent('25|true');
+    });
+
+    it('retries cleanup if the handed-over param remains after initialization', async () => {
+        const user = userEvent.setup();
+        const view = renderSavedExplorer(
+            searchWithChartVersion(urlChartVersion),
+            'edit',
+        );
+        await waitFor(() =>
+            expect(screen.getByTestId('search')).not.toHaveTextContent(
+                'create_saved_chart_version',
+            ),
+        );
+
+        await user.click(screen.getByText('restore handover param'));
+        expect(screen.getByTestId('search')).toHaveTextContent(
+            'create_saved_chart_version',
+        );
+
+        featureFlagState.isLoading = true;
+        view.rerender(
+            savedExplorerRouter(
+                searchWithChartVersion(urlChartVersion),
+                'edit',
+            ),
+        );
+        featureFlagState.isLoading = false;
+        view.rerender(
+            savedExplorerRouter(
+                searchWithChartVersion(urlChartVersion),
+                'edit',
+            ),
+        );
+
+        await waitFor(() =>
+            expect(screen.getByTestId('search')).not.toHaveTextContent(
+                'create_saved_chart_version',
+            ),
         );
         expect(screen.getByTestId('session')).toHaveTextContent('25|true');
     });

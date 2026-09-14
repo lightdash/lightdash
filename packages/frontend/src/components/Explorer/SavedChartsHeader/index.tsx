@@ -86,6 +86,52 @@ const isChartPath = (
     return pathname.endsWith(chartPath) || pathname.includes(`${chartPath}/`);
 };
 
+type SavedChartNavigationBlockerArgs = {
+    currentPathname: string;
+    nextPathname: string;
+    hasUnsavedChanges: boolean;
+    isEditMode: boolean;
+    isSaveModalOpen: boolean;
+    isLeavingTrainingCopyRoute: boolean;
+    projectUrlIdentifier: string | undefined;
+    savedChartSlug: string | undefined;
+    savedChartUuid: string | undefined;
+    dashboardUuid: string | null;
+    dashboardIdentifier: string | null | undefined;
+};
+
+// eslint-disable-next-line react/only-export-components -- exported for focused blocker regression tests
+export const shouldBlockSavedChartNavigation = ({
+    currentPathname,
+    nextPathname,
+    hasUnsavedChanges,
+    isEditMode,
+    isSaveModalOpen,
+    isLeavingTrainingCopyRoute,
+    projectUrlIdentifier,
+    savedChartSlug,
+    savedChartUuid,
+    dashboardUuid,
+    dashboardIdentifier,
+}: SavedChartNavigationBlockerArgs): boolean => {
+    if (currentPathname === nextPathname) return false;
+
+    return (
+        hasUnsavedChanges &&
+        isEditMode &&
+        !isSaveModalOpen &&
+        !isLeavingTrainingCopyRoute &&
+        !isChartPath(nextPathname, projectUrlIdentifier, savedChartSlug) &&
+        !isChartPath(nextPathname, projectUrlIdentifier, savedChartUuid) &&
+        !nextPathname.includes(
+            `/projects/${projectUrlIdentifier}/dashboards/${dashboardUuid}`,
+        ) &&
+        !nextPathname.includes(
+            `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
+        )
+    );
+};
+
 const verifiedTourProps = {
     'data-tour-scope': 'manage:ContentVerification',
     'data-tour-step': '1',
@@ -176,33 +222,21 @@ const SavedChartsHeader: FC = () => {
     }, [hasUnsavedChanges, isEditMode]);
 
     // Block navigating away if there are unsaved changes
-    const blocker = useBlocker(({ nextLocation }) => {
-        if (
-            hasUnsavedChanges &&
-            isEditMode &&
-            !isSaveModalOpen &&
-            !isLeavingTrainingCopy(nextLocation) &&
-            !isChartPath(
-                nextLocation.pathname,
-                projectUrlIdentifier,
-                savedChart?.slug,
-            ) &&
-            !isChartPath(
-                nextLocation.pathname,
-                projectUrlIdentifier,
-                savedChart?.uuid,
-            ) &&
-            !nextLocation.pathname.includes(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardUuid}`,
-            ) &&
-            !nextLocation.pathname.includes(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
-            )
-        ) {
-            return true; //blocks navigation
-        }
-        return false; // allow navigation
-    });
+    const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+        shouldBlockSavedChartNavigation({
+            currentPathname: currentLocation.pathname,
+            nextPathname: nextLocation.pathname,
+            hasUnsavedChanges,
+            isEditMode,
+            isSaveModalOpen,
+            isLeavingTrainingCopyRoute: isLeavingTrainingCopy(nextLocation),
+            projectUrlIdentifier,
+            savedChartSlug: savedChart?.slug,
+            savedChartUuid: savedChart?.uuid,
+            dashboardUuid,
+            dashboardIdentifier,
+        }),
+    );
 
     const {
         canManageChart: userCanManageChart,

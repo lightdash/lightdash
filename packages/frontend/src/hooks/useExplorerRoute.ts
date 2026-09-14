@@ -119,11 +119,9 @@ export const getSavedChartEditUrlFromCreateSavedChartVersion = ({
     fromDashboardUuid: string | null;
 }): { pathname: string; search: string } => {
     const params = new URLSearchParams();
-    // The url is the only carrier of the session, so the series styling is
-    // kept whole: a trimmed version would be saved over the chart.
     params.set(
         'create_saved_chart_version',
-        stringifyCreateSavedChartVersion(createSavedChart, true),
+        stringifyCreateSavedChartVersion(createSavedChart),
     );
     if (fromDashboardUuid) {
         params.set('fromDashboard', fromDashboardUuid);

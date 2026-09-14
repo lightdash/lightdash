@@ -357,7 +357,7 @@ describe('getSavedChartEditUrlFromCreateSavedChartVersion', () => {
         expect(new URLSearchParams(search).get('isExploreFromHere')).toBeNull();
     });
 
-    it('keeps the series styling of a large chart, unlike the explore url', () => {
+    it('trims large chart styling like the explore URL', () => {
         const series = Array.from({ length: 20 }, (_, index) => ({
             encode: {
                 xRef: { field: 'payments_payment_method' },
@@ -385,8 +385,15 @@ describe('getSavedChartEditUrlFromCreateSavedChartVersion', () => {
             fromDashboardUuid: 'dashboard-1',
         });
 
-        expect(parseChartFromExplorerSearchParams(`?${search}`)).toEqual(
-            largeChart,
+        expect(parseChartFromExplorerSearchParams(`?${search}`)).toEqual({
+            ...largeChart,
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: { layout: {}, eChartsConfig: {} },
+            },
+        });
+        expect(new URLSearchParams(search).get('fromDashboard')).toBe(
+            'dashboard-1',
         );
     });
 });

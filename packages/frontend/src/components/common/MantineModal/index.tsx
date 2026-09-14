@@ -233,7 +233,12 @@ const useTopmostDialogEscape = (
     useEffect(() => {
         if (!enabled) return;
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape' || event.isComposing) return;
+            if (
+                event.key !== 'Escape' ||
+                event.isComposing ||
+                event.defaultPrevented
+            )
+                return;
             if (handledEscapeEvents.has(event)) return;
             const target = event.target as HTMLElement | null;
             if (
@@ -260,9 +265,10 @@ const useTopmostDialogEscape = (
             handledEscapeEvents.add(event);
             onEscape();
         };
-        window.addEventListener('keydown', onKeyDown, { capture: true });
-        return () =>
-            window.removeEventListener('keydown', onKeyDown, { capture: true });
+        // Run after the focused control, so an open child overlay can consume
+        // Escape before its host modal considers the same key press.
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
     }, [ref, enabled, onEscape]);
 };
 
@@ -335,13 +341,10 @@ const MantineModal: React.FC<MantineModalProps> = ({
     // Escape acts here only while this content is the topmost open dialog.
     // Hosts keep the per-case override (`modalRootProps.closeOnEscape`);
     // Mantine's own listener stays off, since it cannot tell layers apart.
-    const { closeOnEscape = true, ...rootProps } = modalRootProps ?? {};
+    const { closeOnEscape = !isAlertDialog, ...rootProps } =
+        modalRootProps ?? {};
     const contentRef = useRef<HTMLDivElement>(null);
-    useTopmostDialogEscape(
-        contentRef,
-        opened && !isAlertDialog && closeOnEscape,
-        handleClose,
-    );
+    useTopmostDialogEscape(contentRef, opened && closeOnEscape, handleClose);
     const confirmContentRef = useRef<HTMLDivElement>(null);
     useTopmostDialogEscape(
         confirmContentRef,
