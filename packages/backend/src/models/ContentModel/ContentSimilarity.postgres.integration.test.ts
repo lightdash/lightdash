@@ -154,7 +154,12 @@ describe('content similarity (PostgreSQL)', () => {
         ['Weekly revenue', 'Weekly customer churn'],
         ['Gross revenue', 'Net revenue'],
         ['Revenue', 'Revenue forecast customer churn acquisition'],
-        ['Monthly report', 'Monthly report'],
+        ['Monthly revenue', 'Weekly revenue'],
+        ['Revenue', 'Revenue by region'],
+        ['Revenue by region', 'Region revenue'],
+        ['MRR_USD', 'MRR USD'],
+        ['Revenue%', 'Revenue forecast'],
+        ['Revenue_', 'RevenueX'],
         ['!!!', '???'],
         ['Revenue', 'Avenue'],
         ['Customer retention', 'Customer acquisition'],
@@ -164,35 +169,32 @@ describe('content similarity (PostgreSQL)', () => {
     });
 
     it.each([
-        ['Weekly Revenue!', 'weekly revenue', 'same_name'],
-        ['Revenue by region', 'Region revenue', 'similar_name'],
-        ['Revenue', 'Revenue by region', 'similar_name'],
-        ['Monthly revenue', 'Weekly revenue', 'similar_name'],
-        ['Résumé des ventes', 'Résumé des ventes', 'same_name'],
-        ['Ré sumé ventes', 'Ré sumé ventes', 'same_name'],
-        ['Ｒｅｖｅｎｕｅ', 'Revenue', 'same_name'],
-        ['売上 月次', '売上 月次', 'same_name'],
-        ['MRR_USD', 'MRR USD', 'same_name'],
-        ['Revenue revenue region', 'Revenue region', 'similar_name'],
-    ])('explains %s compared with %s', async (name, candidate, reason) => {
-        const uuid = await add(candidate);
-        expect(await find(name)).toEqual([
-            expect.objectContaining({ uuid, matchReason: reason }),
-        ]);
-    });
+        ['Weekly Revenue', 'weekly revenue'],
+        ['Monthly report', 'Monthly report'],
+        ['Résumé des ventes', 'Résumé des ventes'],
+        ['Ｒｅｖｅｎｕｅ', 'Ｒｅｖｅｎｕｅ'],
+        ['売上 月次', '売上 月次'],
+        ['MRR_USD', 'mrr_usd'],
+        ['Revenue 100%', 'Revenue 100%'],
+        ['Revenue\\cost', 'Revenue\\cost'],
+    ])(
+        'matches full names without a word list: %s / %s',
+        async (name, candidate) => {
+            const uuid = await add(candidate);
+            expect(await find(name)).toEqual([
+                expect.objectContaining({ uuid, matchReason: 'same_name' }),
+            ]);
+        },
+    );
 
-    it('ranks an exact name ahead of variants and breaks ties deterministically', async () => {
-        const variant = await add('Revenue region');
-        const exact = await add('Revenue by region');
-        const other = await add('Revenue region country');
-        expect((await find('Revenue by region')).map((r) => r.uuid)).toEqual([
-            exact,
-            variant,
-            other,
-        ]);
-        expect((await find('Revenue by region', { limit: 1 }))[0].uuid).toBe(
-            exact,
+    it('orders equal-name matches deterministically before limiting', async () => {
+        const uuids = await Promise.all(
+            Array.from({ length: 3 }, () => add('Revenue')),
         );
+        expect((await find('Revenue')).map((r) => r.uuid)).toEqual(
+            uuids.sort(),
+        );
+        expect((await find('Revenue', { limit: 1 }))[0].uuid).toBe(uuids[0]);
     });
 
     it('filters inaccessible candidates before the limit', async () => {
@@ -201,7 +203,7 @@ describe('content similarity (PostgreSQL)', () => {
                 add('Revenue', { space: privateSpace }),
             ),
         );
-        const visible = await add('Revenue by region');
+        const visible = await add('Revenue');
         expect(
             (await find('Revenue', { limit: 1 })).map((r) => r.uuid),
         ).toEqual([visible]);

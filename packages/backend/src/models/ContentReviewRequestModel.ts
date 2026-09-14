@@ -21,10 +21,6 @@ import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
-import {
-    getSimilarityNameWords,
-    SIMILARITY_IGNORED_WORDS,
-} from './ContentModel/ContentSimilarity';
 
 type ContentReviewRequestModelArguments = {
     database: Knex;
@@ -139,7 +135,6 @@ type SimilarSource = {
     contentType: ContentReviewContentType;
     table: string;
     uuidColumn: string;
-    spaceJoinSql: string;
 };
 
 const SIMILAR_SOURCES: Record<
@@ -150,23 +145,32 @@ const SIMILAR_SOURCES: Record<
         contentType: ContentReviewContentType.CHART,
         table: SavedChartsTableName,
         uuidColumn: 'saved_query_uuid',
-        spaceJoinSql: `LEFT JOIN dashboards owner ON owner.dashboard_uuid = content.dashboard_uuid AND owner.deleted_at IS NULL
-            JOIN spaces ON spaces.space_id = COALESCE(content.space_id, owner.space_id)`,
     },
     sqlChart: {
         contentType: ContentReviewContentType.SQL_CHART,
         table: SavedSqlTableName,
         uuidColumn: 'saved_sql_uuid',
-        spaceJoinSql: `LEFT JOIN dashboards owner ON owner.dashboard_uuid = content.dashboard_uuid AND owner.deleted_at IS NULL
-            JOIN spaces ON spaces.space_uuid = content.space_uuid OR (content.space_uuid IS NULL AND spaces.space_id = owner.space_id)`,
     },
     dashboard: {
         contentType: ContentReviewContentType.DASHBOARD,
         table: DashboardsTableName,
         uuidColumn: 'dashboard_uuid',
-        spaceJoinSql: 'JOIN spaces ON spaces.space_id = content.space_id',
     },
 };
+
+type SimilarContentRow = Omit<
+    ContentReviewSimilarCandidate,
+    'contentType' | 'score' | 'matchReason'
+>;
+
+type SimilarContentScope = {
+    projectUuid: string;
+    excludeContentUuid: string | null;
+    accessibleSpaceUuids: string[];
+};
+
+const escapeLikeWildcards = (value: string): string =>
+    value.replace(/[%_\\]/g, '\\$&');
 
 export type ListContentReviewRequestsFilters = {
     projectUuid: string;
@@ -549,94 +553,114 @@ export class ContentReviewRequestModel {
         );
     }
 
-    // Require half the meaningful name words to overlap; a lone shared word
-    // only qualifies when one name has a single meaningful word.
+    private getSimilarityContentQuery(
+        source: SimilarSource,
+        {
+            projectUuid,
+            excludeContentUuid,
+            accessibleSpaceUuids,
+        }: SimilarContentScope,
+    ): Knex.QueryBuilder<SimilarContentRow, SimilarContentRow[]> {
+        return this.database
+            .from({ content: source.table })
+            .select<SimilarContentRow[]>({
+                uuid: `content.${source.uuidColumn}`,
+                name: 'content.name',
+                slug: 'content.slug',
+                spaceUuid: 'spaces.space_uuid',
+                spaceName: 'spaces.name',
+            })
+            .modify((query) => {
+                if (source.contentType === ContentReviewContentType.DASHBOARD) {
+                    void query.join(
+                        { spaces: SpaceTableName },
+                        'spaces.space_id',
+                        'content.space_id',
+                    );
+                    return;
+                }
+                const spaceKey =
+                    source.contentType === ContentReviewContentType.SQL_CHART
+                        ? 'space_uuid'
+                        : 'space_id';
+                void query
+                    .leftJoin({ owner: DashboardsTableName }, (join) => {
+                        join.on(
+                            'owner.dashboard_uuid',
+                            'content.dashboard_uuid',
+                        ).onNull('owner.deleted_at');
+                    })
+                    .join({ spaces: SpaceTableName }, (join) => {
+                        join.on(
+                            `spaces.${spaceKey}`,
+                            `content.${spaceKey}`,
+                        ).orOn(function dashboardSpace() {
+                            this.onNull(`content.${spaceKey}`).andOn(
+                                'spaces.space_id',
+                                'owner.space_id',
+                            );
+                        });
+                    });
+            })
+            .join(
+                { projects: ProjectTableName },
+                'projects.project_id',
+                'spaces.project_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .whereIn('spaces.space_uuid', accessibleSpaceUuids)
+            .where('spaces.is_default_user_space', false)
+            .whereNull('spaces.deleted_at')
+            .whereNull('content.deleted_at')
+            .modify((query) => {
+                if (excludeContentUuid !== null) {
+                    void query.whereNot(
+                        `content.${source.uuidColumn}`,
+                        excludeContentUuid,
+                    );
+                }
+            });
+    }
+
+    // Conservative fallback when AI is unavailable: case-insensitive full names.
     async findSimilarByName({
-        projectUuid,
         contentType,
         name,
-        excludeContentUuid,
-        accessibleSpaceUuids,
         limit,
-    }: {
-        projectUuid: string;
+        ...scope
+    }: SimilarContentScope & {
         contentType: ContentReviewContentType;
         name: string;
-        excludeContentUuid: string | null;
-        accessibleSpaceUuids: string[];
         limit: number;
     }): Promise<ContentReviewSimilarCandidate[]> {
-        const words = getSimilarityNameWords(name);
-        if (words.length === 0 || accessibleSpaceUuids.length === 0) return [];
+        if (name.trim().length === 0 || scope.accessibleSpaceUuids.length === 0)
+            return [];
         const sources =
             contentType === ContentReviewContentType.DASHBOARD
                 ? [SIMILAR_SOURCES.dashboard]
                 : [SIMILAR_SOURCES.chart, SIMILAR_SOURCES.sqlChart];
         const results = await Promise.all(
             sources.map(async (source) => {
-                const { table, uuidColumn } = source;
-                const rows = await this.database.raw<{
-                    rows: ContentReviewSimilarCandidate[];
-                }>(
-                    `
-                WITH candidates AS (
-                    SELECT content.?? AS uuid, content.name, content.slug,
-                        spaces.space_uuid AS "spaceUuid", spaces.name AS "spaceName",
-                        trim(regexp_replace(lower(normalize(content.name, NFKC)), '[^[:alnum:]]+', ' ', 'g')) AS normalized,
-                        ARRAY(SELECT DISTINCT word
-                            FROM unnest(regexp_split_to_array(lower(normalize(content.name, NFKC)), '[^[:alnum:]]+')) AS word
-                            WHERE length(word) > 1 AND NOT (word = ANY(?::text[]))) AS words
-                    FROM ?? AS content
-                    ${source.spaceJoinSql}
-                    JOIN projects ON projects.project_id = spaces.project_id
-                    WHERE projects.project_uuid = ?
-                        AND spaces.space_uuid = ANY(?::uuid[])
-                        AND NOT spaces.is_default_user_space
-                        AND spaces.deleted_at IS NULL AND content.deleted_at IS NULL
-                        AND (?::uuid IS NULL OR content.?? <> ?::uuid)
-                ), overlap AS (
-                    SELECT *, cardinality(ARRAY(SELECT unnest(words) INTERSECT SELECT unnest(?::text[]))) AS shared
-                    FROM candidates
-                ), ranked AS (
-                    SELECT *, shared::float / NULLIF(cardinality(words) + ? - shared, 0) AS similarity
-                    FROM overlap
-                )
-                SELECT uuid, name, slug, "spaceUuid", "spaceName", ? AS "contentType",
-                    CASE WHEN normalized = trim(regexp_replace(lower(normalize(?::text, NFKC)), '[^[:alnum:]]+', ' ', 'g'))
-                        THEN 100 ELSE 50 + 40 * similarity END AS score,
-                    CASE WHEN normalized = trim(regexp_replace(lower(normalize(?::text, NFKC)), '[^[:alnum:]]+', ' ', 'g'))
-                        THEN 'same_name' ELSE 'similar_name' END AS "matchReason"
-                FROM ranked
-                WHERE similarity >= 0.5 AND (shared >= 2 OR (LEAST(cardinality(words), ?) = 1 AND shared = 1))
-                ORDER BY score DESC, name ASC, uuid ASC
-                LIMIT ?
-            `,
-                    [
-                        uuidColumn,
-                        SIMILARITY_IGNORED_WORDS,
-                        table,
-                        projectUuid,
-                        accessibleSpaceUuids,
-                        excludeContentUuid,
-                        uuidColumn,
-                        excludeContentUuid,
-                        words,
-                        words.length,
-                        source.contentType,
-                        name,
-                        name,
-                        words.length,
-                        limit,
-                    ],
-                );
-                return rows.rows;
+                const rows = await this.getSimilarityContentQuery(source, scope)
+                    .whereILike(
+                        'content.name',
+                        escapeLikeWildcards(name.trim()),
+                    )
+                    .orderBy('content.name')
+                    .orderBy(`content.${source.uuidColumn}`)
+                    .limit(limit);
+                return rows.map((row) => ({
+                    ...row,
+                    contentType: source.contentType,
+                    score: 100,
+                    matchReason: 'same_name' as const,
+                }));
             }),
         );
         return results
             .flat()
             .sort(
                 (a, b) =>
-                    b.score - a.score ||
                     a.name.localeCompare(b.name) ||
                     a.uuid.localeCompare(b.uuid),
             )
