@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "2.203.0",
-  "previousVersion": "2.202.0",
-  "releaseDate": "2026-09-11T17:14:56.465Z",
+  "version": "2.204.0",
+  "previousVersion": "2.203.0",
+  "releaseDate": "2026-09-14T09:55:45.967Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260914100000_add_dashboard_slug_mappings.ts",
+        "edition": "core",
+        "tables": [
+          "dashboard_slug_mappings",
+          "dashboards",
+          "projects"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

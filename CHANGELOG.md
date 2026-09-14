@@ -1,3 +1,10 @@
+# [2.204.0](https://github.com/lightdash/lightdash/compare/2.203.0...2.204.0) (2026-09-14)
+
+
+### Features
+
+* add dashboard slug history table ([#29123](https://github.com/lightdash/lightdash/issues/29123)) ([e74e031](https://github.com/lightdash/lightdash/commit/e74e03103de336290eac5525de2e21f363d9ff65)), closes [#29124](https://github.com/lightdash/lightdash/issues/29124) [#14578](https://github.com/lightdash/lightdash/issues/14578) [#29091](https://github.com/lightdash/lightdash/issues/29091)
+
 # [2.203.0](https://github.com/lightdash/lightdash/compare/2.202.0...2.203.0) (2026-09-11)
 
 
