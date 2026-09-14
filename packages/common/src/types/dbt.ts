@@ -300,6 +300,9 @@ export type DbtColumnLightdashDimension = {
     /** Declares whether the column stores an instant ('aware') or a bare wall
      *  clock ('naive'); overrides the warehouse catalog. */
     timestamp_domain?: TimestampDomain;
+    /** IANA zone the column's stored wall clock is in, when it differs from
+     *  the connection default. Implies the column is naive. */
+    wall_clock_timezone?: string;
     hidden?: boolean;
     // @deprecated Use format expression instead
     round?: number;
