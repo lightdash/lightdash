@@ -1,6 +1,6 @@
 import * as mcpSdk from '@ai-sdk/mcp';
 import type { MCPClient } from '@ai-sdk/mcp';
-import { jsonSchema } from 'ai';
+import { asSchema, jsonSchema } from 'ai';
 import dns from 'node:dns';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AiAgentModel, AiMcpCredential } from '../../models/AiAgentModel';
@@ -111,6 +111,24 @@ describe('hardenMcpToolDefinition', () => {
             value: expect.arrayContaining([
                 expect.objectContaining({ type: 'image-data' }),
             ]),
+        });
+    });
+
+    it('keeps the hardened input schema recognizable by the AI SDK', () => {
+        // MCP clients build inputSchema via jsonSchema() without a validate
+        // function; hardening must preserve the wrapper's Schema contract or
+        // asSchema() treats it as a lazy-schema function and throws.
+        const hardened = hardenMcpToolDefinition({
+            inputSchema: jsonSchema({
+                type: 'object',
+                properties: { query: { type: 'string' } },
+            }),
+        } as never);
+
+        const schema = asSchema(hardened.inputSchema as never);
+        expect(schema.jsonSchema).toMatchObject({
+            type: 'object',
+            properties: { query: { type: 'string' } },
         });
     });
 

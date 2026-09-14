@@ -68,8 +68,6 @@ const DatasetHeader: FC<{
         {onRemove && (
             <ActionIcon
                 className={styles.remove}
-                variant="subtle"
-                color="gray"
                 size="sm"
                 aria-label="Remove combined data"
                 onClick={onRemove}

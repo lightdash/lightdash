@@ -54,8 +54,6 @@ export const ReviewWorkspaceSummary: FC<Props> = ({
                 to={workspaceUrl}
                 onClick={onNavigate}
                 size="xs"
-                color="dark"
-                radius="md"
                 fullWidth
                 leftSection={<MantineIcon icon={IconLayoutColumns} size={14} />}
             >

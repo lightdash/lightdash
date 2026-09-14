@@ -15,6 +15,7 @@ import {
     FilterOperator,
     FilterType,
     isFilterRule,
+    UnitOfTime,
     type BaseFilterRule,
     type DateFilterSettings,
 } from '../types/filter';
@@ -27,61 +28,84 @@ import {
     getLocalTimeDisplay,
     isMomentInput,
 } from './formatting';
+import {
+    DEFAULT_UI_STRINGS,
+    type UiStringKey,
+    type UiStringResolver,
+} from './i18n/uiStrings';
 
-const NULL_VALUE_LABEL = '(null)';
+const resolveUiString = (
+    key: UiStringKey,
+    getUiString?: UiStringResolver,
+): string => (getUiString ? getUiString(key) : DEFAULT_UI_STRINGS[key]);
 
-export const filterOperatorLabel: Record<FilterOperator, string> = {
-    [FilterOperator.NULL]: 'is null',
-    [FilterOperator.NOT_NULL]: 'is not null',
-    [FilterOperator.EQUALS]: 'is',
-    [FilterOperator.NOT_EQUALS]: 'is not',
-    [FilterOperator.STARTS_WITH]: 'starts with',
-    [FilterOperator.ENDS_WITH]: 'ends with',
-    [FilterOperator.NOT_INCLUDE]: 'does not include',
-    [FilterOperator.INCLUDE]: 'includes',
-    [FilterOperator.LESS_THAN]: 'is less than',
-    [FilterOperator.LESS_THAN_OR_EQUAL]: 'is less than or equal',
-    [FilterOperator.GREATER_THAN]: 'is greater than',
-    [FilterOperator.GREATER_THAN_OR_EQUAL]: 'is greater than or equal',
-    [FilterOperator.IN_THE_PAST]: 'in the last',
-    [FilterOperator.NOT_IN_THE_PAST]: 'not in the last',
-    [FilterOperator.IN_THE_NEXT]: 'in the next',
-    [FilterOperator.IN_THE_CURRENT]: 'in the current',
-    [FilterOperator.NOT_IN_THE_CURRENT]: 'not in the current',
-    [FilterOperator.IN_BETWEEN]: 'is between',
-    [FilterOperator.NOT_IN_BETWEEN]: 'is not between',
-    [FilterOperator.IN_PERIOD_TO_DATE]: 'in all',
-};
+export const filterOperatorLabel: Record<FilterOperator, string> =
+    Object.fromEntries(
+        Object.values(FilterOperator).map((operator) => [
+            operator,
+            DEFAULT_UI_STRINGS[`filters.operators.${operator}`],
+        ]),
+    ) as Record<FilterOperator, string>;
 
 export const getFilterOptions = <T extends FilterOperator>(
     operators: Array<T>,
+    getUiString?: UiStringResolver,
 ): Array<{ value: T; label: string }> =>
     operators.map((operator) => ({
         value: operator,
-        label: filterOperatorLabel[operator],
+        label: resolveUiString(`filters.operators.${operator}`, getUiString),
     }));
 
-const timeFilterOptions: Array<{
+const getTimeFilterOptions = (
+    getUiString?: UiStringResolver,
+): Array<{
     value: FilterOperator;
     label: string;
-}> = [
-    ...getFilterOptions([
-        FilterOperator.NULL,
-        FilterOperator.NOT_NULL,
-        FilterOperator.EQUALS,
-        FilterOperator.NOT_EQUALS,
-        FilterOperator.IN_THE_PAST,
-        FilterOperator.NOT_IN_THE_PAST,
-        FilterOperator.IN_THE_NEXT,
-        FilterOperator.IN_THE_CURRENT,
-        FilterOperator.NOT_IN_THE_CURRENT,
-    ]),
-    { value: FilterOperator.LESS_THAN, label: 'is before' },
-    { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
-    { value: FilterOperator.GREATER_THAN, label: 'is after' },
-    { value: FilterOperator.GREATER_THAN_OR_EQUAL, label: 'is on or after' },
-    { value: FilterOperator.IN_BETWEEN, label: 'is between' },
-    ...getFilterOptions([FilterOperator.IN_PERIOD_TO_DATE]),
+}> => [
+    ...getFilterOptions(
+        [
+            FilterOperator.NULL,
+            FilterOperator.NOT_NULL,
+            FilterOperator.EQUALS,
+            FilterOperator.NOT_EQUALS,
+            FilterOperator.IN_THE_PAST,
+            FilterOperator.NOT_IN_THE_PAST,
+            FilterOperator.IN_THE_NEXT,
+            FilterOperator.IN_THE_CURRENT,
+            FilterOperator.NOT_IN_THE_CURRENT,
+        ],
+        getUiString,
+    ),
+    {
+        value: FilterOperator.LESS_THAN,
+        label: resolveUiString('filters.dateOperators.lessThan', getUiString),
+    },
+    {
+        value: FilterOperator.LESS_THAN_OR_EQUAL,
+        label: resolveUiString(
+            'filters.dateOperators.lessThanOrEqual',
+            getUiString,
+        ),
+    },
+    {
+        value: FilterOperator.GREATER_THAN,
+        label: resolveUiString(
+            'filters.dateOperators.greaterThan',
+            getUiString,
+        ),
+    },
+    {
+        value: FilterOperator.GREATER_THAN_OR_EQUAL,
+        label: resolveUiString(
+            'filters.dateOperators.greaterThanOrEqual',
+            getUiString,
+        ),
+    },
+    {
+        value: FilterOperator.IN_BETWEEN,
+        label: resolveUiString('filters.dateOperators.inBetween', getUiString),
+    },
+    ...getFilterOptions([FilterOperator.IN_PERIOD_TO_DATE], getUiString),
 ];
 
 const supportsToDateOperators = (
@@ -100,45 +124,55 @@ const supportsToDateOperators = (
 export const getFilterOperatorOptions = (
     filterType: FilterType,
     field?: FilterableField,
+    getUiString?: UiStringResolver,
 ): Array<{ value: FilterOperator; label: string }> => {
     switch (filterType) {
         case FilterType.STRING:
-            return getFilterOptions([
-                FilterOperator.NULL,
-                FilterOperator.NOT_NULL,
-                FilterOperator.EQUALS,
-                FilterOperator.NOT_EQUALS,
-                FilterOperator.STARTS_WITH,
-                FilterOperator.ENDS_WITH,
-                FilterOperator.INCLUDE,
-                FilterOperator.NOT_INCLUDE,
-            ]);
+            return getFilterOptions(
+                [
+                    FilterOperator.NULL,
+                    FilterOperator.NOT_NULL,
+                    FilterOperator.EQUALS,
+                    FilterOperator.NOT_EQUALS,
+                    FilterOperator.STARTS_WITH,
+                    FilterOperator.ENDS_WITH,
+                    FilterOperator.INCLUDE,
+                    FilterOperator.NOT_INCLUDE,
+                ],
+                getUiString,
+            );
         case FilterType.NUMBER:
-            return getFilterOptions([
-                FilterOperator.NULL,
-                FilterOperator.NOT_NULL,
-                FilterOperator.EQUALS,
-                FilterOperator.NOT_EQUALS,
-                FilterOperator.LESS_THAN,
-                FilterOperator.LESS_THAN_OR_EQUAL,
-                FilterOperator.GREATER_THAN,
-                FilterOperator.GREATER_THAN_OR_EQUAL,
-                FilterOperator.IN_BETWEEN,
-                FilterOperator.NOT_IN_BETWEEN,
-            ]);
+            return getFilterOptions(
+                [
+                    FilterOperator.NULL,
+                    FilterOperator.NOT_NULL,
+                    FilterOperator.EQUALS,
+                    FilterOperator.NOT_EQUALS,
+                    FilterOperator.LESS_THAN,
+                    FilterOperator.LESS_THAN_OR_EQUAL,
+                    FilterOperator.GREATER_THAN,
+                    FilterOperator.GREATER_THAN_OR_EQUAL,
+                    FilterOperator.IN_BETWEEN,
+                    FilterOperator.NOT_IN_BETWEEN,
+                ],
+                getUiString,
+            );
         case FilterType.DATE:
             return supportsToDateOperators(field)
-                ? timeFilterOptions
-                : timeFilterOptions.filter(
+                ? getTimeFilterOptions(getUiString)
+                : getTimeFilterOptions(getUiString).filter(
                       ({ value }) => value !== FilterOperator.IN_PERIOD_TO_DATE,
                   );
         case FilterType.BOOLEAN:
-            return getFilterOptions([
-                FilterOperator.NULL,
-                FilterOperator.NOT_NULL,
-                FilterOperator.EQUALS,
-                FilterOperator.NOT_EQUALS,
-            ]);
+            return getFilterOptions(
+                [
+                    FilterOperator.NULL,
+                    FilterOperator.NOT_NULL,
+                    FilterOperator.EQUALS,
+                    FilterOperator.NOT_EQUALS,
+                ],
+                getUiString,
+            );
         default:
             return assertUnreachable(
                 filterType,
@@ -151,6 +185,7 @@ const getValueAsString = (
     filterType: FilterType,
     rule: BaseFilterRule,
     field?: Field | TableCalculation | CustomSqlDimension,
+    getUiString?: UiStringResolver,
 ): string | undefined => {
     const { operator, values } = rule;
     const firstValue = values?.[0];
@@ -177,15 +212,26 @@ const getValueAsString = (
                         operator === FilterOperator.EQUALS &&
                         rule.includeNull
                     ) {
-                        return joined
-                            ? `${joined}, ${NULL_VALUE_LABEL}`
-                            : NULL_VALUE_LABEL;
+                        const nullLabel = resolveUiString(
+                            'filters.nullValue',
+                            getUiString,
+                        );
+                        return joined ? `${joined}, ${nullLabel}` : nullLabel;
                     }
                     return joined;
                 }
             }
         case FilterType.BOOLEAN:
-            return values?.map(formatBoolean).join(', ');
+            return values
+                ?.map((value) =>
+                    resolveUiString(
+                        formatBoolean(value) === 'True'
+                            ? 'filters.values.true'
+                            : 'filters.values.false',
+                        getUiString,
+                    ),
+                )
+                .join(', ');
         case FilterType.DATE:
             switch (operator) {
                 case FilterOperator.IN_THE_PAST:
@@ -195,11 +241,22 @@ const getValueAsString = (
                     const settings = rule.settings as
                         | DateFilterSettings
                         | undefined;
-                    return `${firstValue} ${
-                        settings?.completed ? 'completed ' : ''
-                    }${settings?.unitOfTime}`;
+                    // A missing unit of time falls back to days, matching the
+                    // in-the-current branch below
+                    return `${firstValue} ${resolveUiString(
+                        `filters.unitsOfTime.${
+                            settings?.unitOfTime ?? UnitOfTime.days
+                        }.${
+                            settings?.completed ? 'completedPlural' : 'plural'
+                        }`,
+                        getUiString,
+                    )}`;
                 }
-                case FilterOperator.IN_BETWEEN:
+                case FilterOperator.IN_BETWEEN: {
+                    const joiner = resolveUiString(
+                        'filters.betweenJoiner',
+                        getUiString,
+                    );
                     if (
                         isDimension(field) &&
                         isMomentInput(firstValue) &&
@@ -209,7 +266,7 @@ const getValueAsString = (
                         return `${formatDate(
                             firstValue as MomentInput,
                             field.timeInterval,
-                        )} and ${formatDate(
+                        )} ${joiner} ${formatDate(
                             secondValue as MomentInput,
                             field.timeInterval,
                         )}`;
@@ -217,14 +274,22 @@ const getValueAsString = (
                     return `${getLocalTimeDisplay(
                         firstValue as MomentInput,
                         false,
-                    )} and ${getLocalTimeDisplay(secondValue as MomentInput)}`;
+                    )} ${joiner} ${getLocalTimeDisplay(
+                        secondValue as MomentInput,
+                    )}`;
+                }
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT: {
                     if (!isFilterRule(rule)) throw new Error('Invalid rule');
                     const settings = rule.settings as
                         | DateFilterSettings
                         | undefined;
-                    return settings?.unitOfTime?.slice(0, -1) ?? 'day';
+                    return resolveUiString(
+                        `filters.unitsOfTime.${
+                            settings?.unitOfTime ?? UnitOfTime.days
+                        }.singular`,
+                        getUiString,
+                    );
                 }
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
@@ -266,16 +331,15 @@ const getValueAsString = (
                     const settings = rule.settings as
                         | DateFilterSettings
                         | undefined;
-                    let periodLabel = 'period';
-                    if (settings?.unitOfTime === 'years') periodLabel = 'year';
-                    if (settings?.unitOfTime === 'quarters') {
-                        periodLabel = 'quarter';
-                    }
-                    if (settings?.unitOfTime === 'months') {
-                        periodLabel = 'month';
-                    }
-                    if (settings?.unitOfTime === 'weeks') periodLabel = 'week';
-                    return `${periodLabel} to date`;
+                    const unitOfTime = settings?.unitOfTime;
+                    const periodKey =
+                        unitOfTime === UnitOfTime.years ||
+                        unitOfTime === UnitOfTime.quarters ||
+                        unitOfTime === UnitOfTime.months ||
+                        unitOfTime === UnitOfTime.weeks
+                            ? (`filters.periodToDate.${unitOfTime}` as const)
+                            : ('filters.periodToDate.fallback' as const);
+                    return resolveUiString(periodKey, getUiString);
                 }
                 case FilterOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
@@ -297,32 +361,36 @@ export const getConditionalRuleLabel = (
     rule: BaseFilterRule,
     filterType: FilterType,
     label: string,
+    getUiString?: UiStringResolver,
 ): ConditionalRuleLabel => {
     const operationLabel =
-        getFilterOperatorOptions(filterType).find(
+        getFilterOperatorOptions(filterType, undefined, getUiString).find(
             ({ value }) => value === rule.operator,
-        )?.label ?? filterOperatorLabel[rule.operator];
+        )?.label ??
+        resolveUiString(`filters.operators.${rule.operator}`, getUiString);
 
     return {
         field: label,
         operator: operationLabel,
-        value: getValueAsString(filterType, rule),
+        value: getValueAsString(filterType, rule, undefined, getUiString),
     };
 };
 
 export const getConditionalRuleLabelFromItem = (
     rule: BaseFilterRule,
     item: FilterableItem,
+    getUiString?: UiStringResolver,
 ): ConditionalRuleLabel => {
     const filterType = getFilterTypeFromItem(item);
     const operationLabel =
-        getFilterOperatorOptions(filterType).find(
+        getFilterOperatorOptions(filterType, undefined, getUiString).find(
             ({ value }) => value === rule.operator,
-        )?.label ?? filterOperatorLabel[rule.operator];
+        )?.label ??
+        resolveUiString(`filters.operators.${rule.operator}`, getUiString);
 
     return {
         field: isField(item) ? item.label : item.name,
         operator: operationLabel,
-        value: getValueAsString(filterType, rule, item),
+        value: getValueAsString(filterType, rule, item, getUiString),
     };
 };

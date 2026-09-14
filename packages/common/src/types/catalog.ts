@@ -337,6 +337,7 @@ export type CatalogAnalytics = {
     charts: (Pick<
         ChartSummary,
         | 'uuid'
+        | 'slug'
         | 'name'
         | 'description'
         | 'spaceUuid'

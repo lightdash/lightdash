@@ -23,14 +23,14 @@ export const SeriesDrawOrderBar: FC<SeriesDrawOrderBarProps> = ({
     onReverse,
 }) => (
     <Group className={styles.orderBar} px="xs" py="two" wrap="nowrap">
-        <MantineIcon icon={IconStack2} color="ldGray.6" />
+        <MantineIcon icon={IconStack2} color="dimmed" />
         <Text size="xs" c="dimmed">
             Draw order{' '}
-            <Text span inherit fw={600} c="ldGray.9">
+            <Text span inherit fw={600}>
                 Back
             </Text>
             {' → '}
-            <Text span inherit fw={600} c="ldGray.9">
+            <Text span inherit fw={600}>
                 Front
             </Text>
         </Text>
@@ -39,7 +39,6 @@ export const SeriesDrawOrderBar: FC<SeriesDrawOrderBarProps> = ({
                 label="Flip the order of every series"
                 position="top"
                 openDelay={300}
-                withinPortal
             >
                 <Button
                     ml="auto"
@@ -66,20 +65,11 @@ export const SeriesDepthControl: FC<SeriesDepthControlProps> = ({
 }) => (
     <Group className={styles.depthSlot} justify="flex-end" wrap="nowrap">
         {control.isFront ? (
-            <Badge size="xs" radius="sm" variant="light">
-                Front
-            </Badge>
+            <Badge size="xs">Front</Badge>
         ) : (
-            <Tooltip
-                label="Bring to front"
-                position="top"
-                openDelay={300}
-                withinPortal
-            >
+            <Tooltip label="Bring to front" position="top" openDelay={300}>
                 <ActionIcon
                     className={styles.frontAction}
-                    variant="subtle"
-                    color="gray"
                     size="sm"
                     aria-label="Bring to front"
                     onClick={control.onBringToFront}

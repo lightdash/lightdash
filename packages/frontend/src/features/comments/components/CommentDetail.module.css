@@ -1,3 +1,9 @@
 .commentText {
     word-break: break-word;
 }
+
+/* The actions show on hover; they also show while a walkthrough points at
+   one of them, so the learner can see what the ring is on. */
+.actions:has([data-tour-active]) {
+    opacity: 1 !important;
+}

@@ -6,7 +6,11 @@ import {
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { getPermissionsFromAbilityRules } from './abilityPermissions';
-import { type MemberAbility } from './types';
+import {
+    INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+    VIEWER_EMBED_SUBJECTS,
+    type MemberAbility,
+} from './types';
 
 const applyOrganizationMemberDynamicAbilities = ({
     role,
@@ -41,6 +45,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.member(member, { can });
+        VIEWER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                organizationUuid: member.organizationUuid,
+            });
+        });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -102,6 +111,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.viewer(member, { can });
+        INTERACTIVE_VIEWER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                organizationUuid: member.organizationUuid,
+            });
+        });
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
         can('view', 'UnderlyingData', {
@@ -278,6 +292,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'MetricsTree', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'ExternalSource', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'OrganizationWarehouseCredentials', {
             organizationUuid: member.organizationUuid,
         });
@@ -418,6 +435,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'ContentVerification', {
             organizationUuid: member.organizationUuid,
         });
+        // Paired with manage:ContentVerification: anyone who can unverify
+        // content can already bypass the edit lock, so grant it outright.
+        can('manage', 'VerifiedContent', {
+            organizationUuid: member.organizationUuid,
+        });
         can('create', 'AiDeepResearch', {
             organizationUuid: member.organizationUuid,
         });
@@ -426,6 +448,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         applyOrganizationMemberStaticAbilities.developer(member, { can });
 
         can('view', 'Roadmap', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Roadmap', {
             organizationUuid: member.organizationUuid,
         });
 

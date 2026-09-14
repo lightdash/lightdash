@@ -1,4 +1,5 @@
 import {
+    isApiError,
     type AiAgentAdminEvalFilters,
     type AiAgentAdminFilters,
     type AiAgentAdminMemoryFilters,
@@ -358,6 +359,35 @@ export const useDownloadAiAgentAdminThreadDump = () => {
     });
 };
 
+const deleteAiAgentAdminThread = async (threadUuid: string) =>
+    lightdashApi<undefined>({
+        version: 'v1',
+        url: `/aiAgents/admin/threads/${threadUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentAdminThread = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<undefined, ApiError, string>({
+        mutationFn: deleteAiAgentAdminThread,
+        onSuccess: () => {
+            showToastSuccess({ title: 'Thread deleted' });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-threads'],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to delete thread',
+                apiError: error,
+            });
+        },
+    });
+};
+
 export const useCreateAiAgentReviewItem = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -648,7 +678,9 @@ export const useAiAgentReviewItemByPreviewThread = (
             try {
                 return await getAiAgentReviewItemByPreviewThread(threadUuid!);
             } catch (error) {
-                if ((error as ApiError).error?.statusCode === 404) return null;
+                if (isApiError(error) && error.error.statusCode === 404) {
+                    return null;
+                }
                 throw error;
             }
         },

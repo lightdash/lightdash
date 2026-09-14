@@ -257,6 +257,47 @@ describe('getPivotedResults', () => {
         );
     });
 
+    it('treats a malicious metric name as an identifier instead of executing it', async () => {
+        const rows = [
+            { region: 'US', quarter: 'Q1', revenue: 100 },
+            { region: 'US', quarter: 'Q2', revenue: 200 },
+        ];
+        const fieldsMap = { region: {}, quarter: {}, revenue: {} };
+        const maliciousMetric =
+            "revenue) FROM results_data; SELECT read_text('/etc/hosts') --";
+
+        await expect(
+            getPivotedResults(
+                rows,
+                fieldsMap,
+                ['quarter'],
+                [maliciousMetric],
+                [],
+            ),
+        ).rejects.toThrow();
+    });
+
+    it('quotes group-by and sort identifiers so odd column names still pivot', async () => {
+        const oddId = 'region "x" (raw)';
+        const rows = [
+            { [oddId]: 'US', quarter: 'Q1', revenue: 100 },
+            { [oddId]: 'US', quarter: 'Q2', revenue: 200 },
+            { [oddId]: 'EU', quarter: 'Q1', revenue: 150 },
+        ];
+        const fieldsMap = { [oddId]: {}, quarter: {}, revenue: {} };
+
+        const result = await getPivotedResults(
+            rows,
+            fieldsMap,
+            ['quarter'],
+            ['revenue'],
+            [{ fieldId: oddId, descending: true }],
+        );
+
+        expect(result.results).toHaveLength(2);
+        expect(result.results.map((row) => row[oddId])).toEqual(['US', 'EU']);
+    });
+
     it('should apply nulls first/last on sorted group-by columns', async () => {
         const rows = [
             { region: 'US', quarter: 'Q1', revenue: 100 },

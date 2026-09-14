@@ -6,6 +6,7 @@ import {
     FieldType,
     friendlyName,
     MetricType,
+    type CompiledDimension,
 } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
@@ -84,6 +85,20 @@ import {
 
 const compiler = new ExploreCompiler(warehouseClientMock);
 
+describe('custom model metadata', () => {
+    test.each([undefined, {}])(
+        'omits absent or empty custom metadata (%j)',
+        (customMeta) => {
+            const compiled = compiler.compileExplore({
+                ...exploreOneEmptyTable,
+                customMeta,
+            });
+
+            expect(compiled).not.toHaveProperty('customMeta');
+        },
+    );
+});
+
 test('Should throw when required/default filters reference a hidden dimension', () => {
     const exploreWithHiddenRequiredFilter = createExploreWithRequiredFilters([
         {
@@ -148,6 +163,57 @@ test('Should throw error when missing base table', () => {
     expect(() => compiler.compileExplore(exploreMissingBaseTable)).toThrowError(
         CompileError,
     );
+});
+
+test('Missing joins explain model selection and identify the alias', () => {
+    const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+        allowPartialCompilation: true,
+    });
+    const result = partialCompiler.compileExplore({
+        ...exploreMissingJoinTable,
+        joinedTables: [{ table: 'b', alias: 'account', sqlOn: '' }],
+    });
+
+    expect(result.joinedTables).toEqual([]);
+    expect(result.warnings).toEqual([
+        {
+            type: InlineErrorType.MISSING_TABLE,
+            message:
+                'Join "account" to table "b" was skipped because the model is not available in this Lightdash project. Check that the model exists, is included by the project\'s tags/selector, and compiles successfully, then refresh the project.',
+        },
+    ]);
+});
+
+test('Dependent joins point to the skipped alias and its unavailable model', () => {
+    const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+        allowPartialCompilation: true,
+    });
+    const result = partialCompiler.compileExplore({
+        ...simpleJoinedExplore,
+        joinedTables: [
+            {
+                table: 'accounts',
+                alias: 'account',
+                sqlOn: '${a.dim1} = ${account.dim1}',
+            },
+            {
+                table: 'b',
+                alias: 'details',
+                sqlOn: '${account.dim1} = ${details.dim1}',
+            },
+        ],
+    });
+
+    expect(result.joinedTables).toEqual([]);
+    expect(Object.keys(result.tables)).toEqual(['a']);
+    expect(result.warnings).toEqual([
+        expect.objectContaining({ type: InlineErrorType.MISSING_TABLE }),
+        {
+            type: InlineErrorType.SKIPPED_JOIN,
+            message:
+                'Join "details" was skipped because it depends on skipped join "account" (table "accounts"). Resolve the missing-table warning for that join, then refresh the project.',
+        },
+    ]);
 });
 
 test('Should throw error when missing joined table', () => {
@@ -621,6 +687,18 @@ describe('Parse dimension reference', () => {
             { refName: 'TABLE', refTable: 'table' },
         ]);
     });
+    test('should keep the first segment as the table and the rest as a nested field name', () => {
+        expect(
+            parseAllReferences('${orders.customer.address.city}', 'table'),
+        ).toStrictEqual([
+            { refName: 'customer.address.city', refTable: 'orders' },
+        ]);
+        // Two segments keep today's meaning: a nested field on the current
+        // table needs its table prefix.
+        expect(parseAllReferences('${customer.city}', 'orders')).toStrictEqual([
+            { refName: 'city', refTable: 'customer' },
+        ]);
+    });
     test('should parse unquoted TABLE column references', () => {
         expect(
             getTableColumnReferences(
@@ -850,6 +928,33 @@ describe('Compiled custom dimensions', () => {
                 [],
             ),
         ).toStrictEqual(expectedCompiledCustomSqlDimensionWithReferences);
+    });
+
+    test('should preserve precompiled joined dimension table references', () => {
+        expect(
+            compiler.compileCustomDimension(
+                customSqlDimensionWithReferences,
+                {
+                    ...simpleJoinedExplore.tables,
+                    b: {
+                        ...simpleJoinedExplore.tables.b,
+                        dimensions: {
+                            dim1: {
+                                ...simpleJoinedExplore.tables.b.dimensions.dim1,
+                                sql: '"a".b_dim1',
+                                compiledSql: '"a".b_dim1',
+                                tablesReferences: ['a'],
+                            } as CompiledDimension,
+                        },
+                    },
+                },
+                [],
+            ),
+        ).toStrictEqual({
+            ...expectedCompiledCustomSqlDimensionWithReferences,
+            compiledSql: '("a".dim1) + ("a".b_dim1)',
+            tablesReferences: ['a'],
+        });
     });
 });
 

@@ -1,0 +1,41 @@
+.track {
+    --switch-bg: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-4)
+    );
+    border: none;
+    transition: background-color 120ms ease;
+}
+
+.thumb {
+    --switch-thumb-bg: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-0)
+    );
+    border: none;
+    box-shadow: var(--mantine-shadow-xs);
+}
+
+/* On dark the checked track is near-white, so the thumb goes dark. */
+.input:checked + .track .thumb {
+    --switch-thumb-bg: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.label {
+    font-size: var(--mantine-font-size-sm);
+}
+
+/* Compact controls carry a secondary-style label. */
+.root[data-size='xs'] .label {
+    padding-inline-start: rem(4px);
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+}
+
+.description {
+    color: var(--mantine-color-dimmed);
+}

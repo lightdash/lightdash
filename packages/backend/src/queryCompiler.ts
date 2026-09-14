@@ -54,7 +54,7 @@ const getTemplateFieldReferences = (
         ? [template.fieldId]
         : []),
     ...('orderBy' in template
-        ? template.orderBy.map(({ fieldId }) => fieldId)
+        ? (template.orderBy ?? []).map(({ fieldId }) => fieldId)
         : []),
     ...('partitionBy' in template && template.partitionBy
         ? template.partitionBy

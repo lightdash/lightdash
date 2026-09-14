@@ -22,6 +22,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { MoveAppToSpaceModal as SharedMoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
@@ -233,7 +234,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     return (
                         <Group gap="xs">
                             <Badge
-                                variant="light"
                                 color={statusColor(lastVersionStatus)}
                                 size="sm"
                             >
@@ -270,17 +270,20 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     const app = row.original;
 
                     return (
-                        <Menu position="bottom-end" withinPortal>
+                        <Menu position="bottom-end">
                             <Menu.Target>
-                                <ActionIcon
-                                    variant="transparent"
-                                    color="ldGray.6"
-                                    size="sm"
-                                >
+                                <ActionIcon variant="transparent" size="sm">
                                     <MantineIcon icon={IconDots} size={16} />
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
+                                <AskAiAgentMenuItem
+                                    projectUuid={app.projectUuid}
+                                    dataAppUuid={app.appUuid}
+                                    clickedFrom="data_app_my_apps_menu"
+                                    mode="navigate"
+                                    withDivider
+                                />
                                 {hasReadyVersion(app) && (
                                     <Menu.Item
                                         component={Link}
@@ -410,7 +413,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 <Divider orientation="vertical" h={20} />
                 <SegmentedControl
                     size="xs"
-                    radius="md"
                     aria-label="App project scope"
                     value={includePreviewApps ? 'all' : 'production'}
                     onChange={(value) => setIncludePreviewApps(value === 'all')}
@@ -468,6 +470,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     uuid={appToRename.appUuid}
                     initialName={appToRename.name}
                     initialDescription={appToRename.description}
+                    iconPicker={null}
                     onClose={() => setAppToRename(null)}
                     onConfirm={() => setAppToRename(null)}
                 />

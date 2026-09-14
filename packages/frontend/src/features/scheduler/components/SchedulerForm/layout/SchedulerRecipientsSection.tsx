@@ -1,10 +1,8 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Group, Stack, Text } from '@mantine/core';
 import { IconMail } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useHealth from '../../../../../hooks/health/useHealth';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import GoogleChatSvg from '../../../../../svgs/googlechat.svg?react';
 import MsTeamsSvg from '../../../../../svgs/msteams.svg?react';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
@@ -35,10 +33,6 @@ const Destination: FC<{
 export const SchedulerRecipientsSection: FC = () => {
     const form = useSchedulerFormContext();
     const health = useHealth();
-    const { data: googleChatFlag } = useServerFeatureFlag(
-        FeatureFlags.GoogleChatEnabled,
-    );
-    const isGoogleChatEnabled = googleChatFlag?.enabled === true;
 
     return (
         <Stack gap="lg">
@@ -78,20 +72,18 @@ export const SchedulerRecipientsSection: FC = () => {
                 </Destination>
             )}
 
-            {isGoogleChatEnabled && (
-                <Destination
-                    icon={<GoogleChatSvg style={SVG_SIZE} />}
-                    label="Google Chat"
-                >
-                    <SchedulerFormGoogleChatInput
-                        hideIcon
-                        googleChatTargets={form.values.googleChatTargets}
-                        onChange={(val: string[]) =>
-                            form.setFieldValue('googleChatTargets', val)
-                        }
-                    />
-                </Destination>
-            )}
+            <Destination
+                icon={<GoogleChatSvg style={SVG_SIZE} />}
+                label="Google Chat"
+            >
+                <SchedulerFormGoogleChatInput
+                    hideIcon
+                    googleChatTargets={form.values.googleChatTargets}
+                    onChange={(val: string[]) =>
+                        form.setFieldValue('googleChatTargets', val)
+                    }
+                />
+            </Destination>
         </Stack>
     );
 };

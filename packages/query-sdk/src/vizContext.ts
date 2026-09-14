@@ -43,7 +43,8 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 /**
  * A config option value. Its shape follows the option's declared type:
  * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
- * Series colours are not an option — they arrive on `colorPalette`.
+ * Series colours are not an option — the host resolves them separately from
+ * config options and exposes them through the colour helpers.
  */
 export type VizContextOptionValue = boolean | number | string;
 
@@ -91,7 +92,8 @@ export type VizContextPivotDetails = {
  * host-fetched result rows keyed by field id; `options` holds the current
  * value of each config option the renderer declared; `colorPalette` is the
  * Lightdash palette resolved for this chart, pushed whether or not the
- * renderer declared one.
+ * renderer declared one; `seriesColors` and `valueColors` are the final
+ * host-resolved colors for pivot columns and raw dimension values.
  */
 export type DataAppVizContextMessage = {
     type: 'lightdash:sdk:data-app-viz-context';
@@ -101,10 +103,16 @@ export type DataAppVizContextMessage = {
     options?: Record<string, VizContextOptionValue>;
     /** Absent when the installed host predates palette delivery. */
     colorPalette?: string[];
+    /** Absent when the installed host predates resolved-color delivery. */
+    seriesColors?: Record<string, string>;
+    /** Absent when the installed host predates resolved-color delivery. */
+    valueColors?: Record<string, Record<string, string>>;
     /** Null for unpivoted rows; absent when the installed host predates pivot metadata delivery. */
     pivotDetails?: VizContextPivotDetails | null;
     /** Absent when the installed host predates underlying-data delivery. */
     underlyingData?: { enabled?: boolean };
+    /** Absent when the installed host predates drill-down delivery. */
+    drillDown?: { enabled?: boolean };
 };
 
 /** Posted by the iframe on mount so the host pushes the current context. */
@@ -114,6 +122,44 @@ export type VizContextRequestMessage = {
 
 const DATA_APP_VIZ_CONTEXT_MESSAGE = 'lightdash:sdk:data-app-viz-context';
 const VIZ_CONTEXT_REQUEST_MESSAGE = 'lightdash:sdk:viz-context-request';
+
+/**
+ * Dev-only fixture seed param. A chart type runs no query and renders the
+ * context the host pushes over postMessage — so top-level (local dev), with no
+ * host to answer the handshake, it renders nothing. Pointing `?vizFixture` at a
+ * same-origin JSON file lets `useVizContextSubscription` seed the context from
+ * that file, so `npm run dev` / `lightdash apps preview` show the chart. This
+ * mirrors the `?theme=` / `?state=` dev seeds in colorScheme.ts / urlState.ts.
+ */
+export const VIZ_FIXTURE_PARAM = 'vizFixture';
+const DEFAULT_VIZ_FIXTURE_URL = '/viz-fixture.json';
+
+/**
+ * Resolve the dev fixture URL from the page location, or null when the param is
+ * absent or resolves cross-origin. The iframe hash wins, the search param is
+ * the top-level (local dev) fallback — same precedence as `parseColorSchemeSeed`
+ * / `parseUrlStateSeed`. A bare `?vizFixture` (no value) means the default path.
+ * The target is restricted to the page's own origin because it comes from a
+ * user-editable URL and is fetched.
+ */
+export function resolveVizFixtureUrl(location: {
+    hash: string;
+    search: string;
+    origin: string;
+}): string | null {
+    const raw =
+        new URLSearchParams(location.hash.replace(/^#/, '')).get(
+            VIZ_FIXTURE_PARAM,
+        ) ?? new URLSearchParams(location.search).get(VIZ_FIXTURE_PARAM);
+    if (raw === null) return null;
+    const target = raw.length > 0 ? raw : DEFAULT_VIZ_FIXTURE_URL;
+    try {
+        const url = new URL(target, location.origin);
+        return url.origin === location.origin ? url.toString() : null;
+    } catch {
+        return null;
+    }
+}
 
 /** Display string for a field's cell in a row, e.g. `"$1,234"`. Empty when unset. */
 export const getFormatted = (
@@ -160,18 +206,23 @@ export type VizContext = {
     /** Config option name → current value (the user's choice, else the declared default). */
     options: Record<string, VizContextOptionValue>;
     /**
-     * Ordered series colours resolved from the Lightdash palette the viewer
-     * picked. Colour multi-series charts with
-     * `colorPalette[i % colorPalette.length]`. Empty only when the host
+     * Lightdash palette selected for this chart. The resolved-colour helpers
+     * use it after fixed and shared assignments. Empty only when the host
      * resolved no palette; keep a fallback array in your own code for that.
      */
     colorPalette: string[];
+    /** Pivot column name → final color resolved by the Lightdash host. */
+    seriesColors: Record<string, string>;
+    /** Query field id → raw value → final color resolved by the Lightdash host. */
+    valueColors: Record<string, Record<string, string>>;
     /** Metadata that maps generated pivot column names back to their metric and series values. */
     pivotDetails: VizContextPivotDetails | null;
     /** False until the first context arrives — render a placeholder while false. */
     ready: boolean;
     /** Fetch/export the raw rows behind a clicked data point via the host. */
     underlyingData: VizUnderlyingData;
+    /** Fire a drill-down on a clicked data point; the host opens its drill dialog. */
+    drillDown: VizDrillDown;
 };
 
 type VizContextValue = {
@@ -179,8 +230,11 @@ type VizContextValue = {
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
     colorPalette: string[];
+    seriesColors: Record<string, string>;
+    valueColors: Record<string, Record<string, string>>;
     pivotDetails: VizContextPivotDetails | null;
     underlyingDataEnabled: boolean;
+    drillDownEnabled: boolean;
 };
 
 type VizContextState = VizContextValue | null;
@@ -210,6 +264,68 @@ const normalizeOptions = (
     );
 };
 
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const normalizeStringRecord = (value: unknown): Record<string, string> => {
+    if (!isPlainRecord(value)) return {};
+
+    return Object.fromEntries(
+        Object.entries(value).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+    );
+};
+
+const normalizeValueColors = (
+    value: unknown,
+): Record<string, Record<string, string>> => {
+    if (!isPlainRecord(value)) return {};
+
+    return Object.fromEntries(
+        Object.entries(value).flatMap(([fieldId, colors]) =>
+            isPlainRecord(colors)
+                ? [[fieldId, normalizeStringRecord(colors)] as const]
+                : [],
+        ),
+    );
+};
+
+type VizColorContext = Pick<
+    VizContext,
+    'colorPalette' | 'seriesColors' | 'valueColors'
+>;
+
+const getPaletteColor = (
+    colorPalette: string[],
+    index: number,
+): string | undefined =>
+    colorPalette.length > 0
+        ? colorPalette[index % colorPalette.length]
+        : undefined;
+
+/** Resolve a backend-pivoted series color, with the chart palette as fallback. */
+export const resolveSeriesColor = (
+    context: VizColorContext,
+    column: Pick<
+        VizContextPivotDetails['valuesColumns'][number],
+        'pivotColumnName'
+    >,
+    index: number,
+): string | undefined =>
+    context.seriesColors[column.pivotColumnName] ??
+    getPaletteColor(context.colorPalette, index);
+
+/** Resolve a client-side grouped raw value color, with the chart palette as fallback. */
+export const resolveValueColor = (
+    context: VizColorContext,
+    fieldId: string,
+    rawValue: unknown,
+    index: number,
+): string | undefined =>
+    context.valueColors[fieldId]?.[String(rawValue)] ??
+    getPaletteColor(context.colorPalette, index);
+
 /**
  * Normalises an inbound host message into provider state. Optional capabilities
  * are absent from hosts predating them and receive stable fallback values.
@@ -226,9 +342,12 @@ export function toVizContextState(
                   (color): color is string => typeof color === 'string',
               )
             : [],
+        seriesColors: normalizeStringRecord(message.seriesColors),
+        valueColors: normalizeValueColors(message.valueColors),
         pivotDetails: message.pivotDetails ?? null,
         // Strict boolean check — non-boolean payloads read as disabled.
         underlyingDataEnabled: message.underlyingData?.enabled === true,
+        drillDownEnabled: message.drillDown?.enabled === true,
     };
 }
 
@@ -280,6 +399,42 @@ export function buildVizUnderlyingData(
     };
 }
 
+/**
+ * Host-mediated drill-down for a clicked data point. `enabled` is false when
+ * the host predates the capability, the viewer lacks permission, results are
+ * pivoted, or no transport is mounted — render no menu item in that case
+ * (never a disabled one). `open` fires the intent; the HOST shows the drill
+ * dialog, nothing renders in the viz.
+ */
+export type VizDrillDown = {
+    enabled: boolean;
+    open: (opts: { row: VizContextRow; metric: string }) => Promise<void>;
+};
+
+/** Builds the `drillDown` surface. Exported for tests. */
+export function buildVizDrillDown(
+    hostEnabled: boolean,
+    transport: Transport | null,
+): VizDrillDown {
+    const supported = typeof transport?.openVizDrillDown === 'function';
+    return {
+        enabled: hostEnabled && supported,
+        open: async ({ row, metric }) => {
+            if (!hostEnabled) {
+                throw new Error(
+                    'Drill-down is not enabled for this visualization.',
+                );
+            }
+            if (!transport?.openVizDrillDown) {
+                throw new Error(
+                    'This SDK build predates drill-down. Rebuild the app on the current template.',
+                );
+            }
+            return transport.openVizDrillDown({ row, metric });
+        },
+    };
+}
+
 // Distinguishes "no provider mounted" from "provider present, no context yet".
 const NO_PROVIDER = Symbol('viz-context/no-provider');
 
@@ -315,7 +470,43 @@ function useVizContextSubscription(enabled: boolean): VizContextState {
         };
         window.parent?.postMessage(request, '*');
 
-        return () => window.removeEventListener('message', handleMessage);
+        // Dev-only fallback: a chart type running top-level (no parent frame to
+        // answer the handshake above) seeds its context from a same-origin
+        // `?vizFixture` file so it renders under `npm run dev` /
+        // `lightdash apps preview`. An embedded viz always has a real parent
+        // whose reply arrives first, so this never fires in production.
+        let cancelled = false;
+        const fixtureUrl =
+            window.parent === window
+                ? resolveVizFixtureUrl(window.location)
+                : null;
+        if (fixtureUrl) {
+            fetch(fixtureUrl)
+                .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+                .then((data: unknown) => {
+                    if (cancelled || !isPlainRecord(data)) return;
+                    // Never clobber a context a host already delivered.
+                    setContext(
+                        (prev) =>
+                            prev ??
+                            toVizContextState({
+                                ...(data as Partial<DataAppVizContextMessage>),
+                                type: DATA_APP_VIZ_CONTEXT_MESSAGE,
+                            } as DataAppVizContextMessage),
+                    );
+                })
+                .catch(() => {
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                        `[lightdash] viz fixture "${fixtureUrl}" could not be loaded`,
+                    );
+                });
+        }
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener('message', handleMessage);
+        };
     }, [enabled]);
 
     return context;
@@ -341,7 +532,8 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * still works standalone. Re-renders whenever the host pushes (on load, on
  * mapping change, on query change). Resolve a declared field to its bound cell
  * with `fieldMapping[name]` then `getFormatted`/`getRaw`; read a declared
- * config option with `options[name]`, and colour series from `colorPalette`.
+ * config option with `options[name]`, and colour series with
+ * `resolveSeriesColor` / `resolveValueColor`.
  */
 export function useVizContext(): VizContext {
     const fromProvider = useContext(VizContextContext);
@@ -365,13 +557,22 @@ export function useVizContext(): VizContext {
         [hostEnabled, transport],
     );
 
+    const drillHostEnabled = context?.drillDownEnabled === true;
+    const drillDown = useMemo<VizDrillDown>(
+        () => buildVizDrillDown(drillHostEnabled, transport),
+        [drillHostEnabled, transport],
+    );
+
     return {
         fieldMapping: context?.fieldMapping ?? {},
         rows: context?.rows ?? [],
         options: context?.options ?? {},
         colorPalette: context?.colorPalette ?? [],
+        seriesColors: context?.seriesColors ?? {},
+        valueColors: context?.valueColors ?? {},
         pivotDetails: context?.pivotDetails ?? null,
         ready: context !== null,
         underlyingData,
+        drillDown,
     };
 }

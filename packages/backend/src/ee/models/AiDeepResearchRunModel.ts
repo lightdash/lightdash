@@ -1,4 +1,5 @@
 import {
+    AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     countDeepResearchFindings,
@@ -10,6 +11,7 @@ import {
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventType,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchFailureStage,
     type AiDeepResearchProgress,
     type AiDeepResearchReportAdjustment,
     type AiDeepResearchRunStatus,
@@ -22,6 +24,7 @@ import {
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
+    AiPromptTableName,
     AiThreadTableName,
     type AiAgentToolCallErrorTable,
     type AiAgentToolCallTable,
@@ -368,6 +371,132 @@ export class AiDeepResearchRunModel {
                 'status_changed',
                 { status: 'queued' },
             );
+            return run;
+        });
+    }
+
+    /**
+     * A run that finished before anyone watched: the training seed's report.
+     * The prompt is marked as a deep research prompt, the run lands directly
+     * in `completed` with its report, and the status events read as a run
+     * that was queued, ran, and completed.
+     */
+    async createSeededCompletedRun(data: {
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+        agentUuid: string;
+        agentName: string;
+        aiThreadUuid: string;
+        promptUuid: string;
+        prompt: string;
+        resultMarkdown: string;
+        durationMs: number;
+        warehouseQueryCount: number;
+    }): Promise<DbAiDeepResearchRun> {
+        return this.database.transaction(async (transaction) => {
+            await transaction(AiPromptTableName)
+                .where('ai_prompt_uuid', data.promptUuid)
+                .update({ execution_mode: 'deep_research' });
+            const now = new Date();
+            const startedAt = new Date(now.getTime() - data.durationMs);
+            const snapshot: AiDeepResearchExecutionContextSnapshot = {
+                schemaVersion: 1,
+                resolutionStage: 'execution',
+                capturedAt: startedAt.toISOString(),
+                agent: {
+                    uuid: data.agentUuid,
+                    name: data.agentName,
+                    version: 1,
+                    updatedAt: startedAt.toISOString(),
+                    hasInstruction: true,
+                    tags: null,
+                    spaceAccess: [],
+                    enableDataAccess: true,
+                    enableSelfImprovement: false,
+                    enableContentTools: true,
+                    enableUserContext: false,
+                },
+                model: {
+                    provider: null,
+                    modelName: null,
+                    reasoningEnabled: null,
+                    keyManagement: null,
+                },
+                tools: { availableToolNames: [], attachedMcpServers: [] },
+                knowledgeDocuments: [],
+                repository: {
+                    projectContextEnabled: null,
+                    aiWritebackEnabled: null,
+                    codingAgentEnabled: null,
+                    previewDeploySetupEnabled: null,
+                    repoDiscoveryEnabled: null,
+                    repoFsRoot: null,
+                    repoFsSupportsCodeSearch: null,
+                    availableSkillNames: [],
+                },
+                effectivePermissions: {
+                    canManageAgent: false,
+                    canRunSql: false,
+                    canUseDataTools: true,
+                    canUseContentTools: true,
+                    canUseSelfImprovementTools: false,
+                    autoApproveSql: false,
+                },
+            };
+            const [run] = await transaction<AiDeepResearchRunsTable>(
+                AiDeepResearchRunsTableName,
+            )
+                .insert({
+                    organization_uuid: data.organizationUuid,
+                    project_uuid: data.projectUuid,
+                    created_by_user_uuid: data.createdByUserUuid,
+                    agent_uuid: data.agentUuid,
+                    ai_thread_uuid: data.aiThreadUuid,
+                    prompt_uuid: data.promptUuid,
+                    tool_call_id: null,
+                    prompt: data.prompt,
+                    resume_from_run_uuid: null,
+                    entry_point: 'ask_ai',
+                    budget_snapshot: {
+                        ...AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                        maxResultRows: 500,
+                    },
+                    execution_context_snapshot: snapshot,
+                })
+                .returning('*');
+            // The outcome goes on afterwards: a run is only ever inserted as
+            // queued, so the insert shape has no room for a report.
+            await transaction<AiDeepResearchRunsTable>(
+                AiDeepResearchRunsTableName,
+            )
+                .where(
+                    'ai_deep_research_run_uuid',
+                    run.ai_deep_research_run_uuid,
+                )
+                .update({
+                    status: 'completed',
+                    result_markdown: data.resultMarkdown,
+                    duration_ms: data.durationMs,
+                    warehouse_query_count: data.warehouseQueryCount,
+                    findings_count: countDeepResearchFindings(
+                        data.resultMarkdown,
+                    ),
+                    chart_count: 0,
+                    started_at: startedAt,
+                    completed_at: now,
+                    updated_at: now,
+                });
+            // eslint-disable-next-line no-restricted-syntax
+            for (const status of ['queued', 'running', 'completed'] as const) {
+                // eslint-disable-next-line no-await-in-loop
+                await AiDeepResearchRunModel.insertEvent(
+                    transaction,
+                    run.ai_deep_research_run_uuid,
+                    'status_changed',
+                    { status },
+                );
+            }
             return run;
         });
     }
@@ -732,6 +861,7 @@ export class AiDeepResearchRunModel {
         status: 'completed' | 'partially_completed',
         resultMarkdown: string,
         terminalReason: AiDeepResearchTerminalReason | null,
+        failureStage: AiDeepResearchFailureStage | null,
         adjustments?: AiDeepResearchReportAdjustment,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
@@ -760,6 +890,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status,
                     terminal_reason: terminalReason,
+                    failure_stage: failureStage,
                     result_markdown: resultMarkdown,
                     report_expires_at: transaction.raw(
                         "now() + (? * interval '1 day')",
@@ -817,6 +948,7 @@ export class AiDeepResearchRunModel {
             'completed',
             resultMarkdown,
             null,
+            null,
             adjustments,
         );
     }
@@ -842,6 +974,7 @@ export class AiDeepResearchRunModel {
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
         terminalReason: AiDeepResearchTerminalReason,
+        failureStage: AiDeepResearchFailureStage,
         adjustments?: AiDeepResearchReportAdjustment,
     ): Promise<boolean> {
         return this.markWithReport(
@@ -849,6 +982,7 @@ export class AiDeepResearchRunModel {
             'partially_completed',
             resultMarkdown,
             terminalReason,
+            failureStage,
             adjustments,
         );
     }
@@ -857,6 +991,7 @@ export class AiDeepResearchRunModel {
         aiDeepResearchRunUuid: string,
         errorMessage: string,
         terminalReason: AiDeepResearchTerminalReason,
+        failureStage: AiDeepResearchFailureStage,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
             const currentRun = await transaction<AiDeepResearchRunsTable>(
@@ -882,6 +1017,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status: 'failed',
                     terminal_reason: terminalReason,
+                    failure_stage: failureStage,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -913,6 +1049,7 @@ export class AiDeepResearchRunModel {
 
     async markCancelled(
         aiDeepResearchRunUuid: string,
+        failureStage: AiDeepResearchFailureStage,
         terminalReason: AiDeepResearchTerminalReason = 'user_cancellation',
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
@@ -941,6 +1078,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status: 'cancelled',
                     terminal_reason: terminalReason,
+                    failure_stage: failureStage,
                     result_markdown: null,
                     ...metrics,
                     duration_ms:
@@ -984,6 +1122,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status: 'cancelled',
                     terminal_reason: 'user_cancellation',
+                    failure_stage: 'enqueue',
                     cancellation_requested_at: now,
                     completed_at: now,
                     updated_at: now,
@@ -1144,6 +1283,7 @@ export class AiDeepResearchRunModel {
                     terminal_reason: transaction.raw(
                         "case when cancellation_requested_at is not null then 'user_cancellation' else 'internal_error' end",
                     ) as unknown as DbAiDeepResearchRun['terminal_reason'],
+                    failure_stage: 'recovery',
                     result_markdown: transaction.raw(
                         'case when cancellation_requested_at is not null then null else result_markdown end',
                     ) as unknown as string | null,

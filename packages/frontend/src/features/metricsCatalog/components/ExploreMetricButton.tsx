@@ -55,7 +55,6 @@ export const ExploreMetricButton = ({ row }: Props) => {
 
     return (
         <Tooltip
-            withinPortal
             label="Click to view this in the Metrics Explorer"
             openDelay={200}
             maw={250}
@@ -63,13 +62,11 @@ export const ExploreMetricButton = ({ row }: Props) => {
         >
             <Button
                 size="compact-sm"
-                variant="dark"
                 onClick={handleExploreClick}
                 py="xxs"
                 px={10}
                 h={32}
                 fz="sm"
-                fw={500}
             >
                 Explore
             </Button>

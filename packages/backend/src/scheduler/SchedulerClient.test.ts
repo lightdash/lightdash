@@ -98,6 +98,9 @@ describe('SchedulerClient per-org delivery queue', () => {
             {
                 ...scheduler,
                 ...traceProperties,
+                savedChartUuid: null,
+                dashboardUuid: null,
+                savedSqlUuid: null,
                 appUuid: 'app-1',
             },
             scheduler.schedulerUuid,

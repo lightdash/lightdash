@@ -8,9 +8,12 @@ import {
     ContentType,
     FeatureFlags,
     isResourceViewDataAppItem,
+    isResourceViewItemChart,
+    isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     type ApiContentBulkActionBody,
     type ResourceViewItem,
+    type SpaceMemberRole,
     type SpaceSummary,
 } from '@lightdash/common';
 import {
@@ -43,6 +46,7 @@ import {
     type ContentArgs,
 } from '../../../hooks/useContent';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
@@ -57,7 +61,11 @@ import {
 } from '../ContentTable';
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
-import AdminContentViewFilter from './AdminContentViewFilter';
+import { UserSelect } from '../UserSelect';
+import ViewsCountPopover from '../ViewsCountPopover';
+import AdminContentViewFilter, {
+    type ContentViewValue,
+} from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
 import classes from './InfiniteResourceTable.module.css';
 import InfiniteResourceTableColumnName from './InfiniteResourceTableColumnName';
@@ -66,7 +74,7 @@ import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import AttributeCount from './ResourceAttributeCount';
 import ResourceLastEdited from './ResourceLastEdited';
-import { getResourceUrl } from './resourceUtils';
+import { getResourceUrl, getViewStatsResourceType } from './resourceUtils';
 import {
     ColumnVisibility,
     ResourceViewItemAction,
@@ -81,6 +89,7 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
         | 'contentTypes'
         | 'includePersonalDataApps'
         | 'dataAppVizsFilter'
+        | 'sharedWithMe'
     > & {
         projectUuid: string;
     };
@@ -88,9 +97,22 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
         defaultValue: ContentType | undefined;
         options: ContentType[];
     };
+    /** Show a dashboard-owner filter in the toolbar (dashboard lists only) */
+    ownerFilter?: boolean;
     columnVisibility?: ColumnVisibilityConfig;
     adminContentView?: boolean;
     initialAdminContentViewValue?: 'all' | 'shared';
+    /**
+     * Controlled content-view toggle for the root browsing surface:
+     * Spaces | Shared with me | Admin Content View. When provided it
+     * replaces the uncontrolled admin-only control.
+     */
+    contentView?: {
+        value: ContentViewValue;
+        onChange: (value: ContentViewValue) => void;
+        withSharedWithMe: boolean;
+        withAdminView: boolean;
+    };
     showDataAppVersionStatus?: boolean;
 };
 
@@ -118,10 +140,9 @@ const DebouncedSearchInput = memo(
         );
 
         return (
-            <Tooltip withinPortal label="Search by name">
+            <Tooltip label="Search by name">
                 <TextInput
                     size="xs"
-                    radius="md"
                     classNames={{ input: classes.searchInput }}
                     styles={(inputTheme) => ({
                         input: {
@@ -143,7 +164,7 @@ const DebouncedSearchInput = memo(
                     leftSection={
                         <MantineIcon
                             size="md"
-                            color="ldGray.6"
+                            color="dimmed"
                             icon={IconSearch}
                         />
                     }
@@ -173,12 +194,17 @@ DebouncedSearchInput.displayName = 'DebouncedSearchInput';
 const InfiniteResourceTable = ({
     filters,
     contentTypeFilter,
+    ownerFilter = false,
     columnVisibility,
     adminContentView = false,
     initialAdminContentViewValue = 'shared',
+    contentView,
     showDataAppVersionStatus = false,
     ...contentTableProps
 }: ResourceView2Props) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? filters.projectUuid;
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
     >(initialAdminContentViewValue);
@@ -230,6 +256,7 @@ const InfiniteResourceTable = ({
                     <InfiniteResourceTableColumnName
                         item={row.original}
                         projectUuid={filters.projectUuid}
+                        projectUrlIdentifier={projectUrlIdentifier}
                         canUserManageValidation={canUserManageValidation}
                         showDataAppVersionStatus={showDataAppVersionStatus}
                     />
@@ -256,11 +283,11 @@ const InfiniteResourceTable = ({
                         <Anchor
                             c="ldGray.7"
                             component={Link}
-                            to={`/projects/${space.projectUuid}/spaces/${space.uuid}`}
+                            to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                                 e.stopPropagation()
                             }
-                            fz={12}
+                            fz="xs"
                             fw={500}
                         >
                             {space.name}
@@ -271,8 +298,20 @@ const InfiniteResourceTable = ({
                 // Personal (space-less) data apps have no space to link to.
                 if (isResourceViewDataAppItem(item) && !item.data.spaceUuid) {
                     return (
-                        <Text fz={12} fw={500} c="dimmed">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
+                        </Text>
+                    );
+                }
+
+                // Inaccessible parent space: real name, non-navigable.
+                const inaccessibleSpaceName = item.data.spaceUuid
+                    ? contentSpaceNames[item.data.spaceUuid]
+                    : undefined;
+                if (inaccessibleSpaceName) {
+                    return (
+                        <Text fz="xs" fw={500} c="ldGray.7">
+                            {inaccessibleSpaceName}
                         </Text>
                     );
                 }
@@ -288,11 +327,36 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
                 return <ResourceLastEdited item={row.original} />;
+            },
+        },
+        {
+            accessorKey: ColumnVisibility.OWNER,
+            enableSorting: false,
+            enableEditing: false,
+            header: 'Owner',
+            size: 160,
+            Cell: ({ row }) => {
+                const item = row.original;
+                if (!isResourceViewItemDashboard(item) || !item.data.owner) {
+                    return (
+                        <Text fz="xs" fw={500} c="dimmed">
+                            -
+                        </Text>
+                    );
+                }
+                const { firstName, lastName, email } = item.data.owner;
+                const ownerName =
+                    `${firstName} ${lastName}`.trim() || email || '-';
+                return (
+                    <Text fz="xs" fw={500} c="ldGray.7">
+                        {ownerName}
+                    </Text>
+                );
             },
         },
         {
@@ -304,14 +368,21 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
                 return (
-                    <Text fz={12} fw={500} c="ldGray.7">
-                        {row.original.data.views}
-                    </Text>
+                    <ViewsCountPopover
+                        resourceType={getViewStatsResourceType(row.original)}
+                        resourceUuid={row.original.data.uuid}
+                        projectUuid={filters.projectUuid}
+                        views={row.original.data.views}
+                    >
+                        <Text fz="xs" fw={500} c="ldGray.7">
+                            {row.original.data.views}
+                        </Text>
+                    </ViewsCountPopover>
                 );
             },
         },
@@ -323,11 +394,24 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (!isResourceViewSpaceItem(row.original)) return null;
                 return (
-                    <ResourceAccessInfo
-                        item={row.original}
-                        type="primary"
-                        withTooltip
-                    />
+                    // Scope-tour marker: the surface that shows a space's
+                    // access setting (result of manage:Space sharing). See
+                    // scripts/scope-tours/generate.ts.
+                    <Box
+                        data-tour-scope="manage:Space"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/spaces"
+                        data-tour-label="Every space has an access setting"
+                        data-tour-docs="explore/spaces.mdx#managing-access-to-a-space:1-2"
+                        data-tour-return='[data-tour-anchor="modal-close"] >> [data-tour-nav="browse"] >> [data-tour-nav="all-spaces"]'
+                        data-tour-resultdocs="explore/spaces.mdx#restricted-access-spaces:1"
+                    >
+                        <ResourceAccessInfo
+                            item={row.original}
+                            type="primary"
+                            withTooltip
+                        />
+                    </Box>
                 );
             },
         },
@@ -390,6 +474,9 @@ const InfiniteResourceTable = ({
     const [selectedContentType, setSelectedContentType] = useState<
         ContentType | undefined
     >(contentTypeFilter?.defaultValue);
+    const [selectedOwnerUserUuid, setSelectedOwnerUserUuid] = useState<
+        string | null
+    >(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -442,9 +529,47 @@ const InfiniteResourceTable = ({
                 sortDirection: sortBy?.sortDirection,
                 includePersonalDataApps: filters.includePersonalDataApps,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
+                sharedWithMe: filters.sharedWithMe,
+                ownerUserUuids: selectedOwnerUserUuid
+                    ? [selectedOwnerUserUuid]
+                    : undefined,
             },
             { keepPreviousData: true },
         );
+
+    // Real parent names for rows whose space the viewer cannot access
+    // (directly shared content): shown as non-navigable context.
+    // Grant roles per resource: a direct grant never puts its space in the
+    // viewer's space list, so the row menu cannot infer these from spaces.
+    const contentGrantRoles = useMemo(() => {
+        const roles: Record<string, SpaceMemberRole[]> = {};
+        data?.pages.forEach((page) => {
+            page.data.forEach((content) => {
+                if (
+                    content.contentType !== ContentType.SPACE &&
+                    content.directAccessRoles.length > 0
+                ) {
+                    roles[content.uuid] = content.directAccessRoles;
+                }
+            });
+        });
+        return roles;
+    }, [data]);
+
+    const contentSpaceNames = useMemo(() => {
+        const names: Record<string, string> = {};
+        data?.pages.forEach((page) => {
+            page.data.forEach((content) => {
+                if (
+                    content.contentType !== ContentType.SPACE &&
+                    content.space
+                ) {
+                    names[content.space.uuid] = content.space.name;
+                }
+            });
+        });
+        return names;
+    }, [data]);
 
     const flatData = useMemo(() => {
         if (!data || !spaces) return [];
@@ -453,13 +578,23 @@ const InfiniteResourceTable = ({
             .filter((item) => {
                 if (!isResourceViewSpaceItem(item)) return true;
                 if (!userCanManageProject) return true;
-                if (selectedAdminContentType === 'all') return true;
+                if (
+                    (contentView?.value ?? selectedAdminContentType) === 'all'
+                ) {
+                    return true;
+                }
 
                 const space = spaces.find((s) => s.uuid === item.data.uuid);
                 if (!space) return false;
                 return space.inheritsFromOrgOrProject || !!space.userAccess;
             });
-    }, [data, userCanManageProject, spaces, selectedAdminContentType]);
+    }, [
+        data,
+        userCanManageProject,
+        spaces,
+        selectedAdminContentType,
+        contentView?.value,
+    ]);
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table.
     // In certain scenarios, the content fails to render properly even when the data is updated.
@@ -497,6 +632,7 @@ const InfiniteResourceTable = ({
             [ColumnVisibility.NAME]: true,
             [ColumnVisibility.SPACE]: true,
             [ColumnVisibility.UPDATED_AT]: true,
+            [ColumnVisibility.OWNER]: false,
             [ColumnVisibility.VIEWS]: true,
             [ColumnVisibility.ACCESS]: false,
             [ColumnVisibility.CONTENT]: false,
@@ -602,12 +738,52 @@ const InfiniteResourceTable = ({
                 table.getIsSomeRowsSelected() || table.getIsAllRowsSelected();
 
             return {
+                // Anchor for scope walkthroughs (data-tour-via): a space row
+                ...(isResourceViewSpaceItem(row.original)
+                    ? {
+                          'data-tour-anchor': 'space-row',
+                          'data-tour-hint': 'Open a space',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
+                // ... and a dashboard row, by name.
+                ...(isResourceViewItemDashboard(row.original)
+                    ? {
+                          'data-tour-anchor': 'dashboard-row',
+                          'data-tour-hint': 'Open a dashboard',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
+                // ... and a chart row, by name.
+                ...(isResourceViewItemChart(row.original)
+                    ? {
+                          'data-tour-anchor': 'chart-row',
+                          'data-tour-hint': 'Open a chart',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
+                // ... and a data app row, by name.
+                ...(isResourceViewDataAppItem(row.original)
+                    ? {
+                          'data-tour-anchor': 'app-row',
+                          'data-tour-hint': 'Open a data app',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
                 onClick: () => {
                     if (isTableSelectionActive) {
                         row.toggleSelected();
                     } else if (!isInitialLoading) {
                         void navigate(
-                            getResourceUrl(filters.projectUuid, row.original),
+                            getResourceUrl(
+                                filters.projectUuid,
+                                row.original,
+                                projectUrlIdentifier,
+                            ),
                         );
                     }
                 },
@@ -649,9 +825,6 @@ const InfiniteResourceTable = ({
                                         w={1}
                                         h={20}
                                         color="#DEE2E6"
-                                        style={{
-                                            alignSelf: 'center',
-                                        }}
                                     />
                                     <ContentTypeFilter
                                         value={selectedContentType}
@@ -661,20 +834,52 @@ const InfiniteResourceTable = ({
                                 </>
                             ) : null}
 
-                            {adminContentView ? (
+                            {contentView &&
+                            (contentView.withSharedWithMe ||
+                                contentView.withAdminView) ? (
+                                <AdminContentViewFilter
+                                    value={contentView.value}
+                                    onChange={contentView.onChange}
+                                    withSharedWithMe={
+                                        contentView.withSharedWithMe
+                                    }
+                                    withAdminView={contentView.withAdminView}
+                                />
+                            ) : adminContentView ? (
                                 <AdminContentViewFilter
                                     value={selectedAdminContentType}
-                                    onChange={setSelectedAdminContentType}
+                                    onChange={(value) => {
+                                        if (value !== 'shared-with-me') {
+                                            setSelectedAdminContentType(value);
+                                        }
+                                    }}
                                 />
+                            ) : null}
+
+                            {ownerFilter ? (
+                                <>
+                                    <Divider
+                                        orientation="vertical"
+                                        w={1}
+                                        h={20}
+                                        color="#DEE2E6"
+                                    />
+                                    <Box w={220}>
+                                        <UserSelect
+                                            placeholder="Filter by owner"
+                                            value={selectedOwnerUserUuid}
+                                            onChange={setSelectedOwnerUserUuid}
+                                            clearable
+                                        />
+                                    </Box>
+                                </>
                             ) : null}
                         </Group>
 
                         {selectedItems.length > 0 ? (
                             <Button
                                 ml="auto"
-                                variant="filled"
                                 size="xs"
-                                color="blue"
                                 leftSection={
                                     <MantineIcon icon={IconFolderSymlink} />
                                 }
@@ -707,7 +912,7 @@ const InfiniteResourceTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}
@@ -741,6 +946,9 @@ const InfiniteResourceTable = ({
                     <ResourceActionMenu
                         disabled={isSelected}
                         item={row.original}
+                        grantRoles={
+                            contentGrantRoles[row.original.data.uuid] ?? []
+                        }
                         onAction={handleAction}
                     />
                 </Box>

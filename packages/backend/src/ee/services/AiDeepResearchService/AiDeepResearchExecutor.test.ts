@@ -11,6 +11,7 @@ import {
 import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import { AI_DEEP_RESEARCH_REPORT_TOOL_NAME } from './AiDeepResearchAgent';
 import { AiDeepResearchExecutor } from './AiDeepResearchExecutor';
+import { AiDeepResearchExecutorStageError } from './AiDeepResearchService';
 
 const budget = {
     maxTokens: 10_000,
@@ -119,6 +120,7 @@ const run = (
     resume_from_run_uuid: null,
     status: 'running',
     terminal_reason: null,
+    failure_stage: null,
     entry_point: 'ask_ai',
     result_markdown: null,
     report_expires_at: null,
@@ -370,6 +372,7 @@ describe('AiDeepResearchExecutor', () => {
             errorMessage:
                 'Deep Research cannot run because its creator is inactive',
             terminalReason: 'permission_revoked',
+            failureStage: 'authorization',
         });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
@@ -406,7 +409,11 @@ describe('AiDeepResearchExecutor', () => {
             executor.execute(run(), {
                 signal: new AbortController().signal,
             }),
-        ).rejects.toBe(temporaryError);
+        ).rejects.toMatchObject({
+            name: 'AiDeepResearchExecutorStageError',
+            failureStage: 'authorization',
+            cause: temporaryError,
+        } satisfies Partial<AiDeepResearchExecutorStageError>);
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
 
@@ -425,6 +432,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'failed',
             errorMessage: 'Access revoked',
             terminalReason: 'permission_revoked',
+            failureStage: 'authorization',
         });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
@@ -554,6 +562,7 @@ describe('AiDeepResearchExecutor', () => {
         ).resolves.toEqual({
             status: 'cancelled',
             terminalReason: 'internal_error',
+            failureStage: 'authorization',
         });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
@@ -832,6 +841,7 @@ describe('AiDeepResearchExecutor', () => {
         await expect(pendingRun).resolves.toEqual({
             status: 'cancelled',
             terminalReason: 'internal_error',
+            failureStage: 'investigation',
         });
         expect(workerSignals.every((signal) => signal.aborted)).toBe(true);
     });
@@ -866,6 +876,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({
             status: 'partially_completed',
             terminalReason: 'tool_limit',
+            failureStage: 'investigation',
             report,
         });
     });
@@ -897,6 +908,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({
             status: 'partially_completed',
             terminalReason: 'query_limit',
+            failureStage: 'investigation',
             report,
         });
     });
@@ -941,6 +953,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({
             status: 'partially_completed',
             terminalReason: 'token_limit',
+            failureStage: 'investigation',
             report,
         });
     });
@@ -969,6 +982,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({
             status: 'partially_completed',
             terminalReason: 'time_limit',
+            failureStage: 'investigation',
             report,
         });
     });
@@ -1123,6 +1137,7 @@ describe('AiDeepResearchExecutor', () => {
         );
 
         expect(result.status).toBe('partially_completed');
+        expect(result).toMatchObject({ failureStage: 'investigation' });
         expect(
             result.status === 'partially_completed' && result.report.markdown,
         ).toContain('maxWarehouseQueries');
@@ -1162,6 +1177,7 @@ describe('AiDeepResearchExecutor', () => {
             report,
             warehouseQueryUuids: [],
             terminalReason: 'provider_error',
+            failureStage: 'investigation',
         });
     });
 
@@ -1207,6 +1223,7 @@ describe('AiDeepResearchExecutor', () => {
             errorMessage:
                 'Deep Research could not find relevant data for this question.',
             terminalReason: 'no_relevant_data',
+            failureStage: 'finalization',
         });
         // No point paying a model to write a report with nothing behind it.
         expect(generateDeepResearchReport).not.toHaveBeenCalled();
@@ -1287,6 +1304,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'failed',
             errorMessage: 'provider disconnected',
             terminalReason: 'provider_error',
+            failureStage: 'investigation',
         });
     });
 
@@ -1336,6 +1354,7 @@ describe('AiDeepResearchExecutor', () => {
         ).resolves.toMatchObject({
             status: 'partially_completed',
             terminalReason: 'provider_error',
+            failureStage: 'finalization',
         });
     });
 

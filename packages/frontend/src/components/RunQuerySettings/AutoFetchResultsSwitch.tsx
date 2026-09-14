@@ -14,8 +14,6 @@ const AutoFetchResultsSwitch: FC<{ size?: MantineSize }> = memo(({ size }) => {
             label="Automatically re-run query on change (e.g. add fields, change sort)"
             position="bottom"
             refProp="rootRef"
-            withArrow
-            withinPortal
         >
             <Switch
                 size={size}

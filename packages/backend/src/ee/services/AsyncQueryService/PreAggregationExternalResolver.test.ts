@@ -1,7 +1,9 @@
 import {
+    CustomDimensionType,
     DimensionType,
     ExploreType,
     FieldType,
+    FilterOperator,
     MetricType,
     SupportedDbtAdapter,
     type Explore,
@@ -142,6 +144,133 @@ describe('PreAggregationExternalResolver', () => {
             'projectUuid',
             '__preagg__orders__orders_rollup',
         );
+    });
+
+    test('recompiles SQL custom dimensions against materialized columns', async () => {
+        const { resolver } = getResolver();
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: ['status_present'],
+                customDimensions: [
+                    {
+                        id: 'status_present',
+                        type: CustomDimensionType.SQL,
+                        name: 'Status present',
+                        table: 'orders',
+                        sql: '${orders.status} IS NOT NULL',
+                        dimensionType: DimensionType.BOOLEAN,
+                    },
+                ],
+            },
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain(
+            '((orders.orders_status) IS NOT NULL) AS "status_present"',
+        );
+        expect(result.query).toContain(`FROM ${EXTERNAL_TABLE} AS "orders"`);
+    });
+
+    test('recompiles SQL custom dimensions from joined tables against materialized columns', async () => {
+        const { resolver } = getResolver({
+            explore: {
+                ...externalPreAggExplore,
+                tables: {
+                    ...externalPreAggExplore.tables,
+                    value_stream: {
+                        ...externalPreAggExplore.tables.orders,
+                        name: 'value_stream',
+                        label: 'Value Stream',
+                        dimensions: {
+                            pillar_name: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'pillar_name',
+                                label: 'Pillar name',
+                                table: 'value_stream',
+                                tableLabel: 'Value Stream',
+                                sql: 'orders.value_stream_pillar_name',
+                                compiledSql: 'orders.value_stream_pillar_name',
+                                tablesReferences: ['orders'],
+                                hidden: false,
+                            },
+                        },
+                        metrics: {},
+                    },
+                },
+            },
+        });
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: ['is_labeled'],
+                metrics: [],
+                customDimensions: [
+                    {
+                        id: 'is_labeled',
+                        type: CustomDimensionType.SQL,
+                        name: 'Is labeled',
+                        table: 'value_stream',
+                        sql: 'NOT ${value_stream.pillar_name} IS NULL',
+                        dimensionType: DimensionType.BOOLEAN,
+                    },
+                ],
+            },
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain(
+            '(NOT (orders.value_stream_pillar_name) IS NULL) AS "is_labeled"',
+        );
+        expect(result.query).toContain(`FROM ${EXTERNAL_TABLE} AS "orders"`);
+        expect(result.query).not.toContain('JOIN');
+    });
+
+    test('recompiles SQL custom dimension filters against materialized columns', async () => {
+        const { resolver } = getResolver();
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: [],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'custom-filter',
+                                target: { fieldId: 'status_present' },
+                                operator: FilterOperator.EQUALS,
+                                values: [true],
+                            },
+                        ],
+                    },
+                },
+                customDimensions: [
+                    {
+                        id: 'status_present',
+                        type: CustomDimensionType.SQL,
+                        name: 'Status present',
+                        table: 'orders',
+                        sql: '${orders.status} IS NOT NULL',
+                        dimensionType: DimensionType.BOOLEAN,
+                    },
+                ],
+            },
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain('WHERE');
+        expect(result.query).toContain('(orders.orders_status) IS NOT NULL');
     });
 
     test('returns unresolved when pre-aggregates are disabled', async () => {

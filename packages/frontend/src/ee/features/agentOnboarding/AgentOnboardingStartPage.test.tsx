@@ -16,6 +16,10 @@ vi.mock('../../../hooks/useProject', () => ({
     useProject: () => ({ data: state.project, isInitialLoading: false }),
 }));
 
+vi.mock('../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
+}));
+
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
         data: { enabled: state.isFlagEnabled },

@@ -106,7 +106,7 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
                     <Group gap="xs" wrap="nowrap">
                         <MantineIcon
                             icon={IconInfoCircle}
-                            color="ldGray.6"
+                            color="dimmed"
                             size="lg"
                         />
                         <Text fz="xs" c="dimmed">

@@ -1,0 +1,7 @@
+/* Consumers size the SDK with their own container; the wrapper must not add a
+   box that breaks `height: 100%` chains. Every other document-level rule the
+   SDK needs comes from the app stylesheets, scoped at build time by
+   scopeDocumentRules.cjs. */
+.lightdash-sdk-scope.ld-sdk-root {
+    display: contents;
+}

@@ -1,22 +1,45 @@
 import { subject } from '@casl/ability';
-import React, { type FC } from 'react';
+import React, { useMemo, type FC } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import ErrorState from '../components/common/ErrorState';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
+import {
+    ProjectRouteContext,
+    type ProjectRouteContextValue,
+} from '../hooks/useProjectRoute';
+import { useProjects } from '../hooks/useProjects';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 import PageSpinner from './PageSpinner';
 
 const ResolvedProjectRoute: FC<
     React.PropsWithChildren<{ projectUuid: string }>
 > = ({ children, projectUuid }) => {
     const { user } = useApp();
-    const { activeProjectUuid, isLoading: isInitialLoading } =
-        useActiveProjectUuid({ refetchOnMount: true });
+    const { isLoading: isInitialLoading } = useActiveProjectUuid({
+        refetchOnMount: true,
+        projectUuid,
+    });
 
-    const { data: project, isError, error } = useProject(activeProjectUuid);
+    const { data: project, isError, error } = useProject(projectUuid);
+
+    // Stable identity: useProjectRoute/useProjectUuid consumers would
+    // otherwise re-render whenever this provider re-renders.
+    const projectRouteContext: ProjectRouteContextValue | null = useMemo(
+        () =>
+            project
+                ? {
+                      project,
+                      projectUuid,
+                      projectUrlIdentifier: getProjectUrlIdentifier(project),
+                  }
+                : null,
+        [project, projectUuid],
+    );
+
     if (isInitialLoading) {
         return <PageSpinner />;
     }
@@ -25,7 +48,7 @@ const ResolvedProjectRoute: FC<
         return <ErrorState error={error.error} />;
     }
 
-    if (!project) {
+    if (projectRouteContext === null) {
         return <Navigate to="/no-access" />;
     }
 
@@ -40,7 +63,9 @@ const ResolvedProjectRoute: FC<
         >
             {(isAllowed) => {
                 return isAllowed ? (
-                    children
+                    <ProjectRouteContext.Provider value={projectRouteContext}>
+                        {children}
+                    </ProjectRouteContext.Provider>
                 ) : (
                     <Navigate to="/no-project-access" />
                 );
@@ -50,9 +75,31 @@ const ResolvedProjectRoute: FC<
 };
 
 const ProjectRoute: FC<React.PropsWithChildren> = ({ children }) => {
-    const { projectUuid } = useParams();
+    const { projectUuid: projectIdentifier } = useParams();
+    const isProjectUuid = isUuidString(projectIdentifier ?? '');
+    const projectsQuery = useProjects({
+        enabled: !!projectIdentifier && !isProjectUuid,
+    });
 
-    if (!projectUuid || !isUuidString(projectUuid)) {
+    if (!projectIdentifier) {
+        return <Navigate to="/projects" replace />;
+    }
+
+    if (!isProjectUuid && projectsQuery.isInitialLoading) {
+        return <PageSpinner />;
+    }
+
+    if (!isProjectUuid && projectsQuery.isError) {
+        return <ErrorState error={projectsQuery.error.error} />;
+    }
+
+    const projectUuid = isProjectUuid
+        ? projectIdentifier
+        : projectsQuery.data?.find(
+              (project) => project.slug === projectIdentifier,
+          )?.projectUuid;
+
+    if (!projectUuid) {
         return <Navigate to="/projects" replace />;
     }
 

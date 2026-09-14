@@ -3,6 +3,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconFilterExclamation } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import GuidedFilterSetup, {
     GuidedFilterSetupProgress,
@@ -21,6 +22,7 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
     startOfWeek,
     onDismiss,
 }) => {
+    const getUiString = useUiStrings();
     // Filter inputs report their dropdown state via popoverProps.onOpen/
     // onClose; Escape stands down while a dropdown is open so it only closes
     // the dropdown (the v6 date inputs don't set data-mantine-stop-propagation)
@@ -49,10 +51,10 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
         <MantineModal
             opened
             onClose={onDismiss}
-            title="Set filters to load this dashboard"
+            title={getUiString('filters.required.modalTitle')}
             description={
                 requiredFiltersNote ||
-                'Data loads automatically once the filters below are set.'
+                getUiString('filters.required.modalDescription')
             }
             icon={IconFilterExclamation}
             size={420}

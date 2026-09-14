@@ -1,6 +1,5 @@
 'use client';
 
-import '@lightdash/sdk/sdk.css';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { SavedChart } from '../../../../common/src';
@@ -24,8 +23,14 @@ const LightdashExplore = dynamic(
 
 export default function YourCustomDashboard() {
     const [chart, setChart] = useState<SavedChart>();
-    const instanceUrl = '<your-instance-url>';
-    const token = '<your-token>';
+    // Configure via NEXT_PUBLIC_LIGHTDASH_EMBED_URL in .env.local:
+    // https://<instance>/embed/<projectUuid>#<token>
+    const embedUrl = new URL(
+        process.env.NEXT_PUBLIC_LIGHTDASH_EMBED_URL ??
+            'http://localhost:3000/embed/x#missing-token',
+    );
+    const instanceUrl = embedUrl.origin;
+    const token = embedUrl.hash.slice(1);
 
     return (
         <>

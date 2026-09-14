@@ -1,4 +1,8 @@
-import { ChartType } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    ChartType,
+    type CreateSavedChartVersion,
+} from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import { createElement, useState, type ComponentProps } from 'react';
 import { Provider } from 'react-redux';
@@ -10,8 +14,10 @@ import {
 } from '../features/explorer/store';
 import { renderWithProviders } from '../testing/testUtils';
 import {
+    getSavedChartEditUrlFromCreateSavedChartVersion,
     parseChartFromExplorerSearchParams,
     parseDataAppVizUuidFromSearchParams,
+    tryParseCreateSavedChartVersionParam,
     useExplorerRoute,
     useExplorerUrlState,
 } from './useExplorerRoute';
@@ -48,6 +54,31 @@ const ExplorerRouteHarness = () => {
         createElement(ExplorerRouteLocation),
     );
 };
+
+const renderExplorerRouteAt = (initialPath: string) => {
+    window.history.replaceState({}, '', initialPath);
+
+    renderWithProviders(
+        createElement(
+            MemoryRouter,
+            { initialEntries: [initialPath] },
+            createElement(
+                Routes,
+                null,
+                createElement(Route, {
+                    path: '/projects/:projectUuid/tables/:tableId',
+                    element: createElement(ExplorerRouteHarness),
+                }),
+            ),
+        ),
+    );
+};
+
+const currentDestination = () =>
+    new URL(
+        screen.getByTestId('location').textContent ?? '',
+        'http://lightdash.local',
+    );
 
 describe('useExplorerRoute', () => {
     it('applies and consumes a chart type preview hint when it serializes chart state', async () => {
@@ -91,6 +122,68 @@ describe('useExplorerRoute', () => {
                     optionValues: {},
                 },
             });
+        });
+    });
+
+    it('keeps the chart sidebar step in the URL when restored from query params', async () => {
+        renderExplorerRouteAt(
+            '/projects/project-1/tables/orders?chartSidebar=configure&fromSpace=space-1',
+        );
+
+        await waitFor(() => {
+            const destination = currentDestination();
+            expect(destination.pathname).toBe(
+                '/projects/project-1/tables/orders',
+            );
+            expect(destination.searchParams.get('fromSpace')).toBe('space-1');
+            expect(destination.searchParams.get('chartSidebar')).toBe(
+                'configure',
+            );
+            expect(
+                destination.searchParams.get('create_saved_chart_version'),
+            ).not.toBeNull();
+        });
+    });
+
+    it('restores the chart type gallery step from the URL', async () => {
+        renderExplorerRouteAt(
+            '/projects/project-1/tables/orders?chartSidebar=choose',
+        );
+
+        await waitFor(() => {
+            expect(currentDestination().searchParams.get('chartSidebar')).toBe(
+                'choose',
+            );
+        });
+    });
+
+    it('omits the chart sidebar param when the panel is closed', async () => {
+        renderExplorerRouteAt(
+            '/projects/project-1/tables/orders?fromSpace=space-1',
+        );
+
+        await waitFor(() => {
+            const destination = currentDestination();
+            expect(destination.pathname).toBe(
+                '/projects/project-1/tables/orders',
+            );
+            expect(destination.searchParams.get('fromSpace')).toBe('space-1');
+            expect(destination.searchParams.get('chartSidebar')).toBeNull();
+            expect(
+                destination.searchParams.get('create_saved_chart_version'),
+            ).not.toBeNull();
+        });
+    });
+
+    it('treats an unknown chart sidebar step as a closed panel', async () => {
+        renderExplorerRouteAt(
+            '/projects/project-1/tables/orders?chartSidebar=nope',
+        );
+
+        await waitFor(() => {
+            expect(
+                currentDestination().searchParams.get('chartSidebar'),
+            ).toBeNull();
         });
     });
 });
@@ -198,5 +291,117 @@ describe('parseDataAppVizUuidFromSearchParams', () => {
         expect(
             parseDataAppVizUuidFromSearchParams('?dataAppVizUuid=not-a-uuid'),
         ).toBeNull();
+    });
+});
+
+describe('getSavedChartEditUrlFromCreateSavedChartVersion', () => {
+    const createSavedChart: CreateSavedChartVersion = {
+        tableName: 'payments',
+        metricQuery: {
+            exploreName: 'payments',
+            dimensions: ['payments_payment_method'],
+            metrics: ['payments_total_revenue'],
+            filters: {},
+            sorts: [],
+            limit: 25,
+            tableCalculations: [],
+        },
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: { layout: {}, eChartsConfig: {} },
+        },
+        tableConfig: { columnOrder: [] },
+    };
+
+    it('carries the unsaved version and the dashboard to the edit route', () => {
+        const { pathname, search } =
+            getSavedChartEditUrlFromCreateSavedChartVersion({
+                projectUuid: 'project-1',
+                chartSlug: 'revenue-per-payment-method',
+                createSavedChart,
+                fromDashboardUuid: 'dashboard-1',
+            });
+
+        expect(pathname).toBe(
+            '/projects/project-1/saved/revenue-per-payment-method/edit',
+        );
+        const params = new URLSearchParams(search);
+        expect(params.get('fromDashboard')).toBe('dashboard-1');
+        expect(parseChartFromExplorerSearchParams(`?${search}`)).toEqual(
+            createSavedChart,
+        );
+    });
+
+    it('omits the dashboard when the editor is not hosted in one', () => {
+        const { search } = getSavedChartEditUrlFromCreateSavedChartVersion({
+            projectUuid: 'project-1',
+            chartSlug: 'revenue-per-payment-method',
+            createSavedChart,
+            fromDashboardUuid: null,
+        });
+
+        expect(new URLSearchParams(search).get('fromDashboard')).toBeNull();
+    });
+
+    it('does not inherit the current page search params', () => {
+        window.history.replaceState({}, '', '/dashboard?fromSpace=space-1');
+
+        const { search } = getSavedChartEditUrlFromCreateSavedChartVersion({
+            projectUuid: 'project-1',
+            chartSlug: 'revenue-per-payment-method',
+            createSavedChart,
+            fromDashboardUuid: null,
+        });
+
+        expect(new URLSearchParams(search).get('fromSpace')).toBeNull();
+        expect(new URLSearchParams(search).get('isExploreFromHere')).toBeNull();
+    });
+
+    it('trims large chart styling like the explore URL', () => {
+        const series = Array.from({ length: 20 }, (_, index) => ({
+            encode: {
+                xRef: { field: 'payments_payment_method' },
+                yRef: { field: `payments_metric_${index}` },
+            },
+            type: CartesianSeriesType.BAR,
+            name: `Series ${index} with a descriptive label`,
+            color: '#0f0f0f',
+            yAxisIndex: index % 2,
+            label: { show: true },
+        }));
+        const largeChart: CreateSavedChartVersion = {
+            ...createSavedChart,
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: { layout: {}, eChartsConfig: { series } },
+            },
+        };
+        expect(JSON.stringify(largeChart).length).toBeGreaterThan(3000);
+
+        const { search } = getSavedChartEditUrlFromCreateSavedChartVersion({
+            projectUuid: 'project-1',
+            chartSlug: 'revenue-per-payment-method',
+            createSavedChart: largeChart,
+            fromDashboardUuid: 'dashboard-1',
+        });
+
+        expect(parseChartFromExplorerSearchParams(`?${search}`)).toEqual({
+            ...largeChart,
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: { layout: {}, eChartsConfig: {} },
+            },
+        });
+        expect(new URLSearchParams(search).get('fromDashboard')).toBe(
+            'dashboard-1',
+        );
+    });
+});
+
+describe('tryParseCreateSavedChartVersionParam', () => {
+    it('ignores a malformed param instead of throwing', () => {
+        expect(
+            tryParseCreateSavedChartVersionParam('not-json'),
+        ).toBeUndefined();
     });
 });

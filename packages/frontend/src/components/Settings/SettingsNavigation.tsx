@@ -6,6 +6,7 @@ import {
     type SettingsNavigationItem,
     type SettingsNavigationSection,
 } from '../../hooks/settings/types';
+import { BetaBadge } from '../common/BetaBadge';
 import MantineIcon from '../common/MantineIcon';
 import RouterNavLink from '../common/RouterNavLink';
 
@@ -44,6 +45,7 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
                     exact={item.exact}
                     onClick={item.onClick}
                     leftSection={leftSection}
+                    rightSection={item.isBeta ? <BetaBadge /> : undefined}
                 />
             );
         }
@@ -72,11 +74,9 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
             {sections.map((section) => (
                 <Box key={section.id}>
                     <Box mb="xs">
-                        <Title order={6} fw={600}>
-                            {section.title}
-                        </Title>
+                        <Title order={6}>{section.title}</Title>
                         {section.subtitle !== null && (
-                            <Text fz="sm" fw={700} mt={2}>
+                            <Text fz="sm" fw={600} mt={2}>
                                 {section.subtitle}
                             </Text>
                         )}

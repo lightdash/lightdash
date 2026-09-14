@@ -22,7 +22,6 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
             allowDeselect={false}
             w={100}
             size="xs"
-            radius="md"
             color="gray"
             data={[
                 {

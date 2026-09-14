@@ -1,7 +1,7 @@
 import {
     type AiArtifact,
     type Dashboard,
-    type ToolDashboardArgs,
+    type ToolDashboardV2Args,
 } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine/core';
 import {
@@ -19,7 +19,7 @@ type Props = {
     artifactData: AiArtifact;
     projectUuid: string;
     agentUuid: string;
-    dashboardConfig: ToolDashboardArgs;
+    dashboardConfig: ToolDashboardV2Args;
 };
 
 export const AiDashboardQuickOptions: FC<Props> = ({
@@ -58,7 +58,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
         <Fragment>
             <Menu withArrow>
                 <Menu.Target>
-                    <ActionIcon size="sm" variant="subtle" color="ldGray.9">
+                    <ActionIcon size="sm" color="ldGray.9">
                         <MantineIcon icon={IconDots} size="lg" />
                     </ActionIcon>
                 </Menu.Target>

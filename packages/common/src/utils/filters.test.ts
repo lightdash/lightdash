@@ -1,3 +1,4 @@
+import { DashboardTileTypes } from '../types/dashboard';
 import { DimensionType, FieldType } from '../types/field';
 import {
     FilterGroupOperator,
@@ -18,8 +19,12 @@ import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
     applyDashboardFiltersForTile,
+    createDashboardFilterRuleFromField,
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
+    excludeTilesFromTabScopedFilters,
+    getDashboardFilterableFieldKey,
+    getDashboardFilterField,
     getDashboardFilterRulesForTileAndReferences,
     getFilterExpression,
     getFilterRuleFromFieldWithDefaultValue,
@@ -125,6 +130,24 @@ describe('getFilterExpression', () => {
         ).toEqual({
             operator: FilterGroupOperator.and,
             items: [includedRule],
+        });
+    });
+
+    test('treats a persisted group without an items array as empty', () => {
+        // Stored chart JSON can carry a group with no `and`/`or` array
+        const persistedGroup = (json: string): FilterGroup => JSON.parse(json);
+        const metricRule = rule('metric');
+        const filters: Filters = {
+            dimensions: persistedGroup('{"id":"dimensions"}'),
+            metrics: {
+                id: 'metrics',
+                and: [metricRule, persistedGroup('{"id":"nested","or":null}')],
+            },
+        };
+
+        expect(getFilterExpression(filters)).toEqual({
+            operator: FilterGroupOperator.and,
+            items: [metricRule],
         });
     });
 });
@@ -2418,4 +2441,231 @@ describe('createFilterRuleFromField — quick filter operator per field type', (
             });
         },
     );
+});
+
+describe('excludeTilesFromTabScopedFilters', () => {
+    const TAB_1 = 'tab-1';
+    const TAB_2 = 'tab-2';
+    const chartTile = (uuid: string, tabUuid?: string) => ({
+        uuid,
+        type: DashboardTileTypes.SAVED_CHART,
+        tabUuid,
+    });
+    const markdownTile = (uuid: string, tabUuid: string) => ({
+        uuid,
+        type: DashboardTileTypes.MARKDOWN,
+        tabUuid,
+    });
+    const rule = (
+        id: string,
+        tileTargets?: DashboardFilterRule['tileTargets'],
+    ): DashboardFilterRule => ({
+        id,
+        label: undefined,
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: ['completed'],
+        ...(tileTargets ? { tileTargets } : {}),
+    });
+    const filters = (
+        dimensions: DashboardFilterRule[],
+        metrics: DashboardFilterRule[] = [],
+    ): DashboardFilters => ({ dimensions, metrics, tableCalculations: [] });
+
+    it('excludes a new tile from a filter that excludes every chart tile on its tab', () => {
+        const existing = [chartTile('t1', TAB_1), chartTile('t2', TAB_2)];
+        const scopedToTab2 = rule('f1', { t1: false });
+        const result = excludeTilesFromTabScopedFilters(
+            filters([scopedToTab2]),
+            [chartTile('new-tile', TAB_1)],
+            existing,
+        );
+        expect(result.dimensions[0].tileTargets).toEqual({
+            t1: false,
+            'new-tile': false,
+        });
+    });
+
+    it('keeps auto-apply for a filter that targets at least one chart tile on the tab', () => {
+        const existing = [
+            chartTile('t1', TAB_1),
+            chartTile('t2', TAB_1),
+            chartTile('t3', TAB_2),
+        ];
+        const partiallyApplied = rule('f1', { t1: false });
+        const input = filters([partiallyApplied]);
+        const result = excludeTilesFromTabScopedFilters(
+            input,
+            [chartTile('new-tile', TAB_1)],
+            existing,
+        );
+        expect(result).toBe(input);
+    });
+
+    it('keeps auto-apply when the tab has no pre-existing chart tiles', () => {
+        const existing = [chartTile('t2', TAB_2)];
+        const scopedToTab2 = rule('f1', {});
+        const input = filters([scopedToTab2]);
+        const result = excludeTilesFromTabScopedFilters(
+            input,
+            [chartTile('new-tile', TAB_1)],
+            existing,
+        );
+        expect(result).toBe(input);
+    });
+
+    it('ignores non-chart tiles when checking whether a tab is fully excluded', () => {
+        const existing = [
+            chartTile('t1', TAB_1),
+            markdownTile('md1', TAB_1),
+            chartTile('t2', TAB_2),
+        ];
+        const scopedToTab2 = rule('f1', { t1: false });
+        const result = excludeTilesFromTabScopedFilters(
+            filters([scopedToTab2]),
+            [chartTile('new-tile', TAB_1)],
+            existing,
+        );
+        expect(result.dimensions[0].tileTargets).toEqual({
+            t1: false,
+            'new-tile': false,
+        });
+    });
+
+    it('does nothing for new tiles without a tab', () => {
+        const existing = [chartTile('t1', TAB_1)];
+        const input = filters([rule('f1', { t1: false })]);
+        const result = excludeTilesFromTabScopedFilters(
+            input,
+            [chartTile('new-tile', undefined)],
+            existing,
+        );
+        expect(result).toBe(input);
+    });
+
+    it('applies the same inference to metric filters', () => {
+        const existing = [chartTile('t1', TAB_1), chartTile('t2', TAB_2)];
+        const metricScopedToTab2 = rule('m1', { t1: false });
+        const result = excludeTilesFromTabScopedFilters(
+            filters([], [metricScopedToTab2]),
+            [chartTile('new-tile', TAB_1)],
+            existing,
+        );
+        expect(result.metrics[0].tileTargets).toEqual({
+            t1: false,
+            'new-tile': false,
+        });
+    });
+
+    it('handles each new tile against its own tab', () => {
+        const existing = [chartTile('t1', TAB_1), chartTile('t2', TAB_2)];
+        const scopedToTab1 = rule('f1', { t2: false });
+        const result = excludeTilesFromTabScopedFilters(
+            filters([scopedToTab1]),
+            [chartTile('new-1', TAB_1), chartTile('new-2', TAB_2)],
+            existing,
+        );
+        expect(result.dimensions[0].tileTargets).toEqual({
+            t2: false,
+            'new-2': false,
+        });
+    });
+
+    it('treats a mapped tile target as applied, not excluded', () => {
+        const existing = [chartTile('t1', TAB_1)];
+        const mappedOnTab1 = rule('f1', {
+            t1: { fieldId: 'orders_status', tableName: 'orders' },
+        });
+        const input = filters([mappedOnTab1]);
+        const result = excludeTilesFromTabScopedFilters(
+            input,
+            [chartTile('new-tile', TAB_1)],
+            existing,
+        );
+        expect(result).toBe(input);
+    });
+});
+
+describe('createDashboardFilterRuleFromField', () => {
+    const fieldA = {
+        ...dimension('name', 'team'),
+        tableLabel: 'Team at Event A',
+        label: 'Name',
+    };
+    const fieldB = { ...fieldA, tableLabel: 'Team at Event B' };
+
+    test('excludes tiles that relabel the same field and targets the rest by default', () => {
+        const rule = createDashboardFilterRuleFromField({
+            field: fieldB,
+            availableTileFilters: {
+                'tile-a': [fieldA],
+                'tile-b': [fieldB],
+                'tile-c': [{ ...fieldB }],
+            },
+            isTemporary: false,
+        });
+        expect(rule.target).toEqual({
+            fieldId: 'team_name',
+            tableName: 'team',
+            fieldName: 'name',
+        });
+        expect(rule.tileTargets).toEqual({
+            'tile-a': false,
+            'tile-b': { fieldId: 'team_name', tableName: 'team' },
+            'tile-c': { fieldId: 'team_name', tableName: 'team' },
+        });
+    });
+});
+
+describe('getDashboardFilterField', () => {
+    const fieldA = {
+        ...dimension('name', 'team'),
+        tableLabel: 'Team at Event A',
+    };
+    const fieldB = { ...fieldA, tableLabel: 'Team at Event B' };
+    const fieldsByTile = { 'tile-a': [fieldA], 'tile-b': [fieldB] };
+    const target = { fieldId: 'team_name', tableName: 'team' };
+
+    test('returns the field of an explicitly targeted tile', () => {
+        expect(
+            getDashboardFilterField(
+                { team_name: fieldA },
+                { target, tileTargets: { 'tile-a': false, 'tile-b': target } },
+                fieldsByTile,
+            ),
+        ).toBe(fieldB);
+    });
+
+    test('ignores tiles mapped to a different field', () => {
+        expect(
+            getDashboardFilterField(
+                { team_name: fieldA },
+                {
+                    target,
+                    tileTargets: {
+                        'tile-b': { fieldId: 'other', tableName: 'team' },
+                    },
+                },
+                fieldsByTile,
+            ),
+        ).toBe(fieldA);
+    });
+
+    test('falls back to the shared map without tile targets', () => {
+        expect(getDashboardFilterField({ team_name: fieldA }, { target })).toBe(
+            fieldA,
+        );
+    });
+});
+
+describe('getDashboardFilterableFieldKey', () => {
+    test('separates same-id fields whose labels differ', () => {
+        const field = dimension('name', 'team');
+        expect(getDashboardFilterableFieldKey(field)).toBe(
+            'team_name::mockTableLabel::mockLabel',
+        );
+        expect(
+            getDashboardFilterableFieldKey({ ...field, tableLabel: 'Other' }),
+        ).not.toBe(getDashboardFilterableFieldKey(field));
+    });
 });

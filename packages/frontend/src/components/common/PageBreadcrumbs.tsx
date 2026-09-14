@@ -77,7 +77,7 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
                             key="ellipsis"
                             size={size}
                             fw={500}
-                            c="ldGray.6"
+                            c="dimmed"
                             className={`${classes.anchor} ${classes.anchorClickable}`}
                             onClick={() =>
                                 setExpandedForItemsLength(items.length)

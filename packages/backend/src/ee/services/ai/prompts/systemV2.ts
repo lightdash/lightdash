@@ -4,6 +4,7 @@ import {
     Explore,
     WarehouseTypes,
     type AgentSqlScope,
+    type CustomChartTypeLibrary,
 } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
@@ -13,12 +14,20 @@ import {
     AiAgentRequestingUser,
 } from '../types/aiAgent';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
+import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
+import {
+    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+    FILTER_EXPRESSION_GUIDANCE_SECTION,
+    STRUCTURED_FILTER_GUIDANCE_SECTION,
+    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+} from './filterGuidance';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
+import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     REPO_FS_SECTION,
@@ -30,10 +39,22 @@ import { getRunSqlSection } from './systemV2RunSql';
 import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
+import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+
+const getDataAccessSection = (
+    enableDataAccess: boolean,
+    slackLinksOnly: boolean,
+): string => {
+    if (slackLinksOnly) return getSlackLinksOnlySection(enableDataAccess);
+    return enableDataAccess
+        ? DATA_ACCESS_ENABLED_SECTION
+        : DATA_ACCESS_DISABLED_SECTION;
+};
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
+    availableCustomChartTypes?: CustomChartTypeLibrary;
     availableSkills?: AiAgentSkillReference[];
     knowledgeDocuments?: AiAgentDocumentContext[];
     deepResearchRuns?: AiAgentDeepResearchRunContext[];
@@ -43,6 +64,7 @@ export const getSystemPromptV2 = (args: {
     requestingUser?: AiAgentRequestingUser | null;
     date?: string;
     enableDataAccess?: boolean;
+    enableFilterExpressions?: boolean;
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
     enableCodingAgent?: boolean;
@@ -53,11 +75,17 @@ export const getSystemPromptV2 = (args: {
     // GitLab no). Defaults true; when false the prompt steers off `search`.
     repoFsSupportsCodeSearch?: boolean;
     enableContentTools?: boolean;
+    enableGenerateDataApp?: boolean;
     enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
     // web and MCP prompts.
     slackChannelId?: string | null;
+    // Org Slack setting: the answer may not carry query results into Slack.
+    slackLinksOnly?: boolean;
     canRunSql?: boolean;
+    // When composer queries are on, the standalone runSql tool is withheld
+    // and raw SQL runs as `sql` nodes inside runComposerQueries instead.
+    enableComposerQueries?: boolean;
     enableMergeQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
@@ -73,6 +101,7 @@ export const getSystemPromptV2 = (args: {
         requestingUser = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
+        enableFilterExpressions = false,
         enableAiWriteback = false,
         writebackAttribution = null,
         enableCodingAgent = false,
@@ -81,9 +110,12 @@ export const getSystemPromptV2 = (args: {
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         enableContentTools = false,
+        enableGenerateDataApp = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
+        slackLinksOnly = false,
         canRunSql = false,
+        enableComposerQueries = false,
         enableMergeQueries = false,
         warehouseType = null,
         warehouseSchema = null,
@@ -97,6 +129,9 @@ export const getSystemPromptV2 = (args: {
     if (enableMergeQueries) {
         crossExploreJoinRule =
             '  - To combine fields from two explores that are not joined in the semantic layer, use generateVisualization with mergeConfig. Keep the primary query in queryConfig, put exactly one additional query in mergeConfig.additionalSources, and join dimensions at the same type and grain. Do not use runSql merely to combine explores.';
+    } else if (enableComposerQueries) {
+        crossExploreJoinRule =
+            '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use runComposerQueries: one semanticLayer node per explore plus a duckdb node that joins their results.';
     } else if (canRunSql) {
         crossExploreJoinRule =
             '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
@@ -211,7 +246,11 @@ export const getSystemPromptV2 = (args: {
     let availableExploresContent: string;
     if (args.availableExplores.length === 0) {
         availableExploresContent = canRunSql
-            ? 'No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with runSql.'
+            ? `No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with ${
+                  enableComposerQueries
+                      ? 'runComposerQueries using a sql node'
+                      : 'runSql'
+              }.`
             : 'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
     } else if (
         args.availableExplores.length <= AVAILABLE_EXPLORES_INLINE_LIMIT
@@ -227,6 +266,18 @@ export const getSystemPromptV2 = (args: {
         '{{self_improvement_section}}',
         '',
     )
+        .replace(
+            '{{search_field_values_filter_guidance}}',
+            enableFilterExpressions
+                ? EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE
+                : STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+        )
+        .replace(
+            '{{filter_guidance_section}}',
+            enableFilterExpressions
+                ? FILTER_EXPRESSION_GUIDANCE_SECTION
+                : STRUCTURED_FILTER_GUIDANCE_SECTION,
+        )
         .replace(
             '{{ai_writeback_section}}',
             enableAiWriteback
@@ -255,9 +306,7 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{data_access_section}}',
-            enableDataAccess
-                ? DATA_ACCESS_ENABLED_SECTION
-                : DATA_ACCESS_DISABLED_SECTION,
+            getDataAccessSection(enableDataAccess, slackLinksOnly),
         )
         .replace(
             '{{run_sql_section}}',
@@ -267,12 +316,17 @@ export const getSystemPromptV2 = (args: {
                       warehouseSchema,
                       sqlScope,
                       runSqlMaxLimit,
+                      viaComposerQueries: enableComposerQueries,
                   })
                 : '',
         )
         .replace(
             '{{content_tools_section}}',
             enableContentTools ? CONTENT_TOOLS_SECTION : '',
+        )
+        .replace(
+            '{{generate_data_app_section}}',
+            enableGenerateDataApp ? GENERATE_DATA_APP_SECTION : '',
         )
         .replace(
             '{{scheduling_tools_section}}',
@@ -295,6 +349,12 @@ export const getSystemPromptV2 = (args: {
         )
         .replace('{{date}}', date)
         .replace('{{available_explores}}', availableExploresContent)
+        .replace(
+            '{{available_custom_chart_types}}',
+            renderAvailableCustomChartTypes(
+                args.availableCustomChartTypes ?? { types: [], totalCount: 0 },
+            ),
+        )
         .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
         .replace('{{project_context}}', projectContextContent);
 
@@ -336,7 +396,7 @@ export const getSystemPromptV2 = (args: {
         "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
         '- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.',
         "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
-        '- Table filters marked `required` are hard constraints: they are always applied to queries on that table. You may provide a compatible filter on the same field when the user asks for a specific range, e.g. if `created_at inThePast [4 weeks]` is required, `created_at inThePast [10 months]` or `created_at inThePast [2 days]` is compatible.',
+        "- Table filters marked `required` require every query to filter that field, but their configured operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field; it replaces the configured default. For example, if `created_at inThePast [4 weeks]` is required, use `created_at inThePast [10 months]` when the user asks for ten months. Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it.",
         '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
         '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
         '- Once you have the fieldIds you need, build the query. Do NOT re-grep for fields you already found, and do not call grepFields again between generateVisualization attempts — if a query fails, fix the query itself (filters, metric, grain), not the discovery. If you need a filter value you are unsure of (e.g. which status string exists), use searchFieldValues rather than guessing.',

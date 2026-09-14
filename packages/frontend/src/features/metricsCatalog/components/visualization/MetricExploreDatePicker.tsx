@@ -122,7 +122,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                 >
                     <Text size="sm" fw={500} c="ldDark.8">
                         Custom:{' '}
-                        <Text size="sm" fw={500} c="ldGray.6" span>
+                        <Text size="sm" fw={500} c="dimmed" span>
                             {buttonLabel}
                         </Text>
                     </Text>
@@ -145,12 +145,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
     ];
 
     return (
-        <Popover
-            opened={isOpen}
-            onChange={handleOpen}
-            position="bottom-start"
-            shadow="sm"
-        >
+        <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
             <Popover.Target>
                 <Group justify="space-between" w="fill-available" wrap="nowrap">
                     <SegmentedControl
@@ -203,11 +198,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     />
                     {showTimeDimensionIntervalPicker &&
                         timeDimensionBaseField && (
-                            <Tooltip
-                                label="Change granularity"
-                                position="top"
-                                withinPortal
-                            >
+                            <Tooltip label="Change granularity" position="top">
                                 <Box>
                                     <TimeDimensionIntervalPicker
                                         dimension={timeDimensionBaseField}
@@ -251,21 +242,18 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     {...calendarConfig.props}
                                     mih={180}
                                     w="100%"
-                                    color="dark"
                                     size="xs"
                                 />
                             ) : calendarConfig?.type === TimeFrames.MONTH ? (
                                 <MonthRangePicker
                                     {...calendarConfig.props}
                                     mih={180}
-                                    color="dark"
                                     size="xs"
                                 />
                             ) : calendarConfig ? (
                                 <CalendarRangePicker
                                     {...calendarConfig.props}
                                     mih={225}
-                                    color="dark"
                                     size="xs"
                                     withCellSpacing={false}
                                 />
@@ -277,7 +265,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                 <Group gap="xs">
                                     <TextInput
                                         size="xs"
-                                        radius="md"
                                         w={100}
                                         value={formattedTempDateRange[0]}
                                         readOnly
@@ -294,7 +281,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     </Text>
                                     <TextInput
                                         size="xs"
-                                        radius="md"
                                         w={100}
                                         value={formattedTempDateRange[1]}
                                         readOnly
@@ -311,7 +297,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                 <Group gap="xs">
                                     <Button
                                         size="xs"
-                                        radius="md"
                                         variant="default"
                                         onClick={() => handleOpen(false)}
                                         style={(theme) => ({
@@ -323,8 +308,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     </Button>
                                     <Button
                                         size="xs"
-                                        radius="md"
-                                        color="dark"
                                         onClick={() => {
                                             handleApply();
 

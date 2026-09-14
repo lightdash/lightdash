@@ -2,15 +2,16 @@ import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
-import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
+import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
@@ -41,13 +42,15 @@ interface NavBarProps {
 const NavBarContent = ({
     navBarMode,
     activeProjectUuid,
+    activeProjectUrlIdentifier,
     isLoadingActiveProject,
 }: {
     navBarMode: NavBarMode;
     activeProjectUuid: string | undefined;
+    activeProjectUrlIdentifier: string | undefined;
     isLoadingActiveProject: boolean;
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     if (navBarMode === NavBarMode.EDITING_DASHBOARD_CHART) {
         return <DashboardExplorerBanner projectUuid={projectUuid} />;
     }
@@ -55,6 +58,7 @@ const NavBarContent = ({
     return (
         <MainNavBarContent
             activeProjectUuid={activeProjectUuid}
+            activeProjectUrlIdentifier={activeProjectUrlIdentifier}
             isLoadingActiveProject={isLoadingActiveProject}
         />
     );
@@ -65,9 +69,13 @@ const getNavBarRootElement = () =>
 
 const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const { isFullscreen } = useFullscreen();
+    const routeProjectUuid = useProjectUuid();
 
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
-        useActiveProjectUuid({ refetchOnMount: true });
+        useActiveProjectUuid({
+            refetchOnMount: true,
+            projectUuid: routeProjectUuid,
+        });
     const { data: project } = useProject(activeProjectUuid);
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
@@ -78,6 +86,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
         ? project?.upstreamProjectUuid
         : undefined;
     const { data: upstreamProject } = useProject(upstreamProjectUuid);
+    // A learner's copy of the training project is not a preview in the
+    // engineering sense: no branch, no upstream to promote to. No banner.
+    const isTrainingCopy =
+        isCurrentProjectPreview &&
+        upstreamProject?.type === ProjectType.TRAINING;
     const { isImpersonating } = useImpersonation();
     const { data: organizationAccess } = useOrganizationAccess();
 
@@ -93,7 +106,9 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
     const hasBanner =
-        isImpersonating || isCurrentProjectPreview || showTrialWarning;
+        isImpersonating ||
+        (isCurrentProjectPreview && !isTrainingCopy) ||
+        showTrialWarning;
 
     // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
@@ -104,7 +119,12 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     // limitations (see: https://github.com/orgs/mantinedev/discussions/4803).
     // The manual `data-mantine-color-scheme="dark"` attribute helps CSS selectors match correctly.
     return (
-        <Box id="navbar-header" data-mantine-color-scheme="dark">
+        <Box
+            id="navbar-header"
+            data-mantine-color-scheme="dark"
+            data-has-visible-fixed-navbar={isFixed && !isFullscreen}
+            data-has-banner={hasBanner}
+        >
             <MantineBaseProvider
                 forceColorScheme="dark"
                 cssVariablesSelector="#navbar-header"
@@ -112,13 +132,14 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             >
                 {isImpersonating ? (
                     <ImpersonationBanner />
-                ) : isCurrentProjectPreview ? (
+                ) : isCurrentProjectPreview && !isTrainingCopy ? (
                     <PreviewBanner
                         expiresAt={project?.expiresAt ?? null}
                         upstreamProject={
                             upstreamProject
                                 ? {
                                       projectUuid: upstreamProject.projectUuid,
+                                      slug: upstreamProject.slug,
                                       name: upstreamProject.name,
                                   }
                                 : null
@@ -145,6 +166,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                     <NavBarContent
                         navBarMode={navBarMode}
                         activeProjectUuid={activeProjectUuid}
+                        activeProjectUrlIdentifier={
+                            project
+                                ? getProjectUrlIdentifier(project)
+                                : activeProjectUuid
+                        }
                         isLoadingActiveProject={isLoadingActiveProject}
                     />
                 </Box>

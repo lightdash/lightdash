@@ -17,6 +17,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import { defaultState } from '../../../providers/Explorer/defaultState';
@@ -36,6 +37,9 @@ type Props = {
 
 const ExploreSideBar = memo(({ onExploreClick, onBackToTables }: Props) => {
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
 
     const tableName = useExplorerSelector(selectTableName);
     const deferredTableName = useDeferredValue(tableName);
@@ -68,8 +72,8 @@ const ExploreSideBar = memo(({ onExploreClick, onBackToTables }: Props) => {
             onBackToTables();
             return;
         }
-        void navigate(`/projects/${projectUuid}/tables`);
-    }, [clearExplore, navigate, projectUuid, onBackToTables]);
+        void navigate(`/projects/${projectUrlIdentifier}/tables`);
+    }, [clearExplore, navigate, projectUrlIdentifier, onBackToTables]);
 
     // When transitioning back to tables it's relatively fast so we don't show any skeleton
     const isTransitioningToExplore = useMemo(

@@ -75,7 +75,6 @@ export const FunnelStepsTab: FC = () => {
                         />
                         {steps.length > 1 && (
                             <ActionIcon
-                                variant="subtle"
                                 color="red"
                                 onClick={() => dispatch(removeStep(index))}
                             >

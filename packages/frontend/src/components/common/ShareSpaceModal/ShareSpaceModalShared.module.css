@@ -27,3 +27,7 @@
         var(--mantine-color-dark-5)
     );
 }
+
+.pagination {
+    align-self: flex-end;
+}

@@ -66,7 +66,7 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
             color="ldGray"
             leftSection={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'xs')}
             rightSection={
-                <MantineIcon icon={IconExternalLink} color="ldGray.6" />
+                <MantineIcon icon={IconExternalLink} color="dimmed" />
             }
         >
             Sign in with Snowflake

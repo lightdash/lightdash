@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DbtProjectType,
+    MissingConfigError,
     ParameterError,
     PullRequestProvider,
     resolveDbtVersion,
@@ -10,6 +11,8 @@ import {
     type DbtVersionOption,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
+import type { LightdashConfig } from '../../../config/parseConfig';
+import type { ClaudeCodeAnthropicConfig } from '../AppGenerateService/claudeCodeEnv';
 import {
     COMPILE_WRAPPER_PATH,
     DBT_VENV_BIN_PREFIX,
@@ -57,7 +60,7 @@ const splitOwnerRepo = (
  * Normalise the stored sub-path (leading slash, `/` for root) to a path
  * relative to the repo root so it can be passed to `--project-dir`.
  */
-const normalizeProjectSubPath = (projectSubPath: string): string => {
+export const normalizeProjectSubPath = (projectSubPath: string): string => {
     const relative = projectSubPath
         .trim()
         .replace(/^\/+/, '')
@@ -80,6 +83,9 @@ export const parseGithubConnection = (
         repo,
         projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
         branch: connection.branch?.trim() ?? '',
+        ...(connection.semanticLayer === 'lightdash'
+            ? { semanticLayer: 'lightdash' as const }
+            : {}),
     };
 };
 
@@ -115,6 +121,12 @@ export const buildCloneTarget = (
             return {
                 url: `https://github.com/${connection.owner}/${connection.repo}.git`,
                 username: 'x-access-token',
+                password: token,
+            };
+        case PullRequestProvider.BITBUCKET:
+            return {
+                url: `https://bitbucket.org/${encodeURIComponent(connection.owner)}/${encodeURIComponent(connection.repo)}.git`,
+                username: 'x-bitbucket-api-token-auth',
                 password: token,
             };
         case PullRequestProvider.GITLAB:
@@ -643,3 +655,21 @@ export const resolveSandboxDbtVersion = (
  */
 export const dbtSandboxVenvBin = (version: SupportedDbtVersions): string =>
     `${DBT_VENV_BIN_PREFIX}${version.slice(1)}/bin`;
+
+/**
+ * Anthropic credentials for the sandboxed `claude` CLI. Writeback and the
+ * onboarding agent share the data-apps credentials (`ANTHROPIC_API_KEY`); the
+ * writeback-specific `AI_WRITEBACK_ANTHROPIC_API_KEY` is deprecated and only
+ * honoured while the shared key is unset.
+ */
+export const resolveSandboxAnthropicConfig = (
+    lightdashConfig: Pick<LightdashConfig, 'ai' | 'aiWriteback'>,
+): ClaudeCodeAnthropicConfig => {
+    const { anthropic } = lightdashConfig.ai.copilot.providers;
+    if (anthropic?.apiKey) return anthropic;
+    const { legacyAnthropicApiKey } = lightdashConfig.aiWriteback;
+    if (legacyAnthropicApiKey) return { apiKey: legacyAnthropicApiKey };
+    throw new MissingConfigError(
+        'Anthropic API key is not configured (ANTHROPIC_API_KEY)',
+    );
+};

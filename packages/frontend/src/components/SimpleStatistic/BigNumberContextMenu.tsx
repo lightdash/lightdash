@@ -107,8 +107,6 @@ const BigNumberContextMenu: FC<
     return (
         <Menu
             withArrow
-            withinPortal
-            shadow="md"
             position="bottom"
             closeOnItemClick
             closeOnEscape

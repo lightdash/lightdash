@@ -8,7 +8,10 @@ import {
 } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useSelectProjectChartType } from './useSelectProjectChartType';
+import {
+    useCreateProjectChartType,
+    useSelectProjectChartType,
+} from './useSelectProjectChartType';
 
 const { dispatch } = vi.hoisted(() => ({ dispatch: vi.fn() }));
 
@@ -62,6 +65,7 @@ const itemsMap = {
 
 const dataAppViz = {
     dataAppVizUuid: 'viz-uuid',
+    slug: 'grouped-bars',
     name: 'Grouped bars',
     description: 'Groups a metric by a series dimension',
     projectUuid: 'project-uuid',
@@ -92,6 +96,8 @@ const dataAppViz = {
     },
     createdAt: new Date('2026-08-19T00:00:00Z'),
     createdByUserUuid: 'user-uuid',
+    icon: null,
+    registrySlug: null,
 } satisfies DataAppViz;
 
 describe('useSelectProjectChartType', () => {
@@ -123,5 +129,27 @@ describe('useSelectProjectChartType', () => {
                 },
             },
         });
+    });
+});
+
+describe('useCreateProjectChartType', () => {
+    beforeEach(() => dispatch.mockClear());
+
+    it('points the chart at no viz and drops the pivot', () => {
+        const { result } = renderHook(() => useCreateProjectChartType());
+
+        act(() => result.current());
+
+        expect(dispatch.mock.calls.map(([action]) => action)).toStrictEqual([
+            {
+                type: 'setChartType',
+                payload: { chartType: ChartType.DATA_APP_VIZ },
+            },
+            {
+                type: 'setChartConfig',
+                payload: { chartConfig: { type: ChartType.DATA_APP_VIZ } },
+            },
+            { type: 'setPivotConfig', payload: undefined },
+        ]);
     });
 });

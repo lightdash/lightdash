@@ -49,6 +49,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  actions: read
   contents: read
   pull-requests: write
 
@@ -130,6 +131,7 @@ jobs:
             watched:
               - 'packages/backend/**'
               - 'packages/common/**'
+              - 'release-safety.declarations.json'
               - 'release-safety.overrides.json'
               - 'scripts/gen-release-safety.ts'
               - 'scripts/ai-migration-review.ts'
@@ -137,6 +139,8 @@ jobs:
               - 'scripts/rest-api-diff.ts'
               - 'scripts/mcp-tools-diff.ts'
               - 'scripts/breaking-change-declarations.ts'
+              - 'scripts/release-safety-declarations.ts'
+              - 'scripts/release-safety-declarations.schema.json'
               - 'scripts/release-safety-pr-gate.ts'
               - 'scripts/upgrade-overrides.ts'
               - 'scripts/release-safety-pr-comment.ts'
@@ -159,29 +163,73 @@ jobs:
         with:
           script: |
             const marker = '<!-- release-safety-marker -->';
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              per_page: 100,
-            });
-            const existing = comments.find((c) => c.body.includes(marker));
-            // SPK-1017: `gate` is part of the stamp because this check is
-            // required. A job skipped by an `if:` reports SKIPPED, and SKIPPED
-            // satisfies a required check — so reusing a FAILED verdict would
-            // turn a red gate green by editing the PR title. Only a verdict
-            // that passed may be short-circuited.
-            const m = existing?.body.match(
-              /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) -->/,
-            );
-            core.setOutput('head', m ? m[1] : '');
-            core.setOutput('base', m ? m[2] : '');
-            core.setOutput('gate', m ? m[3] : '');
+            core.setOutput('head', '');
+            core.setOutput('base', '');
+            core.setOutput('gate', '');
 
+            try {
+              const { viewer } = await github.graphql(`query { viewer { login } }`);
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                per_page: 100,
+              });
+              const existing = comments.find(
+                (c) => c.user?.login === viewer.login && c.body?.includes(marker),
+              );
+              const stamp = existing?.body?.match(
+                /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) run:([1-9][0-9]*) -->/,
+              );
+              if (!stamp) {
+                core.info('No verified describes-stamp was found.');
+                return;
+              }
+
+              const [{ data: run }, { data: workflow }] = await Promise.all([
+                github.rest.actions.getWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: Number(stamp[4]),
+                }),
+                github.rest.actions.getWorkflow({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'release-safety-pr.yml',
+                }),
+              ]);
+              const verified =
+                run.workflow_id === workflow.id &&
+                run.status === 'completed' &&
+                run.conclusion === 'success' &&
+                run.event === 'pull_request' &&
+                run.head_sha === stamp[1] &&
+                run.pull_requests.some((pr) => pr.number === context.issue.number);
+              if (!verified) {
+                core.info('The describes-stamp does not name a successful run for this pull request.');
+                return;
+              }
+
+              core.setOutput('head', stamp[1]);
+              core.setOutput('base', stamp[2]);
+              core.setOutput('gate', stamp[3]);
+            } catch (error) {
+              core.warning(`Could not verify the describes-stamp: ${error.message}`);
+            }
+
+      # SPK-1218: blobless, like the release job's checkout (SPK-997). `fetch-depth: 0`
+      # makes actions/checkout fetch every branch and every tag with full history —
+      # 1,900 branches and 7,500 tags here, 571 MiB — and `fetch-tags: false` does not
+      # stop it, because checkout hardcodes `+refs/tags/*:refs/tags/*` into the refspec
+      # whenever the depth is 0. When a stack submit starts ~10 of these runs at once,
+      # server-side pack generation stalls and the fetch sends nothing until the job's
+      # 10-minute timeout kills it. Filtered, the same fetch moves 95 MiB. Only the
+      # commit graph is needed here: `git merge-base` reads no file contents.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: steps.watched.outputs.watched == 'true'
         with:
           fetch-depth: 0
+          filter: blob:none
 
       # Resolved once, here, and reused by every job: the spec pair, the migration
       # diff and the comment's base label all have to describe the same comparison.
@@ -283,7 +331,10 @@ jobs:
               issue_number: context.issue.number,
               per_page: 100,
             });
-            const existing = comments.find((c) => c.body.includes(marker));
+            const { viewer } = await github.graphql(`query { viewer { login } }`);
+            const existing = comments.find(
+              (c) => c.user?.login === viewer.login && c.body?.includes(marker),
+            );
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -320,12 +371,15 @@ jobs:
         with:
           ref: ${{ needs.changes.outputs.base_sha }}
 
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
+          install: false
 
       # Each side is built from its own revision's sources AND its own revision's
       # dependencies — sharing one install across both would be a faithful build of
@@ -380,34 +434,24 @@ jobs:
         with:
           egress-policy: audit
 
+      # SPK-1218: blobless, for the reason spelled out on the `changes` checkout.
+      # The gates only diff against `base_sha`, so the blobs they touch are lazily
+      # fetched on demand instead of every ref's full contents arriving up front.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          filter: blob:none
 
-      # SPK-1021: pnpm is set up BEFORE setup-node so that `cache: 'pnpm'` can
-      # resolve the store path — setup-node shells out to pnpm to find it, and
-      # fails with "Unable to locate executable file: pnpm" if it runs first.
-      # This is the ordering openapi-specs already uses.
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
-      # The install below was 75% of this job's runtime (255s median) because it
-      # re-fetched the whole CLI dependency tree, uncached, on every run — to
-      # obtain one library. This check is required, so that is merge latency for
-      # everyone, not background CI cost.
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
-
-      - name: Install tsx
-        run: npm install -g tsx@4.19.4
+          cache: true
+          install: false
 
       # SPK-941: scripts/release-safety-index.ts imports
       # packages/cli/src/releaseSafety (ajv-backed index validation), so the
       # otherwise dependency-free preview needs the CLI package's dependencies.
       - name: Install CLI package dependencies
-        run: pnpm install --frozen-lockfile --filter @lightdash/cli --network-concurrency=16
+        run: pnpm install --frozen-lockfile --filter @lightdash/cli --filter . --network-concurrency=16
 
       - name: Install oasdiff
         env:
@@ -480,7 +524,7 @@ jobs:
             AI_FLAG="--ai-review"
             echo "Ready PR → running the AI migration review (if migrations present)."
           fi
-          tsx scripts/gen-release-safety.ts \
+          pnpm exec tsx scripts/gen-release-safety.ts \
             --version "pr-${{ github.event.pull_request.number }}" \
             --previous-version "${{ needs.changes.outputs.base_short }}" \
             --last-tag "${{ needs.changes.outputs.base_sha }}" \
@@ -493,7 +537,7 @@ jobs:
         id: declaration-gate
         continue-on-error: true
         run: |
-          tsx scripts/release-safety-pr-gate.ts \
+          pnpm exec tsx scripts/release-safety-pr-gate.ts \
             --base-sha "${{ needs.changes.outputs.base_sha }}" \
             --marker /tmp/release-safety.json
 
@@ -501,7 +545,7 @@ jobs:
         id: sql-declaration-gate
         continue-on-error: true
         run: |
-          tsx scripts/sql-migration-lint.ts \
+          pnpm exec tsx scripts/sql-migration-lint.ts \
             --last-tag "${{ needs.changes.outputs.base_sha }}" \
             --enforce
 
@@ -550,17 +594,18 @@ jobs:
         id: lint
         run: |
           set -euo pipefail
-          tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" > /tmp/sql-lint.json
+          pnpm exec tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" > /tmp/sql-lint.json
           BREAKING=$(node -e 'const r=JSON.parse(require("fs").readFileSync("/tmp/sql-lint.json","utf8"));process.stdout.write(String(r.breaking===true))')
           echo "breaking=${BREAKING}" >> "$GITHUB_OUTPUT"
 
       - name: Render PR comment
         run: |
-          tsx scripts/release-safety-pr-comment.ts \
+          pnpm exec tsx scripts/release-safety-pr-comment.ts \
             --marker /tmp/release-safety.json \
             --base "${{ github.event.pull_request.base.ref }} (${{ needs.changes.outputs.base_short }})" \
             --head-sha "${{ github.event.pull_request.head.sha }}" \
             --base-sha "${{ needs.changes.outputs.base_sha }}" \
+            --run-id "${{ github.run_id }}" \
             --rest-status "${{ steps.rest-result.outputs.status }}" \
             ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
             ${{ steps.lint.outputs.breaking == 'true' && '--linter-breaking' || '--no-linter-breaking' }} \
@@ -613,7 +658,10 @@ jobs:
               issue_number: context.issue.number,
               per_page: 100,
             });
-            const existing = comments.find((c) => c.body.includes(marker));
+            const { viewer } = await github.graphql(`query { viewer { login } }`);
+            const existing = comments.find(
+              (c) => c.user?.login === viewer.login && c.body?.includes(marker),
+            );
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -684,7 +732,10 @@ jobs:
               issue_number: context.issue.number,
               per_page: 100,
             });
-            const existing = comments.find((c) => c.body.includes(marker));
+            const { viewer } = await github.graphql(`query { viewer { login } }`);
+            const existing = comments.find(
+              (c) => c.user?.login === viewer.login && c.body?.includes(marker),
+            );
             if (!existing) {
               core.info('No sticky comment to retract.');
               return;

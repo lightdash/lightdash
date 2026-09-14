@@ -2,7 +2,7 @@ import { type EChartsOption } from 'echarts';
 import { type ItemsMap } from '../../../../../../types/field';
 import { type SortField } from '../../../../../../types/metricQuery';
 import { getCartesianAxisFormatterConfig } from '../../../../../../visualizations/helpers/getCartesianAxisFormatterConfig';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import { type ToolRunQueryArgsTransformedBuiltinChart } from '../../../../schemas';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';
 import { getCommonEChartsConfig } from '../../shared/getCommonEChartsConfig';
 import { type GetPivotedResultsFn } from '../../types';
@@ -11,7 +11,7 @@ import { type GetPivotedResultsFn } from '../../types';
  * Generates line chart echarts config for server-side rendering
  */
 export const getLineChartEchartsConfig = async (
-    queryTool: ToolRunQueryArgsTransformed,
+    queryTool: ToolRunQueryArgsTransformedBuiltinChart,
     rows: Record<string, unknown>[],
     fieldsMap: ItemsMap,
     getPivotedResults: GetPivotedResultsFn,

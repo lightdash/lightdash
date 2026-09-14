@@ -4,10 +4,12 @@ import { AiAgentExamplePage } from './AiAgentExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
+import { HostStylesExamplePage } from './HostStylesExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
 import { MetricsCatalogExamplePage } from './MetricsCatalogExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
 import { ThemeExamplePage } from './ThemeExamplePage';
+import { TokenRotationExamplePage } from './TokenRotationExamplePage';
 
 export type ExampleDefinition = {
     component: ComponentType<{ embedConfig: EmbedConfigState }>;
@@ -94,6 +96,26 @@ export const examples: ExampleDefinition[] = [
             'Switch the embedded dashboard between light and dark mode via the `theme` prop.',
         sourcePath: 'packages/sdk-test-app/src/examples/ThemeExamplePage.tsx',
         component: ThemeExamplePage,
+    },
+    {
+        slug: 'token-rotation',
+        path: '/examples/token-rotation',
+        title: 'Token rotation demo',
+        description:
+            'Swap the token prop at runtime and watch which token each SDK request carries, without remounting.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/TokenRotationExamplePage.tsx',
+        component: TokenRotationExamplePage,
+    },
+    {
+        slug: 'host-styles',
+        path: '/examples/host-styles',
+        title: 'Host styles isolation demo',
+        description:
+            'A host page with its own element styles next to an embedded dashboard, plus a live readout of what the SDK adds to <html> and <body>.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/HostStylesExamplePage.tsx',
+        component: HostStylesExamplePage,
     },
     // Future examples:
     // {

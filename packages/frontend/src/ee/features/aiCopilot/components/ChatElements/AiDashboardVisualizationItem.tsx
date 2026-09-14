@@ -3,9 +3,7 @@ import {
     type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
+    type DashboardV2Visualization,
 } from '@lightdash/common';
 import {
     Center,
@@ -33,7 +31,7 @@ import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 
 type Props = {
-    visualization: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
+    visualization: DashboardV2Visualization;
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
@@ -177,6 +175,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     <AiChartQuickOptions
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
+                        showDownloadResults={false}
                         saveChartOptions={{
                             name: visualization.title,
                             description: visualization.description ?? null,
@@ -218,7 +217,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     <Paper p="md" bg="ldGray.0">
                         <Center h={100}>
                             <Stack gap="xs" align="center">
-                                <HoverCard withinPortal position="left">
+                                <HoverCard position="left">
                                     <HoverCard.Target>
                                         <MantineIcon
                                             icon={IconExclamationCircle}

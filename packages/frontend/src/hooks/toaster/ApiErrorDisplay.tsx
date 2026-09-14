@@ -1,6 +1,5 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Button,
     Code,
@@ -9,17 +8,21 @@ import {
     Modal,
     Stack,
     Text,
-    Tooltip,
     useComputedColorScheme,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
 import { useContext, useLayoutEffect, useRef, useState } from 'react';
+import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
+import {
+    formatNetworkDiagnostics,
+    isNetworkDiagnostics,
+} from '../../utils/networkDiagnostics';
 import { useGoogleLoginPopup } from '../gdrive/useGdrive';
 import useHealth from '../health/useHealth';
 import styles from './ApiErrorDisplay.module.css';
@@ -109,28 +112,15 @@ export const CopyErrorButton = ({
     value: string;
     color: string;
 }) => (
-    <CopyButton value={value}>
-        {({ copied, copy }) => (
-            <Tooltip
-                label={copied ? 'Copied' : 'Copy error'}
-                withArrow
-                position="right"
-            >
-                <ActionIcon
-                    aria-label="Copy error details"
-                    color="ldGray.6"
-                    size="xs"
-                    onClick={copy}
-                    variant="transparent"
-                >
-                    <MantineIcon
-                        color={color}
-                        icon={copied ? IconCheck : IconCopy}
-                    />
-                </ActionIcon>
-            </Tooltip>
-        )}
-    </CopyButton>
+    <CopyActionIcon
+        value={value}
+        copyLabel="Copy error"
+        tooltipPosition="right"
+        aria-label="Copy error details"
+        color={color}
+        size="xs"
+        variant="transparent"
+    />
 );
 
 const CopyErrorIdButton = ({ value }: { value: string }) => (
@@ -149,6 +139,64 @@ const CopyErrorIdButton = ({ value }: { value: string }) => (
         )}
     </CopyButton>
 );
+
+const openSupportModal = () =>
+    modals.open({
+        title: 'Share with Lightdash Support',
+        size: 'lg',
+        children: <SupportDrawerContent />,
+        yOffset: 100,
+        zIndex: 1000,
+    });
+
+// A request that failed before Lightdash answered. The message already says
+// what was diagnosed; the buttons hand the user the evidence to act on it.
+const NetworkFailureMessage = ({
+    apiError,
+    showSupportButton,
+}: {
+    apiError: ApiErrorDetail;
+    showSupportButton: boolean;
+}) => {
+    if (!isNetworkDiagnostics(apiError.data)) {
+        return (
+            <Text mb={0} fz="xs">
+                {apiError.message}
+            </Text>
+        );
+    }
+    const diagnostics = formatNetworkDiagnostics(apiError.data);
+    return (
+        <Stack gap="xxs" align="start">
+            <Text mb={0} fz="xs">
+                {apiError.message}
+            </Text>
+            <Group gap="xs">
+                <CopyButton value={diagnostics}>
+                    {({ copied, copy }) => (
+                        <Button
+                            size="compact-xs"
+                            variant="default"
+                            leftSection={
+                                <MantineIcon
+                                    icon={copied ? IconCheck : IconCopy}
+                                />
+                            }
+                            onClick={copy}
+                        >
+                            {copied ? 'Copied' : 'Copy diagnostics'}
+                        </Button>
+                    )}
+                </CopyButton>
+                {showSupportButton && (
+                    <Button size="compact-xs" onClick={openSupportModal}>
+                        Notify support
+                    </Button>
+                )}
+            </Group>
+        </Stack>
+    );
+};
 
 const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
     const { mutate: openLoginPopup } = useGoogleLoginPopup('gdrive');
@@ -181,6 +229,13 @@ const ApiErrorDisplayStatic = ({
                 <Text mb={0} fz="xs">
                     {apiError.message}
                 </Text>
+            );
+        case 'NetworkError':
+            return (
+                <NetworkFailureMessage
+                    apiError={apiError}
+                    showSupportButton={false}
+                />
             );
         default:
             break;
@@ -241,9 +296,19 @@ const ApiErrorDisplayWithHealth = ({
         health.data?.siteUrl === 'https://eu1.lightdash.cloud'
     );
 
+    const showSupportButton =
+        (isCloudCustomer && isNotMultiTenantCloud) || isDevelopment;
+
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':
             return <GoogleSheetsReauthMessage message={apiError.message} />;
+        case 'NetworkError':
+            return (
+                <NetworkFailureMessage
+                    apiError={apiError}
+                    showSupportButton={showSupportButton}
+                />
+            );
         case 'SnowflakeTokenError':
             return (
                 <>
@@ -278,8 +343,6 @@ const ApiErrorDisplayWithHealth = ({
         default:
             break;
     }
-    const showSupportButton =
-        (isCloudCustomer && isNotMultiTenantCloud) || isDevelopment;
 
     if (apiError.sentryEventId || apiError.sentryTraceId) {
         // Cloud/dev: show button only, no IDs
@@ -292,18 +355,7 @@ const ApiErrorDisplayWithHealth = ({
                         defaultExpanded={defaultExpanded}
                     />
                     <Group gap="xs">
-                        <Button
-                            size="compact-xs"
-                            onClick={() => {
-                                modals.open({
-                                    title: 'Share with Lightdash Support',
-                                    size: 'lg',
-                                    children: <SupportDrawerContent />,
-                                    yOffset: 100,
-                                    zIndex: 1000,
-                                });
-                            }}
-                        >
+                        <Button size="compact-xs" onClick={openSupportModal}>
                             Notify support
                         </Button>
                         <CopyErrorIdButton

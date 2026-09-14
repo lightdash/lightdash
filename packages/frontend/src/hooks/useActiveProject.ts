@@ -108,12 +108,15 @@ export const useDeleteActiveProjectMutation = () => {
 };
 
 export const useActiveProjectUuid = (useQueryFetchOptions?: {
-    refetchOnMount: boolean;
+    refetchOnMount?: boolean;
+    projectUuid?: string;
 }) => {
     const params = useParams<{ projectUuid?: string }>();
-    const paramProjectUuid = isUuidString(params.projectUuid ?? '')
-        ? params.projectUuid
-        : undefined;
+    const paramProjectUuid =
+        useQueryFetchOptions?.projectUuid ??
+        (isUuidString(params.projectUuid ?? '')
+            ? params.projectUuid
+            : undefined);
     const { data: lastProjectUuid, isFetched: isLastProjectUuidFetched } =
         useActiveProject();
     const { mutate } = useUpdateActiveProjectMutation();

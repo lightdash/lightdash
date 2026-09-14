@@ -4,6 +4,7 @@ import {
     mockNext,
     mockRequest,
     mockRequestWithEmptyToken,
+    mockRequestWithExpiredToken,
     mockRequestWithInvalidToken,
     mockRequestWithMalformedToken,
     mockRequestWithNoToken,
@@ -30,6 +31,24 @@ describe('SCIM Authentication Middleware', () => {
         });
         expect(mockRequest.serviceAccount).toEqual(mockServiceAccount);
         expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it('should reject expired SCIM token but keep log attribution', async () => {
+        await isScimAuthenticated(
+            mockRequestWithExpiredToken,
+            mockResponse,
+            mockNext,
+        );
+
+        const [error] = mockNext.mock.calls[0];
+        expect(error).toBeInstanceOf(ScimError);
+        expect(error.status).toBe('401');
+        expect(error.detail).toContain('expired');
+        expect(mockRequestWithExpiredToken.scimLogAttribution).toEqual({
+            organizationUuid: 'test-org-uuid',
+            serviceAccountUuid: 'test-service-account-uuid',
+        });
+        expect(mockRequestWithExpiredToken.serviceAccount).toBeUndefined();
     });
 
     it('should reject invalid SCIM token', async () => {

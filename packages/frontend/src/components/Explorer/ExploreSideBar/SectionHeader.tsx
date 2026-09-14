@@ -18,18 +18,23 @@ const SectionHeader: FC<SectionHeaderProps> = ({
         <NavLink
             opened={isExpanded}
             onClick={onToggle}
+            // Anchor for scope walkthroughs (data-tour-via): a collapsed
+            // section of the list (Virtual Views), by its label.
+            data-tour-anchor="explore-section"
+            data-tour-hint="Open the {value} section"
+            data-tour-value={label}
             disableRightSectionRotation
             rightSection={<></>}
             leftSection={
                 <MantineIcon
                     icon={isExpanded ? IconChevronDown : IconChevronRight}
                     size={12}
-                    color="ldGray.6"
+                    color="dimmed"
                 />
             }
             label={
                 <Group>
-                    <Text fw={500} fz="xs" c="ldGray.6">
+                    <Text fw={500} fz="xs" c="dimmed">
                         {label}
                     </Text>
                 </Group>

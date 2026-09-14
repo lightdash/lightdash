@@ -101,9 +101,13 @@ const existingEvaluation = {
 const buildService = ({
     existing = [agentRow],
     evaluations = [],
+    retentionEnabled = false,
+    retentionCeiling = null,
 }: {
-    existing?: (typeof agentRow)[];
+    existing?: (typeof agentRow & { threadRetentionHours?: number | null })[];
     evaluations?: (typeof existingEvaluation)[];
+    retentionEnabled?: boolean;
+    retentionCeiling?: number | null;
 } = {}) => {
     const aiAgentModel = {
         findAgentsForCode: vi.fn(async () => existing),
@@ -122,6 +126,10 @@ const buildService = ({
             })),
         } as never,
         lightdashConfig: lightdashConfigMock,
+        aiOrganizationSettingsService: {
+            isThreadRetentionEnabled: vi.fn(async () => retentionEnabled),
+            getThreadRetentionCeiling: vi.fn(async () => retentionCeiling),
+        } as never,
     });
 
     return { service, aiAgentModel };
@@ -499,5 +507,107 @@ describe('AiAgentCoderService', () => {
         await expect(
             service.upsertAgents(forbiddenUser, projectUuid, [agentAsCode]),
         ).rejects.toThrow('You are not allowed to upload AI agents as code');
+    });
+
+    it('warns and ignores a declared retention window when the org flag is off', async () => {
+        const { service, aiAgentModel } = buildService({
+            retentionEnabled: false,
+        });
+
+        const result = await service.upsertAgents(user, projectUuid, [
+            { ...agentAsCode, threadRetentionHours: 24 },
+        ]);
+
+        expect(result.warnings).toEqual([
+            "AI agent 'revenue-agent': threadRetentionHours was ignored — AI thread retention is not enabled for this organization",
+        ]);
+        // The field is not compared or written, so the agent stays unchanged.
+        expect(result.unchanged).toEqual(['revenue-agent']);
+        expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+    });
+
+    it('does not warn when a flag-off upload declares a null retention window', async () => {
+        const { service } = buildService({ retentionEnabled: false });
+
+        const result = await service.upsertAgents(user, projectUuid, [
+            { ...agentAsCode, threadRetentionHours: null },
+        ]);
+
+        expect(result.warnings).toBeUndefined();
+        expect(result.unchanged).toEqual(['revenue-agent']);
+    });
+
+    it('with the flag off, a stored retention value does not make uploads look changed', async () => {
+        const { service, aiAgentModel } = buildService({
+            existing: [{ ...agentRow, threadRetentionHours: 24 }],
+            retentionEnabled: false,
+        });
+
+        const result = await service.upsertAgents(user, projectUuid, [
+            agentAsCode,
+        ]);
+
+        expect(result.unchanged).toEqual(['revenue-agent']);
+        expect(result.warnings).toBeUndefined();
+        expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+    });
+
+    it('rejects a retention window above the org ceiling before changing agents', async () => {
+        const { service, aiAgentModel } = buildService({
+            retentionEnabled: true,
+            retentionCeiling: 24,
+        });
+
+        await expect(
+            service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, threadRetentionHours: 25 },
+            ]),
+        ).rejects.toThrow(
+            "AI agent 'revenue-agent': thread retention cannot exceed the organization limit of 24 hours",
+        );
+        expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+        expect(aiAgentModel.createAgent).not.toHaveBeenCalled();
+    });
+
+    it('writes a declared retention window and clears on an explicit null when the flag is on', async () => {
+        const { service, aiAgentModel } = buildService({
+            existing: [{ ...agentRow, threadRetentionHours: null }],
+            retentionEnabled: true,
+        });
+
+        const declared = await service.upsertAgents(user, projectUuid, [
+            { ...agentAsCode, threadRetentionHours: 24 },
+        ]);
+        expect(declared.updated).toEqual(['revenue-agent']);
+        expect(aiAgentModel.updateAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ threadRetentionHours: 24 }),
+        );
+
+        const { service: clearingService, aiAgentModel: clearingModel } =
+            buildService({
+                existing: [{ ...agentRow, threadRetentionHours: 24 }],
+                retentionEnabled: true,
+            });
+        const cleared = await clearingService.upsertAgents(user, projectUuid, [
+            { ...agentAsCode, threadRetentionHours: null },
+        ]);
+        expect(cleared.updated).toEqual(['revenue-agent']);
+        expect(clearingModel.updateAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ threadRetentionHours: null }),
+        );
+    });
+
+    it('leaves a stored retention window untouched when the document omits the field', async () => {
+        const { service, aiAgentModel } = buildService({
+            existing: [{ ...agentRow, threadRetentionHours: 24 }],
+            retentionEnabled: true,
+        });
+
+        const result = await service.upsertAgents(user, projectUuid, [
+            agentAsCode,
+        ]);
+
+        expect(result.unchanged).toEqual(['revenue-agent']);
+        expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
     });
 });

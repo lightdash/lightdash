@@ -1,3 +1,4 @@
+import { WeekDay } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient } from '../helpers/api-client';
 import { login } from '../helpers/auth';
@@ -88,6 +89,20 @@ const IN_BETWEEN_FILTER = (from: string, to: string) => ({
                 target: { fieldId: 'timezone_test_event_timestamp_day' },
                 operator: 'inBetween',
                 values: [from, to],
+            },
+        ],
+    },
+});
+
+const GRAIN_EQUALS_FILTER = (grain: string, value: string) => ({
+    dimensions: {
+        id: 'tz-test',
+        and: [
+            {
+                id: 'tz-grain-eq',
+                target: { fieldId: `timezone_test_event_timestamp_${grain}` },
+                operator: 'equals',
+                values: [value],
             },
         ],
     },
@@ -446,12 +461,11 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     });
 });
 
-// Warehouse-parity check: the fractional-offset DATE_TRUNC has to be emitted in
-// each dialect's SQL, so re-run the discriminating sub-day assertions against a
+// Warehouse-parity check: execute the discriminating timezone filters against a
 // real BigQuery project. The staging dataset holds the same timezone_test rows
 // as the Postgres seed, so the expected counts are identical.
 describe.skipIf(!hasBigqueryCredentials())(
-    'Query timezone — BigQuery fractional offsets',
+    'Query timezone — BigQuery filters',
     () => {
         const projectName = 'bigQuery timezone fractional test';
         // Cold BigQuery queries can exceed the default 15s poll window.
@@ -467,7 +481,9 @@ describe.skipIf(!hasBigqueryCredentials())(
             bigqueryProjectUuid = await createAndRefreshProject(
                 bqAdmin,
                 projectName,
-                bigqueryWarehouseConfig(),
+                // Monday start makes row #11 (Sun 14 Jan 15:00 UTC) cross a
+                // week boundary in Asia/Tokyo.
+                { ...bigqueryWarehouseConfig(), startOfWeek: WeekDay.MONDAY },
             );
         }, 420_000);
 
@@ -476,6 +492,88 @@ describe.skipIf(!hasBigqueryCredentials())(
                 await deleteProjectsByName(bqAdmin, [projectName]);
             }
         });
+
+        it.each([
+            {
+                expectedCount: 5,
+                filter: EQUALS_FILTER('2024-01-15'),
+                name: 'equals',
+            },
+            {
+                expectedCount: 9,
+                filter: IN_BETWEEN_FILTER('2024-01-15', '2024-01-16'),
+                name: 'inBetween',
+            },
+            {
+                expectedCount: 5,
+                filter: GREATER_THAN_FILTER('2024-01-15'),
+                name: 'greaterThan',
+            },
+        ])(
+            'Asia/Tokyo day $name preserves local-calendar filter semantics',
+            async ({ expectedCount, filter }) => {
+                const rows = await runTimezoneTestQuery(bqAdmin, {
+                    dimensions: DIMENSIONS,
+                    metrics: METRICS,
+                    timezone: 'Asia/Tokyo',
+                    filters: filter,
+                    projectUuid: bigqueryProjectUuid,
+                    maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+                });
+                expect(getTotalCount(rows, METRIC_KEY)).toBe(expectedCount);
+            },
+        );
+
+        // Coarser grains use boundary rows that land in a different
+        // week / month / quarter / year once shifted out of UTC; the UTC
+        // answer is one lower in every case.
+        it.each([
+            {
+                grain: 'week',
+                timezone: 'Asia/Tokyo',
+                value: '2024-01-15',
+                // #11 is Mon 15 Jan 00:00 Tokyo (Sun 14 Jan UTC); #1 is Mon 15 Jan in both.
+                eventIds: [11, 1],
+                expectedCount: 2,
+            },
+            {
+                grain: 'month',
+                timezone: 'Asia/Tokyo',
+                value: '2024-02-01',
+                // #18 is 1 Feb 00:00 Tokyo (31 Jan UTC); #20 is 16 Feb in both.
+                eventIds: [18, 20],
+                expectedCount: 2,
+            },
+            {
+                grain: 'quarter',
+                timezone: 'Pacific/Pago_Pago',
+                value: '2023-10-01',
+                // #17 is 31 Dec 2023 13:00 Pago Pago (1 Jan 2024 UTC); #1 is Q1 2024 in both.
+                eventIds: [17, 1],
+                expectedCount: 1,
+            },
+            {
+                grain: 'year',
+                timezone: 'Pacific/Pago_Pago',
+                value: '2023-01-01',
+                eventIds: [17, 1],
+                expectedCount: 1,
+            },
+        ])(
+            '$timezone $grain equals preserves local-calendar filter semantics',
+            async ({ grain, timezone, value, eventIds, expectedCount }) => {
+                const rows = await runTimezoneTestQuery(bqAdmin, {
+                    dimensions: DIMENSIONS,
+                    metrics: METRICS,
+                    timezone,
+                    filters: GRAIN_EQUALS_FILTER(grain, value),
+                    eventIds,
+                    projectUuid: bigqueryProjectUuid,
+                    maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+                });
+                expect(getTotalCount(rows, METRIC_KEY)).toBe(expectedCount);
+            },
+        );
 
         it('Asia/Kathmandu (+05:45): groups into 10 hourly buckets', async () => {
             const rows = await runTimezoneTestQuery(bqAdmin, {

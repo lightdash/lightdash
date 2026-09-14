@@ -2,30 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Opt-in Agent Okteto Development Environment
+## Agent skills
 
-This workflow is enabled only when
-`LIGHTDASH_OKTETO_TOKEN` is set. If it is not set, skip this section and
-follow the normal development workflow.
+### Issue tracker
 
-When it is set, the Okteto development environment is started automatically by
-the `SessionStart` hook (`agent-okteto-dev.sh hook-start`). The hook captures
-the session ID, starts synchronization, and waits for the environment to become
-healthy before the first prompt reaches Claude. Do not start it yourself or
-replace it with a local Docker environment.
+Linear (internal, default) + GitHub Issues (public, customer-facing). See `docs/agents/issue-tracker.md`.
 
-If setup fails, do not make code changes. Follow the reported error and
-`docs/agent-okteto.md`, then resume the session after fixing the setup.
-The prompt guard reports whether setup is still running or the specific startup
-failure recorded by the SessionStart gate.
+### Triage labels
 
-After making and validating code changes, run
-`./scripts/agent-okteto-dev.sh wait` before the final response. Include the URL
-from its `READY:` line in the final response. The `Stop` hook verifies readiness
-again and prevents a final response that omits the URL.
+Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md`.
 
-Leave the Okteto namespace and sync process running so the user can test the
-changes.
+### Domain docs
+
+This is a multi-context repository rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
 
 ## Formula Package Development
 
@@ -106,6 +95,24 @@ pnpm -F common test
 pnpm -F backend test:dev:nowatch # runs only tests for modified files
 ```
 
+When running a specific Vitest file in any package, pass the path directly to
+the package test script:
+
+```bash
+pnpm -F <package> test path/to/file.test.ts
+```
+
+Never insert `--` before the file path. Vitest can ignore the file filter and
+run the entire package test suite:
+
+```bash
+# Wrong — can run every test in the package
+pnpm -F <package> test -- path/to/file.test.ts
+```
+
+For a single-file run, verify the Vitest summary reports one test file. If
+unrelated test files appear, stop the command immediately and correct it.
+
 **API Generation:**
 
 OpenAPI artifacts are generated from TSOA controllers in PR CI for compatibility
@@ -134,6 +141,23 @@ pnpm generate:chart-as-code-schema
 pnpm check:chart-as-code-schema
 ```
 
+**MCP Tool Snapshot:**
+
+The committed `packages/common/src/schemas/json/mcp-tools-1.0.json` snapshot
+represents the stable/default MCP tool surface used by release-safety checks.
+Run the generator and commit the snapshot whenever a change affects an MCP
+tool's membership, name, title, description, annotations, input schema, or
+output schema, including changes to imported schemas:
+
+```bash
+pnpm generate:mcp-tools-snapshot
+```
+
+Do not regenerate it solely for a temporary runtime-selected rollout variant.
+Regenerate it when that variant becomes the default contract. If unsure whether
+a change affects the snapshot, run `pnpm check:mcp-tools-snapshot`. Running
+`pnpm generate-api` also regenerates the MCP tool snapshot through its post-hook.
+
 **Database Migrations:**
 
 ```bash
@@ -147,9 +171,20 @@ pnpm -F backend migrate
 pnpm -F backend rollback-last
 ```
 
+## Feature flags
+
+Before adding or changing a feature flag, read [docs/feature-flags.md](docs/feature-flags.md).
+Use `FeatureFlagModel.get` / `FeatureFlagService.get` in backend services and
+`useServerFeatureFlag` in the frontend. Do not create an ENV-only or `NODE_ENV`
+rollout gate: the shared resolver supports Console database overrides and
+self-hosted ENV configuration. Keep resource authorization separate.
+Verify Console-only enablement with ENV enable unset and preview defaults off,
+including the backend action, not just UI visibility. Document scope, precedence,
+refresh/restart behavior, and remove temporary ENV overrides after rollout.
+
 ## Development Workflow
 
-1. **Package Management**: Use `pnpm` (v11.17.0+, pinned via `packageManager` in the root `package.json` — let Corepack pick it up) - never use npm or yarn
+1. **Package Management**: Use `pnpm` (pinned via `packageManager` in the root `package.json`, which pnpm reads directly). Install pnpm directly; do not use Corepack, npm, or yarn for workspace commands.
 2. **Database**: Uses Knex.js for migrations and query building
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
@@ -159,17 +194,21 @@ pnpm -F backend rollback-last
 `Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
 
 - For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
-- For API or type breaks, changed, non-test TypeScript source under `packages/backend/src` or `packages/common/src` may declare `export const breaking = { reason: '<operator-facing reason>', requiredStop: false }`. It must be a top-level, unannotated object literal with exactly those fields: `reason` is a non-empty string literal, `requiredStop` is a boolean literal, and API-gate reasons must be at least 24 characters, use more than one word, and not be placeholder text.
+- For API or type breaks, add a stable ID to `release-safety.declarations.json` with `reason` and `requiredStop`. The reason must be at least 24 characters, use more than one word, describe what breaks and for whom, and not use placeholder text. Omit `migration` for these entries.
 
-Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading; every later release inherits the block until someone moves the pin past it by hand.
+A declaration is active only for a Git range that adds its ID. The release generator compares the last release tag with the target ref. The pull request preview compares the merge base with the head. This makes the declaration expire after the release that first contains it. Do not remove it after release.
+
+The registry is append-only. Never edit, remove, rename, or reuse an existing ID. Add a new ID for every new break, even when it affects the same file or has similar reason text. A release may add `releasedIn` for documentation, but that value never controls activation.
+
+Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. The declaration does not reactivate in later Git ranges.
 
 ## Merge Freeze — Holding `main` While a Release Is Cut
 
 `release.yml` fires on every push to `main`, so the release that goes out is whatever `main` contains at that moment. When something needs to reach a release on its own — a fix someone is waiting on — hold merges rather than asking people in Slack not to merge:
 
 -   **Freeze**: `gh workflow run merge-freeze.yml -f action=freeze`. This adds a `merge-freeze` required status check to the `main` ruleset. Nothing ever reports that check, so merges into `main` are blocked for everyone without a ruleset bypass.
--   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry.
--   **Only the person who froze can unfreeze it** from the Actions tab. If they're unavailable, a repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
+-   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry. Repeat unfreeze to refresh stale PR checks even when the ruleset is already open. In `#engineering`, ask `@Cloudy unfreeze merges to lightdash`.
+-   **Any verified Lightdash employee can unfreeze through Cloudy in Slack.** Direct Actions dispatch remains available to the recorded owner. A repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
 -   **There is no free-text reason, deliberately** — this repo is public, and a reason box invites someone to name a customer in it. Blocked PRs show who froze it so people know who to ask, and `#engineering` gets the same on both directions. Say why in Slack.
 -   **Only `main` is affected.** Stacked PRs merging into their parent branch are untouched.
 -   **Check the current state**: the `MERGE_FREEZE` repo variable (`true`/`false`), and `MERGE_FREEZE_ACTOR` for who froze it — `gh variable list -R lightdash/lightdash`. The authority is the ruleset itself: `merge-freeze` in the `main` ruleset's required status checks (`gh api repos/lightdash/lightdash/rulesets`). The variables are a mirror, so trust the ruleset if they ever disagree.
@@ -361,6 +400,8 @@ Slugs are unique per project and resource type for charts, dashboards, SQL Runne
 
 Use `generateUniqueSlugScopedToProject()` (`packages/backend/src/utils/SlugUtils.ts`) for normal creation. It derives the base with `generateSlug()`, probes exact indexed candidates, and appends `-1`, `-2`, and so on for conflicts. Explicit slugs used by content-as-code and promotion must be inserted exactly; same-project conflicts return an actionable conflict or resolve the intended active upsert, never overwrite another resource.
 
+Content-as-code upserts address content by exact slug, so a soft-deleted chart or dashboard that owns the slug is revived in place with the uploaded content instead of blocking the upload. Space paths are not database-constrained: one active space and any number of deleted spaces may share a path, and restoring a deleted space is rejected while an active space holds its path.
+
 UUIDs remain the canonical internal identity. Use them for foreign keys, durable relationships, and references without an explicit project scope. Slugs are appropriate for project-scoped URLs and portable content-as-code selectors.
 
 `getLtreePathFromSlug` is lossy: hyphens and underscores map to the same ltree label. Space hierarchy and access logic must use `parent_space_uuid`; path-based resolution must reject ambiguity rather than selecting an arbitrary row.
@@ -382,6 +423,26 @@ the contract explicit instead of relying on the name:
 - **Service args** mirror the same names: a `UuidOrSlug` arg must be resolved to
   `entity.uuid` (via `getByIdOrSlug`) before being used as a key, FK, or in any
   comparison — never pass the raw arg downstream.
+
+## Translation — deliberately limited to embeds
+
+There is no i18n framework and no full-app localization (that is PROD-3774,
+not built). Two embed-scoped mechanisms exist, with a strict boundary:
+
+-   **Content** (chart/dashboard names, tile titles, labels): `LanguageMap` /
+    the SDK `contentOverrides` prop — slug-keyed, schema-derived.
+-   **UI chrome** (filter operators/inputs, date zoom, tile menus, filter
+    bar): the SDK `uiOverrides` prop — a flat key→string map. The registry
+    `DEFAULT_UI_STRINGS` in `packages/common/src/utils/i18n/uiStrings.ts` is
+    the single source of truth; components render `override ?? English
+    default` via `useUiStrings()`. Shipped keys are a public SDK contract:
+    additive only, never rename or remove.
+
+When adding user-visible strings to embed-reachable surfaces (anything a
+dashboard viewer sees), follow the mandate in
+`packages/frontend/src/components/common/Filters/CLAUDE.md` — it generalizes
+beyond filters. English strings for those surfaces live only in the registry,
+never inline. Do not add an i18n framework; host apps own locale state.
 
 ## Development Troubleshooting
 

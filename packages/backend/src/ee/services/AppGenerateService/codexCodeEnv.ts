@@ -1,7 +1,14 @@
 import { MissingConfigError, type DataAppCodexModel } from '@lightdash/common';
+import {
+    getLlmGatewayHostname,
+    normalizeLlmGatewayBaseUrl,
+} from '../../../config/aiGatewayConfig';
 import type { ClaudeCodeBedrockConfig } from './claudeCodeEnv';
 
-export type CodexCodeProvider = 'openai' | 'amazon-bedrock';
+export type CodexCodeProvider =
+    | 'openai'
+    | 'amazon-bedrock'
+    | 'lightdash-bedrock-gateway';
 
 export type CodexProviderConfig = {
     defaultProvider: string;
@@ -14,6 +21,15 @@ export type CodexProviderConfig = {
         bedrock?: ClaudeCodeBedrockConfig;
     };
 };
+
+export const CODEX_CODE_SECRET_ENV_KEYS = [
+    'CODEX_API_KEY',
+    'BEDROCK_GATEWAY_API_KEY',
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_SESSION_TOKEN',
+    'AWS_BEARER_TOKEN_BEDROCK',
+] as const;
 
 const getOpenAiConfig = (copilot: CodexProviderConfig) => {
     const config = copilot.providers.openai;
@@ -45,16 +61,21 @@ const getBedrockConfig = (
 
 export const getCodexCodeProvider = (
     env: Record<string, string>,
-): CodexCodeProvider =>
-    env.DATA_APP_CODEX_PROVIDER === 'amazon-bedrock'
-        ? 'amazon-bedrock'
-        : 'openai';
+): CodexCodeProvider => {
+    if (env.DATA_APP_CODEX_PROVIDER === 'lightdash-bedrock-gateway') {
+        return 'lightdash-bedrock-gateway';
+    }
+    if (env.DATA_APP_CODEX_PROVIDER === 'amazon-bedrock') {
+        return 'amazon-bedrock';
+    }
+    return 'openai';
+};
 
 export const getCodexModelId = (
     provider: CodexCodeProvider,
     model: DataAppCodexModel,
 ): DataAppCodexModel | `openai.${DataAppCodexModel}` =>
-    provider === 'amazon-bedrock' ? `openai.${model}` : model;
+    provider === 'openai' ? model : `openai.${model}`;
 
 /** Invocation-scoped environment for `codex exec`. */
 export const buildCodexCodeEnv = (
@@ -62,6 +83,22 @@ export const buildCodexCodeEnv = (
 ): Record<string, string> => {
     const bedrock = getBedrockConfig(copilot);
     if (bedrock) {
+        if (bedrock.baseUrl) {
+            if (!('apiKey' in bedrock)) {
+                throw new MissingConfigError(
+                    'Codex requires BEDROCK_API_KEY when BEDROCK_BASE_URL is configured. The built-in Codex Bedrock provider cannot override its endpoint, and custom gateway providers cannot sign requests with IAM/SigV4 credentials.',
+                );
+            }
+            return {
+                DATA_APP_CODEX_PROVIDER: 'lightdash-bedrock-gateway',
+                AWS_REGION: bedrock.region,
+                BEDROCK_BASE_URL: normalizeLlmGatewayBaseUrl(
+                    bedrock.baseUrl,
+                    'BEDROCK_BASE_URL',
+                ),
+                BEDROCK_GATEWAY_API_KEY: bedrock.apiKey,
+            };
+        }
         const base = {
             DATA_APP_CODEX_PROVIDER: 'amazon-bedrock',
             AWS_REGION: bedrock.region,
@@ -94,10 +131,17 @@ export const buildCodexCodeEnv = (
 };
 
 export const describeCodexCodeEnv = (env: Record<string, string>): string => {
-    if (getCodexCodeProvider(env) === 'amazon-bedrock') {
-        const method =
-            'AWS_BEARER_TOKEN_BEDROCK' in env ? 'API key' : 'AWS credentials';
-        return `Codex/Bedrock (${method}, region=${env.AWS_REGION}, model=${env.DATA_APP_CODEX_MODEL})`;
+    const provider = getCodexCodeProvider(env);
+    if (provider !== 'openai') {
+        let method = 'AWS credentials';
+        if (provider === 'lightdash-bedrock-gateway') {
+            method = 'gateway API key';
+        } else if ('AWS_BEARER_TOKEN_BEDROCK' in env) {
+            method = 'API key';
+        }
+        const gateway =
+            provider === 'lightdash-bedrock-gateway' ? ' via gateway' : '';
+        return `Codex/Bedrock (${method}, region=${env.AWS_REGION}, model=${env.DATA_APP_CODEX_MODEL})${gateway}`;
     }
     return `Codex/OpenAI (model=${env.DATA_APP_CODEX_MODEL})`;
 };
@@ -133,10 +177,18 @@ export const buildCodexExecCommand = ({
     reasoningEffort: 'low' | 'high';
     outputSchemaPath: string | null;
 }): string => {
-    const providerConfig =
-        provider === 'amazon-bedrock'
-            ? `-c 'model_provider="amazon-bedrock"' `
-            : `-c openai_base_url="$OPENAI_BASE_URL" `;
+    let providerConfig = `-c openai_base_url="$OPENAI_BASE_URL" `;
+    if (provider === 'amazon-bedrock') {
+        providerConfig = `-c 'model_provider="amazon-bedrock"' `;
+    } else if (provider === 'lightdash-bedrock-gateway') {
+        providerConfig = [
+            `-c 'model_provider="lightdash-bedrock-gateway"' `,
+            `-c 'model_providers.lightdash-bedrock-gateway.name="Amazon Bedrock gateway"' `,
+            `-c model_providers.lightdash-bedrock-gateway.base_url="$BEDROCK_BASE_URL" `,
+            `-c 'model_providers.lightdash-bedrock-gateway.env_key="BEDROCK_GATEWAY_API_KEY"' `,
+            `-c 'model_providers.lightdash-bedrock-gateway.wire_api="responses"' `,
+        ].join('');
+    }
     return [
         `cat /tmp/prompt.txt | codex exec `,
         `--json --color never --ephemeral `,
@@ -151,7 +203,7 @@ export const buildCodexExecCommand = ({
         `-c 'sandbox_workspace_write.network_access=false' `,
         `-c 'shell_environment_policy.inherit="core"' `,
         `-c 'shell_environment_policy.ignore_default_excludes=false' `,
-        `-c 'shell_environment_policy.exclude=["CODEX_API_KEY","OPENAI_API_KEY","AWS_BEARER_TOKEN_BEDROCK","AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY","AWS_SESSION_TOKEN"]' `,
+        `-c 'shell_environment_policy.exclude=["CODEX_API_KEY","OPENAI_API_KEY","AWS_BEARER_TOKEN_BEDROCK","BEDROCK_GATEWAY_API_KEY","AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY","AWS_SESSION_TOKEN"]' `,
         `${outputSchemaPath ? `--output-schema ${outputSchemaPath} ` : ''}-`,
     ].join('');
 };
@@ -162,6 +214,9 @@ export const codexCodeAllowedHosts = (
 ): string[] => {
     const bedrock = getBedrockConfig(copilot);
     if (bedrock) {
+        if (bedrock.baseUrl) {
+            return [getLlmGatewayHostname(bedrock.baseUrl, 'BEDROCK_BASE_URL')];
+        }
         return [`bedrock-mantle.${bedrock.region}.api.aws`];
     }
     const { openai } = copilot.providers;

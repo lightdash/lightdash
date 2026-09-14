@@ -23,7 +23,7 @@ const proposedEntrySchema = z
     .superRefine((entry, ctx) => {
         if (entry.op === 'update' && !entry.id) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'id is required when op is update',
                 path: ['id'],
             });

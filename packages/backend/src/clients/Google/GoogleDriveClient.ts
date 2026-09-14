@@ -17,10 +17,14 @@ import {
     NotFoundError,
     shouldShiftItemTimezone,
     TableCalculation,
+    TimeFrames,
+    timeIntervalToExcelNumFmt,
+    toExcelWallClockDate,
     toIsoWithProjectOffset,
     UnexpectedGoogleSheetsError,
 } from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
+import moment from 'moment';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
@@ -29,10 +33,60 @@ type GoogleDriveClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 
+type NativeDateColumn = {
+    columnIndex: number;
+    numberFormat: {
+        type: 'DATE' | 'DATE_TIME';
+        pattern: string;
+    };
+    rowCount: number;
+    startRow: number;
+};
+
 // Google Sheets has a 50,000 character limit per cell
 const GOOGLE_SHEETS_CELL_CHAR_LIMIT = 50000;
 const TRUNCATION_SUFFIX = '... [TRUNCATED]';
 const TRUNCATE_INDEX = GOOGLE_SHEETS_CELL_CHAR_LIMIT - TRUNCATION_SUFFIX.length;
+const GOOGLE_SHEETS_EPOCH_MS = Date.UTC(1899, 11, 30);
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const DATE_TIME_FRAMES = new Set<TimeFrames>([
+    TimeFrames.HOUR,
+    TimeFrames.MINUTE,
+    TimeFrames.SECOND,
+    TimeFrames.MILLISECOND,
+]);
+
+const columnNumberToA1 = (columnCount: number): string => {
+    let value = columnCount;
+    let result = '';
+    while (value > 0) {
+        value -= 1;
+        result = String.fromCharCode(65 + (value % 26)) + result;
+        value = Math.floor(value / 26);
+    }
+    return result || 'A';
+};
+
+const toGoogleSheetsDateSerial = (
+    value: unknown,
+    shouldShift: boolean,
+    timezone?: string,
+): number | undefined => {
+    if (value === null || value === undefined || value === '') {
+        return undefined;
+    }
+
+    const date =
+        shouldShift && timezone && timezone !== 'UTC'
+            ? toExcelWallClockDate(value, timezone)
+            : moment.utc(value).toDate();
+    if (Number.isNaN(date.getTime())) {
+        return undefined;
+    }
+
+    return (date.getTime() - GOOGLE_SHEETS_EPOCH_MS) / MILLISECONDS_PER_DAY;
+};
 
 export class GoogleDriveClient {
     private readonly lightdashConfig: LightdashConfig;
@@ -208,6 +262,102 @@ export class GoogleDriveClient {
         return response.data;
     }
 
+    async listSheetTabs(
+        refreshToken: string,
+        fileId: string,
+    ): Promise<string[]> {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        const response = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+                fields: 'sheets(properties(title))',
+            }),
+        );
+        return (response.data.sheets ?? []).flatMap((sheet) =>
+            sheet.properties?.title ? [sheet.properties.title] : [],
+        );
+    }
+
+    /**
+     * Read a tab's cell values. Unformatted values with formatted date
+     * strings, so numbers arrive as numbers and dates as readable text.
+     */
+    async getSheetValues(
+        refreshToken: string,
+        fileId: string,
+        tabName: string,
+    ): Promise<unknown[][]> {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        const response = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.values.get({
+                spreadsheetId: fileId,
+                range: `'${tabName.replaceAll("'", "''")}'`,
+                valueRenderOption: 'UNFORMATTED_VALUE',
+                dateTimeRenderOption: 'FORMATTED_STRING',
+            }),
+        );
+        return response.data.values ?? [];
+    }
+
+    /**
+     * Page a sheet by row range. This bounds memory while retaining the same
+     * unformatted-value semantics as getSheetValues.
+     */
+    async *getSheetRowBatches(
+        refreshToken: string,
+        fileId: string,
+        tabName: string,
+        batchRows: number,
+    ): AsyncGenerator<unknown[][]> {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+        const metadata = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+                fields: 'sheets(properties(title,gridProperties(rowCount,columnCount)))',
+            }),
+        );
+        const properties = (metadata.data.sheets ?? []).find(
+            (sheet) => sheet.properties?.title === tabName,
+        )?.properties;
+        if (!properties) {
+            throw new NotFoundError(`Google Sheet tab not found: ${tabName}`);
+        }
+        const rowCount = properties.gridProperties?.rowCount ?? 0;
+        const columnCount = properties.gridProperties?.columnCount ?? 0;
+        if (rowCount === 0 || columnCount === 0) return;
+
+        const escapedTab = tabName.replaceAll("'", "''");
+        const lastColumn = columnNumberToA1(columnCount);
+        for (let startRow = 1; startRow <= rowCount; startRow += batchRows) {
+            const endRow = Math.min(startRow + batchRows - 1, rowCount);
+            // Sequential paging avoids Google API quota bursts.
+            // eslint-disable-next-line no-await-in-loop
+            const response = await GoogleDriveClient.catchApiError(
+                sheets.spreadsheets.values.get({
+                    spreadsheetId: fileId,
+                    range: `'${escapedTab}'!A${startRow}:${lastColumn}${endRow}`,
+                    valueRenderOption: 'UNFORMATTED_VALUE',
+                    dateTimeRenderOption: 'FORMATTED_STRING',
+                }),
+            );
+            yield response.data.values ?? [];
+        }
+    }
+
     async assertFileIsGoogleSheet(refreshToken: string, fileId: string) {
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
@@ -310,6 +460,32 @@ export class GoogleDriveClient {
             Logger.error('Unable to clear the sheet', error);
             // Silently ignore this error
         }
+    }
+
+    private static async getSheetId(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        tabName?: string,
+    ): Promise<number> {
+        const spreadsheet = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+                fields: 'sheets(properties(sheetId,title))',
+            }),
+        );
+        const sheet = tabName
+            ? spreadsheet.data.sheets?.find(
+                  ({ properties }) => properties?.title === tabName,
+              )
+            : spreadsheet.data.sheets?.[0];
+        const sheetId = sheet?.properties?.sheetId;
+        if (sheetId === null || sheetId === undefined) {
+            throw new UnexpectedGoogleSheetsError(
+                `Unable to find Google Sheet tab${tabName ? `: ${tabName}` : ''}`,
+            );
+        }
+
+        return sheetId;
     }
 
     static formatCell(
@@ -432,20 +608,75 @@ export class GoogleDriveClient {
             },
         );
 
+        const nativeDateFormats = new Map<
+            number,
+            NativeDateColumn['numberFormat']
+        >();
+        sortedFieldIds.forEach((fieldId, columnIndex) => {
+            const item = itemMap[fieldId];
+            if (
+                !isField(item) ||
+                !isDimension(item) ||
+                item.type !== DimensionType.DATE
+            ) {
+                return;
+            }
+
+            const pattern = timeIntervalToExcelNumFmt(
+                item.timeInterval,
+                item.type,
+            );
+            if (!pattern) return;
+
+            nativeDateFormats.set(columnIndex, {
+                type:
+                    item.timeInterval && DATE_TIME_FRAMES.has(item.timeInterval)
+                        ? 'DATE_TIME'
+                        : 'DATE',
+                pattern,
+            });
+        });
+
         const values = csvContent.map((row) =>
-            sortedFieldIds.map((fieldId) => {
+            sortedFieldIds.map((fieldId, columnIndex) => {
                 const item = itemMap[fieldId];
+                const numberFormat = nativeDateFormats.get(columnIndex);
+                if (numberFormat && isField(item)) {
+                    const serialValue = toGoogleSheetsDateSerial(
+                        row[fieldId],
+                        shouldShiftItemTimezone(item),
+                        timezone,
+                    );
+                    if (serialValue !== undefined) return serialValue;
+                }
+
                 // Google sheet doesn't like arrays as values, so we need to convert them to strings
-                const value = row[fieldId];
-                return GoogleDriveClient.formatCell(value, item, timezone);
+                return GoogleDriveClient.formatCell(
+                    row[fieldId],
+                    item,
+                    timezone,
+                );
             }),
         );
+
+        const nativeDateColumns: NativeDateColumn[] =
+            csvContent.length === 0
+                ? []
+                : [...nativeDateFormats.entries()].map(
+                      ([columnIndex, numberFormat]) => ({
+                          columnIndex,
+                          numberFormat,
+                          rowCount: csvContent.length,
+                          startRow: headerRows.length + 2,
+                      }),
+                  );
 
         await this.appendCsvToSheet(
             refreshToken,
             fileId,
             [...headerRows, csvHeader, ...values],
             tabName,
+            nativeDateColumns,
         );
     }
 
@@ -453,8 +684,9 @@ export class GoogleDriveClient {
         refreshToken: string,
         fileId: string,
 
-        results: string[][],
+        results: AnyType[][],
         tabName?: string,
+        nativeDateColumns: NativeDateColumn[] = [],
     ) {
         if (!this.isEnabled) {
             throw new MissingConfigError('Google Drive is not enabled');
@@ -497,5 +729,42 @@ export class GoogleDriveClient {
                 },
             }),
         );
+
+        if (nativeDateColumns.length > 0) {
+            const sheetId = await GoogleDriveClient.getSheetId(
+                sheets,
+                fileId,
+                sanitizedTabName,
+            );
+            const requests = nativeDateColumns.map(
+                ({ columnIndex, numberFormat, rowCount, startRow }) => ({
+                    repeatCell: {
+                        range: {
+                            sheetId,
+                            startRowIndex: startRow - 1,
+                            endRowIndex: startRow - 1 + rowCount,
+                            startColumnIndex: columnIndex,
+                            endColumnIndex: columnIndex + 1,
+                        },
+                        cell: {
+                            userEnteredFormat: { numberFormat },
+                        },
+                        fields: 'userEnteredFormat.numberFormat',
+                    },
+                }),
+            );
+
+            // The full-table RAW write above already contains explicit date
+            // serials. Apply one compact format per date column so behavior is
+            // independent of Sheet locale without repeating format data per cell.
+            await GoogleDriveClient.catchApiError(
+                sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: fileId,
+                    requestBody: {
+                        requests,
+                    },
+                }),
+            );
+        }
     }
 }

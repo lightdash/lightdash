@@ -2,7 +2,6 @@ import {
     AnyType,
     BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
-    CreateSchedulerAndTargets,
     CreateSchedulerTarget,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
@@ -42,6 +41,7 @@ import {
     SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
     SchedulerTaskName,
+    SendNowScheduler,
     SlackBatchNotificationPayload,
     SlackNotificationPayload,
     SqlRunnerPayload,
@@ -564,7 +564,7 @@ export class SchedulerClient {
     private async addNotificationJob(
         date: Date,
         jobGroup: string,
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
         target: CreateSchedulerTarget | undefined,
         targetUuid: string | undefined,
         page: NotificationPayloadBase['page'] | undefined,
@@ -996,7 +996,7 @@ export class SchedulerClient {
 
     async generateJobsForSchedulerTargets(
         scheduledTime: Date,
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
         page: NotificationPayloadBase['page'] | undefined,
         parentJobId: string,
         traceProperties: TraceTaskBase,

@@ -41,8 +41,8 @@
 }
 
 .header[data-open='true'] {
-    background: var(--mantine-color-blue-0);
-    box-shadow: inset 3px 0 0 var(--mantine-color-blue-5);
+    background: var(--mantine-color-blue-light);
+    box-shadow: inset 3px 0 0 var(--mantine-color-blue-filled);
 }
 
 .headerButton {

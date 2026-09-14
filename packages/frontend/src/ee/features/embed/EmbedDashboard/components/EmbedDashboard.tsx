@@ -1,11 +1,10 @@
 import {
     ChartType,
     DashboardTileTypes,
-    FeatureFlags,
     QueryExecutionContext,
     assertUnreachable,
+    canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
-    isDashboardContent,
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
     type SavedChart,
@@ -14,7 +13,7 @@ import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -38,12 +37,18 @@ import {
     appendNewTilesToBottom,
     useUpdateDashboard,
 } from '../../../../../hooks/dashboard/useDashboard';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
-import { type EmbedExploreChart } from '../../../../providers/Embed/types';
+import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
+import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
+import { useEmbedDashboardTabChange } from '../../hooks/useEmbedDashboardTabChange';
 import { embedContractClass } from '../../styles/embedClassContract';
+import {
+    applyFilterLabelOverrides,
+    restoreFilterLabelOverrides,
+} from '../filterLabelOverrides';
 import { useEmbedDashboard } from '../hooks';
+import { canUseEmbeddedChartBuilder } from '../utils';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
@@ -59,6 +64,30 @@ const EMBED_EDIT_TILE_TYPES = [
     DashboardTileTypes.MARKDOWN,
     DashboardTileTypes.HEADING,
 ];
+
+const EmbedTileLoadTracker: FC<{
+    tile: DashboardTile;
+    hasUnmetFilterRequirements: boolean;
+}> = ({ tile, hasUnmetFilterRequirements }) => {
+    const markEmbedTileComplete = useDashboardTileStatusContext(
+        (c) => c.markEmbedTileComplete,
+    );
+    const hasQueryBlocked =
+        (tile.type === DashboardTileTypes.SAVED_CHART ||
+            tile.type === DashboardTileTypes.SQL_CHART) &&
+        hasUnmetFilterRequirements;
+    const tracksItsOwnLoad =
+        !hasQueryBlocked &&
+        (tile.type === DashboardTileTypes.SAVED_CHART ||
+            tile.type === DashboardTileTypes.SQL_CHART ||
+            tile.type === DashboardTileTypes.DATA_APP);
+
+    useEffect(() => {
+        if (!tracksItsOwnLoad) markEmbedTileComplete(tile.uuid);
+    }, [markEmbedTileComplete, tile.uuid, tracksItsOwnLoad]);
+
+    return null;
+};
 
 const EmbedDashboardGrid: FC<{
     filteredTiles: DashboardTile[];
@@ -76,7 +105,7 @@ const EmbedDashboardGrid: FC<{
     onDeleteTile: (tile: DashboardTile) => void;
     onEditTile: (tile: DashboardTile) => void;
     onEditChart?: (chart: SavedChart) => void;
-    onExplore?: (options: { chart: EmbedExploreChart }) => void;
+    onExplore?: (options: EmbedExploreOptions) => void;
     useDashboardEditorTileQueries: boolean;
 }> = ({
     filteredTiles,
@@ -112,6 +141,13 @@ const EmbedDashboardGrid: FC<{
             </div>
         ) : (
             <div className={tabStyles.tabGridContainer}>
+                {filteredTiles.map((tile) => (
+                    <EmbedTileLoadTracker
+                        key={tile.uuid}
+                        tile={tile}
+                        hasUnmetFilterRequirements={hasUnmetFilterRequirements}
+                    />
+                ))}
                 <ResponsiveGridLayout
                     {...gridProps}
                     layouts={layouts}
@@ -150,6 +186,16 @@ const EmbedDashboardGrid: FC<{
                                         onEdit={onEditTile}
                                         onEditChart={onEditChart}
                                         onExplore={onExplore}
+                                        embeddedDashboardInteractions={{
+                                            canDrillDown:
+                                                dashboard.canExplore &&
+                                                onExplore !== undefined,
+                                            canCrossFilter:
+                                                canAddDashboardFiltersInEmbed(
+                                                    dashboard.dashboardFiltersInteractivity,
+                                                ),
+                                            onDrillDownExplore: onExplore,
+                                        }}
                                         canExportCsv={dashboard.canExportCsv}
                                         canExportImages={
                                             dashboard.canExportImages
@@ -180,6 +226,16 @@ const EmbedDashboardGrid: FC<{
                                             dashboard.canExportImages
                                         }
                                         canViewExplore={dashboard.canExplore}
+                                        embeddedDashboardInteractions={{
+                                            canDrillDown:
+                                                dashboard.canExplore &&
+                                                onExplore !== undefined,
+                                            canCrossFilter:
+                                                canAddDashboardFiltersInEmbed(
+                                                    dashboard.dashboardFiltersInteractivity,
+                                                ),
+                                            onDrillDownExplore: onExplore,
+                                        }}
                                         locked={hasUnmetFilterRequirements}
                                         tileIndex={index}
                                     />
@@ -274,15 +330,14 @@ const EmbedDashboard: FC<{
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
 
     const {
-        content,
         embedToken,
         embedWriteContext,
+        languageMap,
         mode,
         onExplore,
         paletteUuid,
         writeActions,
     } = useEmbed();
-    const navigate = useNavigate();
     const { pathname, search } = useLocation();
     const [localDashboard, setLocalDashboard] = useState<
         EmbedDashboardType | undefined
@@ -315,7 +370,6 @@ const EmbedDashboard: FC<{
         paletteUuid,
         !initialDashboard,
     );
-
     useEffect(() => {
         if (initialDashboard) {
             setLocalDashboard(initialDashboard);
@@ -371,12 +425,33 @@ const EmbedDashboard: FC<{
         setDraftDashboardName(dashboard.name);
     }, [dashboard, isEditMode]);
 
+    const dashboardContentOverrides = useMemo(
+        () =>
+            dashboard ? languageMap?.dashboard?.[dashboard.slug] : undefined,
+        [dashboard, languageMap],
+    );
+    const filterLabelOverrides = dashboardContentOverrides?.filters;
+
+    // Translated filter labels are applied before the dashboard seeds the
+    // provider so every viewer surface (pills, guided setup, popovers) sees
+    // them; handleSaveDashboard restores the untranslated labels.
+    const translatedDashboard = useMemo(() => {
+        if (!dashboard || !filterLabelOverrides) return dashboard;
+        return {
+            ...dashboard,
+            filters: applyFilterLabelOverrides(
+                dashboard.filters,
+                filterLabelOverrides,
+            ),
+        };
+    }, [dashboard, filterLabelOverrides]);
+
     const setEmbedDashboard = useDashboardContext((c) => c.setEmbedDashboard);
     useEffect(() => {
-        if (dashboard) {
-            setEmbedDashboard(dashboard);
+        if (translatedDashboard) {
+            setEmbedDashboard(translatedDashboard);
         }
-    }, [dashboard, setEmbedDashboard]);
+    }, [translatedDashboard, setEmbedDashboard]);
     const unmetFilterRequirements = useDashboardContext(
         (c) => c.unmetFilterRequirements,
     );
@@ -403,6 +478,23 @@ const EmbedDashboard: FC<{
             setDashboardTabs(dashboard.tabs);
         }
     }, [dashboardTabs, setDashboardTabs, dashboard]);
+
+    const translatedTabNames = useMemo(
+        () =>
+            new Map(
+                dashboardTabs.map((tab, index) => {
+                    const translatedName =
+                        dashboardContentOverrides?.tabs?.[index]?.name;
+                    return [
+                        tab.uuid,
+                        typeof translatedName === 'string' && translatedName
+                            ? translatedName
+                            : tab.name,
+                    ];
+                }),
+            ),
+        [dashboardContentOverrides?.tabs, dashboardTabs],
+    );
 
     // Embed is always view-only — hidden tabs (and their tiles) must not
     // surface, neither in the tab bar nor in the grid.
@@ -448,6 +540,17 @@ const EmbedDashboard: FC<{
     // Check if tabs should be enabled (more than one visible tab)
     const tabsEnabled = visibleTabs.length > 1;
 
+    // Sync tabs with the URL for direct iframes and emit user-triggered changes
+    // for both direct iframe and SDK embeds.
+    const handleTabChange = useEmbedDashboardTabChange({
+        activeTab,
+        mode,
+        pathname,
+        search,
+        setActiveTab,
+        visibleTabs,
+    });
+
     const gridProps = getResponsiveGridLayoutProps({ enableAnimation: false });
     const layouts = useMemo(
         () => ({
@@ -465,20 +568,14 @@ const EmbedDashboard: FC<{
     );
 
     const canWriteDashboard =
-        !!writeActions && dashboard?.spaceUuid === writeActions.spaceUuid;
-    // Creating/editing charts in the builder is flag-gated and needs the
-    // token to allow ad-hoc exploring (canExplore) plus a write actor that
-    // can create charts in the write space.
-    const chartBuilderFlag = useServerFeatureFlag(
-        FeatureFlags.EmbedChartBuilder,
-    );
-    const canAddNewChart =
-        chartBuilderFlag.data?.enabled === true &&
-        canWriteDashboard &&
-        embedWriteContext?.canCreateSavedChart === true &&
-        content !== undefined &&
-        isDashboardContent(content) &&
-        content.canExplore === true;
+        !!writeActions &&
+        dashboard?.spaceUuid === writeActions.spaceUuid &&
+        embedWriteContext?.canUpdateDashboard === true;
+    const canUseChartBuilder = canUseEmbeddedChartBuilder({
+        canWriteDashboard,
+        canCreateSavedChart: embedWriteContext?.canCreateSavedChart === true,
+        canExplore: dashboard?.canExplore === true,
+    });
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart>();
     const hasDashboardNameChanged =
@@ -633,20 +730,24 @@ const EmbedDashboard: FC<{
 
         updateDashboard({
             tiles: currentDashboardTiles,
-            filters: {
-                dimensions: [
-                    ...dashboardFilters.dimensions,
-                    ...dashboardTemporaryFilters.dimensions,
-                ],
-                metrics: [
-                    ...dashboardFilters.metrics,
-                    ...dashboardTemporaryFilters.metrics,
-                ],
-                tableCalculations: [
-                    ...dashboardFilters.tableCalculations,
-                    ...dashboardTemporaryFilters.tableCalculations,
-                ],
-            },
+            filters: restoreFilterLabelOverrides(
+                {
+                    dimensions: [
+                        ...dashboardFilters.dimensions,
+                        ...dashboardTemporaryFilters.dimensions,
+                    ],
+                    metrics: [
+                        ...dashboardFilters.metrics,
+                        ...dashboardTemporaryFilters.metrics,
+                    ],
+                    tableCalculations: [
+                        ...dashboardFilters.tableCalculations,
+                        ...dashboardTemporaryFilters.tableCalculations,
+                    ],
+                },
+                dashboard.filters,
+                filterLabelOverrides,
+            ),
             name: draftDashboardName.trim() || dashboard.name,
             tabs: dashboardTabs,
             config: dashboard.config,
@@ -659,6 +760,7 @@ const EmbedDashboard: FC<{
         dashboardTemporaryFilters,
         draftDashboardName,
         currentDashboardTiles,
+        filterLabelOverrides,
         updateDashboard,
     ]);
 
@@ -696,35 +798,6 @@ const EmbedDashboard: FC<{
     // Check if current tab is empty
     const isTabEmpty = tabsEnabled && filteredTiles.length === 0;
 
-    // Sync tabs with URL when user changes tab for iframes.
-    // SDK mode does not sync URL when user changes tab because
-    // the SDK app uses the same URL as the embedding app.
-    const handleTabChange = (tabUuid: string | null) => {
-        if (!tabUuid) return;
-        const tab = visibleTabs.find((t) => t.uuid === tabUuid);
-        if (tab) {
-            setActiveTab(tab);
-
-            if (mode === 'direct') {
-                const newParams = new URLSearchParams(search);
-                const currentPath = pathname;
-
-                // Update URL to include tab UUID
-                const newPath = currentPath.includes('/tabs/')
-                    ? currentPath.replace(/\/tabs\/[^/]+$/, `/tabs/${tab.uuid}`)
-                    : `${currentPath}/tabs/${tab.uuid}`;
-
-                void navigate(
-                    {
-                        pathname: newPath,
-                        search: newParams.toString(),
-                    },
-                    { replace: true },
-                );
-            }
-        }
-    };
-
     const renderEditControls = () => {
         if (!canWriteDashboard) return null;
 
@@ -755,7 +828,7 @@ const EmbedDashboard: FC<{
                     maxSelectedValues={1}
                     disabled={isSaving}
                     onNewChart={
-                        canAddNewChart
+                        canUseChartBuilder
                             ? () => setIsNewChartOpen(true)
                             : undefined
                     }
@@ -836,7 +909,7 @@ const EmbedDashboard: FC<{
                 onBreakpointChange={setCurrentCols}
                 onDeleteTile={handleDeleteTile}
                 onEditTile={handleEditTile}
-                onEditChart={canAddNewChart ? setChartToEdit : undefined}
+                onEditChart={canUseChartBuilder ? setChartToEdit : undefined}
                 onExplore={onExplore}
                 useDashboardEditorTileQueries={canWriteDashboard}
             />
@@ -892,7 +965,7 @@ const EmbedDashboard: FC<{
                                             100 / (visibleTabs.length || 1)
                                         }vw`}
                                     >
-                                        {tab.name}
+                                        {translatedTabNames.get(tab.uuid)}
                                     </Tabs.Tab>
                                 ))}
                             </Tabs.List>
@@ -912,7 +985,7 @@ const EmbedDashboard: FC<{
                     {renderGridWithGuidedSetup()}
                 </>
             )}
-            {canAddNewChart && (
+            {canUseChartBuilder && (
                 <EmbedDashboardChartEditorModal
                     opened={isNewChartOpen || chartToEdit !== undefined}
                     onClose={() => {

@@ -37,7 +37,11 @@ import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
-import { INSTALL_ACTIONS, summarisePrUrl } from './pullRequestCardUtils';
+import {
+    INSTALL_ACTIONS,
+    summarisePrUrl,
+    isBitbucketPullRequest,
+} from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { WritebackDiffModal } from './WritebackDiffModal';
 
@@ -72,7 +76,7 @@ export const InstallAppButton: FC<{
             target="_blank"
             rel="noopener noreferrer"
             variant="default"
-            size="compact-sm"
+            size="compact-xs"
             leftSection={<MantineIcon icon={action.icon} size={14} />}
         >
             {action.cta}
@@ -97,11 +101,11 @@ export const PullRequestViewMenu: FC<{
 
     return (
         <>
-            <Menu position="bottom-start" withinPortal>
+            <Menu position="bottom-start">
                 <Menu.Target>
                     <Button
                         variant="default"
-                        size="compact-sm"
+                        size="compact-xs"
                         leftSection={<MantineIcon icon={IconEye} size={14} />}
                         rightSection={
                             <MantineIcon icon={IconChevronDown} size={14} />
@@ -135,14 +139,16 @@ export const PullRequestViewMenu: FC<{
                     >
                         Pull request
                     </Menu.Item>
-                    <Menu.Item
-                        leftSection={
-                            <MantineIcon icon={IconFileDiff} size={14} />
-                        }
-                        onClick={() => setDiffOpened(true)}
-                    >
-                        Diff
-                    </Menu.Item>
+                    {!isBitbucketPullRequest(prUrl) && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconFileDiff} size={14} />
+                            }
+                            onClick={() => setDiffOpened(true)}
+                        >
+                            Diff
+                        </Menu.Item>
+                    )}
                 </Menu.Dropdown>
             </Menu>
             <WritebackDiffModal
@@ -210,7 +216,7 @@ export const PullRequestActionButtons: FC<{
             <Button
                 variant="light"
                 color="violet"
-                size="compact-sm"
+                size="compact-xs"
                 disabled
                 className={styles.mergedStatus}
                 leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
@@ -225,7 +231,7 @@ export const PullRequestActionButtons: FC<{
             <Button
                 variant="light"
                 color="red"
-                size="compact-sm"
+                size="compact-xs"
                 disabled
                 className={styles.closedStatus}
                 leftSection={
@@ -270,7 +276,7 @@ export const PullRequestActionButtons: FC<{
         <Button.Group>
             <Button
                 variant="default"
-                size="compact-sm"
+                size="compact-xs"
                 loading={isClosing}
                 onBlur={disarm}
                 leftSection={
@@ -285,9 +291,8 @@ export const PullRequestActionButtons: FC<{
             </Button>
             <Button
                 ref={mergeButtonRef}
-                variant="filled"
                 color="green"
-                size="compact-sm"
+                size="compact-xs"
                 loading={isMerging}
                 disabled={!isMergeable(ciChecks)}
                 onBlur={disarm}
@@ -322,11 +327,12 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
+    const isBitbucket = isBitbucketPullRequest(prUrl);
     const ciCommitSha =
         metadata.status === 'success' ? (metadata.commitSha ?? null) : null;
     const { data: ciChecks } = usePullRequestCiChecks(
         projectUuid,
-        prUrl,
+        isBitbucket ? null : prUrl,
         ciCommitSha,
     );
     const { mutate: merge, isLoading: isMerging } =
@@ -357,30 +363,34 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 />
             );
         }
-        // The project's dbt connection isn't GitHub/GitLab, so there's no app to
-        // install — point the user at the connection settings to switch it.
-        if (metadata.errorCode === 'unsupported_source_control') {
+        if (
+            metadata.errorCode === 'unsupported_source_control' ||
+            metadata.errorCode === 'bitbucket_token_missing'
+        ) {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
                             color="ldGray"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
-                            <MantineIcon icon={IconGitPullRequest} size={16} />
+                            <MantineIcon icon={IconGitPullRequest} size={14} />
                         </ThemeIcon>
                         <Stack gap="xs">
                             <Stack gap={2}>
-                                <Text size="sm" fw={500}>
-                                    Source control not supported
+                                <Text size="xs" fw={500}>
+                                    {metadata.errorCode ===
+                                    'bitbucket_token_missing'
+                                        ? 'Configure Bitbucket API token'
+                                        : 'Source control not supported'}
                                 </Text>
-                                <Text size="xs" c="ldGray.6">
-                                    AI writeback needs this project's dbt
-                                    connection to use GitHub or GitLab. Update
-                                    the connection to open pull requests from
-                                    chat.
+                                <Text size="xs" c="dimmed">
+                                    {metadata.errorCode ===
+                                    'bitbucket_token_missing'
+                                        ? 'Update the API token in this project connection. It needs repository and pull request read/write permissions in Bitbucket Cloud.'
+                                        : 'AI writeback needs a GitHub, GitLab or Bitbucket Cloud dbt connection. Update the connection to open pull requests from chat.'}
                                 </Text>
                             </Stack>
                             <Group gap={0}>
@@ -388,7 +398,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     component={Link}
                                     to={`/generalSettings/projectManagement/${projectUuid}/settings`}
                                     variant="default"
-                                    size="compact-sm"
+                                    size="compact-xs"
                                     leftSection={
                                         <MantineIcon
                                             icon={IconSettings}
@@ -406,22 +416,22 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         }
         if (metadata.errorCode === 'git_write_permission') {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
                             color="red"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
-                            <MantineIcon icon={IconAlertTriangle} size={16} />
+                            <MantineIcon icon={IconAlertTriangle} size={14} />
                         </ThemeIcon>
                         <Stack gap="xs">
                             <Stack gap={2}>
-                                <Text size="sm" fw={500}>
+                                <Text size="xs" fw={500}>
                                     No write access to this repository
                                 </Text>
-                                <Text size="xs" c="ldGray.6">
+                                <Text size="xs" c="dimmed">
                                     The change was prepared, but no pull request
                                     could be opened — this project's Git
                                     connection doesn't have permission to create
@@ -436,7 +446,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     component={Link}
                                     to={`/generalSettings/projectManagement/${projectUuid}/settings`}
                                     variant="default"
-                                    size="compact-sm"
+                                    size="compact-xs"
                                     leftSection={
                                         <MantineIcon
                                             icon={IconSettings}
@@ -453,31 +463,31 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
             );
         }
         // The thread's pull request was already merged or closed, so further
-        // edits can't be added here. Not a failure — guide the user to a new
-        // thread rather than show a red error.
+        // edits require a new pull request in the same thread.
         if (metadata.errorCode === 'pull_request_not_open') {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
                             color="ldGray"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
                             <MantineIcon
                                 icon={IconGitPullRequestClosed}
-                                size={16}
+                                size={14}
                             />
                         </ThemeIcon>
                         <Stack gap={2}>
-                            <Text size="sm" fw={500}>
+                            <Text size="xs" fw={500}>
                                 This thread's pull request is closed
                             </Text>
-                            <Text size="xs" c="ldGray.6">
+                            <Text size="xs" c="dimmed">
                                 Its pull request has already been merged or
                                 closed, so further changes can't be added here.
-                                Start a new thread to request more changes.
+                                Ask to open a new pull request for further
+                                changes.
                             </Text>
                         </Stack>
                     </Group>
@@ -485,21 +495,21 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
             );
         }
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="flex-start" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
                         color="red"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconAlertTriangle} size={16} />
+                        <MantineIcon icon={IconAlertTriangle} size={14} />
                     </ThemeIcon>
                     <Stack gap={2}>
-                        <Text size="sm" fw={500}>
+                        <Text size="xs" fw={500}>
                             The change couldn't be completed
                         </Text>
-                        <Text size="xs" c="ldGray.6">
+                        <Text size="xs" c="dimmed">
                             No pull request was opened. Ask again, or rephrase
                             the request, to retry.
                         </Text>
@@ -511,17 +521,17 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     if (metadata.status === 'pending') {
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="center" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
                         color="ldGray"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="sm" c="ldGray.7">
+                    <Text size="xs" c="ldGray.7">
                         Working on the change — this can take a few minutes.
                     </Text>
                 </Group>
@@ -537,17 +547,17 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         // Success but no PR opened (writeback agent decided no file changes
         // were needed). Reassure rather than surface as a failure.
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="center" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
                         color="ldGray"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="sm" c="ldGray.7">
+                    <Text size="xs" c="ldGray.7">
                         No file changes were needed — no pull request was
                         opened.
                     </Text>
@@ -571,7 +581,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     return (
         <Paper
-            withBorder
             p="sm"
             radius="md"
             className={
@@ -592,16 +601,16 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon
                             icon={IconGitPullRequest}
-                            size={18}
+                            size={16}
                             color="ldGray.7"
                         />
                         <Stack gap={0}>
-                            <Text size="sm" fw={500}>
+                            <Text size="xs" fw={500}>
                                 {title}
                             </Text>
                             {summary && (
                                 <Group gap={6} wrap="nowrap">
-                                    <Text size="xs" c="ldGray.6">
+                                    <Text size="xs" c="dimmed">
                                         {summary}
                                     </Text>
                                     {shortCommitSha && (
@@ -611,7 +620,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                             </Text>
                                             <Text
                                                 size="xs"
-                                                c="ldGray.6"
+                                                c="dimmed"
                                                 ff="monospace"
                                                 title={
                                                     metadata.commitSha ??
@@ -660,49 +669,53 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             projectUuid={projectUuid}
                             prUrl={metadata.prUrl}
                             previewUrl={
-                                isPreviewDeploySetup
+                                isPreviewDeploySetup || isBitbucket
                                     ? null
                                     : (metadata.previewUrl ?? null)
                             }
                             commitSha={metadata.commitSha ?? null}
                         />
-                        <PullRequestActionButtons
-                            ciChecks={ciChecks ?? null}
-                            isMerging={isMerging}
-                            isClosing={isClosing}
-                            onMerge={() =>
-                                merge(
-                                    {
-                                        prUrl: resolvedPrUrl,
-                                        sha: metadata.commitSha ?? null,
-                                    },
-                                    // Once merged, ask the agent to assess and
-                                    // repoint affected saved content. Injected as
-                                    // a hidden turn (filtered from the chat by
-                                    // AgentChatDisplay) so only the agent's
-                                    // proactive reply shows. Only when the agent
-                                    // can edit content — otherwise it can't act
-                                    // on the request.
-                                    canMigrateContent
-                                        ? {
-                                              onSuccess: () =>
-                                                  sendThreadMessage({
-                                                      prompt: POST_MERGE_MIGRATION_PROMPT,
-                                                      hidden: true,
-                                                  }),
-                                          }
-                                        : undefined,
-                                )
-                            }
-                            onClose={() => close({ prUrl: resolvedPrUrl })}
-                        />
+                        {!isBitbucket && (
+                            <PullRequestActionButtons
+                                ciChecks={ciChecks ?? null}
+                                isMerging={isMerging}
+                                isClosing={isClosing}
+                                onMerge={() =>
+                                    merge(
+                                        {
+                                            prUrl: resolvedPrUrl,
+                                            sha: metadata.commitSha ?? null,
+                                        },
+                                        // Once merged, ask the agent to assess and
+                                        // repoint affected saved content. Injected as
+                                        // a hidden turn (filtered from the chat by
+                                        // AgentChatDisplay) so only the agent's
+                                        // proactive reply shows. Only when the agent
+                                        // can edit content — otherwise it can't act
+                                        // on the request.
+                                        canMigrateContent
+                                            ? {
+                                                  onSuccess: () =>
+                                                      sendThreadMessage({
+                                                          prompt: POST_MERGE_MIGRATION_PROMPT,
+                                                          hidden: true,
+                                                      }),
+                                              }
+                                            : undefined,
+                                    )
+                                }
+                                onClose={() => close({ prUrl: resolvedPrUrl })}
+                            />
+                        )}
                     </Box>
                 </Box>
-                <PullRequestCiChecks
-                    prUrl={metadata.prUrl}
-                    ciChecks={ciChecks ?? null}
-                    hasMergeAction
-                />
+                {!isBitbucket && (
+                    <PullRequestCiChecks
+                        prUrl={metadata.prUrl}
+                        ciChecks={ciChecks ?? null}
+                        hasMergeAction
+                    />
+                )}
             </Stack>
         </Paper>
     );

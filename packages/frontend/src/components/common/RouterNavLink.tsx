@@ -36,7 +36,6 @@ const RouterNavLink: FC<RouterNavLinkProps> = ({
             // Pass 'end' to React Router's NavLink to sync its active state
             // When end=true, NavLink only matches exact paths (no partial matching)
             end={exact}
-            variant="subtle"
         />
     );
 };

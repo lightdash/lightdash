@@ -14,6 +14,7 @@ import {
     IconPlayerStop,
     IconX,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     forwardRef,
     useEffect,
@@ -29,8 +30,10 @@ import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
 import {
+    ConnectionAttachButton,
     ModelPicker,
     SelectedAttachmentSection,
+    type SelectedConnection,
 } from '../../apps/AppResourcePicker';
 import AppVersionNarration from '../../apps/components/AppVersionNarration';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
@@ -127,7 +130,6 @@ const QueuedPromptRow = ({
         )}
         {state !== 'sending' && (
             <ActionIcon
-                variant="subtle"
                 color="ldGray"
                 size="xs"
                 aria-label={`Remove queued prompt: ${item.request.description}`}
@@ -175,6 +177,28 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const [interruptNext, setInterruptNext] = useState<QueuedPrompt | null>(
             null,
         );
+        const [selectedConnections, setSelectedConnections] = useState<
+            SelectedConnection[]
+        >([]);
+        const queryClient = useQueryClient();
+
+        // A finished build may have linked connections; refresh the count.
+        useEffect(() => {
+            if (!hasVersions) return;
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'app-external-connections',
+                    projectUuid,
+                    composerAppUuid,
+                ],
+            });
+        }, [
+            composerAppUuid,
+            hasVersions,
+            latestReadyVersion,
+            projectUuid,
+            queryClient,
+        ]);
 
         useImperativeHandle(ref, () => ({
             setPrompt: (text) => {
@@ -204,6 +228,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                         : (editing?.request.fileIds ?? []),
                 ...modelSelection.modelRequest,
                 clarifications: [],
+                externalConnections: selectedConnections,
             };
             const queuedPrompt: QueuedPrompt = {
                 id: editing?.id ?? nextQueueId.current++,
@@ -212,6 +237,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             editingPrompt.current = null;
             composerRef.current?.clear();
             attachments.clear();
+            setSelectedConnections([]);
 
             if (isBuilding) {
                 setQueuedPrompts((current) => [...current, queuedPrompt]);
@@ -222,10 +248,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         // The pencil and Cancel end the same way: prompt back in the composer.
         const handleReclaimPrompt = () => {
-            const prompt = clarification.abandon();
-            if (prompt === null) return;
+            const request = clarification.abandon();
+            if (request === null) return;
+            setSelectedConnections(request.externalConnections);
             composerRef.current?.insertContent([
-                { type: 'text', text: prompt },
+                { type: 'text', text: request.description },
             ]);
             composerRef.current?.focus();
         };
@@ -238,6 +265,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             modelSelection.setModel(
                 item.request.codexModel ?? item.request.claudeModel,
             );
+            setSelectedConnections(item.request.externalConnections);
             composerRef.current?.clear();
             composerRef.current?.insertContent([
                 { type: 'text', text: item.request.description },
@@ -354,7 +382,12 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 className={`${classes.stackRow} ${classes.buildingStatus}`}
                             >
                                 <Loader size={13} color="ldGray.6" />
-                                <Text fz="xs" fw={600} c="ldGray.9" inherit>
+                                <Text
+                                    className={classes.buildingLabel}
+                                    fz="xs"
+                                    fw={600}
+                                    inherit
+                                >
                                     Reading your prompt…
                                 </Text>
                                 <Text
@@ -384,7 +417,12 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 data-has-narration={hasNarration || undefined}
                             >
                                 <Loader size={13} color="ldGray.6" />
-                                <Text fz="xs" fw={600} c="ldGray.9" inherit>
+                                <Text
+                                    className={classes.buildingLabel}
+                                    fz="xs"
+                                    fw={600}
+                                    inherit
+                                >
                                     Building…{elapsed ? ` ${elapsed}` : ''}
                                 </Text>
                                 {build.cancelError ? (
@@ -554,6 +592,29 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     codingAgent={modelSelection.codingAgent}
                                 />
                             )}
+                            <ConnectionAttachButton
+                                selectedConnections={selectedConnections}
+                                onSelect={(connection) =>
+                                    setSelectedConnections((current) => [
+                                        ...current,
+                                        connection,
+                                    ])
+                                }
+                                onDeselect={(uuid) =>
+                                    setSelectedConnections((current) =>
+                                        current.filter(
+                                            (connection) =>
+                                                connection.externalConnectionUuid !==
+                                                uuid,
+                                        ),
+                                    )
+                                }
+                                disabled={isComposerLocked}
+                                description="Let this chart type fetch from these external APIs"
+                                linkedAppUuid={
+                                    hasVersions ? composerAppUuid : null
+                                }
+                            />
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -566,9 +627,8 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     event.target.value = '';
                                 }}
                             />
-                            <Tooltip withArrow label="Attach an image or file">
+                            <Tooltip label="Attach an image or file">
                                 <ActionIcon
-                                    variant="subtle"
                                     color="ldGray"
                                     size="sm"
                                     aria-label="Attach"
@@ -623,7 +683,7 @@ const BuilderPromptBar = forwardRef<BuilderPromptBarHandle, Props>(
             <Box className={classes.wrap}>
                 {props.build.error !== null && (
                     <Box className={classes.failedPill}>
-                        <Text fz={13} c="red.7" lineClamp={1}>
+                        <Text fz="sm" c="red.7" lineClamp={1}>
                             {props.build.error}
                         </Text>
                         {props.build.retry && (

@@ -1,9 +1,7 @@
 import {
-    assertUnreachable,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     type HomepageConfig,
-    type HomepageViewAsReason,
     type HomepageViewAsTarget,
 } from '@lightdash/common';
 import {
@@ -21,24 +19,9 @@ import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import classes from './HomepageEditor.module.css';
 import { useHomepageViewAs } from './hooks/useProjectHomepage';
 import { PublishedHomepage } from './PublishedHomepage';
+import { reasonLabel } from './resolution';
 
 export type HomepageViewType = 'everyone' | 'user' | 'group' | 'role';
-
-const reasonLabel = (
-    reason: HomepageViewAsReason,
-    groupNames: Map<string, string>,
-): string => {
-    switch (reason.type) {
-        case 'group':
-            return `via group ${groupNames.get(reason.groupUuid) ?? 'unknown'} (priority ${reason.priority})`;
-        case 'role':
-            return `via role ${ProjectMemberRoleLabels[reason.role]}`;
-        case 'default':
-            return 'org default';
-        default:
-            return assertUnreachable(reason, 'Unknown view-as reason');
-    }
-};
 
 // The "Viewing as" switcher — lives in the builder toolbar during preview so
 // the canvas below stays the real rendered homepage.
@@ -147,11 +130,7 @@ export const ViewAsControl: FC<{
                 />
             )}
             {target && result.data?.resolved?.type === 'homepage' && (
-                <Badge
-                    variant="light"
-                    tt="none"
-                    className={classes.viewAsBadge}
-                >
+                <Badge className={classes.viewAsBadge}>
                     {result.data.resolved.homepage.name}
                     {result.data.reason
                         ? ` · ${reasonLabel(result.data.reason, groupNames)}`

@@ -17,7 +17,7 @@ const ResourceEmptyState: FC<ResourceEmptyStateProps> = ({
                     {title}
                 </Title>
 
-                {description && <Text c="ldGray.6">{description}</Text>}
+                {description && <Text c="dimmed">{description}</Text>}
             </Stack>
 
             {action}

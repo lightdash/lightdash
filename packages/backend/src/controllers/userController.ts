@@ -19,6 +19,8 @@ import {
     getRequestMethod,
     hasInviteCode,
     isEmailOnlyUser,
+    isMobileLoginIntent,
+    isMobilePlatform,
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
@@ -33,6 +35,7 @@ import {
     UserWarehouseCredentials,
     validatePassword,
     WarehouseTypes,
+    type MobileLoginOptions,
 } from '@lightdash/common';
 import {
     Body,
@@ -52,7 +55,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../auth/account';
+import { serializeAccount, toSessionUser } from '../auth/account';
 import Logger from '../logging/logger';
 import { UserModel } from '../models/UserModel';
 import {
@@ -614,14 +617,31 @@ export class UserController extends BaseController {
     async getLoginOptions(
         @Request() req: express.Request,
         @Query() email?: string,
+        @Query() mobile_login_intent?: string,
+        @Query() mobilePlatform?: string,
     ): Promise<ApiGetLoginOptionsResponse> {
-        const loginOptions = await this.services
-            .getUserService()
-            .getLoginOptions(email);
+        const userService = this.services.getUserService();
+        const mobileLoginIntent = isMobileLoginIntent(mobile_login_intent)
+            ? mobile_login_intent
+            : undefined;
+        const platform = isMobilePlatform(mobilePlatform)
+            ? mobilePlatform
+            : undefined;
+        const [loginOptions, mobileLoginPresentation, managedSignIn] =
+            await Promise.all([
+                userService.getLoginOptions(email, mobileLoginIntent),
+                userService.getMobileLoginPresentation(),
+                userService.getManagedSignIn(platform, email),
+            ]);
+        const results: MobileLoginOptions = {
+            ...loginOptions,
+            ...mobileLoginPresentation,
+            ...(managedSignIn ? { managedSignIn } : {}),
+        };
         this.setStatus(200);
         return {
             status: 'ok',
-            results: loginOptions,
+            results,
         };
     }
 
@@ -802,15 +822,10 @@ export class UserController extends BaseController {
             throw new NotFoundError('Account not found');
         }
 
-        const { ability, ...userWithoutAbility } = req.account.user;
-
         this.setStatus(200);
         return {
             status: 'ok',
-            results: {
-                ...req.account,
-                user: userWithoutAbility,
-            },
+            results: serializeAccount(req.account),
         };
     }
 }

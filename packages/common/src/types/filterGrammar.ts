@@ -25,7 +25,7 @@ export type ParsedFilter = {
     date_interval?: string;
 };
 
-export const parseOperator = (
+const parseOperator = (
     operator: string,
     isTrue: boolean,
     fieldName: string,

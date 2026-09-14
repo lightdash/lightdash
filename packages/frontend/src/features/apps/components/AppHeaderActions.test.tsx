@@ -82,6 +82,19 @@ const grantGoogleSheetsAbility = () => {
     ]);
 };
 
+const withScheduledDeliveryPermission = () => ({
+    abilityRules: [
+        {
+            action: 'create' as const,
+            subject: 'ScheduledDeliveries' as const,
+            conditions: {
+                organizationUuid: DEFAULT_ORG_UUID,
+                projectUuid: 'project-1',
+            },
+        },
+    ],
+});
+
 const baseProps = {
     projectUuid: 'project-1',
     appUuid: 'app-1',
@@ -98,6 +111,7 @@ const baseProps = {
     onEdit: null,
     shareUrl: null,
     navItem: null,
+    askAiItem: null,
     fullscreenToggle: null,
     captureThumbnail: null,
     capturePreviewScreenshot: null,
@@ -120,10 +134,12 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         defaultAbility.update([]);
     });
 
-    it('shows the entry when the user can edit, Drive is configured, and GoogleSheets is granted', async () => {
+    it('shows delivery actions without edit access when their permissions are granted', async () => {
+        mockedCanEdit.mockReturnValue(false);
         grantGoogleSheetsAbility();
         renderWithProviders(<AppHeaderActions {...baseProps} />, {
             health: withGoogleDriveConfigured(),
+            user: withScheduledDeliveryPermission(),
         });
 
         await openMenu();
@@ -133,7 +149,6 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         expect(
             await screen.findByText('Google Sheets Sync'),
         ).toBeInTheDocument();
-        // Schedule delivery is a separate, unrelated entry.
         expect(screen.getByText('Schedule delivery')).toBeInTheDocument();
     });
 
@@ -141,6 +156,7 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         grantGoogleSheetsAbility();
         renderWithProviders(<AppHeaderActions {...baseProps} />, {
             health: withGoogleDriveNotConfigured(),
+            user: withScheduledDeliveryPermission(),
         });
 
         await openMenu();
@@ -156,6 +172,7 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         // No grantGoogleSheetsAbility() call — defaultAbility stays empty.
         renderWithProviders(<AppHeaderActions {...baseProps} />, {
             health: withGoogleDriveConfigured(),
+            user: withScheduledDeliveryPermission(),
         });
 
         await openMenu();
@@ -166,7 +183,7 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('hides the entry (and Schedule delivery) when the user cannot edit the app', async () => {
+    it('hides delivery actions when ScheduledDeliveries is not granted', async () => {
         mockedCanEdit.mockReturnValue(false);
         grantGoogleSheetsAbility();
 
@@ -175,13 +192,11 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         });
 
         await openMenu();
-        // "View network" is unconditional — a stable anchor to wait on since
-        // Schedule delivery itself is hidden in this scenario.
         await screen.findByText('View network');
 
+        expect(screen.queryByText('Schedule delivery')).not.toBeInTheDocument();
         expect(
             screen.queryByText('Google Sheets Sync'),
         ).not.toBeInTheDocument();
-        expect(screen.queryByText('Schedule delivery')).not.toBeInTheDocument();
     });
 });

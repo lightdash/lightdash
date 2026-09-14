@@ -2,7 +2,7 @@ import {
     getValidAiQueryLimit,
     ParameterError,
     type Explore,
-    type MergeQuery,
+    type MetricSourcedMergeQuery,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
 import {
@@ -51,7 +51,7 @@ export const buildAiMergeQuery = ({
     toolArgs: ToolRunQueryArgsTransformed;
     getExplore: (exploreName: string) => Explore;
     maxQueryLimit: number;
-}): MergeQuery => {
+}): MetricSourcedMergeQuery => {
     const { mergeConfig } = toolArgs;
     if (!mergeConfig) {
         throw new ParameterError('Merge config not found');

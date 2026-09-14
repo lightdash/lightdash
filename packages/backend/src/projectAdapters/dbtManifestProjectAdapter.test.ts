@@ -1,4 +1,5 @@
 import {
+    DbtError,
     DEFAULT_SPOTLIGHT_CONFIG,
     SupportedDbtVersions,
     type WarehouseClient,
@@ -87,7 +88,55 @@ describe('DbtManifestProjectAdapter', () => {
         expect(manifestResult.manifest.docs).toEqual(validManifestData.docs);
     });
 
-    it('should throw error when manifest is invalid JSON', async () => {
+    it('preserves an explicitly empty model selection', async () => {
+        const emptySelectionAdapter = new DbtManifestProjectAdapter({
+            warehouseClient: mockWarehouseClient,
+            cachedWarehouse: {
+                warehouseCatalog: undefined,
+                onWarehouseCatalogChange: vi.fn(),
+            },
+            dbtVersion: SupportedDbtVersions.V1_8,
+            manifest: mockManifestString,
+            selectedModelIds: [],
+        });
+
+        const manifestResult =
+            await emptySelectionAdapter.dbtClient.getDbtManifest();
+
+        expect(manifestResult.selectedModelIds).toEqual([]);
+    });
+
+    it.each([undefined, [], ['model.test.example']])(
+        'reuses the parsed manifest with selection %j',
+        async (selectedModelIds) => {
+            const { manifest } =
+                await mockProjectAdapter.dbtClient.getDbtManifest();
+            const adapter = new DbtManifestProjectAdapter({
+                warehouseClient: mockWarehouseClient,
+                cachedWarehouse: {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: vi.fn(),
+                },
+                dbtVersion: SupportedDbtVersions.V1_8,
+                parsedManifest: manifest,
+                selectedModelIds,
+                dbtProjectDir: '/tmp/dbt-project',
+            });
+
+            const result = await adapter.getDbtManifest();
+            const repeated = await adapter.getDbtManifest();
+
+            expect(result.manifest).toBe(manifest);
+            expect(repeated.manifest).toBe(manifest);
+            expect(result.selectedModelIds).toEqual(selectedModelIds);
+            expect(adapter.dbtProjectDir).toBe('/tmp/dbt-project');
+            if (selectedModelIds === undefined) {
+                expect(result).not.toHaveProperty('selectedModelIds');
+            }
+        },
+    );
+
+    it('throws the manifest validation error for malformed JSON', async () => {
         const invalidManifestAdapter = new DbtManifestProjectAdapter({
             warehouseClient: mockWarehouseClient,
             cachedWarehouse: {
@@ -98,9 +147,12 @@ describe('DbtManifestProjectAdapter', () => {
             manifest: 'invalid json',
         });
 
-        await expect(
-            invalidManifestAdapter.dbtClient.getDbtManifest(),
-        ).rejects.toThrow();
+        const result = invalidManifestAdapter.dbtClient.getDbtManifest();
+
+        await expect(result).rejects.toBeInstanceOf(DbtError);
+        await expect(result).rejects.toThrow(
+            'Cannot read response from dbt, manifest.json not valid',
+        );
     });
 
     it('should throw error when manifest is missing required fields', async () => {

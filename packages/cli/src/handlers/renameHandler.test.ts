@@ -1,6 +1,12 @@
-import { RenameType, SchedulerJobStatus } from '@lightdash/common';
+import {
+    Project,
+    ProjectType,
+    RenameType,
+    SchedulerJobStatus,
+} from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import GlobalState from '../globalState';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
 import { renameHandler } from './renameHandler';
@@ -15,7 +21,7 @@ type RenameOptions = Parameters<typeof renameHandler>[0];
 const baseOptions: RenameOptions = {
     verbose: false,
     type: RenameType.FIELD,
-    project: 'test-project-uuid',
+    project: '11111111-1111-4111-8111-111111111111',
     from: 'old_name',
     to: 'new_name',
     dryRun: false,
@@ -33,6 +39,7 @@ const emptyResults = {
 
 const RENAME_JOB_ID = 'rename-job-id';
 const VALIDATION_JOB_ID = 'validation-job-id';
+const PREVIEW_PROJECT = '33333333-3333-4333-8333-333333333333';
 
 describe('renameHandler follow-up validation', () => {
     let errorOutput: string[];
@@ -60,18 +67,28 @@ describe('renameHandler follow-up validation', () => {
             if (url.includes('/validate?jobId=')) {
                 return [];
             }
+            if (
+                method === 'GET' &&
+                url === `/api/v1/projects/${PREVIEW_PROJECT}`
+            ) {
+                return {
+                    projectUuid: PREVIEW_PROJECT,
+                    type: ProjectType.PREVIEW,
+                } as Project;
+            }
             throw new Error(`Unexpected API call: ${method} ${url}`);
         });
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.stubEnv('LIGHTDASH_PROJECT', undefined);
         vi.mocked(checkLightdashVersion).mockResolvedValue(undefined);
         vi.mocked(getConfig).mockResolvedValue({
             context: {
                 apiKey: 'test-key',
                 serverUrl: 'http://localhost',
-                project: 'test-project-uuid',
+                project: '11111111-1111-4111-8111-111111111111',
             },
         } as Awaited<ReturnType<typeof getConfig>>);
         vi.mocked(getProject).mockResolvedValue({
@@ -87,6 +104,7 @@ describe('renameHandler follow-up validation', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllEnvs();
     });
 
     const trackedEvents = () =>
@@ -94,6 +112,44 @@ describe('renameHandler follow-up validation', () => {
             event: payload.event,
             properties: payload.properties,
         }));
+
+    test.each([undefined, baseOptions.project])(
+        'targets the environment project unless --project overrides it (%s)',
+        async (explicitProject) => {
+            const envProject = '22222222-2222-4222-8222-222222222222';
+            vi.stubEnv('LIGHTDASH_PROJECT', envProject);
+            vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(true);
+            vi.mocked(getConfig).mockResolvedValue({
+                context: {
+                    apiKey: 'test-key',
+                    serverUrl: 'http://localhost',
+                    project: envProject,
+                    previewProject: PREVIEW_PROJECT,
+                    previewName: 'Stale preview',
+                },
+            });
+            mockApi(null);
+
+            await renameHandler({ ...baseOptions, project: explicitProject });
+
+            const expectedProject = explicitProject || envProject;
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'POST',
+                    url: `/api/v1/projects/${expectedProject}/rename`,
+                }),
+            );
+            const output = errorOutput.join('\n');
+            expect(output).toContain(`Renaming in project: ${expectedProject}`);
+            if (explicitProject) {
+                expect(output).not.toContain('Stale preview');
+            } else {
+                expect(output).toContain(
+                    'active preview "Stale preview" ignored',
+                );
+            }
+        },
+    );
 
     test('reports a failed validation job as a validation failure, not a rename failure', async () => {
         mockApi(VALIDATION_JOB_ID);

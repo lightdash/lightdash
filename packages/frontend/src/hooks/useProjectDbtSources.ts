@@ -64,7 +64,10 @@ export const useProjectDbtSources = (projectUuid?: string) =>
         enabled: !!projectUuid,
     });
 
-export const useCreateProjectDbtSourceMutation = (projectUuid: string) => {
+export const useCreateProjectDbtSourceMutation = (
+    projectUuid: string,
+    options?: { onSuccess?: (source: ProjectDbtSourceSummary) => void },
+) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -73,7 +76,8 @@ export const useCreateProjectDbtSourceMutation = (projectUuid: string) => {
         ApiCreateProjectDbtSource
     >((data) => createProjectDbtSource(projectUuid, data), {
         mutationKey: ['create_project_dbt_source', projectUuid],
-        onSuccess: async () => {
+        onSuccess: async (source) => {
+            options?.onSuccess?.(source);
             await queryClient.invalidateQueries([
                 'project_dbt_sources',
                 projectUuid,
@@ -99,7 +103,10 @@ export const useProjectDbtSource = (
         enabled: !!projectDbtSourceUuid,
     });
 
-export const useUpdateProjectDbtSourceMutation = (projectUuid: string) => {
+export const useUpdateProjectDbtSourceMutation = (
+    projectUuid: string,
+    options?: { onSuccess?: (source: ProjectDbtSourceSummary) => void },
+) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -111,10 +118,20 @@ export const useUpdateProjectDbtSourceMutation = (projectUuid: string) => {
             updateProjectDbtSource(projectUuid, projectDbtSourceUuid, data),
         {
             mutationKey: ['update_project_dbt_source', projectUuid],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    'project_dbt_sources',
-                    projectUuid,
+            onSuccess: async (source, { projectDbtSourceUuid }) => {
+                options?.onSuccess?.(source);
+                await Promise.all([
+                    queryClient.invalidateQueries([
+                        'project_dbt_sources',
+                        projectUuid,
+                    ]),
+                    // The edit form reads the single-source query, so a stale
+                    // entry would refill it with the pre-edit values.
+                    queryClient.invalidateQueries([
+                        'project_dbt_source',
+                        projectUuid,
+                        projectDbtSourceUuid,
+                    ]),
                 ]);
                 showToastSuccess({ title: 'dbt source updated' });
             },

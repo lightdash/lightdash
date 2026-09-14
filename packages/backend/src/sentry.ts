@@ -96,6 +96,8 @@ export const IGNORE_ERRORS = [
     // dbt connection but the project uses "none") — surfaced to the user,
     // not a server bug.
     'ParameterError',
+    // Overdue deprecated routes fire once per request — keep GCP logs, drop Sentry.
+    'DeprecatedRouteError',
 ];
 
 const anrIntegrations = lightdashConfig.sentry.anr.enabled

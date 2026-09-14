@@ -5,9 +5,7 @@ import { Link } from 'react-router';
 export const AiFeaturesDisabledAlert = () => (
     <Alert
         icon={<IconInfoCircle />}
-        radius="md"
         color="orange"
-        variant="light"
         title="Ask AI features are currently disabled for all users"
     >
         <Text c="ldGray.7" size="xs">

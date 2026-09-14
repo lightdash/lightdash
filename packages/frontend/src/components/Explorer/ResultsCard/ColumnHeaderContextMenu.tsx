@@ -471,13 +471,12 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                 }}
             >
                 <Group gap="two" wrap="nowrap">
-                    <Menu withinPortal withArrow shadow="md">
+                    <Menu withArrow>
                         <Menu.Target>
                             <ActionIcon
                                 size="xs"
                                 variant="light"
                                 bg="transparent"
-                                color="ldGray.6"
                                 aria-label="Context menu"
                             >
                                 <MantineIcon icon={IconDots} />

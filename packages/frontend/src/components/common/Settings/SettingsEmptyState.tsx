@@ -28,7 +28,7 @@ const SettingsEmptyState: FC<PropsWithChildren<SettingsEmptyStateProps>> = ({
                 <Title order={5} ta="center">
                     {title}
                 </Title>
-                <Text fz="sm" c="ldGray.6" ta="center">
+                <Text fz="sm" c="dimmed" ta="center">
                     {description}
                 </Text>
             </Stack>

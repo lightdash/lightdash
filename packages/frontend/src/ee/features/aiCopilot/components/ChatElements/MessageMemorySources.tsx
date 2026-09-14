@@ -30,7 +30,6 @@ export const MessageSourcesToggle: FC<{
         variant="subtle"
         color="gray"
         size="compact-xs"
-        fw={500}
         className={styles.toggle}
         onClick={onToggle}
         leftSection={<MantineIcon icon={IconFileDescription} size={16} />}
@@ -57,7 +56,7 @@ const MemorySourceCard: FC<{
 
     if (memoryQuery.isLoading) {
         return (
-            <Paper withBorder radius="md" p="sm" className={styles.card}>
+            <Paper radius="md" p="sm" className={styles.card}>
                 <Group gap="sm" wrap="nowrap">
                     <Box className={styles.indexChip}>{index}</Box>
                     <Stack gap={6} w="100%">
@@ -71,12 +70,7 @@ const MemorySourceCard: FC<{
 
     if (!memoryQuery.data) {
         return (
-            <Paper
-                withBorder
-                radius="md"
-                p="sm"
-                className={styles.cardUnavailable}
-            >
+            <Paper radius="md" p="sm" className={styles.cardUnavailable}>
                 <Group gap="sm" wrap="nowrap">
                     <Box className={styles.indexChip}>{index}</Box>
                     <Text size="sm" c="dimmed">

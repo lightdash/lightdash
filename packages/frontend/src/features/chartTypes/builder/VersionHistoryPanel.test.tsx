@@ -1,3 +1,4 @@
+import { APP_UPGRADE_PROMPT_LABEL } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -113,8 +114,9 @@ describe('VersionHistoryPanel', () => {
             /\.entry\[data-active='true'\]\s*\{([^}]*)\}/s,
         )?.[1];
 
-        expect(activeEntryStyles).toContain('var(--mantine-color-ldGray-1)');
-        expect(activeEntryStyles).toContain('var(--mantine-color-dark-5)');
+        expect(activeEntryStyles).toContain(
+            'var(--mantine-color-default-hover)',
+        );
         expect(styles).not.toContain('ldBrandViolet');
     });
 
@@ -214,6 +216,30 @@ describe('VersionHistoryPanel', () => {
         expect(screen.queryByText('Build details')).not.toBeInTheDocument();
     });
 
+    it('shows the durable summary for a completed SDK upgrade', () => {
+        renderWithProviders(
+            <VersionHistoryPanel
+                {...defaultProps}
+                versions={[
+                    appVersion({
+                        version: 3,
+                        prompt: APP_UPGRADE_PROMPT_LABEL,
+                        statusMessage:
+                            'Upgraded to the latest chart SDK.\n\nNewly available — ask me to add this in the prompt bar:\n\n- **Metric filters** — Filter grouped results.',
+                    }),
+                    ...twoVersions,
+                ]}
+                latestReadyVersion={3}
+            />,
+        );
+
+        expect(screen.getByText('Upgrade summary')).toBeInTheDocument();
+        expect(screen.getByText('Metric filters')).toBeInTheDocument();
+        expect(
+            screen.getByText(/ask me to add this in the prompt bar/i),
+        ).toBeInTheDocument();
+    });
+
     it('loads earlier versions on demand', () => {
         const fetchEarlier = vi.fn();
         renderWithProviders(
@@ -241,5 +267,77 @@ describe('VersionHistoryPanel', () => {
 
         fireEvent.click(screen.getByLabelText('Close history'));
         expect(onClose).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('VersionHistoryPanel schema changes', () => {
+    const schema = (fields: string[]) => ({
+        fields: fields.map((name) => ({
+            name,
+            label: name[0].toUpperCase() + name.slice(1),
+            type: 'dimension' as const,
+            required: true,
+        })),
+        configOptions: [],
+        colorPalette: null,
+    });
+    const withSchema = (
+        version: number,
+        fields: string[],
+        prompt = `v${version} prompt`,
+    ) =>
+        appVersion({
+            version,
+            prompt,
+            resources: {
+                images: [],
+                files: [],
+                charts: [],
+                dashboardName: null,
+                clarifications: [],
+                vizSchema: schema(fields),
+            },
+        });
+
+    it('summarises what changed against the previous declared schema and expands the detail', () => {
+        renderWithProviders(
+            <VersionHistoryPanel
+                {...defaultProps}
+                latestReadyVersion={3}
+                versions={[
+                    withSchema(3, ['category', 'region']),
+                    appVersion({
+                        version: 2,
+                        status: 'error',
+                        prompt: 'broken',
+                    }),
+                    withSchema(1, ['category']),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('+1 field')).toBeInTheDocument();
+        expect(
+            screen.queryByLabelText('What changed in v1'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Region')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByLabelText('What changed in v3'));
+
+        expect(screen.getByText('Region')).toBeInTheDocument();
+    });
+
+    it('stays quiet when the declaration did not move', () => {
+        renderWithProviders(
+            <VersionHistoryPanel
+                {...defaultProps}
+                versions={[
+                    withSchema(2, ['category']),
+                    withSchema(1, ['category']),
+                ]}
+            />,
+        );
+
+        expect(screen.queryByText('What changed')).not.toBeInTheDocument();
     });
 });

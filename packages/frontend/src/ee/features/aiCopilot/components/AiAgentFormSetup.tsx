@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, type AiAgentModelConfig } from '@lightdash/common';
+import {
+    FeatureFlags,
+    MAX_RETENTION_WINDOW_HOURS,
+    MIN_RETENTION_WINDOW_HOURS,
+    type AiAgentModelConfig,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -26,7 +31,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { type useForm } from '@mantine/form';
+import { type UseFormReturnType } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -71,14 +76,15 @@ import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
+import { ThreadRetentionSelect } from './ThreadRetentionSelect';
 
 const formSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
     description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
-            channelId: z.string().min(1),
+            channelId: z.string().min(1, 'Channel is required'),
         }),
     ),
     tags: z.array(z.string()).nullable(),
@@ -96,6 +102,12 @@ const formSchema = z.object({
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
+    threadRetentionHours: z
+        .number()
+        .int()
+        .min(MIN_RETENTION_WINDOW_HOURS)
+        .max(MAX_RETENTION_WINDOW_HOURS)
+        .nullable(),
 });
 
 type CommitOnBlurTextareaProps = Omit<
@@ -125,15 +137,11 @@ const SwitchLabel = ({
         <Tooltip
             label={help}
             events={{ hover: true, focus: true, touch: true }}
-            withArrow
-            withinPortal
-            multiline
             position="right"
             maw="300px"
         >
             <ActionIcon
                 type="button"
-                variant="subtle"
                 color="ldGray"
                 size="xs"
                 aria-label={help}
@@ -172,7 +180,7 @@ export const AiAgentFormSetup = ({
     onAvatarRevert,
 }: {
     mode: 'create' | 'edit';
-    form: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
+    form: UseFormReturnType<z.infer<typeof formSchema>>;
     projectUuid: string;
     agentUuid?: string;
     isSavingAgent?: boolean;
@@ -256,6 +264,10 @@ export const AiAgentFormSetup = ({
 
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
+    );
+
+    const threadRetentionFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiThreadRetention,
     );
 
     const isGroupsEnabled =
@@ -371,6 +383,17 @@ export const AiAgentFormSetup = ({
                             label="Name"
                             placeholder="Enter a name for this agent"
                             variant="subtle"
+                            // Typed anchor for scope walkthroughs, read first
+                            // as a look at naming.
+                            data-tour-anchor="agent-name"
+                            data-tour-hint="Name the agent"
+                            data-tour-input="true"
+                            data-tour-suggest="Sales analyst"
+                            data-tour-scope="manage:AiAgent"
+                            data-tour-look="2"
+                            data-tour-after='[data-tour-anchor="agent-new"]'
+                            data-tour-label="A name your team will recognise"
+                            data-tour-docs="agents/set-up-agents.mdx#name-and-image:1"
                             {...form.getInputProps('name')}
                         />
                         <CommitOnBlurTextarea
@@ -510,6 +533,17 @@ export const AiAgentFormSetup = ({
                             autosize
                             minRows={3}
                             maxRows={8}
+                            // Typed anchor for scope walkthroughs, read first
+                            // as a look at what instructions do.
+                            data-tour-anchor="agent-instructions"
+                            data-tour-hint="Write the instructions"
+                            data-tour-input="true"
+                            data-tour-suggest="You are the analyst for a jaffle shop. Answer questions about customers, orders and payments, and prefer charts over tables."
+                            data-tour-scope="manage:AiAgent"
+                            data-tour-look="3"
+                            data-tour-after='[data-tour-anchor="agent-name"]'
+                            data-tour-label="Instructions shape every answer"
+                            data-tour-docs="agents/set-up-agents.mdx#instructions:1"
                             error={form.errors.instruction}
                             defaultValue={form.values.instruction ?? ''}
                             onCommit={(value) =>
@@ -706,7 +740,7 @@ export const AiAgentFormSetup = ({
                                 {exploreAccessSummaryQuery.isSuccess ? (
                                     <Collapse
                                         mt="xs"
-                                        in={isExploreAccessSummaryOpen}
+                                        expanded={isExploreAccessSummaryOpen}
                                     >
                                         <Card>
                                             <AiExploreAccessTree
@@ -867,6 +901,35 @@ export const AiAgentFormSetup = ({
                             </Text>
                         </AgentSettingsSubsection>
 
+                        {threadRetentionFlagQuery.data?.enabled && (
+                            <>
+                                <Divider />
+                                <AgentSettingsSubsection
+                                    title="Thread retention"
+                                    description={`Delete this agent's threads after a period of inactivity. Active threads are never cut off.${
+                                        aiOrganizationSettings?.threadRetentionHours !=
+                                        null
+                                            ? ' The organization retention policy caps this setting.'
+                                            : ''
+                                    }`}
+                                >
+                                    <ThreadRetentionSelect
+                                        value={form.values.threadRetentionHours}
+                                        ceilingHours={
+                                            aiOrganizationSettings?.threadRetentionHours ??
+                                            null
+                                        }
+                                        onChange={(hours) =>
+                                            form.setFieldValue(
+                                                'threadRetentionHours',
+                                                hours,
+                                            )
+                                        }
+                                    />
+                                </AgentSettingsSubsection>
+                            </>
+                        )}
+
                         <Divider />
 
                         <AgentSettingsSubsection title="Who can use it">
@@ -918,9 +981,6 @@ export const AiAgentFormSetup = ({
                                                         </Text>
                                                         <Tooltip
                                                             label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
-                                                            withArrow
-                                                            withinPortal
-                                                            multiline
                                                             position="right"
                                                             maw="250px"
                                                         >

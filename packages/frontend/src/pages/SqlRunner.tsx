@@ -1,12 +1,10 @@
 import { getFieldQuoteChar } from '@lightdash/common';
-import { Group, Paper, Stack, ActionIcon, Tooltip } from '@mantine/core';
-import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
+import { Stack } from '@mantine/core';
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useMount, useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
-import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import {
     resetChartState,
@@ -30,7 +28,6 @@ import {
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
-    setSidebarOpen,
     setSql,
     setSqlLimit,
     setState,
@@ -40,6 +37,7 @@ import { HeaderVirtualView } from '../features/virtualView';
 import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
 
 const SqlRunner = ({
@@ -56,16 +54,14 @@ const SqlRunner = ({
         (state) => state.sqlRunner.warehouseConnectionType,
     );
 
-    const params = useParams<{ projectUuid: string; slug?: string }>();
+    const routeProjectUuid = useProjectUuid();
+    const params = useParams<{ slug?: string }>();
     const share = useSearchParams('share');
     const shareState = useSqlRunnerShareUrl(share || undefined);
 
     const location = useLocation();
     const navigate = useNavigate();
 
-    const isLeftSidebarOpen = useAppSelector(
-        (state) => state.sqlRunner.isLeftSidebarOpen,
-    );
     const { data: project } = useProject(projectUuid);
     const { showToastError } = useToaster();
 
@@ -122,10 +118,10 @@ const SqlRunner = ({
     });
 
     useEffect(() => {
-        if (!projectUuid && params.projectUuid) {
-            dispatch(setProjectUuid(params.projectUuid));
+        if (!projectUuid && routeProjectUuid) {
+            dispatch(setProjectUuid(routeProjectUuid));
         }
-    }, [dispatch, params.projectUuid, projectUuid]);
+    }, [dispatch, routeProjectUuid, projectUuid]);
 
     // Use the SQL string from the location state if available
     useEffect(() => {
@@ -161,10 +157,6 @@ const SqlRunner = ({
         }
     }, [dispatch, warehouseType, warehouseConnectionType]);
 
-    const handleSetSidebarOpen = (isOpen: boolean) => {
-        dispatch(setSidebarOpen(isOpen));
-    };
-
     if (chartError) {
         return <ErrorState error={chartError.error} />;
     }
@@ -174,52 +166,16 @@ const SqlRunner = ({
             title="SQL Runner"
             noContentPadding
             flexContent
-            header={
-                mode === 'virtualView' && virtualViewState ? (
+            sidebar={<Sidebar />}
+        >
+            <Stack gap={0} flex={1} miw={0}>
+                {mode === 'virtualView' && virtualViewState ? (
                     <HeaderVirtualView virtualViewState={virtualViewState} />
                 ) : (
                     <Header mode={params.slug ? 'edit' : 'create'} />
-                )
-            }
-            isSidebarOpen={isLeftSidebarOpen}
-            sidebar={<Sidebar setSidebarOpen={handleSetSidebarOpen} />}
-            noSidebarPadding
-        >
-            <Group
-                align="stretch"
-                grow
-                gap="none"
-                p={0}
-                style={{ flex: 1 }}
-                w={'100%'}
-            >
-                {!isLeftSidebarOpen && (
-                    <Paper
-                        shadow="none"
-                        radius={0}
-                        withBorder={false}
-                        px="sm"
-                        py="lg"
-                        style={{ flexGrow: 0 }}
-                    >
-                        <Stack gap="xs">
-                            <Tooltip label={'Open sidebar'} position="right">
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    size="sm"
-                                    onClick={() => handleSetSidebarOpen(true)}
-                                >
-                                    <MantineIcon
-                                        icon={IconLayoutSidebarLeftExpand}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Stack>
-                    </Paper>
                 )}
                 <ContentPanel />
-            </Group>
+            </Stack>
         </Page>
     );
 };

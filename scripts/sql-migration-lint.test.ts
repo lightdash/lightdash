@@ -12,6 +12,7 @@ import {
     evaluateMigrationSource,
     lintSource,
 } from './sql-migration-lint';
+import type { BreakingChangeDeclaration } from './release-safety-declarations';
 
 let passed = 0;
 const failures: string[] = [];
@@ -190,7 +191,16 @@ test('line comment does not hide nor over-trigger on the next line', () => {
     assert.deepStrictEqual(rules(src), []);
 });
 
-const enforcement = (source: string) => evaluateMigrationSource(source, 'migration.ts');
+const migrationDeclaration: BreakingChangeDeclaration = {
+    id: 'migration-break',
+    reason: 'Deployments running the prior backend still read users.legacy.',
+    requiredStop: false,
+    migration: 'migration.ts',
+};
+const enforcement = (
+    source: string,
+    declarations: BreakingChangeDeclaration[] = [],
+) => evaluateMigrationSource(source, 'migration.ts', declarations);
 const enforcementRules = (source: string, severity?: 'error' | 'warning'): string[] =>
     enforcement(source)
         .filter((finding) => severity === undefined || finding.severity === severity)
@@ -216,7 +226,7 @@ export async function down(knex) { await knex.schema.alterTable('users', table =
     );
     assert.ok(
         undeclared?.message.includes(
-            'Declaring is a product decision — confirm with a human before adding this export.',
+            'Declaring is a product decision — confirm with a human before adding a registry entry.',
         ),
     );
 });
@@ -231,10 +241,11 @@ test('hollow breaking reasons do not satisfy migration enforcement', () => {
         '<operator-facing reason>',
     ];
     for (const reason of hollowReasons) {
-        const source = `export const breaking = { reason: '${reason}', requiredStop: false };
-export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+        const source = `export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
 export async function down(knex) { await knex.schema.alterTable('users', table => table.string('legacy')); }`;
-        const findings = enforcement(source);
+        const findings = enforcement(source, [
+            { ...migrationDeclaration, reason },
+        ]);
         assert.ok(
             findings.some(
                 (finding) =>
@@ -254,26 +265,27 @@ export async function down(knex) { await knex.schema.alterTable('users', table =
 });
 
 test('a substantive breaking reason satisfies migration enforcement', () => {
-    const source = `export const breaking = { reason: 'Deployments running the prior backend still read users.legacy.', requiredStop: false };
-export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+    const source = `export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
 export async function down(knex) { await knex.schema.alterTable('users', table => table.string('legacy')); }`;
-    assert.ok(!enforcement(source).some((finding) => finding.severity === 'error'));
+    assert.ok(
+        !enforcement(source, [migrationDeclaration]).some(
+            (finding) => finding.severity === 'error',
+        ),
+    );
 });
 
 test('declared breaking behavior passes enforcement while preserving the legacy finding', () => {
-    const source = `export const breaking = { reason: 'old pods still read legacy', requiredStop: false };
-export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+    const source = `export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
 export async function down(knex) { await knex.schema.alterTable('users', table => table.string('legacy')); }`;
-    const findings = enforcement(source);
+    const findings = enforcement(source, [migrationDeclaration]);
     assert.ok(findings.some((finding) => finding.rule === 'drop-column' && finding.severity === 'warning'));
     assert.ok(!findings.some((finding) => finding.severity === 'error'));
 });
 
 test('raw breaking SQL with a valid breaking declaration needs no classification', () => {
-    const source = `export const breaking = { reason: 'old pods still read legacy', requiredStop: false };
-export async function up(knex) { await knex.raw('ALTER TABLE users DROP COLUMN legacy'); }
+    const source = `export async function up(knex) { await knex.raw('ALTER TABLE users DROP COLUMN legacy'); }
 export async function down(knex) { await knex.raw('ALTER TABLE users ADD COLUMN legacy text'); }`;
-    const findings = enforcement(source);
+    const findings = enforcement(source, [migrationDeclaration]);
     assert.ok(findings.some((finding) => finding.rule === 'raw-drop-column'));
     assert.ok(!findings.some((finding) => finding.rule === 'unclassified-knex-raw'));
     assert.ok(!findings.some((finding) => finding.severity === 'error'));
@@ -286,6 +298,23 @@ export async function down() { throw new Error('irreversible: test fixture'); }`
     const findings = enforcement(source);
     assert.ok(findings.some((finding) => finding.rule === 'malformed-breaking-declaration'));
     assert.ok(findings.some((finding) => finding.rule === 'undeclared-breaking-change'));
+});
+
+test('a valid inline breaking declaration does not satisfy migration enforcement', () => {
+    const source = `export const breaking = { reason: 'Deployments running the prior backend still read users.legacy.', requiredStop: false };
+export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+export async function down(knex) { await knex.schema.alterTable('users', table => table.string('legacy')); }`;
+    const findings = enforcement(source);
+    assert.ok(
+        findings.some(
+            (finding) => finding.rule === 'inline-breaking-declaration',
+        ),
+    );
+    assert.ok(
+        findings.some(
+            (finding) => finding.rule === 'undeclared-breaking-change',
+        ),
+    );
 });
 
 test('literal DML raw SQL requires explicit classification', () => {
@@ -325,10 +354,9 @@ export async function down() { throw new Error('irreversible: test fixture'); }`
 
 test('breaking classification with a declaration passes and remains visible', () => {
     const source = `export const classification = { kind: 'breaking', reason: 'rewrites a live contract' };
-export const breaking = { reason: 'old pods require the prior shape', requiredStop: true };
 export async function up(knex) { await knex.raw('VACUUM users'); }
 export async function down() { throw new Error('irreversible: test fixture'); }`;
-    const findings = enforcement(source);
+    const findings = enforcement(source, [migrationDeclaration]);
     assert.ok(findings.some((finding) => finding.rule === 'classified-breaking-change'));
     assert.ok(!findings.some((finding) => finding.severity === 'error'));
 });
@@ -481,6 +509,28 @@ export async function down() { throw new Error('irreversible: test fixture'); }`
     assert.strictEqual(result.ran, true);
     assert.strictEqual(result.passed, true);
     assert.deepStrictEqual(result.errors, []);
+});
+
+test('registry diagnostics fail migration enforcement without changed migrations', () => {
+    const result = evaluateMigrationEnforcement({
+        paths: [],
+        declarationChanges: {
+            added: [],
+            diagnostics: [
+                {
+                    file: 'release-safety.declarations.json',
+                    line: 1,
+                    message: 'declaration "old-break" was removed',
+                },
+            ],
+        },
+    });
+    assert.strictEqual(result.passed, false);
+    assert.ok(
+        result.errors.some(
+            (finding) => finding.rule === 'breaking-declaration-registry',
+        ),
+    );
 });
 
 if (failures.length > 0) {

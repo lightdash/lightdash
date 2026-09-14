@@ -72,6 +72,7 @@ import { getSchedulerDeliveryType } from '../../types';
 import { isDeliveryListScheduler } from './deliveryListFilter';
 import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
+import { SchedulerDetailConditions } from './SchedulerDetailConditions';
 
 dayjs.extend(relativeTime);
 
@@ -96,7 +97,7 @@ const DetailPill: FC<{
     dot?: 'active' | 'paused';
     label: string;
 }> = ({ icon, dot, label }) => (
-    <Paper withBorder radius="xl" px="xs" py={2}>
+    <Paper radius="xl" px="xs" py={2}>
         <Group gap={6} wrap="nowrap">
             {dot && (
                 <span
@@ -107,7 +108,7 @@ const DetailPill: FC<{
                     }`}
                 />
             )}
-            {icon && <MantineIcon icon={icon} size="sm" color="ldGray.6" />}
+            {icon && <MantineIcon icon={icon} size="sm" color="dimmed" />}
             <Text size="xs" truncate maw={220}>
                 {label}
             </Text>
@@ -281,7 +282,6 @@ const SchedulerDetail: FC<{
                         </Text>
                         {canManage && (
                             <Tooltip
-                                withinPortal
                                 label={
                                     scheduler.enabled
                                         ? 'Pause this delivery'
@@ -317,6 +317,8 @@ const SchedulerDetail: FC<{
                 </Stack>
 
                 <Stack gap="lg" mt="sm">
+                    <SchedulerDetailConditions scheduler={scheduler} />
+
                     <Group gap="sm" wrap="nowrap" align="flex-start">
                         <MantineIcon
                             icon={IconClock}
@@ -380,9 +382,7 @@ const SchedulerDetail: FC<{
                                         ).fromNow()}
                                     </Text>
                                     <Badge
-                                        variant="light"
                                         size="sm"
-                                        radius="sm"
                                         color={runStatus.color}
                                         leftSection={
                                             <MantineIcon
@@ -465,7 +465,7 @@ const SchedulerDetail: FC<{
             {(canManage || canCreate) && (
                 <div className={classes.listDetailFooter}>
                     {canManage ? (
-                        <Tooltip withinPortal label="Delete">
+                        <Tooltip label="Delete">
                             <ActionIcon
                                 variant="default"
                                 size="lg"
@@ -638,7 +638,7 @@ export const SchedulerList: FC<Props> = ({
                         size={32}
                         color="ldGray.5"
                     />
-                    <Text fw={700} fz="lg">
+                    <Text fw={600} fz="lg">
                         {isThresholdAlert
                             ? 'Get notified when your data crosses a threshold'
                             : 'Deliver this on a schedule'}

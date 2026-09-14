@@ -10,10 +10,13 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
+import { chartTypeBuilderPath } from '../../../../features/chartTypes/utils/chartTypeBuilderPath';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import { useIsInsideChartGallery } from '../../../common/ChartGallery/ChartGalleryContext';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -125,7 +128,7 @@ const registerCustomCompletionProvider = (
 export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
     const colorScheme = useComputedColorScheme();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -207,11 +210,13 @@ export const ConfigTabs: React.FC = memo(() => {
     );
     const isAiEnabled = aiCustomVizFlag?.enabled ?? false;
 
-    // Without data apps there are no project chart types, so Vega is the only
+    // Without data apps there are no custom chart types, so Vega is the only
     // custom chart type there is and a picker would offer a choice of one.
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
+    // With the chart gallery, the user already picked a chart type there.
+    const isInsideChartGallery = useIsInsideChartGallery();
     const canCreateApp = useCanCreateDataApp(projectUuid);
     const selectProjectChartType = useSelectProjectChartType();
     const createProjectChartType = useCreateProjectChartType();
@@ -250,7 +255,7 @@ export const ConfigTabs: React.FC = memo(() => {
     return (
         <>
             <Stack>
-                {dataAppsEnabled && (
+                {dataAppsEnabled && !isInsideChartGallery && (
                     <CustomChartTypeSection
                         projectUuid={projectUuid ?? ''}
                         selected={{ kind: 'builtInVega' }}
@@ -268,7 +273,9 @@ export const ConfigTabs: React.FC = memo(() => {
                             canCreateApp
                                 ? () =>
                                       void navigate({
-                                          pathname: `/projects/${projectUuid}/chart-types/new`,
+                                          pathname: chartTypeBuilderPath(
+                                              projectUuid ?? '',
+                                          ),
                                           search: location.search,
                                       })
                                 : null

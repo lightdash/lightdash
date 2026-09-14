@@ -1,7 +1,9 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
@@ -58,11 +60,6 @@ export const useSettingsContext = (): SettingsContext => {
         isUserImpersonationEnabled?.enabled &&
         user?.ability?.can('update', 'Organization');
 
-    const { data: leaveOrganizationFlag } = useServerFeatureFlag(
-        FeatureFlags.LeaveOrganization,
-    );
-    const isLeaveOrganizationEnabled = leaveOrganizationFlag?.enabled === true;
-
     const { data: customRolesFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.CustomRoles,
     );
@@ -76,17 +73,21 @@ export const useSettingsContext = (): SettingsContext => {
     const dataAppsFlagQuery = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: dataAppsFlag } = dataAppsFlagQuery;
 
+    const { data: externalSourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ExternalSources,
+    );
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
+
     const { data: proLimitsFlag } = useServerFeatureFlag(
         FeatureFlags.ProLimits,
     );
     const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
 
-    const organizationRoadmapFlagQuery = useServerFeatureFlag(
-        FeatureFlags.OrganizationRoadmap,
-    );
-    const { data: organizationRoadmapFlag } = organizationRoadmapFlagQuery;
-    const isOrganizationRoadmapEnabled =
-        organizationRoadmapFlag?.enabled ?? false;
+    // The roadmap proxy is only registered behind a validated enterprise license.
+    const isOrganizationRoadmapEnabled = health?.license?.valid === true;
 
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
@@ -110,13 +111,23 @@ export const useSettingsContext = (): SettingsContext => {
     } = useOrganization();
     const { activeProjectUuid, isLoading: isActiveProjectUuidLoading } =
         useActiveProjectUuid();
+    // When viewing a specific project's settings, the sidebar follows the
+    // project in the URL rather than the session's active project.
+    const { pathname } = useLocation();
+    const routeProjectUuid = matchPath(
+        { path: '/generalSettings/projectManagement/:projectUuid/*' },
+        pathname,
+    )?.params.projectUuid;
+    const settingsProjectUuid = routeProjectUuid ?? activeProjectUuid;
     const {
         data: project,
         isInitialLoading: isProjectLoading,
         error: projectError,
-    } = useProject(activeProjectUuid);
+    } = useProject(settingsProjectUuid);
 
-    const isGitProject = useIsGitProject(activeProjectUuid ?? '');
+    const isGitProject = useIsGitProject(settingsProjectUuid ?? '');
+    const { isAvailable: isContentReviewAvailable } =
+        useContentReviewAvailability();
 
     // "Ask AI" settings are visible to org AI admins (all projects) and to
     // project-scoped AI admins (only the projects they can reach). These are
@@ -127,6 +138,18 @@ export const useSettingsContext = (): SettingsContext => {
     // out, matching what the backend actually authorizes.
     const { data: projects } = useProjects();
     const organizationUuid = organization?.organizationUuid;
+    const {
+        data: analyticsProjectFlag,
+        isInitialLoading: isAnalyticsProjectFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.AnalyticsProject);
+    const canAccessAnalyticsSettings =
+        analyticsProjectFlag?.enabled === true &&
+        !!organizationUuid &&
+        (user?.ability.can(
+            'manage',
+            subject('Organization', { organizationUuid }),
+        ) ??
+            false);
     const canManageOrgAiAgent =
         user?.ability?.can(
             'manage',
@@ -178,12 +201,11 @@ export const useSettingsContext = (): SettingsContext => {
         organization,
         project,
         showImpersonationPanel,
-        isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
+        isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
-        isOrganizationRoadmapLoading:
-            organizationRoadmapFlagQuery.isInitialLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isScimTokenManagementEnabled,
@@ -196,12 +218,15 @@ export const useSettingsContext = (): SettingsContext => {
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
+        externalSourcesFlag,
+        isResultsCacheEnabled,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
         isWarehouseCredentialsEnabled,
         isGitProject,
+        isContentReviewAvailable,
         isHealthLoading,
         healthError,
         isUserLoading,

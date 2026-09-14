@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { parseChangeDeclarations } from './breaking-change-declarations';
 
 /** Knex migration files are timestamped: YYYYMMDDHHMMSS_description.ts */
 const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
@@ -45,10 +46,28 @@ export interface MigrationDetail {
     heaviness: MigrationHeaviness;
 }
 
+export type MigrationOperation =
+    | 'create-index-concurrently'
+    | 'create-unique-index-concurrently'
+    | 'drop-index-concurrently-if-exists'
+    | 'set-statement-timeout'
+    | 'reset-statement-timeout'
+    | 'set-lock-timeout'
+    | 'reset-lock-timeout'
+    | 'select-invalid-index'
+    | 'unknown';
+
 export interface MigrationSourceAnalysis {
     migration: MigrationDetail;
+    operations: MigrationOperation[];
     complete: boolean;
+    incompleteReasons: MigrationIncompleteReason[];
 }
+
+export type MigrationIncompleteReason =
+    | 'parse-failure'
+    | 'column-alter'
+    | 'unresolved-table-name';
 
 export interface ReadMigrationMetadataOptions {
     paths: string[];
@@ -58,6 +77,7 @@ export interface ReadMigrationMetadataOptions {
 
 export interface MigrationMetadata {
     migrations: MigrationDetail[];
+    operations: MigrationOperation[];
     complete: boolean;
 }
 
@@ -113,8 +133,18 @@ const matchingOpening = (delimiter: ClosingDelimiter): OpeningDelimiter => {
 
 const decodeEscaped = (value: string): string =>
     value.replace(
-        /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|([0btnvfr'"`\\]))/g,
-        (_match, codePoint, unicode, hex, escaped: string | undefined) => {
+        /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|([0btnvfr'"`\\])|(\r\n|[\n\r\u2028\u2029]))/g,
+        (
+            _match,
+            codePoint,
+            unicode,
+            hex,
+            escaped: string | undefined,
+            lineContinuation: string | undefined,
+        ) => {
+            // A line continuation evaluates to nothing, so keeping it would
+            // hide the keyword it splits.
+            if (lineContinuation !== undefined) return '';
             if (codePoint !== undefined) {
                 return String.fromCodePoint(Number.parseInt(codePoint, 16));
             }
@@ -339,16 +369,31 @@ const migrationEdition = (migrationPath: string): 'core' | 'ee' =>
         ? 'ee'
         : 'core';
 
-const collectStringConstants = (tokens: Token[]): Map<string, string> => {
+/**
+ * PURE. Module-scope constants whose value is a complete literal, bound exactly
+ * once. Callers treat a hit as fact, so anything shadowed or partly dynamic is
+ * left out; that costs only an unknown verdict.
+ */
+const collectStringConstants = (
+    tokens: Token[],
+    kinds: readonly TokenKind[] = ['string', 'template'],
+): Map<string, string> => {
     const constants = new Map<string, string>();
+    const bindingSites = collectBindingSites(tokens);
     for (let index = 0; index + 3 < tokens.length; index += 1) {
+        const terminator = tokens[index + 4];
         if (
             tokens[index].kind === 'identifier' &&
             tokens[index].value === 'const' &&
+            tokens[index].depth === 0 &&
             tokens[index + 1].kind === 'identifier' &&
+            bindingSites.get(tokens[index + 1].value)?.size === 1 &&
             tokens[index + 2].kind === 'operator' &&
             tokens[index + 2].value === '=' &&
-            ['string', 'template'].includes(tokens[index + 3].kind)
+            kinds.includes(tokens[index + 3].kind) &&
+            (terminator === undefined ||
+                (terminator.kind === 'punctuation' &&
+                    [';', ','].includes(terminator.value)))
         ) {
             constants.set(tokens[index + 1].value, tokens[index + 3].value);
         }
@@ -379,6 +424,82 @@ const findMatching = (
         if (depth === 0) return index;
     }
     return null;
+};
+
+const BINDING_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'catch'];
+
+const CLOSING_FOR: Record<OpeningDelimiter, ClosingDelimiter> = {
+    '(': ')',
+    '[': ']',
+    '{': '}',
+};
+
+/**
+ * PURE. Every token index that binds a name, keyed by name. Indices not counts,
+ * because one declaration is reached by several of the rules below.
+ */
+const collectBindingSites = (tokens: Token[]): Map<string, Set<number>> => {
+    const sites = new Map<string, Set<number>>();
+    const bind = (name: string, index: number): void => {
+        const seen = sites.get(name) ?? new Set<number>();
+        seen.add(index);
+        sites.set(name, seen);
+    };
+    const closingIndexOf = (openerIndex: number): number | null => {
+        const opening = tokens[openerIndex]?.value as OpeningDelimiter;
+        const closing = CLOSING_FOR[opening];
+        return closing === undefined
+            ? null
+            : findMatching(tokens, openerIndex, opening, closing);
+    };
+    const bindEnclosed = (openerIndex: number): void => {
+        const end = closingIndexOf(openerIndex);
+        if (end === null) return;
+        for (let index = openerIndex + 1; index < end; index += 1) {
+            if (tokens[index].kind !== 'identifier') continue;
+            // A member name is a property, not a binding.
+            if (tokens[index - 1]?.value === '.') continue;
+            bind(tokens[index].value, index);
+        }
+    };
+
+    for (let index = 0; index < tokens.length; index += 1) {
+        const token = tokens[index];
+        const next = tokens[index + 1];
+        if (next === undefined) continue;
+
+        // An assignment target or a parameter default rebinds the name.
+        if (
+            token.kind === 'identifier' &&
+            next.kind === 'operator' &&
+            next.value === '='
+        ) {
+            bind(token.value, index);
+        }
+
+        // An arrow parameter list binds every name it lists.
+        if (token.kind === 'punctuation' && token.value === '(') {
+            const end = closingIndexOf(index);
+            if (end !== null && tokens[end + 1]?.value === '=>') {
+                bindEnclosed(index);
+            }
+        }
+
+        if (token.kind !== 'identifier') continue;
+        if (!BINDING_KEYWORDS.includes(token.value)) continue;
+
+        if (next.kind === 'identifier') {
+            bind(next.value, index + 1);
+            // A function declaration also binds its parameters.
+            if (tokens[index + 2]?.value === '(') bindEnclosed(index + 2);
+            continue;
+        }
+        // Destructuring, and a catch or parameter list.
+        if (next.kind === 'punctuation' && ['{', '[', '('].includes(next.value)) {
+            bindEnclosed(index + 1);
+        }
+    }
+    return sites;
 };
 
 const findUpBody = (tokens: Token[]): Token[] | null => {
@@ -443,6 +564,34 @@ const resolveTable = (
     return null;
 };
 
+const TEMPLATE_PLACEHOLDER = /\$\{([^}]*)\}/g;
+
+/**
+ * PURE. The SQL a `knex.raw()` argument stands for, or null when it cannot be
+ * read statically. Any `${` surviving substitution means the argument was not
+ * understood, so refuse rather than report heaviness the statement never had.
+ */
+const resolveSqlArgument = (
+    token: Token | undefined,
+    constants: ReadonlyMap<string, string>,
+): string | null => {
+    if (!token) return null;
+    if (token.kind === 'string' || token.kind === 'template') {
+        return token.value;
+    }
+    if (token.kind !== 'dynamicTemplate') return null;
+    let resolved = '';
+    let cursor = 0;
+    for (const match of token.value.matchAll(TEMPLATE_PLACEHOLDER)) {
+        const substitution = constants.get(match[1].trim());
+        if (substitution === undefined) return null;
+        resolved += token.value.slice(cursor, match.index) + substitution;
+        cursor = match.index + match[0].length;
+    }
+    resolved += token.value.slice(cursor);
+    return resolved.includes('${') ? null : resolved;
+};
+
 const rawSqlTables = (sql: string): string[] => {
     const tables = new Set<string>();
     const patterns = [
@@ -459,6 +608,67 @@ const rawSqlTables = (sql: string): string[] => {
     return [...tables];
 };
 
+const SQL_COMMENTS = /--[^\n]*|\/\*[\s\S]*?\*\//g;
+
+const sqlStatements = (sql: string): string[] =>
+    sql
+        .replace(SQL_COMMENTS, ' ')
+        .split(';')
+        .map((statement) => statement.trim())
+        .filter(Boolean);
+
+const classifySqlStatement = (statement: string): MigrationOperation => {
+    const normalized = statement.replace(/\s+/g, ' ').trim();
+    if (
+        /^create index concurrently(?: if not exists)?\s+(?:\?\?|(?:["`]?[a-z_][\w$]*["`]?\.)?["`]?[a-z_][\w$]*["`]?)\s+on\s+(?:\?\?|(?:["`]?[a-z_][\w$]*["`]?\.)?["`]?[a-z_][\w$]*["`]?)\s*\(.+\)(?:\s+where\s+.+)?$/i.test(
+            normalized,
+        )
+    ) {
+        return 'create-index-concurrently';
+    }
+    if (/^create unique index concurrently\b/i.test(normalized)) {
+        return 'create-unique-index-concurrently';
+    }
+    if (
+        /^drop index concurrently if exists\s+(?:\?\?|(?:["`]?[a-z_][\w$]*["`]?\.)?["`]?[a-z_][\w$]*["`]?)$/i.test(
+            normalized,
+        )
+    ) {
+        return 'drop-index-concurrently-if-exists';
+    }
+    const setTimeout = normalized.match(
+        /^set(?: local| session)? (statement_timeout|lock_timeout)\s*(?:=|to)\s*(?:default|0|\d+(?:\.\d+)?|['"][^'"]+['"])$/i,
+    );
+    if (setTimeout) {
+        return setTimeout[1].toLowerCase() === 'statement_timeout'
+            ? 'set-statement-timeout'
+            : 'set-lock-timeout';
+    }
+    const resetTimeout = normalized.match(
+        /^reset (statement_timeout|lock_timeout)$/i,
+    );
+    if (resetTimeout) {
+        return resetTimeout[1].toLowerCase() === 'statement_timeout'
+            ? 'reset-statement-timeout'
+            : 'reset-lock-timeout';
+    }
+    if (
+        /^select 1 from pg_class join pg_index on pg_index\.indexrelid = pg_class\.oid where pg_class\.relname = \? and pg_index\.indrelid = \?::regclass and not pg_index\.indisvalid$/i.test(
+            normalized,
+        ) ||
+        /^select 1 from pg_index i join pg_class c on c\.oid = i\.indexrelid where c\.relname = (?:\?|['"][^'"]+['"]) and not i\.indisvalid$/i.test(
+            normalized,
+        )
+    ) {
+        return 'select-invalid-index';
+    }
+    return 'unknown';
+};
+
+const addsValidatedConstraint = (statement: string): boolean =>
+    /\badd\s+constraint\b/i.test(statement) &&
+    !/\bnot\s+valid\b/i.test(statement);
+
 export function analyzeMigrationSource(
     migrationPath: string,
     source: string,
@@ -468,27 +678,40 @@ export function analyzeMigrationSource(
     const tokenized = tokenize(source);
     const body = findUpBody(tokenized.tokens);
     const constants = collectStringConstants(tokenized.tokens);
+    const sqlConstants = collectStringConstants(tokenized.tokens, [
+        'string',
+        'template',
+        'number',
+    ]);
     const tables = new Set<string>();
+    const operations = new Set<MigrationOperation>();
     const heaviness: MigrationHeaviness = {
         locksTable: false,
         rewritesTable: false,
         scansTable: false,
     };
     let complete = tokenized.valid && body !== null;
+    const incompleteReasons = new Set<MigrationIncompleteReason>();
+    if (!complete) incompleteReasons.add('parse-failure');
 
     const mark = (...keys: HeavinessKey[]): void => {
         for (const key of keys) heaviness[key] = true;
     };
-    const markUnknown = (...keys: HeavinessKey[]): void => {
+    const markUnknown = (
+        reason: MigrationIncompleteReason,
+        ...keys: HeavinessKey[]
+    ): void => {
         for (const key of keys) {
             if (heaviness[key] !== true) heaviness[key] = 'unknown';
         }
         complete = false;
+        incompleteReasons.add(reason);
     };
     const addTable = (token: Token | undefined): void => {
         const table = resolveTable(token, constants);
         if (table === null) {
             complete = false;
+            incompleteReasons.add('unresolved-table-name');
         } else {
             tables.add(table.split('.').at(-1) ?? table);
         }
@@ -496,17 +719,52 @@ export function analyzeMigrationSource(
 
     if (body === null) {
         Object.assign(heaviness, UNKNOWN_HEAVINESS);
+        operations.add('unknown');
     } else {
         for (let index = 0; index < body.length; index += 1) {
             const token = body[index];
             const previous = body[index - 1];
             const next = body[index + 1];
-            const argument = body[index + 2];
+            const rawCallBoundaryIndex =
+                token.kind === 'identifier' &&
+                token.value === 'raw' &&
+                previous?.kind === 'punctuation' &&
+                previous.value === '.' &&
+                ((next?.kind === 'punctuation' && next.value === '(') ||
+                    (next?.kind === 'operator' && next.value === '<'))
+                    ? body.findIndex(
+                          (candidate, candidateIndex) =>
+                              candidateIndex > index &&
+                              candidate.depth === token.depth &&
+                              candidate.kind === 'punctuation' &&
+                              ['(', ';', ','].includes(candidate.value),
+                      )
+                    : -1;
+            const rawCallOpeningIndex =
+                rawCallBoundaryIndex >= 0 &&
+                body[rawCallBoundaryIndex].value === '('
+                    ? rawCallBoundaryIndex
+                    : -1;
             const isMethod =
                 previous?.kind === 'punctuation' &&
                 previous.value === '.' &&
-                next?.kind === 'punctuation' &&
-                next.value === '(';
+                ((next?.kind === 'punctuation' && next.value === '(') ||
+                    rawCallOpeningIndex >= 0);
+            const argumentIndex =
+                token.kind === 'identifier' && token.value === 'raw'
+                    ? rawCallOpeningIndex + 1
+                    : index + 2;
+            const argument = body[argumentIndex];
+
+            if (
+                token.kind === 'identifier' &&
+                token.value === 'raw' &&
+                previous?.kind === 'punctuation' &&
+                previous.value === '.' &&
+                rawCallOpeningIndex < 0
+            ) {
+                operations.add('unknown');
+            }
 
             if (
                 token.kind === 'identifier' &&
@@ -515,6 +773,18 @@ export function analyzeMigrationSource(
                 next.value === '('
             ) {
                 addTable(argument);
+                operations.add('unknown');
+            } else if (
+                token.kind === 'identifier' &&
+                ['knex', 'trx'].includes(token.value) &&
+                !(
+                    next?.kind === 'punctuation' &&
+                    next.value === '.' &&
+                    body[index + 2]?.kind === 'identifier' &&
+                    body[index + 2]?.value === 'raw'
+                )
+            ) {
+                operations.add('unknown');
             }
 
             if (!isMethod || token.kind !== 'identifier') continue;
@@ -584,17 +854,34 @@ export function analyzeMigrationSource(
             ) {
                 mark('locksTable');
             }
-            if (token.value === 'alter') markUnknown('rewritesTable');
+            if (token.value === 'alter') {
+                markUnknown('column-alter', 'rewritesTable');
+            }
 
             if (token.value === 'raw') {
-                if (
-                    argument?.kind !== 'string' &&
-                    argument?.kind !== 'template'
-                ) {
-                    markUnknown('locksTable', 'rewritesTable', 'scansTable');
+                // The argument is only the whole argument when the call ends
+                // or a second one follows; anything else builds it at runtime.
+                const argumentEnds = [')', ','].includes(
+                    body[argumentIndex + 1]?.value ?? '',
+                );
+                const sql = argumentEnds
+                    ? resolveSqlArgument(argument, sqlConstants)
+                    : null;
+                if (sql === null) {
+                    operations.add('unknown');
+                    markUnknown(
+                        'parse-failure',
+                        'locksTable',
+                        'rewritesTable',
+                        'scansTable',
+                    );
                     continue;
                 }
-                const sql = argument.value;
+                const statements = sqlStatements(sql);
+                if (statements.length === 0) operations.add('unknown');
+                for (const statement of statements) {
+                    operations.add(classifySqlStatement(statement));
+                }
                 for (const table of rawSqlTables(sql)) tables.add(table);
                 if (/\b(?:alter|drop|rename|truncate)\s+table\b/i.test(sql)) {
                     mark('locksTable');
@@ -612,6 +899,12 @@ export function analyzeMigrationSource(
                 ) {
                     mark('scansTable');
                 }
+                // Adding a constraint validates every existing row unless
+                // the statement says NOT VALID. Checked per statement so one
+                // deferred add cannot vouch for a validated one beside it.
+                if (sqlStatements(sql).some(addsValidatedConstraint)) {
+                    mark('scansTable');
+                }
                 if (
                     /\bcreate\s+(?:unique\s+)?index\b/i.test(sql) &&
                     !/\bconcurrently\b/i.test(sql)
@@ -624,6 +917,8 @@ export function analyzeMigrationSource(
 
     if (!tokenized.valid) {
         complete = false;
+        incompleteReasons.add('parse-failure');
+        operations.add('unknown');
         for (const key of Object.keys(heaviness) as HeavinessKey[]) {
             if (heaviness[key] !== true) heaviness[key] = 'unknown';
         }
@@ -636,7 +931,9 @@ export function analyzeMigrationSource(
             tables: [...tables].sort(),
             heaviness,
         },
+        operations: [...operations].sort(),
         complete,
+        incompleteReasons: [...incompleteReasons],
     };
 }
 
@@ -652,6 +949,7 @@ export function readMigrationMetadata(
 ): MigrationMetadata {
     const log = options.log ?? (() => undefined);
     const migrations: MigrationDetail[] = [];
+    const operations = new Set<MigrationOperation>();
     let complete = true;
 
     for (const migrationPath of [...options.paths].sort()) {
@@ -670,17 +968,23 @@ export function readMigrationMetadata(
             const message = error instanceof Error ? error.message : String(error);
             log(`could not read ${options.ref}:${migrationPath}: ${message}`);
             migrations.push(unreadableMigration(migrationPath));
+            operations.add('unknown');
             complete = false;
             continue;
         }
 
         const analysis = analyzeMigrationSource(migrationPath, source);
         migrations.push(analysis.migration);
-        if (!analysis.complete) {
+        for (const operation of analysis.operations) operations.add(operation);
+        const classification = parseChangeDeclarations(
+            source,
+            migrationPath,
+        ).classification;
+        if (!analysis.complete && classification === null) {
             log(`metadata extraction incomplete for ${options.ref}:${migrationPath}`);
             complete = false;
         }
     }
 
-    return { migrations, complete };
+    return { migrations, operations: [...operations].sort(), complete };
 }

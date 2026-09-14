@@ -21,6 +21,7 @@ import {
     isChunkLoadErrorObject,
     RouteChunkLoadError,
 } from '../../features/chunkErrorHandler';
+import { useProjectUuid } from '../useProjectUuid';
 
 const useSentry = (
     sentryConfig: HealthState['sentry'] | undefined,
@@ -112,10 +113,8 @@ const useSentry = (
         }
     }, [sentryConfig, user, disableDashboardTracing]);
 
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid?: string;
-        dashboardUuid?: string;
-    }>();
+    const { dashboardUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     useEffect(() => {
         if (projectUuid) {

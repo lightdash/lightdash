@@ -1,0 +1,40 @@
+.row {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+}
+
+.compact {
+    padding: 6px var(--mantine-spacing-sm);
+}
+
+.text {
+    flex: 1;
+    min-width: 0;
+}
+
+.link {
+    display: block;
+}
+
+.link:hover .row {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.linkIcon {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.link:hover .linkIcon {
+    opacity: 1;
+}
+
+.name {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.meta {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}

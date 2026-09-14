@@ -38,5 +38,8 @@ export const writeMetadataFile = async (
         dashboards: { ...existing.dashboards, ...metadata.dashboards },
     };
     const filePath = path.join(baseDir, METADATA_FILENAME);
+    // An all-skipped download creates no bundle folders, so the output root
+    // may not exist yet when the metadata file is written.
+    await fs.mkdir(baseDir, { recursive: true });
     await fs.writeFile(filePath, JSON.stringify(merged, null, 2));
 };

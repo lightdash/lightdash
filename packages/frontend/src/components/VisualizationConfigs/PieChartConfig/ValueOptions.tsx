@@ -7,7 +7,6 @@ import {
 import { Checkbox, Group, SegmentedControl } from '@mantine/core';
 import { type FC } from 'react';
 import { Config } from '../common/Config';
-import compactStyles from '../mantineTheme.module.css';
 
 type ValueOptionsProps = {
     isValueLabelOverriden?: boolean;
@@ -59,9 +58,6 @@ export const ValueOptions: FC<ValueOptionsProps> = ({
             <Group gap="xs">
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     indeterminate={isShowValueOverriden}
                     checked={showValue}
                     onChange={(newValue) =>
@@ -72,9 +68,6 @@ export const ValueOptions: FC<ValueOptionsProps> = ({
 
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     indeterminate={isShowPercentageOverriden}
                     checked={showPercentage}
                     onChange={(newValue) =>

@@ -263,7 +263,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             { label: '.xlsx', value: SchedulerFormat.XLSX },
                         ]}
                         w="min-content"
-                        radius="md"
                         value={exportType}
                         onChange={(value) =>
                             setExportType(
@@ -319,9 +318,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             <Group gap="xs">
                                 Tabs
                                 <Tooltip
-                                    withinPortal
                                     maw={400}
-                                    multiline
                                     label="When unchecked, choose specific tabs to include in the export."
                                 >
                                     <MantineIcon

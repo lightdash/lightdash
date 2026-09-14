@@ -1,9 +1,0 @@
-/* NOTE: Using Mantine's colors here for compatibility with their components */
-
-/* Keep variables here as we want to mantine handle all other modifications needed */
-.tooltip {
-    @mixin dark {
-        --tooltip-bg: var(--mantine-color-dark-4);
-        --tooltip-color: var(--mantine-color-text);
-    }
-}

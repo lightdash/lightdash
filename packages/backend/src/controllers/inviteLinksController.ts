@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    ApiGetInviteLinkResponse,
     ApiInviteLinkResponse,
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
@@ -45,10 +46,10 @@ export class InviteLinksController extends BaseController {
     @OperationId('GetInviteLink')
     async getInviteLink(
         @Path() inviteLinkCode: string,
-    ): Promise<ApiInviteLinkResponse> {
+    ): Promise<ApiGetInviteLinkResponse> {
         const inviteLink = await this.services
             .getUserService()
-            .getInviteLink(inviteLinkCode);
+            .getInviteLinkWithAuthenticationOptions(inviteLinkCode);
         this.setStatus(200);
         return {
             status: 'ok',

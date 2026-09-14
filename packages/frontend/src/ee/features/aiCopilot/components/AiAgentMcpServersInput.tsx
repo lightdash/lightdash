@@ -27,7 +27,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -43,6 +43,7 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
@@ -68,6 +69,7 @@ import {
     MCP_TOOL_TOKEN_WARNING_THRESHOLD,
 } from '../utils/mcpToolTokenEstimates';
 import { AgentSettingsSubsection } from './AgentSettingsSubsection';
+import classes from './AiAgentMcpServersInput.module.css';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
@@ -91,7 +93,7 @@ const createMcpServerFormSchema = z
             values.bearerToken.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Bearer token is required',
                 path: ['bearerToken'],
             });
@@ -102,7 +104,7 @@ const createMcpServerFormSchema = z
             values.clientSecret.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Client secret is required',
                 path: ['clientSecret'],
             });
@@ -113,7 +115,7 @@ const createMcpServerFormSchema = z
             values.clientId.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Client ID is required',
                 path: ['clientId'],
             });
@@ -125,7 +127,7 @@ const createMcpServerFormSchema = z
                 values.clientSecret.trim().length > 0)
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message:
                     'Client credentials are only supported for personal OAuth',
                 path: ['clientId'],
@@ -396,7 +398,7 @@ const CreateMcpServerModal = ({
                                     More options
                                 </Button>
                                 <Collapse
-                                    in={
+                                    expanded={
                                         oauthOptionsOpened ||
                                         form.values.allowOAuthCredentialSharing
                                     }
@@ -470,7 +472,6 @@ const CreateMcpServerModal = ({
                         form.values.allowOAuthCredentialSharing && (
                             <Alert
                                 color="orange"
-                                variant="light"
                                 icon={<MantineIcon icon={IconAlertTriangle} />}
                                 title="Shared OAuth connection"
                             >
@@ -1272,18 +1273,10 @@ export const AiAgentMcpServersInput = ({
             isExpanded: boolean,
         ) => {
             return (
-                <Menu
-                    position="bottom-end"
-                    withArrow
-                    withinPortal
-                    shadow="md"
-                    width={220}
-                >
+                <Menu position="bottom-end" withArrow width={220}>
                     <Menu.Target>
                         <ActionIcon
                             type="button"
-                            variant="subtle"
-                            color="gray"
                             onClick={(event) => event.stopPropagation()}
                         >
                             <MantineIcon icon={IconDots} />
@@ -1451,14 +1444,11 @@ export const AiAgentMcpServersInput = ({
                                         </Text>
                                     )}
                                     <Tooltip
-                                        withinPortal
-                                        multiline
                                         w={320}
                                         label="Tokens measure how much of the model's working space these tools can take up. A larger tool set can leave less room for your question and the agent's answer, and may make requests slower or more expensive. Lightdash loads tools only when needed, so actual usage is often lower."
                                     >
                                         <ActionIcon
                                             type="button"
-                                            variant="subtle"
                                             color="ldGray"
                                             size="xs"
                                             aria-label="Why tool token usage matters"
@@ -1472,12 +1462,7 @@ export const AiAgentMcpServersInput = ({
                                 </Group>
                             )}
                             {showGithubConnectButton && (
-                                <Tooltip
-                                    withinPortal
-                                    multiline
-                                    w={260}
-                                    label={githubConnectTooltip}
-                                >
+                                <Tooltip w={260} label={githubConnectTooltip}>
                                     {renderGithubConnectButton('compact-xs')}
                                 </Tooltip>
                             )}
@@ -1555,10 +1540,9 @@ export const AiAgentMcpServersInput = ({
                                 return (
                                     <Paper
                                         key={mcpServer.uuid}
-                                        withBorder
                                         radius="md"
                                         p={0}
-                                        style={{ overflow: 'hidden' }}
+                                        className={classes.serverCard}
                                     >
                                         <Group
                                             justify="space-between"
@@ -1603,7 +1587,7 @@ export const AiAgentMcpServersInput = ({
                                                     <Text
                                                         size="sm"
                                                         c="dimmed"
-                                                        fw={450}
+                                                        fw={500}
                                                     >
                                                         {getMcpAuthTypeLabel(
                                                             mcpServer.authType,
@@ -1628,7 +1612,6 @@ export const AiAgentMcpServersInput = ({
                                                 wrap="nowrap"
                                             >
                                                 <Badge
-                                                    variant="light"
                                                     color={getMcpConnectionStatusColor(
                                                         connectionStatus,
                                                     )}
@@ -1647,15 +1630,9 @@ export const AiAgentMcpServersInput = ({
                                                         mcpServer,
                                                         connectionStatus,
                                                     ) && (
-                                                        <Tooltip
-                                                            label="Test connection"
-                                                            withArrow
-                                                            withinPortal
-                                                        >
+                                                        <Tooltip label="Test connection">
                                                             <ActionIcon
                                                                 type="button"
-                                                                variant="subtle"
-                                                                color="gray"
                                                                 size="sm"
                                                                 loading={
                                                                     isRetesting
@@ -1789,7 +1766,7 @@ export const AiAgentMcpServersInput = ({
                                                 </Text>
                                             </Group>
                                         </Box>
-                                        <Collapse in={isExpanded}>
+                                        <Collapse expanded={isExpanded}>
                                             <Divider />
                                             <Box px="md" py="sm">
                                                 <AiAgentMcpServerToolsPanel

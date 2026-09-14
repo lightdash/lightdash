@@ -122,6 +122,11 @@ export class QuerySourceController extends BaseController {
                 projectUuid,
                 queries: body.queries,
                 context: context ?? QueryExecutionContext.MULTI_SOURCE_QUERY,
+                parameters: body.parameters ?? {},
+                // Overrides are a runtime concern (embed, MCP, AI agent); the
+                // HTTP API resolves attributes from the account alone
+                userAttributeOverrides: {},
+                invalidateCache: body.invalidateCache ?? false,
             });
         return { status: 'ok', results };
     }

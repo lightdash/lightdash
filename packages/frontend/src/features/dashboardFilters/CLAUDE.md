@@ -97,3 +97,18 @@ const tabUuids = getTabsForFilterRule(
     filterableFieldsByTileUuid,
 );
 ```
+
+## UI strings — embedded translation mandate
+
+Lightdash has no i18n framework; the only translation surface is embedded
+UI chrome via the SDK `uiOverrides` prop. Dashboard filter UI is
+viewer-visible in embeds, so **any new user-visible string here (text,
+tooltip, placeholder, aria-label) must be a key in `DEFAULT_UI_STRINGS`**
+(`packages/common/src/utils/i18n/uiStrings.ts`) rendered via
+`useUiString`/`useUiStrings`, with the English default only in the registry
+— never inline. Edit-mode-only UI (`isEditMode`-gated builders, visibility
+toggles) stays literal. Shipped keys are a public SDK contract: additive
+only. Add new keys to both sdk-test-app locale bundles (es/ka), which are
+kept at 100% coverage so testing in KA exposes any missed key.
+
+Full mandate: `packages/frontend/src/components/common/Filters/CLAUDE.md`.

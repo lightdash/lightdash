@@ -109,8 +109,6 @@ const ColorSelector: FC<Props> = ({
 
     return isInteractive ? (
         <Popover
-            withinPortal
-            shadow="md"
             withArrow
             opened={isOpen}
             onChange={(opened) => {

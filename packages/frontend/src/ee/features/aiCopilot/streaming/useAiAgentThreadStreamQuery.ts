@@ -1,5 +1,8 @@
 import { shallowEqual } from 'react-redux';
-import { type StreamPart } from '../store/aiAgentThreadStreamSlice';
+import {
+    isAiAgentThreadStreamRecoveryActive,
+    type StreamPart,
+} from '../store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreSelector } from '../store/hooks';
 
 export const useAiAgentThreadStreamQuery = (threadUuid: string) => {
@@ -15,14 +18,25 @@ export const useAiAgentThreadStreamQuery = (threadUuid: string) => {
 export const useAiAgentThreadStreaming = (threadUuid: string) =>
     useAiAgentStoreSelector((state) => {
         const threadStream = state.aiAgentThreadStream[threadUuid];
-        return threadStream?.isStreaming;
+        return threadStream?.connection.status === 'streaming';
+    });
+
+export const useAiAgentThreadRecoveryActive = (threadUuid: string) =>
+    useAiAgentStoreSelector((state) => {
+        const threadStream = state.aiAgentThreadStream[threadUuid];
+        return (
+            threadStream !== undefined &&
+            isAiAgentThreadStreamRecoveryActive(threadStream.connection)
+        );
     });
 
 export const useActiveAiAgentThreadStreamParts = (): StreamPart[] =>
     useAiAgentStoreSelector(
         (state) =>
             Object.values(state.aiAgentThreadStream).flatMap((threadStream) =>
-                threadStream.isStreaming ? threadStream.parts : [],
+                threadStream.connection.status === 'streaming'
+                    ? threadStream.parts
+                    : [],
             ),
         shallowEqual,
     );
@@ -34,7 +48,7 @@ export const useAiAgentThreadMessageStreaming = (
     useAiAgentStoreSelector((state) => {
         const threadStream = state.aiAgentThreadStream[threadUuid];
         return (
-            threadStream?.isStreaming &&
-            threadStream?.messageUuid === messageUuid
+            threadStream?.connection.status === 'streaming' &&
+            threadStream.messageUuid === messageUuid
         );
     });

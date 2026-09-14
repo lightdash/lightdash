@@ -206,15 +206,6 @@ export const getAgentOnboardingProgressStageTimings = (
     });
 };
 
-export const getAgentOnboardingProgressStageIndex = (
-    stage: AgentOnboardingStage | null,
-): number =>
-    stage === null
-        ? -1
-        : AGENT_ONBOARDING_PROGRESS_STAGES.findIndex(({ sourceStages }) =>
-              sourceStages.some((sourceStage) => sourceStage === stage),
-          );
-
 export const formatStageDuration = (durationMs: number | null): string => {
     if (durationMs === null) return '—';
     const totalSeconds = Math.max(0, Math.floor(durationMs / 1_000));

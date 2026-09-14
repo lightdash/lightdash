@@ -358,9 +358,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 />
                 {conflictControl ? (
                     <Box ml="xl" mt="xxs">
-                        <Badge size="sm" color="gray" variant="light">
-                            In {conflictControl.name}
-                        </Badge>
+                        <Badge size="sm">In {conflictControl.name}</Badge>
                     </Box>
                 ) : isChecked && isParamOnly ? (
                     <Box ml="xl" mt="xxs">
@@ -426,7 +424,6 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 <Flex align="center" gap="xxs">
                     <ActionIcon
                         size="xs"
-                        variant="subtle"
                         aria-label={isCollapsed ? 'Expand tab' : 'Collapse tab'}
                         onClick={() =>
                             setCollapsedTabs((prev) => ({
@@ -466,7 +463,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                         }
                     />
                 </Flex>
-                <Collapse in={!isCollapsed}>
+                <Collapse expanded={!isCollapsed}>
                     <Stack gap="md" mt="sm" ml={22}>
                         {group.tiles.map(renderTileRow)}
                     </Stack>

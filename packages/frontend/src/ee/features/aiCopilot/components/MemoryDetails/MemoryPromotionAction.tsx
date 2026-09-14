@@ -56,7 +56,7 @@ export const MemoryPromotionAction: FC<Props> = ({
     if (shouldLinkReviewItem) {
         if (!canManageProjectAgent && !canManageOrganizationAgent) {
             return (
-                <Badge variant="light" color="violet" size="lg">
+                <Badge color="violet" size="lg">
                     {status === 'promoted' ? 'Promoted' : 'Proposal pending'}
                 </Badge>
             );

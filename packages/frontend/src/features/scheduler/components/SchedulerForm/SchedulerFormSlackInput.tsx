@@ -48,7 +48,6 @@ export const SchedulerFormSlackInput: FC<Props> = ({
                 disabled={!isDisabled}
                 width={300}
                 position="bottom-start"
-                shadow="md"
             >
                 <HoverCard.Target>
                     <Box w="100%">

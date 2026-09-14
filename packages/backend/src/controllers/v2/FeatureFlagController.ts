@@ -22,6 +22,7 @@ import express from 'express';
 import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
+    allowApiKeyAuthenticationIfPresent,
     isAuthenticated,
 } from '../authentication/middlewares';
 import { BaseController } from '../baseController';
@@ -57,6 +58,7 @@ export class FeatureFlagController extends BaseController {
      * Get feature flag
      * @summary Get feature flag
      */
+    @Middlewares([allowApiKeyAuthenticationIfPresent])
     @SuccessResponse('200', 'Success')
     @Get('/{featureFlagId}')
     @OperationId('Get feature flag')

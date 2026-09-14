@@ -193,6 +193,7 @@ describe('BuilderPromptBar', () => {
             fileIds: [],
             claudeModel: 'haiku',
             clarifications: [],
+            externalConnections: [],
         });
     });
 
@@ -222,6 +223,7 @@ describe('BuilderPromptBar', () => {
             fileIds: [],
             codexModel: 'gpt-5.6-sol',
             clarifications: [],
+            externalConnections: [],
         });
     });
 
@@ -263,6 +265,7 @@ describe('BuilderPromptBar', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
 
@@ -370,6 +373,7 @@ describe('BuilderPromptBar', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
     });
@@ -563,11 +567,20 @@ describe('BuilderPromptBar', () => {
             fileIds: [],
             claudeModel: 'sonnet',
             clarifications: [],
+            externalConnections: [],
         });
     });
 
     it('reports the wait on the clarifier, and hands the prompt back on cancel', async () => {
-        const abandon = vi.fn(() => 'show revenue split by team');
+        const abandon = vi.fn(
+            (): VizBuildRequest => ({
+                description: 'show revenue split by team',
+                fileIds: [],
+                claudeModel: 'haiku',
+                clarifications: [],
+                externalConnections: [],
+            }),
+        );
         renderWithProviders(
             promptBar({
                 clarification: clarificationStub({
@@ -663,5 +676,45 @@ describe('BuilderPromptBar', () => {
             'Could not cancel: Request timed out',
         );
         expect(screen.getByText('Cancel')).toBeEnabled();
+    });
+
+    it('offers attaching external connections from the composer', () => {
+        renderWithProviders(promptBar());
+
+        expect(
+            screen.getByLabelText('Add external connections'),
+        ).toBeInTheDocument();
+    });
+
+    it('restores the attached connections when the clarifier is cancelled', async () => {
+        const abandon = vi.fn(
+            (): VizBuildRequest => ({
+                description: 'a map of stores',
+                fileIds: [],
+                claudeModel: 'haiku',
+                clarifications: [],
+                externalConnections: [
+                    {
+                        externalConnectionUuid: 'connection-1',
+                        name: 'Stores API',
+                        alias: 'stores_api',
+                    },
+                ],
+            }),
+        );
+        renderWithProviders(
+            promptBar({
+                clarification: clarificationStub({
+                    clarifyingPrompt: 'a map of stores',
+                    abandon,
+                }),
+            }),
+        );
+
+        await userEvent.click(screen.getByText('Cancel'));
+
+        expect(
+            screen.getByLabelText('1 external connection attached'),
+        ).toBeInTheDocument();
     });
 });

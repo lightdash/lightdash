@@ -122,7 +122,7 @@ const BuilderPromptExamples: FC<Props> = ({ projectUuid, onPick }) => {
                     onClick={() => onPick(prompt)}
                 >
                     <Thumbnail colors={colors} />
-                    <Text fz={13} fw={500} c="ldGray.8" lh={1.35}>
+                    <Text fz="sm" fw={500} c="ldGray.8" lh={1.35}>
                         {prompt}
                     </Text>
                 </UnstyledButton>

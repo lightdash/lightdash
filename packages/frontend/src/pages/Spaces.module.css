@@ -1,0 +1,4 @@
+/* Keeps the header button's footprint while a view has nothing to add */
+.hiddenAction {
+    visibility: hidden;
+}

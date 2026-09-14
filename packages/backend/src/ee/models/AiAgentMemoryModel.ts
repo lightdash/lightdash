@@ -150,6 +150,12 @@ export type AiAgentMemoryWithLineage = {
     replacement: Pick<DbAiAgentMemory, 'slug'> | null;
 };
 
+/** A project holding active memories that name catalog objects. */
+export type AiAgentMemoryObjectSweepCandidate = {
+    organizationUuid: UUID;
+    projectUuid: UUID;
+};
+
 /** A `(project, owner)` partition with enough active rows to be worth curating. */
 export type AiAgentMemoryConsolidationCandidate = {
     organizationUuid: UUID;
@@ -568,6 +574,7 @@ export class AiAgentMemoryModel {
                 'unresolved_objects',
                 'status',
                 'scope',
+                'retired_reason',
                 'superseded_by_uuid',
                 'generated_at',
                 'cited_count',
@@ -1035,10 +1042,55 @@ export class AiAgentMemoryModel {
             .whereIn('status', ['active', 'retired'])
             .update({
                 status: args.status,
+                retired_reason: args.status === 'retired' ? 'owner' : null,
                 updated_at: this.database.fn.now(),
             });
 
         return updated > 0;
+    }
+
+    async findObjectSweepCandidates(): Promise<
+        AiAgentMemoryObjectSweepCandidate[]
+    > {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('status', 'active')
+            .whereRaw('jsonb_array_length(objects) > 0')
+            .distinct<AiAgentMemoryObjectSweepCandidate[]>({
+                organizationUuid: 'organization_uuid',
+                projectUuid: 'project_uuid',
+            });
+    }
+
+    async findActiveObjectMemoriesByProject(
+        projectUuid: UUID,
+    ): Promise<
+        Array<Pick<DbAiAgentMemory, 'ai_agent_memory_uuid' | 'objects'>>
+    > {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('project_uuid', projectUuid)
+            .where('status', 'active')
+            .whereRaw('jsonb_array_length(objects) > 0')
+            .select('ai_agent_memory_uuid', 'objects');
+    }
+
+    /**
+     * The active-status guard makes the sweep race-safe against the curator: a
+     * row consolidation moved since selection is simply not retired here, and
+     * a row this retires is rejected as `row_moved` inside the curator's lock.
+     * `unresolved_objects` snapshots the full object list as the evidence.
+     */
+    async retireForUnresolvedObjects(memoryUuids: UUID[]): Promise<number> {
+        if (memoryUuids.length === 0) return 0;
+
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .whereIn('ai_agent_memory_uuid', memoryUuids)
+            .where('status', 'active')
+            .update({
+                status: 'retired',
+                retired_reason: 'unresolved_objects',
+                unresolved_objects: this.database.raw('objects'),
+                updated_at: this.database.fn.now(),
+            } as never);
     }
 
     async incrementPulledForActiveMemories(args: {
@@ -1524,6 +1576,7 @@ export class AiAgentMemoryModel {
                             )
                             .update({
                                 status: 'retired',
+                                retired_reason: 'consolidation',
                                 updated_at: this.database.fn.now(),
                             });
                         applied.push(operation);

@@ -59,7 +59,12 @@ export const summarizeRequiredFilters = (explore: Explore): string | null => {
         const kind = filter.required === false ? 'suggested' : 'required';
         return `${kind} ${fieldId} ${filter.operator}${values}`;
     });
-    return `⚠ table filters: ${parts.join('; ')}`;
+    const requiredFilterGuidance = filters.some(
+        (filter) => filter.required !== false,
+    )
+        ? '. Required filter values are replaceable defaults, not fixed data limits; use a compatible query filter on the same field or a derived time dimension of that field when the requested scope differs.'
+        : '';
+    return `⚠ table filters: ${parts.join('; ')}${requiredFilterGuidance}`;
 };
 
 /** One greppable "file": a field flattened with its searchable annotations. */

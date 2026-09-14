@@ -15,6 +15,7 @@ export enum ScopeGroup {
     DATA = 'data',
     SHARING = 'sharing',
     AI = 'ai',
+    EMBED = 'embed',
     SPOTLIGHT = 'spotlight',
 }
 

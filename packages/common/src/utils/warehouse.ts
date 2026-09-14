@@ -1,4 +1,5 @@
 import { SupportedDbtAdapter } from '../types/dbt';
+import { ParameterError } from '../types/errors';
 import {
     DuckdbConnectionType,
     WarehouseTypes,
@@ -55,7 +56,10 @@ export const getConnectionDefaults = (
                     schema: nonEmpty(credentials.schema),
                 };
             }
-            if (credentials.connectionType === DuckdbConnectionType.EMBEDDED) {
+            if (
+                credentials.connectionType === DuckdbConnectionType.EMBEDDED ||
+                credentials.connectionType === DuckdbConnectionType.ANALYTICS
+            ) {
                 return {
                     database: undefined,
                     schema: nonEmpty(credentials.schema),
@@ -129,6 +133,12 @@ export const getAggregatedField = (
     aggregation: VizAggregationOptions,
     reference: string,
 ): string => {
+    if (!Object.values(VizAggregationOptions).includes(aggregation)) {
+        throw new ParameterError(
+            `Invalid visualization aggregation: ${aggregation}`,
+        );
+    }
+
     const adapterType = warehouseSqlBuilder.getAdapterType();
     const q = warehouseSqlBuilder.getFieldQuoteChar();
     const quotedReference = quoteFieldReference(reference, q, adapterType);

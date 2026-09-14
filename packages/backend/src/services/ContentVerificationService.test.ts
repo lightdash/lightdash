@@ -66,6 +66,7 @@ const mockVerifiedItems: VerifiedContentListItem[] = [
         uuid: 'cv-uuid-1',
         contentType: ContentType.CHART,
         contentUuid: 'chart-uuid',
+        slug: 'test-chart',
         name: 'Test Chart',
         description: null,
         chartKind: ChartKind.VERTICAL_BAR,

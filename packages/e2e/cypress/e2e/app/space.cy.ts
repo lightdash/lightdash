@@ -16,7 +16,7 @@ describe('Space', () => {
         const timestamp = new Date().toISOString();
         let privateSpaceUrl: string;
         let privateSpaceUuid: string;
-        let privateChartUuid: string;
+        let privateChartIdentifier: string;
         let privateDashboardUuid: string;
 
         // Create private space
@@ -60,6 +60,7 @@ describe('Space', () => {
 
         cy.get('.mantine-Modal-body').find('button').should('be.disabled');
         cy.get('[data-testid="ChartCreateModal/NameInput"]')
+            .clear()
             .type(`Private chart ${timestamp}`)
             .should('have.value', `Private chart ${timestamp}`);
 
@@ -77,9 +78,9 @@ describe('Space', () => {
 
         cy.contains('Success! Chart was saved.').should('exist');
         cy.url()
-            .should('match', /\/saved\/[0-9a-f-]{36}\/view$/)
+            .should('match', /\/saved\/[^/]+\/view$/)
             .then((url) => {
-                privateChartUuid = url.split('/').at(-2)!;
+                privateChartIdentifier = url.split('/').at(-2)!;
             });
 
         cy.then(() =>
@@ -111,14 +112,18 @@ describe('Space', () => {
 
         return cy.then(() => ({
             privateSpaceUuid,
-            privateChartUuid,
+            privateChartIdentifier,
             privateDashboardUuid,
         }));
     };
 
     it('Another non-admin user cannot see private content', () => {
         createPrivateSpace().then(
-            ({ privateSpaceUuid, privateChartUuid, privateDashboardUuid }) => {
+            ({
+                privateSpaceUuid,
+                privateChartIdentifier,
+                privateDashboardUuid,
+            }) => {
                 cy.loginWithPermissions('member', [
                     {
                         role: 'editor',
@@ -130,9 +135,6 @@ describe('Space', () => {
                 // Complete user onboarding
                 cy.findByPlaceholderText('Select your role').click();
                 cy.contains('Product').click();
-                cy.findByPlaceholderText(
-                    'Google, a colleague, a podcast...',
-                ).type('Cypress');
                 cy.contains('Next').click();
 
                 // Don't show private spaces in navbar
@@ -146,7 +148,7 @@ describe('Space', () => {
 
                 for (const url of [
                     `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${privateSpaceUuid}`,
-                    `/api/v2/projects/${SEED_PROJECT.project_uuid}/saved/${privateChartUuid}`,
+                    `/api/v2/projects/${SEED_PROJECT.project_uuid}/saved/${privateChartIdentifier}`,
                     `/api/v2/projects/${SEED_PROJECT.project_uuid}/dashboards/${privateDashboardUuid}`,
                 ]) {
                     cy.request({ url, failOnStatusCode: false })
@@ -219,8 +221,10 @@ describe('Admin access to spaces', () => {
             cy.contains(spaceName);
         }
 
-        cy.contains('Parent Space 4').click();
-        cy.contains('Child Space 4.1');
+        cy.get('.mantine-Modal-body').within(() => {
+            cy.contains('Parent Space 4').click();
+            cy.contains('Child Space 4.1');
+        });
     });
 });
 
@@ -306,6 +310,15 @@ describe('Editor can create content', () => {
         cy.loginAsEditor();
     });
 
+    it('can create a dashboard from the global New menu', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
+
+        cy.get('[data-testid="ExploreMenu/NewButton"]').click();
+        cy.get('[data-testid="ExploreMenu/NewDashboardButton"]').should(
+            'be.visible',
+        );
+    });
+
     it('can create a new space', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
         // Parent Space 1/Child Space 1.1
@@ -342,9 +355,9 @@ describe('Editor can create content', () => {
         cy.findByPlaceholderText('eg. KPI Dashboard').type(dashboardName);
         cy.get('[data-testid="DashboardCreateModal/Next"]').click();
         cy.get('button').contains('Create').click();
-        cy.wait(1500);
+        cy.location('pathname').should('match', /\/dashboards\/[^/]+\/edit$/);
         cy.go('back');
-        cy.wait(1500);
+        cy.location('pathname').should('include', '/spaces/');
         cy.contains(dashboardName);
 
         cy.get(

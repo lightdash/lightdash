@@ -1435,12 +1435,7 @@ describe('passthrough dimensions (PROD-7873)', () => {
         ]);
     });
 
-    it('inferred path skips a hidden field that is already an indexColumn', () => {
-        // If `orders_order_date_year` is hidden but still listed in
-        // pivotDetails.indexColumn (cached-results-after-hide path), it must
-        // NOT be inferred as a passthrough — it's already in TanStack's
-        // column model via the index columns. Double-registering would
-        // create duplicate cells in `getAllCells()`.
+    it('inferred path exposes a hidden index dimension to row templates', () => {
         const result = convertSqlPivotedRowsToPivotData({
             rows: [baseInputRow],
             pivotDetails: SQL_PIVOT_DETAILS,
@@ -1452,7 +1447,6 @@ describe('passthrough dimensions (PROD-7873)', () => {
                     'orders_order_date_year',
                     'payments_total_revenue',
                 ],
-                // Hidden, but it's an index column — guard must skip it.
                 hiddenDimensionFieldIds: ['orders_order_date_year'],
             },
             getField: getFieldMock,
@@ -1460,10 +1454,15 @@ describe('passthrough dimensions (PROD-7873)', () => {
             groupedSubtotals: undefined,
         });
 
-        const passthroughEntries = result.retrofitData.pivotColumnInfo.filter(
-            (c) => c.columnType === 'passthrough',
-        );
-        expect(passthroughEntries).toEqual([]);
+        expect(result.retrofitData.pivotColumnInfo).toContainEqual({
+            fieldId: 'orders_order_date_year',
+            baseId: 'orders_order_date_year',
+            underlyingId: undefined,
+            columnType: 'passthrough',
+        });
+        expect(result.retrofitData.allCombinedData[0]).toMatchObject({
+            orders_order_date_year: baseInputRow.orders_order_date_year,
+        });
     });
 
     // PROD-7933 regression. Before the fix, the post-retrofit merge did

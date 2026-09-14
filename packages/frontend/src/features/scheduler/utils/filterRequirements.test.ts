@@ -1,4 +1,5 @@
 import {
+    DashboardTileTypes,
     DimensionType,
     FieldType,
     FilterOperator,
@@ -292,6 +293,57 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 { ...automaticScope, selectedTabs: ['tab-1'] },
             ).filtersWithUnmetRequirements.map((filter) => filter.id),
         ).toEqual(['automatic']);
+    });
+
+    it('keeps a Data App filter requirement until the tile is explicitly excluded', () => {
+        const dataAppTile = {
+            uuid: 'data-app-1',
+            type: DashboardTileTypes.DATA_APP,
+            x: 0,
+            y: 0,
+            h: 1,
+            w: 1,
+            tabUuid: 'tab-2',
+            properties: {
+                appUuid: 'app-1',
+                title: 'Data App 1',
+            },
+        } satisfies DashboardTile;
+        const scope: SchedulerTabScope = {
+            tiles: [tile('tile-1', 'tab-1'), dataAppTile],
+            tabUuids: ['tab-1', 'tab-2'],
+            selectedTabs: ['tab-2'],
+            filterableFieldsByTileUuid: {
+                'tile-1': [field('automatic')],
+                'data-app-1': [],
+            },
+        };
+        const automaticFilter = rule({
+            id: 'automatic',
+            required: true,
+            tileTargets: undefined,
+        });
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([automaticFilter]),
+                [],
+                scope,
+            ).filtersWithUnmetRequirements.map((filter) => filter.id),
+        ).toEqual(['automatic']);
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([
+                    {
+                        ...automaticFilter,
+                        tileTargets: { 'data-app-1': false },
+                    },
+                ]),
+                [],
+                scope,
+            ).filtersWithUnmetRequirements,
+        ).toEqual([]);
     });
 
     it('scopes nothing out while the tiles filterable fields are unknown', () => {

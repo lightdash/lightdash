@@ -5,22 +5,26 @@ import {
     isResourceViewSpaceItem,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { Anchor, Box, Group, Stack, Table, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
 import { ResourceInfoPopup } from '../../ResourceInfoPopup/ResourceInfoPopup';
+import ViewsCountPopover from '../../ViewsCountPopover';
 import {
     getResourceTypeName,
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
+    getViewStatsResourceType,
 } from '../resourceUtils';
 import {
     ResourceSortDirection,
@@ -80,7 +84,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     onAction,
 }) => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
     const canUserManageValidation = useValidationUserAbility(projectUuid);
 
@@ -126,7 +131,11 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         <Anchor
                             component={Link}
                             className={classes.anchor}
-                            to={getResourceUrl(projectUuid, item)}
+                            to={getResourceUrl(
+                                projectUuid,
+                                item,
+                                projectUrlIdentifier,
+                            )}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                                 e.stopPropagation()
                             }
@@ -225,23 +234,21 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                             )}
                                     </Group>
                                     {canBelongToSpace && (
-                                        <Text fz="xs" c="ldGray.6">
+                                        <Text fz="xs" c="dimmed">
                                             {getResourceTypeName(item)} •{' '}
-                                            <Tooltip
-                                                position="top-start"
-                                                disabled={
-                                                    !item.data.views ||
-                                                    !item.data.firstViewedAt
-                                                }
-                                                label={getResourceViewsSinceWhenDescription(
+                                            <ViewsCountPopover
+                                                resourceType={getViewStatsResourceType(
+                                                    item,
+                                                )}
+                                                resourceUuid={item.data.uuid}
+                                                projectUuid={projectUuid}
+                                                views={item.data.views}
+                                                fallbackTooltip={getResourceViewsSinceWhenDescription(
                                                     item,
                                                 )}
                                             >
-                                                <span>
-                                                    {item.data.views || '0'}{' '}
-                                                    views
-                                                </span>
-                                            </Tooltip>
+                                                {item.data.views || '0'} views
+                                            </ViewsCountPopover>
                                         </Text>
                                     )}
                                 </Stack>
@@ -278,7 +285,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         <Anchor
                             c="ldGray.7"
                             component={Link}
-                            to={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                            to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                                 e.stopPropagation()
                             }
@@ -367,6 +374,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             enableSorting,
             columnVisibility,
             projectUuid,
+            projectUrlIdentifier,
             canUserManageValidation,
             spaces,
             onAction,
@@ -465,7 +473,13 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         key={item.data.uuid}
                         onClick={() =>
                             projectUuid &&
-                            navigate(getResourceUrl(projectUuid, item))
+                            navigate(
+                                getResourceUrl(
+                                    projectUuid,
+                                    item,
+                                    projectUrlIdentifier,
+                                ),
+                            )
                         }
                         onMouseEnter={() => setHoveredItem(item.data.uuid)}
                         onMouseLeave={() => setHoveredItem(undefined)}

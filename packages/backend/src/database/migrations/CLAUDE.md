@@ -36,8 +36,8 @@ For API and type breaks outside migrations, see the root [release-safety declara
 
 The release-safety gate applies these rules only to migration files changed by the pull request. Existing untouched migrations are grandfathered.
 
-- A migration containing a detected breaking operation must declare it in that file with the exact export `export const breaking = { reason: '<operator-facing reason>', requiredStop: <true | false> }`. The reason must be a non-empty string literal and `requiredStop` must be a boolean literal. The declaration records the break; it does not hide the detector finding.
-- Raw SQL that the static lint cannot classify must add `export const classification: { kind: 'safe' | 'breaking'; reason: string } = { kind: '<safe | breaking>', reason: '<why>' }`, or the equivalent unannotated object literal. A `breaking` classification also requires the `breaking` export.
+- A migration containing a detected breaking operation must add a stable ID to `release-safety.declarations.json`. Set `reason`, `requiredStop`, and `migration` to the full migration path. The declaration records the break; it does not hide the detector finding.
+- Raw SQL that the static lint cannot classify must add `export const classification: { kind: 'safe' | 'breaking'; reason: string } = { kind: '<safe | breaking>', reason: '<why>' }`, or the equivalent unannotated object literal. A `breaking` classification also requires a matching registry entry.
 - A `transaction: false` migration must be resumable after any completed statement. Concurrent index creation needs `IF NOT EXISTS`; backfills need bounded, state-guarded batches; inserts need conflict handling or another explicit idempotency guard.
 - `down()` must perform a real reversal or explicitly throw an error whose message starts with `irreversible:`. Missing and silently successful no-op `down()` functions fail the gate.
 - DDL should set a finite Postgres `lock_timeout` before requesting locks. DDL without one produces a warning because a waiting `ALTER` can queue later queries behind it indefinitely.
@@ -46,8 +46,10 @@ The release-safety gate applies these rules only to migration files changed by t
 When the gate detects a breaking pattern, use this decision tree:
 
 1. Attempt an expand-only redesign first, such as deprecating the old shape now and dropping it in a later release.
-2. Add `export const breaking` only after an engineer confirms the product and rollout decision. Its reason must describe what breaks and for whom; it must contain more than one word, use at least 24 characters, and must not reuse placeholder text.
+2. Add a registry entry only after an engineer confirms the product and rollout decision. Its reason must describe what breaks and for whom; it must contain more than one word, use at least 24 characters, and must not reuse placeholder text.
 3. Never add a breaking declaration merely to make CI pass. Declaring a break makes the release not rolling-safe and advises every self-hosted customer to use the Recreate strategy.
+
+A declaration is active only for a Git range that adds its ID. It expires after the first release that contains it and stays in the append-only registry as history. Never edit, remove, rename, or reuse an existing ID. Add a new ID for each new break. A release may add `releasedIn` for documentation, but that value never controls activation. The inline `classification` export stays in the migration because it classifies SQL for the linter and is not a breaking declaration.
 
 ## Runtime rollback granularity
 

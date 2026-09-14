@@ -1,8 +1,43 @@
+import type { ReasoningUIPart } from 'ai';
 import { describe, expect, it } from 'vitest';
 import {
+    getReasoningFromPart,
     getStreamToolCallPart,
     getStepProgressFromChunk,
+    readStreamResult,
 } from './useAiAgentThreadStreamMutation';
+
+describe('getReasoningFromPart', () => {
+    it('reads Gemini reasoning signatures', () => {
+        const part: ReasoningUIPart = {
+            type: 'reasoning',
+            text: 'Reasoning summary',
+            providerMetadata: {
+                google: { signature: 'gemini-signature' },
+            },
+        };
+
+        expect(getReasoningFromPart(part)).toEqual({
+            reasoningId: 'gemini-signature',
+            text: 'Reasoning summary',
+        });
+    });
+
+    it('leaves unsigned Gemini reasoning for downstream filtering', () => {
+        const part: ReasoningUIPart = {
+            type: 'reasoning',
+            text: 'Reasoning summary',
+            providerMetadata: {
+                google: { interactionId: 'interaction-id' },
+            },
+        };
+
+        expect(getReasoningFromPart(part)).toEqual({
+            reasoningId: undefined,
+            text: 'Reasoning summary',
+        });
+    });
+});
 
 describe('getStreamToolCallPart', () => {
     it('keeps MCP tool input parts for live rendering', () => {
@@ -25,6 +60,7 @@ describe('getStreamToolCallPart', () => {
             },
             toolResult: null,
             isPreliminary: undefined,
+            isArgsPartial: false,
         });
     });
 
@@ -58,7 +94,24 @@ describe('getStreamToolCallPart', () => {
             },
             toolResult: output,
             isPreliminary: false,
+            isArgsPartial: false,
         });
+    });
+});
+
+describe('readStreamResult', () => {
+    it('returns a successful stream read', async () => {
+        await expect(
+            readStreamResult(() => Promise.resolve('chunk')),
+        ).resolves.toEqual({ status: 'success', value: 'chunk' });
+    });
+
+    it('returns a stream read error without inspecting its message', async () => {
+        const error = new Error('browser-specific message');
+
+        await expect(
+            readStreamResult(() => Promise.reject(error)),
+        ).resolves.toEqual({ status: 'error', error });
     });
 });
 
@@ -73,7 +126,12 @@ describe('getStepProgressFromChunk', () => {
                 },
                 transient: true,
             }),
-        ).toEqual({ message: 'Cloning project', toolName: 'editDbtProject' });
+        ).toEqual({
+            message: 'Cloning project',
+            toolName: 'editDbtProject',
+            progressId: null,
+            progressStatus: null,
+        });
     });
 
     it('parses progress data chunks without a tool name (toolName null)', () => {
@@ -83,7 +141,12 @@ describe('getStepProgressFromChunk', () => {
                 data: { message: 'Running your query...' },
                 transient: true,
             }),
-        ).toEqual({ message: 'Running your query...', toolName: null });
+        ).toEqual({
+            message: 'Running your query...',
+            toolName: null,
+            progressId: null,
+            progressStatus: null,
+        });
     });
 
     it('ignores unrelated chunks', () => {

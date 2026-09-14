@@ -26,7 +26,7 @@ describe('ParameterInput', () => {
             options: ['Global', 'sub_channel', 'Alpha'],
         });
 
-        await userEvent.click(getByRole('textbox'));
+        await userEvent.click(getByRole('combobox'));
 
         expect(getOptionLabels(container)).toEqual([
             'Global',
@@ -44,7 +44,7 @@ describe('ParameterInput', () => {
             ],
         });
 
-        await userEvent.click(getByRole('textbox'));
+        await userEvent.click(getByRole('combobox'));
 
         expect(getOptionLabels(container)).toEqual(['Zebra', 'Apple']);
     });

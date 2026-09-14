@@ -8,9 +8,13 @@ import {
 } from './field';
 import {
     type AdditionalMetric,
+    type DimensionOverrides,
+    type MetricOverrides,
     type MetricQueryRequest,
     type SortField,
 } from './metricQuery';
+import { type ParametersValuesMap } from './parameters';
+import { type PivotConfiguration } from './pivot';
 import { type QueryHistoryStatus } from './queryHistory';
 
 /**
@@ -34,6 +38,8 @@ export enum QuerySourceType {
      * step of a multi-source pipeline.
      */
     DUCKDB = 'duckdb',
+    /** Durable external tables queried with DuckDB; enterprise only. */
+    EXTERNAL = 'external',
 }
 
 /**
@@ -96,8 +102,18 @@ export type SemanticLayerSourceQuery = {
     additionalMetrics?: AdditionalMetric[];
     /** Ad-hoc dimensions not defined in the explore. */
     customDimensions?: CustomDimension[];
+    /** Formatting overrides for metrics in this query, keyed by field id. */
+    metricOverrides?: MetricOverrides;
+    /** Formatting overrides for dimensions in this query, keyed by field id. */
+    dimensionOverrides?: DimensionOverrides;
     /** IANA timezone for time dimension bucketing, e.g. "America/New_York". */
     timezone?: string;
+    /**
+     * Pivots this node's result the way a pivoted chart does. Honoured by
+     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
+     * the join node owns the pivot stage.
+     */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 /** A raw warehouse SQL query as a source query. */
@@ -107,6 +123,12 @@ export type SqlSourceQuery = {
     nodeId?: QueryNodeId;
     sql: string;
     limit?: number;
+    /**
+     * Pivots this node's result the way a pivoted chart does. Honoured by
+     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
+     * the join node owns the pivot stage.
+     */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 /**
@@ -131,11 +153,44 @@ export type DuckdbSourceQuery = {
      * table named by its node id — ["orders", "revenue"] lets the SQL run
      * SELECT * FROM orders JOIN revenue. Map form for aliasing or existing
      * results: {tableName: nodeIdOrQueryUuid}, e.g. {"o": "orders", "prev":
-     * "<queryUuid>"}.
+     * "<queryUuid>"}. Required at execution: the query runs on a session
+     * that can reach only these results, so one that references nothing is
+     * refused.
      */
     references?:
         | QueryNodeId[]
         | Record<QuerySourceTableName, QueryResultReference>;
+    /**
+     * Pivots this node's result the way a pivoted chart does. Refused on
+     * this endpoint: raw SQL has no fields to pivot on. A duckdb node
+     * submitted inside the server with an execution plan, such as a merge's
+     * join, pivots through that plan.
+     */
+    pivotConfiguration?: PivotConfiguration;
+};
+
+/**
+ * External table SQL name or UUID.
+ * @pattern ^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$
+ */
+export type ExternalSourceTableReference = string;
+
+/** DuckDB SQL over named durable external tables. */
+export type ExternalSourceQuery = {
+    sourceType: QuerySourceType.EXTERNAL;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    sql: string;
+    limit?: number;
+    tables:
+        | ExternalSourceTableReference[]
+        | Record<QuerySourceTableName, ExternalSourceTableReference>;
+    /**
+     * Pivots this node's result the way a pivoted chart does. Honoured by
+     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
+     * the join node owns the pivot stage.
+     */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 /**
@@ -146,7 +201,8 @@ export type DuckdbSourceQuery = {
 export type SourceQuery =
     | SemanticLayerSourceQuery
     | SqlSourceQuery
-    | DuckdbSourceQuery;
+    | DuckdbSourceQuery
+    | ExternalSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {
@@ -189,6 +245,14 @@ export type ExecuteSourceQueriesRequestParams = {
      */
     queries: SourceQuery[];
     context?: QueryExecutionContext;
+    /**
+     * Parameter values shared by every query in the submission, layered over
+     * project and explore defaults. A query referencing a parameter with no
+     * value refuses rather than running with a placeholder.
+     */
+    parameters?: ParametersValuesMap;
+    /** Bypass cached results for every query in the submission. */
+    invalidateCache?: boolean;
 };
 
 /** One submitted query: its (possibly generated) node id and the queryUuid to poll. */

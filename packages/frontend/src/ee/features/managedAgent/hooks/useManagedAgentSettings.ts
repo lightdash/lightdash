@@ -3,8 +3,8 @@ import {
     type ManagedAgentScheduleOption,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 
 type ManagedAgentSettings = {
     projectUuid: string;
@@ -29,7 +29,7 @@ const getSettings = async (
     });
 
 export const useManagedAgentSettings = (opts: { enabled?: boolean } = {}) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isEnabled = opts.enabled ?? true;
     return useQuery<ManagedAgentSettings | null>({
         queryKey: ['managed-agent-settings', projectUuid],

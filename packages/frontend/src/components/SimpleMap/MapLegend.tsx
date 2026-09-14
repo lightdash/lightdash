@@ -62,10 +62,10 @@ const MapLegend: FC<MapLegendProps> = ({
                             opacity={color.opacity}
                         />
                         <Group justify="space-between">
-                            <Text span fz="xs" c="ldGray.6">
+                            <Text span fz="xs" c="dimmed">
                                 {color.formattedMin}
                             </Text>
-                            <Text span fz="xs" c="ldGray.6">
+                            <Text span fz="xs" c="dimmed">
                                 {color.formattedMax}
                             </Text>
                         </Group>
@@ -98,7 +98,7 @@ const MapLegend: FC<MapLegendProps> = ({
                                                     1,
                                             }}
                                         />
-                                        <Text fz={10} c="ldGray.6" truncate>
+                                        <Text fz="xs" c="dimmed" truncate>
                                             {entry.value}
                                         </Text>
                                     </Group>
@@ -130,7 +130,7 @@ const MapLegend: FC<MapLegendProps> = ({
                                         border: '1.5px solid var(--mantine-color-ldGray-5)',
                                     }}
                                 />
-                                <Text fz="xs" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     {bubbleSize.formattedMin}
                                 </Text>
                             </Stack>
@@ -143,7 +143,7 @@ const MapLegend: FC<MapLegendProps> = ({
                                         border: '1.5px solid var(--mantine-color-ldGray-5)',
                                     }}
                                 />
-                                <Text fz="xs" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     {bubbleSize.formattedMax}
                                 </Text>
                             </Stack>

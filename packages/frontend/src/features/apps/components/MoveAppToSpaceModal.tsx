@@ -227,7 +227,7 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                 ]}
                 isLoading={isMovingToSpace || isCapturing}
                 footer={
-                    <Tooltip label={checkboxTooltip} withArrow position="top">
+                    <Tooltip label={checkboxTooltip} position="top">
                         <Box>
                             <Checkbox
                                 checked={hasReadyVersion && includeThumbnail}

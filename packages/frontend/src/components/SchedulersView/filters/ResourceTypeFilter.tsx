@@ -23,7 +23,7 @@ export const ResourceTypeFilter = ({
         {
             value: 'all',
             label: (
-                <Tooltip label="Show all schedulers" withinPortal>
+                <Tooltip label="Show all schedulers">
                     <Box>
                         <Text fz="xs" fw={500}>
                             All
@@ -35,11 +35,7 @@ export const ResourceTypeFilter = ({
         {
             value: 'chart',
             label: (
-                <Tooltip
-                    label="Show only chart schedulers"
-                    withinPortal
-                    maw={200}
-                >
+                <Tooltip label="Show only chart schedulers" maw={200}>
                     <Box>
                         <MantineIcon icon={IconChartBar} {...iconProps} />
                     </Box>
@@ -49,11 +45,7 @@ export const ResourceTypeFilter = ({
         {
             value: 'dashboard',
             label: (
-                <Tooltip
-                    label="Show only dashboard schedulers"
-                    withinPortal
-                    maw={200}
-                >
+                <Tooltip label="Show only dashboard schedulers" maw={200}>
                     <Box>
                         <MantineIcon
                             icon={IconLayoutDashboard}
@@ -68,7 +60,6 @@ export const ResourceTypeFilter = ({
     return (
         <SegmentedControl
             size="xs"
-            radius="md"
             value={selectedResourceType}
             onChange={(value) =>
                 setSelectedResourceType(value as 'all' | 'chart' | 'dashboard')

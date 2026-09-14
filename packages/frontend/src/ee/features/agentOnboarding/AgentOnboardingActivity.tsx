@@ -24,19 +24,28 @@ const getActivityLinePrefix = (message: string): string => {
     );
 };
 
+const formatEventTime = (createdAt: string): string =>
+    new Date(createdAt).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
+
 const AgentOnboardingActivity: FC<{
     events: AgentOnboardingRunEvent[];
-    isCollapsed?: boolean;
-    id?: string;
-}> = ({ events, isCollapsed = false, id }) => {
+    id: string;
+}> = ({ events, id }) => {
     const viewportRef = useRef<HTMLDivElement>(null);
     const shouldFollowRef = useRef(true);
-    const visibleEvents = isCollapsed ? events.slice(-1) : events;
 
     useEffect(() => {
-        if (!shouldFollowRef.current || !viewportRef.current) return;
-        viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
-    }, [events, isCollapsed]);
+        if (!shouldFollowRef.current) return;
+        const frame = window.requestAnimationFrame(() => {
+            if (!viewportRef.current) return;
+            viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [events]);
 
     const handleScroll = (event: UIEvent<HTMLDivElement>) => {
         const element = event.currentTarget;
@@ -49,29 +58,16 @@ const AgentOnboardingActivity: FC<{
         <ScrollArea
             id={id}
             viewportRef={viewportRef}
-            onScrollPositionChange={() => undefined}
             className={classes.terminal}
-            data-collapsed={isCollapsed || undefined}
             viewportProps={{ onScroll: handleScroll }}
         >
-            <Stack
-                gap={isCollapsed ? 0 : 8}
-                px="md"
-                pt={isCollapsed ? 10 : 44}
-                pb={isCollapsed ? 10 : 'md'}
-                pr={isCollapsed ? 170 : 'md'}
-            >
-                {visibleEvents.length === 0 ? (
-                    <Text
-                        c="gray.5"
-                        fz="sm"
-                        ff="monospace"
-                        className={classes.terminalMessage}
-                    >
-                        Waiting for the onboarding agent to start…
+            <Stack gap={4} p="md">
+                {events.length === 0 ? (
+                    <Text c="dimmed" fz="xs" ff="monospace">
+                        Waiting for the agent to start…
                     </Text>
                 ) : (
-                    visibleEvents.map((event, index) => (
+                    events.map((event, index) => (
                         <Group
                             key={`${event.createdAt}-${index}`}
                             gap="sm"
@@ -80,23 +76,16 @@ const AgentOnboardingActivity: FC<{
                             className={classes.terminalEntry}
                         >
                             <Text
-                                c="gray.6"
+                                c="dimmed"
                                 fz="xs"
                                 ff="monospace"
                                 className={classes.terminalTime}
                             >
-                                {new Date(event.createdAt).toLocaleTimeString(
-                                    [],
-                                    {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        second: '2-digit',
-                                    },
-                                )}
+                                {formatEventTime(event.createdAt)}
                             </Text>
                             <Box
                                 component="span"
-                                fz="sm"
+                                fz="xs"
                                 ff="monospace"
                                 className={classes.terminalMessage}
                                 data-line-prefix={getActivityLinePrefix(
@@ -115,41 +104,45 @@ const AgentOnboardingActivity: FC<{
 
 export const AgentOnboardingActivityPanel: FC<{
     events: AgentOnboardingRunEvent[];
-    hasGeneratedFiles: boolean;
-}> = ({ events, hasGeneratedFiles }) => {
+}> = ({ events }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const activityId = useId();
-
-    useEffect(() => {
-        if (hasGeneratedFiles) setIsCollapsed(true);
-    }, [hasGeneratedFiles]);
+    const lastEvent = events.at(-1);
 
     return (
-        <Box className={classes.activityPanel}>
-            <Button
-                variant="subtle"
-                color="gray"
-                size="compact-sm"
-                leftSection={
-                    <MantineIcon
-                        icon={isCollapsed ? IconChevronDown : IconChevronUp}
-                        size={14}
-                    />
-                }
-                aria-expanded={!isCollapsed}
-                aria-controls={activityId}
-                onClick={() => setIsCollapsed((value) => !value)}
-                className={classes.activityToggle}
-            >
-                {isCollapsed
-                    ? 'Expand live activity'
-                    : 'Collapse live activity'}
-            </Button>
-            <AgentOnboardingActivity
-                id={activityId}
-                events={events}
-                isCollapsed={isCollapsed}
-            />
+        <Box className={classes.activity} data-collapsed={isCollapsed}>
+            <Box className={classes.activityHeader}>
+                <Group gap="xs" wrap="nowrap" miw={0}>
+                    <Text fz="sm" fw={500}>
+                        Activity
+                    </Text>
+                    {isCollapsed && lastEvent ? (
+                        <Text c="dimmed" fz="xs" ff="monospace" truncate>
+                            {sanitizeTerminalText(lastEvent.message)}
+                        </Text>
+                    ) : (
+                        <Text c="dimmed" fz="xs">
+                            {events.length}
+                        </Text>
+                    )}
+                </Group>
+                <Button
+                    variant="subtle"
+                    size="compact-xs"
+                    rightSection={
+                        <MantineIcon
+                            icon={isCollapsed ? IconChevronUp : IconChevronDown}
+                            size={14}
+                        />
+                    }
+                    aria-expanded={!isCollapsed}
+                    aria-controls={activityId}
+                    onClick={() => setIsCollapsed((value) => !value)}
+                >
+                    {isCollapsed ? 'Show' : 'Hide'}
+                </Button>
+            </Box>
+            <AgentOnboardingActivity id={activityId} events={events} />
         </Box>
     );
 };

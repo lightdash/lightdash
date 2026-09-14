@@ -135,7 +135,7 @@ const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
                                     })) ?? []
                                 }
                                 {...form.getInputProps('groupUuid')}
-                                style={{ flexGrow: 1 }}
+                                flex={1}
                             />
                             <Select
                                 data={organizationRoles}

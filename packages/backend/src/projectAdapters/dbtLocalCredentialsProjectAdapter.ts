@@ -29,6 +29,8 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    gitConfigGlobalPath?: string;
+    dbtDepsErrorHint?: string;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -45,6 +47,8 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         dbtVersion,
         selector,
         analytics,
+        gitConfigGlobalPath,
+        dbtDepsErrorHint,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = fs.mkdtempSync('/tmp/local_');
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
@@ -89,6 +93,8 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             dbtVersion,
             selector,
             analytics,
+            gitConfigGlobalPath,
+            dbtDepsErrorHint,
         });
         this.profilesDir = profilesDir;
     }

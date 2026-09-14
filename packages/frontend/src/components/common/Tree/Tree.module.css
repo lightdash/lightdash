@@ -1,5 +1,8 @@
 .node {
     position: relative;
+    /* Off-screen rows skip style and layout work; a row is 32px tall. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 32px;
 
     &::before {
         position: absolute;

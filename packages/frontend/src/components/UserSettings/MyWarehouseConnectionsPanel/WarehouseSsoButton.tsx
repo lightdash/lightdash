@@ -45,7 +45,7 @@ export const WarehouseSsoButton: FC<{
 
     if (disabled && disabledTooltip) {
         return (
-            <Tooltip label={disabledTooltip} withArrow>
+            <Tooltip label={disabledTooltip}>
                 <div>{button}</div>
             </Tooltip>
         );

@@ -123,7 +123,7 @@ export class ProjectRolesController extends BaseController {
 
     /**
      * Get the complete role set a user holds directly on the project.
-     * Requires the `multiple-roles` feature.
+     * Requires custom roles (Enterprise).
      * @summary Get project role set for user
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -147,7 +147,7 @@ export class ProjectRolesController extends BaseController {
     /**
      * Atomically replace the complete role set a user holds directly on the project.
      * At most one system role plus any number of custom roles; the set must not be empty.
-     * Requires the `multiple-roles` feature.
+     * Requires custom roles (Enterprise).
      * @summary Replace project role set for user
      */
     @Middlewares([
@@ -176,7 +176,7 @@ export class ProjectRolesController extends BaseController {
 
     /**
      * Get the complete role set a group holds on the project.
-     * Requires the `multiple-roles` feature.
+     * Requires custom roles (Enterprise).
      * @summary Get project role set for group
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -200,7 +200,7 @@ export class ProjectRolesController extends BaseController {
     /**
      * Atomically replace the complete role set a group holds on the project.
      * At most one system role plus any number of custom roles; the set must not be empty.
-     * Requires the `multiple-roles` feature.
+     * Requires custom roles (Enterprise).
      * @summary Replace project role set for group
      */
     @Middlewares([

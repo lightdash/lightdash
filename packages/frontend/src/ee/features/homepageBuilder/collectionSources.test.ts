@@ -44,6 +44,7 @@ describe('collection source helpers', () => {
         expect(isPersonalCollectionSource('most-viewed')).toBe(false);
         expect(isPersonalCollectionSource('pinned')).toBe(false);
         expect(isPersonalCollectionSource('manual')).toBe(false);
+        expect(isPersonalCollectionSource('verified')).toBe(false);
     });
 });
 

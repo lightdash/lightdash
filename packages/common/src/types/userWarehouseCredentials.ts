@@ -36,14 +36,17 @@ export type UserWarehouseCredentials = {
           >
         | Pick<
               | CreatePostgresCredentials
-              | CreateSnowflakeCredentials
               | CreateTrinoCredentials
               | CreateClickhouseCredentials,
               'type' | 'user'
           >
+        | Pick<
+              CreateSnowflakeCredentials,
+              'type' | 'user' | 'authenticationType'
+          >
         | Pick<CreateBigqueryCredentials, 'type'>
         | Pick<CreateDatabricksCredentials, 'type'>
-        | Pick<CreateAthenaCredentials, 'type'>
+        | Pick<CreateAthenaCredentials, 'type' | 'accessKeyId'>
         | Pick<CreateDuckdbCredentials, 'type'>;
     project: UserWarehouseCredentialsProject | null;
 };
@@ -66,6 +69,8 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               | 'assumeRoleExternalId'
           >
         | Pick<CreatePostgresCredentials, 'type' | 'user' | 'password'>
+        // Kept as two members rather than one wider Pick: merging them renames
+        // the generated OpenAPI schema, which reads as a removed `anyOf` member.
         | Pick<
               CreateSnowflakeCredentials,
               | 'type'
@@ -73,6 +78,14 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               | 'password'
               | 'authenticationType'
               | 'refreshToken'
+          >
+        | Pick<
+              CreateSnowflakeCredentials,
+              | 'type'
+              | 'user'
+              | 'privateKey'
+              | 'privateKeyPass'
+              | 'authenticationType'
           >
         | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateClickhouseCredentials, 'type' | 'user' | 'password'>
@@ -158,9 +171,34 @@ export const snowflakeSsoUserCredentialsSchema = z
         user: z.string().optional(),
         password: z.string().optional(),
         authenticationType: z.literal(SnowflakeAuthenticationType.SSO),
-        refreshToken: z.string(),
+        refreshToken: z.string().min(1),
     })
     .strict();
+
+export const snowflakeUserCredentialsSchema = z.union([
+    snowflakeSsoUserCredentialsSchema,
+    z
+        .object({
+            type: z.literal(WarehouseTypes.SNOWFLAKE),
+            user: z.string().trim().min(1),
+            password: z.string().min(1),
+            authenticationType: z
+                .literal(SnowflakeAuthenticationType.PASSWORD)
+                .optional(),
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal(WarehouseTypes.SNOWFLAKE),
+            user: z.string().trim().min(1),
+            privateKey: z.string().trim().min(1),
+            privateKeyPass: z.string().optional(),
+            authenticationType: z.literal(
+                SnowflakeAuthenticationType.PRIVATE_KEY,
+            ),
+        })
+        .strict(),
+]);
 
 // Zod schema for validating Databricks OAuth U2M user warehouse credentials
 // Requires refreshToken and allows optional compatibility fields
@@ -215,7 +253,7 @@ export const redshiftIamUserCredentialsSchema = z
 
         if (hasAccessKeyId !== hasSecretAccessKey) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message:
                     'Redshift IAM credentials require both AWS access key ID and secret access key.',
             });
@@ -223,7 +261,7 @@ export const redshiftIamUserCredentialsSchema = z
 
         if (!hasStaticCredentials && !hasAssumeRole) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message:
                     'Redshift IAM credentials require an assume-role ARN or AWS access keys.',
             });

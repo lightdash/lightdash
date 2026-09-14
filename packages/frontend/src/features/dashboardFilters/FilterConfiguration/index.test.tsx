@@ -1,9 +1,11 @@
 import {
     DimensionType,
+    DashboardTileTypes,
     FieldType,
     FilterOperator,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardTile,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -68,6 +70,16 @@ const mockField = {
     fieldType: FieldType.DIMENSION,
     sql: 'first_name',
     hidden: false,
+} as unknown as DashboardFilterableField;
+
+const mockTimestampField = {
+    ...mockField,
+    name: 'created_at',
+    type: DimensionType.TIMESTAMP,
+    table: 'orders',
+    tableLabel: 'Orders',
+    label: 'Created at',
+    sql: 'created_at',
 } as unknown as DashboardFilterableField;
 
 const anyValueRule: DashboardFilterRule = {
@@ -161,6 +173,49 @@ describe('FilterConfiguration', () => {
         expect(
             screen.getByRole('button', { name: 'Single value' }),
         ).toBeVisible();
+    });
+
+    it('preserves a timestamp value when changing to is between', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        const timestampValue = '2024-11-01T10:00:00-05:00';
+        const timestampRule: DashboardFilterRule = {
+            ...anyValueRule,
+            target: {
+                fieldId: 'orders_created_at',
+                tableName: 'orders',
+            },
+            values: [timestampValue],
+            disabled: false,
+        };
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode={false}
+                isTemporary
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockTimestampField}
+                defaultFilterRule={timestampRule}
+                originalFilterRule={timestampRule}
+                onSave={onSave}
+            />,
+        );
+
+        await user.click(screen.getByDisplayValue('is'));
+        await user.click(
+            await screen.findByRole('option', { name: 'is between' }),
+        );
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operator: FilterOperator.IN_BETWEEN,
+                values: [timestampValue],
+            }),
+        );
     });
 
     it('keeps the required toggle on and lists rule siblings for a rule member', () => {
@@ -358,5 +413,70 @@ describe('FilterConfiguration', () => {
         expect(requiredSwitch).toBeEnabled();
         expect(requiredSwitch).not.toBeChecked();
         expect(screen.getByText('Required')).toBeInTheDocument();
+    });
+
+    it('allows excluding and restoring a Data App tile filter target', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        const activeRule: DashboardFilterRule = {
+            ...anyValueRule,
+            values: ['Adam'],
+            disabled: false,
+        };
+        const dataAppTile = {
+            uuid: 'data-app-tile-1',
+            type: DashboardTileTypes.DATA_APP,
+            x: 0,
+            y: 0,
+            h: 1,
+            w: 1,
+            tabUuid: null,
+            properties: {
+                appUuid: 'data-app-1',
+                title: 'Customer data app',
+            },
+        } satisfies DashboardTile;
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[dataAppTile]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={activeRule}
+                originalFilterRule={activeRule}
+                onSave={onSave}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'Tiles' }));
+
+        const dataAppCheckbox = screen.getByRole('checkbox', {
+            name: 'Customer data app',
+        });
+        expect(dataAppCheckbox).toBeEnabled();
+        expect(dataAppCheckbox).toBeChecked();
+
+        await user.click(dataAppCheckbox);
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        expect(onSave).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                tileTargets: { 'data-app-tile-1': false },
+            }),
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'Tiles' }));
+        await user.click(
+            screen.getByRole('checkbox', { name: 'Customer data app' }),
+        );
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+        expect(onSave).toHaveBeenLastCalledWith(
+            expect.objectContaining({ tileTargets: {} }),
+        );
     });
 });

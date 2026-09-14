@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ExpectedNotFoundError,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -195,7 +196,7 @@ export class AiRouterService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
             );
-        const { model } = getModel(copilotConfig);
+        const { model, keyManagement } = getModel(copilotConfig);
         const brain = await selectAgent({
             model,
             candidates,
@@ -205,6 +206,7 @@ export class AiRouterService extends BaseService {
                 organizationUuid,
                 projectUuid,
                 userUuid: account.user.userUuid,
+                keyManagement,
             },
         });
 
@@ -235,7 +237,7 @@ export class AiRouterService extends BaseService {
         const router =
             await this.aiRouterModel.findByOrganization(organizationUuid);
         if (!router) {
-            throw new NotFoundError('AI router not configured');
+            throw new ExpectedNotFoundError('AI router not configured');
         }
         return router;
     }

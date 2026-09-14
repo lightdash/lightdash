@@ -168,7 +168,6 @@ const CreateProjectAccessModal: FC<Props> = ({
                             allowDeselect={false}
                             name="email"
                             comboboxProps={{ withinPortal: true }}
-                            radius="md"
                             label="Enter user email address"
                             placeholder="example@gmail.com"
                             nothingFoundMessage={
@@ -205,7 +204,6 @@ const CreateProjectAccessModal: FC<Props> = ({
                             data={groupComboboxItems(roles)}
                             disabled={isSubmitting}
                             required
-                            radius="md"
                             placeholder="Select role"
                             comboboxProps={{
                                 withinPortal: true,

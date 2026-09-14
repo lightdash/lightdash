@@ -554,7 +554,11 @@ const versionPathCheck = (
     }
     let message =
         'The artifact declares no unresolved historical version-path boundary';
-    if (
+    if (migrationState.classification === 'database-ahead') {
+        message = `The database ledger is ahead of this image's local migrations; ledger-only migrations: ${migrationState.missing.join(
+            ', ',
+        )}`;
+    } else if (
         artifact.upgrade.minPreviousVersion === null &&
         unresolvedHistoricalStops.length === 0
     ) {

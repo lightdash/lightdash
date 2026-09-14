@@ -79,6 +79,7 @@ export const DISTILL_TOOL_POLICIES = {
     discoverFields: { result: keep },
     getMetadata: { result: keep },
     findExplores: { result: keep },
+    findCustomChartTypes: { result: keep },
     findFields: { result: keep },
     searchSemanticLayer: { result: keep },
     analyzeFieldImpact: { result: keep },
@@ -93,6 +94,7 @@ export const DISTILL_TOOL_POLICIES = {
     runSavedChart: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runContentQuery: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runSql: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
+    runComposerQueries: { result: shape() },
     generateVisualization: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     getDashboardCharts: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     generateDashboard: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
@@ -106,6 +108,8 @@ export const DISTILL_TOOL_POLICIES = {
     exploreRepo: { result: omitResult('volatile repository content') },
     getPullRequestDiff: { result: omitResult('volatile repository diff') },
     editRepo: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    generateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
+    iterateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     editDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     syncDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     setupPreviewDeploy: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
@@ -128,6 +132,7 @@ export const DISTILL_TOOL_POLICIES = {
     submitDiscoverFieldsResult: { result: omitCall },
     findCharts: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     findDashboards: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    // Legacy persisted viz tools; keep past-thread distillation bounded and quiet.
     generateBarVizConfig: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     generateTableVizConfig: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     generateTimeSeriesVizConfig: {

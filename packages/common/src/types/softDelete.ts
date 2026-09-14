@@ -1,3 +1,4 @@
+import type { DataAppTemplate, DataAppVizsFilter } from '../ee/apps/types';
 import type { ChartSourceType, ContentType } from './content';
 import type { KnexPaginatedData } from './knex-paginate';
 import type { ChartKind } from './savedCharts';
@@ -103,6 +104,9 @@ export type DeletedDataAppContentSummary = {
     spaceName: string | null;
     projectUuid: string;
     organizationUuid: string;
+    // 'data_app_viz' marks a reusable custom chart type rather than a
+    // standalone app — labelled and restored differently in the UI.
+    template: DataAppTemplate | null;
 };
 
 export type DeletedContentSummary =
@@ -132,6 +136,9 @@ export type DeletedContentFilters = {
     search?: string;
     contentTypes?: ContentType[];
     deletedByUserUuids?: string[];
+    // Narrows DATA_APP rows: 'exclude' = data apps only, 'only' = custom
+    // chart types only. Omitted = both (labelled distinctly by the UI).
+    dataAppVizsFilter?: DataAppVizsFilter;
 };
 
 // API types

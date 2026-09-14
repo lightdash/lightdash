@@ -4,8 +4,9 @@ import {
 } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
+import { useModalHostedDashboard } from '../../../../providers/Explorer/useIsModalHosted';
 import MantineModal, { type MantineModalProps } from '../../MantineModal';
 import { SaveToDashboard } from './SaveToDashboard';
 import { SaveToSpaceOrDashboard } from './SaveToSpaceOrDashboard';
@@ -61,8 +62,23 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const [spaceUuid] = useState(defaultSpaceUuid);
 
     const { getEditingDashboardInfo } = useDashboardStorage();
-    const [editingDashboardInfo, setEditingDashboardInfo] = useState(() =>
+    const hostDashboard = useModalHostedDashboard();
+    const [storedDashboardInfo, setEditingDashboardInfo] = useState(() =>
         getEditingDashboardInfo(),
+    );
+    // A modal host supplies the dashboard directly; sessionStorage is only for
+    // the navigate-away flow.
+    const editingDashboardInfo = useMemo(
+        () =>
+            hostDashboard
+                ? {
+                      name: hostDashboard.name,
+                      dashboardUuid: hostDashboard.uuid,
+                      dashboardSlug: null,
+                      activeTabUuid: null,
+                  }
+                : storedDashboardInfo,
+        [hostDashboard, storedDashboardInfo],
     );
 
     useEffect(() => {
@@ -81,7 +97,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         return SaveMode.DEFAULT;
     }, [editingDashboardInfo, forceSpaceOrDashboardChoice]);
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const getModalTitle = useCallback(() => {
         if (isSaveAs) {

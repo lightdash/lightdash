@@ -9,8 +9,11 @@ const VisualizationDataAppVizConfig: FC<VisualizationDataAppVizConfigProps> = ({
     children,
 }) => {
     const handleConfigChange = useCallback(
-        (config: DataAppVizChart) => {
-            onChartConfigChange?.({ type: ChartType.DATA_APP_VIZ, config });
+        (config: DataAppVizChart | null) => {
+            onChartConfigChange?.({
+                type: ChartType.DATA_APP_VIZ,
+                config: config ?? undefined,
+            });
         },
         [onChartConfigChange],
     );

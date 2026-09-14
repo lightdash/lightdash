@@ -18,7 +18,7 @@ const SortIcon: FC<{ sortByDirection: VizSortBy['direction'] }> = ({
             break;
     }
 
-    return icon ? <MantineIcon color="ldGray.6" icon={icon} /> : null;
+    return icon ? <MantineIcon color="dimmed" icon={icon} /> : null;
 };
 
 type Props = {
@@ -67,7 +67,7 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
     ];
 
     return (
-        <Tooltip label="Sort by" withinPortal>
+        <Tooltip label="Sort by">
             <Select
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}

@@ -122,7 +122,7 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
                     // Show the sort icon next to the title, and the dropdown menu on the right
                     iconSort ? <MantineIcon icon={iconSort} /> : <div></div>
                 }
-                <Menu withinPortal withArrow shadow="md">
+                <Menu withArrow>
                     <Menu.Target>
                         <ActionIcon
                             size="xs"

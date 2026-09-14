@@ -16,6 +16,7 @@ import type {
 import type { DashboardFilterRule } from '../filter';
 import type { PromotionChanges } from '../promotion';
 import type { ContentAsCodeType } from './core';
+import type { ContentAsCodeDirectAccess } from './directAccess';
 import type { SpaceAsCode } from './spaces';
 
 type DashboardTileAsCodeBase = {
@@ -149,6 +150,13 @@ export type DashboardAsCode = Omit<
         tableCalculations?: DashboardFilterRule[];
     };
     /**
+     * Declarative dashboard owner, referenced by email so it is portable across projects.
+     * A string assigns the organization member with that email as owner, `null` unassigns
+     * the owner, `undefined` leaves the current owner untouched. Download sets this to the
+     * owner's email when an owner is assigned.
+     */
+    ownerEmail?: string | null;
+    /**
      * Declarative verification state.
      * `true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the
      * current state untouched. Download sets this to `true` when the dashboard is verified.
@@ -156,6 +164,8 @@ export type DashboardAsCode = Omit<
     verified?: boolean;
     /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
+    /** Direct user/group grants. Omission leaves the existing policy unchanged on upload. */
+    access?: ContentAsCodeDirectAccess;
 };
 
 export type ApiDashboardAsCodeListResponse = {

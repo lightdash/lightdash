@@ -16,13 +16,20 @@ import {
 import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
+    modelGuidanceSourceByRuntime,
     type AgentToolView,
     type McpToolAnnotations,
-    type ToolDefinition,
     type ToolDefinitionInstance,
     type ToolDefinitionWithMcpOutput,
     type ToolDefinitionWithoutMcpOutput,
+    type ToolDescriptionContext,
 } from '../defineTool';
+import {
+    toolRunQueryExpressionArgsSchema,
+    toolRunQueryExpressionArgsSchemaV2Mcp,
+    toolRunQueryExpressionArgsSchemaV2RejectingMerge,
+    type toolRunQueryExpressionArgsSchemaV2FormulaOnly,
+} from '../filterExpressions';
 import {
     MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
     mcpToolListExploresArgsSchema,
@@ -49,6 +56,11 @@ import {
     toolClosePullRequestOutputSchema,
 } from './toolClosePullRequestArgs';
 import {
+    TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    toolComposerQueriesArgsSchema,
+    toolComposerQueriesOutputSchema,
+} from './toolComposerQueryArgs';
+import {
     TOOL_CREATE_CONTENT_DESCRIPTION,
     toolCreateContentArgsSchema,
     toolCreateContentOutputSchema,
@@ -58,11 +70,6 @@ import {
     toolCreateScheduledDeliveryArgsSchema,
     toolCreateScheduledDeliveryOutputSchema,
 } from './toolCreateScheduledDeliveryArgs';
-import {
-    TOOL_DASHBOARD_DESCRIPTION,
-    toolDashboardArgsSchema,
-    toolDashboardOutputSchema,
-} from './toolDashboardArgs';
 import {
     TOOL_DASHBOARD_V2_DESCRIPTION,
     toolDashboardV2ArgsSchema,
@@ -119,6 +126,11 @@ import {
     toolFindContentOutputSchema,
 } from './toolFindContentArgs';
 import {
+    TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    toolFindCustomChartTypesArgsSchema,
+    toolFindCustomChartTypesOutputSchema,
+} from './toolFindCustomChartTypesArgs';
+import {
     TOOL_FIND_DASHBOARDS_DESCRIPTION,
     toolFindDashboardsArgsSchema,
     toolFindDashboardsOutputSchema,
@@ -134,6 +146,12 @@ import {
     toolFindFieldsOutputSchema,
 } from './toolFindFieldsArgs';
 import {
+    TOOL_GENERATE_DATA_APP_DESCRIPTION,
+    toolGenerateDataAppArgsSchema,
+    toolGenerateDataAppOutputSchema,
+} from './toolGenerateDataAppArgs';
+import {
+    mcpGenerateHashesStructuredOutputSchema,
     TOOL_GENERATE_HASHES_DESCRIPTION,
     toolGenerateHashesArgsSchema,
     toolGenerateHashesOutputSchema,
@@ -179,6 +197,11 @@ import {
     grepFieldsResultSchema,
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
+import {
+    TOOL_ITERATE_DATA_APP_DESCRIPTION,
+    toolIterateDataAppArgsSchema,
+    toolIterateDataAppOutputSchema,
+} from './toolIterateDataAppArgs';
 import {
     TOOL_LIST_CONTENT_DESCRIPTION,
     toolListContentArgsSchema,
@@ -257,10 +280,11 @@ import {
     toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
-    toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2Mcp,
     toolRunQueryArgsSchemaV2RejectingMerge,
     toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
+    type toolRunQueryArgsSchemaV2FormulaOnly,
 } from './toolRunQueryArgs';
 import {
     TOOL_RUN_SAVED_CHART_DESCRIPTION,
@@ -268,6 +292,7 @@ import {
     toolRunSavedChartOutputSchema,
 } from './toolRunSavedChartArgs';
 import {
+    buildAgentRunSqlDescription,
     buildRunSqlDescription,
     DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
@@ -276,7 +301,9 @@ import {
 } from './toolRunSqlArgs';
 import {
     TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
+    TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION,
     toolSearchFieldValuesArgsSchema,
+    toolSearchFieldValuesExpressionArgsSchema,
     toolSearchFieldValuesOutputSchema,
 } from './toolSearchFieldValuesArgs';
 import {
@@ -295,33 +322,10 @@ import {
     toolSyncDbtProjectOutputSchema,
 } from './toolSyncDbtProjectArgs';
 import {
-    TOOL_TABLE_VIZ_DESCRIPTION,
-    toolTableVizArgsSchema,
-    toolTableVizArgsSchemaTransformed,
-    toolTableVizOutputSchema,
-} from './toolTableVizArgs';
-import {
-    TOOL_TIME_SERIES_VIZ_DESCRIPTION,
-    toolTimeSeriesArgsSchema,
-    toolTimeSeriesArgsSchemaTransformed,
-    toolTimeSeriesOutputSchema,
-} from './toolTimeSeriesArgs';
-import {
     TOOL_UPDATE_USER_NAME_DESCRIPTION,
     toolUpdateUserNameArgsSchema,
     toolUpdateUserNameOutputSchema,
 } from './toolUpdateUserNameArgs';
-import {
-    TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
-    toolVerticalBarArgsSchema,
-    toolVerticalBarArgsSchemaTransformed,
-    toolVerticalBarOutputSchema,
-} from './toolVerticalBarArgs';
-
-export const breaking = {
-    reason: 'MCP clients must replace find_explores and find_fields with grep_fields and get_metadata.',
-    requiredStop: false,
-};
 
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
@@ -440,6 +444,20 @@ export const findExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolFindExploresOutputSchema },
 });
 
+export const findCustomChartTypesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'findCustomChartTypes',
+    typeof toolFindCustomChartTypesArgsSchema,
+    typeof toolFindCustomChartTypesArgsSchema,
+    typeof toolFindCustomChartTypesOutputSchema
+> = defineTool({
+    name: 'findCustomChartTypes',
+    title: 'Find custom chart types',
+    description: TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolFindCustomChartTypesArgsSchema,
+    agent: { outputSchema: toolFindCustomChartTypesOutputSchema },
+});
+
 export const findFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findFields',
     typeof toolFindFieldsArgsSchema,
@@ -514,6 +532,21 @@ export const searchFieldValuesToolDefinition: ToolDefinitionWithoutMcpOutput<
     mcp: { annotations: readOnlyAnnotations },
 });
 
+export const searchFieldValuesFilterExpressionToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'searchFieldValues',
+    typeof toolSearchFieldValuesExpressionArgsSchema,
+    typeof toolSearchFieldValuesExpressionArgsSchema,
+    typeof toolSearchFieldValuesOutputSchema
+> = defineTool({
+    name: 'searchFieldValues',
+    title: 'Search field values',
+    description: TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolSearchFieldValuesExpressionArgsSchema,
+    agent: { outputSchema: toolSearchFieldValuesOutputSchema },
+    mcp: { annotations: readOnlyAnnotations },
+});
+
 export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput<
     'generateVisualization',
     typeof toolRunQueryArgsSchema,
@@ -529,19 +562,68 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
     agent: { outputSchema: toolRunQueryOutputSchema },
 });
 
+const TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION = (
+    context: ToolDescriptionContext,
+): string =>
+    `${TOOL_RUN_QUERY_DESCRIPTION(
+        context,
+    )}\nFilter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow ${modelGuidanceSourceByRuntime[context.runtime]}.`;
+
+export const generateVisualizationFilterExpressionToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateVisualization',
+    typeof toolRunQueryExpressionArgsSchema,
+    typeof toolRunQueryExpressionArgsSchema,
+    typeof toolRunQueryOutputSchema
+> = defineTool({
+    name: 'generateVisualization',
+    title: 'Generate visualization',
+    description: TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolRunQueryExpressionArgsSchema,
+    inputSchemaTransformed: toolRunQueryExpressionArgsSchema,
+    agent: { outputSchema: toolRunQueryOutputSchema },
+});
+
 export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     'runQuery',
-    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2Mcp,
     typeof toolRunQueryArgsSchemaV2Transformed,
     typeof toolRunQueryOutputSchema,
     typeof mcpRunMetricQueryStructuredOutputSchema
 > = defineTool({
     name: 'runQuery',
-    title: 'Run query',
+    title: 'Run metric query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
-    inputSchema: toolRunQueryArgsSchemaV2,
+    // MCP contract: formula-only table calcs (template calls fail at the
+    // boundary with an error the model can correct) and builtin-only chart
+    // config (custom chart types are agent-only for the PoC). The
+    // transformed parse stays wide for persisted-args replay.
+    inputSchema: toolRunQueryArgsSchemaV2Mcp,
     inputSchemaTransformed: toolRunQueryArgsSchemaV2Transformed,
+    agent: { outputSchema: toolRunQueryOutputSchema },
+    mcp: {
+        name: 'run_metric_query',
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpRunMetricQueryStructuredOutputSchema,
+    },
+});
+
+export const runQueryFilterExpressionToolDefinition: ToolDefinitionWithMcpOutput<
+    'runQuery',
+    typeof toolRunQueryExpressionArgsSchemaV2Mcp,
+    typeof toolRunQueryExpressionArgsSchemaV2Mcp,
+    typeof toolRunQueryOutputSchema,
+    typeof mcpRunMetricQueryStructuredOutputSchema
+> = defineTool({
+    name: 'runQuery',
+    title: 'Run metric query',
+    description: TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    // Match the legacy MCP boundary: formula-only table calculations and
+    // builtin chart configs. Persisted expression V2 parsing remains wide.
+    inputSchema: toolRunQueryExpressionArgsSchemaV2Mcp,
+    inputSchemaTransformed: toolRunQueryExpressionArgsSchemaV2Mcp,
     agent: { outputSchema: toolRunQueryOutputSchema },
     mcp: {
         name: 'run_metric_query',
@@ -555,12 +637,24 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
 // stripped to the primary query by Zod. Lazy, like `.for('agent')`.
 export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
     'runQuery',
-    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2FormulaOnly,
     typeof toolRunQueryOutputSchema
 > => ({
     ...runQueryToolDefinition.for('agent'),
     inputSchema: createAgentInputSchema(toolRunQueryArgsSchemaV2RejectingMerge),
 });
+
+export const getRunQueryFilterExpressionAgentViewRejectingMerge =
+    (): AgentToolView<
+        'runQuery',
+        typeof toolRunQueryExpressionArgsSchemaV2FormulaOnly,
+        typeof toolRunQueryOutputSchema
+    > => ({
+        ...runQueryFilterExpressionToolDefinition.for('agent'),
+        inputSchema: createAgentInputSchema(
+            toolRunQueryExpressionArgsSchemaV2RejectingMerge,
+        ),
+    });
 
 export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
     'runSql',
@@ -571,16 +665,40 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
 > = defineTool({
     name: 'runSql',
     title: 'Run SQL',
-    description: buildRunSqlDescription(
-        DEFAULT_RUN_SQL_LIMIT,
-        DEFAULT_RUN_SQL_MAX_LIMIT,
-    ),
+    description: ({ runtime }) =>
+        (
+            ({
+                agent: buildAgentRunSqlDescription,
+                mcp: buildRunSqlDescription,
+            }) satisfies Record<
+                ToolDescriptionContext['runtime'],
+                typeof buildRunSqlDescription
+            >
+        )[runtime](DEFAULT_RUN_SQL_LIMIT, DEFAULT_RUN_SQL_MAX_LIMIT),
     availability: ['agent', 'mcp'],
     inputSchema: toolRunSqlArgsSchema,
     agent: { outputSchema: toolRunSqlOutputSchema },
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpRunSqlStructuredOutputSchema,
+    },
+});
+
+export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'runComposerQueries',
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesOutputSchema
+> = defineTool({
+    name: 'runComposerQueries',
+    title: 'Run composer queries',
+    description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolComposerQueriesArgsSchema,
+    agent: { outputSchema: toolComposerQueriesOutputSchema },
+    mcp: {
+        name: 'run_composer_queries',
+        annotations: readOnlyAnnotations,
     },
 });
 
@@ -706,21 +824,6 @@ export const generateDashboardToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolDashboardV2OutputSchema },
 });
 
-/** @deprecated Legacy v1 dashboard tool schema kept for historical tool calls and artifacts. */
-export const generateDashboardV1ToolDefinition: ToolDefinition<
-    'generateDashboard',
-    typeof toolDashboardArgsSchema,
-    typeof toolDashboardArgsSchema,
-    typeof toolDashboardOutputSchema
-> = defineTool({
-    name: 'generateDashboard',
-    title: 'Generate dashboard',
-    description: TOOL_DASHBOARD_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolDashboardArgsSchema,
-    agent: { outputSchema: toolDashboardOutputSchema },
-});
-
 export const generateUuidsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'generateUuids',
     typeof toolGenerateUuidsArgsSchema,
@@ -735,18 +838,23 @@ export const generateUuidsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolGenerateUuidsOutputSchema },
 });
 
-export const generateHashesToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const generateHashesToolDefinition: ToolDefinitionWithMcpOutput<
     'generateHashes',
     typeof toolGenerateHashesArgsSchema,
     typeof toolGenerateHashesArgsSchema,
-    typeof toolGenerateHashesOutputSchema
+    typeof toolGenerateHashesOutputSchema,
+    typeof mcpGenerateHashesStructuredOutputSchema
 > = defineTool({
     name: 'generateHashes',
     title: 'Generate hashes',
     description: TOOL_GENERATE_HASHES_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolGenerateHashesArgsSchema,
     agent: { outputSchema: toolGenerateHashesOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGenerateHashesStructuredOutputSchema,
+    },
 });
 
 export const getDashboardChartsToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -969,6 +1077,34 @@ export const loadMcpToolsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolLoadMcpToolsOutputSchema },
 });
 
+export const generateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateDataApp',
+    typeof toolGenerateDataAppArgsSchema,
+    typeof toolGenerateDataAppArgsSchema,
+    typeof toolGenerateDataAppOutputSchema
+> = defineTool({
+    name: 'generateDataApp',
+    title: 'Generate data app',
+    description: TOOL_GENERATE_DATA_APP_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGenerateDataAppArgsSchema,
+    agent: { outputSchema: toolGenerateDataAppOutputSchema },
+});
+
+export const iterateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'iterateDataApp',
+    typeof toolIterateDataAppArgsSchema,
+    typeof toolIterateDataAppArgsSchema,
+    typeof toolIterateDataAppOutputSchema
+> = defineTool({
+    name: 'iterateDataApp',
+    title: 'Iterate on data app',
+    description: TOOL_ITERATE_DATA_APP_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolIterateDataAppArgsSchema,
+    agent: { outputSchema: toolIterateDataAppOutputSchema },
+});
+
 export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'editDbtProject',
     typeof toolEditDbtProjectArgsSchema,
@@ -976,7 +1112,7 @@ export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     typeof toolEditDbtProjectOutputSchema
 > = defineTool({
     name: 'editDbtProject',
-    title: 'Edit dbt project',
+    title: 'Edit semantic layer',
     description: TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolEditDbtProjectArgsSchema,
@@ -1285,54 +1421,6 @@ export const findDashboardsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolFindDashboardsOutputSchema },
 });
 
-/** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateBarVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'generateBarVizConfig',
-    typeof toolVerticalBarArgsSchema,
-    typeof toolVerticalBarArgsSchemaTransformed,
-    typeof toolVerticalBarOutputSchema
-> = defineTool({
-    name: 'generateBarVizConfig',
-    title: 'Generate bar visualization config',
-    description: TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolVerticalBarArgsSchema,
-    inputSchemaTransformed: toolVerticalBarArgsSchemaTransformed,
-    agent: { outputSchema: toolVerticalBarOutputSchema },
-});
-
-/** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateTableVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'generateTableVizConfig',
-    typeof toolTableVizArgsSchema,
-    typeof toolTableVizArgsSchemaTransformed,
-    typeof toolTableVizOutputSchema
-> = defineTool({
-    name: 'generateTableVizConfig',
-    title: 'Generate table visualization config',
-    description: TOOL_TABLE_VIZ_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolTableVizArgsSchema,
-    inputSchemaTransformed: toolTableVizArgsSchemaTransformed,
-    agent: { outputSchema: toolTableVizOutputSchema },
-});
-
-/** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateTimeSeriesVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'generateTimeSeriesVizConfig',
-    typeof toolTimeSeriesArgsSchema,
-    typeof toolTimeSeriesArgsSchemaTransformed,
-    typeof toolTimeSeriesOutputSchema
-> = defineTool({
-    name: 'generateTimeSeriesVizConfig',
-    title: 'Generate time series visualization config',
-    description: TOOL_TIME_SERIES_VIZ_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolTimeSeriesArgsSchema,
-    inputSchemaTransformed: toolTimeSeriesArgsSchemaTransformed,
-    agent: { outputSchema: toolTimeSeriesOutputSchema },
-});
-
 export const getLightdashVersionToolDefinition: ToolDefinitionWithoutMcpOutput<
     'getLightdashVersion',
     typeof emptyInputSchema,
@@ -1440,7 +1528,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {
@@ -1608,6 +1696,7 @@ export const getAiWritebackStatusToolDefinition: ToolDefinitionWithMcpOutput<
 
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
+    findCustomChartTypes: typeof findCustomChartTypesToolDefinition;
     findFields: typeof findFieldsToolDefinition;
     searchSemanticLayer: typeof searchSemanticLayerToolDefinition;
     analyzeFieldImpact: typeof analyzeFieldImpactToolDefinition;
@@ -1616,6 +1705,7 @@ type AgentToolDefinitionsByName = {
     generateVisualization: typeof generateVisualizationToolDefinition;
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
+    runComposerQueries: typeof runComposerQueriesToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
     grepFields: typeof grepFieldsToolDefinition;
     getMetadata: typeof getMetadataToolDefinition;
@@ -1634,6 +1724,8 @@ type AgentToolDefinitionsByName = {
     loadSkill: typeof loadSkillToolDefinition;
     loadProjectContext: typeof loadProjectContextToolDefinition;
     loadMcpTools: typeof loadMcpToolsToolDefinition;
+    generateDataApp: typeof generateDataAppToolDefinition;
+    iterateDataApp: typeof iterateDataAppToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     editRepo: typeof editRepoToolDefinition;
@@ -1655,15 +1747,13 @@ type AgentToolDefinitionsByName = {
     submitWorkerFindings: typeof submitWorkerFindingsToolDefinition;
     findCharts: typeof findChartsToolDefinition;
     findDashboards: typeof findDashboardsToolDefinition;
-    generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
-    generateTableVizConfig: typeof generateTableVizConfigToolDefinition;
-    generateTimeSeriesVizConfig: typeof generateTimeSeriesVizConfigToolDefinition;
     listProjects: typeof listProjectsToolDefinition;
     getProjectInfo: typeof getProjectInfoToolDefinition;
 };
 
 export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     findExplores: findExploresToolDefinition,
+    findCustomChartTypes: findCustomChartTypesToolDefinition,
     findFields: findFieldsToolDefinition,
     searchSemanticLayer: searchSemanticLayerToolDefinition,
     analyzeFieldImpact: analyzeFieldImpactToolDefinition,
@@ -1672,6 +1762,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateVisualization: generateVisualizationToolDefinition,
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
+    runComposerQueries: runComposerQueriesToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
     grepFields: grepFieldsToolDefinition,
     getMetadata: getMetadataToolDefinition,
@@ -1690,6 +1781,8 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadSkill: loadSkillToolDefinition,
     loadProjectContext: loadProjectContextToolDefinition,
     loadMcpTools: loadMcpToolsToolDefinition,
+    generateDataApp: generateDataAppToolDefinition,
+    iterateDataApp: iterateDataAppToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     editRepo: editRepoToolDefinition,
@@ -1711,9 +1804,6 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     submitWorkerFindings: submitWorkerFindingsToolDefinition,
     findCharts: findChartsToolDefinition,
     findDashboards: findDashboardsToolDefinition,
-    generateBarVizConfig: generateBarVizConfigToolDefinition,
-    generateTableVizConfig: generateTableVizConfigToolDefinition,
-    generateTimeSeriesVizConfig: generateTimeSeriesVizConfigToolDefinition,
     listProjects: listProjectsToolDefinition,
     getProjectInfo: getProjectInfoToolDefinition,
 };
@@ -1725,6 +1815,7 @@ export const isAgentToolName = (toolName: string): toolName is AgentToolName =>
 
 export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findExploresToolDefinition,
+    findCustomChartTypesToolDefinition,
     findFieldsToolDefinition,
     searchSemanticLayerToolDefinition,
     analyzeFieldImpactToolDefinition,
@@ -1733,6 +1824,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateVisualizationToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
+    runComposerQueriesToolDefinition,
     getQueryResultToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
@@ -1753,6 +1845,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadSkillToolDefinition,
     loadProjectContextToolDefinition,
     loadMcpToolsToolDefinition,
+    generateDataAppToolDefinition,
+    iterateDataAppToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
     editRepoToolDefinition,
@@ -1774,9 +1868,6 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     submitWorkerFindingsToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
-    generateBarVizConfigToolDefinition,
-    generateTableVizConfigToolDefinition,
-    generateTimeSeriesVizConfigToolDefinition,
     getLightdashVersionToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
@@ -1795,6 +1886,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getCurrentAgentToolDefinition,
     listVerifiedContentToolDefinition,
     runAiWritebackToolDefinition,
+    getAiWritebackStatusToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;

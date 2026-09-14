@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/warehouses",
-  "version": "1.202.9",
+  "version": "2.207.1",
   "description": "Warehouse connectors for Lightdash",
   "license": "MIT",
   "repository": {
@@ -53,6 +53,6 @@
     "@types/ssh2": "1.11.15",
     "copyfiles": "2.4.1",
     "typescript": "7.0.2",
-    "vitest": "4.1.6"
+    "vitest": "4.1.11"
   }
 }

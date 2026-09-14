@@ -55,7 +55,7 @@ const VerificationSuccess: FC<{
                     <Text ta="center" fz="md" fw={500}>
                         Your email has been verified successfully.
                     </Text>
-                    <Text ta="center" fz="sm" c="ldGray.6">
+                    <Text ta="center" fz="sm" c="dimmed">
                         You can now start exploring your data.
                     </Text>
                 </Stack>
@@ -95,7 +95,7 @@ const VerifyEmailPage: FC = () => {
             pageTitle="Verify your email"
             withLegacyCard={false}
             footer={
-                <Text c="ldGray.6" ta="center" px="xs" fz="sm" fw={500}>
+                <Text c="dimmed" ta="center" px="xs" fz="sm" fw={500}>
                     You need to verify your email to get access to Lightdash. If
                     you need help, you can{' '}
                     <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
@@ -111,7 +111,7 @@ const VerifyEmailPage: FC = () => {
                     align="left"
                 />
             ) : (
-                <Card p="xl" withBorder shadow="subtle">
+                <Card p="xl">
                     <VerifyEmailForm
                         emailStatusData={data}
                         statusLoading={statusLoading}

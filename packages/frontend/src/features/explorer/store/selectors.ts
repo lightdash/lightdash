@@ -39,6 +39,16 @@ export const selectUnsavedChartVersion = createSelector(
     (explorer) => explorer.unsavedChartVersion,
 );
 
+export const selectIsDataAppVizVersionReadyForSave = createSelector(
+    [selectUnsavedChartVersion],
+    ({ chartConfig }) =>
+        chartConfig.type !== ChartType.DATA_APP_VIZ ||
+        chartConfig.config?.dataAppVizUuid === undefined ||
+        (Number.isInteger(chartConfig.config.dataAppVizVersion) &&
+            chartConfig.config.dataAppVizVersion !== undefined &&
+            chartConfig.config.dataAppVizVersion > 0),
+);
+
 export const selectUnsavedColorPaletteUuid = createSelector(
     [selectExplorerState],
     (explorer) => explorer.unsavedColorPaletteUuid,
@@ -83,7 +93,24 @@ export const selectIsResultsExpanded = createSelector(
 
 export const selectIsVisualizationConfigOpen = createSelector(
     [selectExplorerState],
-    (explorer) => explorer.isVisualizationConfigOpen,
+    (explorer) => explorer.isVisualizationConfigOpen === true,
+);
+
+export const selectChartSidebarStep = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.chartSidebarStep,
+);
+
+export const selectChartTypeAuthoring = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.chartTypeAuthoring,
+);
+
+// Authoring only takes over the Explorer in edit mode.
+export const selectIsChartTypeAuthoring = createSelector(
+    [selectExplorerState],
+    (explorer) =>
+        explorer.chartTypeAuthoring !== null && explorer.isEditMode === true,
 );
 
 // FiltersCard specific selectors

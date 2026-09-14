@@ -55,10 +55,11 @@ const marker: ReleaseSafetyMarker = {
     },
     declaredBreaks: [
         {
-            file: 'packages/backend/src/database/migrations/20260810000000_users.ts',
-            line: 4,
+            id: 'coordinated-users-rollout',
             reason: 'requires a coordinated rollout',
             requiredStop: true,
+            migration:
+                'packages/backend/src/database/migrations/20260810000000_users.ts',
         },
     ],
 };

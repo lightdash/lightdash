@@ -24,6 +24,7 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 parameters: z
                     .unknown()
                     .nullable()
+                    .optional()
                     .describe('Optional chart parameter values, or null.'),
             }),
             z.object({

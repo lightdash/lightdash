@@ -13,11 +13,11 @@ import {
     useRef,
     useState,
 } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useGenerateFormulaTableCalculation } from '../../../../hooks/useGenerateFormulaTableCalculation';
 import { useProject } from '../../../../hooks/useProject';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import useApp from '../../../../providers/App/useApp';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
@@ -63,7 +63,7 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
         },
         ref,
     ) {
-        const { projectUuid } = useParams<{ projectUuid: string }>();
+        const projectUuid = useProjectUuid();
         const { data: project } = useProject(projectUuid);
         const { user } = useApp();
         const { track } = useTracking();

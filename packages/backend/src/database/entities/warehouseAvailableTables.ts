@@ -9,6 +9,7 @@ export type DbWarehouseAvailableTables = {
     project_warehouse_credentials_id: number | null;
     user_warehouse_credentials_uuid: string | null;
     partition_column: PartitionColumn | null;
+    table_type: string | null;
 };
 
 export const WarehouseAvailableTablesTableName =

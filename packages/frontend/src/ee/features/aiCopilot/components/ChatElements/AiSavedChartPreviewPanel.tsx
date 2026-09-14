@@ -21,7 +21,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import {
-    clearSavedChartPreview,
+    clearPreview,
     type SavedChartPreviewData,
 } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
@@ -39,8 +39,6 @@ const VerifiedBadge: FC<{ verification: ContentVerificationInfo }> = ({
 
     return (
         <Tooltip
-            withinPortal
-            multiline
             maw={300}
             position="bottom"
             label={`Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName} on ${verifiedDate}`}
@@ -69,9 +67,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
     const closeButton = (
         <ActionIcon
             size="sm"
-            variant="subtle"
-            color="ldGray.6"
-            onClick={() => dispatch(clearSavedChartPreview())}
+            onClick={() => dispatch(clearPreview())}
             aria-label="Close"
         >
             <MantineIcon icon={IconX} />
@@ -131,13 +127,11 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                                 verification={savedChart.verification}
                             />
                         )}
-                        <Menu withinPortal position="bottom-end">
+                        <Menu position="bottom-end">
                             <Menu.Target>
-                                <Tooltip withinPortal label="More options">
+                                <Tooltip label="More options">
                                     <ActionIcon
                                         size="sm"
-                                        variant="subtle"
-                                        color="ldGray.6"
                                         aria-label="More options"
                                     >
                                         <MantineIcon icon={IconDots} />

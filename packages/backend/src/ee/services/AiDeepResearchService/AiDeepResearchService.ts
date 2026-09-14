@@ -9,10 +9,14 @@ import {
     aiDeepResearchWorkerFindingsInputSchema,
     AiResultType,
     applyDeepResearchChartRefsWithAdjustments,
+    buildDeepResearchVizConfig,
     ConflictError,
+    derivePivotConfigurationFromChart,
     findDeepResearchChartRefs,
     ForbiddenError,
     getErrorMessage,
+    getGroupByDimensions,
+    getWebAiChartConfig,
     isAiDeepResearchEvidencePackEmpty,
     isAiDeepResearchRunTerminal,
     isUserWithOrg,
@@ -22,7 +26,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     sleep,
-    toolRunQueryArgsSchema,
+    toolRunQueryArgsSchemaPersisted,
     UnexpectedServerError,
     type Account,
     type AiAgentToolResult,
@@ -35,6 +39,7 @@ import {
     type AiDeepResearchEvidencePack,
     type AiDeepResearchEvidenceQuery,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchFailureStage,
     type AiDeepResearchJobPayload,
     type AiDeepResearchProgress,
     type AiDeepResearchReportAdjustment,
@@ -43,6 +48,7 @@ import {
     type AiDeepResearchTerminalStatus,
     type AiDeepResearchWarehouseChart,
     type ApiAiAgentThreadMessageVizQuery,
+    type PivotConfiguration,
     type SessionUser,
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
@@ -67,6 +73,7 @@ import { type AiOrganizationSettingsModel } from '../../models/AiOrganizationSet
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from './constants';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
     isDeepResearchEvidenceQueryTool,
@@ -75,7 +82,6 @@ import {
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
-const STALE_RUN_THRESHOLD_MINUTES = 75;
 const REPORT_FINALIZATION_RETRY_DELAYS_MS = [100, 500] as const;
 const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
@@ -253,6 +259,17 @@ export type AiDeepResearchEvidenceBuildResult = {
     hasEvidenceBuildFailures: boolean;
 };
 
+export class AiDeepResearchExecutorStageError extends Error {
+    readonly name = 'AiDeepResearchExecutorStageError';
+
+    constructor(
+        readonly failureStage: AiDeepResearchFailureStage,
+        cause: unknown,
+    ) {
+        super(getErrorMessage(cause), { cause });
+    }
+}
+
 export type AiDeepResearchExecutorResult =
     | {
           status: 'completed';
@@ -265,15 +282,18 @@ export type AiDeepResearchExecutorResult =
           report: AiDeepResearchSubmittedReport;
           warehouseQueryUuids: string[];
           terminalReason: AiDeepResearchTerminalReason;
+          failureStage: AiDeepResearchFailureStage;
       }
     | {
           status: 'failed';
           errorMessage: string;
           terminalReason: AiDeepResearchTerminalReason;
+          failureStage: AiDeepResearchFailureStage;
       }
     | {
           status: 'cancelled';
           terminalReason: AiDeepResearchTerminalReason;
+          failureStage: AiDeepResearchFailureStage;
       };
 
 export type AiDeepResearchExecutor = (
@@ -625,6 +645,7 @@ export class AiDeepResearchService extends BaseService {
                     args.run.result_markdown !== null,
                 ),
                 terminalReason: args.event.terminal_reason,
+                failureStage: args.run.failure_stage,
                 durationMs: args.run.duration_ms,
                 inputTokens: args.run.input_tokens,
                 outputTokens: args.run.output_tokens,
@@ -965,6 +986,7 @@ export class AiDeepResearchService extends BaseService {
                 run.ai_deep_research_run_uuid,
                 FAILED_RUN_ERROR_MESSAGE,
                 'internal_error',
+                'enqueue',
             );
             await this.aiDeepResearchRunModel.deleteUnstartedFailedRun(
                 run.ai_deep_research_run_uuid,
@@ -1051,6 +1073,7 @@ export class AiDeepResearchService extends BaseService {
             projectUuid: args.projectUuid,
             metricQuery: chart.metricQuery,
             context: QueryExecutionContext.AI,
+            pivotConfiguration: this.getChartPivotConfiguration(chart),
         });
 
         return {
@@ -1072,6 +1095,37 @@ export class AiDeepResearchService extends BaseService {
                 description: null,
             },
         };
+    }
+
+    // Grouped charts expect server-pivoted results, matching the chat viz path.
+    private getChartPivotConfiguration(
+        chart: AiDeepResearchChartData,
+    ): PivotConfiguration | undefined {
+        try {
+            const webAiChartConfig = getWebAiChartConfig({
+                vizConfig: buildDeepResearchVizConfig(chart),
+                metricQuery: chart.metricQuery,
+                fieldsMap: chart.fields,
+                overrideChartType: chart.chartConfig.defaultVizType,
+            });
+            const groupByDimensions = getGroupByDimensions(webAiChartConfig);
+            if (!groupByDimensions?.length) {
+                return undefined;
+            }
+            return derivePivotConfigurationFromChart(
+                {
+                    chartConfig: webAiChartConfig.echartsConfig,
+                    pivotConfig: { columns: groupByDimensions },
+                },
+                chart.metricQuery,
+                chart.fields,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Deep Research chart ${chart.queryUuid} refresh falls back to unpivoted results: ${getErrorMessage(error)}`,
+            );
+            return undefined;
+        }
     }
 
     async getChart(args: {
@@ -1218,6 +1272,7 @@ export class AiDeepResearchService extends BaseService {
                 payload.aiDeepResearchRunUuid,
                 'Deep Research executor is not configured',
                 'internal_error',
+                'enqueue',
             );
             await this.dispatchPendingLifecycleAnalytics(
                 payload.aiDeepResearchRunUuid,
@@ -1226,8 +1281,10 @@ export class AiDeepResearchService extends BaseService {
         }
 
         let checkpointedReport: AiDeepResearchSubmittedReport | null = null;
+        let currentStage: AiDeepResearchFailureStage = 'investigation';
         try {
             const result = await this.executor(run, { signal });
+            currentStage = 'persistence';
             if (result.status === 'completed') {
                 const report = await this.persistAndPrepareEvidenceReport(
                     run,
@@ -1284,12 +1341,14 @@ export class AiDeepResearchService extends BaseService {
                                   payload.aiDeepResearchRunUuid,
                                   report.markdown,
                                   result.terminalReason,
+                                  result.failureStage,
                                   report.adjustments,
                               )
                             : this.aiDeepResearchRunModel.markPartiallyCompleted(
                                   payload.aiDeepResearchRunUuid,
                                   report.markdown,
                                   result.terminalReason,
+                                  result.failureStage,
                               ),
                     (error, attempt) => {
                         this.logger.warn(
@@ -1318,6 +1377,7 @@ export class AiDeepResearchService extends BaseService {
                         ? AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE
                         : FAILED_RUN_ERROR_MESSAGE,
                     result.terminalReason,
+                    result.failureStage,
                 );
                 await this.dispatchPendingLifecycleAnalytics(
                     payload.aiDeepResearchRunUuid,
@@ -1327,6 +1387,7 @@ export class AiDeepResearchService extends BaseService {
 
             const cancelled = await this.aiDeepResearchRunModel.markCancelled(
                 payload.aiDeepResearchRunUuid,
+                result.failureStage,
                 result.terminalReason,
             );
             if (cancelled) {
@@ -1338,6 +1399,7 @@ export class AiDeepResearchService extends BaseService {
                     payload.aiDeepResearchRunUuid,
                     'Deep Research stopped without a cancellation request',
                     'internal_error',
+                    result.failureStage,
                 );
                 await this.dispatchPendingLifecycleAnalytics(
                     payload.aiDeepResearchRunUuid,
@@ -1352,6 +1414,9 @@ export class AiDeepResearchService extends BaseService {
                     payload.aiDeepResearchRunUuid,
                     FAILED_RUN_ERROR_MESSAGE,
                     'internal_error',
+                    error instanceof AiDeepResearchExecutorStageError
+                        ? error.failureStage
+                        : currentStage,
                 );
             }
             await this.dispatchPendingLifecycleAnalytics(
@@ -1757,7 +1822,9 @@ export class AiDeepResearchService extends BaseService {
                 };
             }
 
-            const parsedArgs = toolRunQueryArgsSchema.safeParse(toolArgs);
+            // Persisted args may predate the current advertised contract.
+            const parsedArgs =
+                toolRunQueryArgsSchemaPersisted.safeParse(toolArgs);
             const resolvedChart = resolveDeepResearchWarehouseChart(
                 toolArgs,
                 queryUuid,
@@ -1852,6 +1919,7 @@ export class AiDeepResearchService extends BaseService {
         ) {
             const cancelled = await this.aiDeepResearchRunModel.markCancelled(
                 aiDeepResearchRunUuid,
+                'persistence',
             );
             if (cancelled) {
                 await this.dispatchPendingLifecycleAnalytics(
@@ -1877,12 +1945,12 @@ export class AiDeepResearchService extends BaseService {
 
     async sweepStaleRuns(): Promise<number> {
         const runs = await this.aiDeepResearchRunModel.markStaleRunsAsFailed(
-            STALE_RUN_THRESHOLD_MINUTES,
+            AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
             STALE_RUN_ERROR_MESSAGE,
         );
         if (runs.length > 0) {
             this.logger.warn(
-                `Swept ${runs.length} stale Deep Research run(s) after ${STALE_RUN_THRESHOLD_MINUTES} minutes`,
+                `Swept ${runs.length} stale Deep Research run(s) after ${AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES} minutes`,
             );
         }
         await this.dispatchPendingLifecycleAnalytics();

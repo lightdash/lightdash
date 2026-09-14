@@ -1,13 +1,23 @@
 import {
+    getItemId,
     isAdditionalMetric,
+    isCompiledMetric,
     isCustomDimension,
     isDimension,
     isField,
     isFilterableField,
     isMetric,
+    MetricType,
+    type Dimension,
     type FilterableField,
 } from '@lightdash/common';
-import { UnstyledButton, ActionIcon, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Badge,
+    HoverCard,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
 import { IconFilter, IconTrash } from '@tabler/icons-react';
 import {
     Fragment,
@@ -23,16 +33,22 @@ import { useToggle } from 'react-use';
 import {
     explorerActions,
     selectIsFieldFiltered,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
     type ExplorerStoreState,
 } from '../../../features/explorer/store';
+import { useExplore } from '../../../hooks/useExplore';
 import { useAddFilter } from '../../../hooks/useFilters';
+import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './SelectedFieldsSection.module.css';
+import { ItemDetailPreview } from './TableTree/ItemDetailPreview';
+import previewClasses from './TableTree/ItemDetailPreview.module.css';
+import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from './TableTree/itemDetailPreviewTransition';
 import TreeSingleNodeActions from './TableTree/Tree/TreeSingleNodeActions';
 import { type NodeItem } from './TableTree/Tree/types';
 import { useCustomMetricDelete } from './useCustomMetricDelete';
@@ -69,9 +85,42 @@ const getFieldLabel = (item: NodeItem): string =>
         ? item.label || item.name
         : item.name;
 
+const renderAggregatedSql = (sql: string, type: MetricType): string => {
+    switch (type) {
+        case MetricType.AVERAGE:
+            return `AVG(${sql})`;
+        case MetricType.COUNT:
+            return `COUNT(${sql})`;
+        case MetricType.COUNT_DISTINCT:
+            return `COUNT(DISTINCT ${sql})`;
+        case MetricType.MAX:
+            return `MAX(${sql})`;
+        case MetricType.MIN:
+            return `MIN(${sql})`;
+        case MetricType.SUM:
+            return `SUM(${sql})`;
+        default:
+            return sql;
+    }
+};
+
 type RowProps = {
     row: RenderedRow;
     onDeselect: (fieldId: string, isDimension: boolean) => void;
+};
+
+/**
+ * Walkthrough result for manage:CustomFields: a custom dimension's row in
+ * the sidebar's Selected list, there as soon as the dimension exists.
+ */
+const customDimensionTourProps = {
+    'data-tour-scope': 'manage:CustomFields',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid/edit',
+    'data-tour-label': 'The dimension joins the sidebar',
+    'data-tour-docs': 'explore/create-custom-fields.mdx#custom-dimensions:p2:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'explore/create-custom-fields.mdx#bin:p3:1',
 };
 
 const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
@@ -91,9 +140,20 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
     const dispatch = useExplorerDispatch();
     const addFilter = useAddFilter();
     const { track } = useTracking();
+    const activeTableName = useExplorerSelector(selectTableName);
+    const { data: exploreData } = useExplore(activeTableName);
 
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
+
+    // Registry metrics stay frozen here too; the badge marks provenance
+    const dashboardMetricIds = useModalHostedDashboardMetricIds();
+    const isRegistryMetric =
+        isAdditionalMetric(item) &&
+        (dashboardMetricIds?.has(getItemId(item)) ?? false);
+    const isDashboardMetric =
+        isRegistryMetric ||
+        (dashboardMetricIds !== undefined && isAdditionalMetric(item));
 
     const selectIsFiltered = useMemo(
         () => (state: ExplorerStoreState) =>
@@ -115,7 +175,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         useCustomMetricDelete({
             item,
             fieldId,
-            isHover,
+            isHover: isHover && !isRegistryMetric,
         });
     const showDeleteAction = !hideActions && canShowDeleteAction;
 
@@ -123,6 +183,44 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         isField(item) || isAdditionalMetric(item)
             ? item.description
             : undefined;
+
+    const metricInfo = useMemo(() => {
+        if (isCompiledMetric(item)) {
+            return {
+                type: item.type,
+                sql: item.sql,
+                compiledSql: item.compiledSql,
+                filters: item.filters,
+                table: item.table,
+                name: item.name,
+            };
+        }
+        if (isAdditionalMetric(item)) {
+            const baseDimensionCandidate =
+                item.baseDimensionName && exploreData
+                    ? exploreData.tables[item.table]?.dimensions[
+                          item.baseDimensionName
+                      ]
+                    : undefined;
+            const baseDimension: Dimension | undefined =
+                baseDimensionCandidate && isDimension(baseDimensionCandidate)
+                    ? baseDimensionCandidate
+                    : undefined;
+            const baseSql = item.sql ?? '';
+            return {
+                type: item.type,
+                sql: baseSql,
+                compiledSql: renderAggregatedSql(baseSql, item.type),
+                filters: item.filters,
+                table: item.table,
+                name: item.name,
+                baseDimension,
+            };
+        }
+        return undefined;
+    }, [item, exploreData]);
+
+    const isHoverCardDisabled = !description && !metricInfo;
 
     const label = getFieldLabel(item);
 
@@ -137,6 +235,10 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
     const handleMouseLeave = useCallback(
         () => toggleHover(false),
         [toggleHover],
+    );
+    const handleDropdownClick = useCallback(
+        (e: React.MouseEvent) => e.stopPropagation(),
+        [],
     );
 
     const handleFilterClick = useCallback(
@@ -182,15 +284,49 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             data-testid={`selected-field-${selectionKey ?? fieldId}`}
+            {...(isCustomDimension(item) ? customDimensionTourProps : {})}
         >
             <FieldIcon item={item} size="md" />
-            <span className={classes.label} title={label}>
-                {label}
-            </span>
+            <HoverCard
+                openDelay={300}
+                keepMounted={false}
+                withArrow
+                disabled={isHoverCardDisabled}
+                position="right"
+                offset={70}
+                transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
+            >
+                <HoverCard.Target>
+                    <span className={classes.label} title={label}>
+                        {label}
+                    </span>
+                </HoverCard.Target>
+                <HoverCard.Dropdown
+                    hidden={!isHover}
+                    p="md"
+                    miw={400}
+                    mah={500}
+                    maw={500}
+                    className={previewClasses.previewDropdown}
+                    onClick={handleDropdownClick}
+                >
+                    <ItemDetailPreview
+                        onViewDescription={onOpenDescriptionView}
+                        description={description}
+                        metricInfo={metricInfo}
+                    />
+                </HoverCard.Dropdown>
+            </HoverCard>
+            {isDashboardMetric && (
+                <Tooltip label="Only available in this dashboard">
+                    <Badge size="xs" radius="sm" px={4} flex="0 0 auto">
+                        =
+                    </Badge>
+                </Tooltip>
+            )}
             <span className={classes.actions}>
                 {showFilterAction && (
                     <Tooltip
-                        withinPortal
                         label={
                             isFiltered
                                 ? 'This field is filtered'
@@ -201,8 +337,6 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             aria-label={
                                 isFiltered ? 'Field is filtered' : 'Add filter'
                             }
-                            variant="subtle"
-                            color="gray"
                             onClick={handleFilterClick}
                         >
                             <MantineIcon icon={IconFilter} />
@@ -210,12 +344,8 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                     </Tooltip>
                 )}
                 {showDeleteAction && (
-                    <Tooltip withinPortal label="Delete custom metric">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            onClick={handleDeleteClick}
-                        >
+                    <Tooltip label="Delete custom metric">
+                        <ActionIcon onClick={handleDeleteClick}>
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>
@@ -223,6 +353,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                 {/* Mounted on hover only so the labels get the space at rest */}
                 {!hideActions &&
                     (!basicActionsOnly ||
+                        isRegistryMetric ||
                         !!description ||
                         (!isAdditionalMetric(item) &&
                             isFilterableField(item))) &&
@@ -236,7 +367,10 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             onViewDescription={onOpenDescriptionView}
                             onMenuChange={onToggleMenu}
                             onAddFilter={fieldOnAddFilter}
-                            basicActionsOnly={basicActionsOnly}
+                            basicActionsOnly={
+                                basicActionsOnly || isRegistryMetric
+                            }
+                            allowRegistryEdit={isRegistryMetric}
                         />
                     )}
             </span>

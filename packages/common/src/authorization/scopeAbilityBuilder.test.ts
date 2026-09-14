@@ -19,6 +19,57 @@ describe('scopeAbilityBuilder', () => {
         organizationUuid: 'org-123',
     };
 
+    it('grants organization roadmap management through a custom scope', () => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        buildAbilityFromScopes(
+            {
+                ...baseContextWithOrg,
+                isEnterprise: true,
+                scopes: ['manage:Roadmap'],
+            },
+            builder,
+        );
+        const ability = builder.build();
+        expect(
+            ability.can(
+                'manage',
+                subject('Roadmap', { organizationUuid: 'org-123' }),
+            ),
+        ).toBe(true);
+        expect(
+            ability.can(
+                'view',
+                subject('Roadmap', { organizationUuid: 'org-123' }),
+            ),
+        ).toBe(true);
+        expect(
+            ability.can(
+                'manage',
+                subject('Roadmap', { organizationUuid: 'different-org' }),
+            ),
+        ).toBe(false);
+    });
+
+    it('keeps roadmap view-only scopes read-only', () => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        buildAbilityFromScopes(
+            {
+                ...baseContextWithOrg,
+                isEnterprise: true,
+                scopes: ['view:Roadmap'],
+            },
+            builder,
+        );
+        expect(
+            builder
+                .build()
+                .can(
+                    'manage',
+                    subject('Roadmap', { organizationUuid: 'org-123' }),
+                ),
+        ).toBe(false);
+    });
+
     it('should build ability with organization view permissions', () => {
         const builder = new AbilityBuilder<MemberAbility>(Ability);
         buildAbilityFromScopes(

@@ -1,7 +1,12 @@
-import type { PullRequestProvider, PullRequestSource } from '@lightdash/common';
+import { PullRequestProvider, type PullRequestSource } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { type PullRequestRow } from './types';
-import { getReviewPath, getThreadPath, getThreadPreviewTarget } from './utils';
+import {
+    getProviderLabel,
+    getReviewPath,
+    getThreadPath,
+    getThreadPreviewTarget,
+} from './utils';
 
 const makeRow = (overrides: Partial<PullRequestRow> = {}): PullRequestRow => ({
     pullRequestUuid: 'pr-1',
@@ -26,6 +31,14 @@ const makeRow = (overrides: Partial<PullRequestRow> = {}): PullRequestRow => ({
 });
 
 describe('pullRequests utils', () => {
+    it.each([
+        [PullRequestProvider.GITHUB, 'GitHub'],
+        [PullRequestProvider.GITLAB, 'GitLab'],
+        [PullRequestProvider.BITBUCKET, 'Bitbucket'],
+    ])('labels %s pull requests', (provider, label) => {
+        expect(getProviderLabel(provider)).toBe(label);
+    });
+
     it('prefers the source review thread over the writeback thread', () => {
         expect(
             getThreadPreviewTarget(

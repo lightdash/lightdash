@@ -109,14 +109,12 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
 
                 <Popover width={250} position="bottom-start">
                     <Popover.Target>
-                        <Tooltip withinPortal label="Filter by source type">
+                        <Tooltip label="Filter by source type">
                             <Button
                                 h={30}
                                 c="foreground"
-                                fw={500}
                                 fz="xs"
                                 variant="default"
-                                radius="md"
                                 px="sm"
                                 className={
                                     sourceTypeFilter.length > 0
@@ -178,7 +176,7 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                     }
                     label={
                         <Tooltip label="Include chart configuration warnings">
-                            <Box c="ldGray.6">Warnings</Box>
+                            <Box c="dimmed">Warnings</Box>
                         </Tooltip>
                     }
                     size="xs"
@@ -187,12 +185,7 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
 
                 {hasActiveFilters && (
                     <Tooltip label="Reset filters">
-                        <ActionIcon
-                            variant="subtle"
-                            size="sm"
-                            color="gray"
-                            onClick={resetFilters}
-                        >
+                        <ActionIcon size="sm" onClick={resetFilters}>
                             <MantineIcon icon={IconArrowBack} />
                         </ActionIcon>
                     </Tooltip>
@@ -224,12 +217,12 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                     </Group>
                 )}
                 {lastValidatedAt && (
-                    <Text fw={500} fz="xs" c="ldGray.6">
+                    <Text fw={500} fz="xs" c="dimmed">
                         Last validated: {formatTime(lastValidatedAt)}
                     </Text>
                 )}
                 {totalResults > 0 && (
-                    <Badge variant="light" color="red" size="sm">
+                    <Badge color="red" size="sm">
                         {totalResults} error{totalResults === 1 ? '' : 's'}
                     </Badge>
                 )}

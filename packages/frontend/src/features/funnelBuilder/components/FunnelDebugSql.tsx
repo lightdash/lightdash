@@ -24,7 +24,7 @@ export const FunnelDebugSql: FC = () => {
                     </Text>
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened}>
+            <Collapse expanded={opened}>
                 <Code block mt="xs">
                     {results.sql}
                 </Code>

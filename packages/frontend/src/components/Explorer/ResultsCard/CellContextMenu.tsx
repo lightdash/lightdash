@@ -19,6 +19,7 @@ import { useMergeQuickFilter } from '../../../features/mergeQuery/hooks/useMerge
 import { useMergeSourceCell } from '../../../features/mergeQuery/hooks/useMergeSourceCell';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useAccount } from '../../../hooks/user/useAccount';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -44,7 +45,7 @@ const CellContextMenu: FC<
     const merge = useMergeSafe();
     const isMerged = !!merge?.mergeResults;
     const mergeQuickFilter = useMergeQuickFilter();
-    const { openUnderlyingDataModal, metricQuery } =
+    const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastError, showToastSuccess } = useToaster();
@@ -52,7 +53,24 @@ const CellContextMenu: FC<
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
     const { user } = useApp();
+    const { data: account } = useAccount();
     const projectUuid = useProjectUuid();
+    const isEmbedded = account?.isJwtUser() === true;
+    const organizationUuid =
+        user.data?.organizationUuid ?? account?.organization.organizationUuid;
+    const drillDownPermission = subject(
+        'Explore',
+        isEmbedded
+            ? {
+                  organizationUuid,
+                  projectUuid,
+                  exploreNames: [tableName],
+              }
+            : {
+                  organizationUuid: user.data?.organizationUuid,
+                  projectUuid,
+              },
+    );
 
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
@@ -160,13 +178,24 @@ const CellContextMenu: FC<
                     <Can
                         I="view"
                         this={subject('UnderlyingData', {
-                            organizationUuid: user.data?.organizationUuid,
+                            organizationUuid,
                             projectUuid: projectUuid,
                         })}
                     >
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconStack} />}
                             onClick={handleViewUnderlyingData}
+                            // Walkthrough action for view:UnderlyingData:
+                            // the records behind a number. See
+                            // scripts/scope-tours.
+                            data-tour-scope="view:UnderlyingData"
+                            data-tour-step="2"
+                            data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                            data-tour-label="Click View underlying data"
+                            data-tour-title="See the records behind a number"
+                            data-tour-interactive="true"
+                            data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"] >> [data-tour-anchor="results-metric-cell"]'
+                            data-tour-docs="explore/dashboards/interact.mdx#view-underlying-data:1"
                         >
                             View underlying data
                         </Menu.Item>
@@ -193,7 +222,8 @@ const CellContextMenu: FC<
                             }
                         />
                     )}
-
+            </Can>
+            <Can I={isEmbedded ? 'view' : 'manage'} this={drillDownPermission}>
                 {(!isMerged || resolvedSourceCell) && (
                     <DrillDownMenuItem
                         item={resolvedSourceCell?.item ?? item}
@@ -202,7 +232,7 @@ const CellContextMenu: FC<
                         }
                         source={resolvedSourceCell?.source}
                         trackingData={{
-                            organizationId: user.data?.organizationUuid,
+                            organizationId: organizationUuid,
                             userId: user.data?.userUuid,
                             projectId: projectUuid,
                         }}

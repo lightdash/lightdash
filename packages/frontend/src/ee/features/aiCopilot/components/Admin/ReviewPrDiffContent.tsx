@@ -17,6 +17,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from './pierreDiffConfig';
+import classes from './ReviewPrDiffContent.module.css';
 
 type Props = {
     diff: AiAgentReviewItemPrDiff | undefined;
@@ -64,9 +65,8 @@ export const ReviewPrDiffContent: FC<Props> = ({
                 {diff.files.map((file) => (
                     <Paper
                         key={file.path}
-                        withBorder
                         radius="md"
-                        style={{ overflow: 'hidden' }}
+                        className={classes.diffPanel}
                     >
                         <Virtualizer style={viewportStyle}>
                             <MultiFileDiff
@@ -82,7 +82,7 @@ export const ReviewPrDiffContent: FC<Props> = ({
                                 // itself to override its `:host` default.
                                 style={{ colorScheme }}
                                 renderHeaderMetadata={() => (
-                                    <Text fz="xs" c="ldGray.6">
+                                    <Text fz="xs" c="dimmed">
                                         +{file.additions} −{file.deletions}
                                     </Text>
                                 )}

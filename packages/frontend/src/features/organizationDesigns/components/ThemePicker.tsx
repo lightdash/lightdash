@@ -99,7 +99,6 @@ export const ThemePicker: FC<Props> = ({
         <Button
             variant="default"
             size="xs"
-            radius="md"
             color="gray"
             miw={200}
             h="auto"
@@ -168,9 +167,7 @@ export const ThemePicker: FC<Props> = ({
             onDismiss={() => setOpened(false)}
             position={compact ? 'top-start' : 'bottom-start'}
             offset={8}
-            shadow="md"
             width={300}
-            withinPortal
             closeOnItemClick
         >
             <Menu.Target>
@@ -178,7 +175,6 @@ export const ThemePicker: FC<Props> = ({
                     <Tooltip
                         label="Theme can't be changed after creation"
                         position="top"
-                        withArrow
                     >
                         {/* Tooltip needs a non-disabled wrapper to listen for
                             hover; Box renders the disabled Button inside. */}

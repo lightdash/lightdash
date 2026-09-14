@@ -24,6 +24,9 @@ export type WizardValues = {
     apiKeyName: string;
     apiKeyLocation: ApiKeyLocation;
     oauthScopes: string[];
+    oauthTokenUrl: string;
+    oauthClientId: string;
+    oauthClientAuthMethod: 'basic' | 'body';
     customHeaders: CustomHeaderRow[];
     allowedMethods: ExternalConnectionMethod[];
     pathMode: PathMode;
@@ -74,12 +77,15 @@ export const applyProposalToWizardValues = (
         name: proposal.name,
         origin: proposal.origin,
         type: proposal.type,
-        allowBrowserImages: false,
+        allowBrowserImages: proposal.allowBrowserImages,
         allowDataAppBuilderLinking: false,
         secret: '',
         apiKeyName: proposal.apiKeyName ?? '',
         apiKeyLocation: proposal.apiKeyLocation ?? 'header',
         oauthScopes: proposal.oauthScopes ?? [],
+        oauthTokenUrl: proposal.oauthTokenUrl ?? '',
+        oauthClientId: proposal.oauthClientId ?? '',
+        oauthClientAuthMethod: proposal.oauthClientAuthMethod ?? 'basic',
         customHeaders: recordToCustomHeaderRows(proposal.customHeaders),
         allowedMethods: proposal.allowedMethods,
         pathMode: mode,

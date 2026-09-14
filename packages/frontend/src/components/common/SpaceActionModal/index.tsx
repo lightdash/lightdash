@@ -4,12 +4,14 @@ import {
     type Space,
 } from '@lightdash/common';
 import { Button, Group, type DefaultMantineColor } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import {
     useCreateMutation,
     useSpace,
@@ -135,6 +137,17 @@ const SpaceModal: FC<ActionModalProps> = ({
                         color={confirmButtonColor}
                         loading={isLoading}
                         form="form-space-action-modal"
+                        // Walkthrough marker for create:Space: the space is
+                        // created here; the learner then opens it by name.
+                        // See scripts/scope-tours/generate.ts.
+                        data-tour-scope="create:Space"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/spaces"
+                        data-tour-label="Click Create"
+                        data-tour-title="Create a space"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-spaces"] >> [data-tour-anchor="add-space"] >> [data-tour-anchor="space-name"]'
+                        data-tour-docs="explore/spaces.mdx#creating-a-space:1"
                     >
                         {confirmButtonLabel}
                     </Button>
@@ -179,6 +192,9 @@ const SpaceActionModal: FC<
     parentSpaceUuid,
     ...props
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid, {
         enabled: !!spaceUuid,
     });
@@ -190,7 +206,7 @@ const SpaceActionModal: FC<
             onSuccess: (space) => {
                 if (shouldRedirect) {
                     void navigate(
-                        `/projects/${projectUuid}/spaces/${space.uuid}`,
+                        `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
                     );
                 }
             },

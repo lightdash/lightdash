@@ -622,6 +622,53 @@ describe('applyDimensionOverrides', () => {
             expect(result[1]).toEqual(overrides[1]);
         });
 
+        it('reserves an exact id match for a later saved filter sharing the field', () => {
+            const savedFilters: DashboardFilters = {
+                dimensions: [
+                    createBaseDashboardFilter(
+                        'saved-a',
+                        'customers_customer_id',
+                        'customers',
+                        ['1'],
+                    ),
+                    createBaseDashboardFilter(
+                        'saved-b',
+                        'customers_customer_id',
+                        'customers',
+                        ['2'],
+                    ),
+                ],
+                metrics: [],
+                tableCalculations: [],
+            };
+            const overrides: DashboardFilterRule[] = [
+                createOverrideFilter(
+                    'saved-b',
+                    'customers_customer_id',
+                    'customers',
+                    ['exact-b'],
+                ),
+                createOverrideFilter(
+                    'stale-a',
+                    'customers_customer_id',
+                    'customers',
+                    ['stale-a'],
+                ),
+            ];
+
+            const result = applyDimensionOverrides(savedFilters, overrides);
+
+            expect(result).toHaveLength(2);
+            expect(result[0]).toMatchObject({
+                id: 'saved-a',
+                values: ['stale-a'],
+            });
+            expect(result[1]).toMatchObject({
+                id: 'saved-b',
+                values: ['exact-b'],
+            });
+        });
+
         it('reconciles only the first of two saved filters sharing a field', () => {
             const savedFilters: DashboardFilters = {
                 dimensions: [

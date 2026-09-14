@@ -12,6 +12,7 @@ import {
 } from 'yaml';
 import { parseAllReferences } from '../../compiler/exploreCompiler';
 import lightdashDbtYamlSchema from '../../schemas/json/lightdash-dbt-2.0.json';
+import { type DbtColumnLightdashAdditionalDimension } from '../../types/dbt';
 import { ParseError } from '../../types/errors';
 import {
     defaultSql,
@@ -275,11 +276,14 @@ export default class DbtSchemaEditor {
         return this;
     }
 
-    private addCustomBinDimension(
-        customDimension: CustomBinDimension,
+    getCustomDimensionDefinition(
+        customDimension: CustomDimension,
         warehouseSqlBuilder: WarehouseSqlBuilder,
-    ): DbtSchemaEditor {
-        // Extract base dimension name from custom dimension id. Eg: `table_a_dim_a` -> `dim_a`
+    ): DbtColumnLightdashAdditionalDimension {
+        if (isCustomSqlDimension(customDimension)) {
+            return convertCustomSqlDimensionToDbt(customDimension);
+        }
+
         const baseDimensionName = customDimension.dimensionId.replace(
             `${customDimension.table}_`,
             '',
@@ -294,32 +298,53 @@ export default class DbtSchemaEditor {
             );
         }
 
-        // Generate base dimension SQL
         let baseDimensionSql = defaultSql(baseDimensionName);
-        // Use base dimension custom SQL if exists
-        const columnSql = column.getIn(['meta', 'dimension', 'sql']);
+        const columnSql =
+            column.getIn(['config', 'meta', 'dimension', 'sql'], true) ??
+            column.getIn(['meta', 'dimension', 'sql'], true);
         if (isScalar(columnSql) && typeof columnSql.value === 'string') {
             baseDimensionSql = columnSql.value;
         }
+
+        return convertCustomBinDimensionToDbt({
+            customDimension,
+            baseDimensionSql,
+            warehouseSqlBuilder,
+        });
+    }
+
+    private addCustomBinDimension(
+        customDimension: CustomBinDimension,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
+    ): DbtSchemaEditor {
+        const baseDimensionName = customDimension.dimensionId.replace(
+            `${customDimension.table}_`,
+            '',
+        );
+        const column = this.findColumnByName(
+            customDimension.table,
+            baseDimensionName,
+        );
+        if (!column) {
+            throw new Error(
+                `Column ${baseDimensionName} not found in model ${customDimension.table}`,
+            );
+        }
+        const definition = this.getCustomDimensionDefinition(
+            customDimension,
+            warehouseSqlBuilder,
+        );
 
         // For dbt >= 1.10, meta should be inside config
         if (isDbtVersion110OrHigher(this.dbtVersion)) {
             column.setIn(
                 ['config', 'meta', 'additional_dimensions', customDimension.id],
-                convertCustomBinDimensionToDbt({
-                    customDimension,
-                    baseDimensionSql,
-                    warehouseSqlBuilder,
-                }),
+                definition,
             );
         } else {
             column.setIn(
                 ['meta', 'additional_dimensions', customDimension.id],
-                convertCustomBinDimensionToDbt({
-                    customDimension,
-                    baseDimensionSql,
-                    warehouseSqlBuilder,
-                }),
+                definition,
             );
         }
         return this;

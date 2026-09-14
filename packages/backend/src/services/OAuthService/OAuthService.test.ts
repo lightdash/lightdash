@@ -6,6 +6,8 @@ import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { OAuthService } from './OAuthService';
 
+const JAVASCRIPT_REDIRECT_URI = ['javascript', 'alert(1)'].join(':');
+
 // Test subclass to expose oauthServer for mocking
 class TestOAuthService extends OAuthService {
     public setOAuthServer(server: AnyType) {
@@ -25,8 +27,13 @@ describe('OAuthService edge cases', () => {
         } as AnyType;
         mockOAuthModel = {
             getAccessToken: vi.fn(),
+            getClient: vi.fn(),
+            getRefreshToken: vi.fn(),
             revokeToken: vi.fn(),
             revokeRefreshToken: vi.fn(),
+            deleteRefreshToken: vi.fn(),
+            deleteAccessToken: vi.fn(),
+            validateRedirectUri: vi.fn(),
         } as AnyType;
         mockLightdashConfig = {
             siteUrl: 'https://lightdash.com',
@@ -117,5 +124,138 @@ describe('OAuthService edge cases', () => {
                 organization_uuid: 'o',
             } as AnyType),
         ).rejects.toThrow('Invalid redirect_uri');
+    });
+
+    describe('validateRedirectUri', () => {
+        const client: OAuth2Server.Client = {
+            id: 'client-id',
+            redirectUris: ['https://example.com/callback'],
+            grants: ['authorization_code'],
+        };
+
+        it('returns false when the client cannot be resolved', async () => {
+            vi.mocked(mockOAuthModel.getClient).mockResolvedValue(false);
+
+            await expect(
+                oauthService.validateRedirectUri(
+                    'unknown-client',
+                    'https://example.com/callback',
+                ),
+            ).resolves.toBe(false);
+            expect(mockOAuthModel.validateRedirectUri).not.toHaveBeenCalled();
+        });
+
+        it('delegates redirect matching to the OAuth model', async () => {
+            vi.mocked(mockOAuthModel.getClient).mockResolvedValue(client);
+            vi.mocked(mockOAuthModel.validateRedirectUri).mockResolvedValue(
+                true,
+            );
+
+            await expect(
+                oauthService.validateRedirectUri(
+                    'client-id',
+                    'https://example.com/callback',
+                ),
+            ).resolves.toBe(true);
+            expect(mockOAuthModel.validateRedirectUri).toHaveBeenCalledWith(
+                'https://example.com/callback',
+                client,
+            );
+        });
+    });
+
+    describe('revokeToken', () => {
+        const refreshToken = {
+            refreshToken: 'refresh-token',
+            refreshTokenExpiresAt: new Date('2026-12-01T00:00:00.000Z'),
+            client: { id: 'oauth-mobile', grants: ['refresh_token'] },
+            user: { userId: 42, organizationUuid: 'organization-uuid' },
+        } as AnyType;
+
+        it('deletes a refresh token outright and never softly revokes it', async () => {
+            vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(
+                refreshToken,
+            );
+            vi.mocked(mockOAuthModel.deleteRefreshToken).mockResolvedValue(
+                true,
+            );
+
+            await expect(
+                oauthService.revokeToken('refresh-token'),
+            ).resolves.toBe(true);
+            expect(mockOAuthModel.deleteRefreshToken).toHaveBeenCalledWith(
+                'refresh-token',
+            );
+            expect(mockOAuthModel.revokeToken).not.toHaveBeenCalled();
+        });
+
+        it('tells the listener which grant the user revoked', async () => {
+            const onGrantRevoked = vi.fn(async () => undefined);
+            const service = new TestOAuthService({
+                userModel: mockUserModel,
+                oauthModel: mockOAuthModel,
+                lightdashConfig: mockLightdashConfig,
+                onGrantRevoked,
+            });
+            vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(
+                refreshToken,
+            );
+            vi.mocked(mockOAuthModel.deleteRefreshToken).mockResolvedValue(
+                true,
+            );
+
+            await service.revokeToken('refresh-token');
+
+            expect(onGrantRevoked).toHaveBeenCalledWith({
+                userId: 42,
+                clientId: 'oauth-mobile',
+            });
+        });
+
+        it('leaves the listener alone when no row was deleted', async () => {
+            const onGrantRevoked = vi.fn(async () => undefined);
+            const service = new TestOAuthService({
+                userModel: mockUserModel,
+                oauthModel: mockOAuthModel,
+                lightdashConfig: mockLightdashConfig,
+                onGrantRevoked,
+            });
+            vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(
+                refreshToken,
+            );
+            vi.mocked(mockOAuthModel.deleteRefreshToken).mockResolvedValue(
+                false,
+            );
+
+            await expect(service.revokeToken('refresh-token')).resolves.toBe(
+                false,
+            );
+            expect(onGrantRevoked).not.toHaveBeenCalled();
+        });
+
+        it('deletes an access token when the value is not a refresh token', async () => {
+            vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(false);
+            vi.mocked(mockOAuthModel.deleteAccessToken).mockResolvedValue(true);
+
+            await expect(
+                oauthService.revokeToken('access-token'),
+            ).resolves.toBe(true);
+            expect(mockOAuthModel.deleteAccessToken).toHaveBeenCalledWith(
+                'access-token',
+            );
+        });
+    });
+
+    describe('registerClient', () => {
+        it('rejects an unsafe redirect URI scheme', async () => {
+            await expect(
+                oauthService.registerClient({
+                    clientName: 'Unsafe client',
+                    redirectUris: [JAVASCRIPT_REDIRECT_URI],
+                }),
+            ).rejects.toThrow(
+                `Invalid redirect URI ${JAVASCRIPT_REDIRECT_URI}`,
+            );
+        });
     });
 });

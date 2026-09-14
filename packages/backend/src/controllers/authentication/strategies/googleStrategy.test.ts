@@ -89,6 +89,36 @@ describe('googleStrategyVerify', () => {
         expect(done).toHaveBeenCalledWith(null, user);
     });
 
+    it('rejects a Google profile whose email is not verified before logging in', async () => {
+        const userService = createUserService();
+        const done = vi.fn<VerifyCallback>();
+        const req = {
+            ip: '127.0.0.1',
+            get: vi.fn(() => 'test-agent'),
+            session: { oauth: {} },
+            services: { getUserService: () => userService },
+        } as unknown as Express.Request;
+        const unverifiedProfile = {
+            ...profile,
+            emails: [{ value: 'shared@example.com', verified: false }],
+        } as unknown as Profile;
+
+        await googleStrategyVerify(
+            req,
+            'access-token',
+            'refresh-token',
+            params,
+            unverifiedProfile,
+            done,
+        );
+
+        expect(userService.loginWithOpenId).not.toHaveBeenCalled();
+        expect(done).toHaveBeenCalledWith(null, undefined, {
+            message:
+                'Authentication failed: email is not verified in Google profile.',
+        });
+    });
+
     it('stores the grant separately after a login flow', async () => {
         const userService = createUserService();
         const done = vi.fn<VerifyCallback>();

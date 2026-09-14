@@ -17,6 +17,12 @@ export const toolGenerateHashesOutputSchema = z.object({
     metadata: baseOutputMetadataSchema,
 });
 
+export const mcpGenerateHashesStructuredOutputSchema = z.object({
+    hashes: z
+        .array(z.string().regex(/^[0-9a-z]{6}$/))
+        .describe('Base-36 hashes in the same order as the input strings.'),
+});
+
 export type ToolGenerateHashesArgs = z.infer<
     typeof toolGenerateHashesArgsSchema
 >;

@@ -23,6 +23,7 @@ import {
     getUserAttributesSetupConfig,
     parseConfig,
     parseOrganizationMemberRoleArray,
+    parseUsageEventsS3Config,
 } from './parseConfig';
 
 vi.mock('fs/promises', () => ({
@@ -37,6 +38,336 @@ beforeEach(() => {
         S3_BUCKET: 'mock_bucket',
         S3_REGION: 'mock_region',
     };
+});
+
+describe('query history retention', () => {
+    it('warns when cleanup can expire charts before their Deep Research reports', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        process.env.QUERY_HISTORY_RETENTION_DAYS = '29';
+
+        try {
+            expect(
+                parseConfig().scheduler.queryHistory.cleanup.retentionDays,
+            ).toBe(29);
+            expect(warn).toHaveBeenCalledWith(
+                'WARNING: QUERY_HISTORY_RETENTION_DAYS is below the 30-day Deep Research report retention. Report charts may become unavailable before their reports expire.',
+            );
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
+    it.each([undefined, '30', '32', '60'])(
+        'does not warn for a sufficient retention window: %s',
+        (retentionDays) => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            if (retentionDays !== undefined) {
+                process.env.QUERY_HISTORY_RETENTION_DAYS = retentionDays;
+            }
+
+            try {
+                expect(
+                    parseConfig().scheduler.queryHistory.cleanup.retentionDays,
+                ).toBe(
+                    retentionDays === undefined ? 32 : Number(retentionDays),
+                );
+                expect(warn).not.toHaveBeenCalledWith(
+                    expect.stringContaining('QUERY_HISTORY_RETENTION_DAYS'),
+                );
+            } finally {
+                warn.mockRestore();
+            }
+        },
+    );
+
+    it('does not warn when query history cleanup is disabled', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        process.env.QUERY_HISTORY_RETENTION_DAYS = '1';
+        process.env.QUERY_HISTORY_CLEANUP_ENABLED = 'false';
+
+        try {
+            expect(parseConfig().scheduler.queryHistory.cleanup).toMatchObject({
+                enabled: false,
+                retentionDays: 1,
+            });
+            expect(warn).not.toHaveBeenCalledWith(
+                expect.stringContaining('QUERY_HISTORY_RETENTION_DAYS'),
+            );
+        } finally {
+            warn.mockRestore();
+        }
+    });
+});
+
+describe('usage events storage endpoint', () => {
+    it('inherits the base endpoint when no override is configured', () => {
+        expect(parseUsageEventsS3Config()?.endpoint).toBe('mock_endpoint');
+    });
+
+    it('supports a separate endpoint without changing base storage', () => {
+        process.env.USAGE_EVENTS_S3_ENDPOINT = 'https://storage.googleapis.com';
+        expect(parseUsageEventsS3Config()?.endpoint).toBe(
+            'https://storage.googleapis.com',
+        );
+        expect(process.env.S3_ENDPOINT).toBe('mock_endpoint');
+    });
+});
+
+describe('mobile login config', () => {
+    it('is available by default', () => {
+        expect(parseConfig().auth.mobileLogin).toEqual({ enabled: true });
+    });
+
+    it('supports the rollback switch', () => {
+        process.env.AUTH_MOBILE_LOGIN_ENABLED = 'false';
+
+        expect(parseConfig().auth.mobileLogin).toEqual({ enabled: false });
+    });
+});
+
+describe('managed sign-in config', () => {
+    it('has no registrations by default', () => {
+        expect(parseConfig().auth.microsoftManagedSignIn).toEqual({
+            iosClientId: undefined,
+            androidClientId: undefined,
+        });
+    });
+
+    it('reads a registration per platform', () => {
+        process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_IOS_CLIENT_ID = 'ios-id';
+        process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID =
+            'android-id';
+
+        expect(parseConfig().auth.microsoftManagedSignIn).toEqual({
+            iosClientId: 'ios-id',
+            androidClientId: 'android-id',
+        });
+    });
+
+    it('reads one platform on its own', () => {
+        process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_IOS_CLIENT_ID = 'ios-id';
+
+        expect(parseConfig().auth.microsoftManagedSignIn).toEqual({
+            iosClientId: 'ios-id',
+            androidClientId: undefined,
+        });
+    });
+});
+
+describe('mobile push notification config', () => {
+    it('is disabled when APNs credentials are absent', () => {
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: false,
+            bundleId: 'com.lightdash.mobile',
+            teamId: undefined,
+            sandbox: undefined,
+            production: undefined,
+        });
+    });
+
+    it('enables a complete sandbox credential on Lightdash Cloud', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: true,
+            bundleId: 'com.lightdash.mobile',
+            teamId: 'TEAMID',
+            sandbox: { keyId: 'KEYID', privateKey: 'private-key' },
+            production: undefined,
+        });
+    });
+
+    it('enables a complete production credential on Lightdash Cloud', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: true,
+            bundleId: 'com.lightdash.mobile',
+            teamId: 'TEAMID',
+            sandbox: undefined,
+            production: { keyId: 'KEYID', privateKey: 'private-key' },
+        });
+    });
+
+    it('stays disabled outside Lightdash Cloud', () => {
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications.enabled).toBe(false);
+    });
+
+    it.each([
+        {
+            key: 'MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID' as const,
+            value: 'KEYID',
+        },
+        {
+            key: 'MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY' as const,
+            value: 'private-key',
+        },
+    ])('is disabled when only $key is set', ({ key, value }) => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env[key] = value;
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: false,
+            bundleId: 'com.lightdash.mobile',
+            teamId: 'TEAMID',
+            sandbox: undefined,
+            production: undefined,
+        });
+    });
+
+    it('is disabled when an environment credential has no team ID', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: false,
+            bundleId: 'com.lightdash.mobile',
+            teamId: undefined,
+            sandbox: undefined,
+            production: { keyId: 'KEYID', privateKey: 'private-key' },
+        });
+    });
+
+    it('allows the global config singleton to load with partial credentials', async () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID = 'KEYID';
+        vi.resetModules();
+
+        const { lightdashConfig } = await import('./lightdashConfig');
+
+        expect(lightdashConfig.mobilePushNotifications.enabled).toBe(false);
+    });
+
+    describe('FCM credential', () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it('is absent when all FCM variables are blank', () => {
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID = '';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL = '';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY = '';
+
+            expect(parseConfig().mobilePushNotifications).toEqual({
+                enabled: false,
+                bundleId: 'com.lightdash.mobile',
+                teamId: undefined,
+                sandbox: undefined,
+                production: undefined,
+                fcm: undefined,
+            });
+        });
+
+        it('is absent when all FCM variables are whitespace only', () => {
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID = '   ';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL = '\t';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY = '  \n ';
+
+            expect(parseConfig().mobilePushNotifications.fcm).toBeUndefined();
+        });
+
+        it('is present with trimmed values when all FCM variables are set', () => {
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID =
+                '  project-id  ';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL =
+                ' client@example.com\n';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY =
+                '\tprivate-key';
+
+            expect(parseConfig().mobilePushNotifications).toEqual({
+                enabled: true,
+                bundleId: 'com.lightdash.mobile',
+                teamId: undefined,
+                sandbox: undefined,
+                production: undefined,
+                fcm: {
+                    projectId: 'project-id',
+                    clientEmail: 'client@example.com',
+                    privateKey: 'private-key',
+                },
+            });
+        });
+
+        it('warns once and stays absent when only some FCM variables are set', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID = 'project-id';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL = '   ';
+
+            const config = parseConfig();
+
+            expect(config.mobilePushNotifications.fcm).toBeUndefined();
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn).toHaveBeenCalledWith(
+                'Mobile push FCM credential is missing: MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL, MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY',
+            );
+        });
+
+        it('does not warn when all FCM variables are absent', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+
+            parseConfig();
+
+            expect(warn).not.toHaveBeenCalled();
+        });
+    });
+});
+
+describe('license config', () => {
+    it('supports an offline license file with a license key', () => {
+        process.env.LIGHTDASH_LICENSE_KEY = 'license-key';
+        process.env.LIGHTDASH_LICENSE_CERTIFICATE = 'license-certificate';
+
+        expect(parseConfig().license).toEqual({
+            licenseKey: 'license-key',
+            licenseCertificate: 'license-certificate',
+        });
+    });
+
+    it('requires a license key with an offline license file', () => {
+        process.env.LIGHTDASH_LICENSE_CERTIFICATE = 'license-certificate';
+
+        expect(() => parseConfig()).toThrow(
+            'LIGHTDASH_LICENSE_KEY is required when LIGHTDASH_LICENSE_CERTIFICATE is set',
+        );
+    });
+});
+
+describe('AI prompt input request classifier config', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().ai.promptInputRequestClassifier.enabled).toBe(
+            false,
+        );
+    });
+
+    it('is enabled explicitly', () => {
+        process.env.AI_AGENT_PROMPT_INPUT_REQUEST_CLASSIFIER_ENABLED = 'true';
+
+        expect(parseConfig().ai.promptInputRequestClassifier.enabled).toBe(
+            true,
+        );
+    });
 });
 
 describe('Query phase metrics config', () => {
@@ -82,6 +413,68 @@ describe('HTTP server config', () => {
         process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS = '300000';
 
         expect(parseConfig().httpServer.keepAliveTimeoutMs).toBe(300_000);
+    });
+});
+
+describe('mobile minimum supported versions', () => {
+    it('defaults both platforms to null', () => {
+        expect(parseConfig().mobile).toEqual({
+            minimumSupportedVersion: {
+                android: null,
+                ios: null,
+            },
+        });
+    });
+
+    it.each([
+        {
+            environmentVariable: 'LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION',
+            platform: 'android' as const,
+            otherPlatform: 'ios' as const,
+        },
+        {
+            environmentVariable: 'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
+            platform: 'ios' as const,
+            otherPlatform: 'android' as const,
+        },
+    ])(
+        'configures $platform independently',
+        ({ environmentVariable, platform, otherPlatform }) => {
+            process.env[environmentVariable] = '2.3.4';
+
+            expect(parseConfig().mobile.minimumSupportedVersion).toMatchObject({
+                [platform]: '2.3.4',
+                [otherPlatform]: null,
+            });
+        },
+    );
+
+    it('keeps 1.10 as a string', () => {
+        process.env.LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION = '1.10';
+
+        expect(parseConfig().mobile.minimumSupportedVersion.android).toBe(
+            '1.10',
+        );
+    });
+
+    it.each([
+        '',
+        ' ',
+        '-1',
+        '+1',
+        '.1',
+        '1.',
+        '1..2',
+        '1. 2',
+        '1e2',
+        '1.2-beta',
+    ])('rejects invalid version %j', (value) => {
+        process.env.LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION = value;
+
+        expect(() => parseConfig()).toThrowError(ParseError);
+        expect(() => parseConfig()).toThrow(
+            'LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION',
+        );
     });
 });
 
@@ -517,6 +910,109 @@ test('Should parse bedrock inference profile prefix from env', () => {
     });
 });
 
+test('Should configure Gemini only when an explicit API key is set', () => {
+    process.env.GEMINI_MODEL_NAME = 'gemini-3.5-flash-lite';
+    expect(parseConfig().ai.copilot.providers.google).toBeUndefined();
+
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+    process.env.GEMINI_AVAILABLE_MODELS =
+        'gemini-3.8-flash,gemini-3.5-flash-lite';
+
+    expect(parseConfig().ai.copilot.providers.google).toEqual({
+        apiKey: 'test-gemini-key',
+        modelName: 'gemini-3.5-flash-lite',
+        baseUrl: undefined,
+        availableModels: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
+        supportsStreaming: true,
+    });
+});
+
+test('Should parse and normalize LLM gateway base URLs', () => {
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    process.env.ANTHROPIC_BASE_URL = ' https://anthropic-gateway.example/v1 ';
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+    process.env.GEMINI_BASE_URL = ' https://gemini-gateway.example/v1beta/ ';
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_BASE_URL = ' https://bedrock-gateway.example/runtime ';
+
+    expect(parseConfig()).toMatchObject({
+        ai: {
+            copilot: {
+                providers: {
+                    anthropic: {
+                        baseUrl: 'https://anthropic-gateway.example',
+                    },
+                    google: {
+                        baseUrl: 'https://gemini-gateway.example/v1beta',
+                    },
+                    bedrock: {
+                        baseUrl: 'https://bedrock-gateway.example/runtime',
+                    },
+                },
+            },
+        },
+    });
+});
+
+test.each(['1', 'true'])(
+    '%s enables Claude Code Bedrock skip-auth',
+    (value) => {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_BASE_URL =
+            'https://bedrock-gateway.example/runtime';
+        process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH = value;
+
+        expect(
+            parseConfig().ai.copilot.providers.bedrock?.claudeCodeSkipAuth,
+        ).toBe(true);
+    },
+);
+
+test.each([
+    ['ANTHROPIC_BASE_URL', 'gateway.internal'],
+    ['GEMINI_BASE_URL', 'gateway.internal'],
+    ['BEDROCK_BASE_URL', 'ftp://gateway.internal'],
+])('rejects invalid %s values', (environmentVariable, value) => {
+    process.env[environmentVariable] = value;
+    if (environmentVariable === 'GEMINI_BASE_URL') {
+        process.env.GEMINI_API_KEY = 'test-gemini-key';
+    }
+    if (environmentVariable === 'BEDROCK_BASE_URL') {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+    }
+
+    expect(() => parseConfig()).toThrow(environmentVariable);
+});
+
+test('explains that Bedrock skip-auth does not configure backend credentials', () => {
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_BASE_URL = 'https://bedrock-gateway.example/runtime';
+    process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH = 'true';
+
+    expect(() => parseConfig()).toThrow(
+        'BEDROCK_BASE_URL requires BEDROCK_API_KEY',
+    );
+});
+
+test('does not reuse an Anthropic gateway token for Managed Agent', () => {
+    process.env.ANTHROPIC_API_KEY = 'gateway-token';
+    process.env.ANTHROPIC_BASE_URL = 'https://anthropic-gateway.example';
+
+    expect(parseConfig().managedAgent.anthropicApiKey).toBeNull();
+
+    process.env.MANAGED_AGENT_ANTHROPIC_API_KEY = 'managed-agent-key';
+    expect(parseConfig().managedAgent.anthropicApiKey).toBe(
+        'managed-agent-key',
+    );
+
+    delete process.env.MANAGED_AGENT_ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_BASE_URL;
+    expect(parseConfig().managedAgent.anthropicApiKey).toBe('gateway-token');
+});
+
 test('Should default AI tool description max chars to 600', () => {
     expect(parseConfig().ai.copilot.toolDescriptionMaxChars).toEqual(600);
 });
@@ -692,6 +1188,7 @@ describe('getStringRecordFromEnvironmentVariable', () => {
 test('Should parse AI provider custom headers from env', () => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
     process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
     process.env.AZURE_AI_API_KEY = 'test-azure-key';
     process.env.AZURE_AI_ENDPOINT = 'https://example.openai.azure.com';
@@ -744,10 +1241,37 @@ test('Should parse AI provider custom headers from env', () => {
     });
 });
 
+test('Should parse selectable OpenRouter models from env', () => {
+    process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+    process.env.OPENROUTER_MODEL_NAME = 'qwen/qwen3.5-9b';
+    process.env.OPENROUTER_AVAILABLE_MODELS =
+        'qwen/qwen3.5-9b,moonshotai/kimi-k3';
+
+    expect(parseConfig().ai.copilot.providers.openrouter).toMatchObject({
+        modelName: 'qwen/qwen3.5-9b',
+        availableModels: ['qwen/qwen3.5-9b', 'moonshotai/kimi-k3'],
+    });
+});
+
+test('Should pass OpenRouter provider routing slugs through from env', () => {
+    process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+    process.env.OPENROUTER_ALLOWED_PROVIDERS = 'deepinfra, baseten';
+    process.env.OPENROUTER_PROVIDER_ORDER = 'deepinfra';
+
+    expect(parseConfig().ai.copilot.providers.openrouter).toMatchObject({
+        allowedProviders: ['deepinfra', 'baseten'],
+        providerOrder: ['deepinfra'],
+        // Only set by the schema default, so it proves validation succeeded
+        // rather than falling back to the raw env object
+        sortOrder: 'latency',
+    });
+});
+
 describe('AI provider supportsStreaming', () => {
     beforeEach(() => {
         process.env.OPENAI_API_KEY = 'test-openai-key';
         process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+        process.env.GEMINI_API_KEY = 'test-gemini-key';
         process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
         process.env.AZURE_AI_API_KEY = 'test-azure-key';
         process.env.AZURE_AI_ENDPOINT = 'https://example.openai.azure.com';
@@ -761,6 +1285,7 @@ describe('AI provider supportsStreaming', () => {
         expect(parseConfig().ai.copilot.providers).toMatchObject({
             openai: { supportsStreaming: true },
             anthropic: { supportsStreaming: true },
+            google: { supportsStreaming: true },
             openrouter: { supportsStreaming: true },
             azure: { supportsStreaming: true },
             bedrock: { supportsStreaming: true },
@@ -770,6 +1295,7 @@ describe('AI provider supportsStreaming', () => {
     test('stays true when env vars are explicitly "true"', () => {
         process.env.OPENAI_SUPPORTS_STREAMING = 'true';
         process.env.ANTHROPIC_SUPPORTS_STREAMING = 'true';
+        process.env.GEMINI_SUPPORTS_STREAMING = 'true';
         process.env.OPENROUTER_SUPPORTS_STREAMING = 'true';
         process.env.AZURE_AI_SUPPORTS_STREAMING = 'true';
         process.env.BEDROCK_SUPPORTS_STREAMING = 'true';
@@ -777,6 +1303,7 @@ describe('AI provider supportsStreaming', () => {
         expect(parseConfig().ai.copilot.providers).toMatchObject({
             openai: { supportsStreaming: true },
             anthropic: { supportsStreaming: true },
+            google: { supportsStreaming: true },
             openrouter: { supportsStreaming: true },
             azure: { supportsStreaming: true },
             bedrock: { supportsStreaming: true },
@@ -786,6 +1313,7 @@ describe('AI provider supportsStreaming', () => {
     test('is false only when env vars are the literal "false"', () => {
         process.env.OPENAI_SUPPORTS_STREAMING = 'false';
         process.env.ANTHROPIC_SUPPORTS_STREAMING = 'false';
+        process.env.GEMINI_SUPPORTS_STREAMING = 'false';
         process.env.OPENROUTER_SUPPORTS_STREAMING = 'false';
         process.env.AZURE_AI_SUPPORTS_STREAMING = 'false';
         process.env.BEDROCK_SUPPORTS_STREAMING = 'false';
@@ -793,6 +1321,7 @@ describe('AI provider supportsStreaming', () => {
         expect(parseConfig().ai.copilot.providers).toMatchObject({
             openai: { supportsStreaming: false },
             anthropic: { supportsStreaming: false },
+            google: { supportsStreaming: false },
             openrouter: { supportsStreaming: false },
             azure: { supportsStreaming: false },
             bedrock: { supportsStreaming: false },
@@ -1732,7 +2261,6 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
     // set the var.
     test.each([
         ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
-        ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
@@ -1894,5 +2422,26 @@ describe('APPS_CODING_AGENT', () => {
     test('throws on an unknown coding agent', () => {
         process.env.APPS_CODING_AGENT = 'cursor';
         expect(() => parseConfig()).toThrowError(ParseError);
+    });
+});
+
+describe('ai copilot key management config', () => {
+    it('declares no Lightdash-managed providers by default, on or off Lightdash Cloud', () => {
+        delete process.env.AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS;
+        delete process.env.LIGHTDASH_CLOUD_INSTANCE;
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([]);
+
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([]);
+    });
+
+    it('reads AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS and drops unknown names', () => {
+        process.env.AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS =
+            'anthropic,openai,not-a-provider';
+
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([
+            'anthropic',
+            'openai',
+        ]);
     });
 });

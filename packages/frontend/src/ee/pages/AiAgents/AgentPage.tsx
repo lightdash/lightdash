@@ -13,6 +13,7 @@ import { GuidedTour } from '../../../components/common/GuidedTour';
 import MantineModal from '../../../components/common/MantineModal';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
 import { useOnboardingTour } from '../../../hooks/useOnboardingTour';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -24,6 +25,8 @@ import { launcherSession } from '../../features/aiCopilot/components/Launcher/la
 import { useLauncherDock } from '../../features/aiCopilot/components/Launcher/useLauncherDock';
 import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import { MEMORY_TOUR_STEPS } from '../../features/aiCopilot/components/MyMemories/onboarding';
+import AiThreadChartEditorModal from '../../features/aiCopilot/components/ThreadChartEditor/AiThreadChartEditorModal';
+import { AiThreadChartEditContext } from '../../features/aiCopilot/components/ThreadChartEditor/useAiThreadChartEdit';
 import {
     getAiAgentPageBase,
     isEmbedAiAgentRoute,
@@ -47,7 +50,8 @@ type NavigateFromAgentChatOptions = {
 };
 
 const AgentPage = () => {
-    const { agentUuid, threadUuid, projectUuid } = useParams();
+    const { agentUuid, threadUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isEmbed = isEmbedAiAgentRoute();
@@ -132,11 +136,13 @@ const AgentPage = () => {
             } else {
                 const chartUuid = searchParams.get('chartUuid');
                 const dashboardUuid = searchParams.get('dashboardUuid');
+                const dataAppUuid = searchParams.get('dataAppUuid');
                 const pendingContext =
-                    chartUuid || dashboardUuid
+                    chartUuid || dashboardUuid || dataAppUuid
                         ? {
                               chartUuid: chartUuid ?? undefined,
                               dashboardUuid: dashboardUuid ?? undefined,
+                              dataAppUuid: dataAppUuid ?? undefined,
                           }
                         : null;
                 aiAgentStore.dispatch(
@@ -172,6 +178,13 @@ const AgentPage = () => {
         setIsShareModalOpen(false);
         setShareUrl(null);
     }, []);
+
+    // Chart references edit in place; embed viewers keep plain navigation.
+    const [editChartUuid, setEditChartUuid] = useState<string | null>(null);
+    const openChartEditor = useCallback(
+        (chartUuid: string) => setEditChartUuid(chartUuid),
+        [],
+    );
 
     const handleShare = useCallback(async () => {
         if (!projectUuid || !agentUuid || !threadUuid) return;
@@ -323,13 +336,22 @@ const AgentPage = () => {
                     setIsMemoriesModalOpen(stepIndex === 1)
                 }
             />
-            <Outlet
-                context={{
-                    agent,
-                    agents: agentsList ?? [],
-                    navigateFromAgentChat: handleMinimize,
-                }}
+            <AiThreadChartEditorModal
+                chartUuid={editChartUuid}
+                projectUuid={projectUuid}
+                onClose={() => setEditChartUuid(null)}
             />
+            <AiThreadChartEditContext.Provider
+                value={isEmbed ? undefined : openChartEditor}
+            >
+                <Outlet
+                    context={{
+                        agent,
+                        agents: agentsList ?? [],
+                        navigateFromAgentChat: handleMinimize,
+                    }}
+                />
+            </AiThreadChartEditContext.Provider>
         </AiAgentPageLayout>
     );
 };

@@ -20,6 +20,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | "select an element", editor element picker | `inspect` | none (automatic) |
 | thumbnails / screenshots / scheduled deliveries | `screenshot` | required — see below |
 | drill down, click into a chart | `drill-down` | app code opt-in |
+| drill into a viz data point (reusable visualization) | `viz-drill-down` | app code opt-in |
 | "share this view", URL that restores state | `url-state` | app code opt-in |
 | Google Sheets export | `gsheet-export` | app code opt-in |
 | "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
@@ -102,6 +103,10 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
 
 - `drill-down`: `drillDown(...)` derives a more detailed query from a clicked
   result row — wire it to click handlers on charts/rows.
+- `viz-drill-down`: in a reusable visualization, the data-point action menu
+  offers "Drill into …" when `useVizContext().drillDown.enabled`; selection
+  calls `drillDown.open({ row, metric })` and Lightdash opens its drill
+  dialog. Distinct from `drill-down`, which is the full-app query helper.
 - `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
   so views can be shared and restored.
 - `gsheet-export`: `exportToSheets(...)` sends tabular results to a new

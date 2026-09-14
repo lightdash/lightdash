@@ -3,6 +3,7 @@ import { IconAlertTriangle, IconTrash } from '@tabler/icons-react';
 import { memo, useCallback, type FC } from 'react';
 import MantineIcon from '../../../../common/MantineIcon';
 import type { MissingFieldItem } from './types';
+import classes from './VirtualMissingField.module.css';
 
 interface VirtualMissingFieldProps {
     item: MissingFieldItem;
@@ -29,35 +30,32 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
             my="xs"
             gap="xs"
             wrap="nowrap"
-            style={{ overflow: 'hidden' }}
+            className={classes.row}
         >
             <MantineIcon
                 icon={IconAlertTriangle}
                 color="yellow.9"
-                style={{ flexShrink: 0 }}
+                className={classes.rowIcon}
             />
 
-            <Text truncate size="sm" style={{ flex: 1, minWidth: 0 }}>
+            <Text truncate size="sm" flex={1} miw={0}>
                 {fieldId}
             </Text>
 
             <Tooltip
-                withinPortal
                 label={
                     <Text size="xs" style={{ wordBreak: 'break-all' }}>
                         Remove missing field "{fieldId}".
                     </Text>
                 }
                 maw={300}
-                multiline
             >
                 <ActionIcon
-                    color="gray"
                     variant="transparent"
-                    style={{ flexShrink: 0 }}
+                    flex="0 0 auto"
                     onClick={handleClick}
                 >
-                    <MantineIcon icon={IconTrash} style={{ flexShrink: 0 }} />
+                    <MantineIcon icon={IconTrash} className={classes.rowIcon} />
                 </ActionIcon>
             </Tooltip>
         </Group>

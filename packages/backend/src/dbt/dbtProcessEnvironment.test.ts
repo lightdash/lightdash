@@ -126,6 +126,24 @@ describe('getDbtProcessEnvironment', () => {
         expect(environment.DBT_TARGET_PATH).toEqual('/tmp/dbt_target_test');
     });
 
+    it('uses only the Lightdash-controlled git config when provided', () => {
+        const environment = getDbtProcessEnvironment({
+            processEnvironment,
+            environmentVariableAllowlist: [],
+            projectEnvironment: {
+                GIT_CONFIG_GLOBAL: '/tmp/attacker',
+                GIT_TERMINAL_PROMPT: '1',
+            },
+            targetPath: '/tmp/dbt_target_test',
+            gitConfigGlobalPath: '/tmp/lightdash-gitconfig',
+        });
+
+        expect(environment.GIT_CONFIG_GLOBAL).toEqual(
+            '/tmp/lightdash-gitconfig',
+        );
+        expect(environment.GIT_TERMINAL_PROMPT).toEqual('0');
+    });
+
     it('does not let a project redirect the runtime plumbing', () => {
         const environment = buildEnvironment({
             PATH: '/tmp/malicious',

@@ -1,8 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    ContentType,
     type ChartContent,
     type AiModelOption,
+    type AppVersionExternalConnectionResource,
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
     type ExternalConnection,
@@ -15,6 +17,7 @@ import {
     CloseButton,
     Group,
     Image,
+    Indicator,
     Loader,
     LoadingOverlay,
     Popover,
@@ -31,7 +34,6 @@ import {
     IconCamera,
     IconChartBar,
     IconCheck,
-    IconClick,
     IconDatabase,
     IconDatabasePlus,
     IconFileDescription,
@@ -51,16 +53,20 @@ import {
     type ClipboardEvent,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
-import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
+import { useInfiniteContent } from '../../hooks/useContent';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
+import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
+import { useUnlinkAppExternalConnection } from '../externalConnections/hooks/useUnlinkAppExternalConnection';
+import { uniqueAliasFromName } from '../externalConnections/utils/aliasFromName';
 import classes from './AppResourcePicker.module.css';
 import {
     useAttachResourceLink,
@@ -96,19 +102,7 @@ export type SelectedDashboard = {
     includeSampleData: boolean;
 };
 
-export type SelectedConnection = {
-    externalConnectionUuid: string;
-    name: string;
-    /** Handle the generated app calls it by: client.externalFetch(alias, …). */
-    alias: string;
-};
-
-/** Derive a stable, code-safe alias from a connection name. */
-const aliasFromName = (name: string): string =>
-    name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
+export type SelectedConnection = AppVersionExternalConnectionResource;
 
 const SAMPLE_DATA_TOOLTIP =
     'Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.';
@@ -128,12 +122,9 @@ export const ScreenshotButton: FC<{
 }> = ({ onClick, disabled, loading }) => (
     <Tooltip
         label="Capture a screenshot of the preview and attach it"
-        withArrow
         position="top"
     >
         <ActionIcon
-            variant="subtle"
-            color="gray"
             size="md"
             radius="xl"
             onClick={onClick}
@@ -142,44 +133,6 @@ export const ScreenshotButton: FC<{
             aria-label="Capture screenshot"
         >
             <MantineIcon icon={IconCamera} size={16} />
-        </ActionIcon>
-    </Tooltip>
-);
-
-/**
- * Toggle button that activates the iframe-side element inspector.
- * While enabled, clicks inside the preview iframe are intercepted and
- * inserted as bracketed references at the textarea cursor (e.g.
- * `[button "Total Revenue"]: `), so the user can compose targeted edits.
- *
- * Rendered only once the iframe SDK has announced inspector support, for the
- * same reason as the screenshot button.
- */
-export const InspectButton: FC<{
-    enabled: boolean;
-    onToggle: () => void;
-    disabled?: boolean;
-}> = ({ enabled, onToggle, disabled }) => (
-    <Tooltip
-        label={
-            enabled
-                ? 'Inspect mode on - click any element in the preview'
-                : 'Point at an element in the preview to reference it'
-        }
-        withArrow
-        position="top"
-    >
-        <ActionIcon
-            variant={enabled ? 'light' : 'subtle'}
-            color={enabled ? 'indigo' : 'gray'}
-            size="md"
-            radius="xl"
-            onClick={onToggle}
-            disabled={disabled}
-            aria-label="Toggle element inspector"
-            aria-pressed={enabled}
-        >
-            <MantineIcon icon={IconClick} size={16} />
         </ActionIcon>
     </Tooltip>
 );
@@ -360,7 +313,7 @@ const QueryPickerView: FC<{
     attachFromLink,
     isResolvingLink,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
 
@@ -525,7 +478,7 @@ const QueryPickerView: FC<{
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
-                <Button size="compact-xs" radius="md" onClick={onDone}>
+                <Button size="compact-xs" onClick={onDone}>
                     Done
                 </Button>
             </Box>
@@ -594,8 +547,6 @@ export const SelectedAttachmentSection: FC<{
                         </Text>
                         <ActionIcon
                             size="xs"
-                            variant="subtle"
-                            color="gray"
                             radius="xl"
                             onClick={() => onRemove(att.id)}
                             disabled={disabled || loading}
@@ -627,12 +578,7 @@ const AddDataButton: FC<{
     disabled?: boolean;
     tooltipSuffix?: string;
 }> = ({ onClick, disabled, tooltipSuffix }) => (
-    <Tooltip
-        label={`${SAMPLE_DATA_TOOLTIP}${tooltipSuffix ?? ''}`}
-        multiline
-        w={260}
-        withArrow
-    >
+    <Tooltip label={`${SAMPLE_DATA_TOOLTIP}${tooltipSuffix ?? ''}`} w={260}>
         <UnstyledButton
             type="button"
             onClick={onClick}
@@ -657,9 +603,7 @@ const InlineDataToggle: FC<{
 }> = ({ onClick, disabled, tooltipSuffix }) => (
     <Tooltip
         label={`Sample data included — click to remove.${tooltipSuffix ?? ''}`}
-        multiline
         w={260}
-        withArrow
     >
         <UnstyledButton
             type="button"
@@ -679,9 +623,7 @@ const AddLinkButton: FC<{ onClick: () => void; disabled?: boolean }> = ({
 }) => (
     <Tooltip
         label="Link live — run this chart by reference so the app updates when the chart changes in Lightdash."
-        multiline
         w={260}
-        withArrow
     >
         <UnstyledButton
             type="button"
@@ -701,9 +643,7 @@ const InlineLinkToggle: FC<{ onClick: () => void; disabled?: boolean }> = ({
 }) => (
     <Tooltip
         label="Linked live — click to unlink (revert to a copied query)."
-        multiline
         w={260}
-        withArrow
     >
         <UnstyledButton
             type="button"
@@ -784,8 +724,6 @@ export const SelectedQuerySection: FC<{
                         )}
                         <ActionIcon
                             size="xs"
-                            variant="subtle"
-                            color="gray"
                             radius="xl"
                             onClick={() => onRemove(chart.uuid)}
                             disabled={disabled}
@@ -835,20 +773,35 @@ const DashboardPickerView: FC<{
     attachFromLink,
     isResolvingLink,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
 
-    const { data: dashboards, isInitialLoading } = useDashboards(projectUuid, {
-        enabled,
-    });
+    const {
+        data: dashboardPages,
+        isInitialLoading,
+        isFetching,
+        hasNextPage,
+        fetchNextPage,
+    } = useInfiniteContent(
+        {
+            projectUuids: projectUuid ? [projectUuid] : [],
+            contentTypes: [ContentType.DASHBOARD],
+            page: 1,
+            pageSize: 25,
+            search: debouncedSearch,
+        },
+        { keepPreviousData: true, enabled: enabled && !!projectUuid },
+    );
 
-    const filteredDashboards = useMemo(() => {
-        if (!dashboards) return [];
-        const term = debouncedSearch.toLowerCase();
-        if (!term) return dashboards;
-        return dashboards.filter((d) => d.name.toLowerCase().includes(term));
-    }, [dashboards, debouncedSearch]);
+    const allDashboards = useMemo(
+        () =>
+            uniqBy(
+                dashboardPages?.pages.flatMap((page) => page.data) ?? [],
+                'uuid',
+            ),
+        [dashboardPages?.pages],
+    );
 
     const handleToggle = useCallback(
         (dashboard: { uuid: string; name: string }) => {
@@ -879,7 +832,9 @@ const DashboardPickerView: FC<{
                     placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     rightSection={
-                        isResolvingLink ? <Loader size={14} /> : undefined
+                        (isFetching && !isInitialLoading) || isResolvingLink ? (
+                            <Loader size={14} />
+                        ) : undefined
                     }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
@@ -892,48 +847,64 @@ const DashboardPickerView: FC<{
                     <Group justify="center" p="sm">
                         <Loader size="sm" />
                     </Group>
-                ) : filteredDashboards.length === 0 ? (
+                ) : allDashboards.length === 0 ? (
                     <Text size="xs" c="dimmed" ta="center" p="sm">
                         No dashboards found
                     </Text>
                 ) : (
-                    filteredDashboards.map((dashboard) => {
-                        const isSelected =
-                            selectedDashboard?.uuid === dashboard.uuid;
-                        return (
-                            <Box
-                                key={dashboard.uuid}
-                                className={`${classes.chartItem} ${
-                                    isSelected ? classes.chartItemSelected : ''
-                                }`}
-                                onClick={() => handleToggle(dashboard)}
-                            >
-                                <IconBox
-                                    icon={IconLayoutDashboard}
-                                    color="green.6"
-                                />
-                                <Text size="xs" fw={500} truncate flex={1}>
-                                    {dashboard.name}
-                                </Text>
-                                {isSelected && (
-                                    <Box
-                                        className={
-                                            classes.chartItemSelectedIcon
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size={14}
-                                        />
-                                    </Box>
-                                )}
+                    <>
+                        {allDashboards.map((dashboard) => {
+                            const isSelected =
+                                selectedDashboard?.uuid === dashboard.uuid;
+                            return (
+                                <Box
+                                    key={dashboard.uuid}
+                                    className={`${classes.chartItem} ${
+                                        isSelected
+                                            ? classes.chartItemSelected
+                                            : ''
+                                    }`}
+                                    onClick={() => handleToggle(dashboard)}
+                                >
+                                    <IconBox
+                                        icon={IconLayoutDashboard}
+                                        color="green.6"
+                                    />
+                                    <Text size="xs" fw={500} truncate flex={1}>
+                                        {dashboard.name}
+                                    </Text>
+                                    {isSelected && (
+                                        <Box
+                                            className={
+                                                classes.chartItemSelectedIcon
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size={14}
+                                            />
+                                        </Box>
+                                    )}
+                                </Box>
+                            );
+                        })}
+                        {hasNextPage && (
+                            <Box ta="center" py={4}>
+                                <Button
+                                    variant="subtle"
+                                    size="xs"
+                                    onClick={() => void fetchNextPage()}
+                                    loading={isFetching}
+                                >
+                                    Load more
+                                </Button>
                             </Box>
-                        );
-                    })
+                        )}
+                    </>
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
-                <Button size="compact-xs" radius="md" onClick={onDone}>
+                <Button size="compact-xs" onClick={onDone}>
                     Done
                 </Button>
             </Box>
@@ -942,22 +913,67 @@ const DashboardPickerView: FC<{
 };
 
 /**
- * Internal: external-connection list with search. Mirrors `QueryPickerView`.
+ * External-connection list with search. Mirrors `QueryPickerView`.
  * Selecting a connection adds it to the parent and keeps the picker open so
  * multiple can be added in one flow.
  */
-const ConnectionPickerView: FC<{
+export const ConnectionPickerView: FC<{
     selectedConnections: SelectedConnection[];
     onSelect: (connection: SelectedConnection) => void;
     onDeselect: (uuid: string) => void;
     onDone: () => void;
     enabled: boolean;
-}> = ({ selectedConnections, onSelect, onDeselect, onDone, enabled }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    /** App whose existing links show as checked rows that unlink on click;
+     *  omit before a first build, when nothing can be linked yet. */
+    linkedAppUuid?: string;
+    onUnlinkConfirmationChange?: (opened: boolean) => void;
+}> = ({
+    selectedConnections,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    linkedAppUuid,
+    onUnlinkConfirmationChange,
+}) => {
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
+    const [pendingUnlink, setPendingUnlink] = useState<{
+        connection: ExternalConnection;
+        alias: string;
+    } | null>(null);
     const { data: connections, isInitialLoading } = useExternalConnections(
         enabled ? projectUuid : undefined,
     );
+    const { data: existingLinks } = useAppExternalConnections(
+        enabled ? projectUuid : undefined,
+        linkedAppUuid,
+    );
+    const visibleConnections = useMemo(() => {
+        const byUuid = new Map(
+            (existingLinks ?? []).map((link) => [
+                link.connection.externalConnectionUuid,
+                link.connection,
+            ]),
+        );
+
+        for (const connection of connections ?? []) {
+            byUuid.set(connection.externalConnectionUuid, connection);
+        }
+
+        return [...byUuid.values()];
+    }, [connections, existingLinks]);
+    const linkedAliases = useMemo(
+        () =>
+            new Map(
+                (existingLinks ?? []).map((link) => [
+                    link.connection.externalConnectionUuid,
+                    link.alias,
+                ]),
+            ),
+        [existingLinks],
+    );
+    const { mutate: unlink } = useUnlinkAppExternalConnection();
 
     // Only project/org admins can create connections; mirror the gate the
     // Project Settings → Data app connections page uses.
@@ -984,16 +1000,15 @@ const ConnectionPickerView: FC<{
 
     const filtered = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
-        const list = connections ?? [];
-        if (!q) return list;
-        return list.filter(
+        if (!q) return visibleConnections;
+        return visibleConnections.filter(
             (c) =>
                 c.name.toLowerCase().includes(q) ||
                 c.origin.toLowerCase().includes(q),
         );
-    }, [connections, searchQuery]);
+    }, [searchQuery, visibleConnections]);
 
-    const hasConnections = (connections?.length ?? 0) > 0;
+    const hasConnections = visibleConnections.length > 0;
     let emptyMessage = 'No connections match your search';
     if (!hasConnections) {
         emptyMessage = canManageConnections
@@ -1003,18 +1018,62 @@ const ConnectionPickerView: FC<{
 
     const handleToggle = useCallback(
         (connection: ExternalConnection) => {
-            if (selectedUuids.has(connection.externalConnectionUuid)) {
+            const linkedAlias = linkedAliases.get(
+                connection.externalConnectionUuid,
+            );
+            if (linkedAlias !== undefined && projectUuid && linkedAppUuid) {
+                setPendingUnlink({ connection, alias: linkedAlias });
+                onUnlinkConfirmationChange?.(true);
+            } else if (selectedUuids.has(connection.externalConnectionUuid)) {
                 onDeselect(connection.externalConnectionUuid);
             } else {
                 onSelect({
                     externalConnectionUuid: connection.externalConnectionUuid,
                     name: connection.name,
-                    alias: aliasFromName(connection.name),
+                    alias: uniqueAliasFromName(
+                        connection.name,
+                        selectedConnections.map((selected) => selected.alias),
+                    ),
                 });
             }
         },
-        [onSelect, onDeselect, selectedUuids],
+        [
+            linkedAliases,
+            linkedAppUuid,
+            onDeselect,
+            onSelect,
+            onUnlinkConfirmationChange,
+            projectUuid,
+            selectedConnections,
+            selectedUuids,
+        ],
     );
+
+    const handleConfirmUnlink = useCallback(() => {
+        if (!pendingUnlink || !projectUuid || !linkedAppUuid) return;
+
+        unlink({
+            projectUuid,
+            appUuid: linkedAppUuid,
+            alias: pendingUnlink.alias,
+            name: pendingUnlink.connection.name,
+        });
+        onDeselect(pendingUnlink.connection.externalConnectionUuid);
+        setPendingUnlink(null);
+        onUnlinkConfirmationChange?.(false);
+    }, [
+        linkedAppUuid,
+        onDeselect,
+        onUnlinkConfirmationChange,
+        pendingUnlink,
+        projectUuid,
+        unlink,
+    ]);
+
+    const handleCancelUnlink = useCallback(() => {
+        setPendingUnlink(null);
+        onUnlinkConfirmationChange?.(false);
+    }, [onUnlinkConfirmationChange]);
 
     return (
         <>
@@ -1047,15 +1106,21 @@ const ConnectionPickerView: FC<{
                     </Stack>
                 ) : (
                     filtered.map((connection) => {
-                        const isSelected = selectedUuids.has(
-                            connection.externalConnectionUuid,
-                        );
+                        const isChecked =
+                            selectedUuids.has(
+                                connection.externalConnectionUuid,
+                            ) ||
+                            linkedAliases.has(
+                                connection.externalConnectionUuid,
+                            );
                         return (
                             <Box
                                 key={connection.externalConnectionUuid}
                                 className={`${classes.chartItem} ${
-                                    isSelected ? classes.chartItemSelected : ''
+                                    isChecked ? classes.chartItemSelected : ''
                                 }`}
+                                aria-checked={isChecked}
+                                role="checkbox"
                                 onClick={() => handleToggle(connection)}
                             >
                                 <MantineIcon icon={IconPlugConnected} />
@@ -1067,7 +1132,7 @@ const ConnectionPickerView: FC<{
                                         {connection.origin}
                                     </Text>
                                 </Box>
-                                {isSelected && (
+                                {isChecked && (
                                     <Box
                                         className={
                                             classes.chartItemSelectedIcon
@@ -1100,10 +1165,21 @@ const ConnectionPickerView: FC<{
                         </Group>
                     </Anchor>
                 )}
-                <Button size="compact-xs" radius="md" onClick={onDone}>
+                <Button size="compact-xs" onClick={onDone}>
                     Done
                 </Button>
             </Box>
+            <MantineModal
+                opened={pendingUnlink !== null}
+                onClose={handleCancelUnlink}
+                title={`Unlink ${pendingUnlink?.connection.name ?? 'connection'}?`}
+                variant="delete"
+                size="md"
+                description="Unlinking removes access to this connection. You may not be able to link it again without help from a project admin."
+                confirmLabel="Unlink connection"
+                cancelLabel="Keep connection"
+                onConfirm={handleConfirmUnlink}
+            />
         </>
     );
 };
@@ -1130,6 +1206,7 @@ export const AttachButton: FC<{
     onAddFiles: () => void;
     disabled: boolean;
     filesDisabled: boolean;
+    linkedAppUuid?: string;
 }> = ({
     selectedCharts,
     onSelectChart,
@@ -1143,10 +1220,12 @@ export const AttachButton: FC<{
     onAddFiles,
     disabled,
     filesDisabled,
+    linkedAppUuid,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
+    const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
 
     const handleChange = useCallback((isOpen: boolean) => {
         setOpened(isOpen);
@@ -1186,14 +1265,15 @@ export const AttachButton: FC<{
             onChange={handleChange}
             position="top-start"
             offset={8}
-            shadow="md"
             trapFocus
+            closeOnClickOutside={!unlinkConfirmationOpen}
+            closeOnEscape={!unlinkConfirmationOpen}
         >
             <Popover.Target>
                 <Tooltip
                     label="Add charts, dashboards, connections or files"
-                    withArrow
                     position="top"
+                    disabled={opened}
                 >
                     <Button
                         variant="subtle"
@@ -1206,6 +1286,13 @@ export const AttachButton: FC<{
                         onClick={() => setOpened((o) => !o)}
                         disabled={disabled}
                         aria-label="Attach resources"
+                        // Walkthrough look for create:DataApp: context makes
+                        // the agent's first version better.
+                        data-tour-scope="create:DataApp"
+                        data-tour-look="2"
+                        data-tour-after='[data-tour-anchor="app-prompt"]'
+                        data-tour-label="Attach charts or a dashboard for context"
+                        data-tour-docs="data-apps.mdx#adding-context:1"
                         leftSection={<MantineIcon icon={IconPlus} size={14} />}
                     >
                         <Text span size="xs" fw={600} lh={1.2} c="inherit">
@@ -1290,7 +1377,6 @@ export const AttachButton: FC<{
                             className={classes.attachPickerHeader}
                         >
                             <ActionIcon
-                                variant="subtle"
                                 size="sm"
                                 onClick={() => setView('menu')}
                                 aria-label="Back to attach menu"
@@ -1329,6 +1415,10 @@ export const AttachButton: FC<{
                                     setView('menu');
                                 }}
                                 enabled={opened}
+                                linkedAppUuid={linkedAppUuid}
+                                onUnlinkConfirmationChange={
+                                    setUnlinkConfirmationOpen
+                                }
                             />
                         ) : (
                             <DashboardPickerView
@@ -1346,6 +1436,126 @@ export const AttachButton: FC<{
                         )}
                     </>
                 )}
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
+
+/**
+ * Opens the external-connection picker directly — used by surfaces that
+ * attach connections without the rest of the data-app resource menu.
+ */
+export const ConnectionAttachButton: FC<{
+    selectedConnections: SelectedConnection[];
+    onSelect: (connection: SelectedConnection) => void;
+    onDeselect: (uuid: string) => void;
+    disabled: boolean;
+    description: string;
+    /** The built app whose links the picker marks as already linked; null
+     *  until a first build exists. */
+    linkedAppUuid: string | null;
+}> = ({
+    selectedConnections,
+    onSelect,
+    onDeselect,
+    disabled,
+    description,
+    linkedAppUuid,
+}) => {
+    const projectUuid = useProjectUuid();
+    const [opened, setOpened] = useState(false);
+    const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
+    const { data: existingLinks } = useAppExternalConnections(
+        projectUuid,
+        linkedAppUuid ?? undefined,
+    );
+    // Already-linked connections count as attached alongside the pending
+    // selection; re-selecting a linked one does not count it twice.
+    const attachedNames = useMemo(() => {
+        const names = new Map<string, string>();
+        (existingLinks ?? []).forEach((link) =>
+            names.set(
+                link.connection.externalConnectionUuid,
+                link.connection.name,
+            ),
+        );
+        selectedConnections.forEach((connection) =>
+            names.set(connection.externalConnectionUuid, connection.name),
+        );
+        return [...names.values()];
+    }, [existingLinks, selectedConnections]);
+    const attachedCount = attachedNames.length;
+    const triggerLabel =
+        attachedCount > 0
+            ? `${attachedCount} external connection${
+                  attachedCount === 1 ? '' : 's'
+              } attached`
+            : 'Add external connections';
+    const tooltipLabel =
+        attachedCount > 0
+            ? `${triggerLabel}: ${attachedNames.join(', ')}`
+            : triggerLabel;
+
+    return (
+        <Popover
+            opened={opened}
+            onChange={setOpened}
+            position="top-start"
+            offset={8}
+            trapFocus
+            closeOnClickOutside={!unlinkConfirmationOpen}
+            closeOnEscape={!unlinkConfirmationOpen}
+        >
+            <Popover.Target>
+                <Tooltip
+                    label={tooltipLabel}
+                    position="top"
+                    maw={280}
+                    disabled={opened}
+                >
+                    <Indicator
+                        inline
+                        label={attachedCount}
+                        size={12}
+                        offset={3}
+                        color="blue"
+                        disabled={attachedCount === 0}
+                        classNames={{
+                            indicator: classes.connectionCountIndicator,
+                        }}
+                    >
+                        <ActionIcon
+                            color="ldGray"
+                            size="sm"
+                            aria-label={triggerLabel}
+                            onClick={() => setOpened((value) => !value)}
+                            disabled={disabled}
+                        >
+                            <MantineIcon icon={IconPlugConnected} />
+                        </ActionIcon>
+                    </Indicator>
+                </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown className={classes.queryDropdown} p={0}>
+                <Box p="xs" pb={0} className={classes.attachPickerHeader}>
+                    <Box>
+                        <Text size="sm" fw={500}>
+                            Add external connections
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                            {description}
+                        </Text>
+                    </Box>
+                </Box>
+                <ConnectionPickerView
+                    selectedConnections={selectedConnections}
+                    onSelect={onSelect}
+                    onDeselect={onDeselect}
+                    onDone={() => setOpened(false)}
+                    enabled={opened}
+                    linkedAppUuid={linkedAppUuid ?? undefined}
+                    onUnlinkConfirmationChange={setUnlinkConfirmationOpen}
+                />
             </Popover.Dropdown>
         </Popover>
     );
@@ -1401,8 +1611,6 @@ export const SelectedDashboardSection: FC<{
                     )}
                     <ActionIcon
                         size="xs"
-                        variant="subtle"
-                        color="gray"
                         radius="xl"
                         onClick={onRemove}
                         disabled={disabled}

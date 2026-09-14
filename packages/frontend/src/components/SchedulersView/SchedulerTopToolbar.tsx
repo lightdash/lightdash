@@ -79,31 +79,17 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                 wrap="nowrap"
                 {...props}
             >
-                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
                     <SearchFilter search={search} setSearch={setSearch} />
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        style={{
-                            alignSelf: 'center',
-                        }}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     <ResourceTypeFilter
                         selectedResourceType={selectedResourceType}
                         setSelectedResourceType={setSelectedResourceType}
                     />
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        style={{
-                            alignSelf: 'center',
-                        }}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     <FormatFilter
                         selectedFormats={selectedFormats}
@@ -130,7 +116,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     />
                 </Group>
 
-                <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
+                <Group gap="sm" wrap="nowrap" flex="0 0 auto">
                     {hasSelection && onBulkReassign && !hideBulkReassign && (
                         <>
                             <Text size="sm" c="dimmed">
@@ -151,12 +137,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     )}
                     {hasActiveFilters && onClearFilters && !hasSelection && (
                         <Tooltip label="Clear all filters">
-                            <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                color="gray"
-                                onClick={onClearFilters}
-                            >
+                            <ActionIcon size="sm" onClick={onClearFilters}>
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
                         </Tooltip>

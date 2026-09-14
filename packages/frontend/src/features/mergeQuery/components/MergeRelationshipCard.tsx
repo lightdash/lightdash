@@ -50,7 +50,6 @@ const MergeRelationshipCardContent: FC = () => {
             onToggle={setIsOpen}
             headerElement={
                 <Badge
-                    variant="light"
                     color={isIncomplete ? 'orange' : 'gray'}
                     maw="min(70vw, 720px)"
                     title={badgeLabel}

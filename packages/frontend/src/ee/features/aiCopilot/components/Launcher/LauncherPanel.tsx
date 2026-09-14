@@ -140,6 +140,7 @@ const NewThreadPanel: FC<{
 
     const chartUuid = pendingContext?.chartUuid;
     const dashboardUuid = pendingContext?.dashboardUuid;
+    const dataAppUuid = pendingContext?.dataAppUuid;
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
@@ -155,6 +156,7 @@ const NewThreadPanel: FC<{
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dataAppUuidOrSlug: dataAppUuid,
     });
     const { curateContext } = useDashboardPageContextCuration({
         previousContext: contextInput,
@@ -337,7 +339,7 @@ const NewThreadPanel: FC<{
                 >
                     {isAuto ? (
                         <Avatar size="lg" color="ldGray" radius="xl">
-                            <Text size="sm" fw={700} c="ldGray.6">
+                            <Text size="sm" fw={600} c="dimmed">
                                 AI
                             </Text>
                         </Avatar>
@@ -377,6 +379,7 @@ const NewThreadPanel: FC<{
                                     key={getPromptContextItemKey(item)}
                                     item={item}
                                     projectUuid={projectUuid}
+                                    previewScope={null}
                                 />
                             ))}
                         </Group>
@@ -403,7 +406,6 @@ const NewThreadPanel: FC<{
                     projectUuid={projectUuid}
                     agentUuid={concreteAgent?.uuid}
                     fullWidth
-                    showDeepResearchBelowComposer
                     sqlMode={sqlModeAvailable && !isAuto ? sqlMode : undefined}
                     onSqlModeChange={
                         sqlModeAvailable && !isAuto
@@ -445,12 +447,7 @@ const LauncherAgentPicker: FC<{
                             {candidate.name}
                         </Box>
                         {candidate.isRecommended && (
-                            <Badge
-                                size="xs"
-                                color="violet"
-                                variant="light"
-                                radius="sm"
-                            >
+                            <Badge size="xs" color="violet">
                                 Recommended
                             </Badge>
                         )}
@@ -478,7 +475,7 @@ const ExistingThreadPanel: FC<{
         refetch,
     } = useAiAgentThread(projectUuid, agent.uuid, threadId);
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadId,
         refetch,
@@ -536,7 +533,7 @@ const ExistingThreadPanel: FC<{
     const isBusy = Boolean(
         isCreatingMessage ||
         isStreaming ||
-        isPending ||
+        isThreadPending ||
         startDeepResearch.isLoading,
     );
     const isInputDisabled =

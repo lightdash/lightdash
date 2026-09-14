@@ -1,0 +1,247 @@
+# rainbow.toml — how Lightdash runs on Rainbow.
+# This file describes the app only (system-description/repo-config.md §4). The
+# kernel, network, guest access, paint/warm harnesses and per-env origin and
+# secret values are the platform's, not this file's.
+
+# One process: `pnpm dev` runs the common and warehouses tsc watchers, the
+# backend (tsx watch, :8080) and the Vite frontend (:3000, which proxies /api
+# to :8080). The browser hits 3000.
+[[app.service]]
+name = "dev"
+command = "pnpm dev"
+ports = [8080, 3000]
+serve_port = 3000
+
+# Anyone with the URL can open an environment of this repo.
+[access]
+public = true
+
+[resources]
+cpu = 8
+memory = "8gb"
+max_memory = "16gb"                # headroom the migrate rung and the pnpm install borrow
+
+# node comes from .nvmrc and pnpm from package.json's packageManager. The first
+# build step bakes formula/common/warehouses dist into the image so the backend
+# and the migrate rung can import them; from then on the `pnpm dev` watchers
+# keep common and warehouses current (no common-build rung below; formula has
+# no watcher, so it is a run rung). The second is the dbt venv the seed's
+# project compile shells out to (`dbt1.12`, pins as in dockerfile).
+[runtime]
+system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
+build = [
+  "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
+  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
+]
+
+[datastores]
+postgres = true
+minio = true                       # the backend requires S3-compatible storage at boot
+mailpit = true                     # catches the mail the backend sends
+
+# The app's own names for the platform's datastores (localhost, fixed dev
+# credentials), plus its non-secret dev settings.
+[env]
+PORT = "8080"
+NODE_ENV = "development"
+# PR mode is what the Okteto previews ran as: the preview flag set and its
+# management API, a fixed 000000 email passcode, the relaxed cross-origin
+# opener policy, /api/docs. Hot reload is unaffected: it belongs to the dev
+# processes, not the mode. packages/backend's dev script defers to a mode
+# already set in the environment, so this value reaches the backend.
+LIGHTDASH_MODE = "pr"
+LIGHTDASH_LOG_LEVEL = "info"
+SECURE_COOKIES = "false"
+TRUST_PROXY = "false"
+SCHEDULER_ENABLED = "true"
+ALLOW_MULTIPLE_ORGS = "true"
+HEADLESS = "true"
+CI = "true"
+PGHOST = "localhost"
+PGPORT = "5432"
+PGUSER = "postgres"
+PGDATABASE = "postgres"
+DBT_DEMO_DIR = "/usr/app/examples/full-jaffle-shop-demo"
+DBT_PROJECT_DIR = "/usr/app/examples/full-jaffle-shop-demo/dbt"
+S3_ENDPOINT = "http://localhost:9000"
+S3_PUBLIC_ENDPOINT = "http://localhost:9000"
+S3_REGION = "us-east-1"
+S3_BUCKET = "default"
+S3_ACCESS_KEY = "minioadmin"
+S3_SECRET_KEY = "minioadmin"
+S3_FORCE_PATH_STYLE = "true"
+APPS_S3_BUCKET = "lightdash-apps"
+EMAIL_SMTP_HOST = "localhost"
+EMAIL_SMTP_PORT = "1025"
+EMAIL_SMTP_SECURE = "false"
+EMAIL_SMTP_USE_AUTH = "false"
+EMAIL_SMTP_ALLOW_INVALID_CERT = "true"
+EMAIL_SMTP_SENDER_NAME = "Lightdash"
+EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
+# PR mode implies this (docs/preview-feature-flags.md); kept explicit so a
+# later mode change cannot silently drop the flag-management API.
+LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
+# No product analytics from previews. The backend's config bakes in a default
+# RudderStack write key and data plane, so without this every environment
+# tracks into production analytics — and the migrate rung's node process
+# stays alive until the client gives up on that request. With the data plane
+# outside the egress list that was four TCP timeouts, 8m47s, on every fork;
+# with this set the same command takes 2.5s.
+RUDDERSTACK_ANALYTICS_DISABLED = "true"
+
+# Parity with the Okteto previews (docker/docker-compose.preview.yml): the
+# settings that switch on the surfaces e2e and QA exercise. Values that name
+# a credential are declared under [secrets] below, not here.
+IS_PULL_REQUEST = "true"
+CUSTOM_ROLES_ENABLED = "true"
+MCP_ENABLED = "true"
+SERVICE_ACCOUNT_ENABLED = "true"       # also lights the semantic-layer connection page
+EMBEDDING_ENABLED = "true"             # the embed specs need it
+PERSISTENT_DOWNLOAD_URLS_ENABLED = "true"
+GROUPS_ENABLED = "true"
+EXTENDED_USAGE_ANALYTICS = "true"
+MICROSOFT_TEAMS_ENABLED = "true"
+APPS_RUNTIME_ENABLED = "true"          # data apps; the E2B key below makes it usable
+ALLOW_MISSING_MIGRATIONS = "true"
+# Postgres wire-protocol server for the semantic layer: setting the port
+# starts the listener and renders the project settings page. No TLS certs in
+# a preview, and the port stays private to the environment.
+PGWIRE_PORT = "5433"
+PGWIRE_SSL_MODE = "disabled"
+# Ask AI. The copilot follows instance config rather than the preview flag
+# set, so it is enabled here and made real by the Anthropic key in [secrets];
+# with no key stored it stays off.
+AI_COPILOT_ENABLED = "true"
+AI_COPILOT_REQUIRES_FEATURE_FLAG = "true"
+AI_DEFAULT_PROVIDER = "anthropic"
+
+# Two seeds, in the order CONTRIBUTING gives them. First the warehouse the
+# seeded project points at: dbt loads examples/full-jaffle-shop-demo into the
+# `jaffle` schema of the same Postgres. That is scripts/seed-jaffle.sh spelled
+# out rather than called, because the script pins dbt1.7 and the image carries
+# dbt1.12 — the version the seeded project itself compiles with. Then the
+# application database: the org, the admin user, the Jaffle shop project and
+# its charts and dashboards; the migrate rung has already run by now.
+#
+# Both are needed. With only the second, an environment boots looking seeded —
+# project, charts and dashboards all present — and every query against it fails
+# with `relation "jaffle.orders" does not exist`.
+[seed]
+run = """
+dbt1.12 deps --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles &&
+dbt1.12 seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles --full-refresh &&
+dbt1.12 run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles --full-refresh --exclude fanouts_sales_targets &&
+pnpm -F backend seed"""
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # loaded by the config; enables nothing
+
+# Readiness, in the app's own frame. http polls during boot; paints drives
+# headless Chrome at the snapshot gate and records first_paint_ms.
+[ready]
+http = "http://localhost:8080/api/v1/health"
+paints = { url = "http://localhost:3000/login", within = "10s", selector = "#root > *" }
+
+[warm]
+routes = ["/", "/login"]
+
+# The cache-tier ladder (cache-tiers.md), deepest first; first match wins.
+[[tier]]
+preset = "pnpm"                    # lockfile globs; egress and memory headroom for the install
+
+[[tier]]
+name = "formula-build"
+files = ["packages/formula/**"]
+run = "pnpm formula:build"         # the backend imports formula's dist and nothing watches it
+
+# `pnpm dev` runs tsc watchers over common and warehouses, so a change to
+# either is a hot reload for a serving environment. The rungs below are the
+# exception: they import those packages' `dist` and they run seconds after
+# the fork, with the app's units stopped, before any watcher has caught up.
+# Without these two they read the parent's build — `migrate` died on a
+# half-written barrel, and `tsoa` could not resolve types the branch had
+# just added (2026-09-08). Each fires only when its own package changes.
+[[tier]]
+name = "common-build"
+files = ["packages/common/**"]
+run = "pnpm common-build"
+memory = "12gb"                    # the barrel is large; the same headroom migrate takes
+
+[[tier]]
+name = "warehouses-build"
+files = ["packages/warehouses/**"]
+run = "pnpm warehouses-build"
+
+[[tier]]
+name = "migrate"
+files = ["packages/backend/src/database/migrations/**"]
+run = "pnpm -F backend migrate"
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
+memory = "12gb"
+
+[[tier]]
+name = "api-routes"
+files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**"]
+run = "pnpm -F backend generate-api"   # tsx watch restarts on the regenerated routes.ts
+
+[[tier]]
+name = "app"
+watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers notice the write
+
+# Outbound access, exactly these flows and nothing else (the platform builds
+# the uplink and a default-deny policy around them). The backend validates its
+# licence key online at startup; with no offline certificate stored, Keygen
+# must be reachable from every environment, the parent's readiness gate
+# included.
+[[egress.allow]]
+host = "api.keygen.sh"
+port = 443
+
+# Each integration a preview can exercise, one flow per service. A key in
+# [secrets] does nothing on its own: the connect is refused unless the host
+# is listed here.
+[[egress.allow]]
+host = "api.anthropic.com"          # Ask AI, data apps
+port = 443
+
+[[egress.allow]]
+host = "api.brandfetch.io"          # organization brand lookup
+port = 443
+
+[[egress.allow]]
+host = "api.e2b.dev"                # data-app sandboxes (control plane only; sandbox hosts are per-run)
+port = 443
+
+[[egress.allow]]
+host = "api.github.com"             # GitHub App: repo access for dbt projects
+port = 443
+
+[[egress.allow]]
+host = "github.com"                 # GitHub OAuth login
+port = 443
+
+# The browser learns its origin from one field of one response, so the ingress
+# corrects it in flight; nothing is re-execed on fork.
+[origin]
+vars = ["SITE_URL"]
+patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
+
+# Names, not values: the platform holds what they resolve to, and every
+# environment of this repo has them from the moment it boots. A name with no
+# stored value is simply absent (a kind the platform knows gets a placeholder
+# so the app can boot with nothing set). The licence pair is the offline
+# (ed25519-signed) form, so it verifies locally without reaching
+# api.keygen.sh; until both are stored, previews run Community Edition.
+[secrets]
+LIGHTDASH_SECRET = "app-secret"
+PGPASSWORD = "postgres-password"
+LIGHTDASH_LICENSE_KEY = "licence"
+LIGHTDASH_LICENSE_CERTIFICATE = "licence"
+# Integrations, in the order of the [[egress.allow]] list. Each is optional:
+# with no value stored the variable is absent and the feature stays off.
+ANTHROPIC_API_KEY = "api-key"
+BRANDFETCH_API_KEY = "api-key"
+E2B_API_KEY = "api-key"
+GITHUB_APP_ID = "github-app"
+GITHUB_APP_NAME = "github-app"
+GITHUB_CLIENT_ID = "github-app"
+GITHUB_CLIENT_SECRET = "github-app"
+GITHUB_PRIVATE_KEY = "github-app"

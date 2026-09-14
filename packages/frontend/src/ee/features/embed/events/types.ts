@@ -7,6 +7,7 @@ export enum LightdashEventType {
     TabChanged = 'tabChanged',
     Error = 'error',
     AllTilesLoaded = 'allTilesLoaded',
+    ChartSaved = 'chartSaved',
 }
 
 /**
@@ -55,12 +56,24 @@ export type LocationChangedPayload = {
     href: string;
 };
 
+/**
+ * Payload for ChartSaved events.
+ * Contains the saved chart identifier and whether it was created or updated.
+ */
+export type ChartSavedAction = 'created' | 'updated';
+
+export type ChartSavedPayload = {
+    chartUuid: string;
+    action: ChartSavedAction;
+};
+
 export type LightdashEventPayload =
     | FilterChangedPayload
     | TabChangedPayload
     | ErrorPayload
     | AllTilesLoadedPayload
-    | LocationChangedPayload;
+    | LocationChangedPayload
+    | ChartSavedPayload;
 
 /**
  * Generic event structure for all Lightdash events

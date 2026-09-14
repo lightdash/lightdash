@@ -1,5 +1,5 @@
+import { type ChartTypeIcon } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
-import { IconPuzzle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
@@ -10,6 +10,7 @@ import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
 } from '../hooks/useDataAppVizRender';
+import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import { buildSampleVizContext } from '../utils/sampleVizContext';
 import classes from './ChartTypeSamplePreview.module.css';
 
@@ -19,9 +20,12 @@ const RENDER_TARGET = { isEmbedded: false, savedChartUuid: undefined };
 // so the miniature keeps realistic proportions.
 const PREVIEW_NATURAL_WIDTH_PX = 800;
 
-const PreviewPlaceholder: FC<{ message: string }> = ({ message }) => (
+const PreviewPlaceholder: FC<{
+    message: string;
+    icon: ChartTypeIcon | null;
+}> = ({ message, icon }) => (
     <Stack align="center" justify="center" gap="xs" h="100%" w="100%">
-        <MantineIcon icon={IconPuzzle} size="xl" color="ldGray.5" />
+        <MantineIcon icon={getChartTypeIcon(icon)} size="xl" color="ldGray.5" />
         <Text c="dimmed" size="xs" ta="center">
             {message}
         </Text>
@@ -31,13 +35,18 @@ const PreviewPlaceholder: FC<{ message: string }> = ({ message }) => (
 type Props = {
     projectUuid: string;
     dataAppVizUuid: string;
+    icon: ChartTypeIcon | null;
 };
 
 /**
  * Non-interactive render of a chart type's current version, fed sample data
  * synthesized from its declared schema.
  */
-const ChartTypeSamplePreview: FC<Props> = ({ projectUuid, dataAppVizUuid }) => {
+const ChartTypeSamplePreview: FC<Props> = ({
+    projectUuid,
+    dataAppVizUuid,
+    icon,
+}) => {
     const previewOrigin = usePreviewOrigin();
     const { data: metadata, error: metadataError } =
         useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, RENDER_TARGET);
@@ -72,22 +81,24 @@ const ChartTypeSamplePreview: FC<Props> = ({ projectUuid, dataAppVizUuid }) => {
     // only fall back when there is nothing to show.
     if (!metadata) {
         return metadataError ? (
-            <PreviewPlaceholder message="Preview unavailable" />
+            <PreviewPlaceholder message="Preview unavailable" icon={icon} />
         ) : (
-            <PreviewPlaceholder message="Loading preview…" />
+            <PreviewPlaceholder message="Loading preview…" icon={icon} />
         );
     }
     if (metadata.state === 'building') {
-        return <PreviewPlaceholder message="Still generating…" />;
+        return <PreviewPlaceholder message="Still generating…" icon={icon} />;
     }
     if (metadata.state === 'unavailable') {
-        return <PreviewPlaceholder message="Preview unavailable" />;
+        return <PreviewPlaceholder message="Preview unavailable" icon={icon} />;
     }
     if (metadata.state === 'failed') {
-        return <PreviewPlaceholder message="No finished version yet" />;
+        return (
+            <PreviewPlaceholder message="No finished version yet" icon={icon} />
+        );
     }
     if (!token || !previewBaseUrl) {
-        return <PreviewPlaceholder message="Loading preview…" />;
+        return <PreviewPlaceholder message="Loading preview…" icon={icon} />;
     }
 
     const previewUrl = `${previewBaseUrl}?r=0#transport=postMessage&projectUuid=${projectUuid}`;

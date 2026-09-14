@@ -1025,6 +1025,7 @@ test('Should compile template table calculations using _order for custom bin dim
                 template: {
                     type: TableCalculationTemplateType.RUNNING_TOTAL,
                     fieldId: 'table_3_metric_1',
+                    orderBy: [{ fieldId: 'age_range', order: 'asc' }],
                 },
             } as TableCalculation,
             {

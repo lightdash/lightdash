@@ -36,6 +36,8 @@ export class SqlQuerySource implements QuerySourceClient {
             'Raw SQL against the project data warehouse. Tables are referenced as database.schema.table in the SQL dialect of the warehouse. Result columns are named by the SELECT output names.',
     };
 
+    readonly supportsPivot = true;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly projectService: ProjectService;
@@ -97,7 +99,14 @@ export class SqlQuerySource implements QuerySourceClient {
         projectUuid,
         context,
         query,
-    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+        parameters,
+        userAttributeOverrides,
+        invalidateCache,
+        pivotConfiguration,
+    }: SubmitSourceQueryArgs): Promise<{
+        queryUuid: string;
+        cacheHit: boolean;
+    }> {
         const sourceQuery = SqlQuerySource.assertSourceQuery(query);
 
         const results = await this.asyncQueryService.executeAsyncSqlQuery({
@@ -105,10 +114,16 @@ export class SqlQuerySource implements QuerySourceClient {
             projectUuid,
             sql: sourceQuery.sql,
             limit: sourceQuery.limit,
-            invalidateCache: false,
             context,
+            parameters,
+            userAttributeOverrides,
+            invalidateCache,
+            pivotConfiguration: pivotConfiguration ?? undefined,
         });
 
-        return { queryUuid: results.queryUuid };
+        return {
+            queryUuid: results.queryUuid,
+            cacheHit: results.cacheMetadata.cacheHit,
+        };
     }
 }

@@ -21,12 +21,57 @@ export enum MergeJoinType {
     INNER = 'inner',
 }
 
-/** One side of a merge: a metric query. */
-export type MergeQuerySource = {
+/** One side of a merge: a metric query compiled and run as part of the merge. */
+export type MergeQueryMetricSource = {
     /** Stable id. Names the CTE, and the table its merged fields belong to. */
     id: string;
     metricQuery: MetricQuery;
 };
+
+/**
+ * One side of a merge: an existing query result, referenced by queryUuid and
+ * joined as the rows it already holds — nothing re-runs. Its structure and
+ * types resolve at compile time from the stored query metadata. Results are
+ * creator-scoped and expire; an expired reference is re-submitted as a
+ * query, not refreshed by handle.
+ */
+export type MergeQueryResultSource = {
+    /** Stable id. Names the CTE, and the table its merged fields belong to. */
+    id: string;
+    queryUuid: string;
+};
+
+export type MergeQuerySource = MergeQueryMetricSource | MergeQueryResultSource;
+
+/**
+ * A merge whose sources are all metric queries — what AI-built artifacts
+ * hold and their endpoints return. Response contracts use this so
+ * `metricQuery` stays required on every returned source, while the
+ * run/compile requests accept the wider MergeQuerySource union
+ * (expand-only: requests widen, responses do not).
+ */
+export type MetricSourcedMergeQuery = {
+    // Spelled out rather than derived with Omit: TSOA drops required
+    // markers on mapped types, which reads as a breaking response change.
+    sources: MergeQueryMetricSource[];
+    joinKey: MergeJoinKeyPart[];
+    joinType: MergeJoinType;
+    tableCalculations: MergeTableCalculation[];
+    limit: number;
+};
+
+export const isMergeResultSource = (
+    source: MergeQuerySource,
+): source is MergeQueryResultSource => 'queryUuid' in source;
+
+export const isMergeMetricSource = (
+    source: MergeQuerySource,
+): source is MergeQueryMetricSource => 'metricQuery' in source;
+
+export const isMetricSourcedMergeQuery = (
+    mergeQuery: MergeQuery,
+): mergeQuery is MetricSourcedMergeQuery =>
+    mergeQuery.sources.every(isMergeMetricSource);
 
 /**
  * One column of the join key. Sources name the same real-world key differently
@@ -202,6 +247,12 @@ export enum MergeQueryErrorKind {
      * text — the same refusal the query makes when it runs on its own.
      */
     MISSING_PARAMETERS = 'missing_parameters',
+    /**
+     * A referenced query result cannot back a merge source: not found, not
+     * the caller's, not ready, or expired. The remedy is re-running the
+     * referenced query, not retrying the merge.
+     */
+    RESULT_SOURCE_UNAVAILABLE = 'result_source_unavailable',
 }
 
 export type MergeQueryError = {
@@ -233,6 +284,9 @@ export const getUnaccountedDimensions = (
     source: MergeQuerySource,
     joinKey: MergeJoinKeyPart[],
 ): FieldId[] => {
+    // A result source's structure lives in stored query metadata; the
+    // compiler resolves it and re-runs this check on the resolved form.
+    if (isMergeResultSource(source)) return [];
     const accounted = new Set([
         ...getJoinKeyFieldIdsForSource(joinKey, source.id),
     ]);
@@ -331,8 +385,12 @@ export const validateMergeQuery = (
             }
             // The join compiles against the source's own output columns, so a
             // key naming a field the source does not select produces SQL that
-            // references a column the warehouse has never heard of.
-            if (!source.metricQuery.dimensions.includes(fieldId)) {
+            // references a column the warehouse has never heard of. Result
+            // sources defer this to the compiler, which has their structure.
+            if (
+                isMergeMetricSource(source) &&
+                !source.metricQuery.dimensions.includes(fieldId)
+            ) {
                 errors.push({
                     kind: MergeQueryErrorKind.JOIN_KEY_NOT_SELECTED,
                     sourceId: source.id,
@@ -472,30 +530,52 @@ export type MergeTypedColumn = {
 };
 
 /**
- * The terminal stage of a merged statement, owned by the run path: sort,
- * limit, and truncation detection. Kept as data rather than SQL text so the
- * run path can attach it above whatever it stacked on the core (for example a
- * date spine), and so the composable core stays clean under `SELECT *`.
+ * The terminal stage of a merged statement, owned by the run path: sort and
+ * limit. Kept as data rather than SQL text so the run path can attach it
+ * above whatever it stacked on the core (for example a pivot), and so the
+ * composable core stays clean under `SELECT *`.
  */
 export type MergeTerminalWrapper = {
     /** ORDER BY terms in output-alias space, already quoted for the dialect. */
     orderBy: string[];
     limit: number | null;
-    /** Boolean SQL expression that is true when a source exceeded its cap. */
+    /**
+     * @deprecated Always null: a source reaching its row cap is refused from
+     * the leg's own row count, never detected in SQL. Stays on the response
+     * until the legacy merge endpoints are retired, because removing a
+     * required response property is an API break.
+     */
     sourceLimitExceededSql: string | null;
+};
+
+/**
+ * One side of a merge as it runs: the statement its metric query compiles to,
+ * or null for a result source, whose rows already exist.
+ */
+export type MergeCompiledLeg = {
+    sourceId: string;
+    sql: string | null;
 };
 
 /**
  * What the compile endpoint returns. `sql` is null exactly when `errors` is
  * non-empty: a merge that would produce wrong numbers is reported, not run.
+ *
+ * A merge runs as a composition: each metric source runs on its own as a
+ * leg, and the join runs on the compose engine over the legs' results, which
+ * it reads as `merge_source_N` tables in source order. `legs` and `sql`
+ * together are the SQL that runs.
  */
 export type ApiCompiledMergeQueryResults = {
+    /** The join statement over the `merge_source_N` reference tables. */
     sql: string | null;
+    /** What each source runs on its own, in source order. Empty on an error. */
+    legs: MergeCompiledLeg[];
     /**
-     * The composable core: a self-contained single-statement SELECT with no
-     * ORDER BY, no LIMIT and no guard column — valid under `SELECT *`, so it
-     * can back a virtual view. `sql` is this core with the terminal wrapper
-     * attached.
+     * The composable core of the join: a self-contained single-statement
+     * SELECT with no ORDER BY, no LIMIT and no guard column — valid under
+     * `SELECT *`, so it can back a virtual view. `sql` is this core with the
+     * terminal wrapper attached.
      */
     coreSql: string | null;
     /** The core's columns, in the order the statement returns them. */
@@ -523,22 +603,40 @@ export type ApiCompiledMergeQueryResults = {
      * before anything downstream sees them.
      */
     fieldIdByColumn: Record<string, FieldId>;
+    /**
+     * @deprecated Always false: every merge runs on the compose engine.
+     * Nothing reads it; it stays on the response until the legacy merge
+     * endpoints are retired, because removing a required response property
+     * is an API break.
+     */
+    requiresCompose: boolean;
     errors: MergeQueryError[];
 };
-
-/**
- * Column the merged statement carries to report that a query produced more
- * rows than the merge is willing to join. It is a guard, not data: the caller
- * refuses the result rather than showing a partial join.
- */
-export const MERGE_TRUNCATED_COLUMN = '__merge_truncated';
-
-/** Internal marker that distinguishes the empty-result guard row from data. */
-export const MERGE_ROW_PRESENT_COLUMN = '__merge_row_present';
 
 /** Label for the pseudo-table a source's merged fields belong to. */
 export const getMergeSourceTableLabel = (sourceIndex: number): string =>
     `Query ${String.fromCharCode(65 + sourceIndex)}`;
+
+/**
+ * The SQL a compiled merge runs, as one readable text: each leg under a
+ * comment naming its source, then the join. Null when the merge did not
+ * compile.
+ */
+export const getMergeCompiledSqlText = (
+    compiled: Pick<ApiCompiledMergeQueryResults, 'legs' | 'sql'>,
+): string | null => {
+    if (compiled.sql === null) return null;
+    const legs = compiled.legs.map((leg, index) => {
+        const label = `${getMergeSourceTableLabel(index)} ("${leg.sourceId}")`;
+        return leg.sql === null
+            ? `-- ${label}: existing results, nothing runs`
+            : `-- ${label}: runs on the warehouse\n${leg.sql}`;
+    });
+    return [
+        ...legs,
+        `-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...\n${compiled.sql}`,
+    ].join('\n\n');
+};
 
 /**
  * Where a merged field came from. Carried beside the fields rather than on

@@ -69,7 +69,6 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                     ref={ref}
                     pos="relative"
                     p={0}
-                    withBorder
                     className={classes.gridCard}
                     h="100%"
                 >
@@ -87,7 +86,6 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                             label={item.data.description}
                             position="top"
                             maw={400}
-                            multiline
                             disabled={
                                 hasThumbnailPreview || !item.data.description
                             }
@@ -119,7 +117,7 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                                     size={14}
                                 />
 
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     {item.data.views} views
                                 </Text>
                             </Flex>

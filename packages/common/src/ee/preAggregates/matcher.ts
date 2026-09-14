@@ -1,4 +1,10 @@
 import { parseAllReferences } from '../../compiler/exploreCompiler';
+import {
+    findTablesWithMetricInflation,
+    getJoinedTables,
+    isInflationProofMetric,
+} from '../../compiler/joinInflation';
+import { getReferencedDimension } from '../../compiler/referenceLookup';
 import type { Explore } from '../../types/explore';
 import {
     convertFieldRefToFieldId,
@@ -6,6 +12,8 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
     MetricType,
+    type CustomDimension,
+    type CustomSqlDimension,
     type FieldId,
 } from '../../types/field';
 import {
@@ -153,6 +161,19 @@ const extractDimensionFilterFieldIds = (
                 typeof target.fieldId === 'string',
         )
         .map((target) => target.fieldId);
+};
+
+export const getActiveCustomDimensions = (
+    metricQuery: MetricQuery,
+): CustomDimension[] => {
+    const activeFieldIds = new Set([
+        ...metricQuery.dimensions,
+        ...extractDimensionFilterFieldIds(metricQuery),
+    ]);
+
+    return (metricQuery.customDimensions || []).filter((customDimension) =>
+        activeFieldIds.has(getItemId(customDimension)),
+    );
 };
 
 // Field ids referenced by the base model's sql_filter. ${TABLE}.col raw
@@ -859,6 +880,7 @@ const missCloseness: Record<PreAggregateMissReason, number> = {
     [PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE]: 0,
     [PreAggregateMissReason.NON_ADDITIVE_METRIC]: 1,
     [PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH]: 1,
+    [PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH]: 1,
     [PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT]: 2,
     [PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE]: 2,
     [PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]: 3,
@@ -870,6 +892,76 @@ const missCloseness: Record<PreAggregateMissReason, number> = {
 
 const isRawTimeInterval = (timeInterval: TimeFrames | undefined): boolean =>
     !timeInterval || timeInterval === TimeFrames.RAW;
+
+/**
+ * Tables whose metrics the materialisation computes through the primary-key
+ * deduplication CTE. The materialisation joins every table its fields
+ * reference; a metric on the "one" side of a one-to-many join among them is
+ * right at the definition's own grain but can't be summed across the "many"
+ * side's dimensions, so it must be served on an exact match only.
+ */
+const getDeduplicatedMetricTables = ({
+    explore,
+    defDimensions,
+    defMetrics,
+    dimensionsByFieldId,
+    metricsByFieldId,
+}: {
+    explore: Explore;
+    defDimensions: ReadonlySet<string>;
+    defMetrics: ReadonlySet<string>;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+    metricsByFieldId: ReturnType<typeof getMetricsMapFromTables>;
+}): ReadonlySet<string> => {
+    const referencedTables = new Set<string>([explore.baseTable]);
+    const addFieldTables = (field: {
+        table: string;
+        tablesReferences?: string[];
+    }) =>
+        (field.tablesReferences?.length
+            ? field.tablesReferences
+            : [field.table]
+        ).forEach((table) => referencedTables.add(table));
+    dimensionsByFieldId.forEach((dimension) => {
+        if (
+            getDimensionReferences({
+                dimension,
+                baseTable: explore.baseTable,
+            }).some((reference) => defDimensions.has(reference))
+        ) {
+            addFieldTables(dimension);
+        }
+    });
+    Object.values(metricsByFieldId).forEach((metric) => {
+        if (
+            getMetricReferences({
+                metric,
+                baseTable: explore.baseTable,
+            }).some((reference) => defMetrics.has(reference))
+        ) {
+            addFieldTables(metric);
+        }
+    });
+    const joinedTables = new Set([
+        ...referencedTables,
+        ...getJoinedTables(explore, Array.from(referencedTables)),
+    ]);
+    try {
+        return findTablesWithMetricInflation({
+            baseTable: explore.baseTable,
+            joinedTables,
+            possibleJoins: explore.joinedTables,
+            tables: explore.tables,
+        }).tablesWithMetricInflation;
+    } catch {
+        // A join the explore can't describe: fall back to treating every
+        // metric as re-aggregable, the behaviour before this check existed.
+        return new Set();
+    }
+};
 
 // Exact match (see docs/pre-aggregates/CONTEXT.md): selected dimensions
 // set-equal to the definition's, time dimension at exactly its granularity.
@@ -917,12 +1009,28 @@ const isExactDimensionSetMatch = ({
             !!preAggregateDef.granularity &&
             getDimensionBaseName(dimension) === preAggregateDef.timeDimension;
         if (isDefTimeDimension) {
-            if (dimension.timeInterval !== preAggregateDef.granularity) {
+            if (
+                getEffectiveDimensionTimeFrame(dimension) !==
+                preAggregateDef.granularity
+            ) {
                 return false;
             }
         } else if (!isRawTimeInterval(dimension.timeInterval)) {
-            // A truncated variant collapses the stored raw values.
-            return false;
+            // A truncated variant is exact only when truncation is an
+            // identity on the stored raw values (e.g. day alias of a DATE).
+            const baseDimension = dimensionsByFieldId.get(
+                convertFieldRefToFieldId(
+                    `${dimension.table}.${getDimensionBaseName(dimension)}`,
+                    explore.baseTable,
+                ),
+            );
+            if (
+                !baseDimension ||
+                getEffectiveDimensionTimeFrame(dimension) !==
+                    getEffectiveDimensionTimeFrame(baseDimension)
+            ) {
+                return false;
+            }
         }
 
         matchedReferences.forEach((reference) =>
@@ -936,7 +1044,7 @@ const isExactDimensionSetMatch = ({
 };
 
 const getGranularityMissForDef = (
-    metricQuery: MetricQuery,
+    dimensionFieldIds: readonly FieldId[],
     explore: Explore,
     preAggregateDef: PreAggregateDef,
     dimensionsByFieldId: Map<
@@ -955,7 +1063,7 @@ const getGranularityMissForDef = (
         return null;
     }
 
-    for (const dimensionFieldId of metricQuery.dimensions) {
+    for (const dimensionFieldId of dimensionFieldIds) {
         const dimension = dimensionsByFieldId.get(dimensionFieldId);
         const queryGranularity = dimension
             ? getEffectiveDimensionTimeFrame(dimension)
@@ -1001,6 +1109,68 @@ const getGranularityMissForDef = (
     return null;
 };
 
+const getSqlCustomDimensionMissForDef = ({
+    customDimension,
+    explore,
+    preAggregateDef,
+    defDimensions,
+    dimensionsByFieldId,
+}: {
+    customDimension: CustomSqlDimension;
+    explore: Explore;
+    preAggregateDef: PreAggregateDef;
+    defDimensions: Set<string>;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+}): PreAggregateMatchMiss | null => {
+    const refs = parseAllReferences(customDimension.sql, customDimension.table);
+    // Opaque SQL (no ${refs}) and ${TABLE}.col reference raw columns that don't
+    // exist in the materialized table, so coverage can't be verified
+    if (refs.length === 0 || refs.some(({ refName }) => refName === 'TABLE')) {
+        return {
+            reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+            fieldId: getItemId(customDimension),
+        };
+    }
+
+    for (const { refTable, refName } of refs) {
+        const dimension = getReferencedDimension(
+            refTable,
+            refName,
+            explore.tables,
+        );
+        const fieldId = dimension ? getItemId(dimension) : null;
+        if (
+            !fieldId ||
+            !dimensionFieldIdMatchesDef(
+                fieldId,
+                explore,
+                defDimensions,
+                dimensionsByFieldId,
+            )
+        ) {
+            return {
+                reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: getItemId(customDimension),
+            };
+        }
+
+        const granularityMiss = getGranularityMissForDef(
+            [fieldId],
+            explore,
+            preAggregateDef,
+            dimensionsByFieldId,
+        );
+        if (granularityMiss) {
+            return granularityMiss;
+        }
+    }
+
+    return null;
+};
+
 const getMissForDef = ({
     metricQuery,
     explore,
@@ -1031,8 +1201,10 @@ const getMissForDef = ({
     ) {
         defDimensions.add(preAggregateDef.timeDimension);
     }
-    const customDimensionIds = new Set(
-        (metricQuery.customDimensions || []).map(getItemId),
+    const activeCustomDimensions = getActiveCustomDimensions(metricQuery);
+    const customDimensionIds = new Set(activeCustomDimensions.map(getItemId));
+    const sqlCustomDimensionIds = new Set(
+        activeCustomDimensions.filter(isCustomSqlDimension).map(getItemId),
     );
 
     let exactDimensionSetMatch: boolean | null = null;
@@ -1051,6 +1223,25 @@ const getMissForDef = ({
     };
 
     const defMetrics = new Set(preAggregateDef.metrics);
+    let deduplicatedMetricTables: ReadonlySet<string> | null = null;
+    const isDeduplicatedMetric = (metric: {
+        table: string;
+        type: MetricType;
+    }): boolean => {
+        if (isInflationProofMetric(metric.type)) {
+            return false;
+        }
+        if (deduplicatedMetricTables === null) {
+            deduplicatedMetricTables = getDeduplicatedMetricTables({
+                explore,
+                defDimensions,
+                defMetrics,
+                dimensionsByFieldId,
+                metricsByFieldId,
+            });
+        }
+        return deduplicatedMetricTables.has(metric.table);
+    };
     for (const metricFieldId of metricQuery.metrics) {
         const metric = metricsByFieldId[metricFieldId];
         if (!metric) {
@@ -1079,6 +1270,12 @@ const getMissForDef = ({
         switch (representation.kind) {
             case PreAggregateMetricRepresentationKind.DIRECT:
             case PreAggregateMetricRepresentationKind.DECOMPOSED:
+                if (isDeduplicatedMetric(metric) && !isExactMatch()) {
+                    return {
+                        reason: PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH,
+                        fieldId: metricFieldId,
+                    };
+                }
                 break;
             case PreAggregateMetricRepresentationKind.EXACT_ONLY:
                 if (!isExactMatch()) {
@@ -1101,34 +1298,32 @@ const getMissForDef = ({
         }
     }
 
-    const missingCustomDimension = (metricQuery.customDimensions || []).find(
-        (customDimension) => {
-            if (isCustomSqlDimension(customDimension)) {
-                return true;
+    for (const customDimension of activeCustomDimensions) {
+        if (isCustomSqlDimension(customDimension)) {
+            const miss = getSqlCustomDimensionMissForDef({
+                customDimension,
+                explore,
+                preAggregateDef,
+                defDimensions,
+                dimensionsByFieldId,
+            });
+            if (miss) {
+                return miss;
             }
-
-            return (
-                isCustomBinDimension(customDimension) &&
-                !dimensionFieldIdMatchesDef(
-                    customDimension.dimensionId,
-                    explore,
-                    defDimensions,
-                    dimensionsByFieldId,
-                )
-            );
-        },
-    );
-    if (missingCustomDimension) {
-        if (isCustomSqlDimension(missingCustomDimension)) {
+        } else if (
+            isCustomBinDimension(customDimension) &&
+            !dimensionFieldIdMatchesDef(
+                customDimension.dimensionId,
+                explore,
+                defDimensions,
+                dimensionsByFieldId,
+            )
+        ) {
             return {
-                reason: PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT,
+                reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: getItemId(customDimension),
             };
         }
-
-        return {
-            reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
-            fieldId: getItemId(missingCustomDimension),
-        };
     }
 
     const missingQueryDimensionFieldId = metricQuery.dimensions.find(
@@ -1154,6 +1349,7 @@ const getMissForDef = ({
     ];
     const missingFilterDimensionFieldId = filterDimensionFieldIds.find(
         (dimensionFieldId) =>
+            !sqlCustomDimensionIds.has(dimensionFieldId) &&
             !filterDimensionFieldIdMatchesDef(
                 dimensionFieldId,
                 explore,
@@ -1223,7 +1419,7 @@ const getMissForDef = ({
     }
 
     const granularityMiss = getGranularityMissForDef(
-        metricQuery,
+        metricQuery.dimensions,
         explore,
         preAggregateDef,
         dimensionsByFieldId,

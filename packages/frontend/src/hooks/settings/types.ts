@@ -27,6 +27,7 @@ export type SettingsNavigationItem = {
     icon: TablerIcon;
     /** Render the gradient AI orb instead of `icon` in the sidebar. */
     aiAgentIcon?: boolean;
+    isBeta?: boolean;
     /** Hidden search aliases so e.g. "sso" finds "Single Sign-On". */
     keywords: string[];
     /**
@@ -60,11 +61,11 @@ export type SettingsContext = {
     organization: Organization | undefined;
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
-    isLeaveOrganizationEnabled: boolean;
     isCustomRolesEnabled: boolean | undefined;
     isProLimitsEnabled: boolean;
+    canAccessAnalyticsSettings: boolean;
+    isAnalyticsProjectFlagLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
-    isOrganizationRoadmapLoading: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
     isEmailWhitelabelEnabled: boolean;
     isScimTokenManagementEnabled: FeatureFlag | undefined;
@@ -79,12 +80,15 @@ export type SettingsContext = {
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    externalSourcesFlag: FeatureFlag | undefined;
+    isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
     isGroupManagementEnabled: boolean;
     isWarehouseCredentialsEnabled: boolean;
     isGitProject: boolean;
+    isContentReviewAvailable: boolean;
     isHealthLoading: boolean;
     healthError: ApiError | null;
     isUserLoading: boolean;

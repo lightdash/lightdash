@@ -2,7 +2,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { DEFAULT_OPENAI_BASE_URL } from '../../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { ModelPreset } from './presets';
-import { AiModel } from './types';
+import { AiModel, ProviderOptionsMap } from './types';
 
 const PROVIDER = 'openai';
 
@@ -21,37 +21,40 @@ export const getOpenaiGptmodel = (
     const { supportsReasoning, modelId } = preset;
 
     const model = openai(modelId);
-
-    const reasoningEnabled = supportsReasoning;
-    const reasoningEffort = options?.enableReasoning ? 'medium' : 'low';
+    const extendedReasoningEnabled =
+        options?.enableReasoning === true && supportsReasoning;
+    const { reasoningEffort: presetReasoningEffort, ...presetProviderOptions } =
+        preset.providerOptions ?? {};
+    const reasoningProviderOptions = supportsReasoning
+        ? ({
+              reasoningEffort:
+                  presetReasoningEffort ??
+                  (extendedReasoningEnabled ? 'medium' : 'low'),
+              ...(extendedReasoningEnabled && {
+                  // Request a summary so extended reasoning reaches the client.
+                  reasoningSummary: 'auto',
+              }),
+          } satisfies ProviderOptionsMap[typeof PROVIDER])
+        : undefined;
 
     return {
         model,
-        callOptions: {
-            ...preset.callOptions,
-            // temperature is not supported when reasoning is enabled
-            ...(reasoningEnabled
-                ? { temperature: undefined }
-                : { temperature: 0.2 }),
-        },
+        callOptions: preset.callOptions,
         providerOptions: {
             [PROVIDER]: {
+                ...presetProviderOptions,
                 // Force sequential tool execution: parallel tool calls in one
                 // step can drop some executions (no query, no result), so the
-                // agent stalls. Interim mitigation; a preset can override.
+                // agent stalls.
                 parallelToolCalls: false,
-                // Defaulting to Low as GPT-5 models without reasoning are not better than GPT-4.1
-                ...(reasoningEnabled && {
-                    reasoningSummary: 'auto',
-                    reasoningEffort,
-                }),
-                // ZDR: use encrypted reasoning items instead of server-stored IDs
+                ...reasoningProviderOptions,
+                // OpenAI Zero Data Retention (ZDR) organizations do not persist
+                // reasoning IDs; return encrypted content for stateless follow-ups.
                 ...(config.zeroDataRetention &&
-                    reasoningEnabled && {
+                    supportsReasoning && {
                         store: false,
                         include: ['reasoning.encrypted_content'],
                     }),
-                ...(preset.providerOptions || {}),
             },
         },
     };

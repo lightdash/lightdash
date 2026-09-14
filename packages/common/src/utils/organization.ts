@@ -20,7 +20,7 @@ export const validateOrganizationNameOrThrow = (name: string) => {
     const parsedOrganizationName = getOrganizationNameSchema().safeParse(name);
 
     if (!parsedOrganizationName.success) {
-        const error = parsedOrganizationName.error.errors[0];
+        const error = parsedOrganizationName.error.issues[0];
         if (error.code === 'custom') {
             throw new ParameterError(error.message);
         }

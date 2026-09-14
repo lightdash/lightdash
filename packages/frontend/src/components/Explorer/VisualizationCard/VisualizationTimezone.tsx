@@ -22,7 +22,6 @@ const VisualizationTimezone: FC<Props> = ({
         <Tooltip
             label={getTimezoneSourceLabel(timezoneSetting, resolvedTimezone)}
             position="bottom"
-            multiline
             w={260}
         >
             <Badge
@@ -30,7 +29,6 @@ const VisualizationTimezone: FC<Props> = ({
                 color="ldGray.6"
                 variant="transparent"
                 size="sm"
-                tt="none"
             >
                 {getTimezoneLabel(resolvedTimezone)}
             </Badge>

@@ -51,6 +51,7 @@ test('safe v2 marker renders the sticky upgrade summary', () => {
     assert.ok(body.startsWith(COMMENT_MARKER));
     assert.match(body, /Safe to upgrade normally/);
     assert.match(body, /Database changes \| none/);
+    assert.match(body, /Declared breaking changes \| none/);
 });
 
 test('unknown verdict is rendered as unsafe for a ready PR', () => {
@@ -87,6 +88,84 @@ test('a failed gate never leaves a green headline above a red check', () => {
         assert.match(body, /The upgrade itself looks safe/);
         assert.match(body, /How to unblock this pull request/);
     }
+});
+
+test('a false declaration-only verdict explains the declared compatibility break and does not claim a DB change', () => {
+    const body = renderPrComment(
+        baseMarker({
+            compatibility: {
+                rollingUpdateSafe: false,
+                recommendedStrategy: 'Recreate',
+            },
+            declaredBreaks: [
+                {
+                    id: 'old-request-field-names',
+                    reason: 'Existing API clients still rely on old request field names.',
+                    requiredStop: false,
+                },
+            ],
+        }),
+    );
+    assert.match(body, /Needs care on upgrade/);
+    assert.match(
+        body,
+        /declared as a breaking change: 1\) Existing API clients still rely on old request field names\./,
+    );
+    assert.doesNotMatch(body, /changes the database in a way/);
+});
+
+test('the declaration breaks row shows every reason and marks required stops', () => {
+    const body = renderPrComment(
+        baseMarker({
+            compatibility: {
+                rollingUpdateSafe: false,
+                recommendedStrategy: 'Recreate',
+            },
+            declaredBreaks: [
+                {
+                    id: 'first-break',
+                    reason: 'first reason',
+                    requiredStop: false,
+                },
+                {
+                    id: 'second-break',
+                    reason: 'second reason',
+                    requiredStop: true,
+                },
+            ],
+        }),
+    );
+    const declaredRow = body
+        .split('\n')
+        .find((line) => line.startsWith('| Declared breaking changes |'));
+    assert.ok(declaredRow);
+    assert.match(declaredRow, /2 declared breaking changes/);
+    assert.match(declaredRow, /first reason/);
+    assert.match(declaredRow, /second reason/);
+    assert.match(declaredRow, /\(required stop\)/);
+});
+
+test('declaration reasons are escaped for markdown table rendering', () => {
+    const body = renderPrComment(
+        baseMarker({
+            compatibility: {
+                rollingUpdateSafe: false,
+                recommendedStrategy: 'Recreate',
+            },
+            declaredBreaks: [
+                {
+                    id: 'markdown-break',
+                    reason: 'line with pipe | and newline\nin declaration',
+                    requiredStop: false,
+                },
+            ],
+        }),
+    );
+    const declaredRow = body
+        .split('\n')
+        .find((line) => line.startsWith('| Declared breaking changes |'));
+    assert.ok(declaredRow);
+    assert.match(declaredRow, /line with pipe \\| and newline<br\/>in declaration/);
 });
 
 test('a green marker with no failed gate keeps its safe headline', () => {
@@ -237,18 +316,30 @@ test('raw v2 JSON is embedded for machines', () => {
 
 const HEAD = '4146779f7a801f252b99ddfa68a5e8217d08fefb';
 const BASE = 'd92d59798a4f0207927eea6c1ac31eafb6b1090e';
+const RUN_ID = '182736455';
 
 test('a passing verdict stamps the revision it describes', () => {
-    const body = renderPrComment(baseMarker(), { headSha: HEAD, baseSha: BASE });
+    const body = renderPrComment(baseMarker(), {
+        headSha: HEAD,
+        baseSha: BASE,
+        runId: RUN_ID,
+    });
     assert.match(
         body,
-        new RegExp(`<!-- release-safety-describes head:${HEAD} base:${BASE} gate:pass -->`),
+        new RegExp(
+            `<!-- release-safety-describes head:${HEAD} base:${BASE} gate:pass run:${RUN_ID} -->`,
+        ),
     );
 });
 
 test('a failed gate stamps gate:fail so it can never be short-circuited', () => {
-    const body = renderPrComment(baseMarker(), { headSha: HEAD, baseSha: BASE, gateFailed: true });
-    assert.match(body, /release-safety-describes .* gate:fail -->/);
+    const body = renderPrComment(baseMarker(), {
+        headSha: HEAD,
+        baseSha: BASE,
+        runId: RUN_ID,
+        gateFailed: true,
+    });
+    assert.match(body, /release-safety-describes .* gate:fail run:[1-9][0-9]* -->/);
     assert.doesNotMatch(body, /gate:pass/);
 });
 
@@ -258,22 +349,31 @@ test('the stamp is omitted when the revision is unknown', () => {
         renderPrComment(baseMarker(), { headSha: HEAD }),
         /release-safety-describes/,
     );
+    assert.doesNotMatch(
+        renderPrComment(baseMarker(), { headSha: HEAD, baseSha: BASE }),
+        /release-safety-describes/,
+    );
 });
 
 test('the stamp matches the regex the workflow reads it with', () => {
     const workflow = fs.readFileSync('.github/workflows/release-safety-pr.yml', 'utf-8');
     const declared = workflow.match(
-        /\/<!-- release-safety-describes head:\(\[0-9a-f\]\{7,40\}\) base:\(\[0-9a-f\]\{7,40\}\) gate:\(pass\|fail\) -->\//,
+        /\/<!-- release-safety-describes head:\(\[0-9a-f\]\{7,40\}\) base:\(\[0-9a-f\]\{7,40\}\) gate:\(pass\|fail\) run:\(\[1-9\]\[0-9\]\*\) -->\//,
     );
     assert.ok(declared, 'the workflow reader regex is not in the expected form');
 
     const reader =
-        /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) -->/;
-    const emitted = renderPrComment(baseMarker(), { headSha: HEAD, baseSha: BASE }).match(reader);
+        /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) gate:(pass|fail) run:([1-9][0-9]*) -->/;
+    const emitted = renderPrComment(baseMarker(), {
+        headSha: HEAD,
+        baseSha: BASE,
+        runId: RUN_ID,
+    }).match(reader);
     assert.ok(emitted, 'the rendered stamp does not match the reader regex');
     assert.strictEqual(emitted[1], HEAD);
     assert.strictEqual(emitted[2], BASE);
     assert.strictEqual(emitted[3], 'pass');
+    assert.strictEqual(emitted[4], RUN_ID);
 });
 
 if (failures.length > 0) {

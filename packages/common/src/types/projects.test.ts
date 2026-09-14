@@ -1,23 +1,59 @@
 import {
+    BigqueryAuthenticationType,
     buildSafeDbtEnvironmentVariables,
     DbtVersionOptionLatest,
+    DuckdbConnectionType,
+    fillOmittedSecrets,
     getDbtEnvironmentVariableKeyError,
     getDbtVersionSupportedWarehouses,
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
+    isMissingBigqueryKeyfile,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
     LATEST_SUPPORTED_DBT_VERSION,
     LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
     mergeWarehouseCredentials,
+    normalizeWarehouseCredentials,
+    omitEmptySecrets,
+    PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
+    PROJECT_DBT_SOURCE_NAME_PATTERN,
     resolveDbtVersion,
     SupportedDbtVersions,
+    validateProjectDbtSourceName,
     WarehouseTypes,
     type CreateAthenaCredentials,
+    type CreateBigqueryCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
+    type DuckdbAnalyticsCredentials,
 } from './projects';
+
+describe('project dbt source name validation', () => {
+    test.each([
+        ['', 'Name is required'],
+        ['my source!', 'Use only letters, numbers, and underscores'],
+        [
+            'a'.repeat(PROJECT_DBT_SOURCE_NAME_MAX_LENGTH + 1),
+            `Name must be ${PROJECT_DBT_SOURCE_NAME_MAX_LENGTH} characters or fewer`,
+        ],
+        ['sales__orders', 'Name cannot contain "__"'],
+        ['sales_orders', null],
+    ])('validates %j', (name, error) => {
+        expect(validateProjectDbtSourceName(name)).toBe(error);
+    });
+
+    test('exports the accepted name pattern', () => {
+        expect(PROJECT_DBT_SOURCE_NAME_PATTERN.test('sales_orders_2')).toBe(
+            true,
+        );
+        expect(PROJECT_DBT_SOURCE_NAME_PATTERN.test('sales-orders')).toBe(
+            false,
+        );
+    });
+});
 
 describe('dbt environment variable validation', () => {
     test('allows customer-defined environment variables', () => {
@@ -110,6 +146,43 @@ describe('dbt environment variable validation', () => {
         expect(
             buildSafeDbtEnvironmentVariables([{ key, value: 'stolen' }]),
         ).toEqual({ environment: {}, blockedKeys: [key] });
+    });
+});
+
+describe('normalizeWarehouseCredentials', () => {
+    test.each(['', null])(
+        'removes a blank Snowflake timeout saved as %p',
+        (timeoutSeconds) => {
+            const savedCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'user',
+                database: 'database',
+                warehouse: 'warehouse',
+                schema: 'schema',
+                timeoutSeconds,
+            } as unknown as CreateSnowflakeCredentials;
+
+            expect(
+                normalizeWarehouseCredentials(savedCredentials).timeoutSeconds,
+            ).toBeUndefined();
+        },
+    );
+
+    test('keeps a numeric Snowflake timeout, including 0', () => {
+        const savedCredentials: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'user',
+            database: 'database',
+            warehouse: 'warehouse',
+            schema: 'schema',
+            timeoutSeconds: 0,
+        };
+
+        expect(
+            normalizeWarehouseCredentials(savedCredentials).timeoutSeconds,
+        ).toBe(0);
     });
 });
 
@@ -279,10 +352,11 @@ describe('mergeWarehouseCredentials', () => {
 });
 
 describe('latest dbt version', () => {
-    test('`latest` resolves to LATEST_SUPPORTED_DBT_VERSION', () => {
-        expect(getLatestSupportDbtVersion()).toBe(LATEST_SUPPORTED_DBT_VERSION);
+    test('`latest` resolves to dbt 1.12', () => {
+        expect(LATEST_SUPPORTED_DBT_VERSION).toBe(SupportedDbtVersions.V1_12);
+        expect(getLatestSupportDbtVersion()).toBe(SupportedDbtVersions.V1_12);
         expect(resolveDbtVersion(DbtVersionOptionLatest.LATEST)).toBe(
-            LATEST_SUPPORTED_DBT_VERSION,
+            SupportedDbtVersions.V1_12,
         );
     });
 
@@ -296,12 +370,96 @@ describe('latest dbt version', () => {
         expect(missing).toEqual([]);
     });
 
-    test('records dbt 1.12 as missing databricks support', () => {
+    test('records dbt 1.12 databricks support', () => {
         expect(
             isWarehouseSupportedByDbtVersion(
                 SupportedDbtVersions.V1_12,
                 WarehouseTypes.DATABRICKS,
             ),
+        ).toBe(true);
+    });
+});
+
+describe('omitted secrets on connection test', () => {
+    const postgres: CreatePostgresCredentials = {
+        type: WarehouseTypes.POSTGRES,
+        host: 'db.internal',
+        port: 5432,
+        dbname: 'analytics',
+        schema: 'public',
+        user: '',
+        password: '',
+        sshTunnelPrivateKey: '',
+    };
+    const bigquery: CreateBigqueryCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'lightdash-analytics',
+        dataset: 'analytics',
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        keyfileContents: {},
+        timeoutSeconds: 300,
+        priority: 'interactive',
+        retries: 3,
+        location: 'US',
+        maximumBytesBilled: 1000,
+    };
+
+    it('drops secrets the form sent empty and keeps typed ones', () => {
+        expect(omitEmptySecrets({ ...postgres, password: 'typed' })).toEqual({
+            type: WarehouseTypes.POSTGRES,
+            host: 'db.internal',
+            port: 5432,
+            dbname: 'analytics',
+            schema: 'public',
+            password: 'typed',
+        });
+    });
+
+    it('restores the empty string for string secrets still missing', () => {
+        expect(fillOmittedSecrets(omitEmptySecrets(postgres))).toEqual({
+            ...postgres,
+            sshTunnelPrivateKey: undefined,
+        });
+    });
+
+    it('preserves internal analytics identifiers without adding secrets', () => {
+        const analytics: DuckdbAnalyticsCredentials = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.ANALYTICS,
+            database: 'memory',
+            schema: 'main',
+        };
+
+        expect(fillOmittedSecrets(omitEmptySecrets(analytics))).toEqual(
+            analytics,
+        );
+        expect(fillOmittedSecrets(analytics)).toEqual(analytics);
+    });
+
+    it('flags a private key BigQuery connection without a key file', () => {
+        const withoutKey = { ...bigquery, keyfileContents: undefined };
+        expect(isMissingBigqueryKeyfile(withoutKey)).toBe(true);
+        expect(
+            isMissingBigqueryKeyfile({
+                ...withoutKey,
+                authenticationType: BigqueryAuthenticationType.ADC,
+            }),
         ).toBe(false);
+        expect(
+            isMissingBigqueryKeyfile({
+                ...bigquery,
+                keyfileContents: { type: 'service_account' },
+            }),
+        ).toBe(false);
+    });
+
+    it('gives ADC and SSO BigQuery connections an empty key file object', () => {
+        expect(
+            fillOmittedSecrets({
+                ...bigquery,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents: undefined,
+            }),
+        ).toMatchObject({ keyfileContents: {} });
     });
 });

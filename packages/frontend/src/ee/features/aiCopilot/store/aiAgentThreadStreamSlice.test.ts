@@ -5,9 +5,13 @@ import {
     addToolCall,
     aiAgentThreadStreamSlice,
     appendStepProgress,
+    markStreamPolling,
+    markStreamRecovering,
+    setError,
     setMessage,
     setParts,
     startStreaming,
+    stopStreaming,
 } from './aiAgentThreadStreamSlice';
 
 describe('aiAgentThreadStreamSlice', () => {
@@ -51,6 +55,63 @@ describe('aiAgentThreadStreamSlice', () => {
         ).toEqual(expectedMeta);
     });
 
+    it('tracks streaming connection recovery', () => {
+        const streaming = aiAgentThreadStreamSlice.reducer(
+            undefined,
+            startStreaming({
+                threadUuid: 'thread-1',
+                messageUuid: 'message-1',
+            }),
+        );
+        expect(streaming['thread-1']?.connection).toEqual({
+            status: 'streaming',
+        });
+
+        const recovering = aiAgentThreadStreamSlice.reducer(
+            streaming,
+            markStreamRecovering({ threadUuid: 'thread-1' }),
+        );
+        expect(recovering['thread-1']?.connection).toEqual({
+            status: 'recovering',
+        });
+
+        const polling = aiAgentThreadStreamSlice.reducer(
+            recovering,
+            markStreamPolling({ threadUuid: 'thread-1' }),
+        );
+        expect(polling['thread-1']?.connection).toEqual({
+            status: 'polling',
+        });
+
+        const complete = aiAgentThreadStreamSlice.reducer(
+            polling,
+            stopStreaming({ threadUuid: 'thread-1' }),
+        );
+        expect(complete['thread-1']?.connection).toEqual({
+            status: 'complete',
+        });
+    });
+
+    it('keeps terminal stream errors in the connection state', () => {
+        const streaming = aiAgentThreadStreamSlice.reducer(
+            undefined,
+            startStreaming({
+                threadUuid: 'thread-1',
+                messageUuid: 'message-1',
+            }),
+        );
+
+        const failed = aiAgentThreadStreamSlice.reducer(
+            streaming,
+            setError({ threadUuid: 'thread-1', error: 'Failed to connect' }),
+        );
+
+        expect(failed['thread-1']?.connection).toEqual({
+            status: 'error',
+            error: 'Failed to connect',
+        });
+    });
+
     it('appends each progress message to the timeline in order', () => {
         const startedState = aiAgentThreadStreamSlice.reducer(
             undefined,
@@ -78,8 +139,18 @@ describe('aiAgentThreadStreamSlice', () => {
             }),
         );
         expect(afterSecond['thread-1']?.stepProgressMessages).toEqual([
-            { message: 'Starting sandbox...', toolName: 'editDbtProject' },
-            { message: 'Cloning project...', toolName: 'editDbtProject' },
+            {
+                message: 'Starting sandbox...',
+                toolName: 'editDbtProject',
+                progressId: null,
+                progressStatus: null,
+            },
+            {
+                message: 'Cloning project...',
+                toolName: 'editDbtProject',
+                progressId: null,
+                progressStatus: null,
+            },
         ]);
     });
 
@@ -107,7 +178,12 @@ describe('aiAgentThreadStreamSlice', () => {
             }),
         );
         expect(afterDuplicate['thread-1']?.stepProgressMessages).toEqual([
-            { message: 'Running your query...', toolName: 'runQuery' },
+            {
+                message: 'Running your query...',
+                toolName: 'runQuery',
+                progressId: null,
+                progressStatus: null,
+            },
         ]);
     });
 
@@ -132,8 +208,18 @@ describe('aiAgentThreadStreamSlice', () => {
             );
         }
         expect(state['thread-1']?.stepProgressMessages).toEqual([
-            { message: 'Discovering models', toolName: 'editDbtProject' },
-            { message: 'Discovering models', toolName: 'findExplores' },
+            {
+                message: 'Discovering models',
+                toolName: 'editDbtProject',
+                progressId: null,
+                progressStatus: null,
+            },
+            {
+                message: 'Discovering models',
+                toolName: 'findExplores',
+                progressId: null,
+                progressStatus: null,
+            },
         ]);
     });
 
@@ -160,9 +246,71 @@ describe('aiAgentThreadStreamSlice', () => {
             );
         }
         expect(state['thread-1']?.stepProgressMessages).toEqual([
-            { message: 'Running your query...', toolName: 'runQuery' },
-            { message: 'Editing models', toolName: 'runQuery' },
-            { message: 'Running your query...', toolName: 'runQuery' },
+            {
+                message: 'Running your query...',
+                toolName: 'runQuery',
+                progressId: null,
+                progressStatus: null,
+            },
+            {
+                message: 'Editing models',
+                toolName: 'runQuery',
+                progressId: null,
+                progressStatus: null,
+            },
+            {
+                message: 'Running your query...',
+                toolName: 'runQuery',
+                progressId: null,
+                progressStatus: null,
+            },
+        ]);
+    });
+
+    it('keeps per-node composer status transitions with the same progressId', () => {
+        // A node's running → complete transition reuses the progressId; the
+        // status change makes it a distinct event, so both entries survive
+        // and the UI can take the latest per node.
+        let state = aiAgentThreadStreamSlice.reducer(
+            undefined,
+            startStreaming({
+                threadUuid: 'thread-1',
+                messageUuid: 'message-1',
+            }),
+        );
+        for (const event of [
+            {
+                message: 'Running query "orders"...',
+                progressStatus: 'in_progress' as const,
+            },
+            {
+                message: 'Query "orders" complete',
+                progressStatus: 'complete' as const,
+            },
+        ]) {
+            state = aiAgentThreadStreamSlice.reducer(
+                state,
+                appendStepProgress({
+                    threadUuid: 'thread-1',
+                    toolName: 'runComposerQueries',
+                    progressId: 'call-1:orders',
+                    ...event,
+                }),
+            );
+        }
+        expect(state['thread-1']?.stepProgressMessages).toEqual([
+            {
+                message: 'Running query "orders"...',
+                toolName: 'runComposerQueries',
+                progressId: 'call-1:orders',
+                progressStatus: 'in_progress',
+            },
+            {
+                message: 'Query "orders" complete',
+                toolName: 'runComposerQueries',
+                progressId: 'call-1:orders',
+                progressStatus: 'complete',
+            },
         ]);
     });
 
@@ -191,7 +339,12 @@ describe('aiAgentThreadStreamSlice', () => {
             }),
         );
         expect(afterText['thread-1']?.stepProgressMessages).toEqual([
-            { message: 'Committing changes', toolName: 'editDbtProject' },
+            {
+                message: 'Committing changes',
+                toolName: 'editDbtProject',
+                progressId: null,
+                progressStatus: null,
+            },
         ]);
     });
 

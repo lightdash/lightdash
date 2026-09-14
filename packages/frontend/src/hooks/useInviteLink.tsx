@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CreateInviteLink,
     type InviteLink,
+    type InviteLinkWithAuthenticationOptions,
     type LightdashUser,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -34,14 +35,14 @@ const createInviteWith3DayExpiryQuery = async (
 };
 
 const inviteLinkQuery = async (inviteCode: string) =>
-    lightdashApi<InviteLink>({
+    lightdashApi<InviteLinkWithAuthenticationOptions>({
         url: `/invite-links/${inviteCode}`,
         method: 'GET',
         body: undefined,
     });
 
 export const useInviteLink = (inviteCode: string | undefined) =>
-    useQuery<InviteLink, ApiError>({
+    useQuery<InviteLinkWithAuthenticationOptions, ApiError>({
         queryKey: ['invite_link', inviteCode],
         queryFn: () => inviteLinkQuery(inviteCode!),
         enabled: inviteCode !== undefined,

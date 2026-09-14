@@ -14,7 +14,11 @@ export {
     PreAggregateNumberMetricDependencyIneligibilityReason,
     type PreAggregateNumberMetricDependencies,
 } from './numberMetricDependencies';
-export { applyUserBypass, findMatch } from './matcher';
+export {
+    applyUserBypass,
+    findMatch,
+    getActiveCustomDimensions,
+} from './matcher';
 export {
     getMetricRepresentation,
     isSupportedMetricType,

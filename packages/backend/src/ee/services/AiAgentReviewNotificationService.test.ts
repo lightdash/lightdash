@@ -113,4 +113,31 @@ describe('AiAgentReviewNotificationService', () => {
             }),
         );
     });
+
+    it('enqueues Slack and Linear tasks for new review findings', async () => {
+        const { service, schedulerClient } = makeService();
+
+        await service.notifyNeedsReview({
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            reviewRunUuid: 'run-1',
+            fingerprints: ['fingerprint-1'],
+        });
+
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION,
+            expect.objectContaining({
+                event: AiReviewNotificationEvent.NeedsReview,
+                fingerprints: ['fingerprint-1'],
+            }),
+        );
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE,
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                fingerprints: ['fingerprint-1'],
+            }),
+        );
+    });
 });

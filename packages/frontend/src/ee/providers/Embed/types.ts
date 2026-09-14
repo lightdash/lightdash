@@ -4,8 +4,11 @@ import {
     type CreateSavedChartVersion,
     type LanguageMap,
     type SavedChart,
+    type UiStringKey,
+    type UUID,
 } from '@lightdash/common';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
+import { type ChartSavedAction } from '../../features/embed/events/types';
 
 export const EMBED_KEY = 'lightdash-embed';
 
@@ -19,6 +22,11 @@ export type InMemoryEmbed = {
 export type EmbedMode = 'sdk' | 'direct';
 
 export type EmbedExploreChart = SavedChart | CreateSavedChartVersion;
+
+export type EmbedExploreOptions = {
+    chart: EmbedExploreChart;
+    customSqlProvenanceChartUuid?: UUID;
+};
 
 export interface EmbedContext {
     // The JWT token used to authenticate the user
@@ -38,16 +46,19 @@ export interface EmbedContext {
     // Powers localization of the dashboard
     languageMap?: LanguageMap;
     // The function to call when the user clicks "Explore from here"
-    onExplore?: (options: { chart: EmbedExploreChart }) => void;
-    // Localization function
-    t: (input: string) => string | undefined;
+    onExplore?: (options: EmbedExploreOptions) => void;
+    // Returns the SDK uiOverrides value for a UI-string key, if any
+    t: (input: UiStringKey) => string | undefined;
     // The function to call when the user clicks "Back to dashboard" from an Explore
     onBackToDashboard?: () => void;
-    // Called after a chart is created from an embedded Explore. The dashboard
-    // builder's "New chart" flow uses this to turn the chart into a tile.
-    onChartSaved?: (chart: SavedChart) => void;
+    // Called after a chart is created or updated from an embedded Explore. The
+    // dashboard builder uses this to update its chart editor state.
+    onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
     // The chart that the user is exploring
     savedChart?: EmbedExploreChart;
+    // The saved chart whose persisted custom SQL seeded this Explore. This is
+    // carried separately because derived drill-down charts have no UUID.
+    customSqlProvenanceChartUuid?: UUID;
     // The UUID of the saved query being viewed in an embedded Chart
     savedQueryUuid?: string;
     // The UUID of the data app being viewed in a standalone embedded App

@@ -41,6 +41,8 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             'Metric queries against the explores of this project. Tables are explores; columns are their dimensions and metrics, referenced by field id. Result columns are named by field id — exactly the dimensions and metrics requested.',
     };
 
+    readonly supportsPivot = true;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly projectService: ProjectService;
@@ -132,7 +134,14 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         projectUuid,
         context,
         query,
-    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+        parameters,
+        userAttributeOverrides,
+        invalidateCache,
+        pivotConfiguration,
+    }: SubmitSourceQueryArgs): Promise<{
+        queryUuid: string;
+        cacheHit: boolean;
+    }> {
         const sourceQuery = SemanticLayerQuerySource.assertSourceQuery(query);
 
         // Only exploreName/dimensions/metrics are required on the wire; the
@@ -147,6 +156,8 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             tableCalculations: sourceQuery.tableCalculations ?? [],
             additionalMetrics: sourceQuery.additionalMetrics,
             customDimensions: sourceQuery.customDimensions,
+            metricOverrides: sourceQuery.metricOverrides,
+            dimensionOverrides: sourceQuery.dimensionOverrides,
             timezone: sourceQuery.timezone,
         };
 
@@ -155,8 +166,15 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             projectUuid,
             metricQuery,
             context,
+            parameters,
+            userAttributeOverrides,
+            invalidateCache,
+            pivotConfiguration: pivotConfiguration ?? undefined,
         });
 
-        return { queryUuid: results.queryUuid };
+        return {
+            queryUuid: results.queryUuid,
+            cacheHit: results.cacheMetadata.cacheHit,
+        };
     }
 }

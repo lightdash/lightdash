@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 export const TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION = [
     'Open a pull request that sets up Lightdash preview-project deploys for this project via GitHub Actions.',
@@ -30,27 +31,7 @@ export type ToolSetupPreviewDeployOutput = z.infer<
     typeof toolSetupPreviewDeployOutputSchema
 >;
 
-type ToolSetupPreviewDeployResultLike = {
-    toolType: string;
-    toolName: string;
-    metadata:
-        | ToolSetupPreviewDeployOutput['metadata']
-        | Record<string, unknown>
-        | null;
-};
-
-type ToolSetupPreviewDeployResult = ToolSetupPreviewDeployResultLike & {
-    toolType: 'built-in';
-    toolName: 'setupPreviewDeploy';
-    metadata: ToolSetupPreviewDeployOutput['metadata'];
-};
-
-export const isToolSetupPreviewDeployResult = <
-    T extends ToolSetupPreviewDeployResultLike,
->(
-    result: T,
-): result is T & ToolSetupPreviewDeployResult =>
-    result.toolType === 'built-in' &&
-    result.toolName === 'setupPreviewDeploy' &&
-    toolSetupPreviewDeployOutputSchema.shape.metadata.safeParse(result.metadata)
-        .success;
+export const isToolSetupPreviewDeployResult = makeBuiltInToolResultGuard(
+    'setupPreviewDeploy',
+    toolSetupPreviewDeployOutputSchema.shape.metadata,
+);

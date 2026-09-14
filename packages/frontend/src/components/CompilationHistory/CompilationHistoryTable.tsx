@@ -112,7 +112,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 180,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -129,7 +129,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconRadar} color="ldGray.6" />
+                        <MantineIcon icon={IconRadar} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -146,7 +146,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconUser} color="ldGray.6" />
+                        <MantineIcon icon={IconUser} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -159,7 +159,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 100,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconHash} color="ldGray.6" />
+                        <MantineIcon icon={IconHash} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -173,7 +173,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 100,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconHash} color="ldGray.6" />
+                        <MantineIcon icon={IconHash} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -186,7 +186,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 120,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconHash} color="ldGray.6" />
+                        <MantineIcon icon={IconHash} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -199,7 +199,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 100,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconProgress} color="ldGray.6" />
+                        <MantineIcon icon={IconProgress} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),

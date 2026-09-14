@@ -92,7 +92,7 @@ const ProjectPreviewExpirationForm: FC<FormProps> = ({
                     rightSectionWidth={90}
                     rightSection={
                         typeof form.values.defaultHours === 'number' ? (
-                            <Text c="ldGray.6" fz="xs">
+                            <Text c="dimmed" fz="xs">
                                 {formatHoursAsDays(form.values.defaultHours)}
                             </Text>
                         ) : null
@@ -108,7 +108,7 @@ const ProjectPreviewExpirationForm: FC<FormProps> = ({
                     rightSectionWidth={90}
                     rightSection={
                         typeof form.values.maxHours === 'number' ? (
-                            <Text c="ldGray.6" fz="xs">
+                            <Text c="dimmed" fz="xs">
                                 {formatHoursAsDays(form.values.maxHours)}
                             </Text>
                         ) : null
@@ -139,7 +139,7 @@ const ProjectPreviewExpiration: FC<Props> = ({ projectUuid }) => {
         <SettingsGridCard>
             <Box>
                 <Title order={5}>Preview projects</Title>
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     Control how long preview projects created from this project
                     stick around before they're auto-deleted. Users can override
                     the duration with <Code>--expires-in</Code>, but values

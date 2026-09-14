@@ -10,6 +10,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     autoMapDataAppVizFields,
+    getUnboundRequiredDataAppVizFields,
     reconcileDataAppVizFieldMapping,
 } from './autoMapDataAppVizFields';
 
@@ -260,5 +261,28 @@ describe('reconcileDataAppVizFieldMapping', () => {
         expect(reconcileDataAppVizFieldMapping(fields, items, {})).toEqual(
             autoMapDataAppVizFields(fields, items),
         );
+    });
+});
+
+describe('getUnboundRequiredDataAppVizFields', () => {
+    it('lists only required slots without a binding, in declared order', () => {
+        const fields: DataAppVizField[] = [
+            { name: 'x', label: 'X', type: 'dimension', required: true },
+            { name: 'y', label: 'Y', type: 'metric', required: true },
+            {
+                name: 'series',
+                label: 'Series',
+                type: 'series',
+                required: false,
+            },
+        ];
+
+        expect(
+            getUnboundRequiredDataAppVizFields(fields, { y: 'orders_count' }),
+        ).toEqual([fields[0]]);
+        expect(getUnboundRequiredDataAppVizFields(fields, {})).toEqual([
+            fields[0],
+            fields[1],
+        ]);
     });
 });

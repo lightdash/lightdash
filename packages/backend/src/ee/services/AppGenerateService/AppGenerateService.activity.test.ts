@@ -13,6 +13,7 @@ vi.mock('ai', () => ({
 const BASE_ROW = {
     app_id: 'app-1',
     app_name: 'Revenue',
+    app_template: null,
     app_deleted_at: null,
     version: 1,
     status: 'ready',

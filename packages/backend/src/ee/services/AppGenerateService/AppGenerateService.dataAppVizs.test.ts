@@ -6,6 +6,7 @@ import {
     getUserAbilityBuilder,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
@@ -38,12 +39,14 @@ const vizSchema: DataAppVizSchema = {
 
 const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     app_id: 'data-app-viz-1',
+    slug: 'radial-gauge',
     name: 'Radial gauge',
     description: 'A radial gauge renderer',
     project_uuid: 'project-1',
     space_uuid: null,
     sandbox_id: null,
     template: DATA_APP_VIZ_TEMPLATE,
+    icon: null,
     viz_schema: vizSchema,
     design_uuid: null,
     upstream_app_uuid: null,
@@ -81,6 +84,7 @@ function buildService(
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -98,7 +102,7 @@ function buildService(
         schedulerClient: {} as never,
         savedChartService: (overrides.savedChartService ?? {}) as never,
         spacePermissionService: {
-            getSpaceAccessContext: vi.fn().mockResolvedValue({
+            resolveAccess: vi.fn().mockResolvedValue({
                 inheritsFromOrgOrProject: false,
                 access: [],
             }),
@@ -112,6 +116,9 @@ function buildService(
         } as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
@@ -218,6 +225,7 @@ describe('AppGenerateService data app vizs', () => {
             data: [
                 {
                     dataAppVizUuid: 'data-app-viz-1',
+                    slug: 'radial-gauge',
                     name: 'Radial gauge',
                     description: 'A radial gauge renderer',
                     projectUuid: 'project-1',
@@ -225,6 +233,7 @@ describe('AppGenerateService data app vizs', () => {
                     schema: vizSchema,
                     createdAt: new Date('2026-06-30'),
                     createdByUserUuid: 'user-1',
+                    icon: null,
                 },
             ],
             pagination,
@@ -594,6 +603,114 @@ describe('AppGenerateService data app vizs', () => {
             );
         });
 
+        it('renders the project chart type version pinned by the saved chart', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            };
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: 'data-app-viz-1',
+                                dataAppVizVersion: 2,
+                            },
+                        },
+                    }),
+                },
+            });
+
+            await expect(
+                service.getChartDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toMatchObject({ state: 'ready', version: 2 });
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+        });
+
+        it('rejects a preview token for a version other than the saved chart pin', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            };
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: 'data-app-viz-1',
+                                dataAppVizVersion: 2,
+                            },
+                        },
+                    }),
+                },
+            });
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    4,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        it('rejects a historical preview token for an unpinned legacy chart', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel, chartDeps('data-app-viz-1'));
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         it('propagates the chart denial and mints no token', async () => {
             const appModel = {
                 findVisualizationApp: vi
@@ -626,16 +743,18 @@ describe('AppGenerateService data app vizs', () => {
                 findVisualizationApp: vi
                     .fn()
                     .mockResolvedValue(makeDataAppVizRow()),
-                getLatestVersion: vi.fn().mockResolvedValue(makeVersion()),
-                getLatestRenderableDataAppVizVersion: vi
+                getVersion: vi
                     .fn()
-                    .mockResolvedValue(makeVersion()),
+                    .mockResolvedValue(makeVersion({ version: 2 })),
             };
             const get = vi.fn().mockResolvedValue({
                 uuid: 'chart-1',
                 chartConfig: {
                     type: ChartType.DATA_APP_VIZ,
-                    config: { dataAppVizUuid: 'data-app-viz-1' },
+                    config: {
+                        dataAppVizUuid: 'data-app-viz-1',
+                        dataAppVizVersion: 2,
+                    },
                 },
             });
             const service = buildService(appModel, {
@@ -651,10 +770,14 @@ describe('AppGenerateService data app vizs', () => {
                     'data-app-viz-1',
                     'chart-version-7',
                 ),
-            ).resolves.toMatchObject({ state: 'ready' });
+            ).resolves.toMatchObject({ state: 'ready', version: 2 });
             expect(get).toHaveBeenCalledWith('chart-1', 'chart-version-7', {
                 projectUuid: 'project-1',
             });
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
         });
 
         it('rejects a chart that does not reference the requested viz', async () => {
@@ -985,6 +1108,114 @@ describe('moving a viz into a space', () => {
                 targetSpaceUuid: 'space-1',
             },
             { tx: undefined },
+        );
+    });
+});
+
+describe('choosing a chart type icon', () => {
+    const buildIconService = (app: Record<string, unknown>) => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(app),
+            updateApp: vi
+                .fn()
+                .mockImplementation(async (_appId, _projectUuid, update) => ({
+                    ...app,
+                    ...update,
+                })),
+        };
+        return { service: buildService(appModel), appModel };
+    };
+
+    it('rejects an icon on an app that is not a chart type', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ template: null, registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {
+                icon: 'chart-pie',
+            }),
+        ).rejects.toThrow('Only custom chart types can have an icon');
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('rejects an icon that is not in the curated set', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {
+                icon: 'skull' as never,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('sets a curated icon', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { icon: 'gauge' },
+        );
+
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+            { icon: 'gauge' },
+        );
+        expect(result.icon).toBe('gauge');
+    });
+
+    it('clears the icon with null', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null, icon: 'gauge' }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { icon: null },
+        );
+
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+            { icon: null },
+        );
+        expect(result.icon).toBeNull();
+    });
+
+    it('reads an icon retired from the curated set back as none', async () => {
+        const { service } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null, icon: 'retired-icon' }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { name: 'Renamed' },
+        );
+
+        expect(result.icon).toBeNull();
+    });
+
+    it('requires at least one of name, description or icon', async () => {
+        const { service } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {}),
+        ).rejects.toThrow(
+            'At least one of name, description or icon must be provided',
         );
     });
 });

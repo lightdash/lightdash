@@ -13,7 +13,9 @@ import {
 } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChartColorMappingContext } from '../../../hooks/useChartColorConfig/context';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizTestPanel from './DataAppVizTestPanel';
 import { buildTestMetricQuery, isMappingComplete } from './dataAppVizTestQuery';
@@ -75,6 +77,9 @@ vi.mock('../../../hooks/useExplores', () => ({
 vi.mock('../../../hooks/useExplore', () => ({
     useExploreByProjectUuid: exploreByProjectMock,
 }));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: true } }),
+}));
 vi.mock('../../../providers/Explorer/useQueryExecutor', () => ({
     useQueryExecutor: queryExecutorMock,
 }));
@@ -106,6 +111,7 @@ const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
     tableLabel: 'Orders',
     sql: '',
     hidden,
+    colors: name === 'visible' ? { Retail: '#00ff00' } : undefined,
 });
 
 const makeMetric = (name: string, hidden: boolean): CompiledMetric => ({
@@ -176,6 +182,14 @@ const resultRows: ResultRow[] = [
         },
     },
 ];
+
+const TestDataAppVizPanel = (
+    props: ComponentProps<typeof DataAppVizTestPanel>,
+) => (
+    <ChartColorMappingContext.Provider value={{ colorMappings: new Map() }}>
+        <DataAppVizTestPanel {...props} />
+    </ChartColorMappingContext.Provider>
+);
 
 describe('isMappingComplete', () => {
     it('is false until every required field is mapped', () => {
@@ -307,7 +321,7 @@ describe('DataAppVizTestPanel', () => {
 
     it('lists the declared fields and the explore picker up-front', () => {
         renderWithProviders(
-            <DataAppVizTestPanel
+            <TestDataAppVizPanel
                 projectUuid="p1"
                 schema={schema}
                 onContextChange={vi.fn()}
@@ -324,7 +338,7 @@ describe('DataAppVizTestPanel', () => {
 
     it('requests the same filtered Explore list as Explorer', () => {
         renderWithProviders(
-            <DataAppVizTestPanel
+            <TestDataAppVizPanel
                 projectUuid="p1"
                 schema={schema}
                 onContextChange={vi.fn()}
@@ -337,7 +351,7 @@ describe('DataAppVizTestPanel', () => {
     it('hides the run action until an explore is selected', async () => {
         const user = userEvent.setup();
         renderWithProviders(
-            <DataAppVizTestPanel
+            <TestDataAppVizPanel
                 projectUuid="p1"
                 schema={schema}
                 onContextChange={vi.fn()}
@@ -360,7 +374,7 @@ describe('DataAppVizTestPanel', () => {
     it('republishes option edits after a successful query', async () => {
         const onContextChange = vi.fn();
         renderWithProviders(
-            <DataAppVizTestPanel
+            <TestDataAppVizPanel
                 projectUuid="p1"
                 schema={configurableSchema}
                 onContextChange={onContextChange}
@@ -374,8 +388,13 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#111111'],
+                seriesColors: {},
+                valueColors: {
+                    orders_visible: { Retail: '#00ff00' },
+                },
                 pivotDetails: null,
                 underlyingData: { enabled: false },
+                drillDown: { enabled: false },
             }),
         );
 
@@ -388,8 +407,13 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: false },
                 colorPalette: ['#111111'],
+                seriesColors: {},
+                valueColors: {
+                    orders_visible: { Retail: '#00ff00' },
+                },
                 pivotDetails: null,
                 underlyingData: { enabled: false },
+                drillDown: { enabled: false },
             }),
         );
     });
@@ -397,7 +421,7 @@ describe('DataAppVizTestPanel', () => {
     it('republishes palette edits after a successful query', async () => {
         const onContextChange = vi.fn();
         renderWithProviders(
-            <DataAppVizTestPanel
+            <TestDataAppVizPanel
                 projectUuid="p1"
                 schema={configurableSchema}
                 onContextChange={onContextChange}
@@ -411,8 +435,13 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#111111'],
+                seriesColors: {},
+                valueColors: {
+                    orders_visible: { Retail: '#00ff00' },
+                },
                 pivotDetails: null,
                 underlyingData: { enabled: false },
+                drillDown: { enabled: false },
             }),
         );
 
@@ -425,8 +454,13 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#123456', '#abcdef'],
+                seriesColors: {},
+                valueColors: {
+                    orders_visible: { Retail: '#00ff00' },
+                },
                 pivotDetails: null,
                 underlyingData: { enabled: false },
+                drillDown: { enabled: false },
             }),
         );
     });
@@ -438,7 +472,7 @@ describe('DataAppVizTestPanel', () => {
         } as unknown as ReturnType<typeof useExploreByProjectUuid>);
 
         renderWithProviders(
-            <DataAppVizTestPanel
+            <TestDataAppVizPanel
                 projectUuid="p1"
                 schema={{
                     fields: [
@@ -478,7 +512,7 @@ describe('DataAppVizTestPanel', () => {
         });
 
         renderWithProviders(
-            <DataAppVizTestPanel
+            <TestDataAppVizPanel
                 projectUuid="p1"
                 schema={{
                     ...schema,
@@ -562,7 +596,7 @@ describe('DataAppVizTestPanel', () => {
         const onContextChange = vi.fn();
 
         renderWithProviders(
-            <DataAppVizTestPanel
+            <TestDataAppVizPanel
                 projectUuid="p1"
                 schema={{
                     ...schema,

@@ -398,15 +398,20 @@ get_env_instance_id() {
 add_live_instance() {
     local instance_id="$1"
     local live_instance_id
-    for live_instance_id in "${LIVE_INSTANCE_IDS[@]}"; do
-        [ "$live_instance_id" = "$instance_id" ] && return
-    done
+    # bash 3.2 (macOS default) treats "${ARR[@]}" on an empty array as unbound
+    # under set -u, so guard every expansion with a length check.
+    if [ "${#LIVE_INSTANCE_IDS[@]}" -gt 0 ]; then
+        for live_instance_id in "${LIVE_INSTANCE_IDS[@]}"; do
+            [ "$live_instance_id" = "$instance_id" ] && return
+        done
+    fi
     LIVE_INSTANCE_IDS+=("$instance_id")
 }
 
 is_stale_instance() {
     local instance_id="$1"
     local stale_instance_id
+    [ "${#STALE_INSTANCE_IDS[@]}" -gt 0 ] || return 1
     for stale_instance_id in "${STALE_INSTANCE_IDS[@]}"; do
         [ "$stale_instance_id" = "$instance_id" ] && return 0
     done
@@ -457,6 +462,7 @@ collect_live_instances() {
 is_live_instance() {
     local instance_id="$1"
     local live_instance_id
+    [ "${#LIVE_INSTANCE_IDS[@]}" -gt 0 ] || return 1
     for live_instance_id in "${LIVE_INSTANCE_IDS[@]}"; do
         [ "$live_instance_id" = "$instance_id" ] && return 0
     done

@@ -16,8 +16,9 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -220,7 +221,6 @@ export const EvalFormModal: FC<Props> = ({
                         placeholder="Enter evaluation title"
                         required
                         {...form.getInputProps('title')}
-                        radius="md"
                     />
 
                     <Textarea
@@ -229,7 +229,6 @@ export const EvalFormModal: FC<Props> = ({
                         placeholder="Enter evaluation description (optional)"
                         rows={3}
                         {...form.getInputProps('description')}
-                        radius="md"
                     />
 
                     <Box>
@@ -305,7 +304,6 @@ export const EvalFormModal: FC<Props> = ({
                                         </Stack>
 
                                         <ActionIcon
-                                            variant="subtle"
                                             color="red"
                                             disabled={
                                                 form.values.prompts.length <= 1

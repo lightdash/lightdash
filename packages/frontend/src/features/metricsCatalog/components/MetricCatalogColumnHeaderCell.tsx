@@ -7,15 +7,18 @@ import {
     type SVGProps,
     type SyntheticEvent,
 } from 'react';
+import { usePortalTarget } from '../../../providers/PortalTarget/usePortalTarget';
 import styles from './MetricCatalogColumnHeaderCell.module.css';
 
 let tooltipElement: HTMLDivElement | null = null;
 
-const getTooltipElement = () => {
+// Appended to the portal target rather than document.body: in the SDK the
+// Mantine variables the tooltip is styled with only exist inside that container.
+const getTooltipElement = (container: HTMLElement) => {
     if (!tooltipElement) {
         tooltipElement = document.createElement('div');
         tooltipElement.className = styles.floatingTooltip;
-        document.body.appendChild(tooltipElement);
+        container.appendChild(tooltipElement);
     }
 
     return tooltipElement;
@@ -26,8 +29,12 @@ const hideTooltip = () => {
     tooltipElement = null;
 };
 
-const showTooltip = (label: string, target: HTMLElement) => {
-    const element = getTooltipElement();
+const showTooltip = (
+    label: string,
+    target: HTMLElement,
+    container: HTMLElement,
+) => {
+    const element = getTooltipElement(container);
     const rect = target.getBoundingClientRect();
 
     element.textContent = label;
@@ -53,13 +60,14 @@ export const MetricCatalogColumnHeaderCell = ({
     tooltipLabel?: string;
     Icon: FC<SVGProps<SVGSVGElement>>;
 }) => {
+    const portalTarget = usePortalTarget();
     const handleShowTooltip = useCallback(
         (event: SyntheticEvent<HTMLElement>) => {
             if (!tooltipLabel || disabled) return;
 
-            showTooltip(tooltipLabel, event.currentTarget);
+            showTooltip(tooltipLabel, event.currentTarget, portalTarget);
         },
-        [disabled, tooltipLabel],
+        [disabled, portalTarget, tooltipLabel],
     );
 
     useEffect(() => {

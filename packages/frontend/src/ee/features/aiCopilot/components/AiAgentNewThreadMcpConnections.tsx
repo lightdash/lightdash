@@ -278,21 +278,20 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
     if (justConnectedGithub) {
         return (
             <Paper
-                withBorder
                 radius="md"
                 p="md"
                 component="section"
                 aria-label={GITHUB_MCP_CONNECTED_HEADLINE}
             >
                 <Group align="flex-start" gap="sm" wrap="nowrap">
-                    <Paper p="xxs" withBorder radius="sm">
+                    <Paper p="xxs" radius="sm">
                         <MantineIcon
                             icon={IconCircleCheck}
                             size="sm"
                             color="var(--mantine-color-green-6)"
                         />
                     </Paper>
-                    <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                    <Stack gap="xs" flex={1} miw={0}>
                         <Stack gap={2}>
                             <Text size="sm" fw={600}>
                                 {GITHUB_MCP_CONNECTED_HEADLINE}
@@ -384,9 +383,9 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                     color="ldGray.5"
                     className={styles.connectionIcon}
                 />
-                <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                <Stack gap="xs" flex={1} miw={0}>
                     <Stack gap={2}>
-                        <Text id={sectionTitleId} size="xs" c="ldGray.6">
+                        <Text id={sectionTitleId} size="xs" c="dimmed">
                             {sectionSummary}
                         </Text>
                         {connectionNote && (

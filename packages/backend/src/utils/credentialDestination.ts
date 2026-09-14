@@ -6,6 +6,7 @@ import {
     DucklakeDataPathType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
+    type CreateWarehouseCredentialsWithOptionalSecrets,
     type DbtProjectConfig,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
@@ -32,6 +33,10 @@ const normalizeUrl = (value: string): URL | undefined => {
 
 export const normalizeCredentialUrlOrigin = (value: string): string =>
     normalizeUrl(value)?.origin.toLowerCase() ?? value.trim().toLowerCase();
+
+/** Normalize a complete credential destination, including its path and query. */
+export const normalizeCredentialUrlHref = (value: string): string =>
+    normalizeUrl(value)?.href ?? value.trim();
 
 const normalizeCredentialBaseUrl = (value: string | undefined): string => {
     if (!value?.trim()) {
@@ -69,6 +74,8 @@ const getDbtCredentialDestination = (config: DbtProjectConfig): unknown[] => {
                 normalizeCredentialHost(
                     config.host_domain || DEFAULT_BITBUCKET_HOST_DOMAIN,
                 ),
+                config.repository,
+                config.username,
             ];
         case DbtProjectType.AZURE_DEVOPS:
         case DbtProjectType.DBT:
@@ -165,7 +172,7 @@ const getDucklakeDataPathDestination = (
 };
 
 const getWarehouseCredentialDestination = (
-    config: CreateWarehouseCredentials,
+    config: CreateWarehouseCredentialsWithOptionalSecrets,
 ): unknown[] => {
     switch (config.type) {
         case WarehouseTypes.BIGQUERY:
@@ -213,7 +220,7 @@ const getWarehouseCredentialDestination = (
 };
 
 export const hasSameWarehouseCredentialDestination = (
-    incompleteConfig: CreateWarehouseCredentials,
+    incompleteConfig: CreateWarehouseCredentialsWithOptionalSecrets,
     completeConfig: CreateWarehouseCredentials,
 ): boolean =>
     incompleteConfig.type === completeConfig.type &&

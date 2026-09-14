@@ -3,6 +3,7 @@ import {
     Button,
     Divider,
     Group,
+    Switch,
     Text,
     useMantineTheme,
     type GroupProps,
@@ -33,6 +34,8 @@ type AiAgentAdminTopToolbarProps = GroupProps &
         | 'setSelectedUserUuids'
         | 'setSelectedSource'
         | 'setSelectedFeedback'
+        | 'hidePreviewProjects'
+        | 'setHidePreviewProjects'
     > & {
         totalResults: number;
         isFetching: boolean;
@@ -56,6 +59,8 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
         setSelectedSource,
         selectedFeedback,
         setSelectedFeedback,
+        hidePreviewProjects,
+        setHidePreviewProjects,
         totalResults,
         isFetching,
         hasNextPage,
@@ -88,80 +93,52 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             debounceMs={300}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <UsersFilter
                             selectedUserUuids={selectedUserUuids}
                             setSelectedUserUuids={setSelectedUserUuids}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <FeedbackFilter
                             selectedFeedback={selectedFeedback}
                             setSelectedFeedback={setSelectedFeedback}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <SourceFilter
                             selectedSource={selectedSource}
                             setSelectedSource={setSelectedSource}
                         />
 
+                        <Divider orientation="vertical" w={1} h={20} />
+                        <Switch
+                            size="xs"
+                            label="Hide preview projects"
+                            checked={hidePreviewProjects}
+                            onChange={(event) =>
+                                setHidePreviewProjects(
+                                    event.currentTarget.checked,
+                                )
+                            }
+                        />
+
                         {hasActiveFilters && onClearFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    style={{
-                                        alignSelf: 'center',
-                                    }}
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"

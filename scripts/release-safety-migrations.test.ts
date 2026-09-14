@@ -1,6 +1,12 @@
 import * as assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+    copyFileSync,
+    mkdirSync,
+    mkdtempSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -79,7 +85,9 @@ test('analyzer reads core tables and forward heaviness only', () => {
                 scansTable: true,
             },
         },
+        operations: ['unknown'],
         complete: true,
+        incompleteReasons: [],
     });
 });
 
@@ -117,6 +125,350 @@ test('dynamic raw SQL degrades unknown dimensions and completeness', () => {
         scansTable: 'unknown',
     });
     assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, ['parse-failure']);
+});
+
+test('column alter reports that rewrite safety needs a declaration', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000017_alter.ts',
+        `
+            export async function up(knex) {
+                await knex.schema.alterTable('users', (table) => {
+                    table.string('name', 100).alter();
+                });
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, ['column-alter']);
+});
+
+test('dynamic table arguments report an unresolved table name', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000018_table.ts',
+        `
+            export async function up(knex) {
+                await knex.schema.createTable(getTableName(), (table) => {
+                    table.uuid('user_uuid');
+                });
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, [
+        'unresolved-table-name',
+    ]);
+});
+
+test('raw SQL built from a local constant reads as fully as a literal', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000003_index.ts',
+        `
+            const TableName = 'analytics_chart_views';
+            const IndexName = 'analytics_chart_views_user_uuid_timestamp_idx';
+            export async function up(knex) {
+                await knex.raw(\`DROP INDEX CONCURRENTLY IF EXISTS \${IndexName}\`);
+                await knex.raw<{ rowCount: number }>(
+                    \`CREATE INDEX CONCURRENTLY \${IndexName} ON \${TableName} (user_uuid, timestamp)\`,
+                );
+            }
+        `,
+    );
+    assert.deepStrictEqual(result.migration.tables, ['analytics_chart_views']);
+    assert.deepStrictEqual(result.migration.heaviness, {
+        locksTable: false,
+        rewritesTable: false,
+        scansTable: true,
+    });
+    assert.deepStrictEqual(result.operations, [
+        'create-index-concurrently',
+        'drop-index-concurrently-if-exists',
+    ]);
+    assert.strictEqual(result.complete, true);
+});
+
+test('analyzer extracts the compatible index migration ancillary operations', () => {
+    const coreResult = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260820153000_index.ts',
+        `
+            const TableName = 'analytics_chart_views';
+            const IndexName = 'analytics_chart_views_user_uuid_timestamp_index';
+            export async function up(knex) {
+                await knex.raw('SET statement_timeout = 0');
+                await knex.raw(
+                    \`SELECT 1
+                     FROM pg_class
+                     JOIN pg_index ON pg_index.indexrelid = pg_class.oid
+                     WHERE pg_class.relname = ?
+                       AND pg_index.indrelid = ?::regclass
+                       AND NOT pg_index.indisvalid\`,
+                    [IndexName, TableName],
+                );
+                await knex.raw(\`DROP INDEX CONCURRENTLY IF EXISTS \${IndexName}\`);
+                await knex.raw(
+                    \`CREATE INDEX CONCURRENTLY IF NOT EXISTS \${IndexName} ON \${TableName} (user_uuid, timestamp)\`,
+                );
+                await knex.raw('RESET statement_timeout');
+            }
+        `,
+    );
+    assert.deepStrictEqual(coreResult.operations, [
+        'create-index-concurrently',
+        'drop-index-concurrently-if-exists',
+        'reset-statement-timeout',
+        'select-invalid-index',
+        'set-statement-timeout',
+    ]);
+
+    const eeResult = analyzeMigrationSource(
+        'packages/backend/src/ee/database/migrations/20260820150000_index.ts',
+        `
+            const IndexName = 'ai_thread_organization_uuid_index';
+            export async function up(knex) {
+                await knex.raw(\`SET lock_timeout = '10s'\`);
+                await knex.raw(
+                    \`SELECT 1 FROM pg_index i
+                     JOIN pg_class c ON c.oid = i.indexrelid
+                     WHERE c.relname = '\${IndexName}' AND NOT i.indisvalid\`,
+                );
+                await knex.raw('RESET lock_timeout');
+            }
+        `,
+    );
+    assert.deepStrictEqual(eeResult.operations, [
+        'reset-lock-timeout',
+        'select-invalid-index',
+        'set-lock-timeout',
+    ]);
+});
+
+test('unique concurrent indexes remain a distinct unsupported operation', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260820160000_unique.ts',
+        `
+            export async function up(knex) {
+                await knex.raw('CREATE UNIQUE INDEX CONCURRENTLY users_email_idx ON users (email)');
+            }
+        `,
+    );
+    assert.deepStrictEqual(result.operations, [
+        'create-unique-index-concurrently',
+    ]);
+    assert.deepStrictEqual(result.migration.heaviness, {
+        locksTable: false,
+        rewritesTable: false,
+        scansTable: true,
+    });
+    assert.strictEqual(result.complete, true);
+});
+
+test('mixed and unsupported database work cannot produce an empty operation set', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260820170000_mixed.ts',
+        `
+            export async function up(knex) {
+                await knex.raw('CREATE INDEX CONCURRENTLY users_name_idx ON users (name)');
+                await knex.raw('ALTER TABLE users ADD COLUMN nickname text');
+                await knex.schema.createTable('settings', () => undefined);
+            }
+        `,
+    );
+    assert.deepStrictEqual(result.operations, [
+        'create-index-concurrently',
+        'unknown',
+    ]);
+});
+
+test('numeric constants substitute as readily as string ones', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/ee/database/migrations/20260810000004_bounds.ts',
+        `
+            const Table = 'ai_organization_settings';
+            const Column = 'thread_retention_hours';
+            const MIN_HOURS = 1;
+            const MAX_HOURS = 876000;
+            export async function up(knex) {
+                await knex.raw(
+                    \`ALTER TABLE \${Table} ADD CONSTRAINT \${Table}_\${Column}_range CHECK (\${Column} IS NULL OR (\${Column} >= \${MIN_HOURS} AND \${Column} <= \${MAX_HOURS}))\`,
+                );
+            }
+        `,
+    );
+    assert.deepStrictEqual(result.migration.tables, [
+        'ai_organization_settings',
+    ]);
+    assert.strictEqual(result.migration.heaviness.locksTable, true);
+    assert.strictEqual(result.complete, true);
+});
+
+// The cases below pin the fail-safe direction: a reader that guesses would
+// tell the upgrade gate a migration is light when it is not.
+test('a nested template refuses rather than reading a fragment', () => {
+    // The outer token ends at the inner backtick, leaving the fragment `${`.
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000007_nested.ts',
+        'const A = `users`;\n' +
+            'export async function up(knex) { await knex.raw(`${`UPDATE ${A} SET x = 1`}`); }',
+    );
+    assert.deepStrictEqual(result.migration.heaviness, {
+        locksTable: 'unknown',
+        rewritesTable: 'unknown',
+        scansTable: 'unknown',
+    });
+    assert.strictEqual(result.complete, false);
+});
+
+test('a literal that is only part of the initializer is not a constant', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000008_partial.ts',
+        `
+            const SQL = 'ALTER TABLE users ' + buildRest();
+            export async function up(knex) { await knex.raw(\`\${SQL}\`); }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.strictEqual(result.migration.heaviness.locksTable, 'unknown');
+});
+
+test('a shadowed name is not resolved from the outer scope', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000009_shadowed.ts',
+        `
+            const SQL = 'SELECT 1';
+            export async function up(knex) {
+                const SQL = buildDangerousSql();
+                await knex.raw(\`\${SQL}\`);
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+    assert.strictEqual(result.migration.heaviness.rewritesTable, 'unknown');
+});
+
+test('adding a constraint scans the table unless it says NOT VALID', () => {
+    const build = (suffix: string): string => `
+        const Table = 'ai_agent';
+        export async function up(knex) {
+            await knex.raw(
+                \`ALTER TABLE \${Table} ADD CONSTRAINT c CHECK (h IS NULL)${suffix}\`,
+            );
+        }
+    `;
+    const validated = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000010_check.ts',
+        build(''),
+    );
+    assert.strictEqual(validated.complete, true);
+    assert.strictEqual(validated.migration.heaviness.scansTable, true);
+
+    const deferred = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000011_check_deferred.ts',
+        build(' NOT VALID'),
+    );
+    assert.strictEqual(deferred.complete, true);
+    assert.strictEqual(deferred.migration.heaviness.scansTable, false);
+});
+
+test('an unresolvable interpolation still degrades', () => {
+    for (const body of [
+        'await knex.raw(`DROP INDEX ${buildName()}`);',
+        'await knex.raw(`DROP INDEX ${fromSomewhereElse}`);',
+    ]) {
+        const result = analyzeMigrationSource(
+            'packages/backend/src/database/migrations/20260810000005_unresolvable.ts',
+            `export async function up(knex) { ${body} }`,
+        );
+        assert.deepStrictEqual(result.migration.heaviness, {
+            locksTable: 'unknown',
+            rewritesTable: 'unknown',
+            scansTable: 'unknown',
+        });
+        assert.strictEqual(result.complete, false);
+    }
+});
+
+test('one unresolvable placeholder degrades the whole statement', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000006_mixed.ts',
+        `
+            const Table = 'events';
+            export async function up(knex) {
+                await knex.raw(\`TRUNCATE TABLE \${Table}_\${suffix}\`);
+            }
+        `,
+    );
+    assert.strictEqual(result.complete, false);
+});
+
+test('a deferred constraint elsewhere does not vouch for a validated one', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000012_two_adds.ts',
+        `
+            const T = 'users';
+            export async function up(knex) {
+                await knex.raw(
+                    \`ALTER TABLE \${T} ADD CONSTRAINT a CHECK (x > 0); ALTER TABLE events ADD CONSTRAINT b CHECK (y > 0) NOT VALID\`,
+                );
+            }
+        `,
+    );
+    assert.strictEqual(result.migration.heaviness.scansTable, true);
+});
+
+test('a comment cannot defer a constraint', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000013_commented.ts',
+        `
+            const T = 'users';
+            export async function up(knex) {
+                await knex.raw(\`-- not valid\\nALTER TABLE \${T} ADD CONSTRAINT a CHECK (x > 0)\`);
+            }
+        `,
+    );
+    assert.strictEqual(result.migration.heaviness.scansTable, true);
+});
+
+test('a parameter or pattern shadowing a constant blocks resolution', () => {
+    const bodies = [
+        "await (async (SQL = 'UPDATE users SET x = 1') => knex.raw(\`\${SQL}\`))();",
+        'await (async (SQL) => knex.raw(\`\${SQL}\`))(buildSql());',
+        'const { SQL } = opts; await knex.raw(\`\${SQL}\`);',
+    ];
+    for (const body of bodies) {
+        const result = analyzeMigrationSource(
+            'packages/backend/src/database/migrations/20260810000014_shadow.ts',
+            `
+                const SQL = 'SELECT 1';
+                export async function up(knex) { ${body} }
+            `,
+        );
+        assert.strictEqual(result.complete, false);
+        assert.strictEqual(result.migration.heaviness.rewritesTable, 'unknown');
+    }
+});
+
+test('a line continuation inside a constant is cooked away', () => {
+    const result = analyzeMigrationSource(
+        'packages/backend/src/database/migrations/20260810000015_continued.ts',
+        "const SQL = 'UPD\\\nATE users SET x = 1';\n" +
+            'export async function up(knex) { await knex.raw(`${SQL}`); }',
+    );
+    assert.strictEqual(result.complete, true);
+    assert.strictEqual(result.migration.heaviness.rewritesTable, true);
+});
+
+test('SQL concatenated inline is not read as the whole statement', () => {
+    for (const argument of [
+        "'ALTER TABLE users ' + buildRest()",
+        '`ALTER TABLE users ` + buildRest()',
+    ]) {
+        const result = analyzeMigrationSource(
+            'packages/backend/src/database/migrations/20260810000016_concat.ts',
+            `export async function up(knex) { await knex.raw(${argument}); }`,
+        );
+        assert.strictEqual(result.complete, false);
+        assert.strictEqual(result.migration.heaviness.scansTable, 'unknown');
+    }
 });
 
 test('IO reads the requested ref and represents unreadable paths honestly', () => {
@@ -151,12 +503,88 @@ test('IO reads the requested ref and represents unreadable paths honestly', () =
     assert.ok(logs.some((message) => message.includes('could not read HEAD:')));
 });
 
+test('IO accepts safe and breaking classifications for incomplete metadata', () => {
+    for (const kind of ['safe', 'breaking'] as const) {
+        const directory = mkdtempSync(
+            join(tmpdir(), 'release-safety-classified-'),
+        );
+        const migration = `${core}/20260810000019_classified_${kind}.ts`;
+        try {
+            mkdirSync(join(directory, core), { recursive: true });
+            writeFileSync(
+                join(directory, migration),
+                `
+                    export const classification = { kind: '${kind}', reason: 'The author classified the type widening.' };
+                    export async function up(knex) {
+                        await knex.schema.alterTable('users', (table) => {
+                            table.string('name', 100).alter();
+                        });
+                    }
+                `,
+            );
+            execFileSync('git', ['init'], { cwd: directory });
+            execFileSync('git', ['add', migration], { cwd: directory });
+            execFileSync(
+                'git',
+                [
+                    '-c',
+                    'user.name=Release Safety Test',
+                    '-c',
+                    'user.email=release-safety@example.com',
+                    'commit',
+                    '-m',
+                    'test fixture',
+                ],
+                { cwd: directory },
+            );
+            const previousDirectory = process.cwd();
+            process.chdir(directory);
+            try {
+                const result = readMigrationMetadata({
+                    paths: [migration],
+                    ref: 'HEAD',
+                });
+                assert.strictEqual(result.complete, true);
+                assert.strictEqual(
+                    result.migrations[0].heaviness.rewritesTable,
+                    'unknown',
+                );
+            } finally {
+                process.chdir(previousDirectory);
+            }
+        } finally {
+            rmSync(directory, { force: true, recursive: true });
+        }
+    }
+});
+
+test('IO exposes the operation set from the real compatible index migration', () => {
+    const result = readMigrationMetadata({
+        paths: [
+            'packages/backend/src/database/migrations/20260820153000_index_analytics_chart_views_user_uuid_timestamp.ts',
+        ],
+        ref: 'HEAD',
+    });
+    assert.deepStrictEqual(result.operations, [
+        'create-index-concurrently',
+        'drop-index-concurrently-if-exists',
+        'reset-statement-timeout',
+        'select-invalid-index',
+        'set-statement-timeout',
+    ]);
+    assert.strictEqual(result.complete, true);
+});
+
 test('loads and runs without repository dependency resolution', () => {
     const directory = mkdtempSync(join(tmpdir(), 'release-safety-migration-'));
     try {
         copyFileSync(
             join(process.cwd(), 'scripts/release-safety-migrations.ts'),
             join(directory, 'analyzer.ts'),
+        );
+        copyFileSync(
+            join(process.cwd(), 'scripts/breaking-change-declarations.ts'),
+            join(directory, 'breaking-change-declarations.ts'),
         );
         writeFileSync(
             join(directory, 'run.ts'),

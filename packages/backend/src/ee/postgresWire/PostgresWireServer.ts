@@ -304,6 +304,8 @@ class PgWireConnection<TSession> {
     /** true once the socket has been upgraded to TLS */
     private isSecure = false;
 
+    private tlsHandshakeDone = false;
+
     private statements = new Map<string, PreparedStatement>();
 
     private portals = new Map<string, Portal>();
@@ -323,7 +325,7 @@ class PgWireConnection<TSession> {
             this.drainBuffer();
         } catch (e) {
             Logger.warn(
-                `pgwire: closing connection after protocol error: ${
+                `pgwire: closing connection from ${this.peerAddress} after protocol error: ${
                     e instanceof Error ? e.message : e
                 }`,
             );
@@ -331,12 +333,16 @@ class PgWireConnection<TSession> {
         }
     };
 
+    /** captured at accept time: remoteAddress is undefined once the socket closes */
+    private readonly peerAddress: string;
+
     constructor(
         socket: net.Socket,
         private handlers: PgWireHandlers<TSession>,
         private secureContextProvider: SecureContextProvider | null,
     ) {
         this.socket = socket;
+        this.peerAddress = socket.remoteAddress ?? 'unknown';
         this.attachSocket(socket);
     }
 
@@ -344,7 +350,18 @@ class PgWireConnection<TSession> {
         this.socket = socket;
         socket.on('data', this.onData);
         socket.on('error', (e) => {
-            Logger.debug(`pgwire: socket error: ${e.message}`);
+            // a failed TLS handshake is a client-compatibility signal
+            // (wrong trust store, TLS version, direct-TLS client); routine
+            // disconnects on established connections stay at debug
+            if (this.isSecure && !this.tlsHandshakeDone) {
+                Logger.info(
+                    `pgwire: TLS handshake failed from ${this.peerAddress}: ${e.message}`,
+                );
+            } else {
+                Logger.debug(
+                    `pgwire: socket error from ${this.peerAddress}: ${e.message}`,
+                );
+            }
         });
     }
 
@@ -364,6 +381,9 @@ class PgWireConnection<TSession> {
             secureContext: provider.get(),
         });
         this.isSecure = true;
+        secureSocket.once('secure', () => {
+            this.tlsHandshakeDone = true;
+        });
         this.attachSocket(secureSocket);
     }
 
@@ -412,6 +432,9 @@ class PgWireConnection<TSession> {
                         // Reject before AuthenticationCleartextPassword is ever
                         // sent, so no client is prompted for credentials over
                         // an unencrypted connection.
+                        Logger.info(
+                            `pgwire: rejected plaintext startup from ${this.peerAddress}: client did not request TLS`,
+                        );
                         this.socket.write(
                             errorResponse(
                                 new PgWireServerError(

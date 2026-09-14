@@ -36,16 +36,22 @@ const Note: FC<{ tone: 'muted' | 'warn'; children: ReactNode }> = ({
     tone,
     children,
 }) => (
-    <Box className={styles.note}>
+    <Group className={styles.note} gap={6} wrap="nowrap">
         <MantineIcon
             className={styles.noteIcon}
             icon={tone === 'warn' ? IconAlertTriangle : IconInfoCircle}
-            color={tone === 'warn' ? 'orange.7' : 'gray.6'}
+            color={tone === 'warn' ? 'orange.7' : 'dimmed'}
+            size={14}
         />
-        <Text size="xs" c={tone === 'warn' ? undefined : 'dimmed'}>
+        <Text
+            span
+            size="xs"
+            className={styles.noteText}
+            c={tone === 'warn' ? undefined : 'dimmed'}
+        >
             {children}
         </Text>
-    </Box>
+    </Group>
 );
 
 type JoinTypeOption = {
@@ -131,9 +137,13 @@ const JoinTypePicker: FC<{
                     withBorder={false}
                     aria-label={`${option.label}: ${option.help}`}
                 >
-                    <Group justify="center" gap={6} wrap="nowrap" p={6}>
+                    <Group
+                        className={styles.joinTypeOption}
+                        gap={6}
+                        wrap="nowrap"
+                    >
                         <JoinTypeDiagram type={option.value} />
-                        <Text size="xs" fw={600} ta="center" truncate>
+                        <Text span size="xs" fw={600} truncate>
                             {option.label}
                         </Text>
                     </Group>
@@ -492,8 +502,6 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                     {effectiveParts.length > 1 ? (
                                         <ActionIcon
                                             className={styles.removeKey}
-                                            variant="subtle"
-                                            color="gray"
                                             size="sm"
                                             onClick={() =>
                                                 removeJoinPart(index)

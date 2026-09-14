@@ -38,7 +38,6 @@ const TruncatedText: FC<TruncatedTextProps> = ({
         <Tooltip
             label={label}
             disabled={!isTruncated}
-            withinPortal
             multiline={isCapped}
             maw={isCapped ? TOOLTIP_MAX_WIDTH : undefined}
             zIndex={getDefaultZIndex('max')}

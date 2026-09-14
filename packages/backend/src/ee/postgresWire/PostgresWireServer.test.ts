@@ -4,7 +4,8 @@ import * as os from 'os';
 import * as path from 'path';
 import { Client, type QueryConfig } from 'pg';
 import * as tls from 'tls';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import Logger from '../../logging/logger';
 import {
     PgWireServerError,
     PostgresWireServer,
@@ -395,6 +396,51 @@ describe('PostgresWireServer TLS', () => {
         expect(errorCode(message.payload)).toBe('28000');
         await reader.waitForClose();
         expect(reader.isClosed).toBe(true);
+    });
+
+    it('logs rejected plaintext startups with the peer address', async () => {
+        const info = vi.spyOn(Logger, 'info');
+        try {
+            const port = await startServer({
+                tls: { certPath: CERT_A, keyPath: KEY_A },
+            });
+            const socket = track(await connect(port));
+            const reader = new MessageReader(socket);
+            socket.write(startupMessage({ user: 'alice', database: 'db' }));
+            await reader.readMessage();
+            expect(info).toHaveBeenCalledWith(
+                expect.stringMatching(
+                    /pgwire: rejected plaintext startup from \S+: client did not request TLS/,
+                ),
+            );
+        } finally {
+            info.mockRestore();
+        }
+    });
+
+    it('logs a failed TLS handshake with the peer address', async () => {
+        const info = vi.spyOn(Logger, 'info');
+        try {
+            const port = await startServer({
+                tls: { certPath: CERT_A, keyPath: KEY_A },
+            });
+            const socket = track(await connect(port));
+            const rawReader = new MessageReader(socket);
+            socket.write(sslRequest());
+            expect(await rawReader.readByte()).toBe('S');
+
+            // not a TLS ClientHello: the server-side handshake fails
+            socket.write(Buffer.from('definitely not a tls handshake'));
+            await vi.waitFor(() => {
+                expect(info).toHaveBeenCalledWith(
+                    expect.stringMatching(
+                        /pgwire: TLS handshake failed from \S+: /,
+                    ),
+                );
+            });
+        } finally {
+            info.mockRestore();
+        }
     });
 
     it('upgrades on SSLRequest and authenticates over TLS', async () => {

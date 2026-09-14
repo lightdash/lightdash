@@ -226,6 +226,34 @@ describe('IssueDetailModal', () => {
         expect(await screen.findByText('chat-evidence')).toBeInTheDocument();
     });
 
+    it('links to the Linear issue when one has been exported', () => {
+        mockReviewItem.current = makeReviewItem({
+            linkedIssueUrl:
+                'https://linear.app/acme/issue/PRD-12/broken-metric',
+        });
+
+        renderModal();
+
+        const linearLink = screen.getByRole('link', { name: 'PRD-12' });
+        expect(linearLink).toHaveAttribute(
+            'href',
+            'https://linear.app/acme/issue/PRD-12/broken-metric',
+        );
+    });
+
+    it('links to the Jira issue when one has been exported', () => {
+        mockReviewItem.current = makeReviewItem({
+            linkedJiraIssueUrl: 'https://acme.atlassian.net/browse/DATA-42',
+        });
+
+        renderModal();
+
+        expect(screen.getByRole('link', { name: 'DATA-42' })).toHaveAttribute(
+            'href',
+            'https://acme.atlassian.net/browse/DATA-42',
+        );
+    });
+
     it('shows memory provenance instead of turn evidence for promotion items', () => {
         mockReviewItem.current = makeReviewItem({
             source: 'memory',

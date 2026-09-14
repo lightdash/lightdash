@@ -24,7 +24,7 @@ type ShutdownHarness = {
     ) => void;
     persistTrackedPromptUpdate: (
         update: Parameters<AiAgentModel['updateModelResponse']>[0],
-    ) => Promise<void> | undefined;
+    ) => Promise<boolean> | undefined;
     failInFlightStreamedPrompts: () => Promise<void>;
 };
 
@@ -50,16 +50,16 @@ const pendingState: AiPromptResponseState = {
     errorMessage: null,
 };
 
-const createDeferred = () => {
-    let resolve!: () => void;
-    const promise = new Promise<void>((resolvePromise) => {
+const createDeferred = <T = void>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((resolvePromise) => {
         resolve = resolvePromise;
     });
     return { promise, resolve };
 };
 
 const buildService = () => {
-    const updateModelResponse = vi.fn().mockResolvedValue(undefined);
+    const updateModelResponse = vi.fn().mockResolvedValue(true);
     const failPendingPrompts = vi
         .fn()
         .mockImplementation(async (promptUuids: string[]) => promptUuids);
@@ -182,7 +182,7 @@ describe('AiAgentService streamed prompt shutdown', () => {
     it('lets a terminal write that started first win the shutdown race', async () => {
         const { service, updateModelResponse, failPendingPrompts } =
             buildService();
-        const terminalWrite = createDeferred();
+        const terminalWrite = createDeferred<boolean>();
         updateModelResponse.mockReturnValueOnce(terminalWrite.promise);
         service.trackStreamPrompt('prompt-uuid', pendingState);
 
@@ -193,7 +193,7 @@ describe('AiAgentService streamed prompt shutdown', () => {
         const shutdown = service.failInFlightStreamedPrompts();
         expect(failPendingPrompts).not.toHaveBeenCalled();
 
-        terminalWrite.resolve();
+        terminalWrite.resolve(true);
         await Promise.all([update, shutdown]);
 
         expect(updateModelResponse).toHaveBeenCalledWith(

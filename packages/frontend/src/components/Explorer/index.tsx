@@ -19,6 +19,7 @@ import {
     selectColumnOrder,
     selectDimensions,
     selectFormatModal,
+    selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectMetricQuery,
     selectMetrics,
@@ -51,6 +52,7 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import RefreshDbtButton from '../RefreshDbtButton';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
+import classes from './Explorer.module.css';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
@@ -63,8 +65,8 @@ import { WriteBackModal } from './WriteBackModal';
 
 const EMPTY_PARAMETER_REFERENCES: string[] = [];
 
-const Explorer: FC<{ hideHeader?: boolean }> = memo(
-    ({ hideHeader = false }) => {
+const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
+    ({ hideHeader = false, chartView = false }) => {
         const tableName = useExplorerSelector(selectTableName);
         const dimensions = useExplorerSelector(selectDimensions);
         const metrics = useExplorerSelector(selectMetrics);
@@ -72,6 +74,11 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const sorts = useExplorerSelector(selectSorts);
         const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
+        const showQueryBuilder = isEditMode || !chartView;
+        const showMinimalChart = chartView && !isEditMode;
+        // Authoring a chart type opens the builder modal over the page; the
+        // query keeps running underneath so the preview renders against it.
+        const isAuthoring = useExplorerSelector(selectIsChartTypeAuthoring);
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
@@ -264,7 +271,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 parameters={parameters}
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
-                <Stack style={{ flexGrow: 1 }}>
+                <Stack className={classes.stack}>
+                    <MergeAutoRun />
                     {!hideHeader &&
                         (isEditMode ? (
                             <ExplorerHeader />
@@ -272,12 +280,14 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             !savedChart && <RefreshDbtButton />
                         ))}
 
-                    <MergeAutoRun />
-                    {!isFullscreen && <MergeReadOnlyBar />}
+                    {!isFullscreen && showQueryBuilder && <MergeReadOnlyBar />}
 
-                    {!isFullscreen && <MergeRelationshipCard />}
+                    {!isFullscreen && showQueryBuilder && (
+                        <MergeRelationshipCard />
+                    )}
 
                     {!isFullscreen &&
+                        showQueryBuilder &&
                         !!tableName &&
                         hasReferencedUserParameters && (
                             <ParametersCard
@@ -287,15 +297,20 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             />
                         )}
 
-                    {!isFullscreen && <FiltersCard />}
+                    {!isFullscreen && showQueryBuilder && <FiltersCard />}
 
+                    {/* The card also hosts the authoring modal, which needs
+                        its visualization context. The chart itself pauses
+                        while the type is authored so it doesn't render twice. */}
                     <VisualizationCard
                         projectUuid={projectUuid}
+                        renderVisualization={!isAuthoring}
                         onScreenshotReady={handleScreenshotReady}
                         onScreenshotError={handleScreenshotError}
+                        minimal={showMinimalChart}
                     />
 
-                    {!isFullscreen && (
+                    {!isFullscreen && showQueryBuilder && (
                         <>
                             <ResultsCard />
 

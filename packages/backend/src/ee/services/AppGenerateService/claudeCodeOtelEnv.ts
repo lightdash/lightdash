@@ -12,6 +12,10 @@ export type ClaudeCodeOtelExporterConfig = {
     exportIntervalMs: number;
 };
 
+export const CLAUDE_CODE_OTEL_SECRET_ENV_KEYS = [
+    'OTEL_EXPORTER_OTLP_HEADERS',
+] as const;
+
 /**
  * Serialise export headers into the `OTEL_EXPORTER_OTLP_HEADERS` format:
  * a comma-separated list of `key=value` pairs. Bearer tokens and project ids

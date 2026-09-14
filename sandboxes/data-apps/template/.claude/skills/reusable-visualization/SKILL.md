@@ -27,6 +27,7 @@ fetch anything yourself; the only host interaction is through the helpers the ho
 returns.
 
 ```tsx
+const context = useVizContext();
 const {
   fieldMapping,
   rows,
@@ -35,7 +36,8 @@ const {
   pivotDetails,
   ready,
   underlyingData,
-} = useVizContext();
+  drillDown,
+} = context;
 ```
 
 - `fieldMapping` — `Record<string, string>`: the field name you declared → the query field
@@ -46,14 +48,21 @@ const {
   option you declared (the viewer's choice, else your declared `default`).
 - `colorPalette` — `string[]`: the Lightdash palette resolved for this chart. Always pushed,
   whether or not you declared `colorPalette`. Empty only when the host resolved none.
+- `seriesColors` — `Record<string, string>`: final host-resolved colours keyed by backend
+  pivot column name. Read them through `resolveSeriesColor(context, column, index)`.
+- `valueColors` — `Record<string, Record<string, string>>`: final host-resolved colours keyed
+  by query field id then raw value. Read them through
+  `resolveValueColor(context, fieldId, rawValue, index)`.
 - `pivotDetails` — the complete backend-pivot layout, or `null` for ordinary rows. See
   "Backend-pivoted results" below.
 - `ready` — false until the first context arrives.
 - `underlyingData` — host-mediated access to the raw rows behind a clicked data point.
   See "Data-point actions" below.
+- `drillDown` — host-mediated drill on a clicked data point. See "Data-point
+  actions" below.
 
-Read all of them. Ignoring `options` and `colorPalette` is the most common way to build a
-viz nobody can configure.
+Read all of them. Pass the complete `context` to the colour helpers; they preserve model
+colours and shared dashboard assignments before falling back to `colorPalette`.
 
 ### These app-level APIs do not apply to a viz
 
@@ -79,10 +88,15 @@ shadcn, charting, theming, floating surfaces, screenshots) still applies.
 
 ## Series colours
 
-Never hardcode series hex values and never hand-pick a palette of your own. Colour series
-with `colorPalette[i % colorPalette.length]`, and declare `colorPalette` in your output so
-the viewer gets the palette picker. Keep a small fallback array in your own code for the
-case where `colorPalette` is empty.
+Use the query SDK's host-resolved colour helpers for every series or group:
+
+- Backend-pivoted series: `resolveSeriesColor(context, column, index)`.
+- Client-side groups: `resolveValueColor(context, fieldId, rawValue, index)`.
+
+The helpers first honor model-defined fixed colours and Lightdash's shared dashboard colour
+assignment, then fall back to `colorPalette[index % colorPalette.length]`. Keep a small
+fallback array only for the case where the helper returns `undefined`, and declare
+`colorPalette` in your output so the viewer gets the palette picker.
 
 This is the same rule as the sandbox skill's "chart series colors must come from
 `CHART_COLORS`" and `references/d3.md`'s "never hand-pick palettes" — the same Lightdash
@@ -129,11 +143,12 @@ const pivotedMetrics =
     (column) => column.referenceField === metricId,
   ) ?? [];
 
-const series = pivotedMetrics.map((column) => ({
+const series = pivotedMetrics.map((column, index) => ({
   columnId: column.pivotColumnName,
   label:
     column.pivotValues.find((value) => value.referenceField === seriesId)
       ?.formatted ?? 'Unknown',
+  color: resolveSeriesColor(context, column, index) ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length],
 }));
 
 const categoryId = fieldMapping['category'];
@@ -148,14 +163,19 @@ const data = rows.map((row) => ({
 }));
 ```
 
-Use the order of `valuesColumns` for stable colour assignment. A chart with multiple
+Use the order of `valuesColumns` for the helper's fallback index. A chart with multiple
 declared series fields builds its label from each matching `pivotValues` entry in declared
 field order. Backend-pivoted rows do not have safe one-source-row provenance, so the host
 sets `underlyingData.enabled` to false for them.
 
-## Data-point actions: underlying data
+## Data-point actions: underlying data and drill-down
 
-When `underlyingData.enabled` is true, viewers expect the standard Lightdash action on
+Every chart whose marks satisfy the provenance rule below MUST wire the data-point
+action menu. This is part of the component contract, not an optional nicety — a
+"keep it minimal" prompt does not waive it. The flags decide at RUNTIME whether each
+item shows; you always write the wiring, and it costs nothing visually when disabled.
+
+When `underlyingData.enabled` is true, viewers get the standard Lightdash action on
 chart marks: click a data point → small action menu → "View underlying data" → a dialog
 listing the raw rows behind that point, with a Download button. When it is false (host
 too old, viewer lacks permission, embed), render no menu item — never a disabled one.
@@ -203,6 +223,46 @@ overflow container's horizontal scroll dead — the table looks clipped and view
 cannot reach the right-hand columns. Verify by scrolling right in the rendered
 dialog with more columns than fit.
 
+### Drill into a data point
+
+When `drillDown.enabled` is true, the same data-point action menu also offers
+"Drill into *{formatted metric value}*" (e.g. "Drill into $1,234"). On
+selection, fire the intent and render nothing else — Lightdash opens its own
+drill dialog outside the viz:
+
+```tsx
+drillDown.open({ row: datum.sourceRow, metric: 'value' }).catch(() => {});
+```
+
+`metric` is the declared field NAME, exactly as for `underlyingData`. The same
+provenance contract applies: the item appears only where one mark maps to
+exactly ONE source row and ONE metric-slot field, and only when
+`drillDown.enabled` — never a disabled item. The two flags are independent:
+show each action on its own flag (a viewer may have one permission but not
+the other).
+
+### Interaction hygiene
+
+One floating surface at a time, and no leftover emphasis — native Lightdash
+charts show a menu OR a tooltip, never both, and clicking leaves no mark
+highlighted:
+
+- **Opening the action menu closes the tooltip.** Drive tooltip visibility
+  from your own state (recharts: gate `<Tooltip>` via controlled props or a
+  wrapper's visibility; echarts: `dispatchAction({ type: 'hideTip' })` on
+  click). While the menu is open the tooltip stays hidden, and it must not
+  reappear until the pointer moves again after the menu closes.
+- **No persistent focus or active styling on a clicked mark.** Disable click
+  emphasis (recharts: no `activeShape` on click state; echarts: turn off
+  lingering `emphasis`/`select`) and blur any focused SVG node after opening
+  the menu. Only hover may emphasise, and only while hovering.
+- **Subtle hover, no cursor band.** The library-default full-height band
+  behind the hovered mark (recharts `<Tooltip cursor>`) is not native
+  behaviour — use `cursor={false}` or a faint theme-token fill.
+- **Tooltips are themed and deduplicated.** Background, text and border come
+  from the theme tokens (never library-default white), and each value appears
+  once: one line per series actually under the pointer.
+
 ## The declaration
 
 Alongside the component you emit one structured declaration — as **structured output, not a
@@ -227,8 +287,8 @@ One entry per data column the component reads:
 ### `configOptions`
 
 One entry per setting the viewer can change without regenerating the viz. Every option is a
-whole-viz value applying to the entire chart — there is no per-series option. To colour
-series individually, index into `colorPalette` by series position.
+whole-viz value applying to the entire chart — there is no per-series option. Colour series
+and groups with the SDK's resolved-colour helpers.
 
 Every option has:
 
@@ -253,9 +313,10 @@ Series colours are not in this list. They are declared separately, on `colorPale
 ### `colorPalette`
 
 Whether the viewer gets the standard Lightdash palette picker. Declare
-`{ "group": "..." }` when your component colours anything from `colorPalette`, or `null`
-when it colours nothing. `group` is optional and works like an option's: the picker joins
-that tab, and gets a tab of its own when no option shares the name.
+`{ "group": "..." }` when your component colours anything with the resolved-colour helpers
+or `colorPalette`, or `null` when it colours nothing. `group` is optional and works like an
+option's: the picker joins that tab, and gets a tab of its own when no option shares the
+name.
 
 This is not a config option. There is one palette per chart, it has no `name` and no
 `default`, and its colours arrive on `colorPalette` — never on `options`.
@@ -265,19 +326,21 @@ This is not a config option. There is one palette per chart, it has no `name` an
 Component and declaration lining up. Your chart will differ; the correspondence must not.
 
 ```tsx
-import { useVizContext, getFormatted, getRaw } from '@lightdash/query-sdk';
+import { useVizContext, getFormatted, getRaw, resolveValueColor } from '@lightdash/query-sdk';
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 function Chart() {
-  const { fieldMapping, rows, options, colorPalette, ready } = useVizContext();
+  const context = useVizContext();
+  const { fieldMapping, rows, options, ready } = context;
   if (!ready) return <div style={{ height: '100vh' }}>Loading…</div>;
   const catField = fieldMapping['category'];            // your field name -> column id
   const valField = fieldMapping['value'];
   const showLabels = options['showLabels'] as boolean;  // your option name -> current value
   const maxBars = options['maxBars'] as number;
-  const colors = colorPalette.length ? colorPalette : ['#7162FF', '#1A1B1E'];
+  const fallbackColors = ['#7162FF', '#1A1B1E'];
   const data = rows.slice(0, maxBars).map((row) => ({
     label: getFormatted(row, catField),                 // display text, e.g. "Completed"
+    category: getRaw(row, catField),                    // raw value for host-resolved colour
     value: Number(getRaw(row, valField) ?? 0),          // raw number
   }));
   return (
@@ -292,7 +355,12 @@ function Chart() {
           <YAxis tickFormatter={(v) => v.toLocaleString()} />
           <Tooltip />
           <Bar dataKey="value">
-            {data.map((d, i) => <Cell key={d.label} fill={colors[i % colors.length]} />)}
+            {data.map((d, i) => (
+              <Cell
+                key={d.label}
+                fill={resolveValueColor(context, catField, d.category, i) ?? fallbackColors[i % fallbackColors.length]}
+              />
+            ))}
             {showLabels && <LabelList dataKey="value" position="top" />}
           </Bar>
         </BarChart>
@@ -324,15 +392,21 @@ minimum, not a menu:
 - every number you chose (bar width, max rows, decimal places, a threshold) → `number`
 - every string you wrote into the chart (title, axis label, empty-state text) → `text`
 - every accent colour that is not a series colour (a target line, a highlight) → `color`
-- the series colours, whenever the chart draws more than one series → `colorPalette`
+- the series colours, whenever the chart draws more than one series → resolved-colour
+  helper plus `colorPalette`
 
 Where the answer is yes, make that literal the option's `default`, declare the option, and
 read the option in its place. Leave it hardcoded only where changing it would break the
 chart.
 
 Then check both directions: every key you read from `options` is declared, and every option
-you declared is read somewhere. `colorPalette` is declared when you colour from
-`colorPalette` — it is never read from `options`.
+you declared is read somewhere. `colorPalette` is declared when you use either resolved-
+colour helper or colour from `colorPalette` — it is never read from `options`.
 
-Finally, if the chart has clickable marks: each interactive datum carries `sourceRow`,
-and the data-point action menu is gated on `underlyingData.enabled`.
+Finally, if any mark maps to exactly one source row, the data-point action
+menu is wired: each interactive datum carries `sourceRow`, the underlying-data
+action is gated on `underlyingData.enabled`, and the drill action is gated on
+`drillDown.enabled`. Omitting the menu on a chart whose marks satisfy
+provenance is a defect, not a simplification. Then click a mark mentally:
+the tooltip closes, nothing stays highlighted, and only the menu remains —
+one floating surface at a time.

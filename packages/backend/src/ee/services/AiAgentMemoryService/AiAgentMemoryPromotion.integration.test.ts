@@ -77,6 +77,7 @@ describe('AI agent memory promotion integration', () => {
                 model_config: null,
                 is_system: false,
                 version: 1,
+                thread_retention_hours: null,
             })
             .returning<Array<{ ai_agent_uuid: string }>>('ai_agent_uuid');
         agentUuid = agent.ai_agent_uuid;

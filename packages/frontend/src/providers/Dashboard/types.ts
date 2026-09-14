@@ -1,4 +1,5 @@
 import {
+    type AdditionalMetric,
     type ApiError,
     type ChartZoomableField,
     type Dashboard,
@@ -41,6 +42,7 @@ export type TilePreAggregateStatus = {
 
 export type DashboardContextType = {
     projectUuid?: string;
+    includeUnpublishedDraft: boolean;
     isDashboardLoading: boolean;
     dashboard: Dashboard | undefined;
     setEmbedDashboard: Dispatch<SetStateAction<Dashboard | undefined>>;
@@ -49,6 +51,11 @@ export type DashboardContextType = {
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | undefined>>;
     haveTilesChanged: boolean;
     setHaveTilesChanged: Dispatch<SetStateAction<boolean>>;
+    /** Staged registry of dashboard custom metrics; follows the tiles lifecycle */
+    dashboardCustomMetrics: AdditionalMetric[];
+    setDashboardCustomMetrics: Dispatch<SetStateAction<AdditionalMetric[]>>;
+    haveCustomMetricsChanged: boolean;
+    setHaveCustomMetricsChanged: Dispatch<SetStateAction<boolean>>;
     haveTabsChanged: boolean;
     setHaveTabsChanged: Dispatch<SetStateAction<boolean>>;
     dashboardTabs: Dashboard['tabs'];

@@ -6,16 +6,19 @@
     z-index: var(--mantine-z-index-popover);
 }
 
+/* Always dark: the navbar renders inside a forced-dark provider, so the
+   tokens below resolve to the dark ramp in both color schemes. */
 .header {
+    color-scheme: dark;
     align-items: center;
-    box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-1);
     justify-content: flex-start;
-    background-color: var(--mantine-color-ldDark-0);
+    background-color: var(--mantine-color-dark-7);
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .headerEditingDashboardChart {
     justify-content: center;
     border-bottom: none;
     background-color: var(--mantine-color-blue-6);
-    color: white;
+    color: var(--mantine-color-white);
 }

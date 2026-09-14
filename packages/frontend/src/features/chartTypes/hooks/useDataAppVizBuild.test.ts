@@ -106,6 +106,7 @@ describe('useDataAppVizBuild', () => {
         const rendered = renderHookWithProviders(
             ({ dataAppVizUuid }: { dataAppVizUuid: string | null }) =>
                 useDataAppVizBuild({
+                    creationExperience: 'chart_type_builder',
                     projectUuid: 'project-1',
                     itemsMap,
                     dataAppVizUuid,
@@ -126,6 +127,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
 
@@ -144,11 +146,63 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
 
         expect(generate.mock.lastCall?.[0]).toMatchObject({
             creationExperience: 'chart_type_builder',
+        });
+    });
+
+    it('links attached connections on generate and iterate', () => {
+        const { result } = setup();
+        const connections = [
+            {
+                externalConnectionUuid: 'conn-1',
+                alias: 'ad_images',
+                name: 'Ad images',
+            },
+        ];
+
+        act(() =>
+            result.current.send({
+                description: 'a table of ad thumbnails',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: connections,
+            }),
+        );
+
+        expect(generate.mock.lastCall?.[0]).toMatchObject({
+            externalConnections: [
+                { externalConnectionUuid: 'conn-1', alias: 'ad_images' },
+            ],
+        });
+        expect(
+            generate.mock.lastCall?.[0].externalConnections?.[0],
+        ).not.toHaveProperty('name');
+
+        const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 1 }));
+        finishBuild(finishedVersion());
+
+        const { result: iterating } = setup('viz-1');
+        act(() =>
+            iterating.current.send({
+                description: 'show the thumbnail urls as images',
+                fileIds: [],
+                claudeModel: 'sonnet',
+                clarifications: [],
+                externalConnections: connections,
+            }),
+        );
+
+        expect(iterate.mock.lastCall?.[0]).toMatchObject({
+            externalConnections: [
+                { externalConnectionUuid: 'conn-1', alias: 'ad_images' },
+            ],
         });
     });
 
@@ -166,6 +220,7 @@ describe('useDataAppVizBuild', () => {
                         answer: 'monthly',
                     },
                 ],
+                externalConnections: [],
             }),
         );
         expect(generate.mock.lastCall?.[0]).toMatchObject({
@@ -181,6 +236,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         expect(generate.mock.lastCall?.[0].clarifications).toBeUndefined();
@@ -195,6 +251,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'opus',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         expect(generate.mock.lastCall?.[0]).toMatchObject({
@@ -212,6 +269,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'haiku',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         expect(iterate.mock.lastCall?.[0]).toMatchObject({
@@ -230,6 +288,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -249,6 +308,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -274,6 +334,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -294,6 +355,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -316,6 +378,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
 
@@ -343,6 +406,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -371,6 +435,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         act(() =>
@@ -411,6 +476,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         act(() =>
@@ -433,6 +499,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const iterateHandlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -465,6 +532,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
@@ -487,6 +555,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
@@ -497,6 +566,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
 
@@ -512,6 +582,7 @@ describe('useDataAppVizBuild', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
         const generateHandlers = generate.mock

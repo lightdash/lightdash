@@ -15,9 +15,14 @@ SUFFIX="${1:?usage: preview-db-snapshot.sh <suffix, e.g. short sha>}"
 COPIES=3
 KEEP=6
 
+# The seeder (renderDeployHook.sh) inserts a preview_seed_complete row as its
+# final step. Gate on that rather than on early artifacts (jaffle tables, demo
+# user): those exist while later seed files are still inserting, and a
+# snapshot cut in that window publishes a database with no seeded charts or
+# dashboards.
 is_seeded() {
     [ "$(kubectl -n "$NAMESPACE" exec statefulset/db-preview -- psql -U postgres -tAc \
-        "SELECT to_regclass('jaffle.orders') IS NOT NULL AND EXISTS (SELECT 1 FROM emails WHERE email = 'demo@lightdash.com')" \
+        "SELECT EXISTS (SELECT 1 FROM preview_seed_complete)" \
         2>/dev/null)" = "t" ]
 }
 

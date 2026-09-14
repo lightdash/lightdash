@@ -68,6 +68,7 @@ Scopes are the fundamental permission units in Lightdash. Each scope defines wha
 | `ORGANIZATION_MANAGEMENT` | Org settings, members, groups, invite links |
 | `DATA` | SQL runner, explore, underlying data, exports |
 | `SHARING` | Export to CSV/image/PDF |
+| `EMBED` | Embedded content controls and capabilities |
 | `AI` | AI agent features (enterprise) |
 | `SPOTLIGHT` | Metrics tree, spotlight config (enterprise) |
 
@@ -97,7 +98,7 @@ CASL is the underlying authorization library. Lightdash builds CASL abilities fr
 **CaslSubjectNames** (~35 subject types):
 ```
 AiAgent, AiAgentThread, Analytics, ChangeCsvResults, CompileProject,
-ContentAsCode, CustomSql, Dashboard, DashboardComments, Explore, ExportCsv, GoogleSheets, 
+ContentAsCode, CustomSql, Dashboard, DashboardComments, EmbedCsvExport, EmbedExplore, Explore, ExportCsv, GoogleSheets,
 Group, InviteLink, Job, JobStatus, MetricsTree, Organization,
 OrganizationMemberProfile, OrganizationWarehouseCredentials,
 PersonalAccessToken, PinnedItems, Project, SavedChart, ScheduledDeliveries,
@@ -327,7 +328,185 @@ const handlePatConfigApplication = (context, builder) => {
 
 ### Embedded (JWT) Permissions
 
-Embedded dashboards use limited, token-based permissions for anonymous users.
+Embedded content historically used boolean capability flags in the JWT. These
+flags remain supported for backward compatibility, but they are planned for
+deprecation. **Prefer adding a CASL scope for every new embedded capability; do
+not add another JWT boolean flag.**
+
+Embed scopes use independent capability subjects, for example
+`view:EmbedExplore` and `view:EmbedCsvExport`. They use the standard organization
+or project condition, without capability modifiers or special parser behavior:
+
+```typescript
+ability.can(
+    'view',
+    subject('EmbedExplore', {
+        organizationUuid,
+        projectUuid,
+    }),
+);
+```
+
+#### Effective permission resolution
+
+`writeActions.permissionsMode` explicitly opts into role checks:
+
+| Content | Omitted / `'default'` | `'roles'` |
+| --- | --- | --- |
+| Dashboard | JWT flags and their defaults only | Actor embed scopes only |
+| AI agent | Existing AI prerequisites | Existing AI prerequisites AND `view:EmbedAiAgent` |
+
+The mode is signed into the JWT. `'jwt'` and `'legacy'` are not accepted aliases.
+AI default does not mean unconditional access. Dashboard role mode ignores
+capability flags and their defaults, including PDF export's enabled default.
+
+Dashboard scopes are considered only when `writeActions.permissionsMode` is
+`'roles'` and the embed JWT has a `writeActions` actor that
+successfully resolves to either a Lightdash user (`userUuid`) or service
+account (`serviceAccountUserUuid`). That actor supplies the `MemberAbility` used for
+the scope check.
+
+If there is no resolved write actor, use only the JWT values in the default
+mode; dashboard `'roles'` mode rejects the request. Do not use the embed
+creator, organization admin, or a default role as an implicit actor.
+
+In dashboard `'roles'` mode, only the actor's embed scopes grant capabilities.
+Omitted/`'default'` uses only JWT flags and their existing defaults:
+
+```typescript
+const isAllowed = writeActorAbility.can(
+    'view',
+    subject('EmbedExplore', {
+        organizationUuid,
+        projectUuid,
+    }),
+);
+```
+
+In `'roles'` mode, JWT values of `true`, `false`, and omitted all have the same
+effect: the scope decides. Adding a `writeActions` actor without selecting
+`'roles'` must not change JWT-based capability access.
+
+For structured legacy options, resolve the effective value centrally rather
+than scattering boolean checks through the UI. For example, the dashboard
+filter scope grants interactivity for all dashboard filters, while preserving
+hidden-filter presentation. Without that scope, disable filter interactivity
+in role mode. Default mode retains the JWT's `enabled` and `allowedFilters` behavior.
+
+#### AI access: opt-in role-based authorization
+
+AI mode controls entry access only (SPK-1967), not existing AI Explore flags.
+Dashboard capability enforcement is described separately below (SPK-1970).
+
+AI integrations opt into the new scope check through the signed JWT:
+
+```typescript
+writeActions: {
+    userUuid: '...', // Or serviceAccountUserUuid.
+    spaceUuid: '...',
+    permissionsMode: 'roles',
+}
+```
+
+- Omitted or `'default'`: preserve pre-scope AI access. Existing integrations
+  do not need to change their tokens or roles.
+- `'roles'`: additionally require `view:EmbedAiAgent` from the resolved write
+  actor. Removing the last effective grant blocks subsequent AI requests with
+  the same JWT; re-granting restores access.
+- Both paths still require an AI agent JWT, a resolved user/service-account
+  actor, project view, chart creation in the write space, and existing agent,
+  space, and thread restrictions. Dashboard JWTs do not authorize AI endpoints.
+- Reject unknown AI modes rather than silently falling back. The mode is part
+  of the signed JWT, not a trusted browser override.
+
+No data migration or custom-role backfill is needed. Missing scopes cannot
+distinguish old roles from deliberate revocation, so integrations explicitly
+opt in through token generation. Existing and newly issued tokens omitting the
+mode retain legacy behavior; removing a scope is not legacy-token revocation.
+Organization/project grants remain additive. Test both modes with users and
+service accounts and grant/revoke/re-grant using identical JWTs.
+
+#### Dashboard role-based permissions (SPK-1970)
+
+Dashboard JWTs reuse `writeActions.permissionsMode`:
+
+- Omitted/`'default'`: JWT flags only, including PDF's enabled default.
+- `'roles'`: only the corresponding embed scopes grant capabilities.
+  JWT flags and their defaults are ignored, including for PDF export.
+  A write actor must resolve successfully; no implicit fallback actor is used.
+
+This applies to backend abilities, dashboard response capabilities, and
+structured filter/parameter controls. Hidden-filter presentation, user-attribute
+restrictions, and payload/response shapes remain unchanged. Filter interactivity,
+adding filters, and parameter editing keep their independent scopes.
+The mode does not change standalone chart, data app, or metrics catalog embeds.
+
+To opt in, issue dashboard tokens with `permissionsMode: 'roles'` under the
+existing `writeActions` user/service-account configuration. Change the actor's
+scopes and reload the same token to verify revocation/re-grant with flags true,
+false, and omitted. Removing the last effective scope grant revokes the capability.
+Tokens that omit the mode ignore
+dashboard scopes; integrations must explicitly opt in. No data migration is required.
+
+For future dashboard capabilities, add independent scopes under
+`ScopeGroup.EMBED`, not new JWT capability booleans or per-feature enforcement
+switches. Keep existing flags for backward compatibility in default mode.
+
+#### Implementation checklist for embed capabilities
+
+1. Define an independent `Embed...` CASL subject and its `view:Embed...` scope in
+   `packages/common/src/authorization/scopes.ts` under `ScopeGroup.EMBED`.
+   Use standard organization/project conditions. Do not reuse regular-app
+   subjects or encode capabilities as modifiers: embed grants must not grant
+   regular-app access, and regular-app custom scopes must not implicitly grant
+   embed access. Add new subjects directly to `CaslSubjectNames`; no JWT-name
+   mapping is needed.
+2. Give system roles sensible defaults in
+   `projectMemberAbility.ts`, `organizationMemberAbility.ts`, and
+   `roleToScopeMapping.ts`. Keep those files in
+   parity. Match the closest existing Lightdash capability: viewer for basic
+   interaction/export permissions, interactive viewer for Explore, underlying
+   data, and data apps. Higher roles inherit those defaults.
+3. Leave custom roles explicit. The new scope becomes independently editable
+   in the custom-role UI and is not automatically granted to existing custom
+   roles.
+4. `applyEmbedScopeAbilities` automatically discovers registered `ScopeGroup.EMBED`
+   scopes. It checks the resolved write actor against the target embed's org and
+   project, and grants only those capabilities on the anonymous account's CASL
+   ability, scoped to that target. Dashboard projection is enabled only in
+   `'roles'` mode. No per-capability bridge entry is needed.
+   Do not copy the actor's complete rules or grant regular-app scopes. This
+   projection supports embed capabilities with standard org/project conditions;
+   resource-specific restrictions require explicit enforcement at the resource.
+5. Enforce new capabilities with `this.createAuditedAbility(account).can(...)` in backend services
+   and the existing ability context on the frontend, using the embed target's
+   identifiers. The account already serializes these ability rules. Do not add
+   JWT flags, separate permission response objects, or frontend token overlays.
+6. For existing dashboard capabilities, choose JWT flags or embed scopes by mode.
+   The scope projection handles the mode centrally: default imports no
+   dashboard scopes, roles imports the actor's embed scopes. Ignore existing
+   JWT capability flags in roles mode. New scope-only dashboard capabilities require
+   `'roles'` mode and the scope; do not add another JWT flag.
+   Keep the JWT payload unchanged. Backend dashboard
+   responses retain their existing fields; resolve the selected source there for
+   existing UI consumers. Structured filters and parameters remain in the
+   existing account access fields. Preserve omitted-field defaults in default mode only.
+7. Verify three cases: no write actor uses only the JWT in default mode; JWT `true`
+   without a scope is denied in roles mode; JWT `false` plus a granted actor scope is allowed only
+   in `'roles'` mode and remains denied in omitted/`'default'` mode.
+   Also verify at least one system role and one custom role through the embed
+   UI. In dashboard role mode, also test true/false/omitted flags with scopes
+   on/off, unresolved actors, structured controls, and UI/backend agreement.
+
+During the compatibility period, existing JWT fields are an API contract:
+keep accepting them in default mode, and document any eventual
+removal through the normal deprecation and release-note process.
+In default mode, preserve omitted-field defaults, including PDF export being enabled when
+`canExportPagePdf` is absent. In roles mode, PDF export requires its scope.
+
+Organization and project role grants remain additive. To restrict an embed
+through a project custom role, avoid also granting the capability through the
+actor's organization role (for example, use organization Member).
 
 ---
 

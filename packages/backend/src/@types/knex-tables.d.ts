@@ -11,6 +11,12 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import {
+    AppGroupAccessTable,
+    AppGroupAccessTableName,
+    AppUserAccessTable,
+    AppUserAccessTableName,
+} from '../database/entities/appAccess';
+import {
     AppsTable,
     AppsTableName,
     AppVersionsTable,
@@ -35,9 +41,37 @@ import {
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
+    ContentAsCodeSnapshotsTableName,
+    ContentAsCodeSnapshotTable,
+} from '../database/entities/contentAsCodeSnapshots';
+import {
+    ContentAsCodeProjectSettingsTable,
+    ContentAsCodeProjectSettingsTableName,
+    ContentAsCodeWritebacksTableName,
+    ContentAsCodeWritebackTable,
+} from '../database/entities/contentAsCodeWritebacks';
+import {
+    ContentDraftsTable,
+    ContentDraftsTableName,
+} from '../database/entities/contentDrafts';
+import {
+    ContentReviewRequestsTable,
+    ContentReviewRequestsTableName,
+} from '../database/entities/contentReviewRequests';
+import {
+    ContentReviewSettingsTable,
+    ContentReviewSettingsTableName,
+} from '../database/entities/contentReviewSettings';
+import {
     ContentVerificationTable,
     ContentVerificationTableName,
 } from '../database/entities/contentVerification';
+import {
+    DashboardGroupAccessTable,
+    DashboardGroupAccessTableName,
+    DashboardUserAccessTable,
+    DashboardUserAccessTableName,
+} from '../database/entities/dashboardAccess';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -62,6 +96,10 @@ import {
     DashboardViewTable,
 } from '../database/entities/dashboards';
 import {
+    DashboardSlugMappingsTableName,
+    DashboardSlugMappingTable,
+} from '../database/entities/dashboardSlugMappings';
+import {
     DownloadAuditTable,
     DownloadAuditTableName,
 } from '../database/entities/downloadAudit';
@@ -74,6 +112,18 @@ import {
     EmailOneTimePasscodeTable,
 } from '../database/entities/emailOneTimePasscodes';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
+import {
+    ExternalSourceCredentialsTable,
+    ExternalSourceCredentialsTableName,
+    ExternalSourceIngestAttemptsTable,
+    ExternalSourceIngestAttemptsTableName,
+    ExternalSourceObjectsTable,
+    ExternalSourceObjectsTableName,
+    ExternalSourcesTable,
+    ExternalSourcesTableName,
+    ExternalSourceTablesTable,
+    ExternalSourceTablesTableName,
+} from '../database/entities/externalSources';
 import {
     FeatureFlagOverridesTable,
     FeatureFlagOverridesTableName,
@@ -106,11 +156,23 @@ import {
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
 import {
+    JiraAppInstallationTable,
+    JiraAppInstallationTableName,
+} from '../database/entities/jiraAppInstallation';
+import {
     JobsTable,
     JobsTableName,
     JobStepsTable,
     JobStepsTableName,
 } from '../database/entities/jobs';
+import {
+    LinearAppInstallationTable,
+    LinearAppInstallationTableName,
+} from '../database/entities/linearAppInstallation';
+import {
+    ManagedSignInTokenUsesTable,
+    ManagedSignInTokenUsesTableName,
+} from '../database/entities/managedSignInTokenUses';
 import {
     NotificationsTable,
     NotificationsTableName,
@@ -244,6 +306,10 @@ import {
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 import {
+    RecentContentTable,
+    RecentContentTableName,
+} from '../database/entities/recentContent';
+import {
     RolesTableName,
     RoleTable,
     ScopedRolesTableName,
@@ -277,6 +343,12 @@ import {
     SavedSqlVersionsTable,
     SavedSqlVersionsTableName,
 } from '../database/entities/savedSql';
+import {
+    SavedSqlGroupAccessTable,
+    SavedSqlGroupAccessTableName,
+    SavedSqlUserAccessTable,
+    SavedSqlUserAccessTableName,
+} from '../database/entities/savedSqlAccess';
 import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
@@ -466,6 +538,10 @@ import {
     AiEvalTableName,
 } from '../ee/database/entities/aiEvals';
 import {
+    AiReviewJiraDestinationTable,
+    AiReviewJiraDestinationTableName,
+    AiReviewLinearDestinationTable,
+    AiReviewLinearDestinationTableName,
     AiReviewNotificationLogTable,
     AiReviewNotificationLogTableName,
     AiReviewNotificationSettingsTable,
@@ -510,6 +586,14 @@ import {
     McpToolCallTableName,
 } from '../ee/database/entities/mcpToolCall';
 import {
+    AiAgentLiveActivitiesTableName,
+    AiAgentLiveActivityStartAttemptsTableName,
+    AiAgentLiveActivityStartAttemptTable,
+    AiAgentLiveActivityTable,
+    MobilePushInstallationsTableName,
+    MobilePushInstallationTable,
+} from '../ee/database/entities/mobilePushNotifications';
+import {
     OrganizationHomepageSettingsTable,
     OrganizationHomepageSettingsTableName,
 } from '../ee/database/entities/organizationHomepageSettings';
@@ -540,6 +624,10 @@ import {
     SchedulerAiAugmentationTableName,
 } from '../ee/database/entities/schedulerAiAugmentation';
 import {
+    ScimRequestLogsTableName,
+    ScimRequestLogTable,
+} from '../ee/database/entities/scimRequestLogs';
+import {
     ServiceAccountsTableName,
     ServiceAccountTable,
 } from '../ee/database/entities/serviceAccounts';
@@ -556,6 +644,11 @@ declare module 'knex/types/tables' {
         [UserAvatarsTableName]: UserAvatarsTable;
         [UserOnboardingTableName]: UserOnboardingTable;
         [EmailTableName]: EmailTable;
+        [ExternalSourcesTableName]: ExternalSourcesTable;
+        [ExternalSourceTablesTableName]: ExternalSourceTablesTable;
+        [ExternalSourceCredentialsTableName]: ExternalSourceCredentialsTable;
+        [ExternalSourceIngestAttemptsTableName]: ExternalSourceIngestAttemptsTable;
+        [ExternalSourceObjectsTableName]: ExternalSourceObjectsTable;
         [FeatureFlagsTableName]: FeatureFlagsTable;
         [FeatureFlagOverridesTableName]: FeatureFlagOverridesTable;
         [SessionTableName]: SessionTable;
@@ -566,6 +659,7 @@ declare module 'knex/types/tables' {
         [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
+        [DashboardSlugMappingsTableName]: DashboardSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
@@ -573,8 +667,12 @@ declare module 'knex/types/tables' {
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
+        [SavedSqlUserAccessTableName]: SavedSqlUserAccessTable;
+        [SavedSqlGroupAccessTableName]: SavedSqlGroupAccessTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
+        [DashboardUserAccessTableName]: DashboardUserAccessTable;
+        [DashboardGroupAccessTableName]: DashboardGroupAccessTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
         [DashboardViewsTableName]: DashboardViewTable;
         [DashboardTilesTableName]: DashboardTileTable;
@@ -605,6 +703,7 @@ declare module 'knex/types/tables' {
         [SlackAuthTokensTableName]: SlackAuthTokensTable;
         [SlackChannelsTableName]: SlackChannelsTable;
         [AnalyticsChartViewsTableName]: AnalyticsChartViews;
+        [RecentContentTableName]: RecentContentTable;
         [AnalyticsDashboardViewsTableName]: AnalyticsDashboardViews;
         [AnalyticsAppViewsTableName]: AnalyticsAppViews;
         [PinnedListTableName]: PinnedListTable;
@@ -640,8 +739,11 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [JiraAppInstallationTableName]: JiraAppInstallationTable;
+        [LinearAppInstallationTableName]: LinearAppInstallationTable;
         [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [UserOAuthGrantsTableName]: UserOAuthGrantsTable;
+        [ManagedSignInTokenUsesTableName]: ManagedSignInTokenUsesTable;
         [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
@@ -658,6 +760,9 @@ declare module 'knex/types/tables' {
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiWritebackThreadTableName]: AiWritebackThreadTable;
+        [MobilePushInstallationsTableName]: MobilePushInstallationTable;
+        [AiAgentLiveActivitiesTableName]: AiAgentLiveActivityTable;
+        [AiAgentLiveActivityStartAttemptsTableName]: AiAgentLiveActivityStartAttemptTable;
         [AgentOnboardingRunsTableName]: AgentOnboardingRunsTable;
         [HomepageRecommendedActionSkipsTableName]: HomepageRecommendedActionSkipsTable;
         [ProjectCiStatusTableName]: ProjectCiStatusTable;
@@ -694,6 +799,8 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;
         [AiReviewNotificationSettingsTableName]: AiReviewNotificationSettingsTable;
+        [AiReviewJiraDestinationTableName]: AiReviewJiraDestinationTable;
+        [AiReviewLinearDestinationTableName]: AiReviewLinearDestinationTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
@@ -701,6 +808,7 @@ declare module 'knex/types/tables' {
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;
+        [ScimRequestLogsTableName]: ScimRequestLogTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [MetricsTreeLocksTableName]: MetricsTreeLocksTable;
         [MetricsTreesTableName]: MetricsTreesTable;
@@ -727,9 +835,17 @@ declare module 'knex/types/tables' {
         [ManagedAgentRunsTableName]: ManagedAgentRunsTable;
         [ManagedAgentProtectionsTableName]: ManagedAgentProtectionsTable;
         [UserFavoritesTableName]: UserFavoritesTable;
+        [ContentAsCodeSnapshotsTableName]: ContentAsCodeSnapshotTable;
+        [ContentDraftsTableName]: ContentDraftsTable;
+        [ContentAsCodeProjectSettingsTableName]: ContentAsCodeProjectSettingsTable;
+        [ContentAsCodeWritebacksTableName]: ContentAsCodeWritebackTable;
         [ContentVerificationTableName]: ContentVerificationTable;
+        [ContentReviewRequestsTableName]: ContentReviewRequestsTable;
+        [ContentReviewSettingsTableName]: ContentReviewSettingsTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;
+        [AppUserAccessTableName]: AppUserAccessTable;
+        [AppGroupAccessTableName]: AppGroupAccessTable;
         [AiRouterTableName]: AiRouterTable;
         [AiRouterDecisionTableName]: AiRouterDecisionTable;
         [ExternalConnectionsTableName]: ExternalConnectionsTable;

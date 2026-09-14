@@ -75,7 +75,7 @@ const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
         {
             icon: TablerIcon,
             size = 'md',
-            stroke,
+            stroke = 1.5,
             color,
             fill,
             display = 'block',

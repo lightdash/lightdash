@@ -30,6 +30,8 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type CatalogService } from '../../../services/CatalogService/CatalogService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
+import { loadPlaygroundContent } from './loadPlaygroundContent';
+import { type PlaygroundContent } from './playgroundContentTypes';
 
 export type ProvisionPlaygroundProjectArguments = {
     user: SessionUser;
@@ -40,10 +42,18 @@ export type ProvisionPlaygroundProjectArguments = {
     >;
     onboardingModel: Pick<
         OnboardingModel,
-        'getByOrganizationUuid' | 'runInPlaygroundProvisioningLock'
+        | 'getByOrganizationUuid'
+        | 'getPlaygroundContentSeedVersion'
+        | 'setPlaygroundContentSeedVersion'
+        | 'runInPlaygroundProvisioningLock'
     >;
     projectService: Pick<ProjectService, 'createWithoutCompile'>;
     catalogService: Pick<CatalogService, 'indexCatalog'>;
+    seedPlaygroundContent: (args: {
+        projectUuid: string;
+        user: SessionUser;
+        content: PlaygroundContent;
+    }) => Promise<void>;
     analytics: Pick<LightdashAnalytics, 'track'>;
     canViewProject: (project: OrganizationProject) => boolean;
     trigger?: PlaygroundProjectTrigger;
@@ -52,7 +62,7 @@ export type ProvisionPlaygroundProjectArguments = {
     validatePlaygroundDatabase?: (databasePath: string) => Promise<void>;
 };
 
-const validatePlaygroundDatabaseBundle = async (): Promise<void> => {
+export const validatePlaygroundDatabaseBundle = async (): Promise<void> => {
     const client = new DuckdbWarehouseClient({
         type: WarehouseTypes.DUCKDB,
         connectionType: DuckdbConnectionType.EMBEDDED,
@@ -61,21 +71,36 @@ const validatePlaygroundDatabaseBundle = async (): Promise<void> => {
     await client.runQuery('SELECT count(*) FROM information_schema.tables');
 };
 
-const loadPlaygroundBundle = async (
+export const loadPlaygroundBundle = async (
     dataDirectory: string,
     validatePlaygroundDatabase: (databasePath: string) => Promise<void>,
-): Promise<(Explore | ExploreError)[]> => {
-    const [exploresJson] = await Promise.all([
+): Promise<{
+    explores: (Explore | ExploreError)[];
+    content: PlaygroundContent;
+}> => {
+    const [exploresJson, content] = await Promise.all([
         fs.readFile(path.join(dataDirectory, 'explores.json'), 'utf8'),
+        loadPlaygroundContent(dataDirectory),
         validatePlaygroundDatabase(
             path.join(dataDirectory, 'jaffle_shop.duckdb'),
         ),
     ]);
-    const explores: unknown = JSON.parse(exploresJson);
+
+    let explores: unknown;
+    try {
+        explores = JSON.parse(exploresJson);
+    } catch (error) {
+        throw new Error('Playground bundle contains invalid JSON', {
+            cause: error,
+        });
+    }
     if (!Array.isArray(explores)) {
         throw new Error('Playground explores bundle must contain an array');
     }
-    return explores as (Explore | ExploreError)[];
+    return {
+        explores: explores as (Explore | ExploreError)[],
+        content,
+    };
 };
 
 const getErrorType = (error: unknown): string =>
@@ -88,6 +113,7 @@ export const provisionPlaygroundProject = async ({
     onboardingModel,
     projectService,
     catalogService,
+    seedPlaygroundContent,
     analytics,
     canViewProject,
     trigger = 'invite_expert',
@@ -134,7 +160,7 @@ export const provisionPlaygroundProject = async ({
     try {
         return await onboardingModel.runInPlaygroundProvisioningLock(
             organizationUuid,
-            async () => {
+            async (trx) => {
                 const dataDirectory = path.resolve(
                     playgroundDataDirectory ??
                         process.env.PLAYGROUND_DATA_DIR ??
@@ -150,7 +176,7 @@ export const provisionPlaygroundProject = async ({
                 );
                 if (playground) {
                     lastKnownProjectUuid = playground.projectUuid;
-                    const explores = await loadPlaygroundBundle(
+                    const { explores, content } = await loadPlaygroundBundle(
                         dataDirectory,
                         validatePlaygroundDatabase,
                     );
@@ -159,6 +185,34 @@ export const provisionPlaygroundProject = async ({
                         explores,
                         true,
                     );
+                    try {
+                        const seedVersion =
+                            await onboardingModel.getPlaygroundContentSeedVersion(
+                                organizationUuid,
+                                trx,
+                            );
+                        if (seedVersion === null) {
+                            await seedPlaygroundContent({
+                                projectUuid: playground.projectUuid,
+                                user,
+                                content,
+                            });
+                            await onboardingModel.setPlaygroundContentSeedVersion(
+                                organizationUuid,
+                                content.version,
+                                trx,
+                            );
+                        }
+                    } catch (error) {
+                        Sentry.captureException(error);
+                        Logger.error(
+                            `Failed to seed playground content for project ${playground.projectUuid}: ${
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error)
+                            }`,
+                        );
+                    }
                     trackSkipped(
                         'playground_already_exists',
                         playground.projectUuid,
@@ -191,10 +245,10 @@ export const provisionPlaygroundProject = async ({
                     };
                 }
 
-                const onboarding =
-                    await onboardingModel.getByOrganizationUuid(
-                        organizationUuid,
-                    );
+                const onboarding = await onboardingModel.getByOrganizationUuid(
+                    organizationUuid,
+                    trx,
+                );
                 if (onboarding.playgroundProjectDeletedAt) {
                     trackSkipped('playground_previously_removed', null);
                     throw new NotFoundError(
@@ -202,7 +256,7 @@ export const provisionPlaygroundProject = async ({
                     );
                 }
 
-                const explores = await loadPlaygroundBundle(
+                const { explores, content } = await loadPlaygroundBundle(
                     dataDirectory,
                     validatePlaygroundDatabase,
                 );
@@ -248,6 +302,30 @@ export const provisionPlaygroundProject = async ({
                     throw error;
                 }
 
+                let contentSeedErrorType: string | null = null;
+                try {
+                    await seedPlaygroundContent({
+                        projectUuid,
+                        user,
+                        content,
+                    });
+                    await onboardingModel.setPlaygroundContentSeedVersion(
+                        organizationUuid,
+                        content.version,
+                        trx,
+                    );
+                } catch (error) {
+                    Sentry.captureException(error);
+                    Logger.error(
+                        `Failed to seed playground content for project ${projectUuid}: ${
+                            error instanceof Error
+                                ? error.message
+                                : String(error)
+                        }`,
+                    );
+                    contentSeedErrorType = getErrorType(error);
+                }
+
                 let catalogIndexErrorType: string | null = null;
                 try {
                     await catalogService.indexCatalog(
@@ -275,6 +353,7 @@ export const provisionPlaygroundProject = async ({
                         projectId: projectUuid,
                         trigger,
                         onboardingFlow,
+                        contentSeedErrorType,
                         catalogIndexErrorType,
                     },
                 });

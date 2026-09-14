@@ -26,18 +26,25 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
 import { invalidateContent } from '../useContent';
+import { useProjectUuid } from '../useProjectUuid';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
-export const getDashboard = async (id: string, projectUuid: string) =>
+export const getDashboard = async (
+    id: string,
+    projectUuid: string,
+    includeUnpublishedDraft: boolean = false,
+) =>
     lightdashApi<Dashboard>({
-        url: `/projects/${projectUuid}/dashboards/${id}`,
+        url: `/projects/${projectUuid}/dashboards/${id}${
+            includeUnpublishedDraft ? '?includeUnpublishedDraft=true' : ''
+        }`,
         version: 'v2',
         method: 'GET',
         body: undefined,
@@ -135,17 +142,31 @@ export const useDashboardQuery = ({
     uuidOrSlug,
     projectUuid,
     useQueryOptions,
+    // Opt in from interactive editing surfaces only. Rendered pages (the
+    // /minimal routes the headless browser exports) must stay published, or a
+    // draft ends up in a scheduled delivery.
+    includeUnpublishedDraft = false,
 }: {
     uuidOrSlug?: string;
     projectUuid?: string;
     useQueryOptions?: UseQueryOptions<Dashboard, ApiError>;
+    includeUnpublishedDraft?: boolean;
 } = {}) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
-        queryKey: ['saved_dashboard_query', uuidOrSlug, projectUuid],
+        queryKey: [
+            'saved_dashboard_query',
+            uuidOrSlug,
+            projectUuid,
+            includeUnpublishedDraft,
+        ],
         queryFn: async () => {
             if (!projectUuid) throw new Error('projectUuid is required');
-            return getDashboard(uuidOrSlug || '', projectUuid);
+            return getDashboard(
+                uuidOrSlug || '',
+                projectUuid,
+                includeUnpublishedDraft,
+            );
         },
         enabled: !!uuidOrSlug && !!projectUuid,
         retry: false,
@@ -162,7 +183,7 @@ export const useDashboardQuery = ({
  * @returns The latest dashboard or null if the dashboard is up to date
  */
 export const useDashboardVersionRefresh = (
-    dashboardUuid: string,
+    dashboardUuid: string | undefined,
     projectUuid?: string,
 ) => {
     const queryClient = useQueryClient();
@@ -173,6 +194,9 @@ export const useDashboardVersionRefresh = (
             try {
                 if (!currentDashboard) {
                     throw new Error('Current dashboard is undefined');
+                }
+                if (!dashboardUuid) {
+                    throw new Error('Dashboard UUID is undefined');
                 }
                 if (!projectUuid) {
                     throw new Error('Project UUID is undefined');
@@ -464,7 +488,13 @@ export const useUpdateDashboard = (
                 await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
                 ]);
-                await queryClient.resetQueries(['saved_dashboard_query', id]);
+                await Promise.all([
+                    queryClient.resetQueries(['saved_dashboard_query', id]),
+                    queryClient.resetQueries([
+                        'saved_dashboard_query',
+                        updatedDashboard.slug,
+                    ]),
+                ]);
                 // Remove stale chart results so navigating back doesn't
                 // show old cache timestamps after a save
                 queryClient.removeQueries({
@@ -484,16 +514,24 @@ export const useUpdateDashboard = (
                     Object.keys(variables).length === 1 &&
                     Object.keys(variables).includes('name');
                 showToastSuccess({
-                    title: `Success! Dashboard ${
-                        onlyUpdatedName ? 'name ' : ''
-                    }was updated.`,
+                    ...(updatedDashboard.hasUnpublishedChanges
+                        ? {
+                              title: 'Dashboard draft saved for review',
+                              subtitle:
+                                  'Only you can see these changes until a reviewer writes them back to the repo.',
+                          }
+                        : {
+                              title: `Success! Dashboard ${
+                                  onlyUpdatedName ? 'name ' : ''
+                              }was updated.`,
+                          }),
                     action: showRedirectButton
                         ? {
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
-                                      `/projects/${projectUuid}/dashboards/${id}`,
+                                      `/projects/${projectUuid}/dashboards/${updatedDashboard.slug}`,
                                   ),
                           }
                         : undefined,
@@ -547,7 +585,7 @@ export const useCreateMutation = (
                                   icon: IconArrowRight,
                                   onClick: () =>
                                       navigate(
-                                          `/projects/${projectUuid}/dashboards/${result.uuid}`,
+                                          `/projects/${projectUuid}/dashboards/${result.slug}`,
                                       ),
                               }
                             : undefined,
@@ -595,7 +633,7 @@ export const useCreateDashboardWithChartsMutation = (
                             children: 'Open dashboard',
                             onClick: () =>
                                 navigate(
-                                    `/projects/${projectUuid}/dashboards/${result.uuid}`,
+                                    `/projects/${projectUuid}/dashboards/${result.slug}`,
                                 ),
                         },
                     });
@@ -619,7 +657,7 @@ export const useDuplicateDashboardMutation = (
     options?: DuplicateDashboardMutationOptions,
 ) => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -654,7 +692,7 @@ export const useDuplicateDashboardMutation = (
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
-                                      `/projects/${projectUuid}/dashboards/${data.uuid}`,
+                                      `/projects/${projectUuid}/dashboards/${data.slug}`,
                                   ),
                           }
                         : undefined,

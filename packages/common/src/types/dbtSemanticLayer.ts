@@ -65,6 +65,8 @@ export type DbtSemanticDimension = {
 export type DbtSemanticModel = {
     name: string;
     unique_id: string;
+    package_name?: string;
+    lightdash_source_name?: string;
     /** dbt ref string for the underlying model, e.g. "ref('orders')". */
     model: string;
     node_relation: {
@@ -144,6 +146,8 @@ export type DbtSemanticMetricType =
 export type DbtSemanticMetric = {
     name: string;
     unique_id: string;
+    package_name?: string;
+    lightdash_source_name?: string;
     type: DbtSemanticMetricType;
     type_params: DbtSemanticMetricTypeParams;
     label?: string | null;

@@ -1,3 +1,4 @@
+import { interpolateUiString } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -26,6 +27,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../../MantineIcon';
 import MantineModal from '../../MantineModal';
 import classes from './ManageFilterValuesModal.module.css';
@@ -45,9 +47,10 @@ export const ManageFilterValuesModal: FC<Props> = ({
     onClose,
     values,
     onChange,
-    title = 'Manage values',
+    title,
     validateValue,
 }) => {
+    const getUiString = useUiStrings();
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const originalValuesRef = useRef<string[]>([]);
 
@@ -157,22 +160,24 @@ export const ManageFilterValuesModal: FC<Props> = ({
             opened={opened}
             onClose={handleCancel}
             onCancel={handleCancel}
-            title={title}
+            title={title ?? getUiString('filters.manageValues.title')}
             icon={IconSettings}
             size="lg"
-            cancelLabel="Cancel"
-            confirmLabel="Apply"
+            cancelLabel={getUiString('filters.actions.cancel')}
+            confirmLabel={getUiString('filters.apply')}
             onConfirm={handleApply}
             modalRootProps={{ zIndex: getDefaultZIndex('modal') + 1000 }}
             leftActions={
-                <Tooltip label="Clear all values">
+                <Tooltip
+                    label={getUiString('filters.manageValues.clearAllValues')}
+                >
                     <Button
                         variant="default"
                         leftSection={<MantineIcon icon={IconClearAll} />}
                         onClick={handleClearAll}
                         disabled={isClearAllDisabled}
                     >
-                        Clear all
+                        {getUiString('filters.actions.clearAll')}
                     </Button>
                 </Tooltip>
             }
@@ -180,17 +185,29 @@ export const ManageFilterValuesModal: FC<Props> = ({
             <Stack gap="sm">
                 <Group gap="xs" justify="space-between" align="center">
                     <Text fw={500}>
-                        {workingValues.length.toLocaleString()} values
+                        {interpolateUiString(
+                            getUiString('filters.manageValues.valuesCount'),
+                            { n: workingValues.length.toLocaleString() },
+                        )}
                         <Text span c="dimmed" size="xs" ta="center" maw={300}>
                             {' '}
-                            ({selected.size.toLocaleString()} selected)
+                            {interpolateUiString(
+                                getUiString(
+                                    'filters.manageValues.selectedCount',
+                                ),
+                                { n: selected.size.toLocaleString() },
+                            )}
                         </Text>
                     </Text>
 
                     <FileButton
                         onChange={handleCsvFileChange}
                         accept=".csv,.txt,text/csv,text/plain"
-                        inputProps={{ 'aria-label': 'Import CSV file' }}
+                        inputProps={{
+                            'aria-label': getUiString(
+                                'filters.manageValues.importCsvAria',
+                            ),
+                        }}
                     >
                         {(props) => (
                             <Button
@@ -201,7 +218,7 @@ export const ManageFilterValuesModal: FC<Props> = ({
                                     <MantineIcon icon={IconFileUpload} />
                                 }
                             >
-                                Import CSV
+                                {getUiString('filters.manageValues.importCsv')}
                             </Button>
                         )}
                     </FileButton>
@@ -212,7 +229,9 @@ export const ManageFilterValuesModal: FC<Props> = ({
                         <Group className={classes.headerRow} wrap="nowrap">
                             <Checkbox
                                 size="xs"
-                                aria-label="Select all shown"
+                                aria-label={getUiString(
+                                    'filters.manageValues.selectAllShown',
+                                )}
                                 checked={isAllShownSelected}
                                 indeterminate={isSomeShownSelected}
                                 onChange={() => {
@@ -223,12 +242,16 @@ export const ManageFilterValuesModal: FC<Props> = ({
                                     }
                                 }}
                             />
-                            <Text fw={500}>Selections</Text>
+                            <Text fw={500}>
+                                {getUiString('filters.manageValues.selections')}
+                            </Text>
                         </Group>
                         <Box className={classes.headerSearch}>
                             <TextInput
                                 size="xs"
-                                placeholder="Search values…"
+                                placeholder={getUiString(
+                                    'filters.manageValues.searchPlaceholder',
+                                )}
                                 value={search}
                                 onChange={(e) =>
                                     setSearch(e.currentTarget.value)
@@ -242,9 +265,11 @@ export const ManageFilterValuesModal: FC<Props> = ({
                             <Center className={classes.emptyState}>
                                 <Stack gap="xs" align="center">
                                     <Text fw={500}>
-                                        {workingValues.length === 0
-                                            ? 'No values yet'
-                                            : 'No matches'}
+                                        {getUiString(
+                                            workingValues.length === 0
+                                                ? 'filters.manageValues.noValuesYet'
+                                                : 'filters.manageValues.noMatches',
+                                        )}
                                     </Text>
                                     <Text
                                         c="dimmed"
@@ -252,15 +277,19 @@ export const ManageFilterValuesModal: FC<Props> = ({
                                         ta="center"
                                         maw={300}
                                     >
-                                        {workingValues.length === 0
-                                            ? 'Import a CSV to populate this filter, then you can review and remove items here.'
-                                            : 'Try a different search.'}
+                                        {getUiString(
+                                            workingValues.length === 0
+                                                ? 'filters.manageValues.importCsvHint'
+                                                : 'filters.manageValues.tryDifferentSearch',
+                                        )}
                                     </Text>
                                     <FileButton
                                         onChange={handleCsvFileChange}
                                         accept=".csv,.txt,text/csv,text/plain"
                                         inputProps={{
-                                            'aria-label': 'Import CSV file',
+                                            'aria-label': getUiString(
+                                                'filters.manageValues.importCsvAria',
+                                            ),
                                         }}
                                     >
                                         {(props) => (
@@ -274,7 +303,9 @@ export const ManageFilterValuesModal: FC<Props> = ({
                                                     />
                                                 }
                                             >
-                                                Import CSV
+                                                {getUiString(
+                                                    'filters.manageValues.importCsv',
+                                                )}
                                             </Button>
                                         )}
                                     </FileButton>

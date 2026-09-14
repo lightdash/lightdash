@@ -57,6 +57,12 @@ export interface SandboxManagerDeps {
     logger: SandboxLogger;
 }
 
+/** The lifecycle subset feature services depend on; satisfied by test fakes. */
+export type SandboxManagerPort = Pick<
+    SandboxManager,
+    'acquire' | 'resume' | 'suspend' | 'suspendByUuid' | 'destroy'
+>;
+
 /**
  * Layer 1 — the only sandbox lifecycle surface feature code talks to. Wraps a
  * {@link SandboxProvider} with a registry (stable `sandbox_uuid`) and the

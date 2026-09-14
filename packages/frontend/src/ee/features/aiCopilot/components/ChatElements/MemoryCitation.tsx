@@ -13,6 +13,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useParams } from 'react-router';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
 import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
 import styles from './MemoryCitation.module.css';
@@ -29,7 +30,8 @@ export const MemoryCitation = ({
     const [hasOpened, setHasOpened] = useState(false);
     const [detailsOpened, { open: openDetails, close: closeDetails }] =
         useDisclosure(false);
-    const { projectUuid, agentUuid } = useParams();
+    const { agentUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const slug = id?.replace(/^user-content-/, '');
     // Citations in old threads keep resolving after memories are disabled
     const memoryQuery = useAiAgentMemory({
@@ -43,12 +45,9 @@ export const MemoryCitation = ({
         <>
             <HoverCard
                 width={360}
-                shadow="md"
-                radius="md"
                 openDelay={180}
                 closeDelay={120}
                 withArrow
-                withinPortal
                 onOpen={() => setHasOpened(true)}
             >
                 <HoverCard.Target>
@@ -79,15 +78,11 @@ export const MemoryCitation = ({
                                 align="flex-start"
                                 wrap="nowrap"
                             >
-                                <Text fw={650} size="sm" lh={1.3}>
+                                <Text fw={600} size="sm" lh={1.3}>
                                     {memoryQuery.data.title}
                                 </Text>
                                 {memoryQuery.data.status !== 'active' ? (
-                                    <Badge
-                                        color="gray"
-                                        variant="light"
-                                        size="xs"
-                                    >
+                                    <Badge size="xs">
                                         {memoryQuery.data.status}
                                     </Badge>
                                 ) : null}

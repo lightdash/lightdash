@@ -1,5 +1,6 @@
 import { AnyType } from '@lightdash/common';
 import knex from 'knex';
+import type { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { DatabaseError } from 'pg';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
@@ -237,30 +238,53 @@ describe('createSavedChart', () => {
         ).toBe(true);
     });
 
-    test('rejects a forced slug owned by a deleted chart', async () => {
+    test('revives a deleted chart that owns a forced slug', async () => {
         tracker.on.select(SavedChartsTableName).responseOnce([
             {
                 saved_query_uuid: 'deleted-chart-uuid',
                 deleted_at: new Date(),
             },
         ]);
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on
+            .update(SavedChartsTableName)
+            .responseOnce([
+                { saved_query_id: 11, saved_query_uuid: 'deleted-chart-uuid' },
+            ]);
+        tracker.on
+            .insert('saved_queries_versions')
+            .responseOnce([{ saved_queries_version_id: 13 }]);
 
-        await expect(
-            createSavedChart(
-                database,
-                '22222222-2222-4222-8222-222222222222',
-                '11111111-1111-4111-8111-111111111111',
-                {
-                    ...chartInput,
-                    spaceUuid: '33333333-3333-4333-8333-333333333333',
-                    dashboardUuid: null,
-                    forceSlug: true,
-                },
-            ),
-        ).rejects.toThrow(
-            'Chart slug "orders" is already used by a deleted chart',
+        const result = await createSavedChart(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid: '33333333-3333-4333-8333-333333333333',
+                dashboardUuid: null,
+                forceSlug: true,
+            },
         );
-        expect(tracker.history.insert).toHaveLength(0);
+
+        expect(result).toBe('deleted-chart-uuid');
+        expect(
+            tracker.history.insert.some((query) =>
+                query.sql.includes(`into "${SavedChartsTableName}"`),
+            ),
+        ).toBe(false);
+        const revive = tracker.history.update.find((query) =>
+            query.sql.includes(`update "${SavedChartsTableName}"`),
+        );
+        expect(revive?.sql).toContain('"deleted_at" = $');
+        expect(revive?.sql).not.toContain('"slug"');
+        expect(revive?.bindings).toEqual(
+            expect.arrayContaining([7, 'deleted-chart-uuid']),
+        );
+        const versionInsert = tracker.history.insert.find((query) =>
+            query.sql.includes('into "saved_queries_versions"'),
+        );
+        expect(versionInsert?.bindings).toContain(11);
     });
 
     test('preserves a long forced slug', async () => {
@@ -462,6 +486,35 @@ describe('renameSlug', () => {
                 'old-orders',
             ]),
         );
+    });
+
+    test('uses a supplied transaction without starting a nested transaction', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid, deleted_at: null }]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ slug: 'old-orders' }]);
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
+        tracker.on
+            .insert(SavedChartSlugMappingsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+
+        await model.renameSlug(
+            {
+                projectUuid,
+                savedChartUuid: chartUuid,
+                from: 'old-orders',
+                to: 'new-orders',
+            },
+            database as unknown as Knex.Transaction,
+        );
+
+        expect(database.transaction).not.toHaveBeenCalled();
+        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.update).toHaveLength(1);
     });
 
     test('treats an alias-to-current replay as idempotent', async () => {
@@ -745,6 +798,75 @@ describe('update', () => {
         tracker.reset();
     });
 
+    test('rejects an update when the authorized chart location no longer matches', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ project_uuid: 'project-uuid' }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(0);
+        const getChart = vi
+            .spyOn(model, 'get')
+            .mockResolvedValue(chartSummary as never);
+
+        await expect(
+            model.update(
+                'chart-uuid',
+                { name: 'Changed name' },
+                {
+                    projectUuid: 'project-uuid',
+                    dashboardUuid: 'authorized-dashboard',
+                    spaceUuid: 'authorized-space',
+                },
+            ),
+        ).rejects.toThrow('Chart location changed');
+        expect(getChart).not.toHaveBeenCalled();
+    });
+
+    test('checks dashboard ownership in the update that acquires the row lock', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ project_uuid: 'project-uuid' }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+        vi.spyOn(model, 'get').mockResolvedValue(chartSummary as never);
+
+        await model.update(
+            'chart-uuid',
+            { name: 'Changed name' },
+            {
+                projectUuid: 'project-uuid',
+                dashboardUuid: 'authorized-dashboard',
+                spaceUuid: 'authorized-space',
+            },
+        );
+
+        const [updateQuery] = tracker.history.update;
+        expect(updateQuery.sql).toMatch(/"dashboard_uuid" = \$\d+/);
+        expect(updateQuery.sql).toContain('"space_id" is null');
+        expect(updateQuery.bindings).toContain('authorized-dashboard');
+    });
+
+    test('checks the authorized space when updating a standalone chart', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ project_uuid: 'project-uuid' }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+        vi.spyOn(model, 'get').mockResolvedValue(chartSummary as never);
+
+        await model.update(
+            'chart-uuid',
+            { name: 'Changed name' },
+            {
+                projectUuid: 'project-uuid',
+                dashboardUuid: null,
+                spaceUuid: 'authorized-space',
+            },
+        );
+
+        const [updateQuery] = tracker.history.update;
+        expect(updateQuery.sql).toContain('"dashboard_uuid" is null');
+        expect(updateQuery.sql).toContain('"space_id" = (select');
+        expect(updateQuery.bindings).toContain('authorized-space');
+    });
+
     test('preserves dashboard linkage on name-only updates while writing the resolved project', async () => {
         const chartUuid = '11111111-1111-4111-8111-111111111111';
         const projectUuid = '22222222-2222-4222-8222-222222222222';
@@ -769,6 +891,25 @@ describe('update', () => {
         expect(updateQuery.sql).not.toContain('"dashboard_uuid"');
         expect(updateQuery.bindings).toContain(projectUuid);
         expect(updateQuery.bindings).toContain(chartUuid);
+    });
+
+    test('updates through a supplied transaction without hydrating the chart', async () => {
+        const chartUuid = '11111111-1111-4111-8111-111111111111';
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ project_uuid: projectUuid }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+        const getSpy = vi.spyOn(model, 'get');
+
+        await model.updateInTransaction(
+            chartUuid,
+            { name: 'Renamed chart' },
+            database as unknown as Knex.Transaction,
+        );
+
+        expect(getSpy).not.toHaveBeenCalled();
+        expect(tracker.history.update).toHaveLength(1);
     });
 
     test('rejects moving a chart to a space in another project', async () => {

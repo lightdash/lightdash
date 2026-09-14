@@ -72,6 +72,18 @@ const checkRoleCoveredByScopes = (
  * List of enterprise-only subject names that should be filtered in non-enterprise mode
  */
 const ENTERPRISE_SUBJECTS = new Set([
+    'EmbedAiAgent',
+    'EmbedDashboardFilters',
+    'EmbedDashboardFilterAddition',
+    'EmbedDashboardParameters',
+    'EmbedCsvExport',
+    'EmbedDashboardCsvExport',
+    'EmbedImageExport',
+    'EmbedPagePdfExport',
+    'EmbedDateZoom',
+    'EmbedExplore',
+    'EmbedUnderlyingData',
+    'EmbedDataApps',
     'MetricsTree',
     'SpotlightTableConfig',
     'AiAgent',
@@ -82,6 +94,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'ContentAsCode',
     'PreAggregation',
     'ExternalConnection',
+    'ExternalSource',
     'ProjectHomepage',
     // The matching scopes (`view:` + `manage:OrganizationWarehouseCredentials`)
     // are `isEnterprise: true` in scopes.ts, so the scope-build path

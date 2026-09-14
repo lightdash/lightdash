@@ -3,6 +3,7 @@ import {
     type ApiError,
     type LightdashUser,
     type LoginOptions,
+    type MobileLoginIntent,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -15,28 +16,41 @@ import useQueryError from '../../../hooks/useQueryError';
 
 export type LoginParams = { email: string; password: string };
 
-const fetchLoginOptions = async (email?: string) =>
-    lightdashApi<LoginOptions>({
-        url: `/user/login-options${
-            email ? `?email=${encodeURIComponent(email)}` : ''
-        }`,
+const fetchLoginOptions = async (
+    email?: string,
+    mobileLoginIntent?: MobileLoginIntent,
+) => {
+    const queryParams = new URLSearchParams();
+    if (email) {
+        queryParams.set('email', email);
+    }
+    if (mobileLoginIntent) {
+        queryParams.set('mobile_login_intent', mobileLoginIntent);
+    }
+    const query = queryParams.toString();
+
+    return lightdashApi<LoginOptions>({
+        url: `/user/login-options${query ? `?${query}` : ''}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 export const useFetchLoginOptions = ({
     email,
+    mobileLoginIntent,
     useQueryOptions,
 }: {
     email?: string;
+    mobileLoginIntent?: MobileLoginIntent;
     useQueryOptions?: UseQueryOptions<LoginOptions, ApiError>;
 }) => {
     const setErrorResponse = useQueryError();
     const { showToastError } = useToaster();
 
     return useQuery<LoginOptions, ApiError>({
-        queryKey: ['loginOptions', email],
-        queryFn: () => fetchLoginOptions(email),
+        queryKey: ['loginOptions', email, mobileLoginIntent],
+        queryFn: () => fetchLoginOptions(email, mobileLoginIntent),
         retry: false,
         onError: (result) => {
             setErrorResponse(result);

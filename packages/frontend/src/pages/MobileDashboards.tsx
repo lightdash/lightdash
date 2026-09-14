@@ -7,16 +7,16 @@ import { TextInput, Group, Stack, ActionIcon } from '@mantine/core';
 import { IconLayoutDashboard, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { ResourceSortDirection } from '../components/common/ResourceView/types';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 
 const MobileDashboards = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { isInitialLoading, data: dashboards = [] } =
         useDashboards(projectUuid);
     const [search, setSearch] = useState<string>('');
@@ -61,8 +61,6 @@ const MobileDashboards = () => {
                         <ActionIcon
                             aria-label="Clear search"
                             onMouseDown={(event) => event.preventDefault()}
-                            variant="subtle"
-                            color="gray"
                             onClick={() => setSearch('')}
                         >
                             <MantineIcon icon={IconX} />

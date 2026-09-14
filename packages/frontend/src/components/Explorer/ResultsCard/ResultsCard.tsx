@@ -15,6 +15,7 @@ import {
     selectIsEditMode,
     selectIsResultsExpanded,
     selectMetricQuery,
+    selectParameters,
     selectSavedChart,
     selectSorts,
     selectTableName,
@@ -56,6 +57,7 @@ const ResultsCard: FC = memo(() => {
     const tableName = useExplorerSelector(selectTableName);
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
+    const parameters = useExplorerSelector(selectParameters);
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
     // Check if grouped view is available
@@ -106,6 +108,7 @@ const ResultsCard: FC = memo(() => {
                 metricQuery,
                 columnOrder,
                 showTableNames: true,
+                parameters,
                 // No pivotConfig - ResultsCard only shows raw table data
             });
         } else {
@@ -133,6 +136,38 @@ const ResultsCard: FC = memo(() => {
             isOpen={resultsIsOpen}
             onToggle={toggleCard}
             disabled={!tableName}
+            // Walkthrough markers for view:SavedChart: reading a chart means
+            // opening it from Browse and unfolding the rows behind it. The
+            // heading's click is the action; the card is the result. See
+            // scripts/scope-tours.
+            headingTourProps={{
+                'data-tour-anchor': 'results-heading',
+                'data-tour-hint': 'Open the results',
+                'data-tour-scope': 'view:SavedChart',
+                'data-tour-step': '2',
+                'data-tour-route':
+                    '/projects/:projectUuid/saved/:savedQueryUuid',
+                'data-tour-label': 'Open the results',
+                'data-tour-title': 'Open and read a chart',
+                'data-tour-interactive': 'true',
+                'data-tour-via':
+                    '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                'data-tour-docs':
+                    'explore/explore-view.mdx#the-explore-page:li4',
+            }}
+            tourProps={{
+                'data-tour-scope': 'view:SavedChart',
+                'data-tour-step': '1',
+                'data-tour-route':
+                    '/projects/:projectUuid/saved/:savedQueryUuid',
+                'data-tour-label':
+                    'A saved chart is there for everyone with access',
+                'data-tour-docs':
+                    'explore/share-charts.mdx#share-a-saved-chart:p2:1',
+                'data-tour-return': 'none',
+                'data-tour-resultdocs':
+                    'explore/explore-view.mdx#explore-from-an-existing-chart:1',
+            }}
             headerElement={
                 // Hide header controls when in grouped view
                 isGroupedView ? null : (
@@ -199,6 +234,24 @@ const ResultsCard: FC = memo(() => {
                                         data-testid="export-csv-button"
                                         {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
                                         disabled={disabled}
+                                        // Walkthrough action for
+                                        // manage:ExportCsv: the export
+                                        // dialog for the results table. See
+                                        // scripts/scope-tours.
+                                        data-tour-anchor="export-results"
+                                        data-tour-hint="Open the export dialog"
+                                        data-tour-scope="manage:ExportCsv"
+                                        data-tour-step="2"
+                                        data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                        data-tour-label="Open the export dialog"
+                                        data-tour-title="Download a chart's results"
+                                        data-tour-interactive="true"
+                                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"]'
+                                        // With Google Drive configured the
+                                        // popover opens on a chooser first;
+                                        // the `?` hop is taken only there.
+                                        data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
+                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p2:1"
                                     >
                                         <MantineIcon icon={IconShare2} />
                                     </ActionIcon>

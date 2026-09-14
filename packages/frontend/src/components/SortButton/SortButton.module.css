@@ -1,5 +1,19 @@
 .badge {
+    max-width: 100%;
     text-transform: unset;
+}
+
+.badge :global(.mantine-Badge-label),
+.content,
+.field {
+    min-width: 0;
+}
+
+.badge :global(.mantine-Badge-label),
+.field {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .interactive {

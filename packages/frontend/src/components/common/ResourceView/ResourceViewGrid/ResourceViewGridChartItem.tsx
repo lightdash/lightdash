@@ -4,10 +4,14 @@ import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCircleCheckFilled, IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
+import ViewsCountPopover from '../../ViewsCountPopover';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
-import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
+import {
+    getResourceViewsSinceWhenDescription,
+    getViewStatsResourceType,
+} from '../resourceUtils';
 import classes from './ResourceViewGridItem.module.css';
 
 interface ResourceViewGridChartItemProps extends Pick<
@@ -15,12 +19,14 @@ interface ResourceViewGridChartItemProps extends Pick<
     'onAction'
 > {
     item: ResourceViewChartItem;
+    projectUuid: string;
     allowDelete?: boolean;
     dragIcon: ReactNode;
 }
 
 const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
     item,
+    projectUuid,
     allowDelete,
     onAction,
     dragIcon,
@@ -33,7 +39,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
             ref={ref}
             pos="relative"
             p={0}
-            withBorder
             className={classes.gridCard}
             h="100%"
         >
@@ -79,7 +84,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     label={item.data.description}
                     position="top"
                     maw={400}
-                    multiline
                     disabled={!item.data.description}
                 >
                     <Text lineClamp={2} fz="sm" fw={600}>
@@ -89,10 +93,12 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
             </Group>
 
             <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
-                <Tooltip
-                    position="bottom-start"
-                    disabled={!item.data.views || !item.data.firstViewedAt}
-                    label={getResourceViewsSinceWhenDescription(item)}
+                <ViewsCountPopover
+                    resourceType={getViewStatsResourceType(item)}
+                    resourceUuid={item.data.uuid}
+                    projectUuid={projectUuid}
+                    views={item.data.views}
+                    fallbackTooltip={getResourceViewsSinceWhenDescription(item)}
                 >
                     <Flex align="center" gap={4}>
                         <IconEye
@@ -100,11 +106,11 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                             size={14}
                         />
 
-                        <Text c="ldGray.6" fz="xs">
+                        <Text c="dimmed" fz="xs">
                             {item.data.views} views
                         </Text>
                     </Flex>
-                </Tooltip>
+                </ViewsCountPopover>
 
                 <Box
                     className={

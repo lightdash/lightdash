@@ -201,6 +201,7 @@ export const mockEmailClient: Record<string, MockFn> = {
 
 export const mockUserModel: Record<string, MockFn> = {
     findUserByEmail: vi.fn(),
+    getScopesHeldAnywhere: vi.fn().mockResolvedValue([]),
     createPendingUser: vi.fn(),
     joinOrg: vi.fn(),
     updateUser: vi.fn(),
@@ -249,7 +250,7 @@ export const mockInviteLinkModel: Record<string, MockFn> = {
 };
 
 export const mockFeatureFlagModel: Record<string, MockFn> = {
-    get: vi.fn().mockResolvedValue({ id: 'multiple-roles', enabled: true }),
+    get: vi.fn().mockResolvedValue({ id: 'custom-roles', enabled: true }),
 };
 
 export const mockOrganizationMemberProfileModel: Record<string, MockFn> = {

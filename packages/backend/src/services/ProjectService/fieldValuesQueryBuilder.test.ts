@@ -63,9 +63,36 @@ const exploreWithFilterAutocomplete = (
     },
 });
 
+const lookupExplore: Explore = {
+    ...validExplore,
+    name: 'lookup',
+    baseTable: 'lookup',
+    joinedTables: [],
+    tables: {
+        lookup: {
+            ...validExplore.tables.a,
+            name: 'lookup',
+            dimensions: {
+                code: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    name: 'code',
+                    table: 'lookup',
+                },
+                name: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    name: 'name',
+                    table: 'lookup',
+                },
+            },
+            metrics: {},
+        },
+    },
+};
+
 const mockExploreResolver = {
     findExploreByTableName: vi.fn(),
     findJoinAliasExplore: vi.fn(),
+    findExploreContainingTable: vi.fn(),
 };
 
 describe('getFieldValuesMetricQuery', () => {
@@ -75,6 +102,9 @@ describe('getFieldValuesMetricQuery', () => {
             validExplore,
         );
         mockExploreResolver.findJoinAliasExplore.mockResolvedValue(undefined);
+        mockExploreResolver.findExploreContainingTable.mockResolvedValue(
+            undefined,
+        );
     });
 
     test('builds a MetricQuery with correct structure', async () => {
@@ -111,6 +141,28 @@ describe('getFieldValuesMetricQuery', () => {
             values: [],
             target: { fieldId: 'a_dim1' },
         });
+    });
+
+    test('authorizes the resolved Explore before resolving the requested field', async () => {
+        const authorizeInitialExplore = vi.fn(() => {
+            throw new Error('not authorized');
+        });
+
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_missing',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+                authorizeInitialExplore,
+            }),
+        ).rejects.toThrow('not authorized');
+
+        expect(authorizeInitialExplore).toHaveBeenCalledWith(validExplore);
     });
 
     test('returns null staticResults when warehouse fetching is on', async () => {
@@ -209,6 +261,242 @@ describe('getFieldValuesMetricQuery', () => {
         expect(filterRules).toHaveLength(3);
     });
 
+    test('fetches values from the configured dimension and ignores cascading filters', async () => {
+        const sourceExplore = exploreWithFilterAutocomplete({
+            fetchFromWarehouse: true,
+            optionsFromDimension: {
+                model: 'lookup',
+                dimension: 'code',
+                labelDimension: 'name',
+            },
+        });
+        mockExploreResolver.findExploreByTableName.mockImplementation(
+            async (_projectUuid: string, table: string) =>
+                table === 'lookup' ? lookupExplore : sourceExplore,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'AA',
+            limit: 10,
+            maxLimit: 5000,
+            filters: {
+                id: 'filter-group',
+                and: [
+                    {
+                        id: 'cascading-filter',
+                        operator: FilterOperator.EQUALS,
+                        values: ['foo'],
+                        target: { fieldId: 'a_dim1' },
+                    },
+                ],
+            },
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.explore).toBe(lookupExplore);
+        expect(result.fieldId).toBe('lookup_code');
+        expect(result.labelFieldId).toBe('lookup_name');
+        expect(result.metricQuery).toMatchObject({
+            exploreName: 'lookup',
+            dimensions: ['lookup_code', 'lookup_name'],
+            sorts: [{ fieldId: 'lookup_name', descending: false }],
+        });
+        const dimensions = result.metricQuery.filters?.dimensions;
+        const filterRules =
+            dimensions && 'and' in dimensions ? dimensions.and : [];
+        expect(filterRules).toHaveLength(2);
+        expect(filterRules).not.toContainEqual(
+            expect.objectContaining({ id: 'cascading-filter' }),
+        );
+    });
+
+    test('resolves the options dimension against the explore base table', async () => {
+        const sourceExplore = exploreWithFilterAutocomplete({
+            fetchFromWarehouse: true,
+            optionsFromDimension: {
+                model: 'airlines_explore',
+                dimension: 'code',
+            },
+        });
+        // An explore built with `meta.explores` is named differently to the
+        // model it is built on.
+        const customNameExplore: Explore = {
+            ...lookupExplore,
+            name: 'airlines_explore',
+            baseTable: 'dim_airlines',
+            tables: {
+                dim_airlines: {
+                    ...lookupExplore.tables.lookup,
+                    name: 'dim_airlines',
+                    dimensions: {
+                        code: {
+                            ...lookupExplore.tables.lookup.dimensions.code,
+                            table: 'dim_airlines',
+                        },
+                    },
+                },
+            },
+        };
+        mockExploreResolver.findExploreByTableName.mockImplementation(
+            async (_projectUuid: string, table: string) =>
+                table === 'airlines_explore'
+                    ? customNameExplore
+                    : sourceExplore,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'AA',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.fieldId).toBe('dim_airlines_code');
+        expect(result.metricQuery.dimensions).toEqual(['dim_airlines_code']);
+    });
+
+    test('falls back to the join alias explore for the options model', async () => {
+        const sourceExplore = exploreWithFilterAutocomplete({
+            fetchFromWarehouse: true,
+            optionsFromDimension: { model: 'lookup_alias', dimension: 'code' },
+        });
+        mockExploreResolver.findExploreByTableName.mockImplementation(
+            async (_projectUuid: string, table: string) =>
+                table === 'lookup_alias' ? undefined : sourceExplore,
+        );
+        mockExploreResolver.findJoinAliasExplore.mockResolvedValue(
+            lookupExplore,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'AA',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.explore).toBe(lookupExplore);
+        expect(result.fieldId).toBe('lookup_code');
+    });
+
+    test('throws an actionable error when the options model has no explore', async () => {
+        const sourceExplore = exploreWithFilterAutocomplete({
+            fetchFromWarehouse: true,
+            optionsFromDimension: { model: 'hidden_model', dimension: 'code' },
+        });
+        mockExploreResolver.findExploreByTableName.mockImplementation(
+            async (_projectUuid: string, table: string) =>
+                table === 'hidden_model' ? undefined : sourceExplore,
+        );
+
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: 'AA',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(
+            /a_dim1 reads options from model 'hidden_model', which has no explore/,
+        );
+    });
+
+    test('throws when the options dimension does not exist in the source explore', async () => {
+        const sourceExplore = exploreWithFilterAutocomplete({
+            fetchFromWarehouse: true,
+            optionsFromDimension: { model: 'lookup', dimension: 'missing' },
+        });
+        mockExploreResolver.findExploreByTableName.mockImplementation(
+            async (_projectUuid: string, table: string) =>
+                table === 'lookup' ? lookupExplore : sourceExplore,
+        );
+
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: 'AA',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(
+            "Filter autocomplete options source 'lookup.missing' does not exist",
+        );
+    });
+
+    test('serves curated values without resolving the options model', async () => {
+        const sourceExplore = exploreWithFilterAutocomplete({
+            fetchFromWarehouse: false,
+            values: [{ value: 'AAL' }, { value: 'DAL' }],
+            optionsFromDimension: { model: 'lookup', dimension: 'code' },
+        });
+        mockExploreResolver.findExploreByTableName.mockImplementation(
+            async (_projectUuid: string, table: string) =>
+                table === 'lookup' ? undefined : sourceExplore,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'AA',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.staticResults).toEqual([{ value: 'AAL' }]);
+        expect(result.fieldId).toBe('a_dim1');
+        expect(
+            mockExploreResolver.findExploreByTableName,
+        ).not.toHaveBeenCalledWith('project-uuid', 'lookup');
+    });
+
+    test('ignores the base label dimension when options come from another model', async () => {
+        const sourceExplore = exploreWithFilterAutocomplete({
+            fetchFromWarehouse: true,
+            labelDimension: 'label_dim',
+            optionsFromDimension: { model: 'lookup', dimension: 'code' },
+        });
+        mockExploreResolver.findExploreByTableName.mockImplementation(
+            async (_projectUuid: string, table: string) =>
+                table === 'lookup' ? lookupExplore : sourceExplore,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'AA',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.labelFieldId).toBeNull();
+        expect(result.metricQuery.dimensions).toEqual(['lookup_code']);
+    });
+
     test('falls back to join alias explore when table not found', async () => {
         mockExploreResolver.findExploreByTableName.mockResolvedValue(undefined);
         mockExploreResolver.findJoinAliasExplore.mockResolvedValue(
@@ -232,6 +520,33 @@ describe('getFieldValuesMetricQuery', () => {
         );
         // fieldId should be remapped from alias_table to base table
         expect(result.fieldId).toBe('a_dim1');
+    });
+
+    test('falls back to an explore containing a joined-only table', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(undefined);
+        mockExploreResolver.findJoinAliasExplore.mockResolvedValue(undefined);
+        mockExploreResolver.findExploreContainingTable.mockResolvedValue(
+            validExplore,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'b',
+            initialFieldId: 'b_dim1',
+            search: '',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(
+            mockExploreResolver.findExploreContainingTable,
+        ).toHaveBeenCalledWith('project-uuid', 'b');
+        expect(result.explore).toBe(validExplore);
+        expect(result.fieldId).toBe('b_dim1');
+        expect(result.metricQuery.exploreName).toBe(validExplore.name);
+        expect(result.metricQuery.dimensions).toEqual(['b_dim1']);
     });
 
     test('throws NotFoundError when explore not found', async () => {

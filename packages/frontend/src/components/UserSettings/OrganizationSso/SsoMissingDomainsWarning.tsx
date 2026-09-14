@@ -32,8 +32,6 @@ const SsoMissingDomainsWarning: FC<Props> = ({ providerLabel }) => {
                 </Stack>
                 <Tooltip
                     label="SSO routing is based on verified email domains."
-                    withArrow
-                    multiline
                     maw={260}
                 >
                     <Button

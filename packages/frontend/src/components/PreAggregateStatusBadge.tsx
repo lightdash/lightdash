@@ -88,12 +88,7 @@ const PreAggregateStatusBadge: FC = memo(() => {
     const Icon = status.icon === 'bolt-off' ? IconBoltOff : IconBolt;
 
     return (
-        <Tooltip
-            label={status.tooltip}
-            position="bottom"
-            withArrow
-            withinPortal
-        >
+        <Tooltip label={status.tooltip} position="bottom">
             <ThemeIcon
                 size="xs"
                 radius="xl"

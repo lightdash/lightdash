@@ -143,7 +143,7 @@ const Register: FC = () => {
                     my="md"
                     labelPosition="center"
                     label={
-                        <Text color="ldGray.5" size="sm" fw={500}>
+                        <Text c="ldGray.5" size="sm" fw={500}>
                             {isNewLayout ? 'or' : 'OR'}
                         </Text>
                     }
@@ -159,7 +159,7 @@ const Register: FC = () => {
             subtitle="Start building analytics in minutes."
             legacyTitle="Sign up"
             footer={
-                <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
+                <Text c="dimmed" ta="center" fz="sm" fw={500}>
                     By creating an account, you agree to
                     <br />
                     our{' '}

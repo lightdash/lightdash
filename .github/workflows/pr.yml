@@ -123,12 +123,11 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: "pnpm-lock.yaml"
+          cache: true
+          install: false
+
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Build
@@ -140,12 +139,14 @@ jobs:
           pnpm -F frontend unused-exports & pid_unused=$!
           pnpm typecheck & pid_typecheck=$!
           pnpm -F common check:filter-grammar-parser & pid_grammar=$!
+          pnpm -F common check:filter-expression-parser & pid_expression_grammar=$!
           fail=0
           wait $pid_lint || fail=1
           wait $pid_format || fail=1
           wait $pid_unused || fail=1
           wait $pid_typecheck || fail=1
           wait $pid_grammar || fail=1
+          wait $pid_expression_grammar || fail=1
           exit $fail
       - name: Run unit tests
         run: pnpm test
@@ -163,12 +164,11 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: "pnpm-lock.yaml"
+          cache: true
+          install: false
+
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Build SDK bundle
@@ -217,12 +217,16 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: "pnpm-lock.yaml"
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
+          install: false
+
       - name: Generate base OpenAPI schema
         run: |
           pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
@@ -528,12 +532,11 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: "pnpm-lock.yaml"
+          cache: true
+          install: false
+
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Build packages/common module
@@ -561,6 +564,9 @@ jobs:
           TRINO_PORT: ${{ secrets.TRINO_PORT }}
           TRINO_USER: ${{ secrets.TRINO_USER }}
           TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
+          # Warehouses this job's secrets provide; a missing one fails the run
+          # instead of silently narrowing the parity suites to Postgres.
+          REQUIRED_WAREHOUSES: "snowflake,bigquery,trino"
           TZ: "UTC"
 
   app-tests:
@@ -691,6 +697,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
+        with:
+          install-npm: true
       - name: Build packages/common module
         run: pnpm common-build
       - name: Build packages/warehouses module
@@ -727,6 +735,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
+        with:
+          install-npm: true
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
@@ -797,6 +807,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
+        with:
+          install-npm: true
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"

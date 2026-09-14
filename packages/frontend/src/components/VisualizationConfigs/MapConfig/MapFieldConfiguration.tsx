@@ -78,8 +78,8 @@ const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
     const isVisible = isFieldVisible(fieldId);
 
     return (
-        <Group gap="xs" wrap="nowrap" style={{ flexGrow: 1 }}>
-            <Box style={{ flexGrow: 1 }}>
+        <Group gap="xs" wrap="nowrap" flex={1}>
+            <Box flex={1}>
                 <MapFieldConfigurationInput
                     fieldId={fieldId}
                     defaultLabel={defaultLabel}
@@ -92,7 +92,6 @@ const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
             <Tooltip
                 position="top"
                 opened={isTooltipVisible}
-                withinPortal
                 label={isVisible ? 'Hide in tooltip' : 'Show in tooltip'}
             >
                 <Box

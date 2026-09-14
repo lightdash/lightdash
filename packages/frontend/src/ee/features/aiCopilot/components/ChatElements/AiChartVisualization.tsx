@@ -26,7 +26,7 @@ import {
     useAiArtifactCompiledSql,
 } from '../../hooks/useAiArtifactChart';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
-import { clearArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import {
@@ -62,9 +62,8 @@ export const AiChartVisualization: FC<Props> = ({
         useState<AiAgentChartTypeOption | null>(null);
 
     const isSqlArtifact = isAiSqlChartArtifactConfig(artifactData.chartConfig);
-    const { isMergeArtifact, semanticChartConfig } = getAiArtifactChartSource(
-        artifactData.chartConfig,
-    );
+    const { isMergeArtifact, semanticChartConfig, customChartType } =
+        getAiArtifactChartSource(artifactData.chartConfig);
 
     const vizConfig = useMemo(() => {
         if (!semanticChartConfig) return null;
@@ -125,9 +124,8 @@ export const AiChartVisualization: FC<Props> = ({
                 <Group justify="flex-end">
                     <ActionIcon
                         size="sm"
-                        variant="subtle"
                         color="ldGray.9"
-                        onClick={() => dispatch(clearArtifact())}
+                        onClick={() => dispatch(clearPreview())}
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
@@ -166,6 +164,11 @@ export const AiChartVisualization: FC<Props> = ({
                         savedSqlUuid={artifactData.savedSqlUuid}
                         sql={sqlVizQueryData.sql}
                         limit={sqlVizQueryData.limit}
+                        queryUuid={sqlVizQueryData.query.queryUuid}
+                        totalResults={
+                            queryResults.totalResults ??
+                            queryResults.rows.length
+                        }
                         title={sqlVizQueryData.metadata.title ?? 'SQL results'}
                         description={sqlVizQueryData.metadata.description}
                         columns={Object.values(queryResults.columns ?? {})}
@@ -173,9 +176,8 @@ export const AiChartVisualization: FC<Props> = ({
                     {showCloseButton && (
                         <ActionIcon
                             size="sm"
-                            variant="subtle"
                             color="ldGray.4"
-                            onClick={() => dispatch(clearArtifact())}
+                            onClick={() => dispatch(clearPreview())}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
@@ -210,6 +212,7 @@ export const AiChartVisualization: FC<Props> = ({
                     message={message}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
+                    showDownloadResults
                     artifactData={artifactData}
                     saveChartOptions={{
                         name: semanticVizQueryData.metadata.title,
@@ -231,9 +234,8 @@ export const AiChartVisualization: FC<Props> = ({
                 {showCloseButton && (
                     <ActionIcon
                         size="sm"
-                        variant="subtle"
                         color="ldGray.4"
-                        onClick={() => dispatch(clearArtifact())}
+                        onClick={() => dispatch(clearPreview())}
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
@@ -247,6 +249,7 @@ export const AiChartVisualization: FC<Props> = ({
             vizQueryData={semanticVizQueryData}
             results={queryResults}
             chartConfig={semanticChartConfig}
+            customChartType={customChartType}
             selectedChartType={selectedChartType}
             onChartTypeChange={setSelectedChartType}
             headerContent={inlineHeaderContent}

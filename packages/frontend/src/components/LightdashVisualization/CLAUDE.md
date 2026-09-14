@@ -62,7 +62,7 @@ Files with `assertUnreachable` on `ChartType` or `ChartKind` that **must** be up
 
 - `VisualizationProvider.tsx` - Config provider switch
 - `index.tsx` (this directory) - Rendering switch
-- `Explorer/VisualizationCardOptions/index.tsx` - Chart type menu
+- `Explorer/ChartGallery/ChartTypeGallery.tsx` - Chart type gallery
 - `Explorer/VisualizationCard/VisualizationConfig.tsx` - Config tabs
 - `common/ResourceIcon/utils.ts` - Chart icon
 - `common/ResourceView/resourceUtils.ts` - Chart display name

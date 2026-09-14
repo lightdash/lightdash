@@ -6,7 +6,6 @@ import {
 import { Stack, Title } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import ResourceView from '../components/common/ResourceView';
 import { ResourceSortDirection } from '../components/common/ResourceView/types';
@@ -18,11 +17,11 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 
 const MobileHome: FC = () => {
-    const params = useParams<{ projectUuid: string }>();
-    const selectedProjectUuid = params.projectUuid;
+    const selectedProjectUuid = useProjectUuid();
     const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const project = useProject(selectedProjectUuid);
     const pinnedItems = usePinnedItems(

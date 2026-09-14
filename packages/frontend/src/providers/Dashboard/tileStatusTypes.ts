@@ -26,6 +26,8 @@ export type DashboardTileStatusContextType = {
         metadata: SqlChartTileMetadata,
     ) => void;
     markTileLoaded: (tileUuid: string) => void;
+    /** Marks a visible embed tile as settled for the current load cycle. */
+    markEmbedTileComplete: (tileUuid: string) => void;
     areAllChartsLoaded: boolean;
     availableCustomGranularities: Record<string, string>;
     addAvailableCustomGranularities: (

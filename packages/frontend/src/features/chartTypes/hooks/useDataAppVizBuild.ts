@@ -1,8 +1,10 @@
 import {
     DATA_APP_VIZ_TEMPLATE,
+    type DataAppCreationExperience,
     getErrorMessage,
     type ApiAppVersionSummary,
     type AppClarification,
+    type AppVersionExternalConnectionResource,
     type DataAppClaudeModel,
     type DataAppCodexModel,
     type DataAppVizFieldMapping,
@@ -22,6 +24,8 @@ type Args = {
     itemsMap: ItemsMap;
     /** The visualization being revised; null while authoring a new one. */
     dataAppVizUuid: string | null;
+    /** The surface the build is reported from in analytics. */
+    creationExperience: DataAppCreationExperience;
     /** Called once a new visualization lands ready with the chart still
      *  pointing at nothing, with its contract bound. */
     onCreated: (
@@ -37,6 +41,8 @@ export type VizBuildRequest = {
     /** Answers to the pre-build clarifying round; empty when it was skipped,
      *  fell through, or never ran. Only a first build can carry them. */
     clarifications: AppClarification[];
+    /** Connections to link before this generate/iterate. Empty when none. */
+    externalConnections: AppVersionExternalConnectionResource[];
 } & (
     | { claudeModel: DataAppClaudeModel; codexModel?: never }
     | { codexModel: DataAppCodexModel; claudeModel?: never }
@@ -103,6 +109,7 @@ export const useDataAppVizBuild = ({
     projectUuid,
     itemsMap,
     dataAppVizUuid,
+    creationExperience,
     onCreated,
 }: Args): DataAppVizBuildState => {
     // The request in flight, and the app it is building — both null when idle.
@@ -167,6 +174,15 @@ export const useDataAppVizBuild = ({
             const prompt = request.description;
             const files =
                 request.fileIds.length > 0 ? request.fileIds : undefined;
+            const externalConnections =
+                request.externalConnections.length > 0
+                    ? request.externalConnections.map(
+                          ({ externalConnectionUuid, alias }) => ({
+                              externalConnectionUuid,
+                              alias,
+                          }),
+                      )
+                    : undefined;
             const onError = (err: unknown) => {
                 setInFlight(null);
                 setFailed({ message: getErrorMessage(err), request });
@@ -178,9 +194,10 @@ export const useDataAppVizBuild = ({
                         projectUuid,
                         prompt,
                         template: DATA_APP_VIZ_TEMPLATE,
-                        creationExperience: 'chart_type_builder',
+                        creationExperience,
                         appUuid: draftAppUuid,
                         fileIds: files,
+                        externalConnections,
                         ...(request.codexModel
                             ? { codexModel: request.codexModel }
                             : { claudeModel: request.claudeModel }),
@@ -209,8 +226,9 @@ export const useDataAppVizBuild = ({
                     projectUuid,
                     appUuid: dataAppVizUuid,
                     prompt,
-                    creationExperience: 'chart_type_builder',
+                    creationExperience,
                     fileIds: files,
+                    externalConnections,
                     ...(request.codexModel
                         ? { codexModel: request.codexModel }
                         : { claudeModel: request.claudeModel }),
@@ -230,6 +248,7 @@ export const useDataAppVizBuild = ({
         [
             projectUuid,
             dataAppVizUuid,
+            creationExperience,
             building,
             draftAppUuid,
             generateApp,

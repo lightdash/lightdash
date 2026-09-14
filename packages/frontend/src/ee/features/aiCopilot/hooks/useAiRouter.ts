@@ -1,4 +1,5 @@
 import {
+    isApiError,
     type AiRouter,
     type AiRouterDecisionCommitRequest,
     type AiRouterInstruction,
@@ -15,17 +16,22 @@ import { isEmbedAiAgentRoute } from './aiAgentRouting';
 
 const ROUTER_BASE = '/org/aiRouter';
 
-const getAiRouterConfig = () =>
-    lightdashApi<AiRouter>({
-        url: ROUTER_BASE,
-        method: 'GET',
-        body: undefined,
-    });
+const getAiRouterConfig = async (): Promise<AiRouter | null> => {
+    try {
+        return await lightdashApi<AiRouter>({
+            url: ROUTER_BASE,
+            method: 'GET',
+            body: undefined,
+        });
+    } catch (error) {
+        // Missing configuration is the endpoint's documented first-use state.
+        if (isApiError(error) && error.error.statusCode === 404) return null;
+        throw error;
+    }
+};
 
-// Returns the org's router configuration. 404 (no config yet) and other
-// failures resolve to `isError`; callers treat that as "router disabled".
 export const useAiRouterConfig = () =>
-    useQuery<AiRouter, ApiError>({
+    useQuery<AiRouter | null, ApiError>({
         queryKey: ['ai-router'],
         queryFn: getAiRouterConfig,
         enabled: !isEmbedAiAgentRoute(),

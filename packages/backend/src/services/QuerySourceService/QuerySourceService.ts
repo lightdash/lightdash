@@ -4,22 +4,32 @@ import {
     FeatureFlags,
     ForbiddenError,
     ParameterError,
+    QuerySourceType,
+    UnexpectedServerError,
     type Account,
     type ApiExecuteSourceQueriesResults,
     type ApiGetSourceQueryStatusResults,
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
     type QueryExecutionContext,
-    type QuerySourceType,
     type SourceQuery,
     type SourceQuerySubmission,
 } from '@lightdash/common';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
-import type { QuerySourceClient } from './types';
+import type {
+    QuerySourceClient,
+    SourceQueryExecutionContext,
+    SourceQuerySubmissionResult,
+} from './types';
+
+/** A submission as the server sees it: the public row plus what the run reported. */
+export type InternalSourceQuerySubmission = SourceQuerySubmission &
+    Pick<SourceQuerySubmissionResult, 'cacheHit'>;
 
 type QuerySourceServiceArguments = {
     projectModel: ProjectModel;
@@ -146,7 +156,10 @@ export class QuerySourceService extends BaseService {
      * known source types, references either naming a query in the submission
      * or holding a queryUuid of an existing result, and no cycles.
      */
-    private validateQueries(queries: SourceQuery[]): ValidatedQuery[] {
+    private validateQueries(
+        queries: SourceQuery[],
+        plans: Record<string, DuckdbQueryPlan>,
+    ): ValidatedQuery[] {
         if (queries.length === 0) {
             throw new ParameterError('Submit at least one query');
         }
@@ -187,6 +200,19 @@ export class QuerySourceService extends BaseService {
         const validated = queries.map((query): ValidatedQuery => {
             const nodeId = query.nodeId ?? generateNodeId();
             const source = this.registry.get(query.sourceType);
+            // Refused here, before any node is submitted: a refusal inside
+            // the submit loop would leave upstream nodes running with no
+            // queryUuid handed back to poll or cancel. A node with an
+            // execution plan pivots through the plan's composer
+            if (
+                query.pivotConfiguration !== undefined &&
+                !source.supportsPivot &&
+                plans[nodeId] === undefined
+            ) {
+                throw new ParameterError(
+                    `Query "${nodeId}" carries a pivotConfiguration, which ${query.sourceType} queries do not support yet`,
+                );
+            }
             const references = source.getQueryReferences(query);
             const dependsOn = [
                 ...new Set(
@@ -263,7 +289,10 @@ export class QuerySourceService extends BaseService {
         projectUuid,
         queries,
         context,
-    }: {
+        parameters,
+        userAttributeOverrides,
+        invalidateCache,
+    }: SourceQueryExecutionContext & {
         account: Account;
         projectUuid: string;
         queries: SourceQuery[];
@@ -272,30 +301,97 @@ export class QuerySourceService extends BaseService {
         await this.throwIfMultiSourceQueryDisabled(account);
         await this.throwIfCannotRunQueries(account, projectUuid);
 
-        const ordered = this.validateQueries(queries);
+        const submitted = await this.submitQueries({
+            account,
+            projectUuid,
+            queries,
+            context,
+            parameters,
+            userAttributeOverrides,
+            invalidateCache,
+            plans: {},
+        });
+        return {
+            queries: submitted.queries.map(
+                ({ nodeId, sourceType, queryUuid }) => ({
+                    nodeId,
+                    sourceType,
+                    queryUuid,
+                }),
+            ),
+        };
+    }
+
+    /**
+     * The ungated submission: no feature flag, no ability check. For callers
+     * inside the server that have already authorized what they submit, such
+     * as a merge, and that may hand a duckdb node an execution plan by node
+     * id. The public endpoint never reaches this directly.
+     */
+    async submitQueries({
+        account,
+        projectUuid,
+        queries,
+        context,
+        parameters,
+        userAttributeOverrides,
+        invalidateCache,
+        plans,
+    }: SourceQueryExecutionContext & {
+        account: Account;
+        projectUuid: string;
+        queries: SourceQuery[];
+        context: QueryExecutionContext;
+        plans: Record<string, DuckdbQueryPlan>;
+    }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
+        const ordered = this.validateQueries(queries, plans);
+        QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
 
         // nodeId -> queryUuid, grown as submissions happen so later queries'
         // node-id references resolve
         const resolvedReferences: Record<string, string> = {};
-        const submissions: SourceQuerySubmission[] = [];
+        const submissions: InternalSourceQuerySubmission[] = [];
         for (const entry of ordered) {
             // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
-            const { queryUuid } = await entry.source.submitQuery({
+            const { queryUuid, cacheHit } = await entry.source.submitQuery({
                 account,
                 projectUuid,
                 context,
                 query: entry.query,
                 resolvedReferences: { ...resolvedReferences },
+                parameters,
+                userAttributeOverrides,
+                invalidateCache,
+                pivotConfiguration: entry.query.pivotConfiguration ?? null,
+                plan: plans[entry.nodeId] ?? null,
             });
             resolvedReferences[entry.nodeId] = queryUuid;
             submissions.push({
                 nodeId: entry.nodeId,
                 sourceType: entry.query.sourceType,
                 queryUuid,
+                cacheHit,
             });
         }
 
         return { queries: submissions };
+    }
+
+    /** A plan on anything but a duckdb node is a caller bug, not a user error. */
+    private static assertPlansNameDuckdbNodes(
+        ordered: ValidatedQuery[],
+        plans: Record<string, DuckdbQueryPlan>,
+    ): void {
+        const sourceTypeByNodeId = new Map(
+            ordered.map((entry) => [entry.nodeId, entry.query.sourceType]),
+        );
+        Object.keys(plans).forEach((nodeId) => {
+            if (sourceTypeByNodeId.get(nodeId) !== QuerySourceType.DUCKDB) {
+                throw new UnexpectedServerError(
+                    `Execution plan for "${nodeId}" does not name a ${QuerySourceType.DUCKDB} node`,
+                );
+            }
+        });
     }
 
     /**

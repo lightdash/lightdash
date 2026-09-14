@@ -1759,6 +1759,22 @@
                                 "label_dimension": {
                                     "type": "string",
                                     "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                                },
+                                "options_from_dimension": {
+                                    "type": "object",
+                                    "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
+                                    "properties": {
+                                        "model": {
+                                            "type": "string"
+                                        },
+                                        "dimension": {
+                                            "type": "string"
+                                        },
+                                        "label_dimension": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["model", "dimension"]
                                 }
                             }
                         }
@@ -2015,6 +2031,22 @@
                                         "label_dimension": {
                                             "type": "string",
                                             "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                                        },
+                                        "options_from_dimension": {
+                                            "type": "object",
+                                            "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
+                                            "properties": {
+                                                "model": {
+                                                    "type": "string"
+                                                },
+                                                "dimension": {
+                                                    "type": "string"
+                                                },
+                                                "label_dimension": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["model", "dimension"]
                                         }
                                     }
                                 }

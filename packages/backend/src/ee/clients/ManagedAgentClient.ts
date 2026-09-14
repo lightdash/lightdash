@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { NotFoundError } from '@anthropic-ai/sdk';
 import type {
     AgentCreateParams,
     AgentUpdateParams,
@@ -7,6 +7,7 @@ import type {
 import { ParameterError, type ManagedAgentPolicy } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { createHash } from 'crypto';
+import { ANTHROPIC_PUBLIC_BASE_URL } from '../../config/aiGatewayConfig';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { traceSpan, type TraceSpan } from '../../tracing/tracing';
@@ -61,11 +62,18 @@ export class ManagedAgentClient {
         const { anthropicApiKey } = this.config.lightdashConfig.managedAgent;
         if (!anthropicApiKey) {
             throw new ParameterError(
-                'ANTHROPIC_API_KEY is required for managed agent',
+                this.config.lightdashConfig.ai.copilot.providers.anthropic
+                    ?.baseUrl
+                    ? 'MANAGED_AGENT_ANTHROPIC_API_KEY is required for managed agent when ANTHROPIC_BASE_URL is configured'
+                    : 'ANTHROPIC_API_KEY or MANAGED_AGENT_ANTHROPIC_API_KEY is required for managed agent',
             );
         }
 
-        return new Anthropic({ apiKey: anthropicApiKey });
+        return new Anthropic({
+            apiKey: anthropicApiKey,
+            authToken: null,
+            baseURL: ANTHROPIC_PUBLIC_BASE_URL,
+        });
     }
 
     private getRenderedAgentConfig(
@@ -208,7 +216,12 @@ export class ManagedAgentClient {
         if (
             persistedEnvironmentId &&
             persistedVaultId &&
-            persistedVaultConfigHash === vaultConfigHash
+            persistedVaultConfigHash === vaultConfigHash &&
+            (await this.persistedResourcesAreUsable(
+                client.beta,
+                persistedEnvironmentId,
+                persistedVaultId,
+            ))
         ) {
             Logger.info(
                 `[ManagedAgent] Reusing persisted resources: env=${persistedEnvironmentId}, vault=${persistedVaultId}`,
@@ -247,6 +260,42 @@ export class ManagedAgentClient {
         };
     }
 
+    // Reusing a resource the current API key cannot reach fails every run.
+    // eslint-disable-next-line class-methods-use-this
+    private async persistedResourcesAreUsable(
+        beta: Anthropic.Beta,
+        environmentId: string,
+        vaultId: string,
+    ): Promise<boolean> {
+        try {
+            const [, vault] = await Promise.all([
+                beta.environments.retrieve(environmentId),
+                beta.vaults.retrieve(vaultId),
+            ]);
+
+            if (vault.archived_at !== null) {
+                Logger.warn(
+                    `[ManagedAgent] Persisted vault ${vaultId} is archived, reprovisioning`,
+                );
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                Logger.warn(
+                    `[ManagedAgent] Persisted resources missing (env=${environmentId}, vault=${vaultId}), reprovisioning: ${error.message}`,
+                );
+                return false;
+            }
+            // Anything else is transient; the session call surfaces the real error.
+            Logger.warn(
+                `[ManagedAgent] Could not verify persisted resources (env=${environmentId}, vault=${vaultId}), reusing them: ${error instanceof Error ? error.message : 'Unknown'}`,
+            );
+            return true;
+        }
+    }
+
     private getVaultConfigHash(
         sessionConfig: Pick<
             ManagedAgentSessionConfig,
@@ -257,8 +306,14 @@ export class ManagedAgentClient {
             this.config.lightdashConfig.siteUrl,
             sessionConfig.projectUuid,
         );
+        // Vaults are workspace-scoped, so a rotated key invalidates them.
         return createHash('sha256')
-            .update(`${mcpUrl}\n${sessionConfig.serviceAccountPat}`)
+            .update(
+                `${mcpUrl}\n${sessionConfig.serviceAccountPat}\n${
+                    this.config.lightdashConfig.managedAgent.anthropicApiKey ??
+                    ''
+                }`,
+            )
             .digest('hex');
     }
 

@@ -15,9 +15,9 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -102,7 +102,7 @@ const DashboardCellContextMenu: FC<
     const filters = [...filterField, ...possiblePivotFilters];
     const { track } = useTracking();
     const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(value.formatted);

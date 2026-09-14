@@ -16,30 +16,37 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { isReleaseVersion } from '../packages/cli/src/releaseSafety';
 import { aiRollingUpdateReview } from './ai-migration-review';
-import {
-    collectChangeDeclarations,
-    formatChangeDeclarationDiagnostic,
-} from './breaking-change-declarations';
-import type { BreakingChangeDeclaration } from './breaking-change-declarations';
-import { lintMigrations, renderFindings, SqlLintFinding } from './sql-migration-lint';
 import { compareVersions, findExpandFloor } from './expand-version';
-import { diffRestApi, SPEC_PATH } from './rest-api-diff';
 import { diffMcpTools } from './mcp-tools-diff';
+import type { ConfigSurface } from './release-safety-config-diff';
+import { diffConfigBetweenRefs } from './release-safety-config-diff';
 import type {
     ApiSurface,
     ReleaseSafetyMarker,
     TriState,
 } from './release-safety-contract';
-import type { ConfigSurface } from './release-safety-config-diff';
-import { diffConfigBetweenRefs } from './release-safety-config-diff';
+import { collectBreakingChangeDeclarationsBetweenRefs } from './release-safety-declarations';
+import type { BreakingChangeDeclaration } from './release-safety-declarations';
 import {
     appendReleaseSafetyMarker,
     CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
     loadReleaseSafetyIndex,
     writeReleaseSafetyIndex,
 } from './release-safety-index';
-import type { MigrationDetail } from './release-safety-migrations';
-import { isMigrationPath, readMigrationMetadata } from './release-safety-migrations';
+import type {
+    MigrationDetail,
+    MigrationOperation,
+} from './release-safety-migrations';
+import {
+    isMigrationPath,
+    readMigrationMetadata,
+} from './release-safety-migrations';
+import { diffRestApi, SPEC_PATH } from './rest-api-diff';
+import {
+    lintMigrations,
+    renderFindings,
+    SqlLintFinding,
+} from './sql-migration-lint';
 import {
     CarriedFloor,
     carriedUpgradeFloor,
@@ -61,9 +68,6 @@ const MIGRATION_DIRS = [
 ] as const;
 
 const EE_MIGRATION_DIR = 'packages/backend/src/ee/database/migrations';
-const DECLARATION_DIRS = ['packages/backend', 'packages/common'] as const;
-const TYPESCRIPT_SOURCE = /^packages\/(backend|common)\/src\/.+\.tsx?$/;
-const TYPESCRIPT_TEST = /(^|\/)__tests__\/|\.(test|spec)\.tsx?$/;
 
 export interface GitChange {
     /** git --name-status code: A, M, D, R100, C75, ... */
@@ -123,6 +127,7 @@ export interface BuildMarkerInput {
     /** null when migrations could not be determined (e.g. first release / no prev tag) */
     migrations: MigrationsResult | null;
     migrationDetails?: MigrationDetail[];
+    migrationOperations?: MigrationOperation[];
     migrationMetadataComplete?: boolean;
     declarationMetadataComplete?: boolean;
     declaredBreaks?: BreakingChangeDeclaration[];
@@ -193,6 +198,64 @@ export interface SqlLintSummary {
     findings: string[];
 }
 
+export interface DeterministicSafetyInput {
+    migrations: MigrationsResult | null;
+    migrationOperations?: readonly MigrationOperation[];
+    migrationMetadataComplete?: boolean;
+    declarationMetadataComplete?: boolean;
+    declaredBreaks?: readonly BreakingChangeDeclaration[];
+    config?: ConfigSurface | null;
+    restApi?: ApiSurface | null;
+    mcpApi?: ApiSurface | null;
+    sqlLint?: SqlLintSummary | null;
+}
+
+const DETERMINISTIC_OPERATION_SAFETY = {
+    'create-index-concurrently': true,
+    'create-unique-index-concurrently': false,
+    'drop-index-concurrently-if-exists': true,
+    'set-statement-timeout': true,
+    'reset-statement-timeout': true,
+    'set-lock-timeout': true,
+    'reset-lock-timeout': true,
+    'select-invalid-index': true,
+    unknown: false,
+} satisfies Record<MigrationOperation, boolean>;
+
+export function isDeterministicallyRollingUpdateSafe(
+    input: DeterministicSafetyInput,
+): boolean {
+    const operations = input.migrationOperations ?? [];
+    return (
+        input.migrations?.present === true &&
+        input.migrationMetadataComplete === true &&
+        input.declarationMetadataComplete === true &&
+        input.restApi?.checked === true &&
+        input.restApi.breaking === false &&
+        input.mcpApi?.checked === true &&
+        input.mcpApi.breaking === false &&
+        input.config?.checked === true &&
+        input.config.breaking === false &&
+        (input.declaredBreaks?.length ?? 0) === 0 &&
+        !(input.sqlLint?.ran && input.sqlLint.breaking) &&
+        operations.length > 0 &&
+        operations.every(
+            (operation) =>
+                DETERMINISTIC_OPERATION_SAFETY[operation] === true,
+        )
+    );
+}
+
+export function isAiReviewEligible(input: DeterministicSafetyInput): boolean {
+    const apiBreak =
+        input.restApi?.breaking === true || input.mcpApi?.breaking === true;
+    return (
+        apiBreak ||
+        (input.migrations?.present === true &&
+            !isDeterministicallyRollingUpdateSafe(input))
+    );
+}
+
 /**
  * PURE. The upgrade floor THIS release contributes on its own: non-null ONLY when
  * the AI cleared a linter-flagged destructive change as the safe "contract" step
@@ -220,7 +283,9 @@ export function ownExpandContractFloor(input: {
         input.sqlLint?.ran && input.sqlLint.breaking && present === true,
     );
     const cleared = Boolean(
-        linterFlagged && input.aiReview && input.aiReview.rollingUpdateSafe === true,
+        linterFlagged &&
+        input.aiReview &&
+        input.aiReview.rollingUpdateSafe === true,
     );
     if (!cleared) return null;
     return input.expandContractFloor || input.previousVersion || null;
@@ -260,13 +325,15 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     );
     const fullyChecked =
         rest.checked && mcp.checked && config.checked && metadataComplete;
+    const deterministicallySafe = isDeterministicallyRollingUpdateSafe(input);
 
     let rollingUpdateSafe: TriState = 'unknown';
     if (
-        present === false &&
-        fullyChecked &&
-        !apiBreak &&
-        !deterministicBreak
+        (present === false &&
+            fullyChecked &&
+            !apiBreak &&
+            !deterministicBreak) ||
+        deterministicallySafe
     ) {
         rollingUpdateSafe = true;
     }
@@ -279,6 +346,9 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         (present === true || apiBreak)
     ) {
         rollingUpdateSafe = input.aiReview.rollingUpdateSafe;
+    }
+    if (!metadataComplete) {
+        rollingUpdateSafe = 'unknown';
     }
     if (deterministicBreak) {
         rollingUpdateSafe = false;
@@ -387,16 +457,24 @@ export function parseArgs(argv: string[]): CliArgs {
     const mcpBaseSnapshot = get('mcp-base-snapshot') || null;
     const mcpNewSnapshot = get('mcp-new-snapshot') || null;
     if (Boolean(restBaseSpec) !== Boolean(restNewSpec)) {
-        throw new Error('--rest-base-spec and --rest-new-spec must be given together');
+        throw new Error(
+            '--rest-base-spec and --rest-new-spec must be given together',
+        );
     }
     if (restFromTag && restBaseSpec) {
-        throw new Error('--rest-from-tag cannot be combined with --rest-base-spec/--rest-new-spec');
+        throw new Error(
+            '--rest-from-tag cannot be combined with --rest-base-spec/--rest-new-spec',
+        );
     }
     if (restFromTag && restFromRefs) {
-        throw new Error('--rest-from-tag cannot be combined with --rest-from-refs');
+        throw new Error(
+            '--rest-from-tag cannot be combined with --rest-from-refs',
+        );
     }
     if (Boolean(mcpBaseSnapshot) !== Boolean(mcpNewSnapshot)) {
-        throw new Error('--mcp-base-snapshot and --mcp-new-snapshot must be given together');
+        throw new Error(
+            '--mcp-base-snapshot and --mcp-new-snapshot must be given together',
+        );
     }
     return {
         version,
@@ -438,33 +516,17 @@ function gitNameStatus(range: string, dirs: readonly string[]): GitChange[] {
 
 function isResolvableGitRef(ref: string): boolean {
     try {
-        execFileSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], {
-            stdio: 'ignore',
-        });
+        execFileSync(
+            'git',
+            ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`],
+            {
+                stdio: 'ignore',
+            },
+        );
         return true;
     } catch {
         return false;
     }
-}
-
-export function declarationSourcePaths(changes: GitChange[]): string[] {
-    return changes
-        .filter(
-            (change) =>
-                /^[ACMR]/.test(change.status) &&
-                TYPESCRIPT_SOURCE.test(change.path) &&
-                !TYPESCRIPT_TEST.test(change.path),
-        )
-        .map((change) => change.path)
-        .sort();
-}
-
-function readFileAtRef(ref: string, filePath: string): string {
-    return execFileSync('git', ['show', `${ref}:${filePath}`], {
-        encoding: 'utf-8',
-        maxBuffer: 64 * 1024 * 1024,
-        stdio: ['ignore', 'pipe', 'pipe'],
-    });
 }
 
 /** IO: write JSON atomically (temp file + rename) so a crash never leaves a partial. */
@@ -494,7 +556,9 @@ export async function generateReleaseSafety(
 
     let migrations: MigrationsResult | null = null;
     let migrationPaths: string[] = [];
-    let declarationPaths: string[] = [];
+    let declarations = { added: [], diagnostics: [] } as ReturnType<
+        typeof collectBreakingChangeDeclarationsBetweenRefs
+    >;
     if (args.lastTag) {
         const range = `${args.lastTag}..${args.toRef}`;
         const unresolvableRefs = [args.lastTag, args.toRef].filter(
@@ -506,8 +570,9 @@ export async function generateReleaseSafety(
             );
         } else {
             const changes = gitNameStatus(range, MIGRATION_DIRS);
-            declarationPaths = declarationSourcePaths(
-                gitNameStatus(range, DECLARATION_DIRS),
+            declarations = collectBreakingChangeDeclarationsBetweenRefs(
+                args.lastTag,
+                args.toRef,
             );
             migrations = detectMigrations(changes);
             migrationPaths = changes
@@ -537,16 +602,9 @@ export async function generateReleaseSafety(
         log: (message) =>
             console.warn(`[release-safety-migrations] ${message}`),
     });
-    const declarations = collectChangeDeclarations(
-        declarationPaths,
-        (filePath) => readFileAtRef(args.toRef, filePath),
-    );
-    const declarationDiagnostics = declarations.diagnostics.filter(
-        (diagnostic) => diagnostic.declaration !== 'classification',
-    );
-    for (const diagnostic of declarationDiagnostics) {
+    for (const diagnostic of declarations.diagnostics) {
         console.warn(
-            `[release-safety-declarations] ${formatChangeDeclarationDiagnostic(diagnostic)}`,
+            `[release-safety-declarations] ${diagnostic.file}:${diagnostic.line} ${diagnostic.message}`,
         );
     }
 
@@ -572,7 +630,11 @@ export async function generateReleaseSafety(
             log: (m) => console.warn(`[sql-lint] ${m}`),
         });
         lintFindings = r.findings;
-        sqlLint = { ran: r.ran, breaking: r.breaking, findings: renderFindings(r.findings) };
+        sqlLint = {
+            ran: r.ran,
+            breaking: r.breaking,
+            findings: renderFindings(r.findings),
+        };
         console.warn(
             `[release-safety] SQL linter: ${r.breaking ? `BREAKING (${r.findings.length} finding(s))` : 'no breaking shapes found'}`,
         );
@@ -609,7 +671,9 @@ export async function generateReleaseSafety(
             log: (m) => console.warn(`[rest-api-diff] ${m}`),
         });
     } else if (args.restFromTag) {
-        console.warn('[release-safety] --rest-from-tag needs a previous tag; api.rest stays unchecked');
+        console.warn(
+            '[release-safety] --rest-from-tag needs a previous tag; api.rest stays unchecked',
+        );
     } else if (args.restFromRefs && args.lastTag) {
         restApi = diffRestApi({
             lastTag: args.lastTag,
@@ -617,9 +681,13 @@ export async function generateReleaseSafety(
             log: (m) => console.warn(`[rest-api-diff] ${m}`),
         });
     } else if (args.restFromRefs) {
-        console.warn('[release-safety] --rest-from-refs needs a previous tag; api.rest stays unchecked');
+        console.warn(
+            '[release-safety] --rest-from-refs needs a previous tag; api.rest stays unchecked',
+        );
     } else {
-        console.warn('[release-safety] no REST spec source given; api.rest stays unchecked');
+        console.warn(
+            '[release-safety] no REST spec source given; api.rest stays unchecked',
+        );
     }
 
     // P3: deterministic MCP tool-surface diff (committed snapshot between tags).
@@ -639,32 +707,45 @@ export async function generateReleaseSafety(
             log: (m) => console.warn(`[mcp-tools-diff] ${m}`),
         });
     } else {
-        console.warn('[release-safety] no MCP snapshot source given; api.mcp stays unchecked');
+        console.warn(
+            '[release-safety] no MCP snapshot source given; api.mcp stays unchecked',
+        );
     }
 
     // P6: gated AI rolling-update review — the VALIDATION layer over the
     // deterministic detectors. Runs when a key is present AND something was flagged
-    // worth validating: a migration is present (even a linter-clean one — it can
-    // recognise an expand/contract the linter can't), OR a REST/MCP break was
-    // flagged (it decides whether an in-flight frontend/client actually breaks). It
-    // is fed the deterministic breaking lists so it validates exactly what the
-    // detectors found. Any degrade leaves the verdict at the linter floor /
+    // worth validating: a migration is not deterministically proven safe, OR a
+    // REST/MCP break was flagged (it decides whether an in-flight frontend/client
+    // actually breaks). It is fed the deterministic breaking lists so it validates
+    // exactly what the detectors found. Any degrade leaves the verdict at the linter
+    // floor /
     // cautious default and never fails the release.
     const restBreakingChanges =
         restApi?.checked && restApi.breaking === true ? restApi.changes : [];
     const mcpBreakingChanges =
         mcpApi?.checked && mcpApi.breaking === true ? mcpApi.changes : [];
-    const reviewable =
-        migrations?.present === true ||
-        restBreakingChanges.length > 0 ||
-        mcpBreakingChanges.length > 0;
+    const reviewable = isAiReviewEligible({
+        migrations,
+        migrationOperations: migrationMetadata.operations,
+        migrationMetadataComplete: migrationMetadata.complete,
+        declarationMetadataComplete: declarations.diagnostics.length === 0,
+        declaredBreaks: declarations.added,
+        config,
+        restApi,
+        mcpApi,
+        sqlLint,
+    });
     let aiReview: AiReviewSummary | null = null;
     if (wantAiReview && markerEnabled && reviewable && args.lastTag) {
         const apiKey = process.env.ANTHROPIC_API_KEY;
         if (!apiKey) {
-            console.warn('[release-safety] --ai-review requested but ANTHROPIC_API_KEY not set; rollingUpdateSafe stays "unknown"');
+            console.warn(
+                '[release-safety] --ai-review requested but ANTHROPIC_API_KEY not set; rollingUpdateSafe stays "unknown"',
+            );
         } else {
-            console.warn('[release-safety] running AI rolling-update review...');
+            console.warn(
+                '[release-safety] running AI rolling-update review...',
+            );
             const r = await aiRollingUpdateReview({
                 apiKey,
                 lastTag: args.lastTag,
@@ -688,7 +769,9 @@ export async function generateReleaseSafety(
                     `[release-safety] AI verdict: ${r.modelVerdict}/${r.confidence} (${r.toolCalls} tool calls) -> rollingUpdateSafe=${JSON.stringify(r.rollingUpdateSafe)}`,
                 );
             } else {
-                console.warn('[release-safety] AI review degraded; rollingUpdateSafe stays "unknown"');
+                console.warn(
+                    '[release-safety] AI review degraded; rollingUpdateSafe stays "unknown"',
+                );
             }
         }
     }
@@ -699,9 +782,20 @@ export async function generateReleaseSafety(
     // safe) upgrade floor than the conservative previousVersion. Best-effort;
     // null stays conservative.
     let expandContractFloor: string | null = null;
-    if (sqlLint?.breaking && aiReview?.rollingUpdateSafe === true && args.lastTag) {
+    if (
+        sqlLint?.breaking &&
+        aiReview?.rollingUpdateSafe === true &&
+        args.lastTag
+    ) {
         const objects = lintFindings
-            .filter((f) => ['drop-column', 'rename-column', 'drop-table', 'rename-table'].includes(f.rule))
+            .filter((f) =>
+                [
+                    'drop-column',
+                    'rename-column',
+                    'drop-table',
+                    'rename-table',
+                ].includes(f.rule),
+            )
             .map((f) => f.object)
             .filter((o): o is string => Boolean(o));
         if (objects.length > 0) {
@@ -711,7 +805,9 @@ export async function generateReleaseSafety(
                 log: (m) => console.warn(`[expand-version] ${m}`),
             });
             if (expandContractFloor) {
-                console.warn(`[release-safety] expand version traced: minPreviousVersion -> ${expandContractFloor}`);
+                console.warn(
+                    `[release-safety] expand version traced: minPreviousVersion -> ${expandContractFloor}`,
+                );
             }
         }
     }
@@ -741,9 +837,10 @@ export async function generateReleaseSafety(
                 : new Date().toISOString()),
         migrations,
         migrationDetails: migrationMetadata.migrations,
+        migrationOperations: migrationMetadata.operations,
         migrationMetadataComplete: migrationMetadata.complete,
-        declarationMetadataComplete: declarationDiagnostics.length === 0,
-        declaredBreaks: declarations.breaking,
+        declarationMetadataComplete: declarations.diagnostics.length === 0,
+        declaredBreaks: declarations.added,
         config,
         aiReview,
         sqlLint,
@@ -770,7 +867,11 @@ export async function generateReleaseSafety(
         previousVersion: args.previousVersion,
     });
     if (markerEnabled && ownFloor) {
-        const wrote = recordDerivedFloor(args.overrides, args.version, ownFloor);
+        const wrote = recordDerivedFloor(
+            args.overrides,
+            args.version,
+            ownFloor,
+        );
         console.warn(
             wrote
                 ? `[release-safety] recorded upgrade floor in ${args.overrides}: ${args.version} -> minPreviousVersion ${ownFloor}`

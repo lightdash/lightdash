@@ -8,6 +8,7 @@ import {
     type ParametersValuesMap,
     type QueryExecutionContext,
     type SavedChartDAO,
+    type UUID,
 } from '@lightdash/common';
 import type { QueryResultsProps } from '../useQueryResults';
 
@@ -31,6 +32,7 @@ export function buildQueryArgs(options: {
     dateZoomGranularity?: DateGranularity | string;
     minimal: boolean;
     usePreAggregateCache?: boolean;
+    customSqlProvenanceChartUuid?: UUID;
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
 }): QueryResultsProps | null {
     const {
@@ -77,6 +79,7 @@ export function buildQueryArgs(options: {
         dateZoomGranularity,
         invalidateCache: savedChartArgs ? minimal : true,
         usePreAggregateCache: options.usePreAggregateCache,
+        customSqlProvenanceChartUuid: options.customSqlProvenanceChartUuid,
         parameters: parameters || {},
         pivotConfiguration,
     };

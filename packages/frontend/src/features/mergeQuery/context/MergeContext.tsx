@@ -20,7 +20,8 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
@@ -50,7 +51,7 @@ export const MergeProvider: FC<
         readOnly?: boolean;
     }>
 > = ({ children, savedMerge, readOnly = false }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
     // Restored once, on mount. A link wins over the chart's stored merge, so
     // that sharing a modified merge shows what was shared rather than what was
@@ -59,6 +60,12 @@ export const MergeProvider: FC<
         () =>
             parseMergeState(searchParams.get(MERGE_URL_PARAM)) ??
             (savedMerge ? restoreSavedMerge(savedMerge) : null),
+    );
+    // A restored merge the rules refuse never runs, so nothing may wait on it.
+    const [restoredRunRefused, setRestoredRunRefused] = useState(false);
+    const refuseRestoredRun = useCallback(
+        () => setRestoredRunRefused(true),
+        [],
     );
 
     const [focus, setFocus] = useState<MergeFocus>(
@@ -491,7 +498,8 @@ export const MergeProvider: FC<
         () => ({
             isMerging,
             readOnly,
-            wasRestored: restored !== null,
+            wasRestored: restored !== null && !restoredRunRefused,
+            refuseRestoredRun,
             run,
             getDownloadQueryUuid,
             isRunning: runState.isRunning,
@@ -520,6 +528,8 @@ export const MergeProvider: FC<
             isMerging,
             readOnly,
             restored,
+            restoredRunRefused,
+            refuseRestoredRun,
             run,
             getDownloadQueryUuid,
             runState.isRunning,

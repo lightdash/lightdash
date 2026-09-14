@@ -1,7 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import type { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type {
     CacheServiceUser,
@@ -11,7 +11,7 @@ import { type CacheHitCacheResult } from '../../services/CacheService/types';
 
 type CacheServiceDependencies = {
     queryHistoryModel: QueryHistoryModel;
-    lightdashConfig: LightdashConfig;
+    projectModel: ProjectModel;
     storageClient: S3ResultsFileStorageClient;
     featureFlagModel: FeatureFlagModel;
 };
@@ -23,7 +23,7 @@ const DEFAULT_CACHE_EXPIRY_BUFFER_MS = 10 * 60 * 1000; // 10 minutes in millisec
 export class CommercialCacheService implements ICacheService {
     private readonly queryHistoryModel: QueryHistoryModel;
 
-    private readonly lightdashConfig: LightdashConfig;
+    private readonly projectModel: ProjectModel;
 
     private readonly featureFlagModel: FeatureFlagModel;
 
@@ -31,12 +31,12 @@ export class CommercialCacheService implements ICacheService {
 
     constructor({
         queryHistoryModel,
-        lightdashConfig,
+        projectModel,
         storageClient,
         featureFlagModel,
     }: CacheServiceDependencies) {
         this.queryHistoryModel = queryHistoryModel;
-        this.lightdashConfig = lightdashConfig;
+        this.projectModel = projectModel;
         this.storageClient = storageClient;
         this.featureFlagModel = featureFlagModel;
     }
@@ -64,14 +64,15 @@ export class CommercialCacheService implements ICacheService {
         }
 
         // Find recent query with matching cache key
-        const latestMatchingQuery =
-            await this.queryHistoryModel.findMostRecentByCacheKey(
+        const [latestMatchingQuery, staleTimeSeconds] = await Promise.all([
+            this.queryHistoryModel.findMostRecentByCacheKey(
                 cacheKey,
                 projectUuid,
-            );
+            ),
+            this.projectModel.getEffectiveResultsCacheTtlSeconds(projectUuid),
+        ]);
 
-        const staleTimeMilliseconds =
-            this.lightdashConfig.results.cacheStateTimeSeconds * 1000;
+        const staleTimeMilliseconds = staleTimeSeconds * 1000;
 
         // If stale time is greater than quadruple default buffer, use default buffer
         // Otherwise, use quarter of stale time

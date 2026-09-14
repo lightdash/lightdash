@@ -398,6 +398,7 @@ describe('AiDeepResearchRunModel', () => {
                           RUN_UUID,
                           reportMarkdown,
                           'query_limit',
+                          'investigation',
                       );
 
             expect(updated).toBe(true);

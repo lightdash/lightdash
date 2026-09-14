@@ -73,7 +73,6 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
     return (
         <Select
             allowDeselect={false}
-            radius="md"
             data={Object.values(ValueLabelPositionOptions).map((option) => ({
                 value: option,
                 label: capitalize(option),

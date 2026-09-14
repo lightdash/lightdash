@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "1.202.9",
+  "version": "2.207.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +12,37 @@
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "module": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/cjs/index.js",
+      "default": "./dist/cjs/index.js"
+    },
+    "./dbt/validation": {
+      "types": "./dist/esm/dbt/validation.d.ts",
+      "module": "./dist/esm/dbt/validation.js",
+      "require": "./dist/cjs/dbt/validation.js",
+      "import": "./dist/cjs/dbt/validation.js",
+      "default": "./dist/cjs/dbt/validation.js"
+    },
+    "./lightdash/loader": {
+      "types": "./dist/esm/lightdash/loader.d.ts",
+      "module": "./dist/esm/lightdash/loader.js",
+      "require": "./dist/cjs/lightdash/loader.js",
+      "import": "./dist/cjs/lightdash/loader.js",
+      "default": "./dist/cjs/lightdash/loader.js"
+    },
+    "./src": "./src/index.ts",
+    "./src/*": [
+      "./src/*.ts",
+      "./src/*.tsx",
+      "./src/*"
+    ],
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
     "build": "tsc --build ./tsconfig.build.json",
@@ -24,6 +55,8 @@
     "fix-format": "oxfmt ./src",
     "generate:filter-grammar-parser": "tsx scripts/generateFilterGrammarParser.ts && pnpm run formatter --write src/types/filterGrammar.parser.ts",
     "check:filter-grammar-parser": "tsx scripts/generateFilterGrammarParser.ts --check",
+    "generate:filter-expression-parser": "tsx scripts/generateFilterExpressionParser.ts && pnpm run formatter --write src/ee/AiAgent/schemas/filterExpressions/parser.ts",
+    "check:filter-expression-parser": "tsx scripts/generateFilterExpressionParser.ts --check",
     "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/chart-as-code-1.0.json",
     "check:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts --check",
     "generate:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/dashboard-as-code-1.0.json",
@@ -52,20 +85,19 @@
     "dependency-graph": "0.11.0",
     "echarts": "5.6.0",
     "handlebars": "4.7.9",
-    "js-yaml": "4.3.0",
-    "liquidjs": "10.27.1",
+    "js-yaml": "4.3.2",
+    "liquidjs": "10.27.2",
     "lodash": "4.18.1",
     "moment": "2.29.4",
     "moment-timezone": "0.5.45",
     "numfmt": "3.2.1",
     "pegjs": "0.10.0",
-    "sanitize-html": "2.17.5",
+    "sanitize-html": "2.17.7",
     "sql-formatter": "15.7.3",
     "type-fest": "4.32.0",
     "uuid": "11.1.1",
     "yaml": "2.8.3",
-    "zod": "3.25.55",
-    "zod-to-json-schema": "3.25.1"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@babel/types": "7.29.0",
@@ -74,9 +106,10 @@
     "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
+    "js-tiktoken": "1.0.16",
     "oxlint": "1.75.0",
     "oxlint-tsgolint": "7.0.2001",
     "typescript": "7.0.2",
-    "vitest": "4.1.6"
+    "vitest": "4.1.11"
   }
 }

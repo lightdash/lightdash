@@ -1080,8 +1080,11 @@ export class SchedulerModel {
         return this.getSchedulersWithTargets(await schedulers);
     }
 
-    async getAppSchedulers(appUuid: string): Promise<SchedulerAndTargets[]> {
-        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
+    async getAppSchedulers(
+        appUuid: string,
+        createdByUserUuid?: string,
+    ): Promise<SchedulerAndTargets[]> {
+        let schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.app_uuid`, appUuid)
             .orderBy([
                 {
@@ -1093,6 +1096,12 @@ export class SchedulerModel {
                     order: 'asc',
                 },
             ]);
+        if (createdByUserUuid) {
+            schedulers = schedulers.where(
+                `${SchedulerTableName}.created_by`,
+                createdByUserUuid,
+            );
+        }
         return this.getSchedulersWithTargets(await schedulers);
     }
 
@@ -2197,6 +2206,16 @@ export class SchedulerModel {
         const sevenDaysAgo: Date = new Date(
             Date.now() - 7 * 24 * 60 * 60 * 1000,
         );
+        const now = new Date();
+
+        const relevantParentRunsQuery = this.database(SchedulerLogTableName)
+            .whereRaw('job_id = job_group')
+            .whereIn('scheduler_uuid', schedulerUuids)
+            .where('scheduled_time', '>', sevenDaysAgo)
+            .where('scheduled_time', '<', now);
+        const relevantParentJobIdsSubquery = relevantParentRunsQuery
+            .clone()
+            .distinct('job_id');
 
         // Build subquery for child job counts - only count most recent status per child
         // First, get the most recent entry for each child job
@@ -2211,6 +2230,7 @@ export class SchedulerModel {
                 ),
             )
             .whereRaw('job_id != job_group') // Only child jobs
+            .whereIn('job_group', relevantParentJobIdsSubquery)
             .as('ranked_children');
 
         // Then count only the most recent status of each child (rn = 1)
@@ -2255,7 +2275,8 @@ export class SchedulerModel {
 
         // Use window function (ROW_NUMBER) to get only the most recent parent job per run
         // This approach is safer and more compatible than DISTINCT ON
-        const rankedRunsSubquery = this.database(SchedulerLogTableName)
+        const rankedRunsSubquery = relevantParentRunsQuery
+            .clone()
             .select(
                 'job_id',
                 'scheduler_uuid',
@@ -2267,10 +2288,6 @@ export class SchedulerModel {
                     'ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY created_at DESC) as rn',
                 ),
             )
-            .whereRaw('job_id = job_group') // Only parent jobs
-            .whereIn('scheduler_uuid', schedulerUuids)
-            .where('scheduled_time', '>', sevenDaysAgo)
-            .where('scheduled_time', '<', new Date())
             .as('ranked_runs');
 
         const distinctRunsSubquery = this.database
@@ -2503,15 +2520,15 @@ export class SchedulerModel {
         };
     }
 
-    async attachLatestRunToSchedulers(
-        schedulers: KnexPaginatedData<SchedulerAndTargets[]>,
-    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        if (schedulers.data.length === 0) {
+    async attachLatestRunToSchedulerList(
+        schedulers: SchedulerAndTargets[],
+    ): Promise<SchedulerAndTargets[]> {
+        if (schedulers.length === 0) {
             return schedulers;
         }
 
         const runs = await this.getRunsForSchedulers({
-            schedulers: schedulers.data,
+            schedulers,
             latestOnly: true,
         });
 
@@ -2520,13 +2537,19 @@ export class SchedulerModel {
             latestRunByScheduler.set(run.schedulerUuid, run);
         });
 
+        return schedulers.map((scheduler) => ({
+            ...scheduler,
+            latestRun:
+                latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
+        }));
+    }
+
+    async attachLatestRunToSchedulers(
+        schedulers: KnexPaginatedData<SchedulerAndTargets[]>,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         return {
             ...schedulers,
-            data: schedulers.data.map((scheduler) => ({
-                ...scheduler,
-                latestRun:
-                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
-            })),
+            data: await this.attachLatestRunToSchedulerList(schedulers.data),
         };
     }
 

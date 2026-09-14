@@ -13,9 +13,14 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 
+/** Role sets follow the custom-roles gate: instance config or the custom-roles flag. */
 export const useMultipleRolesEnabled = (): boolean => {
-    const flag = useServerFeatureFlag(CommercialFeatureFlags.MultipleRoles);
-    return flag.isSuccess && flag.data.enabled;
+    const { health } = useApp();
+    const flag = useServerFeatureFlag(CommercialFeatureFlags.CustomRoles);
+    return (
+        health.data?.isCustomRolesEnabled === true ||
+        (flag.isSuccess && flag.data.enabled)
+    );
 };
 
 const ORG_ROLE_SET_KEY = 'organization_user_role_set';

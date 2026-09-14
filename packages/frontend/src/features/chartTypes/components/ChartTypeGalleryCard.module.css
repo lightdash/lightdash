@@ -27,7 +27,7 @@
 
 .preview {
     height: 148px;
-    background: light-dark(#fdfdfe, var(--mantine-color-ldDark-8));
+    background: light-dark(#fdfdfe, var(--mantine-color-ldDark-2));
     border-bottom: 1px solid var(--mantine-color-ldGray-1);
     border-radius: var(--mantine-radius-md) var(--mantine-radius-md) 0 0;
     overflow: hidden;

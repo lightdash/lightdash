@@ -80,14 +80,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
         (performance.queueTimeMs ?? 0);
 
     return (
-        <HoverCard
-            withArrow
-            withinPortal
-            shadow="md"
-            position="bottom-end"
-            offset={4}
-            arrowOffset={10}
-        >
+        <HoverCard withArrow position="bottom-end" offset={4} arrowOffset={10}>
             <HoverCard.Dropdown>
                 <Stack gap={10} w={240} p={4}>
                     <InfoRow icon={IconLayoutRows} label="Rows">
@@ -126,7 +119,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                 </Stack>
             </HoverCard.Dropdown>
             <HoverCard.Target>
-                <ActionIcon size="sm" variant="subtle" color="gray">
+                <ActionIcon size="sm">
                     <MantineIcon
                         icon={
                             isServedFromPreAggregate(

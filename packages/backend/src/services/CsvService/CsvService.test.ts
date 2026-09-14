@@ -43,6 +43,7 @@ import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTa
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -96,7 +97,11 @@ describe('Csv service', () => {
             organizationModel: {} as OrganizationModel,
             projectCompileLogModel: {} as ProjectCompileLogModel,
             adminNotificationService: {} as AdminNotificationService,
+            permissionsService: new PermissionsService({
+                dashboardModel: {} as DashboardModel,
+            }),
             spacePermissionService: {} as SpacePermissionService,
+            directAccessService: {} as never,
             organizationSettingsModel: {} as OrganizationSettingsModel,
             getDataAppCustomSqlProvenance: async () => ({
                 tableCalculations: new Set(),

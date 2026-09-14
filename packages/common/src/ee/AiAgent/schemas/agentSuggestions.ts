@@ -2,6 +2,21 @@ import { z } from 'zod';
 import { type ApiSuccess } from '../../../types/api/success';
 import { AGENT_SUGGESTION_TOOLS, type AgentSuggestion } from '../types';
 
+export const aiAgentSuggestionContextSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('chart'),
+        chartUuid: z.string().min(1),
+    }),
+    z.object({
+        type: z.literal('dashboard'),
+        dashboardUuid: z.string().min(1),
+    }),
+]);
+
+export type AiAgentSuggestionContext = z.infer<
+    typeof aiAgentSuggestionContextSchema
+>;
+
 const promptChipModelSchema = z.object({
     kind: z.literal('prompt'),
     label: z

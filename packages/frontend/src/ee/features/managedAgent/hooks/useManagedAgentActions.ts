@@ -4,8 +4,8 @@ import {
     type ManagedAgentTargetType,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 
 export type ManagedAgentActionQueryFilters = {
     search?: string;
@@ -43,7 +43,7 @@ export const useManagedAgentActions = (
         filters?: ManagedAgentActionQueryFilters;
     } = {},
 ) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isEnabled = opts.enabled ?? true;
     return useQuery<ManagedAgentAction[]>({
         queryKey: [

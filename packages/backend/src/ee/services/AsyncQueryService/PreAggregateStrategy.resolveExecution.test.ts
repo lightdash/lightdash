@@ -1,4 +1,6 @@
 import {
+    CustomDimensionType,
+    DimensionType,
     ExploreType,
     QueryExecutionContext,
     type Explore,
@@ -48,7 +50,15 @@ const resolveExecutionParams = (externalTable?: string) => ({
         ...(externalTable ? { externalTable } : {}),
     },
     resolveArgs: {
-        metricQuery: {} as MetricQuery,
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        } as MetricQuery,
         timezone: 'UTC',
         dateZoom: undefined,
         parameters: undefined,
@@ -94,6 +104,49 @@ describe('PreAggregateStrategy.resolveExecution', () => {
         });
         expect(externalResolver.resolve).toHaveBeenCalledTimes(1);
         expect(duckDbClient.resolve).not.toHaveBeenCalled();
+    });
+
+    test('resolves with only active custom dimensions', async () => {
+        const { strategy, duckDbClient } = makeStrategy();
+        const params = resolveExecutionParams();
+        const activeCustomDimension = {
+            id: 'status_present',
+            type: CustomDimensionType.SQL,
+            name: 'Status present',
+            table: 'orders',
+            sql: '${orders.status} IS NOT NULL',
+            dimensionType: DimensionType.BOOLEAN,
+        } as const;
+        params.resolveArgs.metricQuery = {
+            exploreName: 'orders',
+            dimensions: [activeCustomDimension.id],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            customDimensions: [
+                activeCustomDimension,
+                {
+                    id: 'unused_amount',
+                    type: CustomDimensionType.SQL,
+                    name: 'Unused amount',
+                    table: 'orders',
+                    sql: '${orders.amount}',
+                    dimensionType: DimensionType.NUMBER,
+                },
+            ],
+        };
+
+        await strategy.resolveExecution(params);
+
+        expect(duckDbClient.resolve).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metricQuery: expect.objectContaining({
+                    customDimensions: [activeCustomDimension],
+                }),
+            }),
+        );
     });
 });
 

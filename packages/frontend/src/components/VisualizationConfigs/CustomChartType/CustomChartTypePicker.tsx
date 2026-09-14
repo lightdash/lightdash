@@ -11,9 +11,16 @@ import {
     useCombobox,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconLayoutGrid, IconPlus, IconPuzzle } from '@tabler/icons-react';
+import {
+    IconCode,
+    IconLayoutGrid,
+    IconPlus,
+    IconPuzzle,
+    type Icon as TablerIcon,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
 import MantineIcon from '../../common/MantineIcon';
 import {
     BUILT_IN_GROUP,
@@ -49,6 +56,7 @@ type CustomChartTypeItem = {
     value: string;
     label: string;
     description: string;
+    icon: TablerIcon;
 };
 
 const CREATE_NEW_CHART_TYPE_OPTION_VALUE = '__create_new_chart_type__';
@@ -68,12 +76,14 @@ const toItem = (dataAppViz: DataAppViz): CustomChartTypeItem => ({
     }),
     label: getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid),
     description: dataAppViz.description || fieldSummary(dataAppViz),
+    icon: getChartTypeIcon(dataAppViz.icon),
 });
 
 const VEGA_ITEM: CustomChartTypeItem = {
     value: toOptionValue({ kind: 'builtInVega' }),
     label: BUILT_IN_VEGA_LABEL,
     description: BUILT_IN_VEGA_DESCRIPTION,
+    icon: IconCode,
 };
 
 const matchesSearch = (item: CustomChartTypeItem, search: string): boolean =>
@@ -193,16 +203,28 @@ const CustomChartTypePicker: FC<Props> = ({
             value={item.value}
             active={item.value === (selected ? toOptionValue(selected) : null)}
         >
-            <Box>
-                <Text size="sm">{item.label}</Text>
-                <Text size="xs" c="dimmed" lineClamp={2}>
-                    {item.description}
-                </Text>
-            </Box>
+            <Group gap="xs" wrap="nowrap">
+                <MantineIcon icon={item.icon} />
+                <Box>
+                    <Text size="sm">{item.label}</Text>
+                    <Text size="xs" c="dimmed" lineClamp={2}>
+                        {item.description}
+                    </Text>
+                </Box>
+            </Group>
         </Combobox.Option>
     );
 
     const isClearable = onClear !== null && selected !== null && !disabled;
+
+    // Puzzle piece by default (nothing selected, or the project type's icon
+    // hasn't loaded yet); otherwise the selected type's own icon.
+    const selectedIcon =
+        selected === null
+            ? IconPuzzle
+            : selected.kind === 'builtInVega'
+              ? IconCode
+              : getChartTypeIcon(selectedDataAppViz?.icon ?? null);
 
     const decoration =
         isFetching && !isInitialLoading ? (
@@ -231,7 +253,7 @@ const CustomChartTypePicker: FC<Props> = ({
                     disabled={disabled}
                     value={search === null ? (selectedLabel ?? '') : search}
                     placeholder="Search custom chart types…"
-                    leftSection={<MantineIcon icon={IconPuzzle} />}
+                    leftSection={<MantineIcon icon={selectedIcon} />}
                     rightSection={decoration}
                     rightSectionPointerEvents={isClearable ? 'auto' : 'none'}
                     onChange={(event) => {

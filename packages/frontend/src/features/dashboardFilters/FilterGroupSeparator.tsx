@@ -25,7 +25,7 @@ const FilterGroupSeparator: FC<Props> = ({
             >
                 <MantineIcon
                     icon={icon}
-                    color="ldGray.6"
+                    color="dimmed"
                     size={size === 'md' ? undefined : 16}
                 />
             </Center>

@@ -21,7 +21,7 @@ const DataAppVizFieldTypeBadge: FC<{ type: DataAppVizField['type'] }> = ({
 }) => {
     const colors = FIELD_TYPE_COLORS[type];
     return (
-        <Badge size="xs" radius="sm" bg={colors.bg} c={colors.color}>
+        <Badge size="xs" bg={colors.bg} c={colors.color}>
             {type}
         </Badge>
     );

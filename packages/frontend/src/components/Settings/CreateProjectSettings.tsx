@@ -1,14 +1,15 @@
 import { Stack, Text, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import Page from '../common/Page/Page';
 import PageSpinner from '../PageSpinner';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
 
 const CreateProjectSettings: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { health } = useApp();

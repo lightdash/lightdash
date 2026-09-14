@@ -232,6 +232,11 @@
     font-style: italic;
 }
 
+/* Before .cfUnderline so a conditional-formatting underline wins, as in Table.module.css. */
+.withUrls {
+    text-decoration: underline dotted;
+}
+
 .cfUnderline {
     text-decoration: underline;
 }

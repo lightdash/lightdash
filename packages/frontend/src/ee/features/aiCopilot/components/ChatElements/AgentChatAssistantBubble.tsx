@@ -1,12 +1,15 @@
 import {
     type AiAgentMessageAssistant,
+    type AiAgentMessageUser,
     type AiAgentToolCall,
     type AiMcpServer,
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
+    isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
+    type ToolGenerateDataAppOutput,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -14,7 +17,6 @@ import {
     Box,
     Button,
     Code,
-    CopyButton,
     Group,
     Paper,
     Popover,
@@ -26,8 +28,6 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconBug,
-    IconCheck,
-    IconCopy,
     IconExclamationCircle,
     IconMessageX,
     IconRefresh,
@@ -42,13 +42,18 @@ import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useProjectAiAgents';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import {
+    clearPreview,
+    selectArtifactPreview,
+    setPreview,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -62,6 +67,9 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
+import { AiDataAppBuildCard } from './DataAppBuildCard/AiDataAppBuildCard';
+import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
+import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
@@ -72,8 +80,10 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
-import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
+import { MessageTimingIndicator } from './MessageTimingIndicator';
+import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import {
@@ -106,6 +116,31 @@ type SqlApprovalSegment = {
 };
 type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 
+// A composer pipeline gates on human approval only when it contains raw
+// warehouse SQL nodes; those nodes' SQL is what the approval card presents.
+const getComposerApprovalSql = (toolArgs: unknown): string | null => {
+    if (!toolArgs || typeof toolArgs !== 'object' || !('queries' in toolArgs)) {
+        return null;
+    }
+    const { queries } = toolArgs as { queries?: unknown };
+    if (!Array.isArray(queries)) return null;
+    const sqlNodes = queries.filter(
+        (node): node is { nodeId?: string; sql: string } =>
+            !!node &&
+            typeof node === 'object' &&
+            'sourceType' in node &&
+            node.sourceType === 'sql' &&
+            'sql' in node &&
+            typeof node.sql === 'string',
+    );
+    if (sqlNodes.length === 0) return null;
+    return sqlNodes
+        .map((node) =>
+            node.nodeId ? `-- node: ${node.nodeId}\n${node.sql}` : node.sql,
+        )
+        .join('\n\n');
+};
+
 const segmentStreamParts = (
     parts: StreamPart[],
     decidedToolCallIds: string[],
@@ -131,6 +166,25 @@ const segmentStreamParts = (
                 limit: args.limit,
             });
             return;
+        }
+        if (
+            part.toolName === 'runComposerQueries' &&
+            !part.toolResult &&
+            // Never build an approval card from partially-streamed args —
+            // the SQL may be cut off mid-statement and the tool hasn't
+            // started waiting for a decision yet.
+            part.isArgsPartial !== true &&
+            !decidedToolCallIds.includes(part.toolCallId)
+        ) {
+            const approvalSql = getComposerApprovalSql(part.toolArgs);
+            if (approvalSql) {
+                segments.push({
+                    kind: 'sqlApproval',
+                    toolCallId: part.toolCallId,
+                    sql: approvalSql,
+                });
+                return;
+            }
         }
         const call: ToolCallSummary = {
             toolCallId: part.toolCallId,
@@ -168,11 +222,14 @@ const getPendingPersistedSqlApprovals = (
         message.toolResults.map((result) => result.toolCallId),
     );
 
-    return message.toolCalls.filter(
-        (toolCall) =>
-            toolCall.toolName === 'runSql' &&
-            !resolvedToolCallIds.has(toolCall.toolCallId),
-    );
+    return message.toolCalls.filter((toolCall) => {
+        if (resolvedToolCallIds.has(toolCall.toolCallId)) return false;
+        if (toolCall.toolName === 'runSql') return true;
+        return (
+            toolCall.toolName === 'runComposerQueries' &&
+            getComposerApprovalSql(toolCall.toolArgs) !== null
+        );
+    });
 };
 
 const getToolOutputStatus = (toolOutput: unknown) => {
@@ -312,6 +369,22 @@ const SqlMarkdownCodeBlock: FC<
     );
 };
 
+/**
+ * The streamed part carrying a tool's finished output. The streaming slice
+ * mirrors each tool's full return shape into its part's `toolResult`.
+ */
+const findLiveToolPart = (
+    parts: StreamPart[] | undefined,
+    toolNames: string[],
+): Extract<StreamPart, { type: 'toolCall' }> | undefined =>
+    parts?.find(
+        (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
+            p.type === 'toolCall' &&
+            toolNames.includes(p.toolName) &&
+            p.toolResult !== null &&
+            p.isPreliminary !== true,
+    );
+
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
@@ -345,7 +418,11 @@ const AssistantBubbleContent: FC<{
 
     const isPending = message.status === 'pending';
     const hasError = message.status === 'error';
-    const streamingError = streamingState?.error;
+    const isRecovering = streamingState?.connection.status === 'recovering';
+    const streamingError =
+        streamingState?.connection.status === 'error'
+            ? streamingState.connection.error
+            : null;
     const runSqlTimeoutErrorMessage = getRunSqlTimeoutErrorMessage(message);
     const displayErrorMessage =
         runSqlTimeoutErrorMessage ||
@@ -455,14 +532,10 @@ const AssistantBubbleContent: FC<{
                 isPreviewDeploySetup: true,
             };
 
-        const livePart = streamingState?.parts.find(
-            (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
-                p.type === 'toolCall' &&
-                (p.toolName === 'editDbtProject' ||
-                    p.toolName === 'setupPreviewDeploy') &&
-                p.toolResult !== null &&
-                p.isPreliminary !== true,
-        );
+        const livePart = findLiveToolPart(streamingState?.parts, [
+            'editDbtProject',
+            'setupPreviewDeploy',
+        ]);
         const liveOutput = livePart?.toolResult as
             | ToolEditDbtProjectOutput
             | undefined;
@@ -479,29 +552,27 @@ const AssistantBubbleContent: FC<{
     const editRepoMetadata: ToolEditRepoOutput['metadata'] | null = (() => {
         const persisted = message.toolResults.find(isToolEditRepoResult);
         if (persisted) return persisted.metadata;
-        const livePart = streamingState?.parts.find(
-            (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
-                p.type === 'toolCall' &&
-                p.toolName === 'editRepo' &&
-                p.toolResult !== null &&
-                p.isPreliminary !== true,
-        );
-        const liveOutput = livePart?.toolResult as
-            | ToolEditRepoOutput
-            | undefined;
+        const liveOutput = findLiveToolPart(streamingState?.parts, ['editRepo'])
+            ?.toolResult as ToolEditRepoOutput | undefined;
+        return liveOutput?.metadata ?? null;
+    })();
+
+    const generateDataAppMetadata:
+        | ToolGenerateDataAppOutput['metadata']
+        | null = (() => {
+        const persisted = message.toolResults.find(isToolDataAppBuildResult);
+        if (persisted) return persisted.metadata;
+        const liveOutput = findLiveToolPart(streamingState?.parts, [
+            'generateDataApp',
+            'iterateDataApp',
+        ])?.toolResult as ToolGenerateDataAppOutput | undefined;
         return liveOutput?.metadata ?? null;
     })();
 
     return (
         <>
             {shouldShowRetry && (
-                <Paper
-                    variant="dotted"
-                    radius="md"
-                    pr="md"
-                    shadow="none"
-                    bg="ldGray.0"
-                >
+                <Paper variant="dotted" radius="md" pr="md" bg="ldGray.0">
                     <Group gap="xs" align="center" justify="space-between">
                         <Alert
                             icon={
@@ -513,7 +584,6 @@ const AssistantBubbleContent: FC<{
                             }
                             color="ldGray.0"
                             variant="outline"
-                            radius="md"
                             w="80%"
                         >
                             <Stack gap={4}>
@@ -558,12 +628,17 @@ const AssistantBubbleContent: FC<{
             {/* Reasoning lives inside the LiveActivityCard at all times, so
              *  there is one unified bento for the agent's process. */}
             {(() => {
-                const segments = streamingState?.parts
-                    ? segmentStreamParts(
-                          streamingState.parts,
-                          streamingState.decidedToolCallIds,
-                      )
-                    : [];
+                const shouldUseStreamParts =
+                    isStreaming ||
+                    (streamingState?.connection.status === 'complete' &&
+                        isPending);
+                const segments =
+                    shouldUseStreamParts && streamingState
+                        ? segmentStreamParts(
+                              streamingState.parts,
+                              streamingState.decidedToolCallIds,
+                          )
+                        : [];
 
                 if (segments.length > 0) {
                     // Tool segments are extracted into a single LiveActivityCard
@@ -615,8 +690,9 @@ const AssistantBubbleContent: FC<{
                                 a: ({ node, children, ...props }) => {
                                     const contentType =
                                         'data-content-type' in props &&
-                                        typeof props['data-content-type'] ===
-                                            'string'
+                                        isContentType(
+                                            props['data-content-type'],
+                                        )
                                             ? props['data-content-type']
                                             : undefined;
                                     return (
@@ -661,7 +737,15 @@ const AssistantBubbleContent: FC<{
                             </Stack>
                         ) : null;
                     return (
-                        <Stack gap={4} pt="xs">
+                        <Stack
+                            gap={4}
+                            pt="xs"
+                            // Walkthrough: the reply is still being worked
+                            // on while this is live. See scripts/scope-tours.
+                            data-tour-anchor={
+                                isStreaming ? 'ai-working' : undefined
+                            }
+                        >
                             {/* Activity card sits ABOVE the rolling preview /
                              *  final answer so tool work reads top-to-bottom:
                              *  what was done → the answer. After streaming we
@@ -700,7 +784,15 @@ const AssistantBubbleContent: FC<{
                                 />
                             )}
                             {latestTextSeg ? (
-                                <Box className={styles.streamPart}>
+                                <Box
+                                    className={styles.streamPart}
+                                    // Walkthrough: the answer in words (while
+                                    // streaming). See scripts/scope-tours.
+                                    data-tour-scope="create:AiAgentThread"
+                                    data-tour-result="1"
+                                    data-tour-label="Read the answer"
+                                    data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
+                                >
                                     {finalAnswerMd}
                                 </Box>
                             ) : null}
@@ -745,10 +837,18 @@ const AssistantBubbleContent: FC<{
                                     threadUuid={message.threadUuid}
                                     toolCallId={toolCall.toolCallId}
                                     toolArgs={
-                                        toolCall.toolArgs as {
-                                            sql: string;
-                                            limit?: number;
-                                        }
+                                        toolCall.toolName ===
+                                        'runComposerQueries'
+                                            ? {
+                                                  sql:
+                                                      getComposerApprovalSql(
+                                                          toolCall.toolArgs,
+                                                      ) ?? '',
+                                              }
+                                            : (toolCall.toolArgs as {
+                                                  sql: string;
+                                                  limit?: number;
+                                              })
                                     }
                                 />
                             ))}
@@ -787,51 +887,61 @@ const AssistantBubbleContent: FC<{
                             />
                         )}
                         {messageContent.length > 0 ? (
-                            <AiMarkdown
-                                className={styles.persistedAnswer}
-                                allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                                rehypePlugins={[
-                                    rehypeAiAgentContentLinks,
-                                    rehypeMemoryCitationIndices,
-                                ]}
-                                plugins={markdownPlugins}
-                                components={{
-                                    ...MEMORY_CITATION_COMPONENTS,
-                                    a: ({ node, children, ...props }) => {
-                                        const contentType =
-                                            'data-content-type' in props &&
-                                            typeof props[
-                                                'data-content-type'
-                                            ] === 'string'
-                                                ? props['data-content-type']
-                                                : undefined;
-
-                                        return (
-                                            <ContentLink
-                                                contentType={contentType}
-                                                props={props}
-                                                message={message}
-                                                projectUuid={projectUuid}
-                                                agentUuid={agentUuid}
-                                                sqlRunnerLinkState={
-                                                    sqlRunnerLinkState
-                                                }
-                                                onDashboardLinkClick={
-                                                    onDashboardLinkClick
-                                                }
-                                            >
-                                                {children}
-                                            </ContentLink>
-                                        );
-                                    },
-                                }}
+                            <Box
+                                // Walkthrough: the answer in words (persisted).
+                                // See scripts/scope-tours.
+                                data-tour-scope="create:AiAgentThread"
+                                data-tour-result="1"
+                                data-tour-label="Read the answer"
+                                data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
                             >
-                                {messageContent}
-                            </AiMarkdown>
+                                <AiMarkdown
+                                    className={styles.persistedAnswer}
+                                    allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                                    rehypePlugins={[
+                                        rehypeAiAgentContentLinks,
+                                        rehypeMemoryCitationIndices,
+                                    ]}
+                                    plugins={markdownPlugins}
+                                    components={{
+                                        ...MEMORY_CITATION_COMPONENTS,
+                                        a: ({ node, children, ...props }) => {
+                                            const contentType =
+                                                'data-content-type' in props &&
+                                                isContentType(
+                                                    props['data-content-type'],
+                                                )
+                                                    ? props['data-content-type']
+                                                    : undefined;
+
+                                            return (
+                                                <ContentLink
+                                                    contentType={contentType}
+                                                    props={props}
+                                                    message={message}
+                                                    projectUuid={projectUuid}
+                                                    agentUuid={agentUuid}
+                                                    sqlRunnerLinkState={
+                                                        sqlRunnerLinkState
+                                                    }
+                                                    onDashboardLinkClick={
+                                                        onDashboardLinkClick
+                                                    }
+                                                >
+                                                    {children}
+                                                </ContentLink>
+                                            );
+                                        },
+                                    }}
+                                >
+                                    {messageContent}
+                                </AiMarkdown>
+                            </Box>
                         ) : null}
                     </>
                 );
             })()}
+            {isRecovering && isPending && <StreamRecoveryAlert />}
             {/* TypingDots fill the gap until the first visible output lands —
              *  any tool call or text part. Reasoning alone doesn't count: it
              *  collapses by default and would otherwise leave the bubble silent.
@@ -840,7 +950,11 @@ const AssistantBubbleContent: FC<{
              *  sandbox…") so this gap isn't silent for long-setup tools. */}
             {(isStreaming || (isPending && !streamingError)) &&
                 (streamingState?.parts?.length ?? 0) === 0 && (
-                    <Box className={styles.streamPart} pl={7}>
+                    <Box
+                        className={styles.streamPart}
+                        pl={7}
+                        data-tour-anchor="ai-working"
+                    >
                         <TypingDots />
                     </Box>
                 )}
@@ -861,12 +975,24 @@ const AssistantBubbleContent: FC<{
                     projectUuid={projectUuid}
                 />
             )}
+            {generateDataAppMetadata && (
+                <AiDataAppBuildCard
+                    metadata={generateDataAppMetadata}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
+                    messageUuid={message.uuid}
+                    compact={!isLastMessage}
+                />
+            )}
         </>
     );
 };
 
 type Props = {
     message: AiAgentMessageAssistant;
+    /** The hidden user turn this reply answers, if any (same prompt uuid). */
+    hiddenSibling: AiAgentMessageUser | null;
     isLastMessage: boolean;
     isActive?: boolean;
     debug?: boolean;
@@ -882,6 +1008,7 @@ type Props = {
 export const AssistantBubble: FC<Props> = memo(
     ({
         message,
+        hiddenSibling,
         isLastMessage,
         isActive = false,
         debug = false,
@@ -893,9 +1020,7 @@ export const AssistantBubble: FC<Props> = memo(
         mcpServers,
         onDashboardLinkClick,
     }) => {
-        const artifact = useAiAgentStoreSelector(
-            (state) => state.aiArtifact.artifact,
-        );
+        const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
 
         if (!projectUuid) throw new Error(`Project Uuid not found`);
@@ -973,6 +1098,23 @@ export const AssistantBubble: FC<Props> = memo(
             message.artifacts && message.artifacts.length > 0
         );
 
+        // A restore turn is deterministic (no LLM): the card is the whole
+        // reply, its message included, so nothing else renders for it.
+        const restoreItem = getDataAppRestoreItem(hiddenSibling);
+        if (restoreItem) {
+            return (
+                <AiDataAppRestoreCard
+                    item={restoreItem}
+                    completionMessage={message.message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
+                    messageUuid={message.uuid}
+                    compact={!isLastMessage}
+                />
+            );
+        }
+
         return (
             <Stack
                 pos="relative"
@@ -983,6 +1125,17 @@ export const AssistantBubble: FC<Props> = memo(
                     overflow: 'unset',
                     borderStartStartRadius: '0px',
                 }}
+                // Walkthrough result marker for create:AiAgentThread: the
+                // agent's answer is where sending a question lands, so no
+                // return path. See scripts/scope-tours/generate.ts.
+                data-tour-scope="create:AiAgentThread"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
+                data-tour-label="Ask the agent a question"
+                data-tour-docs="agents.mdx#intro:1"
+                data-tour-return="none"
+                data-tour-resultdocs="agents.mdx#intro:3"
+                data-tour-busy='[data-tour-anchor="ai-working"]'
             >
                 <AssistantBubbleContent
                     message={message}
@@ -1008,45 +1161,56 @@ export const AssistantBubble: FC<Props> = memo(
                               ))
                             : // Render artifact buttons that open modals
                               message.artifacts!.map((messageArtifact) => (
-                                  <AiArtifactButton
+                                  <Box
                                       key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
-                                      onClick={() => {
-                                          const isThisArtifactOpen =
+                                      // Walkthrough: the chart the agent built
+                                      // opens in the side panel from here.
+                                      // See scripts/scope-tours.
+                                      data-tour-scope="create:AiAgentThread"
+                                      data-tour-result="2"
+                                      data-tour-label="The chart the agent built"
+                                      data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:li2"
+                                  >
+                                      <AiArtifactButton
+                                          onClick={() => {
+                                              const isThisArtifactOpen =
+                                                  artifact?.artifactUuid ===
+                                                      messageArtifact.artifactUuid &&
+                                                  artifact?.versionUuid ===
+                                                      messageArtifact.versionUuid;
+                                              if (isThisArtifactOpen) {
+                                                  dispatch(clearPreview());
+                                                  return;
+                                              }
+                                              dispatch(
+                                                  setPreview({
+                                                      type: 'artifact',
+                                                      artifactUuid:
+                                                          messageArtifact.artifactUuid,
+                                                      versionUuid:
+                                                          messageArtifact.versionUuid,
+                                                      messageUuid: message.uuid,
+                                                      threadUuid:
+                                                          message.threadUuid,
+                                                      projectUuid: projectUuid,
+                                                      agentUuid: agentUuid,
+                                                  }),
+                                              );
+                                          }}
+                                          isArtifactOpen={
                                               artifact?.artifactUuid ===
                                                   messageArtifact.artifactUuid &&
                                               artifact?.versionUuid ===
-                                                  messageArtifact.versionUuid;
-                                          if (isThisArtifactOpen) {
-                                              dispatch(clearArtifact());
-                                              return;
+                                                  messageArtifact.versionUuid
                                           }
-                                          dispatch(
-                                              setArtifact({
-                                                  artifactUuid:
-                                                      messageArtifact.artifactUuid,
-                                                  versionUuid:
-                                                      messageArtifact.versionUuid,
-                                                  messageUuid: message.uuid,
-                                                  threadUuid:
-                                                      message.threadUuid,
-                                                  projectUuid: projectUuid,
-                                                  agentUuid: agentUuid,
-                                              }),
-                                          );
-                                      }}
-                                      isArtifactOpen={
-                                          artifact?.artifactUuid ===
-                                              messageArtifact.artifactUuid &&
-                                          artifact?.versionUuid ===
-                                              messageArtifact.versionUuid
-                                      }
-                                      artifact={messageArtifact}
-                                  />
+                                          artifact={messageArtifact}
+                                      />
+                                  </Box>
                               ))}
                     </Stack>
                 )}
                 {!popoverOpened && downVoted && message.humanFeedback && (
-                    <Paper p="xs" mt="xs" radius="md" withBorder>
+                    <Paper p="xs" mt="xs" radius="md">
                         <Stack gap="xs">
                             <Group gap="xs">
                                 <MantineIcon
@@ -1065,25 +1229,23 @@ export const AssistantBubble: FC<Props> = memo(
                     </Paper>
                 )}
                 {isLoading ? null : (
-                    <Group gap={0}>
-                        <CopyButton value={message.message ?? ''}>
-                            {({ copied, copy }) => (
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="ldGray.9"
-                                    aria-label="copy"
-                                    onClick={copy}
-                                >
-                                    <MantineIcon
-                                        icon={copied ? IconCheck : IconCopy}
-                                    />
-                                </ActionIcon>
-                            )}
-                        </CopyButton>
+                    <Group
+                        gap={0}
+                        // Walkthrough: rating the answer teaches the agent.
+                        // See scripts/scope-tours.
+                        data-tour-scope="create:AiAgentThread"
+                        data-tour-result="3"
+                        data-tour-label="Rate the answer"
+                        data-tour-docs="agents/agent-memory.mdx#intro:2"
+                    >
+                        <CopyActionIcon
+                            value={message.message ?? ''}
+                            color="ldGray.9"
+                            aria-label="copy"
+                        />
 
                         {(!hasRating || upVoted) && (
                             <ActionIcon
-                                variant="subtle"
                                 color="ldGray.9"
                                 aria-label="upvote"
                                 onClick={handleUpvote}
@@ -1091,8 +1253,6 @@ export const AssistantBubble: FC<Props> = memo(
                                 <Tooltip
                                     label="Feedback sent"
                                     position="top"
-                                    withinPortal
-                                    withArrow
                                     // Hack to only render tooltip (on hover) when `hasRating` is false
                                     opened={hasRating ? undefined : false}
                                 >
@@ -1121,7 +1281,6 @@ export const AssistantBubble: FC<Props> = memo(
                             >
                                 <Popover.Target>
                                     <ActionIcon
-                                        variant="subtle"
                                         color="ldGray.9"
                                         aria-label="downvote"
                                         onClick={handleDownvote}
@@ -1157,7 +1316,6 @@ export const AssistantBubble: FC<Props> = memo(
                                                 }
                                                 minRows={3}
                                                 maxRows={5}
-                                                radius="md"
                                                 resize="vertical"
                                             />
                                             <Group gap="xs">
@@ -1188,7 +1346,6 @@ export const AssistantBubble: FC<Props> = memo(
                         {showAddToEvalsButton && onAddToEvals && (
                             <Tooltip label="Add this response to evals">
                                 <ActionIcon
-                                    variant="subtle"
                                     color="ldGray.9"
                                     aria-label="Add to evaluation set"
                                     onClick={() => onAddToEvals(message.uuid)}
@@ -1200,7 +1357,6 @@ export const AssistantBubble: FC<Props> = memo(
 
                         {isArtifactAvailable && (
                             <ActionIcon
-                                variant="subtle"
                                 color="ldGray.9"
                                 aria-label="Debug information"
                                 onClick={openDrawer}
@@ -1221,6 +1377,9 @@ export const AssistantBubble: FC<Props> = memo(
                             agentUuid={agentUuid}
                             modelConfig={message.modelConfig}
                             totalTokens={message.tokenUsage?.totalTokens}
+                        />
+                        <MessageTimingIndicator
+                            responseTiming={message.responseTiming}
                         />
                     </Group>
                 )}

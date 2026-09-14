@@ -2,7 +2,9 @@ import {
     createFilterRuleFromField,
     DimensionType,
     FieldType,
+    FilterOperator,
     type FilterableDimension,
+    type FilterRule,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -29,18 +31,33 @@ const visibleDimension: FilterableDimension = {
     hidden: false,
 };
 
-const renderFilterRuleForm = (dimension: FilterableDimension) =>
+const timestampDimension: FilterableDimension = {
+    ...visibleDimension,
+    type: DimensionType.TIMESTAMP,
+    name: 'created_at',
+    label: 'Created at',
+    sql: '${TABLE}.created_at',
+};
+
+const renderFilterRuleForm = (
+    dimension: FilterableDimension,
+    filterRule: FilterRule = createFilterRuleFromField(dimension),
+    onChange = vi.fn(),
+) => {
     renderWithProviders(
         <FiltersProvider itemsMap={{}}>
             <FilterRuleForm
-                fields={[visibleDimension, hiddenDimension]}
-                filterRule={createFilterRuleFromField(dimension)}
+                fields={[visibleDimension, hiddenDimension, timestampDimension]}
+                filterRule={filterRule}
                 isEditMode
-                onChange={vi.fn()}
+                onChange={onChange}
                 onDelete={vi.fn()}
             />
         </FiltersProvider>,
     );
+
+    return { onChange };
+};
 
 describe('FilterRuleForm', () => {
     beforeAll(() => {
@@ -82,5 +99,30 @@ describe('FilterRuleForm', () => {
         expect(
             screen.queryByRole('option', { name: hiddenDimension.label }),
         ).toBeNull();
+    });
+
+    it('preserves a timestamp value when changing to is between', async () => {
+        const user = userEvent.setup();
+        const timestampValue = '2024-11-01T10:00:00-05:00';
+        const filterRule = {
+            ...createFilterRuleFromField(timestampDimension),
+            values: [timestampValue],
+        };
+        const { onChange } = renderFilterRuleForm(
+            timestampDimension,
+            filterRule,
+        );
+
+        await user.click(screen.getByDisplayValue('is'));
+        await user.click(
+            await screen.findByRole('option', { name: 'is between' }),
+        );
+
+        expect(onChange).toHaveBeenCalledWith({
+            ...filterRule,
+            operator: FilterOperator.IN_BETWEEN,
+            values: [timestampValue],
+            settings: undefined,
+        });
     });
 });

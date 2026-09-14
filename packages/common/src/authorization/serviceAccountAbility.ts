@@ -228,6 +228,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'MetricsTree', {
             organizationUuid,
         });
+        can('manage', 'ExternalSource', {
+            organizationUuid,
+        });
         // CLI-driven content-as-code upload (`lightdash upload`) runs as an
         // SA with `org:edit`. Pre-Phase-C the auth middleware spoofed the
         // admin user so the call was implicitly allowed; the cutover to a
@@ -248,6 +251,9 @@ const applyServiceAccountStaticAbilities: Record<
             builder: { can },
         });
         can('view', 'Roadmap', {
+            organizationUuid,
+        });
+        can('manage', 'Roadmap', {
             organizationUuid,
         });
         can('manage', 'PreAggregation', {
@@ -316,6 +322,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('manage', 'ContentVerification', {
+            organizationUuid,
+        });
+        can('manage', 'VerifiedContent', {
             organizationUuid,
         });
         can('view', 'JobStatus', {

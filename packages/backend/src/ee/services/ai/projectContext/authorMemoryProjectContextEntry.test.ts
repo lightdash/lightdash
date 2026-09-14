@@ -20,6 +20,7 @@ const model = getModel(lightdashConfigMock.ai.copilot, {
 const telemetry = getAiCallTelemetry({
     functionId: 'memoryProjectContextEntryAuthoringTest',
     feature: 'ai-agent-memory',
+    keyManagement: model.keyManagement,
 });
 const memory = {
     title: 'Revenue convention',

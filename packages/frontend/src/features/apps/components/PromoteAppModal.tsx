@@ -79,7 +79,7 @@ export const PromoteAppModal: FC<Props> = ({
                         )}
                     </Text>
                     <Group gap="xs">
-                        <MantineIcon icon={IconFolder} color="ldGray.6" />
+                        <MantineIcon icon={IconFolder} color="dimmed" />
                         <Text size="sm" c="dimmed">
                             {diff.space
                                 ? `Space: ${diff.space.name}`

@@ -87,7 +87,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                 size: 260,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                        <MantineIcon icon={IconTextCaption} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -99,7 +99,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                                 {group.name}
                             </Text>
                             {group.members.length > 0 && (
-                                <Text fz="xs" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     {`${group.members.length} member${
                                         group.members.length !== 1 ? 's' : ''
                                     }`}
@@ -116,7 +116,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                 size: 400,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconUsers} color="ldGray.6" />
+                        <MantineIcon icon={IconUsers} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -140,7 +140,6 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                                     variant="filled"
                                     color="ldGray.2"
                                     radius="xs"
-                                    style={{ textTransform: 'none' }}
                                     px="xxs"
                                 >
                                     <Text fz="xs" fw={400} c="ldGray.8">
@@ -150,7 +149,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                             ))}
                         </Group>
                     ) : (
-                        <Text fz="sm" c="ldGray.6" fs="italic">
+                        <Text fz="sm" c="dimmed" fs="italic">
                             No members
                         </Text>
                     );
@@ -263,7 +262,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                                 ? 'Scroll for more groups'
                                 : 'All groups loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${totalFetched} of ${totalDBRowCount} loaded)`
                                 : `(${totalFetched})`}

@@ -59,9 +59,6 @@ export const PR_DESCRIPTION_CLOSE = '</lightdash-writeback-pr-description>';
 export const PR_SUMMARY_OPEN = '<lightdash-writeback-pr-summary>';
 export const PR_SUMMARY_CLOSE = '</lightdash-writeback-pr-summary>';
 
-// Installation tokens authenticate over HTTPS with a fixed username.
-export const GIT_USERNAME = 'x-access-token';
-
 // Commit identity for changes the agent produces.
 export const COMMIT_AUTHOR_NAME = 'Lightdash';
 export const COMMIT_AUTHOR_EMAIL = 'developers@lightdash.com';
@@ -115,6 +112,8 @@ export const COMPILE_TIMINGS_PATH = '/tmp/ld-writeback-compile-timings';
 // also drop common token vars defensively in case that changes.
 export const COMPILE_STRIPPED_ENV_VARS = [
     'ANTHROPIC_API_KEY',
+    // Gateway mode carries the key here instead.
+    'ANTHROPIC_AUTH_TOKEN',
     'GITHUB_TOKEN',
     'GH_TOKEN',
 ];
@@ -154,6 +153,14 @@ export const ALLOWED_TOOLS = [
     // `lightdash compile` — see COMPILE_WRAPPER_PATH.
     `Bash(${COMPILE_WRAPPER_PATH}:*)`,
 ].join(',');
+
+// Native compilation runs on the host with the shared compiler. The agent
+// needs neither shell execution nor access to temporary dbt profiles.
+export const NATIVE_ALLOWED_TOOLS = ALLOWED_TOOLS.split(',')
+    .filter(
+        (tool) => !tool.startsWith('Bash(') && !tool.includes(TMP_PROFILES_DIR),
+    )
+    .join(',');
 
 // Anthropic model used for the writeback agent. Pinned to a specific Sonnet
 // snapshot rather than the CLI default so runs stay deterministic across

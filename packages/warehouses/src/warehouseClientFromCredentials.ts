@@ -7,7 +7,10 @@ import {
 import { WarehouseClient } from './types';
 import { AthenaWarehouseClient } from './warehouseClients/AthenaWarehouseClient';
 import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
-import { ClickhouseWarehouseClient } from './warehouseClients/ClickhouseWarehouseClient';
+import {
+    ClickhouseWarehouseClient,
+    type ClickhouseWarehouseClientOptions,
+} from './warehouseClients/ClickhouseWarehouseClient';
 import { DatabricksWarehouseClient } from './warehouseClients/DatabricksWarehouseClient';
 import {
     DuckdbWarehouseClient,
@@ -18,9 +21,12 @@ import { RedshiftWarehouseClient } from './warehouseClients/RedshiftWarehouseCli
 import { SnowflakeWarehouseClient } from './warehouseClients/SnowflakeWarehouseClient';
 import { TrinoWarehouseClient } from './warehouseClients/TrinoWarehouseClient';
 
+export type WarehouseClientOptions = DuckdbWarehouseClientOptions &
+    ClickhouseWarehouseClientOptions;
+
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,
-    options?: DuckdbWarehouseClientOptions,
+    options?: WarehouseClientOptions,
 ): WarehouseClient => {
     switch (credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
@@ -36,7 +42,7 @@ export const warehouseClientFromCredentials = (
         case WarehouseTypes.TRINO:
             return new TrinoWarehouseClient(credentials);
         case WarehouseTypes.CLICKHOUSE:
-            return new ClickhouseWarehouseClient(credentials);
+            return new ClickhouseWarehouseClient(credentials, options);
         case WarehouseTypes.ATHENA:
             return new AthenaWarehouseClient(credentials);
         case WarehouseTypes.DUCKDB:

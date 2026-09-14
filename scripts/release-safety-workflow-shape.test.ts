@@ -38,7 +38,10 @@ assert.deepStrictEqual(
 // present only in the trigger-level list, which made `retract` unreachable for
 // every other watched path.
 for (const required of [
+    'release-safety.declarations.json',
     'scripts/breaking-change-declarations.ts',
+    'scripts/release-safety-declarations.ts',
+    'scripts/release-safety-declarations.schema.json',
     'scripts/release-safety-pr-gate.ts',
     'scripts/gen-release-safety.ts',
     'packages/backend/**',
@@ -99,6 +102,66 @@ assert.ok(
     'the describes-stamp reader must capture the gate outcome (SPK-1017)',
 );
 
+const commentLookups = [
+    ...workflow.matchAll(/const existing = comments\.find\(([\s\S]*?)\n\s*\);/g),
+];
+assert.strictEqual(
+    commentLookups.length,
+    4,
+    `expected four sticky comment lookups; found ${commentLookups.length}`,
+);
+for (const lookup of commentLookups) {
+    assert.ok(
+        lookup[1].includes('c.user?.login === viewer.login') &&
+            lookup[1].includes('c.body?.includes(marker)'),
+        'every sticky comment lookup must match the authenticated workflow author and marker',
+    );
+}
+assert.strictEqual(
+    workflow.match(/query \{ viewer \{ login \} \}/g)?.length,
+    commentLookups.length,
+    'every sticky comment lookup must derive its author from the authenticated workflow token',
+);
+
+const stampReader = workflow.slice(
+    workflow.indexOf("- name: Read the sticky comment's describes-stamp"),
+    workflow.indexOf(
+        '- uses: actions/checkout@',
+        workflow.indexOf("- name: Read the sticky comment's describes-stamp"),
+    ),
+);
+for (const required of [
+    'run:([1-9][0-9]*)',
+    'github.rest.actions.getWorkflowRun',
+    'github.rest.actions.getWorkflow',
+    'run.workflow_id === workflow.id',
+    "run.status === 'completed'",
+    "run.conclusion === 'success'",
+    "run.event === 'pull_request'",
+    'run.head_sha === stamp[1]',
+    'pr.number === context.issue.number',
+]) {
+    assert.ok(stampReader.includes(required), `the describes-stamp reader must verify ${required}`);
+}
+assert.ok(
+    workflow.includes('actions: read'),
+    'the workflow needs read access to verify the stamped workflow run',
+);
+assert.ok(
+    workflow.includes('--run-id "${{ github.run_id }}"'),
+    'the rendered describes-stamp must include the current workflow run ID',
+);
+for (const output of ['head', 'base', 'gate']) {
+    assert.ok(
+        stampReader.indexOf(`core.setOutput('${output}', '');`) < stampReader.indexOf('try {'),
+        `the ${output} output must fail closed before stamp verification starts`,
+    );
+}
+assert.ok(
+    stampReader.includes('catch (error)'),
+    'stamp verification errors must fail closed instead of stopping the full preview',
+);
+
 // The condition deciding "did the gates fail" now appears twice: once to fail
 // the job, once to stamp the comment. They must stay identical, or the stamp
 // will claim a pass the job did not give.
@@ -113,23 +176,18 @@ assert.ok(
 // SPK-1021: the preview job's dependency install was 75% of its runtime because
 // nothing cached it. Losing the cache costs ~4 minutes per run and fails
 // silently — the job still passes, just slowly — so it is asserted here.
-// The ordering matters too: setup-node shells out to pnpm to resolve the store
-// path, so pnpm must be set up first or the cache cannot be configured at all.
-// Comments are stripped first: the prose above this config quotes `cache: 'pnpm'`
-// verbatim, so testing the raw text matches the explanation rather than the
-// setting, and the assertion passes with the cache deleted.
+// Inspect configuration without comments so prose cannot satisfy the assertion.
 const configOnly = withoutComments.join('\n');
 const previewJob = configOnly.slice(
     configOnly.indexOf('\n  preview:'),
     configOnly.indexOf('\n  retract:'),
 );
-assert.ok(
-    /cache:\s*'pnpm'/.test(previewJob),
-    "the preview job's setup-node must cache the pnpm store (SPK-1021)",
+const setupStep = previewJob.match(
+    /- uses: pnpm\/setup@[^\n]+\n((?: {8,}[^\n]*\n)*)/,
 );
 assert.ok(
-    previewJob.indexOf('pnpm/action-setup') < previewJob.indexOf('actions/setup-node'),
-    'pnpm must be set up before setup-node, or cache: pnpm cannot resolve the store path (SPK-1021)',
+    setupStep && /cache:\s*true/.test(setupStep[1]),
+    "the preview job's pnpm setup must cache the store (SPK-1021)",
 );
 
 process.stdout.write('release-safety workflow shape tests passed\n');

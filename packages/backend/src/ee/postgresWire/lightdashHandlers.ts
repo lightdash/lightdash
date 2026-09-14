@@ -9,6 +9,7 @@ import {
     type Account,
     type ResultRow,
 } from '@lightdash/common';
+import { parse } from 'pgsql-ast-parser';
 import { fromApiKey, fromServiceAccount } from '../../auth/account/account';
 import Logger from '../../logging/logger';
 import type { ServiceRepository } from '../../services/ServiceRepository';
@@ -88,6 +89,16 @@ const SHOW_PARAMETERS: Record<string, string> = {
 };
 
 /**
+ * Postgres accepts multiword spellings for a few settings, and drivers use
+ * them: pgjdbc's `getTransactionIsolation()` sends
+ * `SHOW TRANSACTION ISOLATION LEVEL`.
+ */
+const SHOW_PARAMETER_ALIASES: Record<string, string> = {
+    'transaction isolation level': 'transaction_isolation',
+    'time zone': 'timezone',
+};
+
+/**
  * Handle transaction/session statements that BI tools and drivers send but
  * that have no meaning against the semantic layer. Returns null when the
  * statement should be compiled as a real query.
@@ -121,7 +132,12 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
         case 'DEALLOCATE':
             return { type: 'command', commandTag: 'DEALLOCATE' };
         case 'SHOW': {
-            const param = secondWord.toLowerCase();
+            const argument = trimmed
+                .slice(firstWord.length)
+                .trim()
+                .replace(/\s+/g, ' ')
+                .toLowerCase();
+            const param = SHOW_PARAMETER_ALIASES[argument] ?? argument;
             const value = SHOW_PARAMETERS[param];
             if (value === undefined) {
                 throw new PgWireServerError(
@@ -145,6 +161,45 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
 const redactLiterals = (sql: string): string =>
     sql.replace(/'(?:[^']|'')*'/g, "'?'");
 
+const parses = (sql: string): boolean => {
+    try {
+        parse(sql);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+const escapeRegex = (text: string): string =>
+    text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Postgres accepts fully qualified `database.schema.table` names when the
+ * database is the current one, but the SQL parser used here only understands
+ * two parts. Connectors (e.g. Domo previews) fully qualify, so when a
+ * statement only parses after removing the session database qualifier, use
+ * the stripped form.
+ */
+const stripDatabaseQualifier = (sql: string, databaseName: string): string => {
+    const quoted = `"${escapeRegex(databaseName)}"`;
+    const bare = /^[a-z_][a-z0-9_]*$/.test(databaseName)
+        ? `|\\b${escapeRegex(databaseName)}\\b`
+        : '';
+    const qualifier = new RegExp(
+        `(?:${quoted}${bare})\\.(?=(?:"(?:[^"]|"")+"|[A-Za-z_][\\w$]*)\\.)`,
+        'g',
+    );
+    return sql.replace(qualifier, '');
+};
+
+const normalizeSql = (session: LightdashPgWireSession, sql: string): string => {
+    if (!sql.includes(session.databaseName) || parses(sql)) {
+        return sql;
+    }
+    const stripped = stripDatabaseQualifier(sql, session.databaseName);
+    return stripped !== sql && parses(stripped) ? stripped : sql;
+};
+
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -159,8 +214,9 @@ type ResolvedStatement =
 
 const resolveStatement = (
     session: LightdashPgWireSession,
-    sql: string,
+    rawSql: string,
 ): ResolvedStatement => {
+    const sql = normalizeSql(session, rawSql);
     const sessionResult = tryHandleSessionStatement(sql);
     if (sessionResult) {
         return { kind: 'result', result: sessionResult };
@@ -264,21 +320,36 @@ export const createLightdashPgWireHandlers = (
                             .filter((d) => !d.hidden)
                             .map((d) => ({
                                 fieldId: getItemId(d),
+                                table: d.table,
+                                name: d.name,
                                 kind: 'dimension' as const,
                                 type: d.type,
                                 description: describe(d),
+                                timeInterval:
+                                    d.timeInterval &&
+                                    d.timeIntervalBaseDimensionName
+                                        ? {
+                                              frame: d.timeInterval,
+                                              baseDimensionName:
+                                                  d.timeIntervalBaseDimensionName,
+                                          }
+                                        : null,
                             })),
                         ...getMetrics(explore)
                             .filter((m) => !m.hidden)
                             .map((m) => ({
                                 fieldId: getItemId(m),
+                                table: m.table,
+                                name: m.name,
                                 kind: 'metric' as const,
                                 type: m.type,
                                 description: describe(m),
+                                timeInterval: null,
                             })),
                     ];
                     return {
                         name: explore.name,
+                        targetDatabase: explore.targetDatabase,
                         fields,
                         description:
                             explore.tables[
@@ -346,6 +417,51 @@ export const createLightdashPgWireHandlers = (
             .getUserService()
             .loginWithPersonalAccessToken(token);
         return fromApiKey(sessionUser, 'pgwire');
+    };
+
+    const runStatement = async (
+        session: LightdashPgWireSession,
+        sql: string,
+    ): Promise<PgWireQueryResult> => {
+        const resolved = resolveStatement(session, sql);
+        if (resolved.kind === 'result') {
+            return resolved.result;
+        }
+        const { compiled } = resolved;
+        if (compiled.alwaysEmpty) {
+            // schema probes (WHERE 1=0, LIMIT 0) never reach the warehouse
+            return {
+                type: 'rows',
+                fields: fieldsOf(compiled),
+                rows: [],
+                commandTag: 'SELECT 0',
+            };
+        }
+
+        const results = await serviceRepository
+            .getProjectService()
+            .runExploreQuery(
+                session.account,
+                compiled.metricQuery,
+                session.projectUuid,
+                compiled.metricQuery.exploreName,
+                undefined, // csvLimit: undefined = respect metricQuery.limit
+                undefined,
+                QueryExecutionContext.API,
+            );
+
+        const fields = fieldsOf(compiled);
+        const rows = results.rows.map((row: ResultRow) =>
+            compiled.columns.map((column) =>
+                toTextValue(row[column.source]?.value?.raw, column.type),
+            ),
+        );
+        return {
+            type: 'rows',
+            fields,
+            rows,
+            commandTag: `SELECT ${rows.length}`,
+        };
     };
 
     return {
@@ -418,49 +534,38 @@ export const createLightdashPgWireHandlers = (
         },
 
         describe: async (session, sql) => {
-            const resolved = resolveStatement(session, sql);
-            if (resolved.kind === 'result') {
-                return resolved.result.type === 'rows'
-                    ? resolved.result.fields
-                    : null;
+            try {
+                const resolved = resolveStatement(session, sql);
+                if (resolved.kind === 'result') {
+                    return resolved.result.type === 'rows'
+                        ? resolved.result.fields
+                        : null;
+                }
+                return fieldsOf(resolved.compiled);
+            } catch (e) {
+                // Parse/Describe failures never reach the query handler, so
+                // extended-protocol clients (pgjdbc) would fail invisibly
+                Logger.warn(
+                    `pgwire: describe failed (${e instanceof PgWireServerError ? e.code : 'unexpected'}: ${e instanceof Error ? redactLiterals(e.message).slice(0, 300) : e}) sql: ${redactLiterals(sql).slice(0, 300)}`,
+                );
+                throw e;
             }
-            return fieldsOf(resolved.compiled);
         },
 
         query: async (session, sql) => {
             Logger.debug(
                 `pgwire: ${session.account.user?.email ?? 'service account'} query: ${redactLiterals(sql).slice(0, 500)}`,
             );
-            const resolved = resolveStatement(session, sql);
-            if (resolved.kind === 'result') {
-                return resolved.result;
-            }
-            const { compiled } = resolved;
-
-            const results = await serviceRepository
-                .getProjectService()
-                .runExploreQuery(
-                    session.account,
-                    compiled.metricQuery,
-                    session.projectUuid,
-                    compiled.metricQuery.exploreName,
-                    undefined, // csvLimit: undefined = respect metricQuery.limit
-                    undefined,
-                    QueryExecutionContext.API,
+            try {
+                return await runStatement(session, sql);
+            } catch (e) {
+                // failures are otherwise only visible to the client; log the
+                // shape (literals redacted) so production issues are diagnosable
+                Logger.warn(
+                    `pgwire: query failed (${e instanceof PgWireServerError ? e.code : 'unexpected'}: ${e instanceof Error ? redactLiterals(e.message).slice(0, 200) : e}) sql: ${redactLiterals(sql).slice(0, 300)}`,
                 );
-
-            const fields = fieldsOf(compiled);
-            const rows = results.rows.map((row: ResultRow) =>
-                compiled.columns.map((column) =>
-                    toTextValue(row[column.source]?.value?.raw, column.type),
-                ),
-            );
-            return {
-                type: 'rows',
-                fields,
-                rows,
-                commandTag: `SELECT ${rows.length}`,
-            };
+                throw e;
+            }
         },
     };
 };

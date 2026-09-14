@@ -14,6 +14,9 @@ export type BlockComponentProps = {
     // stills) aren't cropped as hard. Other blocks ignore it. Optional because
     // omitting it (the default, non-standalone) is the safe current behaviour.
     standalone?: boolean;
+    // Admin view-as preview: per-viewer targets render as placeholders
+    // instead of resolving against the admin's own data.
+    personalPlaceholders?: boolean;
 };
 
 export type BuildComponentProps = BlockComponentProps & {

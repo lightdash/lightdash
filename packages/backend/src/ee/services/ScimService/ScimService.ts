@@ -10,6 +10,8 @@ import {
     isOrganizationMemberRole,
     isSystemRole,
     isValidEmailAddress,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     LightdashUser,
     NotFoundError,
     OrganizationMemberProfile,
@@ -18,9 +20,11 @@ import {
     ParameterError,
     ProjectType,
     Role,
+    ScimCreateGroupRequest,
     ScimError,
     ScimGroup,
     ScimListResponse,
+    ScimRequestLog,
     ScimResourceType,
     ScimRole,
     ScimSchema,
@@ -54,6 +58,10 @@ import { BaseService } from '../../../services/BaseService';
 import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
+import {
+    CreateScimRequestLog,
+    ScimRequestLogModel,
+} from '../../models/ScimRequestLogModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
 type ScimServiceArguments = {
@@ -69,6 +77,7 @@ type ScimServiceArguments = {
     rolesModel: RolesModel;
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
+    scimRequestLogModel: ScimRequestLogModel;
 };
 
 const NO_ROLE_KEYWORD = 'no-role';
@@ -107,6 +116,8 @@ export class ScimService extends BaseService {
 
     private readonly openIdIdentityModel: OpenIdIdentityModel;
 
+    private readonly scimRequestLogModel: ScimRequestLogModel;
+
     constructor({
         lightdashConfig,
         organizationMemberProfileModel,
@@ -120,6 +131,7 @@ export class ScimService extends BaseService {
         rolesModel,
         projectModel,
         openIdIdentityModel,
+        scimRequestLogModel,
     }: ScimServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -134,6 +146,22 @@ export class ScimService extends BaseService {
         this.rolesModel = rolesModel;
         this.projectModel = projectModel;
         this.openIdIdentityModel = openIdIdentityModel;
+        this.scimRequestLogModel = scimRequestLogModel;
+    }
+
+    async createRequestLog(log: CreateScimRequestLog): Promise<void> {
+        await this.scimRequestLogModel.create(log);
+    }
+
+    async getRequestLogs(
+        account: Account,
+        paginateArgs: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<ScimRequestLog[]>> {
+        this.throwForbiddenErrorOnNoPermission(account);
+        return this.scimRequestLogModel.getPaginated({
+            organizationUuid: account.organization.organizationUuid!,
+            paginateArgs,
+        });
     }
 
     private throwForbiddenErrorOnNoPermission(account: Account) {
@@ -775,6 +803,27 @@ export class ScimService extends BaseService {
                     organizationUuid,
                     userUuid,
                 );
+            // Deactivation clears the user's roles. Run the demotion (and its
+            // last-admin guard) before touching the user row so a refused
+            // deactivation leaves the account fully untouched.
+            if (user.active === false && dbUser.isActive) {
+                // The model refuses to demote the organization's last active admin.
+                await this.rolesModel.setUserOrgAndProjectRoles(
+                    organizationUuid,
+                    userUuid,
+                    OrganizationMemberRole.MEMBER,
+                    [],
+                    false,
+                );
+                this.logger.info(
+                    'SCIM: Reset organization and project roles for inactive user',
+                    {
+                        userUuid,
+                        organizationUuid,
+                    },
+                );
+            }
+
             // update user
             const updatedUser = await this.userModel.updateUser(
                 dbUser.userUuid,
@@ -838,25 +887,7 @@ export class ScimService extends BaseService {
                 });
             }
 
-            // If setting user to inactive, drop org role to MEMBER and remove project roles.
-            // Deactivating the last active admin would leave the organization unmanageable.
             if (user.active === false) {
-                // The model refuses to demote the organization's last active admin.
-                await this.rolesModel.setUserOrgAndProjectRoles(
-                    organizationUuid,
-                    userUuid,
-                    OrganizationMemberRole.MEMBER,
-                    [],
-                    false,
-                );
-                this.logger.info(
-                    'SCIM: Reset organization and project roles for inactive user',
-                    {
-                        userUuid,
-                        organizationUuid,
-                    },
-                );
-
                 // Remove user from all groups in the organization when deactivated
                 try {
                     const groupsCount =
@@ -959,18 +990,21 @@ export class ScimService extends BaseService {
      * Update user organization and project roles
      */
     /**
-     * Multi-role SCIM payloads are accepted only when the multiple-roles flag is
-     * on for the organization. SCIM has no acting user, so resolution is keyed on
-     * the organization (org-level override / default); `userUuid` only matters
-     * for a per-user override on an existing member.
+     * Multi-role SCIM payloads are accepted whenever custom roles are enabled
+     * (config or the custom-roles flag). SCIM has no acting user, so resolution
+     * is keyed on the organization (org-level override / default); `userUuid`
+     * only matters for a per-user override on an existing member.
      */
     private async isMultipleRolesEnabled(
         organizationUuid: string,
         userUuid: string = organizationUuid,
     ): Promise<boolean> {
+        if (this.lightdashConfig.customRoles.enabled) {
+            return true;
+        }
         const flag = await this.commercialFeatureFlagModel.get({
             user: { userUuid, organizationUuid },
-            featureFlagId: CommercialFeatureFlags.MultipleRoles,
+            featureFlagId: CommercialFeatureFlags.CustomRoles,
         });
         return flag.enabled;
     }
@@ -1465,7 +1499,7 @@ export class ScimService extends BaseService {
     async createGroup(
         account: Account,
         organizationUuid: string,
-        groupToCreate: ScimUpsertGroup,
+        groupToCreate: ScimCreateGroupRequest,
     ): Promise<ScimGroup> {
         this.logger.info('SCIM: Creating group', {
             organizationUuid,
@@ -1491,6 +1525,13 @@ export class ScimService extends BaseService {
             if (!groupToCreate.displayName) {
                 throw new ScimError({
                     detail: 'displayName is required',
+                    status: 400,
+                    scimType: 'invalidValue',
+                });
+            }
+            if (!groupToCreate.schemas.includes(ScimSchemaType.GROUP)) {
+                throw new ScimError({
+                    detail: `schemas must include ${ScimSchemaType.GROUP}`,
                     status: 400,
                     scimType: 'invalidValue',
                 });

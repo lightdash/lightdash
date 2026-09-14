@@ -2,6 +2,7 @@ import { Group, Stack, Text, type TextInputProps } from '@mantine/core';
 import isNil from 'lodash/isNil';
 import { type FC } from 'react';
 import z from 'zod';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import FilterNumberInput from './FilterNumberInput';
 import styles from './FilterNumberRangeInput.module.css';
 
@@ -15,16 +16,16 @@ const numberRangeSchema = z
     .superRefine(([min, max], ctx) => {
         if (isNil(min) || isNil(max)) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: 'Both values are required',
+                code: 'custom',
+                message: 'bothValuesRequired',
                 fatal: true,
             });
             return z.NEVER;
         }
         if (min > max) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: 'Minimum should be less than the maximum',
+                code: 'custom',
+                message: 'minLessThanMax',
             });
         }
     });
@@ -37,10 +38,18 @@ const FilterNumberRangeInput: FC<Props> = ({
     autoFocus,
     ...rest
 }) => {
+    const getUiString = useUiStrings();
     const validationResult = numberRangeSchema.safeParse(value);
-    const errorMessage = validationResult.error
-        ? validationResult.error.issues[0].message // only show one issue at a time
+    // only show one issue at a time; schema messages are UI-string key suffixes
+    const errorId = validationResult.error
+        ? validationResult.error.issues[0].message
         : undefined;
+    const errorMessage =
+        errorId === 'bothValuesRequired'
+            ? getUiString('filters.inputs.bothValuesRequired')
+            : errorId === 'minLessThanMax'
+              ? getUiString('filters.inputs.minLessThanMax')
+              : errorId;
 
     return (
         <Stack gap={2} w="100%">
@@ -49,7 +58,7 @@ const FilterNumberRangeInput: FC<Props> = ({
                     error={!!errorMessage}
                     disabled={disabled}
                     data-autofocus={autoFocus || undefined}
-                    placeholder="Min value"
+                    placeholder={getUiString('filters.inputs.minValue')}
                     {...rest}
                     value={value?.[0]}
                     onChange={(newValue) => {
@@ -64,7 +73,7 @@ const FilterNumberRangeInput: FC<Props> = ({
                 <FilterNumberInput
                     error={!!errorMessage}
                     disabled={disabled}
-                    placeholder="Max value"
+                    placeholder={getUiString('filters.inputs.maxValue')}
                     {...rest}
                     value={value?.[1]}
                     onChange={(newValue) => {

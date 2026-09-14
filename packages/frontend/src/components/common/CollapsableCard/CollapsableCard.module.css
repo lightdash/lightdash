@@ -14,6 +14,26 @@
     );
 }
 
+.leftHeader {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.title {
+    flex-shrink: 0;
+}
+
+.headerElement {
+    min-width: 0;
+}
+
+.rightHeaderElement {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
 .disabledButton {
     cursor: not-allowed;
     opacity: 0.5;

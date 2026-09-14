@@ -312,7 +312,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
                 size: 300,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconUsersGroup} color="ldGray.6" />
+                        <MantineIcon icon={IconUsersGroup} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -323,7 +323,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
                             <Text fw={600} fz="sm">
                                 {r.group.name}
                             </Text>
-                            <Badge variant="light" color="gray">
+                            <Badge>
                                 {r.group.members.length} member
                                 {r.group.members.length !== 1 ? 's' : ''}
                             </Badge>

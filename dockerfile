@@ -5,18 +5,20 @@
 FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
 RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 
+FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596838e8133cbd83d45be043 AS pnpm-cli
+
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
 FROM node:24-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-# Fixed world-readable path so the pnpm cache resolves under any runtime UID (non-root securityContexts)
-ENV COREPACK_HOME="/usr/local/corepack"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@11.20.0 --activate && chmod -R a+rX "$COREPACK_HOME"
+ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
+COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
+COPY --from=pnpm-cli /pnpm /pnpm
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -156,14 +158,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-duckdb~=1.10.0" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && python3 -m venv /usr/local/dbt1.12 \
-# dbt 1.12 has no stable PyPI release yet: pin latest pre-releases, and skip
-# dbt-databricks (no release compatible with dbt-core 1.12)
+# dbt-databricks 1.12 requires dbt-core below 1.12.1.
     && /usr/local/dbt1.12/bin/pip install \
-    "dbt-core==1.12.0rc1" \
+    "dbt-core==1.12.0" \
     "dbt-postgres~=1.10.0" \
     "dbt-redshift~=1.10.0" \
-    "dbt-snowflake==1.12.0b2" \
-    "dbt-bigquery==1.12.0b1" \
+    "dbt-snowflake~=1.12.0" \
+    "dbt-bigquery~=1.12.0" \
+    "dbt-databricks~=1.12.3" \
     "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
@@ -326,6 +328,7 @@ ARG SENTRY_ENVIRONMENT=""
 
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
     npm install -g @sentry/cli; \
+    export PATH="$(npm prefix -g)/bin:${PATH}"; \
     echo "Creating Sentry releases and processing sourcemaps"; \
     # Create releases for both projects \
     sentry-cli releases new "${SENTRY_RELEASE_VERSION}" --project "${SENTRY_FRONTEND_PROJECT}"; \
@@ -394,8 +397,7 @@ FROM pnpm-base AS runtime-base
 
 ENV NODE_ENV production
 ENV PLAYGROUND_DATA_DIR=/usr/app/packages/backend/assets/playground
-# Boot must work fully offline: pnpm is baked in, never fetch it from npmjs at runtime
-ENV COREPACK_ENABLE_NETWORK=0
+# Boot works fully offline because the standalone pnpm binary is baked in.
 
 WORKDIR /usr/app
 
@@ -409,6 +411,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
     # Required so headless chart screenshots can render CJK glyphs
     fonts-noto-cjk \
+    # Required so DuckDB httpfs can verify HTTPS object storage (Node carries its own trust store)
+    ca-certificates \
     dumb-init \
     # Optional: jemalloc allocator reduces native memory fragmentation vs glibc malloc.
     # Dormant unless activated via LD_PRELOAD env var per customer.

@@ -3,6 +3,7 @@ import {
     IconApps,
     IconAppWindow,
     IconBolt,
+    IconBook2,
     IconBrain,
     IconBrowser,
     IconBrush,
@@ -10,10 +11,10 @@ import {
     IconCalendarStats,
     IconChecklist,
     IconClock,
-    IconBook2,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconEyeCheck,
     IconFileExport,
     IconFolders,
     IconGauge,
@@ -32,6 +33,7 @@ import {
     IconReportAnalytics,
     IconRoad,
     IconRobotFace,
+    IconSend,
     IconSettings,
     IconShieldCheck,
     IconTableOptions,
@@ -43,8 +45,8 @@ import {
     IconUsers,
     IconUserShield,
     IconVariable,
-    IconWorldCog,
     IconWorldCheck,
+    IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -75,6 +77,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -88,12 +91,16 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         embeddingEnabled,
         dataAppsFlag,
+        externalSourcesFlag,
+        isResultsCacheEnabled,
         isGitProject,
+        isContentReviewAvailable,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
+    const isExternalSourcesEnabled = externalSourcesFlag?.enabled ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
@@ -335,7 +342,7 @@ export const useSettingsNavigation = (
                 label: 'Integrations',
                 to: '/generalSettings/integrations',
                 icon: IconPlug,
-                keywords: ['slack', 'github', 'gitlab'],
+                keywords: ['slack', 'github', 'gitlab', 'linear', 'jira'],
                 children: [],
                 exact: true,
             });
@@ -438,6 +445,18 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/projectManagement',
                 icon: IconDatabase,
                 keywords: ['projects', 'manage'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (canAccessAnalyticsSettings) {
+            organizationItems.push({
+                label: 'Lightdash analytics',
+                to: '/generalSettings/lightdashAnalytics',
+                icon: IconReportAnalytics,
+                isBeta: true,
+                keywords: ['usage', 'analytics', 'tokens', 'queries'],
                 children: [],
                 exact: true,
             });
@@ -693,6 +712,23 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (isResultsCacheEnabled) {
+                projectItems.push({
+                    label: 'Results caching',
+                    to: `${base}/caching`,
+                    icon: IconDatabaseExport,
+                    keywords: [
+                        'cache',
+                        'results',
+                        'duration',
+                        'expire',
+                        'refresh',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             projectItems.push({
                 label: 'Parameters',
                 to: `${base}/parameters`,
@@ -756,6 +792,26 @@ export const useSettingsNavigation = (
                         exact: true,
                     },
                 );
+            }
+
+            if (
+                isExternalSourcesEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('ExternalSource', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'External sources',
+                    to: `${base}/externalSources`,
+                    icon: IconDatabaseExport,
+                    keywords: ['csv', 'upload', 'files', 'google sheets'],
+                    children: [],
+                    exact: true,
+                });
             }
 
             if (
@@ -908,6 +964,31 @@ export const useSettingsNavigation = (
             }
 
             if (
+                isContentReviewAvailable &&
+                ability?.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Review requests',
+                    to: `${base}/reviewRequests`,
+                    icon: IconSend,
+                    keywords: [
+                        'review',
+                        'personal space',
+                        'approve',
+                        'reviewers',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
                 ability?.can(
                     'promote',
                     subject('SavedChart', {
@@ -946,6 +1027,26 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (
+                isGitProject &&
+                ability?.can(
+                    'view',
+                    subject('SourceCode', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Content review',
+                    to: `${base}/contentReview`,
+                    icon: IconEyeCheck,
+                    keywords: ['drafts', 'unpublished', 'review', 'write back'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             if (health?.softDelete?.enabled) {
                 projectItems.push({
                     label: 'Recently deleted',
@@ -975,6 +1076,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -988,7 +1090,10 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,
         isDataAppsEnabled,
+        isExternalSourcesEnabled,
+        isResultsCacheEnabled,
         isGitProject,
+        isContentReviewAvailable,
         track,
     ]);
 };

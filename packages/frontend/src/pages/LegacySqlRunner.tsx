@@ -1,13 +1,14 @@
 import type { FC } from 'react';
 import { Provider } from 'react-redux';
-import { Navigate, useLocation, useParams } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { store } from '../features/sqlRunner/store';
 import { useAppDispatch } from '../features/sqlRunner/store/hooks';
 import { setSql } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 
 const RedirectToSqlRunner: FC = () => {
     const dispatch = useAppDispatch();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { search } = useLocation();
     const searchParams = new URLSearchParams(search);
     const sqlRunnerSearchParam = searchParams.get('sql_runner');

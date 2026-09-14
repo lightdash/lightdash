@@ -3,10 +3,8 @@ import {
     type OrganizationEmailWhitelabel,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Badge,
     Button,
-    CopyButton,
     Group,
     Stack,
     Switch,
@@ -16,12 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import {
-    IconCheck,
-    IconCopy,
-    IconInfoCircle,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     useDeleteEmailWhitelabel,
@@ -30,6 +23,7 @@ import {
     useUpdateEmailWhitelabel,
     useVerifyEmailWhitelabel,
 } from '../../../hooks/organization/useEmailWhitelabel';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -67,22 +61,7 @@ const CopyValue: FC<{ value: string }> = ({ value }) => (
         >
             {value}
         </Text>
-        <CopyButton value={value}>
-            {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow>
-                    <ActionIcon
-                        variant="subtle"
-                        color={copied ? 'green' : 'gray'}
-                        onClick={copy}
-                    >
-                        <MantineIcon
-                            icon={copied ? IconCheck : IconCopy}
-                            size="sm"
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </CopyButton>
+        <CopyActionIcon value={value} />
     </Group>
 );
 
@@ -90,7 +69,7 @@ const DnsRecordsTable: FC<{ records: EmailDnsRecord[]; domain: string }> = ({
     records,
     domain,
 }) => (
-    <Table withTableBorder verticalSpacing="sm">
+    <Table withTableBorder>
         <Table.Thead>
             <Table.Tr>
                 <Table.Th>Type</Table.Th>
@@ -111,10 +90,7 @@ const DnsRecordsTable: FC<{ records: EmailDnsRecord[]; domain: string }> = ({
                         </Text>
                     </Table.Td>
                     <Table.Td w={220}>
-                        <Tooltip
-                            label={`Full record name: ${record.name}`}
-                            withArrow
-                        >
+                        <Tooltip label={`Full record name: ${record.name}`}>
                             <div>
                                 <CopyValue
                                     value={toZoneRelativeName(
@@ -131,7 +107,6 @@ const DnsRecordsTable: FC<{ records: EmailDnsRecord[]; domain: string }> = ({
                     <Table.Td w={100}>
                         <Badge
                             color={record.verified ? 'green' : 'gray'}
-                            variant="light"
                             size="sm"
                         >
                             {record.verified ? 'Verified' : 'Pending'}
@@ -211,7 +186,7 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
             <Group justify="space-between" align="center">
                 <Group gap="sm">
                     <Text fw={500}>{config.domain}</Text>
-                    <Badge color={badge.color} variant="light" size="sm">
+                    <Badge color={badge.color} size="sm">
                         {badge.label}
                     </Badge>
                 </Group>
@@ -244,15 +219,13 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
 
                 <Tooltip
                     label="Cloudflare proxies CNAME records by default, which breaks verification. Edit the Return-Path record in Cloudflare and switch the proxy status (orange cloud) to “DNS Only” — it will never verify while proxied."
-                    withArrow
-                    multiline
                     w={320}
                 >
                     <Group gap={4} w="fit-content">
                         <MantineIcon
                             icon={IconInfoCircle}
                             size="sm"
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         <Text size="xs" c="dimmed">
                             Using Cloudflare? Set the Return-Path record to DNS

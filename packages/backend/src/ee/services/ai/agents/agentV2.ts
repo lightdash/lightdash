@@ -6,6 +6,7 @@ import {
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -54,7 +55,9 @@ import { getEditProjectContext } from '../tools/editProjectContext';
 import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
+import { getFindCustomChartTypes } from '../tools/findCustomChartTypes';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGenerateDataApp } from '../tools/generateDataApp';
 import { getGenerateHashes } from '../tools/generateHashes';
 import { getGenerateUuids } from '../tools/generateUuids';
 import { getGenerateVisualization } from '../tools/generateVisualization';
@@ -70,6 +73,7 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
+import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
@@ -82,6 +86,7 @@ import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
+import { getRunComposerQueries } from '../tools/runComposerQueries';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -105,6 +110,7 @@ import {
 } from '../utils/errorMessages';
 import { renderMemoryBlock } from '../utils/memoryBlock';
 import {
+    isErrorToolResult,
     isPendingToolResult,
     summarizeToolCall,
     summarizeToolResult,
@@ -112,6 +118,7 @@ import {
 import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
+import { TurnTimingTracker, type StepTiming } from './turnTiming';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -139,6 +146,52 @@ export const recordAgentStepUsage = async ({
         });
     }
     return tokens;
+};
+
+/**
+ * Separate from `recordAgentStepUsage`: that reports billing tokens exactly
+ * once per model call, this is the latency grain.
+ */
+const trackAgentStep = (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+    timing: StepTiming,
+    usage: LanguageModelUsage | undefined,
+) => {
+    const tokens = usage
+        ? languageModelUsageToTokens(usage)
+        : {
+              inputTokens: null,
+              outputTokens: null,
+              cacheReadTokens: null,
+              cacheWriteTokens: null,
+              reasoningTokens: null,
+              totalTokens: null,
+          };
+
+    dependencies.trackEvent({
+        event: 'ai_agent.step_completed',
+        userId: args.userId,
+        properties: {
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            aiAgentId: args.agentSettings.uuid,
+            promptId: args.promptUuid,
+            threadId: args.threadUuid,
+            stepIndex: timing.stepIndex,
+            model: getAiAgentModelName(args.model),
+            modelProvider:
+                typeof args.model === 'string' ? null : args.model.provider,
+            stepOffsetMs: timing.stepOffsetMs,
+            stepTotalMs: timing.stepTotalMs,
+            inferenceMs: timing.inferenceMs,
+            toolWallMs: timing.toolWallMs,
+            ttftMs: timing.ttftMs,
+            toolCallCount: timing.toolCallCount,
+            reasoningChars: timing.reasoningChars,
+            ...tokens,
+        },
+    });
 };
 
 export const DEFAULT_AGENT_MAX_STEPS = 40;
@@ -483,6 +536,28 @@ export const normalizeToolOutput = (
     }
 };
 
+const trackFailedToolResult = (
+    dependencies: Pick<AiAgentDependencies, 'trackEvent'>,
+    args: AiAgentArgs,
+    toolName: string,
+    output: unknown,
+) => {
+    if (!isErrorToolResult(output)) return;
+    dependencies.trackEvent({
+        event: 'ai_agent_tool_call_failed',
+        userId: args.userId,
+        properties: {
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            aiAgentId: args.agentSettings.uuid,
+            agentName: args.agentSettings.name,
+            toolName,
+            threadId: args.threadUuid,
+            promptId: args.promptUuid,
+        },
+    });
+};
+
 // Raw args of an invalid tool call: may be a parsed object or, when JSON
 // parsing itself failed, the raw string the model produced.
 const serializeRawToolArgs = (input: unknown): string | null => {
@@ -769,12 +844,15 @@ export const getAgentTools = (
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
     projectParameterDefinitions: ParameterDefinitions,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
         'Agent Tools',
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
+
+    const enableContentTools = args.enableDataAccess && args.enableContentTools;
 
     const grepFields = getGrepFields({
         availableExplores,
@@ -793,6 +871,9 @@ export const getAgentTools = (
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
         toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+        dashboardDetailsToolName: enableContentTools
+            ? 'readContent'
+            : 'getDashboardCharts',
         trackCoverage: (coverage) => {
             dependencies.trackEvent({
                 event: 'ai_agent.find_content_coverage',
@@ -813,6 +894,16 @@ export const getAgentTools = (
     const listContent = getListContent({
         listContent: dependencies.listContent,
     });
+
+    // Only offered when the project has a custom chart type library — an
+    // empty library keeps zero prompt and tool overhead.
+    const findCustomChartTypes =
+        customChartTypeLibrary.totalCount > 0
+            ? getFindCustomChartTypes({
+                  findCustomChartTypes: dependencies.findCustomChartTypes,
+                  updateProgress: dependencies.updateProgress,
+              })
+            : null;
 
     const getDashboardCharts = getGetDashboardCharts({
         getDashboardCharts: dependencies.getDashboardCharts,
@@ -840,7 +931,11 @@ export const getAgentTools = (
         exposeQueryUuid: args.execution.mode === 'deep_research',
         enableDataAccess: args.enableDataAccess,
         projectParameterDefinitions,
+        slackLinksOnly: args.slackLinksOnly,
         enableMergeQueries: args.enableMergeQueries,
+        enableFilterExpressions: args.enableFilterExpressions,
+        resolveCustomChartType: dependencies.resolveCustomChartType,
+        exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -852,25 +947,46 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
-    const runSql = args.canRunSql
-        ? getRunSql({
+    // Composer queries supersede the standalone runSql tool: a single `sql`
+    // node is the direct equivalent, and exposing both lets the model shadow
+    // the composer path with raw runSql calls.
+    const runSql =
+        args.canRunSql && !args.enableComposerQueries
+            ? getRunSql({
+                  updateProgress: dependencies.updateProgress,
+                  runSqlJob: dependencies.runSqlJob,
+                  getPrompt: dependencies.getPrompt,
+                  sendFile: dependencies.sendFile,
+                  updateSlackMessage: dependencies.updateSlackMessage,
+                  siteUrl: args.siteUrl,
+                  waitForSqlApproval: dependencies.waitForSqlApproval,
+                  recordSqlApproval: dependencies.recordSqlApproval,
+                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  storeToolResults: dependencies.storeToolResults,
+                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                  maxQueryLimit: args.runSqlMaxLimit,
+                  enableDataAccess: args.enableDataAccess,
+                  slackLinksOnly: args.slackLinksOnly,
+                  sqlScope: args.sqlScope,
+                  autoApproveSql: args.autoApproveSql,
+                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                  useSlackStreamCard: args.useSlackStreamCard,
+              })
+            : null;
+
+    const runComposerQueries = args.enableComposerQueries
+        ? getRunComposerQueries({
               updateProgress: dependencies.updateProgress,
-              runSqlJob: dependencies.runSqlJob,
+              runComposerQueries: dependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
-              sendFile: dependencies.sendFile,
-              updateSlackMessage: dependencies.updateSlackMessage,
-              siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
-              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-              storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
-              sqlScope: args.sqlScope,
+              canRunSql: args.canRunSql,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-              useSlackStreamCard: args.useSlackStreamCard,
           })
         : null;
 
@@ -912,6 +1028,18 @@ export const getAgentTools = (
         maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
+
+    const generateDataApp = args.enableGenerateDataApp
+        ? getGenerateDataApp({
+              generateDataApp: dependencies.generateDataApp,
+          })
+        : null;
+
+    const iterateDataApp = args.enableGenerateDataApp
+        ? getIterateDataApp({
+              iterateDataApp: dependencies.iterateDataApp,
+          })
+        : null;
 
     const editDbtProject = args.enableAiWriteback
         ? getEditDbtProject({
@@ -987,6 +1115,8 @@ export const getAgentTools = (
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
+        getExplore: dependencies.getExplore,
+        enableFilterExpressions: args.enableFilterExpressions,
     });
 
     const analyzeFieldImpact = getAnalyzeFieldImpact({
@@ -1058,7 +1188,6 @@ export const getAgentTools = (
               })
             : null;
 
-    const enableContentTools = args.enableDataAccess && args.enableContentTools;
     const mcpTools = Object.fromEntries(
         Object.entries(mcpToolSetup.tools).filter(
             ([toolName]) =>
@@ -1107,6 +1236,8 @@ export const getAgentTools = (
         runSavedChart,
         generateHashes,
         generateUuids,
+        ...(generateDataApp ? { generateDataApp } : {}),
+        ...(iterateDataApp ? { iterateDataApp } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),
@@ -1118,7 +1249,9 @@ export const getAgentTools = (
         ...(closePullRequest ? { closePullRequest } : {}),
         ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(findCustomChartTypes ? { findCustomChartTypes } : {}),
         ...(runSql ? { runSql } : {}),
+        ...(runComposerQueries ? { runComposerQueries } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
@@ -1338,6 +1471,7 @@ export const getAgentMessages = (
     tools: ToolSet,
     verifiedFieldUsage: Map<string, number>,
     memoryBlock: string | null,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
@@ -1409,12 +1543,14 @@ export const getAgentMessages = (
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
         availableExplores,
+        availableCustomChartTypes: customChartTypeLibrary,
         availableSkills: args.availableSkills,
         knowledgeDocuments: args.knowledgeDocuments,
         deepResearchRuns: args.deepResearchRuns,
         hasProjectContext,
         enableAiAgentMemory: args.aiAgentMemoryEnabled,
         enableDataAccess: args.enableDataAccess,
+        enableFilterExpressions: args.enableFilterExpressions,
         enableAiWriteback: args.enableAiWriteback,
         writebackAttribution: args.writebackAttribution,
         enableCodingAgent: args.enableCodingAgent,
@@ -1423,8 +1559,11 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         enableContentTools: args.enableDataAccess && args.enableContentTools,
+        enableGenerateDataApp: args.enableGenerateDataApp,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
+        slackLinksOnly: args.slackLinksOnly,
+        enableComposerQueries: args.enableComposerQueries,
         enableMergeQueries: args.enableMergeQueries,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
@@ -1501,6 +1640,8 @@ export const generateAgentResponse = async ({
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
     const startTime = Date.now();
+    // No decide/execute split here: steps are reported once wholly finished.
+    const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     let generatedTokenUsage = initialPromptTokenUsage(
         args.execution.mode === 'deep_research'
@@ -1509,12 +1650,17 @@ export const generateAgentResponse = async ({
     );
 
     try {
-        const [availableExplores, memoryBlock, projectParameterDefinitions] =
-            await Promise.all([
-                dependencies.listExplores(),
-                getMemoryBlock(args, dependencies),
-                dependencies.getProjectParameterDefinitions(),
-            ]);
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
+        ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
         const verifiedFieldUsage = await dependencies
@@ -1528,6 +1674,7 @@ export const generateAgentResponse = async ({
                 mcpToolSetup,
                 verifiedFieldUsage,
                 projectParameterDefinitions,
+                customChartTypeLibrary,
             ),
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
@@ -1540,6 +1687,7 @@ export const generateAgentResponse = async ({
             tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Generate Agent Response',
@@ -1586,6 +1734,17 @@ export const generateAgentResponse = async ({
                     telemetry,
                     execution: args.execution,
                 });
+                // completeStep opens the next step; these calls belong to this one.
+                const stepIndex = timing.getCurrentStepIndex();
+                trackAgentStep(
+                    args,
+                    dependencies,
+                    timing.completeStep(
+                        step.reasoningText?.length ?? 0,
+                        step.toolCalls?.length ?? 0,
+                    ),
+                    step.usage,
+                );
                 for (const toolCall of step.toolCalls) {
                     if (toolCall) {
                         logger(
@@ -1624,6 +1783,8 @@ export const generateAgentResponse = async ({
                                         toolName: toolCall.toolName,
                                         threadId: args.threadUuid,
                                         promptId: args.promptUuid,
+                                        toolCallId: toolCall.toolCallId,
+                                        stepIndex,
                                     },
                                 });
 
@@ -1713,6 +1874,12 @@ export const generateAgentResponse = async ({
                                     toolResult.toolCallId
                                 }) (RESULT: ${JSON.stringify(toolResult.output)})`,
                             );
+                            trackFailedToolResult(
+                                dependencies,
+                                args,
+                                toolResult.toolName,
+                                toolResult.output,
+                            );
                             const output = normalizeToolOutput(
                                 toolResult.output,
                             );
@@ -1789,6 +1956,11 @@ export const generateAgentResponse = async ({
                 promptUuid: args.promptUuid,
                 response: result.text,
                 tokenUsage: finalStepPromptTokenUsage(result.usage.totalTokens),
+                responseTiming: {
+                    startedAt: new Date(startTime).toISOString(),
+                    firstTokenAt: null,
+                    finishedAt: new Date().toISOString(),
+                },
             });
         }
 
@@ -1852,6 +2024,8 @@ export const streamAgentResponse = async ({
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
+    // The turn-level timers above still feed Prometheus and responseTiming.
+    const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     const persistPrompt = makeStreamSafePersist(
         dependencies.updatePrompt,
@@ -1868,12 +2042,17 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const [availableExplores, memoryBlock, projectParameterDefinitions] =
-            await Promise.all([
-                dependencies.listExplores(),
-                getMemoryBlock(args, dependencies),
-                dependencies.getProjectParameterDefinitions(),
-            ]);
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
+        ]);
         const verifiedFieldUsage = await dependencies
             .getVerifiedFieldUsage()
             .catch(() => new Map<string, number>());
@@ -1884,6 +2063,7 @@ export const streamAgentResponse = async ({
             mcpToolSetup,
             verifiedFieldUsage,
             projectParameterDefinitions,
+            customChartTypeLibrary,
         );
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
@@ -1893,6 +2073,7 @@ export const streamAgentResponse = async ({
             tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Stream Agent Response',
@@ -1929,6 +2110,7 @@ export const streamAgentResponse = async ({
             messages,
             experimental_context: new AgentContext(availableExplores),
             onChunk: (event) => {
+                timing.recordChunk();
                 // Track time to first chunk (any type) - only once
                 if (firstChunkTime === null) {
                     firstChunkTime = Date.now();
@@ -1942,6 +2124,10 @@ export const streamAgentResponse = async ({
 
                 switch (event.chunk.type) {
                     case 'tool-call':
+                        timing.recordToolCallStart(
+                            event.chunk.toolCallId,
+                            event.chunk.toolName,
+                        );
                         logger(
                             'Chunk Tool Call',
                             `Storing tool call for Prompt UUID ${
@@ -1963,6 +2149,8 @@ export const streamAgentResponse = async ({
                                 toolName: event.chunk.toolName,
                                 threadId: args.threadUuid,
                                 promptId: args.promptUuid,
+                                toolCallId: event.chunk.toolCallId,
+                                stepIndex: timing.getCurrentStepIndex(),
                             },
                         });
 
@@ -2077,6 +2265,37 @@ export const streamAgentResponse = async ({
                                     error,
                                 );
                             });
+                        trackFailedToolResult(
+                            dependencies,
+                            args,
+                            event.chunk.toolName,
+                            event.chunk.output,
+                        );
+                        const toolTiming = timing.recordToolCallEnd(
+                            event.chunk.toolCallId,
+                        );
+                        if (toolTiming) {
+                            dependencies.trackEvent({
+                                event: 'ai_agent.tool_call_completed',
+                                userId: args.userId,
+                                properties: {
+                                    organizationId: args.organizationId,
+                                    projectId: args.agentSettings.projectUuid,
+                                    aiAgentId: args.agentSettings.uuid,
+                                    toolName: event.chunk.toolName,
+                                    threadId: args.threadUuid,
+                                    promptId: args.promptUuid,
+                                    toolCallId: event.chunk.toolCallId,
+                                    stepIndex: toolTiming.stepIndex,
+                                    durationMs: toolTiming.durationMs,
+                                    status: isErrorToolResult(
+                                        event.chunk.output as AnyType,
+                                    )
+                                        ? 'error'
+                                        : 'success',
+                                },
+                            });
+                        }
                         void dependencies
                             .storeToolResults([
                                 {
@@ -2126,6 +2345,12 @@ export const streamAgentResponse = async ({
                 }
             },
             onStepFinish: (step) => {
+                trackAgentStep(
+                    args,
+                    dependencies,
+                    timing.completeStep(step.reasoningText?.length ?? 0),
+                    step.usage,
+                );
                 if (step.reasoningText && step.reasoningText.length > 0) {
                     logger(
                         'On Step Finish',
@@ -2186,6 +2411,14 @@ export const streamAgentResponse = async ({
                 const interrupted = isEmptyResponse
                     ? await dependencies.isPromptInterrupted(args.promptUuid)
                     : false;
+                const responseTiming = {
+                    startedAt: new Date(startTime).toISOString(),
+                    firstTokenAt:
+                        firstChunkTime === null
+                            ? null
+                            : new Date(firstChunkTime).toISOString(),
+                    finishedAt: new Date().toISOString(),
+                };
                 if (isEmptyResponse && !interrupted) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
@@ -2214,6 +2447,7 @@ export const streamAgentResponse = async ({
                         tokenUsage: finalStepPromptTokenUsage(
                             usage.totalTokens,
                         ),
+                        responseTiming,
                     });
                 } else {
                     await persistPrompt({
@@ -2222,6 +2456,7 @@ export const streamAgentResponse = async ({
                         tokenUsage: finalStepPromptTokenUsage(
                             usage.totalTokens,
                         ),
+                        responseTiming,
                     });
                 }
 
@@ -2237,14 +2472,22 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
+                        promptId: args.promptUuid,
+                        threadId: args.threadUuid,
                         usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
-                        model:
+                        model: modelName,
+                        modelProvider:
                             typeof args.model === 'string'
-                                ? args.model
-                                : args.model.modelId,
+                                ? null
+                                : args.model.provider,
                         finishReason,
                         stepCapReached,
+                        timeToFirstTokenMs:
+                            firstChunkTime === null
+                                ? null
+                                : firstChunkTime - startTime,
+                        durationMs: Date.now() - startTime,
                     },
                 });
                 logger(

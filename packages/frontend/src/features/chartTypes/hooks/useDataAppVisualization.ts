@@ -22,15 +22,15 @@ const getDataAppVisualization = async (
 // is pinned to an older one.
 export const useDataAppVisualization = (
     projectUuid: string | undefined,
-    dataAppVizUuid: string | undefined,
+    dataAppVizUuid: string | null,
     version: number | null,
 ) =>
     useQuery<DataAppViz, ApiError>({
         queryKey: ['data-app-viz', projectUuid, dataAppVizUuid, version],
         queryFn: () =>
             getDataAppVisualization(projectUuid!, dataAppVizUuid!, version),
-        enabled: !!projectUuid && !!dataAppVizUuid,
-        // Switching version keeps the panel on the previous schema until the new
-        // one lands, so the configuration column doesn't collapse mid-swap.
-        keepPreviousData: true,
+        enabled: !!projectUuid && dataAppVizUuid !== null,
+        // A version switch keeps the previous schema so the panel doesn't
+        // collapse; deselecting must not, or callers would name a stale type.
+        keepPreviousData: dataAppVizUuid !== null,
     });

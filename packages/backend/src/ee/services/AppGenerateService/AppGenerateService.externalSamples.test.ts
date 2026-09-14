@@ -63,6 +63,7 @@ function buildService() {
             catalogModel: {
                 getChartUsageByTable: async () => new Map<string, number>(),
             } as never,
+            userModel: {} as never,
             appModel: {} as never,
             featureFlagModel: featureFlagModel as never,
             organizationDesignModel: {} as never,
@@ -81,6 +82,9 @@ function buildService() {
             externalConnectionModel: {} as never,
             sandboxRegistryModel: {} as never,
             orgAiCopilotConfigResolver: {} as never,
+            sandboxManager: null,
+            appRuntimeS3: null,
+            chartRegistryClient: {} as never,
         }) as unknown as PrivateWithSamples,
         featureFlagModel,
     };

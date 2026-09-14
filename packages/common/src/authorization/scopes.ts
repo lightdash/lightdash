@@ -45,6 +45,19 @@ const addAccessCondition = (context: ScopeContext, role?: SpaceMemberRole) => ({
 const addDefaultUuidCondition = flow(addUuidCondition, Array.of);
 
 /**
+ * Deployment config caps token access: a listed scope can be switched off by
+ * config, but never switched on for a deployment that disabled tokens or
+ * excluded the role's tier. An absent organization role cannot be checked
+ * against the allowlist, so it denies rather than assuming allowed.
+ */
+const personalAccessTokenConditions = (context: ScopeContext) => {
+    const { pat } = context.permissionsConfig ?? {};
+    if (!pat?.enabled || !context.organizationRole) return null;
+    if (!pat.allowedOrgRoles.includes(context.organizationRole)) return null;
+    return addDefaultUuidCondition(context);
+};
+
+/**
  * True only inside a preview the current user created. Shared by the @self
  * preview scopes; returns false for org-level assignments (no project context).
  */
@@ -445,6 +458,15 @@ const scopes: Scope[] = [
     {
         name: 'manage:ContentVerification',
         description: 'Verify and unverify charts and dashboards',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:VerifiedContent',
+        description:
+            'Edit or delete verified charts and dashboards (without this, verified content is read-only)',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         dependencies: [{ name: 'view:Project' }],
@@ -863,6 +885,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:Roadmap',
+        description: 'Request to follow organization roadmap projects',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [{ name: 'view:Roadmap' }],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationColorPalette',
         description:
             'Create, edit, delete, and activate organization color palettes',
@@ -1025,14 +1056,20 @@ const scopes: Scope[] = [
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         dependencies: [],
         level: 'organization',
-        getConditions: addDefaultUuidCondition,
+        getConditions: personalAccessTokenConditions,
     },
     {
         name: 'impersonate:User',
         description: 'Impersonate other users in the organization',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
-        dependencies: [],
+        dependencies: [
+            {
+                name: 'manage:OrganizationMemberProfile',
+                description:
+                    'Open Users & groups to pick a user to impersonate',
+            },
+        ],
         level: 'organization',
         getConditions: (context) => [
             { ...addUuidCondition(context), isActive: true },
@@ -1177,6 +1214,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:ExternalSource',
+        description:
+            'Upload and manage external data sources (CSV files, Google Sheets)',
+        isEnterprise: true,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:PreAggregation',
         description: 'View and query pre-aggregates in explore',
         isEnterprise: true,
@@ -1217,6 +1263,111 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.DATA,
         dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+
+    // Embedding
+    {
+        name: 'view:EmbedDashboardFilters',
+        description: 'Interact with filters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDashboardFilterAddition',
+        description: 'Add temporary filters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [
+            {
+                name: 'view:EmbedDashboardFilters',
+                description: 'Interact with dashboard filters',
+            },
+        ],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDashboardParameters',
+        description: 'Change parameters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedCsvExport',
+        description: 'Export individual embedded chart tiles as CSV',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDashboardCsvExport',
+        description: 'Export all tiles from an embedded dashboard',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedImageExport',
+        description: 'Export embedded chart tiles as images',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedPagePdfExport',
+        description: 'Export embedded dashboard pages as PDF',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDateZoom',
+        description: 'Use date zoom in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedExplore',
+        description: 'Open embedded charts in Explore',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedUnderlyingData',
+        description: 'View underlying data from embedded charts',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedDataApps',
+        description: 'View data app tiles in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+
+    {
+        name: 'view:EmbedAiAgent',
+        description:
+            'Use embedded AI agents, subject to existing agent and space access',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
 

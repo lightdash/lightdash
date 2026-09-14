@@ -1,6 +1,7 @@
 import {
     FilterOperator,
     findFieldByIdInExplore,
+    getFilterAutocompleteLabelDimension,
     getItemId,
     isDimension,
     isExploreError,
@@ -24,6 +25,10 @@ type ExploreResolver = {
         table: string,
     ): Promise<Explore | ExploreError | undefined>;
     findJoinAliasExplore(
+        projectUuid: string,
+        table: string,
+    ): Promise<Explore | ExploreError | undefined>;
+    findExploreContainingTable(
         projectUuid: string,
         table: string,
     ): Promise<Explore | ExploreError | undefined>;
@@ -54,6 +59,7 @@ export async function getFieldValuesMetricQuery({
     maxLimit,
     filters,
     exploreResolver,
+    authorizeInitialExplore,
 }: {
     projectUuid: string;
     table: string;
@@ -63,10 +69,13 @@ export async function getFieldValuesMetricQuery({
     maxLimit: number;
     filters: AndFilterGroup | undefined;
     exploreResolver: ExploreResolver;
+    authorizeInitialExplore?: (explore: Explore) => void;
 }): Promise<{
     metricQuery: MetricQuery;
     explore: Explore;
     field: Dimension;
+    initialExplore: Explore;
+    initialField: Dimension;
     fieldId: string;
     labelFieldId: string | null;
     /** Non-null when the field's config turns warehouse fetching off: the
@@ -96,6 +105,12 @@ export async function getFieldValuesMetricQuery({
             fieldId = initialFieldId.replace(table, explore.baseTable);
         }
     }
+    if (!explore) {
+        explore = await exploreResolver.findExploreContainingTable(
+            projectUuid,
+            table,
+        );
+    }
 
     if (!explore) {
         throw new NotFoundError(`Explore ${table} does not exist`);
@@ -103,20 +118,83 @@ export async function getFieldValuesMetricQuery({
         throw new NotFoundError(`Explore ${table} has errors`);
     }
 
-    const field = findFieldByIdInExplore(explore, fieldId);
+    const initialExplore = explore;
+    authorizeInitialExplore?.(initialExplore);
+    const initialField = findFieldByIdInExplore(initialExplore, fieldId);
 
-    if (!field) {
+    if (!initialField) {
         throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
     }
 
-    if (!isDimension(field)) {
+    if (!isDimension(initialField)) {
         throw new ParameterError(
-            `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
+            `Searching by field is only available for dimensions, but ${fieldId} is a ${initialField.type}`,
         );
     }
 
+    const { filterAutocomplete } = initialField;
+    const staticResults =
+        filterAutocomplete && !filterAutocomplete.fetchFromWarehouse
+            ? searchFilterAutocompleteValues(
+                  filterAutocomplete.values ?? [],
+                  search,
+              ).slice(0, parsedLimit)
+            : null;
+
+    // Curated values answer the search on their own, so the lookup source is
+    // only resolved when we would otherwise query the warehouse.
+    const optionsFromDimension = staticResults
+        ? undefined
+        : filterAutocomplete?.optionsFromDimension;
+
+    let field = initialField;
+    if (optionsFromDimension) {
+        const { model, dimension } = optionsFromDimension;
+        const sourceExplore =
+            (await exploreResolver.findExploreByTableName(
+                projectUuid,
+                model,
+            )) ??
+            (await exploreResolver.findJoinAliasExplore(projectUuid, model));
+        if (!sourceExplore) {
+            throw new NotFoundError(
+                `Filter autocomplete for ${getItemId(
+                    initialField,
+                )} reads options from model '${model}', which has no explore (hidden models and seeds can't be used as a source)`,
+            );
+        }
+        if (isExploreError(sourceExplore)) {
+            throw new NotFoundError(
+                `Filter autocomplete for ${getItemId(
+                    initialField,
+                )} reads options from model '${model}', whose explore has errors`,
+            );
+        }
+
+        explore = sourceExplore;
+        // An explore's name can differ from the table it is built on.
+        fieldId = getItemId({
+            table: sourceExplore.baseTable,
+            name: dimension,
+        });
+        const sourceField = findFieldByIdInExplore(explore, fieldId);
+        if (!sourceField) {
+            throw new NotFoundError(
+                `Filter autocomplete options source '${model}.${dimension}' does not exist`,
+            );
+        }
+        if (!isDimension(sourceField)) {
+            throw new ParameterError(
+                `Filter autocomplete options source must be a dimension, but ${fieldId} is a ${sourceField.type}`,
+            );
+        }
+        field = sourceField;
+    }
+
     let labelFieldId: string | null = null;
-    const labelDimension = field.filterAutocomplete?.labelDimension;
+    const labelDimension = staticResults
+        ? undefined
+        : getFilterAutocompleteLabelDimension(filterAutocomplete);
     if (labelDimension) {
         const candidateLabelFieldId = getItemId({
             table: field.table,
@@ -181,7 +259,7 @@ export async function getFieldValuesMetricQuery({
             values: [],
         },
     ];
-    if (filters) {
+    if (filters && !optionsFromDimension) {
         if (!Array.isArray(filters.and)) {
             throw new ParameterError(
                 'Filters must include an "and" array of filter rules',
@@ -220,19 +298,12 @@ export async function getFieldValuesMetricQuery({
         limit: parsedLimit,
     };
 
-    const { filterAutocomplete } = field;
-    const staticResults =
-        filterAutocomplete && !filterAutocomplete.fetchFromWarehouse
-            ? searchFilterAutocompleteValues(
-                  filterAutocomplete.values ?? [],
-                  search,
-              ).slice(0, parsedLimit)
-            : null;
-
     return {
         metricQuery,
         explore,
         field,
+        initialExplore,
+        initialField,
         fieldId,
         labelFieldId,
         staticResults,

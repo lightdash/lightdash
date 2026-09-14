@@ -112,7 +112,7 @@ const JoinOrganizationPage: FC = () => {
                     Join a workspace
                 </Title>
             )}
-            <Text c="ldGray.6" ta={isNewLayout ? 'left' : 'center'}>
+            <Text c="dimmed" ta={isNewLayout ? 'left' : 'center'}>
                 The workspaces below are open to anyone with a{' '}
                 <Text span fw={600}>
                     @{emailDomain}
@@ -120,7 +120,7 @@ const JoinOrganizationPage: FC = () => {
                 domain
             </Text>
             {allowedOrgs?.map((org) => (
-                <Card key={org.organizationUuid} withBorder>
+                <Card key={org.organizationUuid}>
                     <Group justify="space-between">
                         <Group gap="md">
                             <Avatar size="md" radius="xl" color="ldGray.6">
@@ -167,7 +167,7 @@ const JoinOrganizationPage: FC = () => {
             {isNewLayout ? (
                 orgList
             ) : (
-                <Card p="xl" radius="md" withBorder>
+                <Card p="xl" radius="md">
                     {orgList}
                 </Card>
             )}

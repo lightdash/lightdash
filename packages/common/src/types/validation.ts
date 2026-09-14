@@ -31,6 +31,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     dashboardUuid: string | undefined; // NOTE: can be undefined if private content
+    dashboardSlug?: string;
     chartName?: string;
     fieldName?: string;
     tableName?: string; // For dashboard filter errors referencing specific tables
@@ -185,6 +186,7 @@ export enum ValidationErrorType {
     Dimension = 'dimension',
     CustomMetric = 'custom metric',
     ChartConfiguration = 'chart configuration',
+    ExploreSplit = 'explore split',
 }
 
 export enum DashboardFilterValidationErrorType {
@@ -210,6 +212,13 @@ export const isChartValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorChartResponse | CreateChartValidation =>
     error.source === ValidationSourceType.Chart;
+
+/** Advisory issues that do not break content, e.g. unused chart fields. */
+export const isValidationWarning = (
+    error: ValidationResponse | CreateValidation,
+): error is ValidationErrorChartResponse | CreateChartValidation =>
+    isChartValidationError(error) &&
+    error.errorType === ValidationErrorType.ChartConfiguration;
 
 export const isDashboardValidationError = (
     error: ValidationResponse | CreateValidation,

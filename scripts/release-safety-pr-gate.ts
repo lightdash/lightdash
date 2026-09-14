@@ -1,14 +1,24 @@
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
-import {
-    collectBreakingChangeDeclarations,
-    formatChangeDeclarationDiagnostic,
-} from './breaking-change-declarations';
+import { parseChangeDeclarations } from './breaking-change-declarations';
 import {
     breakingChangeDecisionBrief,
     hollowBreakingReasonMessage,
     isSubstantiveBreakingReason,
 } from './breaking-change-gate-policy';
+import {
+    collectBreakingChangeDeclarationsBetweenRefs,
+    DEFAULT_DECLARATIONS_PATH,
+} from './release-safety-declarations';
+import type {
+    BreakingChangeDeclaration,
+    BreakingChangeDeclarationDiff,
+} from './release-safety-declarations';
+import {
+    analyzeMigrationSource,
+    isMigrationPath,
+} from './release-safety-migrations';
+import type { MigrationIncompleteReason } from './release-safety-migrations';
 
 interface ApiSurface {
     checked: boolean;
@@ -33,18 +43,110 @@ export interface GateDiagnostic {
 export interface EvaluateReleaseSafetyGateInput {
     marker: ReleaseSafetyGateMarker;
     markerPath: string;
-    changedFiles: readonly string[];
-    readFile?: (path: string) => string;
+    declarationChanges: BreakingChangeDeclarationDiff;
+    inlineDeclarationDiagnostics?: readonly GateDiagnostic[];
+    migrationDiagnostics?: readonly GateDiagnostic[];
 }
 
-const TYPESCRIPT_SOURCE = /^packages\/(backend|common)\/src\/.+\.tsx?$/;
-const TYPESCRIPT_TEST = /(^|\/)__tests__\/|\.(test|spec)\.tsx?$/;
-const MIGRATION_SOURCE =
-    /^packages\/backend\/src\/(ee\/)?database\/migrations\//;
+export interface ChangedSourceFile {
+    file: string;
+    source: string;
+}
+
+const SOURCE_ROOTS = ['packages/backend/src/', 'packages/common/src/'] as const;
+
+function isNonTestTypeScriptSource(file: string): boolean {
+    const normalized = file.replaceAll('\\', '/');
+    return (
+        SOURCE_ROOTS.some((root) => normalized.startsWith(root)) &&
+        /\.(?:ts|tsx)$/.test(normalized) &&
+        !/(^|\/)__tests__(\/|$)/.test(normalized) &&
+        !/\.(?:test|spec)\.(?:ts|tsx)$/.test(normalized) &&
+        !isMigrationPath(normalized)
+    );
+}
+
+export function detectLegacyInlineBreakingDeclarations(
+    sources: readonly ChangedSourceFile[],
+): GateDiagnostic[] {
+    const diagnostics: GateDiagnostic[] = [];
+    for (const source of sources) {
+        if (!isNonTestTypeScriptSource(source.file)) continue;
+        const parsed = parseChangeDeclarations(source.source, source.file);
+        const malformedInlineDeclaration = parsed.diagnostics.find(
+            (diagnostic) =>
+                diagnostic.declaration === 'breaking' &&
+                diagnostic.message.includes('export const breaking'),
+        );
+        const line = parsed.breaking?.line ?? malformedInlineDeclaration?.line;
+        if (line === undefined) continue;
+        diagnostics.push({
+            level: 'error',
+            file: source.file,
+            line,
+            message: `inline export const breaking is not supported; add a new stable ID to ${DEFAULT_DECLARATIONS_PATH}`,
+        });
+    }
+    return diagnostics;
+}
+
+const INCOMPLETE_MIGRATION_MESSAGES: Record<
+    MigrationIncompleteReason,
+    string
+> = {
+    'parse-failure':
+        'release-safety cannot read this migration; write the name inline, or use a module constant',
+    'column-alter':
+        'release-safety cannot judge a column .alter(); declare whether this rewrites the table with export const classification with kind and reason',
+    'unresolved-table-name':
+        'release-safety cannot resolve the table name; name the table with a literal or a module constant',
+};
+
+export function detectIncompleteMigrationMetadata(
+    sources: readonly ChangedSourceFile[],
+    migrationDeclarations: readonly BreakingChangeDeclaration[] = [],
+): GateDiagnostic[] {
+    const declaredMigrations = new Set(
+        migrationDeclarations.flatMap((declaration) =>
+            declaration.migration === undefined ? [] : [declaration.migration],
+        ),
+    );
+    const diagnostics: GateDiagnostic[] = [];
+    for (const source of sources) {
+        if (!isMigrationPath(source.file)) continue;
+        const analysis = analyzeMigrationSource(source.file, source.source);
+        if (analysis.complete) continue;
+        const classification = parseChangeDeclarations(
+            source.source,
+            source.file,
+        ).classification;
+        if (classification !== null || declaredMigrations.has(source.file)) {
+            continue;
+        }
+        for (const reason of analysis.incompleteReasons) {
+            diagnostics.push({
+                level: 'error',
+                file: source.file,
+                line: 1,
+                message: INCOMPLETE_MIGRATION_MESSAGES[reason],
+            });
+        }
+    }
+    return diagnostics;
+}
 
 export function evaluateReleaseSafetyGate(
     input: EvaluateReleaseSafetyGateInput,
 ): GateDiagnostic[] {
+    const diagnostics: GateDiagnostic[] =
+        input.declarationChanges.diagnostics.map((diagnostic) => ({
+            level: 'error',
+            file: diagnostic.file,
+            line: diagnostic.line,
+            message: diagnostic.message,
+        }));
+    diagnostics.push(...(input.inlineDeclarationDiagnostics ?? []));
+    diagnostics.push(...(input.migrationDiagnostics ?? []));
     const breakingSurfaces = [
         input.marker.api.rest.checked && input.marker.api.rest.breaking === true
             ? 'REST'
@@ -54,65 +156,30 @@ export function evaluateReleaseSafetyGate(
             : null,
     ].filter((surface): surface is string => surface !== null);
 
-    if (breakingSurfaces.length === 0) return [];
+    if (breakingSurfaces.length === 0) return diagnostics;
 
-    const sourceFiles = input.changedFiles.filter(
-        (file) => TYPESCRIPT_SOURCE.test(file) && !TYPESCRIPT_TEST.test(file),
-    );
-    const declarations = collectBreakingChangeDeclarations(
-        sourceFiles,
-        input.readFile,
-    );
-    const diagnostics: GateDiagnostic[] = declarations.diagnostics
-        .filter((diagnostic) => diagnostic.declaration !== 'classification')
-        .map((diagnostic) => ({
-            level: 'error',
-            file: diagnostic.file,
-            line: diagnostic.line,
-            message: formatChangeDeclarationDiagnostic(diagnostic),
-        }));
-    for (const diagnostic of declarations.diagnostics) {
-        if (
-            diagnostic.declaration === 'breaking' &&
-            diagnostic.message.includes('breaking.reason must not be empty')
-        ) {
-            diagnostics.push({
-                level: 'error',
-                file: diagnostic.file,
-                line: diagnostic.line,
-                message: hollowBreakingReasonMessage(
-                    diagnostic.file,
-                    diagnostic.line,
-                ),
-            });
-        }
-    }
-
-    const migrationDeclarations = declarations.breaking.filter((declaration) =>
-        MIGRATION_SOURCE.test(declaration.file),
+    const migrationDeclarations = input.declarationChanges.added.filter(
+        (declaration) => declaration.migration !== undefined,
     );
     for (const declaration of migrationDeclarations) {
         diagnostics.push({
             level: 'warning',
-            file: declaration.file,
-            line: declaration.line,
-            message: `${declaration.file}:${declaration.line} migration breaking declarations do not cover API surface changes`,
+            file: DEFAULT_DECLARATIONS_PATH,
+            line: 1,
+            message: `migration declaration ${JSON.stringify(declaration.id)} does not cover API surface changes`,
         });
     }
 
-    const apiDeclarations = declarations.breaking.filter(
-        (declaration) => !MIGRATION_SOURCE.test(declaration.file),
+    const apiDeclarations = input.declarationChanges.added.filter(
+        (declaration) => declaration.migration === undefined,
     );
     const substantiveApiDeclarations = apiDeclarations.filter((declaration) => {
         if (isSubstantiveBreakingReason(declaration.reason)) return true;
         diagnostics.push({
             level: 'error',
-            file: declaration.file,
-            line: declaration.line,
-            message: hollowBreakingReasonMessage(
-                declaration.file,
-                declaration.line,
-            ),
+            file: DEFAULT_DECLARATIONS_PATH,
+            line: 1,
+            message: hollowBreakingReasonMessage(DEFAULT_DECLARATIONS_PATH, 1),
         });
         return false;
     });
@@ -125,8 +192,7 @@ export function evaluateReleaseSafetyGate(
                 file: input.markerPath,
                 line: 1,
                 pattern: `breaking ${breakingSurfaces.join(' and ')} API surface change`,
-                declarationLocation:
-                    'a changed non-migration TypeScript source file under packages/backend or packages/common as export const breaking = { reason: string, requiredStop: boolean }',
+                declarationLocation: `a new stable ID in ${DEFAULT_DECLARATIONS_PATH} with reason and requiredStop`,
             }),
         });
     }
@@ -134,19 +200,16 @@ export function evaluateReleaseSafetyGate(
     return diagnostics;
 }
 
-function changedFiles(baseSha: string): string[] {
-    return execFileSync(
-        'git',
-        ['diff', '--name-only', '--diff-filter=ACMR', baseSha, 'HEAD', '--'],
-        { encoding: 'utf8' },
-    )
-        .split('\n')
-        .filter(Boolean);
-}
-
 function argument(name: string): string | undefined {
     const index = process.argv.indexOf(`--${name}`);
     return index >= 0 ? process.argv[index + 1] : undefined;
+}
+
+export function validateGitSha(ref: string): string {
+    if (!/^[0-9a-f]{40}$/.test(ref)) {
+        throw new Error('git ref must be a full 40-character lowercase hex SHA');
+    }
+    return ref;
 }
 
 function escapeCommandData(value: string): string {
@@ -168,18 +231,81 @@ function emit(diagnostic: GateDiagnostic): void {
     );
 }
 
+function changedSourceFiles(baseSha: string): ChangedSourceFile[] {
+    const paths = execFileSync(
+        'git',
+        [
+            'diff',
+            '--name-only',
+            '-z',
+            baseSha,
+            'HEAD',
+            '--',
+            'packages/backend/src',
+            'packages/common/src',
+        ],
+        { encoding: 'utf8' },
+    )
+        .split('\0')
+        .filter(Boolean)
+        .filter(isNonTestTypeScriptSource)
+        .filter((file) => fs.existsSync(file));
+    return paths.map((file) => ({
+        file,
+        source: fs.readFileSync(file, 'utf8'),
+    }));
+}
+
+function changedMigrationFiles(baseSha: string): ChangedSourceFile[] {
+    const paths = execFileSync(
+        'git',
+        [
+            'diff',
+            '--name-only',
+            '--diff-filter=ACMR',
+            '-z',
+            baseSha,
+            'HEAD',
+            '--',
+            'packages/backend/src/database/migrations',
+            'packages/backend/src/ee/database/migrations',
+        ],
+        { encoding: 'utf8' },
+    )
+        .split('\0')
+        .filter(Boolean)
+        .filter(isMigrationPath)
+        .filter((file) => fs.existsSync(file));
+    return paths.map((file) => ({
+        file,
+        source: fs.readFileSync(file, 'utf8'),
+    }));
+}
+
 function main(): void {
-    const baseSha = argument('base-sha');
+    const baseShaArgument = argument('base-sha');
     const markerPath = argument('marker');
-    if (!baseSha) throw new Error('--base-sha is required');
+    if (!baseShaArgument) throw new Error('--base-sha is required');
     if (!markerPath) throw new Error('--marker is required');
+    const baseSha = validateGitSha(baseShaArgument);
     const marker = JSON.parse(
         fs.readFileSync(markerPath, 'utf8'),
     ) as ReleaseSafetyGateMarker;
+    const declarationChanges = collectBreakingChangeDeclarationsBetweenRefs(
+        baseSha,
+        'HEAD',
+    );
     const diagnostics = evaluateReleaseSafetyGate({
         marker,
         markerPath,
-        changedFiles: changedFiles(baseSha),
+        declarationChanges,
+        inlineDeclarationDiagnostics: detectLegacyInlineBreakingDeclarations(
+            changedSourceFiles(baseSha),
+        ),
+        migrationDiagnostics: detectIncompleteMigrationMetadata(
+            changedMigrationFiles(baseSha),
+            declarationChanges.added,
+        ),
     });
     diagnostics.forEach(emit);
     const errors = diagnostics.filter(

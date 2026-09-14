@@ -56,7 +56,6 @@ export const CartesianChartTypeConfig: FC<Props> = ({ onChangeType, type }) => {
     return (
         <Select
             allowDeselect={false}
-            radius="md"
             data={options.map((option) => ({
                 value: option.value,
                 label: option.label,

@@ -4,9 +4,10 @@ import {
     type AppVersionStatus,
 } from '@lightdash/common';
 import { ActionIcon, Group, Popover, Title } from '@mantine/core';
-import { IconInfoCircle, IconStar, IconStarFilled } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { DASHBOARD_HEADER_HEIGHT } from '../../../components/common/Dashboard/dashboard.constants';
+import { FavoriteActionIcon } from '../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import PageHeader from '../../../components/common/Page/PageHeader';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
@@ -45,6 +46,24 @@ type Props = {
  * design: one-line title, info popover holding description/space metadata, and
  * an inline favorite star.
  */
+
+/**
+ * Walkthrough result for manage:DataApp: the learner's own app, now filed
+ * in a space where the team can find it.
+ */
+const appInSpaceTourProps = {
+    'data-tour-scope': 'manage:DataApp',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/apps/:appUuid',
+    'data-tour-label': 'Your app is in a space now',
+    // Cite the sharing section, not the page's opening: this walkthrough is
+    // about getting an app in front of the team, and the opening card takes
+    // its title from the docs heading it cites.
+    'data-tour-docs': 'data-apps.mdx#sharing-an-app:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'data-apps.mdx#sharing-an-app:2-3',
+};
+
 const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
     const displayName = getAppDisplayName(app.name, app.uuid);
 
@@ -64,12 +83,16 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
             }}
         >
             <Group gap="xs" flex={1} wrap="nowrap" miw={0}>
-                <Title order={6} lineClamp={1} miw={0}>
+                <Title
+                    order={6}
+                    lineClamp={1}
+                    miw={0}
+                    {...(app.spaceUuid ? appInSpaceTourProps : {})}
+                >
                     {displayName}
                 </Title>
 
                 <Popover
-                    withinPortal
                     withArrow
                     offset={{
                         mainAxis: -2,
@@ -77,12 +100,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     }}
                 >
                     <Popover.Target>
-                        <ActionIcon
-                            variant="subtle"
-                            size="md"
-                            radius="md"
-                            color="ldGray.6"
-                        >
+                        <ActionIcon size="md">
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Popover.Target>
@@ -101,18 +119,11 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     </Popover.Dropdown>
                 </Popover>
 
-                <ActionIcon
-                    variant="subtle"
+                <FavoriteActionIcon
                     size="md"
-                    radius="md"
-                    color={isFavorited ? 'orange' : 'ldGray.6'}
+                    isFavorite={isFavorited}
                     disabled={favoriteMutation.isLoading}
-                    aria-label={
-                        isFavorited
-                            ? 'Remove from favorites'
-                            : 'Add to favorites'
-                    }
-                    onClick={() => {
+                    onToggle={() => {
                         // Personal apps must be filed in a space before they
                         // can be favorited.
                         if (!isFavorited && !app.spaceUuid) {
@@ -124,12 +135,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                             contentUuid: app.uuid,
                         });
                     }}
-                >
-                    <MantineIcon
-                        icon={isFavorited ? IconStarFilled : IconStar}
-                        size={16}
-                    />
-                </ActionIcon>
+                />
             </Group>
 
             <Group gap="sm" wrap="nowrap">

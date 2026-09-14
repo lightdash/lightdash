@@ -1,4 +1,4 @@
-FROM node:22
+FROM node:24
 
 # Global tooling
 RUN npm install -g pnpm@11.17.0

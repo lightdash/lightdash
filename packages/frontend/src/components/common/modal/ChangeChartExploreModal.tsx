@@ -61,6 +61,7 @@ interface ChangeChartExploreModalProps extends Pick<
     chartUuid: string;
     currentExploreName: string;
     hasUnsavedChanges: boolean;
+    candidateExploreNames?: string[];
 }
 
 const FORM_ID = 'change-chart-explore-form';
@@ -72,6 +73,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
     chartUuid,
     currentExploreName,
     hasUnsavedChanges,
+    candidateExploreNames,
 }) => {
     const queryClient = useQueryClient();
     const { user } = useApp();
@@ -94,17 +96,22 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
         true,
     );
 
-    const exploreOptions = useMemo(
-        () =>
-            (explores ?? [])
-                .filter((e) => !isSummaryExploreError(e))
-                .map((e) => ({
-                    value: e.name,
-                    label: e.label ?? e.name,
-                }))
-                .sort((a, b) => a.label.localeCompare(b.label)),
-        [explores],
-    );
+    const exploreOptions = useMemo(() => {
+        const candidateSet = candidateExploreNames
+            ? new Set(candidateExploreNames)
+            : undefined;
+        return (explores ?? [])
+            .reduce<{ value: string; label: string }[]>((acc, e) => {
+                if (
+                    !isSummaryExploreError(e) &&
+                    (candidateSet === undefined || candidateSet.has(e.name))
+                ) {
+                    acc.push({ value: e.name, label: e.label ?? e.name });
+                }
+                return acc;
+            }, [])
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, [candidateExploreNames, explores]);
 
     const { mutateAsync: rename, isLoading: isRenaming } = useMutation<
         ApiJobScheduledResponse['results'],

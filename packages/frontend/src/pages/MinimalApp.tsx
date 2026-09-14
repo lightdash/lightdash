@@ -19,6 +19,7 @@ import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { type QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
 /**
@@ -49,10 +50,8 @@ const SDK_ALIVE_FALLBACK_MS = 8_000;
  * that signal before triggering the screenshot.
  */
 export default function MinimalApp() {
-    const { projectUuid, appUuid } = useParams<{
-        projectUuid: string;
-        appUuid: string;
-    }>();
+    const { appUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const captureModeParam = searchParams.get('captureMode');
     const captureMode: 'delivery' | 'preview' | null =

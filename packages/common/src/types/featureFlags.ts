@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Backend-provisioned usage analytics projects. */
+    AnalyticsProject = 'analytics-project',
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
@@ -14,31 +16,11 @@ export enum FeatureFlags {
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
-     * Rebase RAW timestamp filter columns to instants when a data timezone is
-     * set, so sub-day filters return the rows the SELECT displays. Wrapping
-     * the filter column defeats partition pruning/index scans on BigQuery and
-     * Postgres-family warehouses, so this is off by default — enable per-org
-     * for data-timezone users who need filter correctness. Temporary: goes
-     * away once filters convert the literal into the column's domain instead.
-     */
-    NaiveTimestampFilterRebase = 'naive-timestamp-filter-rebase',
-
-    /**
-     * Enable scheduler task that replaces custom metrics after project compile
-     */
-    ReplaceCustomMetricsOnCompile = 'replace-custom-metrics-on-compile',
-
-    /**
      * Enable the dynamic calculation of series color, when not manually set on the chart config.
      * This aims to make the colors more consistent, depending on the groups, but this could cause the opposite effect.
      * For more details, see https://github.com/lightdash/lightdash/issues/13831
      */
     CalculateSeriesColor = 'calculate-series-color',
-
-    /**
-     * Enable the ability to write back custom bin dimensions to dbt.
-     */
-    WriteBackCustomBinDimensions = 'write-back-custom-bin-dimensions',
 
     /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
@@ -54,11 +36,6 @@ export enum FeatureFlags {
      * Enable viewing and editing YAML source files in the Explore UI
      */
     EditYamlInUi = 'edit-yaml-in-ui',
-
-    /**
-     * Enable Google Chat as a scheduled delivery destination
-     */
-    GoogleChatEnabled = 'google-chat-enabled',
 
     /**
      * On multi-org (shared-tenant) instances, route an organization's recurring
@@ -86,6 +63,12 @@ export enum FeatureFlags {
     ChangeChartExplore = 'change-chart-explore',
 
     /**
+     * Compile repeated (array) warehouse columns as unnested virtual tables
+     * instead of leaving their leaves as unqueryable dotted dimensions.
+     */
+    UnnestRepeatedColumns = 'unnest-repeated-columns',
+
+    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated
@@ -106,14 +89,8 @@ export enum FeatureFlags {
      * is true. Disabled by default.
      */
     EnableDataApps = 'enable-data-apps',
-
-    /**
-     * Let embedded dashboard builders create and edit charts in place ("New
-     * chart" in the add-tile menu and "Edit chart" on tiles). Resolved with
-     * the embed write actor and organization, surfaced via embedWriteContext.
-     * Disabled by default.
-     */
-    EmbedChartBuilder = 'embed-chart-builder',
+    // Enable the Learn library, walkthroughs and training project per org.
+    EnableLearn = 'enable-learn',
 
     /**
      * Per-organization gate for declaring custom npm dependencies in data
@@ -147,15 +124,6 @@ export enum FeatureFlags {
      * vetted customers on shared multi-org instances.
      */
     SsoOrganizationSettings = 'sso-organization-settings',
-
-    /**
-     * Expose the "Leave organization" action in the General settings danger
-     * zone and accept the corresponding API call. When disabled the panel is
-     * hidden and the endpoint returns a 403 — protects against accidental
-     * self-removal during early rollout and lets us disable the feature
-     * per-org if it causes operational issues.
-     */
-    LeaveOrganization = 'leave-organization',
 
     /**
      * Enable query results caching. DB value (user/org override or flag
@@ -221,22 +189,6 @@ export enum FeatureFlags {
     ProLimits = 'pro-limits',
 
     /**
-     * Show the organization roadmap and enable its read-only API proxy.
-     */
-    OrganizationRoadmap = 'organization-roadmap',
-
-    /**
-     * Guard the agent's `searchFieldValues` tool against pathological warehouse
-     * scans. When on, an empty/whitespace query — which compiles to
-     * `LIKE '%%'`, i.e. "distinct the entire column" — is rejected immediately
-     * with an actionable message instead of running a leading-wildcard full
-     * scan that can take minutes on high-cardinality fields. Default off, so
-     * behaviour is byte-identical to today when disabled; a live toggle lets the
-     * new behaviour be trialled per-org without a redeploy. Experimental.
-     */
-    AiFieldValueSearchGuard = 'ai-field-value-search-guard',
-
-    /**
      * Allow a single Lightdash project to connect to multiple dbt sources
      * (repos/CLI deploys). Each source stores its latest compiled manifest in
      * S3; on every deploy or preview the backend merges all sources' manifests
@@ -265,11 +217,6 @@ export enum FeatureFlags {
      * the CLI, APIs, and installed skills remain available independently.
      */
     CodingAgentOnboarding = 'coding-agent-onboarding',
-
-    /**
-     * Let org admins set their own Anthropic/OpenAI API keys for AI agents.
-     */
-    OrgAiProviderApiKeys = 'org-ai-provider-api-keys',
 
     /**
      * Allow storing long-lived GitHub personal access tokens as GitHub MCP
@@ -304,6 +251,13 @@ export enum FeatureFlags {
      */
     EmailWhitelabel = 'email-whitelabel',
 
+    /**
+     * Advertise compact filter expressions to AI agent and MCP metric-query
+     * tools, resolving them to the existing filter model at the tool boundary.
+     * Off by default while the public contract is rolled out per organization.
+     */
+    AiFilterExpressions = 'ai-filter-expressions',
+
     /* Merge two or more queries into one warehouse statement from the
        explorer. Gated because it compiles novel SQL shapes (multi-CTE joins,
        conditional-aggregation widening) that no other path exercises. */
@@ -327,6 +281,59 @@ export enum FeatureFlags {
      * PREVIEW_ENABLED_FEATURE_FLAGS.
      */
     MultiSourceQuery = 'multi-source-query',
+
+    /**
+     * Enable the "My query history" page
+     * (/projects/{projectUuid}/query-history) and its listing endpoint
+     * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
+     */
+    QueryHistory = 'query-history',
+
+    /**
+     * Configurable retention for AI agent threads. Off by default; enabled
+     * per-org on demand for enterprise customers.
+     */
+    AiThreadRetention = 'ai-thread-retention',
+
+    /**
+     * External data sources: upload CSV files or connect Google Sheets as
+     * project tables. Tables are ingested to typed parquet in object storage,
+     * generated as explores (ExploreType.EXTERNAL_SOURCE), and queried on the
+     * DuckDB compose engine — so this requires the enterprise pre-aggregates
+     * engine and its S3 configuration. Off by default.
+     */
+    ExternalSources = 'external-sources',
+
+    /**
+     * Prevent users from deleting their own AI agent threads. Admins can
+     * still delete threads from the agent admin threads view. Off by default.
+     */
+    AiDisableThreadDeletion = 'ai-disable-thread-deletion',
+
+    /**
+     * Enables the chart type library tab: browsing and installing official
+     * chart types from the configured chart registry. Default: off.
+     */
+    ChartTypeRegistry = 'chart-type-registry',
+
+    /**
+     * Custom metrics created while building a chart inside a dashboard are
+     * kept on the dashboard and offered when building later charts there.
+     * Off by default.
+     */
+    DashboardCustomMetrics = 'dashboard-custom-metrics',
+    /**
+     * Build and edit charts in a full-screen modal over the dashboard
+     * instead of navigating away. Off by default.
+     */
+    InDashboardChartEditor = 'in-dashboard-chart-editor',
+
+    /**
+     * AI agent battle mode: send one prompt to two models in paired threads
+     * and compare the answers side by side with response timings. Internal
+     * experiment, off by default.
+     */
+    AiAgentBattleMode = 'ai-agent-battle-mode',
 }
 
 export type FeatureFlag = {

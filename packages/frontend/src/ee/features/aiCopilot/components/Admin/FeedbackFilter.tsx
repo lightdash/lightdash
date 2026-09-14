@@ -21,7 +21,7 @@ export const FeedbackFilter = ({
         {
             value: 'all',
             label: (
-                <Tooltip label="Show all threads" withinPortal>
+                <Tooltip label="Show all threads">
                     <Box>
                         <Text fz="xs" fw={500}>
                             All
@@ -35,7 +35,6 @@ export const FeedbackFilter = ({
             label: (
                 <Tooltip
                     label="Show only threads with positive feedback"
-                    withinPortal
                     maw={200}
                 >
                     <Box>
@@ -49,7 +48,6 @@ export const FeedbackFilter = ({
             label: (
                 <Tooltip
                     label="Show only threads with negative feedback"
-                    withinPortal
                     maw={200}
                 >
                     <Box pt="xxs">
@@ -63,7 +61,6 @@ export const FeedbackFilter = ({
     return (
         <SegmentedControl
             size="xs"
-            radius="md"
             value={selectedFeedback}
             onChange={(value) =>
                 setSelectedFeedback(

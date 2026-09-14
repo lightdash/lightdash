@@ -5,6 +5,7 @@ import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
+import { resolveProjectFlag } from './resolveProjectFlag';
 
 type ExportChartImageOptions = {
     output: string;
@@ -23,12 +24,14 @@ export const exportChartImageHandler = async (
     );
 
     const isChartUuid = isValidUuid(chartUuidOrSlug);
-    const projectUuid =
-        options.project ??
-        (!isChartUuid ? (await getConfig()).context?.project : undefined);
+    const resolveDefaultProject = async () =>
+        !isChartUuid ? (await getConfig()).context?.project : undefined;
+    const projectUuid = options.project
+        ? await resolveProjectFlag(options.project)
+        : await resolveDefaultProject();
     if (!projectUuid && !isChartUuid) {
         throw new Error(
-            'A project is required when exporting by slug. Pass --project <uuid> or select a project first.',
+            'A project is required when exporting by slug. Pass --project <uuid or slug> or select a project first.',
         );
     }
     const projectQuery = projectUuid

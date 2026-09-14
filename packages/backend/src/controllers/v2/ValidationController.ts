@@ -44,6 +44,7 @@ export class ValidationControllerV2 extends BaseController {
      * @param sourceTypes comma-separated list of source types to filter by
      * @param errorTypes comma-separated list of error types to filter by
      * @param tableName filter to errors caused by this model/table
+     * @param fieldName filter to errors caused by this field
      * @param includeChartConfigWarnings whether to include chart configuration warnings
      * @param fromSettings boolean for analytics tracking
      */
@@ -62,6 +63,7 @@ export class ValidationControllerV2 extends BaseController {
         @Query() sourceTypes?: string,
         @Query() errorTypes?: string,
         @Query() tableName?: string,
+        @Query() fieldName?: string,
         @Query() includeChartConfigWarnings?: boolean,
         @Query() fromSettings?: boolean,
     ): Promise<ApiPaginatedValidateResponse> {
@@ -101,6 +103,7 @@ export class ValidationControllerV2 extends BaseController {
                     sourceTypes: parsedSourceTypes,
                     errorTypes: parsedErrorTypes,
                     tableName,
+                    fieldName,
                     includeChartConfigWarnings,
                     fromSettings,
                 },

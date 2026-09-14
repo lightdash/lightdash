@@ -7,12 +7,15 @@ import {
     type TextInputProps,
 } from '@mantine/core';
 import { IconPencil, IconVariable } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { useRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import styles from './EditableText.module.css';
 
 type Props = TextInputProps & {
     lighter?: boolean;
+    /** Render as a page heading: larger, bolder text. */
+    heading?: boolean;
     // Base date dimension ids on the chart. When provided, an "insert variable"
     // menu offers the `${field.granularity}` tokens this label supports.
     granularityFields?: string[];
@@ -20,6 +23,7 @@ type Props = TextInputProps & {
 
 export const EditableText: FC<Props> = ({
     lighter,
+    heading,
     granularityFields,
     ...props
 }) => {
@@ -54,7 +58,7 @@ export const EditableText: FC<Props> = ({
     const pencil = (
         <MantineIcon
             className={styles.action}
-            color="ldGray.6"
+            color="dimmed"
             icon={IconPencil}
             onClick={handleIconClick}
         />
@@ -67,25 +71,21 @@ export const EditableText: FC<Props> = ({
                 {...props}
                 ref={inputRef}
                 classNames={{
-                    input: lighter
-                        ? `${styles.input} ${styles.lighter}`
-                        : styles.input,
+                    input: clsx(
+                        styles.input,
+                        lighter && styles.lighter,
+                        heading && styles.heading,
+                    ),
                 }}
                 rightSectionWidth={hasGranularity ? 48 : undefined}
                 rightSection={
                     hasGranularity ? (
                         <Group gap={2} wrap="nowrap">
-                            <Menu
-                                withinPortal
-                                position="bottom-end"
-                                shadow="sm"
-                            >
+                            <Menu position="bottom-end">
                                 <Menu.Target>
                                     <ActionIcon
                                         className={styles.action}
                                         size="xs"
-                                        variant="subtle"
-                                        color="ldGray.6"
                                     >
                                         <MantineIcon icon={IconVariable} />
                                     </ActionIcon>

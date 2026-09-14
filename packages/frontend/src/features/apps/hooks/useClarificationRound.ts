@@ -39,8 +39,8 @@ export type ClarificationRound<TRequest> = {
     answer: (index: number, value: string) => void;
     /** Build with the answers given so far, or with none when skipping. */
     build: (skip: boolean) => void;
-    /** Drop the round and hand its prompt back to the composer. */
-    abandon: () => string | null;
+    /** Drop the round and hand its request back to the composer. */
+    abandon: () => TRequest | null;
     reset: () => void;
 };
 
@@ -205,7 +205,7 @@ export const useClarificationRound = <TRequest>({
         const questionCount = pending?.questions.length ?? 0;
         reset();
         report('abandoned', active.template, questionCount, 0);
-        return active.prompt;
+        return active.request;
     }, [inFlight, pending, report, reset]);
 
     return {

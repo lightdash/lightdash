@@ -4,41 +4,52 @@ import { canStartDeepResearch } from './useDeepResearchAccess';
 describe('canStartDeepResearch', () => {
     it.each([
         {
-            canCreate: true,
-            isEnvironmentReady: true,
-            isDemo: false,
-            isImpersonating: false,
+            name: 'allows authorized sessions',
+            access: {
+                canCreate: true,
+                isEnvironmentReady: true,
+                isImpersonating: false,
+            },
             result: true,
         },
         {
-            canCreate: false,
-            isEnvironmentReady: true,
-            isDemo: false,
-            isImpersonating: false,
+            name: 'blocks sessions without permission',
+            access: {
+                canCreate: false,
+                isEnvironmentReady: true,
+                isImpersonating: false,
+            },
             result: false,
         },
         {
-            canCreate: true,
-            isEnvironmentReady: true,
-            isDemo: true,
-            isImpersonating: false,
+            name: 'allows authorized Demo sessions',
+            access: {
+                canCreate: true,
+                isEnvironmentReady: true,
+                isDemo: true,
+                isImpersonating: false,
+            },
+            result: true,
+        },
+        {
+            name: 'blocks impersonated sessions',
+            access: {
+                canCreate: true,
+                isEnvironmentReady: true,
+                isImpersonating: true,
+            },
             result: false,
         },
         {
-            canCreate: true,
-            isEnvironmentReady: true,
-            isDemo: false,
-            isImpersonating: true,
+            name: 'blocks sessions before the environment is ready',
+            access: {
+                canCreate: true,
+                isEnvironmentReady: false,
+                isImpersonating: false,
+            },
             result: false,
         },
-        {
-            canCreate: true,
-            isEnvironmentReady: false,
-            isDemo: false,
-            isImpersonating: false,
-            result: false,
-        },
-    ])('returns $result for %#', ({ result, ...access }) => {
+    ])('$name', ({ access, result }) => {
         expect(canStartDeepResearch(access)).toBe(result);
     });
 });

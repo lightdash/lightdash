@@ -2,6 +2,7 @@ import {
     DuckDBInstance,
     DuckDBTypeId,
     version as duckdbVersion,
+    type DuckDBType,
 } from '@duckdb/node-api';
 import {
     AnyType,
@@ -15,6 +16,7 @@ import {
     DucklakeDataPathType,
     formatMilliseconds,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
     NotImplementedError,
@@ -24,7 +26,9 @@ import {
     WarehouseCatalog,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTables,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
     type WarehouseQueryPhase,
 } from '@lightdash/common';
@@ -41,7 +45,7 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 type DuckdbStreamResult = {
     columnCount: number;
     columnNames: () => string[];
-    columnTypeId: (columnIndex: number) => number;
+    columnType: (columnIndex: number) => DuckDBType;
     yieldRowObjectJson: () => AsyncIterableIterator<Record<string, AnyType>[]>;
 };
 
@@ -104,6 +108,10 @@ export type DuckdbS3SessionConfig = {
     secretKey?: string;
     forcePathStyle: boolean;
     useSsl: boolean;
+    /** Limit this DuckDB secret to trusted S3 URIs or prefixes. */
+    scope?: string[];
+    /** PEM bundle httpfs verifies HTTPS object storage with. */
+    caCertFile?: string;
 };
 
 export type DuckdbResourceLimits = {
@@ -132,7 +140,25 @@ export type DuckdbS3Credentials = {
     s3Config: DuckdbS3SessionConfig;
 };
 
-export type DuckdbConnectionCredentials = DuckdbS3Credentials;
+/** Server-owned manifest. Never accept this configuration from project APIs. */
+export type DuckdbParquetSource = {
+    scope: string;
+    tables: { name: string; urls: string[] }[];
+    /** Exact server-signed GET URLs; never combine with bucket credentials. */
+    signedUrls?: boolean;
+    httpAuth?: { bearerToken: string };
+    s3Config?: DuckdbS3SessionConfig;
+};
+
+export type DuckdbParquetCredentials = {
+    type: 'duckdb_parquet';
+    /** Resolve again for every session so new files and refreshed credentials are visible. */
+    resolveSource: () => Promise<DuckdbParquetSource>;
+};
+
+export type DuckdbConnectionCredentials =
+    | DuckdbS3Credentials
+    | DuckdbParquetCredentials;
 
 export type DuckdbWarehouseClientOptions = {
     /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
@@ -152,6 +178,8 @@ export type DuckdbWarehouseClientOptions = {
     embeddedQueryTimeoutMs?: number;
     enableInstanceCache?: boolean;
     projectUuid?: string;
+    /** Process-local per-organization cap for isolated S3 query clients. */
+    organizationConcurrencyLimit?: number;
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -184,6 +212,29 @@ export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
             return DimensionType.NUMBER;
         default:
             return DimensionType.STRING;
+    }
+};
+
+const getNumericKindFromType = (type: DuckDBType): ResultNumericKind | null => {
+    switch (type.typeId) {
+        case DuckDBTypeId.TINYINT:
+        case DuckDBTypeId.SMALLINT:
+        case DuckDBTypeId.INTEGER:
+        case DuckDBTypeId.BIGINT:
+        case DuckDBTypeId.HUGEINT:
+        case DuckDBTypeId.UTINYINT:
+        case DuckDBTypeId.USMALLINT:
+        case DuckDBTypeId.UINTEGER:
+        case DuckDBTypeId.UBIGINT:
+        case DuckDBTypeId.UHUGEINT:
+            return { kind: 'integer' };
+        case DuckDBTypeId.FLOAT:
+        case DuckDBTypeId.DOUBLE:
+            return { kind: 'float' };
+        case DuckDBTypeId.DECIMAL:
+            return { kind: 'decimal', scale: type.scale };
+        default:
+            return null;
     }
 };
 
@@ -290,6 +341,11 @@ class AsyncSemaphore {
 class ConcurrencyBudget {
     private active = 0;
 
+    private pendingAcquires: Array<{
+        resolve: (acquired: boolean) => void;
+        timeout?: ReturnType<typeof setTimeout>;
+    }> = [];
+
     constructor(private readonly limit: number) {}
 
     tryAcquire(): boolean {
@@ -301,7 +357,44 @@ class ConcurrencyBudget {
         return true;
     }
 
+    acquire(timeoutMs: number): Promise<boolean> {
+        if (this.tryAcquire()) {
+            return Promise.resolve(true);
+        }
+
+        return new Promise<boolean>((resolve) => {
+            const pendingAcquire: (typeof this.pendingAcquires)[number] = {
+                resolve,
+            };
+            const timeout = setTimeout(() => {
+                const index = this.pendingAcquires.indexOf(pendingAcquire);
+                if (index === -1) {
+                    return;
+                }
+
+                this.pendingAcquires.splice(index, 1);
+                resolve(false);
+            }, timeoutMs);
+            timeout.unref();
+            pendingAcquire.timeout = timeout;
+            this.pendingAcquires.push(pendingAcquire);
+        });
+    }
+
     release(): void {
+        if (this.active === 0) {
+            return;
+        }
+
+        const pendingAcquire = this.pendingAcquires.shift();
+        if (pendingAcquire) {
+            if (pendingAcquire.timeout) {
+                clearTimeout(pendingAcquire.timeout);
+            }
+            pendingAcquire.resolve(true);
+            return;
+        }
+
         this.active -= 1;
     }
 
@@ -311,6 +404,13 @@ class ConcurrencyBudget {
 
     reset(): void {
         this.active = 0;
+        const pendingAcquires = this.pendingAcquires.splice(0);
+        pendingAcquires.forEach(({ resolve, timeout }) => {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            resolve(false);
+        });
     }
 }
 
@@ -363,9 +463,35 @@ const EMBEDDED_RESOURCE_LIMITS: Required<DuckdbResourceLimits> = {
 
 const EMBEDDED_QUERY_TIMEOUT_MS = 10_000;
 
-const EMBEDDED_MAX_CONCURRENT_QUERIES = 2;
+const getPositiveIntegerEnvironmentVariable = (
+    name: string,
+    defaultValue: number,
+): number => {
+    const environmentValue = process.env[name]?.trim();
+    if (!environmentValue || !/^\d+$/.test(environmentValue)) {
+        return defaultValue;
+    }
 
-const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION = 1;
+    const value = Number(environmentValue);
+    return Number.isSafeInteger(value) && value > 0 ? value : defaultValue;
+};
+
+const EMBEDDED_MAX_CONCURRENT_QUERIES = getPositiveIntegerEnvironmentVariable(
+    'PLAYGROUND_MAX_CONCURRENT_QUERIES',
+    8,
+);
+
+const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION =
+    getPositiveIntegerEnvironmentVariable(
+        'PLAYGROUND_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION',
+        4,
+    );
+
+const EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS =
+    getPositiveIntegerEnvironmentVariable(
+        'PLAYGROUND_CONCURRENCY_ACQUIRE_TIMEOUT_MS',
+        15_000,
+    );
 
 const resolveEmbeddedDatabasePath = (dataset: string): string => {
     if (!EMBEDDED_DATASET_PATTERN.test(dataset)) {
@@ -431,11 +557,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         ConcurrencyBudget
     >();
 
+    private static readonly organizationConcurrencyBudgets = new Map<
+        string,
+        ConcurrencyBudget
+    >();
+
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
 
     private readonly databasePath: string;
 
     private readonly s3Config?: DuckdbS3SessionConfig;
+
+    private readonly parquetConfig?: DuckdbParquetCredentials;
 
     private readonly ducklakeConfig?: CreateDuckdbDucklakeCredentials;
 
@@ -461,6 +594,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly projectUuid?: string;
 
+    private readonly organizationConcurrencyLimit?: number;
+
     private allowsPreAggregateFileReads = false;
 
     private hasWarnedAboutMotherduckTimezone = false;
@@ -473,6 +608,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             credentials &&
             'type' in credentials &&
             credentials.type === 'duckdb_s3';
+        const isParquet = credentials?.type === 'duckdb_parquet';
+        if (
+            credentials?.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.ANALYTICS
+        ) {
+            throw new ParameterError(
+                'Analytics connections must be resolved by the internal project service',
+            );
+        }
         const isDucklake =
             !isS3Only &&
             credentials &&
@@ -487,7 +631,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             credentials.connectionType === DuckdbConnectionType.EMBEDDED;
 
         let effectiveCredentials: CreateDuckdbMotherduckCredentials;
-        if (isS3Only) {
+        if (isS3Only || isParquet) {
             effectiveCredentials = DUCKDB_INTERNAL_CREDENTIALS;
         } else if (isDucklake) {
             const ducklake = credentials as CreateDuckdbDucklakeCredentials;
@@ -520,6 +664,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
         if (isS3Only) {
             this.s3Config = (credentials as DuckdbS3Credentials).s3Config;
+        }
+
+        if (isParquet) {
+            this.parquetConfig = credentials as DuckdbParquetCredentials;
+            if (options?.instanceCacheKey || options?.enableInstanceCache) {
+                throw new ParameterError(
+                    'Parquet project sessions cannot share a DuckDB instance',
+                );
+            }
         }
 
         if (isDucklake) {
@@ -562,7 +715,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                   ...options?.resourceLimits,
               }
             : options?.resourceLimits;
-        this.sharedResourceLimits = options?.sharedResourceLimits;
+        this.sharedResourceLimits = isParquet
+            ? {
+                  memoryLimit: '256MB',
+                  // Remote Parquet scans are I/O-bound. Overlap footer and
+                  // column reads; this limit belongs only to the private reader.
+                  threads: 32,
+                  ...options?.sharedResourceLimits,
+              }
+            : options?.sharedResourceLimits;
         // DuckLake attaches a postgres catalog secret on every fresh DuckDB
         // instance, and the postgres extension only pools 8 connections per
         // instance — so parallel getFields() calls during project compile
@@ -574,12 +735,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.instanceCacheKey =
             options?.instanceCacheKey ?? ducklakeAutoCacheKey;
         this.logger = options?.logger;
-        this.enableQueryProfiling = options?.enableQueryProfiling ?? false;
+        this.enableQueryProfiling =
+            !isParquet && (options?.enableQueryProfiling ?? false);
         this.onQueryProfile = options?.onQueryProfile;
         this.embeddedQueryTimeoutMs =
             options?.embeddedQueryTimeoutMs ?? EMBEDDED_QUERY_TIMEOUT_MS;
         this.enableInstanceCache = options?.enableInstanceCache ?? false;
         this.projectUuid = options?.projectUuid;
+        this.organizationConcurrencyLimit =
+            options?.organizationConcurrencyLimit;
     }
 
     private static hashDucklakeConfig(
@@ -630,16 +794,28 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return this.instanceCacheKey;
     }
 
-    private static tryAcquireEmbeddedConcurrency(
+    private static async tryAcquireEmbeddedConcurrency(
         organizationUuid?: string,
-    ): (() => void) | undefined {
-        if (!DuckdbWarehouseClient.embeddedConcurrencyBudget.tryAcquire()) {
+    ): Promise<(() => void) | undefined> {
+        const acquireDeadline =
+            Date.now() + EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS;
+        const globalAcquired =
+            await DuckdbWarehouseClient.embeddedConcurrencyBudget.acquire(
+                EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS,
+            );
+        if (!globalAcquired) {
             return undefined;
         }
 
         if (!organizationUuid) {
-            return () =>
+            let released = false;
+            return () => {
+                if (released) {
+                    return;
+                }
+                released = true;
                 DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
+            };
         }
 
         const organizationBudget =
@@ -654,17 +830,45 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             organizationBudget,
         );
 
-        if (!organizationBudget.tryAcquire()) {
+        const organizationAcquired = await organizationBudget.acquire(
+            Math.max(0, acquireDeadline - Date.now()),
+        );
+        if (!organizationAcquired) {
             DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
             return undefined;
         }
 
+        let released = false;
         return () => {
+            if (released) {
+                return;
+            }
+            released = true;
             organizationBudget.release();
             DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
             if (organizationBudget.isIdle()) {
                 DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.delete(
                     organizationUuid,
+                );
+            }
+        };
+    }
+
+    private static tryAcquireOrganizationConcurrency(
+        organizationUuid: string,
+        limit: number,
+    ): (() => void) | undefined {
+        const key = `${limit}:${organizationUuid}`;
+        const budget =
+            DuckdbWarehouseClient.organizationConcurrencyBudgets.get(key) ??
+            new ConcurrencyBudget(limit);
+        DuckdbWarehouseClient.organizationConcurrencyBudgets.set(key, budget);
+        if (!budget.tryAcquire()) return undefined;
+        return () => {
+            budget.release();
+            if (budget.isIdle()) {
+                DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
+                    key,
                 );
             }
         };
@@ -767,6 +971,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             // For DuckLake mode, httpfs and the ducklake/postgres/mysql/azure
             // extensions are autoloaded by ATTACH — no explicit INSTALL/LOAD.
             await client.loadExtension(db, 'httpfs');
+            if (client.s3Config?.caCertFile) {
+                await db.run(
+                    `SET ca_cert_file = '${DuckdbWarehouseClient.escapeDuckdbString(
+                        client.s3Config.caCertFile,
+                    )}';`,
+                );
+            }
             await client.loadAwsExtensionForCredentialChain(db);
         }
         const httpfsMs = performance.now() - httpfsStart;
@@ -797,6 +1008,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             await db.run(
                 DuckdbWarehouseClient.buildS3SecretSql(client.s3Config),
             );
+        }
+
+        if (client.parquetConfig) {
+            await client.bootstrapParquetViews(db);
         }
 
         if (client.ducklakeConfig) {
@@ -832,6 +1047,113 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             bootstrapMs,
             httpfsMs,
         };
+    }
+
+    private async bootstrapParquetViews(db: DuckdbConnection): Promise<void> {
+        const source = await this.parquetConfig!.resolveSource();
+        const escape = DuckdbWarehouseClient.escapeDuckdbString;
+        const literal = (value: string) => `'${escape(value)}'`;
+        const scope = new URL(source.scope);
+        const localSignedSource =
+            source.signedUrls &&
+            scope.protocol === 'http:' &&
+            ['localhost', '127.0.0.1', '[::1]'].includes(scope.hostname);
+        if (
+            (!['https:', 's3:'].includes(scope.protocol) &&
+                !localSignedSource) ||
+            scope.username ||
+            scope.password ||
+            scope.search ||
+            scope.hash ||
+            !source.scope.endsWith('/') ||
+            scope.pathname === '/'
+        ) {
+            throw new ParameterError(
+                'Parquet source requires a scoped remote prefix',
+            );
+        }
+        if (
+            source.signedUrls &&
+            (source.httpAuth || source.s3Config || scope.protocol === 's3:')
+        ) {
+            throw new ParameterError(
+                'Signed Parquet sources cannot carry bucket credentials',
+            );
+        }
+        const names = new Set<string>();
+        source.tables.forEach(({ name, urls }) => {
+            if (
+                !/^[a-z][a-z0-9_]*$/.test(name) ||
+                names.has(name) ||
+                urls.length === 0
+            ) {
+                throw new ParameterError(
+                    'Parquet tables require unique names and a non-empty file manifest',
+                );
+            }
+            names.add(name);
+            urls.forEach((url) => {
+                const parsed = new URL(url);
+                if (
+                    parsed.href !== url ||
+                    !url.startsWith(source.scope) ||
+                    !parsed.pathname.endsWith('.parquet') ||
+                    (!source.signedUrls && parsed.search) ||
+                    (source.signedUrls &&
+                        (!parsed.searchParams.has('X-Amz-Signature') ||
+                            !/^[a-zA-Z0-9_./=%-]+$/.test(parsed.pathname) ||
+                            /%(?!3D)/i.test(parsed.pathname))) ||
+                    parsed.hash ||
+                    /[*?[\]{}]/.test(parsed.pathname) ||
+                    (!source.signedUrls && parsed.pathname.includes('%'))
+                ) {
+                    throw new ParameterError(
+                        'Parquet file is outside the trusted source prefix',
+                    );
+                }
+            });
+        });
+        if (source.httpAuth) {
+            if (scope.protocol !== 'https:') {
+                throw new ParameterError(
+                    'HTTP credentials require an HTTPS source',
+                );
+            }
+            await db.run(
+                `CREATE SECRET analytics_http (TYPE http, BEARER_TOKEN ${literal(source.httpAuth.bearerToken)}, SCOPE ${literal(source.scope)});`,
+            );
+        }
+        if (source.s3Config) {
+            if (DuckdbWarehouseClient.usesS3CredentialChain(source.s3Config)) {
+                await this.loadExtension(db, 'aws');
+            }
+            await db.run(
+                DuckdbWarehouseClient.buildS3SecretSql({
+                    ...source.s3Config,
+                    scope: [source.scope],
+                }),
+            );
+        }
+        // Restrict the engine, not just SQL validation. No globbing, arbitrary
+        // network reads, local files, or shared spill/cache directories.
+        await db.run("SET temp_directory = '';");
+        // These caches live only in this query's private, memory-limited
+        // instance, which is closed in withEphemeralQuerySession's finally.
+        // Reuse metadata between view binding, validation and execution without
+        // retaining files or signed URLs across requests or organizations.
+        await db.run('SET enable_http_metadata_cache = true;');
+        await db.run('SET enable_external_file_cache = true;');
+        await db.run('SET parquet_metadata_cache = true;');
+        const files = source.tables.flatMap(({ urls }) => urls);
+        await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
+        await db.run('SET enable_external_access = false;');
+        // eslint-disable-next-line no-restricted-syntax
+        for (const { name, urls } of source.tables) {
+            // eslint-disable-next-line no-await-in-loop
+            await db.run(
+                `CREATE VIEW "${name}" AS SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true);`,
+            );
+        }
     }
 
     private static async bootstrapSharedInstance(
@@ -966,6 +1288,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         DuckdbWarehouseClient.sharedInstanceResourceLimits.clear();
         DuckdbWarehouseClient.sharedInstanceSemaphores.clear();
         DuckdbWarehouseClient.embeddedConcurrencyBudget.reset();
+        DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.forEach(
+            (budget) => budget.reset(),
+        );
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.clear();
     }
 
@@ -1209,6 +1534,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const secretClause = s3Config.secretKey
             ? `SECRET '${escape(s3Config.secretKey)}',`
             : '';
+        const scopeClause = s3Config.scope
+            ? `SCOPE (${s3Config.scope
+                  .map((uri) => `'${escape(uri)}'`)
+                  .join(', ')}),`
+            : '';
 
         return `CREATE OR REPLACE SECRET __lightdash_s3 (
             TYPE s3,
@@ -1217,6 +1547,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             ${secretClause}
             ENDPOINT '${escape(s3Config.endpoint)}',
             ${regionClause}
+            ${scopeClause}
             URL_STYLE '${s3Config.forcePathStyle ? 'path' : 'vhost'}',
             USE_SSL ${s3Config.useSsl}
         );`;
@@ -1512,41 +1843,74 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             durationMs: number,
         ) => void,
     ): Promise<T> {
-        if (this.embeddedConfig) {
-            return this.withDirectSession(
-                callback,
-                organizationUuid,
-                onPhaseTiming,
+        const releaseOrganizationConcurrency =
+            !this.embeddedConfig &&
+            organizationUuid &&
+            this.organizationConcurrencyLimit
+                ? DuckdbWarehouseClient.tryAcquireOrganizationConcurrency(
+                      organizationUuid,
+                      this.organizationConcurrencyLimit,
+                  )
+                : undefined;
+        if (
+            !this.embeddedConfig &&
+            organizationUuid &&
+            this.organizationConcurrencyLimit &&
+            !releaseOrganizationConcurrency
+        ) {
+            throw new WarehouseQueryError(
+                'External source query capacity is full. Try again shortly.',
             );
         }
-
-        if (this.isMotherduck()) {
-            if (
-                this.enableInstanceCache &&
-                this.credentials.requireUserCredentials !== true
-            ) {
-                return this.withMotherduckCachedSession(
+        try {
+            if (this.parquetConfig) {
+                try {
+                    return await this.withEphemeralQuerySession(callback);
+                } catch (error) {
+                    if (error instanceof ParameterError) throw error;
+                    throw new WarehouseQueryError(
+                        'Internal analytics query failed. Check storage access and query permissions.',
+                    );
+                }
+            }
+            if (this.embeddedConfig) {
+                return await this.withDirectSession(
                     callback,
-                    retryable,
+                    organizationUuid,
                     onPhaseTiming,
                 );
             }
-            return this.withDirectSession(
-                callback,
-                organizationUuid,
-                onPhaseTiming,
-            );
-        }
 
-        if (this.hasResourceLimits()) {
-            return this.withIsolatedSession(callback);
-        }
+            if (this.isMotherduck()) {
+                if (
+                    this.enableInstanceCache &&
+                    this.credentials.requireUserCredentials !== true
+                ) {
+                    return await this.withMotherduckCachedSession(
+                        callback,
+                        retryable,
+                        onPhaseTiming,
+                    );
+                }
+                return await this.withDirectSession(
+                    callback,
+                    organizationUuid,
+                    onPhaseTiming,
+                );
+            }
 
-        if (this.instanceCacheKey) {
-            return this.withSharedSession(callback);
-        }
+            if (this.hasResourceLimits()) {
+                return await this.withIsolatedSession(callback);
+            }
 
-        return this.withEphemeralQuerySession(callback);
+            if (this.instanceCacheKey) {
+                return await this.withSharedSession(callback);
+            }
+
+            return await this.withEphemeralQuerySession(callback);
+        } finally {
+            releaseOrganizationConcurrency?.();
+        }
     }
 
     private async withMotherduckCachedSession<T>(
@@ -1669,7 +2033,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const sessionStart = performance.now();
 
         const releaseEmbeddedConcurrency = this.embeddedConfig
-            ? DuckdbWarehouseClient.tryAcquireEmbeddedConcurrency(
+            ? await DuckdbWarehouseClient.tryAcquireEmbeddedConcurrency(
                   organizationUuid,
               )
             : undefined;
@@ -1898,8 +2262,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const columnNames = result.columnNames();
         const fields: WarehouseResults['fields'] = {};
         for (let i = 0; i < result.columnCount; i += 1) {
+            const columnType = result.columnType(i);
+            const numericKind = getNumericKindFromType(columnType);
             fields[columnNames[i]] = {
-                type: mapFieldTypeFromTypeId(result.columnTypeId(i)),
+                type: mapFieldTypeFromTypeId(columnType.typeId),
+                ...(numericKind ? { numericKind } : {}),
             };
         }
         return fields;
@@ -2031,6 +2398,16 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
+        if (
+            this.parquetConfig &&
+            /\b(duckdb_\w+|pragma_\w+|sqlite_\w+|pg_\w+|information_schema)\b/i.test(
+                DuckdbWarehouseClient.stripSqlComments(sql),
+            )
+        ) {
+            throw new ParameterError(
+                'Internal analytics catalog access is not allowed',
+            );
+        }
         DuckdbWarehouseClient.validateSqlFunctions(sql);
         DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
         await this.validateSelectSql(db, sql);
@@ -2304,15 +2681,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     async getAllTables(
         schema?: string,
         tags?: Record<string, string>,
-    ): Promise<
-        {
-            database: string;
-            schema: string;
-            table: string;
-        }[]
-    > {
+    ): Promise<WarehouseTables> {
         return this.withSession(async (db) => {
-            let sql = `SELECT table_catalog AS database, table_schema AS schema, table_name AS table
+            let sql = `SELECT table_catalog AS database, table_schema AS schema, table_name AS table, table_type
                         FROM information_schema.tables
                         WHERE table_type IN ('BASE TABLE', 'VIEW')`;
 
@@ -2329,6 +2700,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 database: row.database as string,
                 schema: row.schema as string,
                 table: row.table as string,
+                tableType: getWarehouseTableType(row.table_type),
             }));
         });
     }

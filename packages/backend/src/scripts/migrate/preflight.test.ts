@@ -585,6 +585,24 @@ describe('preflight checks', () => {
         expect(result.decision).toBe('abort');
     });
 
+    test('passes a database-ahead ledger and surfaces the ledger-only migrations', async () => {
+        const result = await report({
+            migrationState: state({
+                pending: [],
+                missing: ['20260810120000_backdated.js'],
+                classification: 'database-ahead',
+            }),
+        });
+
+        expect(check(result, 'version-path')).toMatchObject({
+            outcome: 'pass',
+            message: expect.stringContaining(
+                'ledger-only migrations: 20260810120000_backdated.js',
+            ),
+        });
+        expect(result.decision).toBe('proceed');
+    });
+
     test('fails a diverged actual migration ledger', async () => {
         const result = await report({
             migrationState: state({

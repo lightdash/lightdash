@@ -45,7 +45,7 @@ vi.mock('../lightdash/loader');
 vi.mock('./dbt/compile');
 vi.mock('./dbt/apiClient', async (importOriginal) => {
     const original = await importOriginal<typeof import('./dbt/apiClient')>();
-    return { ...original, lightdashApi: vi.fn() };
+    return { ...original, lightdashApi: vi.fn().mockResolvedValue(undefined) };
 });
 vi.mock('./dbt/getDbtVersion');
 vi.mock('./dbt/getWarehouseClient');
@@ -400,6 +400,7 @@ describe('compile warehouse column validation', () => {
                 projectUuid: 'projectUuid',
                 ignoreErrors: true,
                 validateWarehouseColumns: true,
+                batchedDeploy: false,
             });
 
             const deployRequest = vi
@@ -616,7 +617,7 @@ describe('compile warehouse column validation', () => {
     describe('lightdash yml projects', () => {
         beforeEach(async () => {
             vi.mocked(loadLightdashModels).mockResolvedValue([
-                lightdashYmlModel,
+                { ...lightdashYmlModel, sourcePath: 'models/test_model.yml' },
             ]);
             await fs.writeFile(
                 path.join(tempDir, 'lightdash.config.yml'),

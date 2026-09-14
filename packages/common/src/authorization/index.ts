@@ -8,6 +8,7 @@ import { collapseAbilityRules } from './collapseAbilityRules';
 import applyOrganizationMemberAbilities, {
     type OrganizationMemberAbilitiesArgs,
 } from './organizationMemberAbility';
+import { normalizeScopeName } from './parseScopes';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
@@ -38,6 +39,11 @@ type UserAbilityBuilderArgs = {
     customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>;
     customRolesEnabled?: boolean;
     isEnterprise?: boolean;
+    /**
+     * Org opt-in (PatScopeAuthoritative flag): the primary-slot org custom
+     * role's scope list fully decides token access.
+     */
+    patScopeAuthoritative?: boolean;
 };
 
 export const JWT_HEADER_NAME = 'lightdash-embed-token';
@@ -55,9 +61,26 @@ export const getUserAbilityBuilder = ({
     customRoleScopes,
     customRolesEnabled,
     isEnterprise,
+    patScopeAuthoritative,
 }: UserAbilityBuilderArgs): UserAbilityBuilderResult => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const invalidScopes: string[] = [];
+    // Authoritative only when the org opted in AND the deployment is
+    // licensed — unlicensed orgs keep inheriting the deployment default.
+    const patScopeIsAuthoritative = Boolean(
+        isEnterprise && patScopeAuthoritative,
+    );
+    const applyPatConfigFallback = !patScopeIsAuthoritative;
+    // Only the org primary slot may speak for the scope while authoritative;
+    // downstream sets listing it would silently restore what it withheld.
+    const withoutDownstreamPatScope = (scopes: string[]) =>
+        patScopeIsAuthoritative
+            ? scopes.filter(
+                  (scope) =>
+                      normalizeScopeName(scope) !==
+                      'manage:PersonalAccessToken',
+              )
+            : scopes;
     // Extra custom roles are unioned on top of the slot; unknown uuids are
     // skipped (logged) rather than granting anything.
     const applyExtraRoles = (
@@ -100,6 +123,9 @@ export const getUserAbilityBuilder = ({
                         isEnterprise,
                         organizationRole: user.role,
                         permissionsConfig,
+                        // While the org's PAT opt-in is authoritative, the primary slot alone
+                        // decides token access; downstream sets are stripped and declined.
+                        applyPatConfigFallback,
                     },
                     builder,
                 ),
@@ -120,10 +146,11 @@ export const getUserAbilityBuilder = ({
                 {
                     organizationUuid: user.organizationUuid as string,
                     userUuid: user.userUuid,
-                    scopes,
+                    scopes: withoutDownstreamPatScope(scopes),
                     isEnterprise,
                     organizationRole: user.role,
                     permissionsConfig,
+                    applyPatConfigFallback,
                 },
                 builder,
             ),
@@ -154,10 +181,11 @@ export const getUserAbilityBuilder = ({
                             projectCreatedByUserUuid:
                                 projectProfile.projectCreatedByUserUuid,
                             userUuid: user.userUuid,
-                            scopes,
+                            scopes: withoutDownstreamPatScope(scopes),
                             isEnterprise,
                             organizationRole: user.role,
                             permissionsConfig,
+                            applyPatConfigFallback,
                         },
                         builder,
                     ),
@@ -176,10 +204,11 @@ export const getUserAbilityBuilder = ({
                         projectCreatedByUserUuid:
                             projectProfile.projectCreatedByUserUuid,
                         userUuid: user.userUuid,
-                        scopes,
+                        scopes: withoutDownstreamPatScope(scopes),
                         isEnterprise,
                         organizationRole: user.role,
                         permissionsConfig,
+                        applyPatConfigFallback,
                     },
                     builder,
                 ),

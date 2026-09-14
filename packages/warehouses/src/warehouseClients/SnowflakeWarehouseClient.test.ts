@@ -128,6 +128,35 @@ describe('SnowflakeWarehouseClient', () => {
         expect(alterSessionSql).toContain('CLIENT_RESULT_CHUNK_SIZE = 16');
     });
 
+    it.each(['', null, undefined, NaN])(
+        'falls back to the default STATEMENT_TIMEOUT_IN_SECONDS when timeoutSeconds is %p',
+        async (timeoutSeconds) => {
+            const warehouse = new SnowflakeWarehouseClient({
+                ...credentials,
+                timeoutSeconds: timeoutSeconds as unknown as number,
+            });
+            await warehouse.streamQuery('SELECT 1', () => {}, {});
+            const alterSessionSql = executeMock.mock.calls
+                .map((call) => call[0].sqlText as string)
+                .find((sql) => sql.startsWith('ALTER SESSION SET'));
+            expect(alterSessionSql).toContain(
+                'STATEMENT_TIMEOUT_IN_SECONDS = 300',
+            );
+        },
+    );
+
+    it('keeps an explicit STATEMENT_TIMEOUT_IN_SECONDS of 0 (no timeout)', async () => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            timeoutSeconds: 0,
+        });
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+        const alterSessionSql = executeMock.mock.calls
+            .map((call) => call[0].sqlText as string)
+            .find((sql) => sql.startsWith('ALTER SESSION SET'));
+        expect(alterSessionSql).toContain('STATEMENT_TIMEOUT_IN_SECONDS = 0,');
+    });
+
     it('configures the local application authorization-code flow with SDK defaults', () => {
         const warehouse = new SnowflakeWarehouseClient({
             ...credentials,
@@ -724,7 +753,14 @@ describe('SnowflakeWarehouseClient', () => {
         const warehouse = new SnowflakeWarehouseClient(credentials);
         const results = await warehouse.runQuery('fake sql');
 
-        expect(results.fields).toEqual(expectedFields);
+        expect(results.fields).toEqual({
+            ...expectedFields,
+            // NUMBER with scale 0 at the source is an integer
+            MYNUMBERCOLUMN: {
+                ...expectedFields.MYNUMBERCOLUMN,
+                numericKind: { kind: 'integer' },
+            },
+        });
         expect(results.rows[0]).toEqual(expectedRow);
     });
 

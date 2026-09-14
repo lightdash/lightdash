@@ -109,6 +109,13 @@ export const DashboardFiltersBar: FC<Props> = ({
                 wrap="nowrap"
                 px="lg"
                 py="xxs"
+                // Walkthrough: a look at the filter bar on the way to the
+                // date zoom (view:Dashboard). See scripts/scope-tours.
+                data-tour-scope="view:Dashboard"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
+                data-tour-label="Filters sit at the top"
+                data-tour-docs="explore/dashboards/interact.mdx#filter-the-dashboard:1-2"
             >
                 {/* Left section - filters and parameters */}
                 <Group
@@ -175,7 +182,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                 </Group>
 
                 {/* Right section - date zoom and hide button */}
-                <Group gap="xs" style={{ marginLeft: 'auto' }} wrap="nowrap">
+                <Group gap="xs" ml="auto" wrap="nowrap">
                     {hasDashboardTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
@@ -197,7 +204,6 @@ export const DashboardFiltersBar: FC<Props> = ({
                                 />
                                 {isEditMode && (
                                     <Tooltip
-                                        withinPortal
                                         label={
                                             isDateZoomDisabled
                                                 ? 'Date zoom is hidden from viewers. Click to show.'
@@ -206,7 +212,6 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     >
                                         <ActionIcon
                                             aria-label="Toggle date zoom visibility for viewers"
-                                            variant="subtle"
                                             onClick={() =>
                                                 setIsDateZoomDisabled(
                                                     !isDateZoomDisabled,
@@ -214,7 +219,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                             }
                                         >
                                             <MantineIcon
-                                                color="ldGray.6"
+                                                color="dimmed"
                                                 icon={
                                                     isDateZoomDisabled
                                                         ? IconEyeOff

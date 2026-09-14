@@ -136,8 +136,8 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         setFieldId(allNumericFieldIds[0] ?? null);
     }, [allNumericFieldIds, fieldId, isLoading, tableCalculationsMetadata]);
 
-    // Max value is the value at the top of the funnel. This is used to calculate
-    // the percentage of the funnel that each step represents
+    // Max value is the largest step value, used to calculate the percentage
+    // each step represents
     const {
         data,
         maxValue = 0,

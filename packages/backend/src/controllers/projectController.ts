@@ -9,6 +9,7 @@ import {
     ApiChartListResponse,
     ApiChartSummaryListResponse,
     ApiCreateTagResponse,
+    ApiCreateTrainingPreviewResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardAsCodeUpsertResponse,
     ApiDataTimezonePreview,
@@ -22,6 +23,7 @@ import {
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
+    ApiResultsCacheProjectSettingsResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
@@ -66,12 +68,15 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
+    type ApiRefreshBody,
     type ApiRefreshResults,
     type ApiSuccess,
     type ApiTableGroupsResults,
     type ApiUpdateDashboardsResponse,
     type ApiUpstreamDiffResponse,
     type ApiVerifiedContentListResponse,
+    type ApiWarehouseConnectionTestBody,
+    type ApiWarehouseConnectionTestResponse,
     type CalculateSubtotalsFromQuery,
     type CompileMergeQueryRequest,
     type CreateDashboard,
@@ -91,6 +96,7 @@ import {
     type UpdatePreviewExpirationProjectSettings,
     type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
+    type UpdateResultsCacheProjectSettings,
     type UpdateSchedulerSettings,
     type UUID,
 } from '@lightdash/common';
@@ -115,6 +121,8 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
@@ -152,6 +160,26 @@ export class ProjectController extends BaseController {
                 .getProjectService()
                 .getProject(projectUuid, req.account!),
         };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/dbt/manifest')
+    @OperationId('GetMergedDbtManifest')
+    async getMergedManifest(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<void> {
+        assertRegisteredAccount(req.account);
+        const body = await this.services
+            .getProjectService()
+            .getMergedManifest(req.account, projectUuid);
+        const res = req.res!;
+        res.status(200);
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        await pipeline(Readable.from(body), res);
     }
 
     /**
@@ -555,15 +583,20 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         status: 'ok';
         results: ApiCompiledMergeQueryResults;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.services.getProjectService().compileMergeQuery({
-                account: req.account!,
-                projectUuid,
-                mergeQuery: body.mergeQuery,
-                parameters: body.parameters,
-            }),
+            // The async query service, not the base project service: result
+            // sources resolve from query history, which only it can reach
+            results: await this.services
+                .getAsyncQueryService()
+                .compileMergeQuery({
+                    account: req.account,
+                    projectUuid,
+                    mergeQuery: body.mergeQuery,
+                    parameters: body.parameters,
+                }),
         };
     }
 
@@ -592,11 +625,12 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         status: 'ok';
         results: ApiExecuteAsyncMetricQueryResults;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.services
             .getAsyncQueryService()
             .executeLegacyAsyncMergeQuery({
-                account: req.account!,
+                account: req.account,
                 projectUuid,
                 mergeQuery: body.mergeQuery,
                 parameters: body.parameters,
@@ -614,6 +648,35 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             });
         }
         return { status: 'ok', results: result.query };
+    }
+
+    /**
+     * Tests warehouse credentials without saving them. Reports each SSH tunnel hop and the database login separately so a broken bastion setup points at the step to fix.
+     * @summary Test warehouse connection
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/warehouse/test')
+    @OperationId('testWarehouseConnection')
+    async testWarehouseConnection(
+        @Path() projectUuid: UUID,
+        @Body() body: ApiWarehouseConnectionTestBody,
+        @Request() req: express.Request,
+    ): Promise<ApiWarehouseConnectionTestResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .testWarehouseConnection(
+                req.account,
+                projectUuid,
+                body.warehouseConnection,
+            );
+        return { status: 'ok', results };
     }
 
     /**
@@ -1221,6 +1284,51 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
+     * Make (or remake) the caller's own throwaway copy of the training
+     * project for a walkthrough. The copy starts from the seeded state and
+     * expires on its own.
+     * @summary Create training preview
+     * @param projectUuid the training project
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/training-previews')
+    @OperationId('CreateTrainingPreview')
+    async createTrainingPreview(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateTrainingPreviewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .createTrainingPreview(toSessionUser(req.account), projectUuid);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Remove the caller's own copies of the training project, once a
+     * walkthrough is finished or abandoned.
+     * @summary Delete training previews
+     * @param projectUuid the training project
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Delete('{projectUuid}/training-previews')
+    @OperationId('DeleteTrainingPreviews')
+    async deleteTrainingPreviews(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .deleteTrainingPreviews(toSessionUser(req.account), projectUuid);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Diff a preview project against the project it was copied from, using the
      * catalog index. Detects added/removed fields and label changes; does not
      * detect SQL-only field changes.
@@ -1290,6 +1398,64 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         const settings = await this.services
             .getProjectService()
             .updateProjectPreviewExpirationSettings(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Get the results cache TTL for a project. A null TTL means the
+     * instance-wide default applies.
+     * @summary Get results cache settings
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/results-cache-config')
+    @OperationId('getProjectResultsCacheSettings')
+    async getProjectResultsCacheSettings(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .getProjectResultsCacheSettings(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Update the results cache TTL for a project. Pass null to fall back to
+     * the instance-wide default.
+     * @summary Update results cache settings
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/results-cache-config')
+    @OperationId('updateProjectResultsCacheSettings')
+    async updateProjectResultsCacheSettings(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateResultsCacheProjectSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .updateProjectResultsCacheSettings(
                 toSessionUser(req.account),
                 projectUuid,
                 body,
@@ -1708,6 +1874,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     async refresh(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Body() body?: ApiRefreshBody,
     ): Promise<ApiSuccess<ApiRefreshResults>> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -1720,6 +1887,9 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 toSessionUser(req.account),
                 projectUuid,
                 context,
+                false,
+                false,
+                body?.syncContent === true,
             );
         return {
             status: 'ok',

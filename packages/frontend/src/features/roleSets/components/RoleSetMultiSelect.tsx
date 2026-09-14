@@ -100,7 +100,6 @@ export function RoleSetMultiSelect<TSystemRole extends string>({
         <Tooltip
             label="Permissions are the union of every selected role. One system role at most; custom roles add on top."
             openDelay={500}
-            withinPortal
         >
             <MultiSelect
                 id={id}

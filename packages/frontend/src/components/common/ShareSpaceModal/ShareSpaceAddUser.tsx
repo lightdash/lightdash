@@ -37,9 +37,12 @@ import {
     useAddSpaceShareMutation,
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
+import { useSpaceServiceAccounts } from '../../../hooks/useSpaceServiceAccounts';
 import { LightdashUserAvatar } from '../../Avatar';
+import InlineErrorState from '../InlineErrorState';
 import MantineIcon from '../MantineIcon';
 import { DEFAULT_PAGE_SIZE } from '../Table/constants';
+import { ServiceAccountBadge } from './ServiceAccountBadge';
 import styles from './ShareSpaceAddUser.module.css';
 import { getAccessColor } from './ShareSpaceModalUtils';
 import { UserAccessOptions } from './ShareSpaceSelect';
@@ -69,6 +72,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
+    const {
+        data: serviceAccounts,
+        isFetching: isServiceAccountsFetching,
+        isError: isServiceAccountsError,
+        refetch: refetchServiceAccounts,
+    } = useSpaceServiceAccounts(projectUuid, space.uuid, !disabled);
     const viewportRef = useRef<HTMLDivElement>(null);
 
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
@@ -160,7 +169,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
         const orgUserUuids =
             organizationUsers
-                ?.filter((user) => user.role !== OrganizationMemberRole.MEMBER)
+                ?.filter(
+                    (user) =>
+                        user.role !== OrganizationMemberRole.MEMBER ||
+                        user.roleUuid !== undefined ||
+                        user.hasMultipleRoles === true,
+                )
                 .map((user) => user.userUuid) ?? [];
 
         return [...new Set([...projectUserUuids, ...orgUserUuids])];
@@ -171,8 +185,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
 
     const candidateUserUuids = useMemo(
-        () => uniq([...userUuids, ...selectedItems.users]),
-        [userUuids, selectedItems.users],
+        () =>
+            uniq([
+                ...userUuids,
+                ...(serviceAccounts?.map((account) => account.userUuid) ?? []),
+                ...selectedItems.users,
+            ]),
+        [userUuids, serviceAccounts, selectedItems.users],
     );
 
     const {
@@ -272,13 +291,38 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             });
         }
 
-        const result: (ComboboxItem | ComboboxItemGroup)[] = [];
+        const result: (ComboboxItem | ComboboxItemGroup<ComboboxItem>)[] = [];
 
         if (groupItems.length > 0) {
             result.push({ group: 'Groups', items: groupItems });
         }
         if (usersSet.length > 0) {
             result.push({ group: 'Users', items: usersSet });
+        }
+        const serviceAccountItems = (serviceAccounts ?? [])
+            .filter((account) => {
+                const access = spaceAccessByUserUuid.get(account.userUuid);
+                return (
+                    !(
+                        access?.hasDirectAccess &&
+                        access.inheritedFrom !== 'parent_space'
+                    ) &&
+                    (!debouncedSearchQuery ||
+                        selectedItems.users.includes(account.userUuid) ||
+                        account.description
+                            .toLowerCase()
+                            .includes(debouncedSearchQuery.toLowerCase()))
+                );
+            })
+            .map((account) => ({
+                value: account.userUuid,
+                label: account.description,
+            }));
+        if (serviceAccountItems.length > 0) {
+            result.push({
+                group: 'Service accounts',
+                items: serviceAccountItems,
+            });
         }
 
         return result;
@@ -293,9 +337,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         debouncedSearchQuery,
         currentSearchUserUuids,
         currentSearchGroupUuids,
+        serviceAccounts,
     ]);
 
-    const isFetching = isUsersFetching || isGroupsFetching;
+    const isFetching =
+        isUsersFetching || isGroupsFetching || isServiceAccountsFetching;
 
     const handleScrollPositionChange = useCallback(
         ({ y }: { x: number; y: number }) => {
@@ -334,6 +380,26 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                         <Text size="sm" fw={500}>
                             {option.label}
                         </Text>
+                    </Group>
+                );
+            }
+
+            const serviceAccount = serviceAccounts?.find(
+                (account) => account.userUuid === option.value,
+            );
+            if (serviceAccount) {
+                return (
+                    <Group gap="sm" wrap="nowrap">
+                        <LightdashUserAvatar
+                            name={serviceAccount.description}
+                            size="sm"
+                            radius="xl"
+                            userUuid={serviceAccount.userUuid}
+                        />
+                        <Text size="sm" fw={500}>
+                            {serviceAccount.description}
+                        </Text>
+                        <ServiceAccountBadge />
                     </Group>
                 );
             }
@@ -400,7 +466,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     {spaceAccess && roleTitle && (
                         <Badge
                             size="sm"
-                            variant="light"
                             color={getAccessColor(spaceAccess.role).join('.')}
                             radius="xl"
                         >
@@ -410,7 +475,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         },
-        [spaceAccessByUserUuid, groupUuidsSet],
+        [spaceAccessByUserUuid, groupUuidsSet, serviceAccounts],
     );
 
     const handleSelectionChange = useCallback(
@@ -470,7 +535,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     return (
         <Group>
             <MultiSelect
-                style={{ flex: 1 }}
+                flex={1}
                 classNames={{ option: styles.option }}
                 searchable
                 clearable
@@ -508,6 +573,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             >
                 Share
             </Button>
+            {isServiceAccountsError && (
+                <InlineErrorState
+                    message="Unable to load service accounts"
+                    onRetry={() => void refetchServiceAccounts()}
+                />
+            )}
         </Group>
     );
 };

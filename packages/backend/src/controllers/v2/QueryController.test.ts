@@ -1,6 +1,7 @@
 import {
     ChartType,
     LightdashAppPreviewTokenHeader,
+    LightdashCustomSqlProvenanceChartUuidHeader,
     MergeJoinType,
     QueryExecutionContext,
     type ApiExecuteAsyncMergeQueryRequest,
@@ -86,6 +87,43 @@ describe('QueryController', () => {
         expect(executeAsyncMetricQuery).toHaveBeenCalledWith(
             expect.objectContaining({
                 dataAppPreviewToken: 'signed-preview-token',
+            }),
+        );
+    });
+
+    it('forwards the embedded chart provenance candidate to metric-query execution', async () => {
+        const executeAsyncMetricQuery = vi.fn().mockResolvedValue({
+            queryUuid: 'query-uuid',
+        });
+        const controller = new QueryController({
+            getAsyncQueryService: () => ({ executeAsyncMetricQuery }),
+        } as unknown as ConstructorParameters<typeof QueryController>[0]);
+        controller.setStatus = vi.fn();
+        const req = {
+            account: {},
+            headers: {},
+            header: vi.fn((headerName: string) =>
+                headerName === LightdashCustomSqlProvenanceChartUuidHeader
+                    ? 'chart-uuid'
+                    : undefined,
+            ),
+        } as unknown as express.Request;
+
+        await controller.executeAsyncMetricQuery(
+            {
+                query: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                },
+            } as never,
+            'project-uuid',
+            req,
+        );
+
+        expect(executeAsyncMetricQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                customSqlProvenanceChartUuid: 'chart-uuid',
             }),
         );
     });

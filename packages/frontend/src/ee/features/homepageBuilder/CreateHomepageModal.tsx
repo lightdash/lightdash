@@ -82,11 +82,11 @@ export const CreateHomepageModal: FC<Props> = ({
                     onChange={setStartFrom}
                 >
                     <Stack gap="xs" mt="xs">
-                        <Card withBorder p="sm">
+                        <Card p="sm">
                             <Radio value="blank" label="Blank" />
                         </Card>
                         {homepages.map((homepage) => (
-                            <Card key={homepage.homepageUuid} withBorder p="sm">
+                            <Card key={homepage.homepageUuid} p="sm">
                                 <Radio
                                     value={homepage.homepageUuid}
                                     label={`Duplicate “${homepage.name}”`}

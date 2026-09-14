@@ -83,12 +83,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         {!minimal && 'Lightdash - '}
                         {healthState.data && `v${healthState.data.version}`}
                         {showUpdateBadge && (
-                            <Badge
-                                variant="light"
-                                ml="xs"
-                                radius="xs"
-                                size="xs"
-                            >
+                            <Badge ml="xs" radius="xs" size="xs">
                                 New version available!
                             </Badge>
                         )}
@@ -99,11 +94,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                             href="https://docs.lightdash.com/"
                             target="_blank"
                         >
-                            <ActionIcon
-                                color="ldGray.7"
-                                size="md"
-                                variant="subtle"
-                            >
+                            <ActionIcon color="ldGray.7" size="md">
                                 <MantineIcon
                                     icon={IconBook}
                                     size="sm"
@@ -146,14 +137,14 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     type={PageType.MODAL}
                 >
                     <Stack gap="md">
-                        <Text fz="sm" c="ldGray.6">
+                        <Text fz="sm" c="dimmed">
                             Instance details and licensing status.
                         </Text>
 
-                        <Paper withBorder radius="md" p="md">
+                        <Paper radius="md" p="md">
                             <Stack gap="md">
                                 <Group justify="space-between" wrap="nowrap">
-                                    <Text fz="sm" c="ldGray.6">
+                                    <Text fz="sm" c="dimmed">
                                         Version
                                     </Text>
                                     <Text fz="sm" fw={600}>
@@ -174,13 +165,12 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                         <Text fz="sm" fw={500}>
                                             Enterprise license
                                         </Text>
-                                        <Text fz="xs" c="ldGray.6">
+                                        <Text fz="xs" c="dimmed">
                                             {licenseDisplay.description}
                                         </Text>
                                     </Box>
                                     <Badge
                                         color={licenseDisplay.color}
-                                        variant="light"
                                         flex="none"
                                     >
                                         {licenseDisplay.badge}

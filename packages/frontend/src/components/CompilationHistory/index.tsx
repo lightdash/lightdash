@@ -33,7 +33,7 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
 
             <SettingsPage
                 title="Compilation history"
-                description="Review recent dbt compilation runs for this project."
+                description="Review recent compilation runs for this project."
                 actions={
                     <Button
                         onClick={handleRefresh}

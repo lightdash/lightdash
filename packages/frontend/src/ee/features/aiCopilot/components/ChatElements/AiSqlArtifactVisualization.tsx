@@ -1,54 +1,23 @@
 import { subject } from '@casl/ability';
+import { type ResultColumn } from '@lightdash/common';
+import { ActionIcon, Menu } from '@mantine/core';
 import {
-    ChartKind,
-    type RawResultRow,
-    type ResultColumn,
-    type ResultRow,
-    type VizTableConfig,
-} from '@lightdash/common';
-import { ActionIcon, Center, Loader, Menu, Paper, Stack } from '@mantine/core';
-import { IconDeviceFloppy, IconDots, IconTerminal2 } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
+    IconDeviceFloppy,
+    IconDots,
+    IconDownload,
+    IconTerminal2,
+} from '@tabler/icons-react';
+import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { ROW_HEIGHT_PX } from '../../../../../components/common/Table/constants';
-import { ChartDataTable } from '../../../../../components/DataViz/visualizations/ChartDataTable';
 import { SaveSqlChartModalContent } from '../../../../../features/sqlRunner/components/SaveSqlChartModal';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../../providers/App/useApp';
 import { useUpdateArtifactVersionSavedSql } from '../../hooks/useProjectAiAgents';
-
-const unwrapRows = (rows: ResultRow[]): RawResultRow[] =>
-    rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([key, value]) => [key, value.value.raw]),
-        ),
-    );
-
-// Below this, the panel shrinks to fit the table instead of filling all
-// available height — unlike SQL Runner's results table, which always fills
-// the page. A compact chat panel reads as broken with a mostly-empty card;
-// a full page reads as normal whitespace.
-const MAX_SHRINK_TO_FIT_HEIGHT_PX = 300;
-const TABLE_HEADER_HEIGHT_PX = 34;
-
-const getTableConfig = (columns: ResultColumn[]): VizTableConfig => ({
-    metadata: { version: 1 },
-    type: ChartKind.TABLE,
-    columns: Object.fromEntries(
-        columns.map((column) => [
-            column.reference,
-            {
-                visible: true,
-                reference: column.reference,
-                label: column.reference,
-                frozen: false,
-            },
-        ]),
-    ),
-    display: undefined,
-});
+import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
+import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
+import { AiSqlArtifactDownloadModal } from './AiSqlArtifactDownloadModal';
 
 type ContentProps = {
     results: InfiniteQueryResults;
@@ -63,6 +32,8 @@ type ActionsProps = {
     savedSqlUuid: string | null;
     sql: string;
     limit: number;
+    queryUuid: string;
+    totalResults: number;
     title: string;
     description: string | null;
     columns: ResultColumn[];
@@ -76,12 +47,15 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
     savedSqlUuid,
     sql,
     limit,
+    queryUuid,
+    totalResults,
     title,
     description,
     columns,
 }) => {
     const { user } = useApp();
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
     const { mutateAsync: linkSavedSql } = useUpdateArtifactVersionSavedSql(
         projectUuid,
         agentUuid,
@@ -107,7 +81,6 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 <Menu.Target>
                     <ActionIcon
                         size="sm"
-                        variant="subtle"
                         color="ldGray.9"
                         aria-label="SQL artifact actions"
                     >
@@ -116,6 +89,12 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Menu.Label>Quick actions</Menu.Label>
+                    <Menu.Item
+                        onClick={() => setIsDownloadModalOpen(true)}
+                        leftSection={<MantineIcon icon={IconDownload} />}
+                    >
+                        Download results
+                    </Menu.Item>
                     <Menu.Item
                         component={Link}
                         to={{
@@ -135,6 +114,16 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
+            <AiSqlArtifactDownloadModal
+                opened={isDownloadModalOpen}
+                onClose={() => setIsDownloadModalOpen(false)}
+                projectUuid={projectUuid}
+                queryUuid={queryUuid}
+                sql={sql}
+                chartName={title}
+                totalResults={totalResults}
+                columnOrder={columns.map((column) => column.reference)}
+            />
             <SaveSqlChartModalContent
                 key={`${isSaveModalOpen}-saveSqlArtifact`}
                 opened={isSaveModalOpen}
@@ -144,7 +133,7 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 description={description}
                 sql={sql}
                 limit={limit}
-                currentVizConfig={getTableConfig(columns)}
+                currentVizConfig={getAiArtifactTableConfig(columns)}
                 hasUnrunChanges={false}
                 redirectOnSuccess={false}
                 onSaved={async ({ savedSqlUuid: newSavedSqlUuid }) => {
@@ -159,66 +148,11 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
     results,
     headerContent,
 }) => {
-    const columns = useMemo(
-        () => Object.values(results.columns ?? {}),
-        [results.columns],
-    );
-    const columnNames = useMemo(
-        () => columns.map((column) => column.reference),
-        [columns],
-    );
-    const rows = useMemo(() => unwrapRows(results.rows), [results.rows]);
-
-    useEffect(() => {
-        if (!results.hasFetchedAllRows && !results.fetchAll) {
-            results.setFetchAll(true);
-        }
-    }, [results]);
-
-    if (
-        results.isInitialLoading ||
-        results.isFetchingFirstPage ||
-        columns.length === 0
-    ) {
-        return (
-            <Center h={300}>
-                <Loader
-                    type="dots"
-                    color="gray"
-                    delayedMessage="Loading SQL results..."
-                />
-            </Center>
-        );
-    }
-
-    const estimatedContentHeight =
-        TABLE_HEADER_HEIGHT_PX + rows.length * ROW_HEIGHT_PX;
-    const shrinkToFit = estimatedContentHeight <= MAX_SHRINK_TO_FIT_HEIGHT_PX;
-
     return (
-        <Stack
-            gap="md"
-            h={shrinkToFit ? undefined : '100%'}
-            mih={shrinkToFit ? undefined : 300}
-        >
-            {headerContent}
-            <Paper
-                flex={shrinkToFit ? undefined : 1}
-                mah={shrinkToFit ? estimatedContentHeight : undefined}
-                mih={0}
-                pos="relative"
-                withBorder
-                radius="md"
-                bg="ldGray.0"
-                style={{ overflow: 'hidden' }}
-            >
-                <ChartDataTable
-                    columnNames={columnNames}
-                    rows={rows}
-                    columnsConfig={getTableConfig(columns).columns}
-                    flexProps={{ mah: '100%' }}
-                />
-            </Paper>
-        </Stack>
+        <AiArtifactTableVisualization
+            results={results}
+            headerContent={headerContent}
+            loadingMessage="Loading SQL results..."
+        />
     );
 };

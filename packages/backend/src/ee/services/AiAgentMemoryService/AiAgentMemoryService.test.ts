@@ -213,6 +213,8 @@ describe('AiAgentMemoryService', () => {
             projectUuid: 'project-enabled',
             agentUuid: 'agent-1',
             ownerUserUuid: 'source-user',
+            createdFrom: 'web_app',
+            ownerIsServiceAccount: false,
         });
         const findUserInGroups = vi.fn().mockResolvedValue([]);
         const getProjectSummary = vi.fn(async (projectUuid: string) => ({
@@ -717,6 +719,8 @@ describe('AiAgentMemoryService', () => {
             projectUuid: 'project-enabled',
             agentUuid: 'agent-1',
             ownerUserUuid: 'first-prompter',
+            createdFrom: 'slack',
+            ownerIsServiceAccount: false,
         });
         distillCall.mockResolvedValue({
             result: {
@@ -810,6 +814,46 @@ describe('AiAgentMemoryService', () => {
         expect(upsertSourceThreadMemory).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: null }),
         );
+    });
+
+    it('skips a service-account-owned thread before paying for the LLM call', async () => {
+        const {
+            service,
+            findThreadForDistill,
+            findThreadOwnership,
+            upsertSourceThreadMemory,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        findThreadForDistill.mockResolvedValue(distillableThread(activity));
+        findThreadOwnership.mockResolvedValue({
+            threadUuid: 'thread-enabled',
+            projectUuid: 'project-enabled',
+            agentUuid: 'agent-1',
+            ownerUserUuid: 'sa-user',
+            createdFrom: 'web_app',
+            ownerIsServiceAccount: true,
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'system',
+                threadUuid: 'thread-enabled',
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('skipped');
+
+        expect(distillCall).not.toHaveBeenCalled();
+        expect(upsertSourceThreadMemory).not.toHaveBeenCalled();
+        expect(upsertThreadDistill).toHaveBeenCalledExactlyOnceWith({
+            aiThreadUuid: 'thread-enabled',
+            outcome: 'skipped',
+            distillPromptHash: null,
+            distilledUpTo: activity,
+        });
     });
 
     it('persists a project label without loosening ownership, and reports it', async () => {

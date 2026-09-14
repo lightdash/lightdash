@@ -285,6 +285,11 @@ export const checkProjectCreationPermission = async (
                         `Contact your organization admin to request access.`,
                 );
 
+            case ProjectType.TRAINING:
+                throw new ForbiddenError(
+                    `Training projects are created from the app by an organization admin, not from the CLI.`,
+                );
+
             case ProjectType.PREVIEW:
                 if (upstreamProjectUuid) {
                     if (

@@ -2,8 +2,8 @@
 import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
-    getClientName,
     getErrorMessage,
+    isManagedSignInError,
     OAuthIntrospectResponse,
     parseScopeString,
     type OAuthUserInfoResponse,
@@ -29,12 +29,111 @@ function getOAuthService(req: express.Request): OAuthService {
     return req.services.getOauthService();
 }
 
+const getValidatedRedirectUrl = async (
+    req: express.Request,
+    params: { clientId: unknown; redirectUri: unknown },
+): Promise<URL | null> => {
+    const { clientId, redirectUri } = params;
+    if (typeof clientId !== 'string' || typeof redirectUri !== 'string') {
+        return null;
+    }
+
+    const isRegistered = await getOAuthService(req).validateRedirectUri(
+        clientId,
+        redirectUri,
+    );
+    if (!isRegistered) {
+        return null;
+    }
+
+    try {
+        return new URL(redirectUri);
+    } catch {
+        return null;
+    }
+};
+
+const sendInvalidRedirectResponse = (res: express.Response) =>
+    res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'Invalid client_id or redirect_uri',
+    });
+
+const sendOAuthRedirectResponse = (
+    res: express.Response,
+    redirectUrl: URL,
+    message: string,
+) => {
+    res.set('Content-Type', 'text/html');
+    return res.send(
+        generateOAuthRedirectPage({
+            redirectUrl: redirectUrl.toString(),
+            message,
+        }),
+    );
+};
+
+type OAuthIdentity =
+    | { missingField: string }
+    | { userId: number; organizationUuid: string };
+
+const resolveOAuthIdentity = (user: Express.User): OAuthIdentity => {
+    if (!user.userId) return { missingField: 'userId' };
+    if (!user.organizationUuid) return { missingField: 'organizationUuid' };
+    return {
+        userId: user.userId,
+        organizationUuid: user.organizationUuid,
+    };
+};
+
+const getInstanceHost = (req: express.Request): string => {
+    const siteUrl = getOAuthService(req).getSiteUrl();
+    try {
+        return new URL(siteUrl).host;
+    } catch {
+        return siteUrl;
+    }
+};
+
+const sendMissingOrganizationResponse = async (
+    req: express.Request,
+    res: express.Response,
+    params: {
+        missingField: string;
+        clientId: unknown;
+        redirectUri: unknown;
+        state: unknown;
+    },
+) => {
+    Logger.warn(
+        `OAuth authorize rejected: the session user is missing ${params.missingField}`,
+    );
+
+    const redirectUrl = await getValidatedRedirectUrl(req, {
+        clientId: params.clientId,
+        redirectUri: params.redirectUri,
+    });
+    if (!redirectUrl) {
+        return sendInvalidRedirectResponse(res);
+    }
+
+    const message = `Your account is not a member of an organization on ${getInstanceHost(
+        req,
+    )}. Sign in to the Lightdash instance where you were invited.`;
+    redirectUrl.searchParams.set('error', 'access_denied');
+    redirectUrl.searchParams.set('error_description', message);
+    if (typeof params.state === 'string' && params.state !== '') {
+        redirectUrl.searchParams.set('state', params.state);
+    }
+    return sendOAuthRedirectResponse(res, redirectUrl, message);
+};
+
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
+    const loginUrl = `/login?redirect=${encodeURIComponent(
+        req.originalUrl || req.url,
+    )}`;
     if (!req.user) {
-        const loginUrl = `/login?redirect=${encodeURIComponent(
-            req.originalUrl || req.url,
-        )}`;
         return res.redirect(loginUrl);
     }
     const {
@@ -49,21 +148,36 @@ oauthRouter.get('/authorize', async (req, res, next) => {
         return res.status(400).send('Missing required parameters');
     }
 
+    const identity = resolveOAuthIdentity(req.user);
+    if ('missingField' in identity) {
+        return sendMissingOrganizationResponse(req, res, {
+            missingField: identity.missingField,
+            clientId: client_id,
+            redirectUri: redirect_uri,
+            state,
+        });
+    }
+
     // Render authorize page using Handlebars template
     const scopeString = (scope as string) || '';
+    const clientName = await getOAuthService(req).getClientDisplayName(
+        client_id as string,
+    );
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthAuthorizePage({
             action: '/api/v1/oauth/authorize',
             client_id: client_id as string,
-            client_name: getClientName(client_id as string),
+            client_name: clientName,
             scope: scopeString,
             scopes: parseScopeString(scopeString),
             user: {
                 firstName: req.user.firstName,
                 lastName: req.user.lastName,
-                organizationName: req.user.organizationName!,
+                email: req.user.email ?? null,
+                organizationName: req.user.organizationName ?? '',
             },
+            loginUrl,
             hiddenInputs: [
                 {
                     name: 'response_type',
@@ -101,34 +215,37 @@ oauthRouter.get('/authorize', async (req, res, next) => {
 });
 
 oauthRouter.post('/authorize', async (req, res) => {
-    if (req.body.approve === 'false') {
-        // Denied
-        res.set('Content-Type', 'text/html');
-        const redirectUri = req.body.redirect_uri;
-        if (!redirectUri) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'Missing redirect_uri',
-            });
-        }
-        const url = new URL(redirectUri);
-        url.searchParams.set('error', 'access_denied');
-        if (req.body.state) {
-            url.searchParams.set('state', req.body.state);
-        }
-        return res.send(
-            generateOAuthRedirectPage({
-                redirectUrl: url.toString(),
-                message:
-                    'Access denied. Redirecting you back to your application...',
-            }),
-        );
-    }
     if (!req.user) {
         return res.status(401).send('Unauthorized');
     }
-    if (!req.user.userId || !req.user.organizationUuid) {
-        return res.status(400).send('Missing userUuid or organizationUuid');
+    const identity = resolveOAuthIdentity(req.user);
+    if ('missingField' in identity) {
+        return sendMissingOrganizationResponse(req, res, {
+            missingField: identity.missingField,
+            clientId: req.body.client_id,
+            redirectUri: req.body.redirect_uri,
+            state: req.body.state,
+        });
+    }
+
+    const redirectUrl = await getValidatedRedirectUrl(req, {
+        clientId: req.body.client_id,
+        redirectUri: req.body.redirect_uri,
+    });
+    if (!redirectUrl) {
+        return sendInvalidRedirectResponse(res);
+    }
+
+    if (req.body.approve === 'false') {
+        redirectUrl.searchParams.set('error', 'access_denied');
+        if (req.body.state) {
+            redirectUrl.searchParams.set('state', req.body.state);
+        }
+        return sendOAuthRedirectResponse(
+            res,
+            redirectUrl,
+            'Access denied. Redirecting you back to your application...',
+        );
     }
 
     // Normalize scope parameter directly on the request object
@@ -147,43 +264,34 @@ oauthRouter.post('/authorize', async (req, res) => {
             oauthReq,
             oauthRes,
             {
-                userId: req.user.userId,
-                organizationUuid: req.user.organizationUuid,
+                userId: identity.userId,
+                organizationUuid: identity.organizationUuid,
             },
         );
-        const redirectUri = req.body.redirect_uri;
-        if (!redirectUri) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'Missing redirect_uri',
-            });
-        }
-        const url = new URL(redirectUri);
-        url.searchParams.set('code', authorizationCode.authorizationCode);
+        redirectUrl.searchParams.set(
+            'code',
+            authorizationCode.authorizationCode,
+        );
         if (req.body.state) {
-            url.searchParams.set('state', req.body.state);
+            redirectUrl.searchParams.set('state', req.body.state);
         }
 
-        res.set('Content-Type', 'text/html');
-        return res.send(
-            generateOAuthRedirectPage({
-                redirectUrl: url.toString(),
-                message: 'Redirecting you back to your application...',
-            }),
+        return sendOAuthRedirectResponse(
+            res,
+            redirectUrl,
+            'Redirecting you back to your application...',
         );
     } catch (error) {
         Logger.error(`Authorization error: ${error}`);
-        const redirectUrl = new URL(req.body.redirect_uri);
-        redirectUrl.searchParams.set('error', 'server_error');
-        if (req.body.state)
-            redirectUrl.searchParams.set('state', req.body.state);
-        res.set('Content-Type', 'text/html');
-        return res.send(
-            generateOAuthRedirectPage({
-                redirectUrl: redirectUrl.toString(),
-                message:
-                    'An error occurred. Redirecting you back to your application...',
-            }),
+        const errorUrl = new URL(req.body.redirect_uri);
+        errorUrl.searchParams.set('error', 'server_error');
+        if (req.body.state) {
+            errorUrl.searchParams.set('state', req.body.state);
+        }
+        return sendOAuthRedirectResponse(
+            res,
+            errorUrl,
+            'An error occurred. Redirecting you back to your application...',
         );
     }
 });
@@ -218,11 +326,16 @@ oauthRouter.post('/token', async (req, res, next) => {
 
         // Return 401 for authentication errors, 400 for other errors
         const statusCode =
-            errorMessage.includes('Invalid') ||
-            errorMessage.includes('required')
+            !isManagedSignInError(errorMessage) &&
+            (errorMessage.includes('Invalid') ||
+                errorMessage.includes('required'))
                 ? 401
                 : 400;
-        res.status(statusCode).json({ error: errorMessage });
+        res.status(statusCode).json(
+            error instanceof OAuth2Server.OAuthError
+                ? { error: error.name, error_description: errorMessage }
+                : { error: errorMessage },
+        );
     }
 });
 

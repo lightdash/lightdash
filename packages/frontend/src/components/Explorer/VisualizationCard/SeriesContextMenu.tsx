@@ -18,6 +18,7 @@ import {
 } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useAccount } from '../../../hooks/user/useAccount';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -39,19 +40,35 @@ export const SeriesContextMenu: FC<{
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
     const { user } = useApp();
+    const { data: account } = useAccount();
+    const isEmbedded = account?.isJwtUser() === true;
+    const organizationUuid =
+        user.data?.organizationUuid ?? account?.organization.organizationUuid;
+    const projectUuid = useProjectUuid();
 
     const context = useVisualizationContext();
     const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const { openUnderlyingDataModal } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
+    const drillDownPermission = subject(
+        'Explore',
+        isEmbedded
+            ? {
+                  organizationUuid,
+                  projectUuid,
+                  exploreNames: [tableName],
+              }
+            : {
+                  organizationUuid: user.data?.organizationUuid,
+                  projectUuid,
+              },
+    );
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
         top: number;
     }>();
-
-    const projectUuid = useProjectUuid();
 
     useEffect(() => {
         if (echartsSeriesClickEvent !== undefined) {
@@ -95,7 +112,7 @@ export const SeriesContextMenu: FC<{
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
-                organizationId: user?.data?.organizationUuid,
+                organizationId: organizationUuid,
                 userId: user?.data?.userUuid,
                 projectId: projectUuid,
             },
@@ -110,7 +127,7 @@ export const SeriesContextMenu: FC<{
         dimensions,
         openUnderlyingDataModal,
         track,
-        user?.data?.organizationUuid,
+        organizationUuid,
         user?.data?.userUuid,
         projectUuid,
     ]);
@@ -126,10 +143,8 @@ export const SeriesContextMenu: FC<{
         <Menu
             opened={contextMenuIsOpen}
             onClose={onClose}
-            withinPortal
             closeOnItemClick
             closeOnEscape
-            shadow="md"
             radius={0}
             position="right-start"
             offset={{
@@ -162,7 +177,7 @@ export const SeriesContextMenu: FC<{
                 <Can
                     I="view"
                     this={subject('UnderlyingData', {
-                        organizationUuid: user.data?.organizationUuid,
+                        organizationUuid,
                         projectUuid: projectUuid,
                     })}
                 >
@@ -176,17 +191,11 @@ export const SeriesContextMenu: FC<{
                     )}
                 </Can>
 
-                <Can
-                    I="view"
-                    this={subject('Explore', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid: projectUuid,
-                    })}
-                >
+                <Can I="view" this={drillDownPermission}>
                     <DrillDownMenuItem
                         {...underlyingData}
                         trackingData={{
-                            organizationId: user?.data?.organizationUuid,
+                            organizationId: organizationUuid,
                             userId: user?.data?.userUuid,
                             projectId: projectUuid,
                         }}

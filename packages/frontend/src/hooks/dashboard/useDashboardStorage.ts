@@ -41,6 +41,7 @@ const useDashboardStorage = () => {
     const clearIsEditingDashboardChart = useCallback(() => {
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
+        sessionStorage.removeItem('dashboardSlug');
         // Trigger storage event to update NavBar
         window.dispatchEvent(new Event('storage'));
     }, []);
@@ -50,6 +51,7 @@ const useDashboardStorage = () => {
         return {
             name: sessionStorage.getItem('fromDashboard'),
             dashboardUuid,
+            dashboardSlug: sessionStorage.getItem('dashboardSlug'),
             activeTabUuid: dashboardUuid
                 ? sessionStorage.getItem(activeTabKey(dashboardUuid))
                 : null,
@@ -57,12 +59,24 @@ const useDashboardStorage = () => {
     }, []);
 
     const setDashboardChartInfo = useCallback(
-        (dashboardData: { name: string; dashboardUuid: string }) => {
+        (dashboardData: {
+            name: string;
+            dashboardUuid: string;
+            dashboardSlug?: string;
+        }) => {
             sessionStorage.setItem('fromDashboard', dashboardData.name);
             sessionStorage.setItem(
                 'dashboardUuid',
                 dashboardData.dashboardUuid,
             );
+            if (dashboardData.dashboardSlug) {
+                sessionStorage.setItem(
+                    'dashboardSlug',
+                    dashboardData.dashboardSlug,
+                );
+            } else {
+                sessionStorage.removeItem('dashboardSlug');
+            }
             // Trigger storage event to update NavBar
             window.dispatchEvent(new Event('storage'));
         },
@@ -89,6 +103,7 @@ const useDashboardStorage = () => {
         const dashboardUuid = sessionStorage.getItem('dashboardUuid');
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
+        sessionStorage.removeItem('dashboardSlug');
         if (dashboardUuid) {
             sessionStorage.removeItem(tilesKey(dashboardUuid));
             sessionStorage.removeItem(tabsKey(dashboardUuid));
@@ -110,10 +125,16 @@ const useDashboardStorage = () => {
             dashboardName: string | undefined,
             activeTabUuid?: string,
             dashboardTabs?: DashboardTab[],
+            dashboardSlug?: string,
         ) => {
             if (!dashboardUuid) return;
             sessionStorage.setItem('fromDashboard', dashboardName ?? '');
             sessionStorage.setItem('dashboardUuid', dashboardUuid);
+            if (dashboardSlug) {
+                sessionStorage.setItem('dashboardSlug', dashboardSlug);
+            } else {
+                sessionStorage.removeItem('dashboardSlug');
+            }
             sessionStorage.setItem(
                 tilesKey(dashboardUuid),
                 JSON.stringify(dashboardTiles ?? []),

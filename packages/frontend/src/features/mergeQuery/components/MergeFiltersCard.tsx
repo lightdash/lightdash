@@ -164,7 +164,7 @@ export const MergeFiltersCard: FC = () => {
             }
             headerElement={
                 total > 0 && !filterIsOpen ? (
-                    <Badge color="gray" variant="light" tt="none" fw={500}>
+                    <Badge>
                         {total} active filter{total === 1 ? '' : 's'}
                     </Badge>
                 ) : null

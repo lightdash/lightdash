@@ -20,9 +20,9 @@ import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import { dataAppHref } from '../../../../features/apps/utils/appUrls';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import classes from './blockStyles.module.css';
-import { dataAppHref } from './resourceUrls';
 
 const PAGE_SIZE = 50;
 
@@ -99,6 +99,7 @@ const DataAppPicker: FC<{
         {
             projectUuids: [projectUuid],
             contentTypes: [ContentType.DATA_APP],
+            dataAppVizsFilter: 'exclude',
             pageSize: PAGE_SIZE,
             search: debouncedSearch || undefined,
         },

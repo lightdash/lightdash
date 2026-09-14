@@ -1,5 +1,6 @@
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { act, renderHook } from '@testing-library/react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
 

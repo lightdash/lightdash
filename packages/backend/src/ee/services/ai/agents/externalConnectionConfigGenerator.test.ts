@@ -30,6 +30,7 @@ const rawProposal = (
         name: string;
         origin: string | null;
         type: ExternalConnectionAuthType;
+        allowBrowserImages: boolean;
         apiKeyName: string | null;
         apiKeyLocation: 'header' | 'query' | null;
         oauthScopes: string[] | null;
@@ -47,6 +48,7 @@ const rawProposal = (
         name: 'Example API',
         origin: 'https://api.example.com',
         type: 'bearer_token' as ExternalConnectionAuthType,
+        allowBrowserImages: false,
         apiKeyName: null,
         apiKeyLocation: null,
         oauthScopes: null,
@@ -75,9 +77,12 @@ const mockGenerateObject = (objects: unknown[]) => {
 describe('buildProposalSystemPrompt', () => {
     it('contains the security guardrails', () => {
         const prompt = buildProposalSystemPrompt();
-        expect(prompt).toContain('official documented API host');
+        expect(prompt).toContain(
+            'official documented API or public image host',
+        );
         expect(prompt).toContain('confident=false');
         expect(prompt).toContain('Least privilege');
+        expect(prompt).toContain('allowBrowserImages=true');
         expect(prompt).toContain(
             'NEVER include, invent, or placeholder any credential value',
         );
@@ -142,6 +147,18 @@ describe('normalizeProposal', () => {
         expect(result.allowedPathPrefixes).toEqual(['/v1/messages']);
     });
 
+    it('preserves image-only access without adding proxy methods', () => {
+        const result = normalizeProposal(
+            rawProposal({
+                type: 'none',
+                allowBrowserImages: true,
+                allowedMethods: [],
+            }),
+        );
+        expect(result.allowBrowserImages).toBe(true);
+        expect(result.allowedMethods).toEqual([]);
+    });
+
     it('strips trailing slash from origin and rejects non-https docs urls', () => {
         const result = normalizeProposal(
             rawProposal({
@@ -199,6 +216,27 @@ describe('generateExternalConnectionConfigProposal', () => {
                 }),
             ]),
         );
+    });
+
+    it('repairs browser image access that requires authentication', async () => {
+        const invalid = rawProposal({ allowBrowserImages: true });
+        const repaired = rawProposal({
+            type: 'none',
+            allowBrowserImages: true,
+            allowedMethods: [],
+            credentialGuide: null,
+        });
+        const mock = mockGenerateObject([invalid, repaired]);
+
+        const result = await generateExternalConnectionConfigProposal(
+            modelOptions,
+            'use public images from this host',
+        );
+
+        expect(result.type).toBe('none');
+        expect(result.allowBrowserImages).toBe(true);
+        expect(result.allowedMethods).toEqual([]);
+        expect(mock).toHaveBeenCalledTimes(2);
     });
 
     it('gives up after a failed repair round', async () => {

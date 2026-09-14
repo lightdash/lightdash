@@ -34,6 +34,7 @@ import {
 } from './AiDeepResearchAgent';
 import {
     AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE,
+    AiDeepResearchExecutorStageError,
     getAiDeepResearchRunBudget,
     type AiDeepResearchEvidenceBuildResult,
     type AiDeepResearchExecutor as AiDeepResearchExecutorFn,
@@ -331,6 +332,7 @@ export class AiDeepResearchExecutor {
                 terminalReason: run.cancellation_requested_at
                     ? 'user_cancellation'
                     : 'internal_error',
+                failureStage: 'authorization',
             };
         }
 
@@ -348,6 +350,7 @@ export class AiDeepResearchExecutor {
                     errorMessage:
                         'Deep Research cannot run because its creator is inactive',
                     terminalReason: 'permission_revoked',
+                    failureStage: 'authorization',
                 };
             }
             await this.dependencies.aiAgentService.assertDeepResearchAccess(
@@ -361,12 +364,16 @@ export class AiDeepResearchExecutor {
             );
         } catch (error) {
             if (!isAuthorizationRevokedError(error)) {
-                throw error;
+                throw new AiDeepResearchExecutorStageError(
+                    'authorization',
+                    error,
+                );
             }
             return {
                 status: 'failed',
                 errorMessage: getErrorMessage(error),
                 terminalReason: 'permission_revoked',
+                failureStage: 'authorization',
             };
         }
 
@@ -759,6 +766,7 @@ export class AiDeepResearchExecutor {
                 terminalReason: cancelledByUser
                     ? 'user_cancellation'
                     : 'internal_error',
+                failureStage: 'investigation',
             };
         }
         if (authorizationRevokedReason) {
@@ -766,6 +774,7 @@ export class AiDeepResearchExecutor {
                 status: 'failed',
                 errorMessage: authorizationRevokedReason,
                 terminalReason: 'permission_revoked',
+                failureStage: 'authorization',
             };
         }
 
@@ -793,6 +802,7 @@ export class AiDeepResearchExecutor {
                     maxWarehouseQueries: 'query_limit' as const,
                     deadlineMs: 'time_limit' as const,
                 }[budgetExceeded],
+                failureStage: 'investigation',
             };
         }
         if (finalization?.outcome === 'checkpointed') {
@@ -801,6 +811,7 @@ export class AiDeepResearchExecutor {
                 report: finalization.report,
                 warehouseQueryUuids: queryUuids,
                 terminalReason: 'provider_error',
+                failureStage: 'finalization',
             };
         }
         if (executionError) {
@@ -812,12 +823,14 @@ export class AiDeepResearchExecutor {
                     report: finalizedReport,
                     warehouseQueryUuids: queryUuids,
                     terminalReason: 'provider_error',
+                    failureStage: 'investigation',
                 };
             }
             return {
                 status: 'failed',
                 errorMessage: getErrorMessage(executionError),
                 terminalReason: 'provider_error',
+                failureStage: 'investigation',
             };
         }
         if (finalization?.outcome === 'no_relevant_data') {
@@ -825,6 +838,7 @@ export class AiDeepResearchExecutor {
                 status: 'failed',
                 errorMessage: AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE,
                 terminalReason: 'no_relevant_data',
+                failureStage: 'finalization',
             };
         }
         if (!finalizedReport) {
@@ -833,6 +847,7 @@ export class AiDeepResearchExecutor {
                 errorMessage:
                     'Deep Research finished without producing a report',
                 terminalReason: 'provider_error',
+                failureStage: 'finalization',
             };
         }
 

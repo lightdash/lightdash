@@ -10,6 +10,7 @@ import {
     Divider,
     Group,
     Stack,
+    Switch,
     Text,
     Tooltip,
     useMantineTheme,
@@ -63,6 +64,8 @@ const AiAgentAdminEvalsTable = ({
         setSelectedProjectUuids,
         setSelectedAgentUuids,
         setSorting,
+        hidePreviewProjects,
+        setHidePreviewProjects,
         hasActiveFilters,
         resetFilters,
     } = useAiAgentAdminFilters();
@@ -149,7 +152,7 @@ const AiAgentAdminEvalsTable = ({
             size: 240,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                    <MantineIcon icon={IconTextCaption} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -159,10 +162,8 @@ const AiAgentAdminEvalsTable = ({
                 return (
                     <Stack gap={0} miw={0}>
                         <Tooltip
-                            withinPortal
                             label={evalSummary.title}
                             disabled={!isTruncated.isTruncated}
-                            multiline
                             maw={300}
                         >
                             <Text
@@ -175,7 +176,7 @@ const AiAgentAdminEvalsTable = ({
                             </Text>
                         </Tooltip>
                         {evalSummary.description && (
-                            <Text fz="xs" c="ldGray.6" truncate>
+                            <Text fz="xs" c="dimmed" truncate>
                                 {evalSummary.description}
                             </Text>
                         )}
@@ -191,7 +192,7 @@ const AiAgentAdminEvalsTable = ({
             size: 120,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconRobotFace} color="ldGray.6" />
+                    <MantineIcon icon={IconRobotFace} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -210,12 +211,12 @@ const AiAgentAdminEvalsTable = ({
             size: 110,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconBox} color="ldGray.6" />
+                    <MantineIcon icon={IconBox} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
             Cell: ({ row }) => (
-                <Text c="ldGray.9" fz="sm" fw={400}>
+                <Text fz="sm" fw={400}>
                     {row.original.project.name}
                 </Text>
             ),
@@ -228,7 +229,7 @@ const AiAgentAdminEvalsTable = ({
             size: 80,
             Header: ({ column }) => (
                 <Group gap="two" wrap="nowrap">
-                    <MantineIcon icon={IconMessages} color="ldGray.6" />
+                    <MantineIcon icon={IconMessages} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -244,7 +245,7 @@ const AiAgentAdminEvalsTable = ({
             size: 180,
             Header: ({ column }) => (
                 <Group gap="two" wrap="nowrap">
-                    <MantineIcon icon={IconHistory} color="ldGray.6" />
+                    <MantineIcon icon={IconHistory} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -263,7 +264,7 @@ const AiAgentAdminEvalsTable = ({
                         <TimeAgo
                             date={latestRun.completedAt ?? latestRun.createdAt}
                             fz="xs"
-                            c="ldGray.6"
+                            c="dimmed"
                         />
                     </Stack>
                 );
@@ -277,7 +278,7 @@ const AiAgentAdminEvalsTable = ({
             size: 100,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconClock} color="ldGray.6" />
+                    <MantineIcon icon={IconClock} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -361,35 +362,33 @@ const AiAgentAdminEvalsTable = ({
                             setSearch={setSearch}
                             placeholder="Search evals by title"
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{ alignSelf: 'center' }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{ alignSelf: 'center' }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
+                        />
+                        <Divider orientation="vertical" w={1} h={20} />
+                        <Switch
+                            size="xs"
+                            label="Hide preview projects"
+                            checked={hidePreviewProjects}
+                            onChange={(event) =>
+                                setHidePreviewProjects(
+                                    event.currentTarget.checked,
+                                )
+                            }
                         />
                         {hasActiveFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    style={{ alignSelf: 'center' }}
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"
@@ -451,7 +450,7 @@ const AiAgentAdminEvalsTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}

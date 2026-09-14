@@ -126,6 +126,50 @@ describe('Codex sandbox configuration', () => {
         });
     });
 
+    test('builds a bearer-authenticated custom provider for a Bedrock gateway', () => {
+        const config = {
+            defaultProvider: 'bedrock',
+            providers: {
+                bedrock: {
+                    apiKey: 'gateway-secret',
+                    region: 'us-east-2',
+                    baseUrl: 'https://bedrock-gateway.example/responses',
+                },
+            },
+        };
+
+        const env = buildCodexCodeEnv(config);
+        expect(env).toEqual({
+            DATA_APP_CODEX_PROVIDER: 'lightdash-bedrock-gateway',
+            AWS_REGION: 'us-east-2',
+            BEDROCK_BASE_URL: 'https://bedrock-gateway.example/responses',
+            BEDROCK_GATEWAY_API_KEY: 'gateway-secret',
+        });
+        expect(getCodexCodeProvider(env)).toBe('lightdash-bedrock-gateway');
+        expect(
+            getCodexModelId('lightdash-bedrock-gateway', 'gpt-5.6-terra'),
+        ).toBe('openai.gpt-5.6-terra');
+        expect(codexCodeAllowedHosts(config)).toEqual([
+            'bedrock-gateway.example',
+        ]);
+    });
+
+    test('fails closed for a SigV4-authenticated Codex Bedrock gateway', () => {
+        expect(() =>
+            buildCodexCodeEnv({
+                defaultProvider: 'bedrock',
+                providers: {
+                    bedrock: {
+                        region: 'eu-west-1',
+                        accessKeyId: 'access-key',
+                        secretAccessKey: 'secret-key',
+                        baseUrl: 'https://bedrock-gateway.example/responses',
+                    },
+                },
+            }),
+        ).toThrow('Codex requires BEDROCK_API_KEY');
+    });
+
     test('fails before sandbox launch when Bedrock is incomplete', () => {
         expect(() =>
             buildCodexCodeEnv({
@@ -162,6 +206,7 @@ describe('Codex sandbox configuration', () => {
             'CODEX_API_KEY',
             'OPENAI_API_KEY',
             'AWS_BEARER_TOKEN_BEDROCK',
+            'BEDROCK_GATEWAY_API_KEY',
             'AWS_ACCESS_KEY_ID',
             'AWS_SECRET_ACCESS_KEY',
             'AWS_SESSION_TOKEN',
@@ -186,6 +231,25 @@ describe('Codex sandbox configuration', () => {
         expect(command).toContain('model_provider="amazon-bedrock"');
         expect(command).not.toContain('openai_base_url');
         expect(command).toContain('--model "$DATA_APP_CODEX_MODEL_ID"');
+    });
+
+    test('builds a custom Bedrock gateway provider command', () => {
+        const command = buildCodexExecCommand({
+            provider: 'lightdash-bedrock-gateway',
+            reasoningEffort: 'low',
+            outputSchemaPath: null,
+        });
+
+        expect(command).toContain('model_provider="lightdash-bedrock-gateway"');
+        expect(command).toContain(
+            'model_providers.lightdash-bedrock-gateway.base_url="$BEDROCK_BASE_URL"',
+        );
+        expect(command).toContain(
+            'model_providers.lightdash-bedrock-gateway.env_key="BEDROCK_GATEWAY_API_KEY"',
+        );
+        expect(command).toContain(
+            'model_providers.lightdash-bedrock-gateway.wire_api="responses"',
+        );
     });
 
     test('uses native project instructions and exposes the applicable skills', () => {
