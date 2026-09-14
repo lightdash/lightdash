@@ -174,6 +174,10 @@ import {
     ManagedSignInTokenUsesTableName,
 } from '../database/entities/managedSignInTokenUses';
 import {
+    MobileSetupCodesTable,
+    MobileSetupCodesTableName,
+} from '../database/entities/mobileSetupCodes';
+import {
     NotificationsTable,
     NotificationsTableName,
 } from '../database/entities/notifications';
@@ -642,6 +646,7 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [MobileSetupCodesTableName]: MobileSetupCodesTable;
         [InviteLinkTableName]: InviteLinkTable;
         [OrganizationTableName]: OrganizationTable;
         [UserTableName]: UserTable;
