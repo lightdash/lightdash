@@ -11,10 +11,12 @@ export default defineConfig({
         include: [
             'src/ee/services/ManagedAgentService/AutopilotAgentRunner.integration.test.ts',
             'src/ee/services/ManagedAgentService/AutopilotContent.integration.test.ts',
+            'src/ee/services/ManagedAgentService/AutopilotHeartbeat.integration.test.ts',
         ],
         exclude: [],
         setupFiles: [],
-        testTimeout: 240_000,
+        // A full heartbeat may run up to the production 600 second deadline.
+        testTimeout: 690_000,
         hookTimeout: 120_000,
         maxWorkers: 1,
     },

@@ -36,10 +36,22 @@ const provider = process.env.AUTOPILOT_EVAL_PROVIDER;
 const mode = process.env.AUTOPILOT_EVAL_MODE;
 const fixture = process.env.AUTOPILOT_EVAL_FIXTURE ?? 'seeded';
 
+// Scorecards are optional and never gate the assertions.
+const writeReport = async (name: string, payload: unknown) => {
+    const directory = process.env.AUTOPILOT_EVAL_OUTPUT_DIR;
+    if (!directory) return;
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+        path.join(directory, name),
+        JSON.stringify(payload, null, 2),
+    );
+};
+
 describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
     'Real Autopilot heartbeat',
     () => {
         let app: App;
+        let modelName: string;
         beforeAll(async () => {
             const uri = new URL(process.env.PGCONNECTIONURI ?? '');
             if (
@@ -62,10 +74,15 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                 throw new Error('Choose observe, flag, or cleanup');
             if (fixture !== 'seeded' && fixture !== 'large')
                 throw new Error('Choose seeded or large');
+            if (!process.env.AUTOPILOT_EVAL_MODEL)
+                throw new Error(
+                    'Set AUTOPILOT_EVAL_MODEL to the exact model under evaluation',
+                );
+            modelName = process.env.AUTOPILOT_EVAL_MODEL;
             const config = parseConfig();
             const { model } = getModel(config.ai.copilot, {
                 provider,
-                modelName: process.env.AUTOPILOT_EVAL_MODEL,
+                modelName,
             });
             // This App exists only inside the isolated evaluation process.
             config.managedAgent = {
@@ -122,7 +139,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                 .upsert(SEED_ORG_1.organization_uuid, {
                     defaultAiAgentModelConfig: {
                         modelProvider: provider,
-                        modelName: process.env.AUTOPILOT_EVAL_MODEL!,
+                        modelName,
                         reasoning: true,
                     },
                 });
@@ -359,12 +376,6 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                 const after = await chartModel.get(soleChart.uuid, undefined, {
                     deleted: 'any',
                 });
-                console.info(
-                    'Single-chart guard result',
-                    response,
-                    'deleted:',
-                    Boolean(after.deletedAt),
-                );
                 expect(after.deletedAt).toBeFalsy();
                 expect(response).toContain('only remaining chart');
                 const dashboardModel = models.getDashboardModel();
@@ -544,29 +555,20 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                 expect(
                     (await chartModel.get(capCharts[25].uuid)).deletedAt,
                 ).toBeFalsy();
-                const directory = process.env.AUTOPILOT_EVAL_OUTPUT_DIR!;
-                await mkdir(directory, { recursive: true });
-                await writeFile(
-                    path.join(directory, 'real-guards.json'),
-                    JSON.stringify(
-                        {
-                            singleChartBlocked: true,
-                            duplicateTilesProtected: true,
-                            otherSavedChartAllowsDeletion: true,
-                            otherSqlChartAllowsDeletion: true,
-                            deletedChartsIgnored: true,
-                            latestDashboardVersionOnly: true,
-                            deletedDashboardIgnored: true,
-                            successfulDeletes: 25,
-                            twentySixthDeleteBlocked: true,
-                            response,
-                            capResults,
-                            bulkResults,
-                        },
-                        null,
-                        2,
-                    ),
-                );
+                await writeReport('real-guards.json', {
+                    singleChartBlocked: true,
+                    duplicateTilesProtected: true,
+                    otherSavedChartAllowsDeletion: true,
+                    otherSqlChartAllowsDeletion: true,
+                    deletedChartsIgnored: true,
+                    latestDashboardVersionOnly: true,
+                    deletedDashboardIgnored: true,
+                    successfulDeletes: 25,
+                    twentySixthDeleteBlocked: true,
+                    response,
+                    capResults,
+                    bulkResults,
+                });
                 await agentModel.finishRun(guardRun.runUuid, {
                     status: ManagedAgentRunStatus.COMPLETED,
                     actionCount: await agentModel.countActionsForRun(
@@ -827,52 +829,41 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                 'full checklist covered',
                 checklistTools.every((tool) => called.includes(tool)),
             );
-            const directory = process.env.AUTOPILOT_EVAL_OUTPUT_DIR!;
-            await mkdir(directory, { recursive: true });
-            await writeFile(
-                path.join(directory, `${provider}-${mode}-${fixture}.json`),
-                JSON.stringify(
-                    {
-                        kind: 'real-heartbeat',
-                        provider,
-                        mode,
-                        fixture,
-                        evaluationOnlyQualification: true,
-                        limits: {
-                            maxSteps: fixture === 'large' ? 120 : 80,
-                            timeoutMs: fixture === 'large' ? 600_000 : 300_000,
-                        },
-                        retiredModelOutcomes: {
-                            expected: retiredCharts.length,
-                            deleted: retiredDeleted,
-                            flagged: retiredFlagged,
-                        },
-                        elapsedMs: Date.now() - started,
-                        run: finished,
-                        result,
-                        steps,
-                        toolErrors,
-                        checks,
-                        actions,
-                        fixtureIds: {
-                            stale: stale.uuid,
-                            escalated: escalated.uuid,
-                            broken: broken.uuid,
-                            protected: protectedChart.uuid,
-                            verified: verified.uuid,
-                            excluded: excluded.uuid,
-                            recent: recent.uuid,
-                            soleChart: soleChart.uuid,
-                            dashboard: dashboard.uuid,
-                            retiredCharts: retiredCharts.map(
-                                (chart) => chart.uuid,
-                            ),
-                        },
-                    },
-                    null,
-                    2,
-                ),
-            );
+            await writeReport(`${provider}-${mode}-${fixture}.json`, {
+                kind: 'real-heartbeat',
+                provider,
+                mode,
+                fixture,
+                evaluationOnlyQualification: true,
+                limits: {
+                    maxSteps: fixture === 'large' ? 120 : 80,
+                    timeoutMs: fixture === 'large' ? 600_000 : 300_000,
+                },
+                retiredModelOutcomes: {
+                    expected: retiredCharts.length,
+                    deleted: retiredDeleted,
+                    flagged: retiredFlagged,
+                },
+                elapsedMs: Date.now() - started,
+                run: finished,
+                result,
+                steps,
+                toolErrors,
+                checks,
+                actions,
+                fixtureIds: {
+                    stale: stale.uuid,
+                    escalated: escalated.uuid,
+                    broken: broken.uuid,
+                    protected: protectedChart.uuid,
+                    verified: verified.uuid,
+                    excluded: excluded.uuid,
+                    recent: recent.uuid,
+                    soleChart: soleChart.uuid,
+                    dashboard: dashboard.uuid,
+                    retiredCharts: retiredCharts.map((chart) => chart.uuid),
+                },
+            });
             expect(checks.filter((item) => !item.passed)).toEqual([]);
         });
     },
