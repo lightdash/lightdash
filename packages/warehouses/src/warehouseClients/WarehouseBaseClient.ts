@@ -6,6 +6,8 @@ import {
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
+    UnnestSql,
+    UnnestSqlArgs,
     WarehouseCatalog,
     WarehouseResults,
     WarehouseSqlBuilder,
@@ -49,6 +51,10 @@ export default abstract class WarehouseBaseClient<
 
     getFieldQuoteChar(): string {
         return this.sqlBuilder.getFieldQuoteChar();
+    }
+
+    getUnnestSql(args: UnnestSqlArgs): UnnestSql | null {
+        return this.sqlBuilder.getUnnestSql(args);
     }
 
     getFloatingType(): string {

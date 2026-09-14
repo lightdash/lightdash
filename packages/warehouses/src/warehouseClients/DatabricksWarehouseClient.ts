@@ -11,6 +11,7 @@ import {
     CreateDatabricksCredentials,
     DatabricksAuthenticationType,
     DimensionType,
+    getDatabricksUnnestSql,
     getErrorMessage,
     getWarehouseTableType,
     Metric,
@@ -20,6 +21,8 @@ import {
     SupportedDbtAdapter,
     TimeIntervalUnit,
     UnexpectedServerError,
+    UnnestSql,
+    UnnestSqlArgs,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -313,6 +316,10 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
             return `SORT_ARRAY(COLLECT_LIST(${expression}))`;
         }
         return `COLLECT_LIST(${expression})`;
+    }
+
+    getUnnestSql(args: UnnestSqlArgs): UnnestSql {
+        return getDatabricksUnnestSql(args);
     }
 }
 

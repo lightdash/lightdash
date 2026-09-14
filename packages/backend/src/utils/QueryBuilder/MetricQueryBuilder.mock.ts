@@ -13,6 +13,7 @@ import {
     Explore,
     FieldType,
     FilterOperator,
+    getBigqueryUnnestSql,
     IntrinsicUserAttributes,
     JoinModelRequiredFilterRule,
     JoinRelationship,
@@ -86,6 +87,7 @@ export const warehouseClientMock: WarehouseClient = {
     getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     supportsCteMaterialization: () => true,
+    getUnnestSql: () => null,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
         schema?: string | undefined,
@@ -140,6 +142,7 @@ export const warehouseClientMock: WarehouseClient = {
 
 export const bigqueryClientMock: WarehouseClient = {
     getSessionTimezone: async () => null,
+    getUnnestSql: getBigqueryUnnestSql,
     credentials: {
         type: WarehouseTypes.BIGQUERY,
     } as CreateWarehouseCredentials,

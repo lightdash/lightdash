@@ -2,6 +2,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    NestedTableProvenance,
     type CompiledExploreJoin,
     type CompiledTable,
     type Dimension,
@@ -20,7 +21,7 @@ const join = (table: string): CompiledExploreJoin => ({
 
 const table = (
     name: string,
-    nestedFrom?: CompiledTable['nestedFrom'],
+    nestedFrom?: Pick<NestedTableProvenance, 'parentTable' | 'columnPath'>,
 ): CompiledTable => ({
     name,
     label: name,
@@ -30,7 +31,16 @@ const table = (
     dimensions: {},
     metrics: {},
     lineageGraph: {},
-    ...(nestedFrom ? { nestedFrom } : {}),
+    ...(nestedFrom
+        ? {
+              nestedFrom: {
+                  ...nestedFrom,
+                  elementSql: `"${name}"`,
+                  offsetSql: `"${name}__offset"`,
+                  joinCondition: 'TRUE',
+              },
+          }
+        : {}),
 });
 
 const customersExplore: Pick<Explore, 'baseTable' | 'joinedTables' | 'tables'> =

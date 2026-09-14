@@ -24,6 +24,10 @@ import {
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
 } from '../types/warehouse';
+import {
+    getBigqueryUnnestSql,
+    getDatabricksUnnestSql,
+} from '../utils/warehouse';
 import { ExploreCompiler } from './exploreCompiler';
 import { warehouseClientMock } from './exploreCompiler.mock';
 import { getExploreParameterDefinitions } from './parameters';
@@ -3411,6 +3415,7 @@ describe('nested and repeated columns', () => {
         ...warehouseClientMock,
         getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
         getFieldQuoteChar: () => '`',
+        getUnnestSql: getBigqueryUnnestSql,
     };
     const nestedColumn = (
         name: string,
@@ -3552,6 +3557,9 @@ describe('nested and repeated columns', () => {
         expect(hits.nestedFrom).toEqual({
             parentTable: 'ga_sessions',
             columnPath: 'hits',
+            elementSql: '`ga_sessions__hits`',
+            offsetSql: '`ga_sessions__hits__offset`',
+            joinCondition: 'TRUE',
         });
         expect(hits.sqlTable).toEqual(
             'UNNEST(`ga_sessions`.hits) AS `ga_sessions__hits` WITH OFFSET AS `ga_sessions__hits__offset`',
@@ -3577,6 +3585,9 @@ describe('nested and repeated columns', () => {
         expect(product.nestedFrom).toEqual({
             parentTable: 'ga_sessions__hits',
             columnPath: 'hits.product',
+            elementSql: '`ga_sessions__hits__product`',
+            offsetSql: '`ga_sessions__hits__product__offset`',
+            joinCondition: 'TRUE',
         });
         expect(product.sqlTable).toEqual(
             'UNNEST(`ga_sessions__hits`.product) AS `ga_sessions__hits__product` WITH OFFSET AS `ga_sessions__hits__product__offset`',
@@ -3722,6 +3733,9 @@ describe('nested and repeated columns', () => {
         expect(firstHits.nestedFrom).toEqual({
             parentTable: 'first_session',
             columnPath: 'hits',
+            elementSql: '`first_session__hits`',
+            offsetSql: '`first_session__hits__offset`',
+            joinCondition: 'TRUE',
         });
         expect(firstHits.dimensions['page.pagePath'].compiledSql).toEqual(
             '`first_session__hits`.page.pagePath',
@@ -3859,6 +3873,9 @@ describe('nested and repeated columns', () => {
         expect(keywords.nestedFrom).toEqual({
             parentTable: 'ga_sessions__hits',
             columnPath: 'hits.page.keywords',
+            elementSql: '`ga_sessions__hits__page__keywords`',
+            offsetSql: '`ga_sessions__hits__page__keywords__offset`',
+            joinCondition: 'TRUE',
         });
         expect(keywords.sqlTable).toEqual(
             'UNNEST(`ga_sessions__hits`.page.keywords) AS `ga_sessions__hits__page__keywords` WITH OFFSET AS `ga_sessions__hits__page__keywords__offset`',
@@ -3904,5 +3921,264 @@ describe('nested and repeated columns', () => {
         expect(JSON.stringify(explore)).toContain(
             'already used by another table',
         );
+    });
+});
+
+describe('nested and repeated columns on Databricks', () => {
+    const databricksClientMock = {
+        ...warehouseClientMock,
+        getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+        getFieldQuoteChar: () => '`',
+        getUnnestSql: getDatabricksUnnestSql,
+    };
+    const column = (
+        name: string,
+        extra: Partial<DbtModelNode['columns'][string]> = {},
+    ) => ({ name, meta: {}, ...extra });
+    const transactions: DbtModelNode = {
+        ...model,
+        name: 'transactions',
+        alias: 'transactions',
+        unique_id: 'model.transactions',
+        database: 'lightdash_staging',
+        schema: 'nested',
+        relation_name: '`lightdash_staging`.`nested`.`transactions`',
+        meta: { primary_key: 'order_id' },
+        columns: {
+            order_id: column('order_id'),
+            amount: column('amount', {
+                meta: { metrics: { total_amount: { type: MetricType.SUM } } },
+            }),
+            'customer.location': column('customer.location'),
+            product: column('product', { description: 'Line items' }),
+            'product.sku': column('product.sku'),
+            'product.price': column('product.price', {
+                meta: {
+                    additional_dimensions: {
+                        price_x2: {
+                            type: DimensionType.NUMBER,
+                            sql: '${TABLE}.price * 2',
+                        },
+                    },
+                    metrics: {
+                        total_price: { type: MetricType.SUM },
+                        total_price_x2: {
+                            type: MetricType.SUM,
+                            sql: '${TABLE}.price * 2',
+                        },
+                    },
+                },
+            }),
+            'product.attributes.colour': column('product.attributes.colour'),
+            'product.variants': column('product.variants'),
+            'product.variants.size': column('product.variants.size'),
+            'product.variants.stock': column('product.variants.stock', {
+                meta: { metrics: { total_stock: { type: MetricType.SUM } } },
+            }),
+            tags: column('tags', {
+                meta: { metrics: { last_tag: { type: MetricType.MAX } } },
+            }),
+            labels: column('labels'),
+        },
+    };
+    const catalog: WarehouseCatalog = {
+        lightdash_staging: {
+            nested: {
+                transactions: {
+                    order_id: DimensionType.STRING,
+                    amount: DimensionType.NUMBER,
+                    customer: DimensionType.STRING,
+                    'customer.id': DimensionType.STRING,
+                    'customer.location': DimensionType.STRING,
+                    product: DimensionType.STRING,
+                    'product.sku': DimensionType.STRING,
+                    'product.price': DimensionType.NUMBER,
+                    'product.attributes': DimensionType.STRING,
+                    'product.attributes.colour': DimensionType.STRING,
+                    'product.variants': DimensionType.STRING,
+                    'product.variants.size': DimensionType.STRING,
+                    'product.variants.stock': DimensionType.NUMBER,
+                    tags: DimensionType.STRING,
+                    labels: DimensionType.STRING,
+                },
+            },
+        },
+    };
+    Object.entries({
+        customer: { repeated: false, record: true },
+        product: { repeated: true, record: true },
+        'product.attributes': { repeated: false, record: true },
+        'product.variants': { repeated: true, record: true },
+        tags: { repeated: true, record: false },
+    }).forEach(([path, shape]) =>
+        setCatalogNestedColumnShape(
+            catalog,
+            'lightdash_staging',
+            'nested',
+            'transactions',
+            path,
+            shape,
+        ),
+    );
+    const typedModels = attachTypesToModels([transactions], catalog, true);
+
+    const compile = async () => {
+        const explores = await convertExplores(
+            typedModels,
+            false,
+            SupportedDbtAdapter.DATABRICKS,
+            databricksClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { unnestRepeatedColumns: true },
+        );
+        const explore = explores.find((e) => e.name === 'transactions');
+        if (!explore || isExploreError(explore)) {
+            throw new Error(JSON.stringify(explore));
+        }
+        return explore;
+    };
+
+    it('explodes a repeated record laterally and addresses leaves through the element column', async () => {
+        const explore = await compile();
+        expect(Object.keys(explore.tables).sort()).toEqual([
+            'transactions',
+            'transactions__product',
+            'transactions__product__variants',
+            'transactions__tags',
+        ]);
+
+        const base = explore.tables.transactions;
+        expect(base.dimensions['customer.location'].compiledSql).toEqual(
+            '`transactions`.customer.location',
+        );
+        expect(base.dimensions.labels).toMatchObject({
+            type: DimensionType.STRING,
+            compiledSql: '`transactions`.labels',
+        });
+
+        const product = explore.tables.transactions__product;
+        expect(product.sqlTable).toEqual(
+            'LATERAL posexplode_outer(`transactions`.product) AS `transactions__product`(`transactions__product__offset`, col)',
+        );
+        expect(product.nestedFrom).toEqual({
+            parentTable: 'transactions',
+            columnPath: 'product',
+            elementSql: '`transactions__product`.col',
+            offsetSql: '`transactions__product__offset`',
+            joinCondition: null,
+        });
+        expect(product.description).toEqual('Line items');
+        expect(product.dimensions.sku.compiledSql).toEqual(
+            '`transactions__product`.col.sku',
+        );
+        expect(product.dimensions['attributes.colour'].compiledSql).toEqual(
+            '`transactions__product`.col.attributes.colour',
+        );
+        expect(product.dimensions.price_x2.compiledSql).toEqual(
+            '`transactions__product`.col.price * 2',
+        );
+        expect(product.dimensions.offset.compiledSql).toEqual(
+            '`transactions__product__offset`',
+        );
+        expect(product.metrics.total_price.compiledSql).toEqual(
+            'SUM(`transactions__product`.col.price)',
+        );
+        expect(product.metrics.total_price_x2.compiledSql).toEqual(
+            'SUM(`transactions__product`.col.price * 2)',
+        );
+    });
+
+    it('chains a repeated record inside a repeated record through the parent element', async () => {
+        const explore = await compile();
+        const variants = explore.tables.transactions__product__variants;
+        expect(variants.sqlTable).toEqual(
+            'LATERAL posexplode_outer(`transactions__product`.col.variants) AS `transactions__product__variants`(`transactions__product__variants__offset`, col)',
+        );
+        expect(variants.nestedFrom).toMatchObject({
+            parentTable: 'transactions__product',
+            columnPath: 'product.variants',
+            elementSql: '`transactions__product__variants`.col',
+        });
+        expect(variants.dimensions.size.compiledSql).toEqual(
+            '`transactions__product__variants`.col.size',
+        );
+        expect(variants.metrics.total_stock.compiledSql).toEqual(
+            'SUM(`transactions__product__variants`.col.stock)',
+        );
+    });
+
+    it('exposes an array of scalars as the element column', async () => {
+        const explore = await compile();
+        const tags = explore.tables.transactions__tags;
+        expect(tags.sqlTable).toEqual(
+            'LATERAL posexplode_outer(`transactions`.tags) AS `transactions__tags`(`transactions__tags__offset`, col)',
+        );
+        expect(tags.dimensions.value.compiledSql).toEqual(
+            '`transactions__tags`.col',
+        );
+        expect(tags.metrics.last_tag.compiledSql).toEqual(
+            'MAX(`transactions__tags`.col)',
+        );
+    });
+
+    it('keeps the joins one-to-many on TRUE for the inflation detector', async () => {
+        const explore = await compile();
+        expect(
+            explore.joinedTables.map(
+                ({
+                    table,
+                    type,
+                    relationship,
+                    compiledSqlOn,
+                    tablesReferences,
+                }) => ({
+                    table,
+                    type,
+                    relationship,
+                    compiledSqlOn,
+                    tablesReferences,
+                }),
+            ),
+        ).toEqual([
+            {
+                table: 'transactions__product',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                compiledSqlOn: 'TRUE',
+                tablesReferences: ['transactions'],
+            },
+            {
+                table: 'transactions__tags',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                compiledSqlOn: 'TRUE',
+                tablesReferences: ['transactions'],
+            },
+            {
+                table: 'transactions__product__variants',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                compiledSqlOn: 'TRUE',
+                tablesReferences: ['transactions__product'],
+            },
+        ]);
+    });
+
+    it('fails the model on a warehouse that cannot unnest', async () => {
+        const explores = await convertExplores(
+            typedModels,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { unnestRepeatedColumns: true },
+        );
+        const explore = explores.find((e) => e.name === 'transactions');
+        if (!explore || !isExploreError(explore)) {
+            throw new Error('expected the model to fail');
+        }
+        expect(explore.errors.map(({ message }) => message)).toEqual([
+            `Repeated column "product" in model "transactions" can't be unnested: postgres doesn't support unnesting repeated columns yet.`,
+        ]);
     });
 });

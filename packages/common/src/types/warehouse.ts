@@ -353,6 +353,24 @@ export enum TimeIntervalUnit {
     YEAR = 'YEAR',
 }
 
+/** The SQL pieces that turn a repeated column into a virtual table. */
+export type UnnestSql = {
+    /** The full FROM item, aliases included, that the join renderer emits verbatim. */
+    fromSql: string;
+    /** How a field of the exploded element is addressed. */
+    elementSql: string;
+    offsetSql: string;
+    /** Null when the join must be rendered without an ON clause. */
+    joinCondition: string | null;
+};
+
+export type UnnestSqlArgs = {
+    /** Element reference of the parent: its quoted alias, or its own `elementSql` when it is itself a virtual table. */
+    parentElementSql: string;
+    columnSegment: string;
+    alias: string;
+};
+
 export interface WarehouseSqlBuilder {
     getStartOfWeek: () => WeekDay | null | undefined;
     getAdapterType: () => SupportedDbtAdapter;
@@ -380,6 +398,8 @@ export interface WarehouseSqlBuilder {
     // Array construction methods for table calculations
     buildArray: (elements: string[]) => string;
     buildArrayAgg: (expression: string, orderBy?: string) => string;
+    /** Null when the warehouse cannot unnest a repeated column into a virtual table. */
+    getUnnestSql: (args: UnnestSqlArgs) => UnnestSql | null;
 }
 
 export interface WarehouseClient extends WarehouseSqlBuilder {
