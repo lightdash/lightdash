@@ -1,3 +1,10 @@
+## [2.206.2](https://github.com/lightdash/lightdash/compare/2.206.1...2.206.2) (2026-09-14)
+
+
+### Bug Fixes
+
+* enforce content-as-code upload space permissions ([#29138](https://github.com/lightdash/lightdash/issues/29138)) ([9d1813c](https://github.com/lightdash/lightdash/commit/9d1813c3565d8af1390e43896600924d3fb5160f)), closes [#23610](https://github.com/lightdash/lightdash/issues/23610)
+
 ## [2.206.1](https://github.com/lightdash/lightdash/compare/2.206.0...2.206.1) (2026-09-14)
 
 
