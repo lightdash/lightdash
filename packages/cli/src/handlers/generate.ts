@@ -111,11 +111,12 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             `  Generating .yml for model ${styles.bold(compiledModel.name)}`,
         );
         try {
-            const table = await getWarehouseTableForModel({
-                model: compiledModel,
-                warehouseClient,
-                preserveColumnCase: options.preserveColumnCase,
-            });
+            const { table, warehouseColumnPaths } =
+                await getWarehouseTableForModel({
+                    model: compiledModel,
+                    warehouseClient,
+                    preserveColumnCase: options.preserveColumnCase,
+                });
             // Resolve dbt version for metadata structure
             const resolvedDbtVersion =
                 dbtVersion.versionOption === DbtVersionOptionLatest.LATEST
@@ -129,6 +130,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 {
                     model: compiledModel,
                     table,
+                    warehouseColumnPaths,
                     docs: manifest.docs,
                     includeMeta: !options.excludeMeta,
                     projectDir: absoluteProjectPath,

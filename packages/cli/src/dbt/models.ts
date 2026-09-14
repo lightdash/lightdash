@@ -66,11 +66,18 @@ export const isGeneratableColumn = (
     });
 };
 
+export type WarehouseModelColumns = {
+    /** Columns `generate` writes to YAML: scalars, struct leaves and arrays of scalars. */
+    table: WarehouseTableSchema;
+    /** Every column path the warehouse reports, containers and nested leaves included. */
+    warehouseColumnPaths: string[];
+};
+
 export const getWarehouseTableForModel = async ({
     model,
     warehouseClient,
     preserveColumnCase,
-}: GetDatabaseTableForModelArgs): Promise<WarehouseTableSchema> => {
+}: GetDatabaseTableForModelArgs): Promise<WarehouseModelColumns> => {
     const tableRef: TableRef = {
         database: model.database,
         schema: model.schema,
@@ -91,17 +98,36 @@ export const getWarehouseTableForModel = async ({
             `Expected to find materialised model at ${tableRef.database}.${tableRef.schema}.${tableRef.table} but couldn't find (or cannot access) ${missing}`,
         );
     }
-    return Object.entries(table).reduce<WarehouseTableSchema>(
-        (accumulator, [key, value]) => {
-            if (!isGeneratableColumn(catalog, tableRef, key)) {
+    const columnName = (key: string) =>
+        preserveColumnCase ? key : key.toLowerCase();
+    return {
+        table: Object.entries(table).reduce<WarehouseTableSchema>(
+            (accumulator, [key, value]) => {
+                if (!isGeneratableColumn(catalog, tableRef, key)) {
+                    return accumulator;
+                }
+                accumulator[columnName(key)] = value;
                 return accumulator;
-            }
-            const columnName = preserveColumnCase ? key : key.toLowerCase();
-            accumulator[columnName] = value;
-            return accumulator;
-        },
-        {},
+            },
+            {},
+        ),
+        warehouseColumnPaths: Object.keys(table).map(columnName),
+    };
+};
+
+/**
+ * Existing YAML columns the warehouse no longer has. Nested leaves and
+ * containers are not generated, but they are real warehouse paths, so they
+ * are never reported as missing.
+ */
+export const getColumnsMissingFromWarehouse = (
+    existingColumnNames: string[],
+    warehouseColumnPaths: string[],
+): string[] => {
+    const known = new Set(
+        warehouseColumnPaths.map((columnPath) => columnPath.toLowerCase()),
     );
+    return existingColumnNames.filter((name) => !known.has(name.toLowerCase()));
 };
 
 type GenerateModelYamlArgs = {
@@ -193,6 +219,7 @@ const askOverwriteDescription = async (
 type FindAndUpdateModelYamlArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
+    warehouseColumnPaths: string[];
     docs: Record<string, DbtDoc>;
     includeMeta: boolean;
     projectDir: string;
@@ -203,6 +230,7 @@ type FindAndUpdateModelYamlArgs = {
 export const findAndUpdateModelYaml = async ({
     model,
     table,
+    warehouseColumnPaths,
     docs,
     includeMeta,
     projectDir,
@@ -324,16 +352,10 @@ export const findAndUpdateModelYaml = async ({
             schemaEditor.addColumn(model.name, column);
         });
 
-        // Delete columns that no longer exist in the warehouse (case-insensitive comparison)
-        const generatedColumnNamesLower = generatedModel.columns.map((gc) =>
-            gc.name.toLowerCase(),
+        const deletedColumnNames = getColumnsMissingFromWarehouse(
+            existingColumns.map((c) => c.name),
+            warehouseColumnPaths,
         );
-        const deletedColumnNames = existingColumns
-            .filter(
-                (c) =>
-                    !generatedColumnNamesLower.includes(c.name.toLowerCase()),
-            )
-            .map((c) => c.name);
         if (deletedColumnNames.length > 0 && !GlobalState.isNonInteractive()) {
             let answers = { isConfirm: assumeYes };
 
