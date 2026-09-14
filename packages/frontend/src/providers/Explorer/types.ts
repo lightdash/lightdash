@@ -306,6 +306,7 @@ export interface ExplorerReduceState {
             isEditing?: boolean;
             item?: Dimension | AdditionalMetric | CustomDimension | Metric;
             type?: MetricType;
+            label?: string;
         };
         customDimension: {
             isOpen: boolean;

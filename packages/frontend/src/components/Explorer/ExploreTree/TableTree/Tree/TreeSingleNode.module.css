@@ -2,7 +2,8 @@
     background-color: var(--tree-node-bg);
 }
 
-.root:hover {
+.root:hover,
+.root[data-quick-create] {
     background-color: var(--tree-node-hover-bg);
 }
 
