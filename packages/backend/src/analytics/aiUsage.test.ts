@@ -171,6 +171,7 @@ describe('emitAiUsage', () => {
             model: 'claude-sonnet-5',
             provider: 'anthropic',
             keyManagement: null,
+            managedAgentRunId: null,
             deepResearchRunId: null,
             deepResearchPhase: null,
             ...tokens,
@@ -231,6 +232,19 @@ describe('emitAiUsage', () => {
         expect(track.mock.calls[0][0].properties.keyManagement).toBeNull();
     });
 
+    it('does not misattribute another feature’s generic run UUID to Autopilot', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+        emitAiUsage(
+            {
+                functionId: 'otherFeature',
+                metadata: { feature: 'data-app', runUuid: 'other-run' },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.managedAgentRunId).toBeNull();
+    });
+
     it('attributes Deep Research usage to its run and phase', () => {
         const track = vi.fn<(event: AiUsageEvent) => void>();
         registerAiUsageTracker(track);
@@ -248,6 +262,7 @@ describe('emitAiUsage', () => {
         );
 
         expect(track.mock.calls[0][0].properties).toMatchObject({
+            managedAgentRunId: null,
             deepResearchRunId: 'run-1',
             deepResearchPhase: 'investigating',
         });

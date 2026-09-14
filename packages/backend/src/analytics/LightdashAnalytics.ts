@@ -79,7 +79,7 @@ import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagMod
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
-import type { AiUsageEvent } from './aiUsage';
+import type { AiKeyManagement, AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
     UpgradeEventName,
@@ -2322,6 +2322,9 @@ export type ManagedAgentRunCompletedEvent = BaseTrack & {
         triggeredBy: 'cron' | 'manual' | 'on_enable';
         status: 'completed' | 'error';
         runtime: ManagedAgentRuntime;
+        provider: string | null;
+        model: string | null;
+        keyManagement: AiKeyManagement | null;
         durationMs: number;
         actionCount: number;
         actionCountsByType: Record<string, number>;

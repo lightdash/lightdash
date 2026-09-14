@@ -191,6 +191,7 @@ const buildService = ({
     const aiAgentToolsService = {
         createRuntime: vi.fn().mockReturnValue(dataRuntime),
     };
+    const analytics = { track: vi.fn() };
     const service = new ManagedAgentService({
         lightdashConfig: {
             siteUrl: 'http://localhost',
@@ -206,7 +207,7 @@ const buildService = ({
                 sessionTimeoutMs: 5000,
             },
         },
-        analytics: { track: vi.fn() },
+        analytics,
         managedAgentModel,
         analyticsModel: {},
         organizationModel: {
@@ -237,6 +238,7 @@ const buildService = ({
     } as AnyType);
 
     return {
+        analytics,
         aiAgentToolsService,
         dataRuntime,
         aiOrganizationSettingsService,
@@ -781,7 +783,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
     it.each([false, true])(
         'persists runtime attribution, downgrade and partial summary (provider failure: %s)',
         async (fail) => {
-            const { service, managedAgentModel } = buildService({
+            const { service, managedAgentModel, analytics } = buildService({
                 runtime: 'ai-sdk',
             });
             managedAgentModel.getSettings.mockResolvedValue({
@@ -856,6 +858,18 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                     summary: expect.stringContaining('Checked the project.'),
                 }),
             );
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'managed_agent.run_completed',
+                    properties: expect.objectContaining({
+                        provider: 'openai',
+                        model: 'unscored-model',
+                        keyManagement: 'self-managed',
+                        runUuid: 'run-uuid',
+                        status: fail ? 'error' : 'completed',
+                    }),
+                }),
+            );
             const { summary } = managedAgentModel.finishRun.mock.calls[0][1];
             expect(summary).toContain(
                 'Provider: openai; model: unscored-model; key: instance.',
@@ -867,6 +881,31 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             );
         },
     );
+
+    it('leaves completion attribution unknown when preflight fails before choosing a model', async () => {
+        const {
+            service,
+            managedAgentModel,
+            orgAiCopilotConfigResolver,
+            analytics,
+        } = buildService({ runtime: 'ai-sdk' });
+        orgAiCopilotConfigResolver.getCopilotConfig.mockRejectedValue(
+            new Error('No configured provider'),
+        );
+        await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(managedAgentModel.setRunModel).not.toHaveBeenCalled();
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'managed_agent.run_completed',
+                properties: expect.objectContaining({
+                    provider: null,
+                    model: null,
+                    keyManagement: null,
+                    status: 'error',
+                }),
+            }),
+        );
+    });
 
     it('does not execute the model if saving attribution fails', async () => {
         const { service, managedAgentModel } = buildService({

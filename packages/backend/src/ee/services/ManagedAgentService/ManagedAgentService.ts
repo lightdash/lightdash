@@ -117,6 +117,11 @@ type HeartbeatContext = {
     triggeredBy: ManagedAgentRunTriggeredBy;
     startedAtMs: number;
     analyticsUserId: string | null;
+    // Snapshot from the actual run resolver, never re-resolved on completion.
+    modelAttribution: Pick<
+        ManagedAgentRuntimeInfo,
+        'provider' | 'model' | 'keyManagement'
+    > | null;
 };
 
 const encodeRunsCursor = (cursor: RunsCursor | null): string | null => {
@@ -1895,8 +1900,7 @@ export class ManagedAgentService extends BaseService {
         switch (runtime) {
             case 'anthropic-managed':
                 return this.runManagedAgentSession(
-                    ctx.projectUuid,
-                    ctx.runUuid,
+                    ctx,
                     onToolCall,
                     onSessionCreated,
                 );
@@ -1911,11 +1915,11 @@ export class ManagedAgentService extends BaseService {
     }
 
     private async runManagedAgentSession(
-        projectUuid: string,
-        runUuid: string,
+        ctx: HeartbeatContext,
         onToolCall: AutopilotToolCallHandler,
         onSessionCreated: (sessionId: string) => void,
     ): Promise<HeartbeatSessionResult> {
+        const { projectUuid, runUuid } = ctx;
         const serviceAccountToken =
             await this.managedAgentModel.getServiceAccountToken(projectUuid);
         if (!serviceAccountToken) {
@@ -1931,6 +1935,11 @@ export class ManagedAgentService extends BaseService {
             provider: 'anthropic',
             name: AUTOPILOT_MANAGED_MODEL_ID,
         });
+        ctx.modelAttribution = {
+            provider: 'anthropic',
+            model: AUTOPILOT_MANAGED_MODEL_ID,
+            keyManagement: null,
+        };
         const result = await this.managedAgentClient.runSession(
             sessionConfig,
             projectUuid,
@@ -1970,6 +1979,11 @@ export class ManagedAgentService extends BaseService {
             provider: runtimeInfo.provider,
             name: runtimeInfo.model,
         });
+        ctx.modelAttribution = {
+            provider: runtimeInfo.provider,
+            model: runtimeInfo.model,
+            keyManagement: runtimeInfo.keyManagement,
+        };
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
@@ -2144,6 +2158,7 @@ export class ManagedAgentService extends BaseService {
             triggeredBy: run.triggeredBy,
             startedAtMs: run.startedAt.getTime(),
             analyticsUserId: settings?.enabledByUserUuid ?? null,
+            modelAttribution: null,
         };
     }
 
@@ -2219,6 +2234,9 @@ export class ManagedAgentService extends BaseService {
                 triggeredBy: ctx.triggeredBy,
                 status: outcome.status,
                 runtime: this.lightdashConfig.managedAgent.runtime,
+                provider: ctx.modelAttribution?.provider ?? null,
+                model: ctx.modelAttribution?.model ?? null,
+                keyManagement: ctx.modelAttribution?.keyManagement ?? null,
                 durationMs: Date.now() - ctx.startedAtMs,
                 actionCount: outcome.actionCount,
                 actionCountsByType: outcome.actionCountsByType,
