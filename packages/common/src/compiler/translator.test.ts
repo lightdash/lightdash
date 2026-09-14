@@ -21,6 +21,7 @@ import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
 import {
     setCatalogNestedColumnShape,
+    setCatalogNestedColumnsUnavailable,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
 } from '../types/warehouse';
@@ -4162,6 +4163,90 @@ describe('nested and repeated columns on Databricks', () => {
                 tablesReferences: ['transactions__product'],
             },
         ]);
+    });
+
+    it('warns instead of unnesting when the warehouse would not describe the nested shape', async () => {
+        const flatCatalog: WarehouseCatalog = {
+            lightdash_staging: {
+                nested: {
+                    transactions: {
+                        order_id: DimensionType.STRING,
+                        amount: DimensionType.NUMBER,
+                        product: DimensionType.STRING,
+                        tags: DimensionType.STRING,
+                        labels: DimensionType.STRING,
+                    },
+                    orders: { id: DimensionType.NUMBER },
+                },
+            },
+        };
+        const reason =
+            'Databricks did not describe transactions as JSON (PARSE_SYNTAX_ERROR); nested columns need a SQL warehouse or Databricks Runtime 16.2 or newer.';
+        setCatalogNestedColumnsUnavailable(
+            flatCatalog,
+            'lightdash_staging',
+            'nested',
+            'transactions',
+            reason,
+        );
+        setCatalogNestedColumnsUnavailable(
+            flatCatalog,
+            'lightdash_staging',
+            'nested',
+            'orders',
+            reason,
+        );
+        const flatTransactions: DbtModelNode = {
+            ...transactions,
+            columns: {
+                order_id: column('order_id'),
+                amount: column('amount'),
+                product: column('product'),
+                'product.sku': column('product.sku', {
+                    meta: { dimension: { type: DimensionType.STRING } },
+                }),
+                tags: column('tags'),
+                labels: column('labels'),
+            },
+        };
+        const orders: DbtModelNode = {
+            ...transactions,
+            name: 'orders',
+            alias: 'orders',
+            unique_id: 'model.orders',
+            relation_name: '`lightdash_staging`.`nested`.`orders`',
+            meta: {},
+            columns: { id: column('id') },
+        };
+        const explores = await convertExplores(
+            attachTypesToModels([flatTransactions, orders], flatCatalog, false),
+            false,
+            SupportedDbtAdapter.DATABRICKS,
+            databricksClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { unnestRepeatedColumns: true },
+        );
+        const explore = explores.find((e) => e.name === 'transactions');
+        if (!explore || isExploreError(explore)) {
+            throw new Error(JSON.stringify(explore));
+        }
+        expect(Object.keys(explore.tables)).toEqual(['transactions']);
+        expect(
+            explore.tables.transactions.dimensions['product.sku'].compiledSql,
+        ).toEqual('`transactions`.product.sku');
+        expect(explore.tables.transactions.warnings).toEqual([
+            {
+                type: InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+                message: `Nested columns in model "transactions" compile as plain columns: ${reason}`,
+            },
+        ]);
+
+        // A flagged table without dotted columns has nothing to warn about.
+        const ordersExplore = explores.find((e) => e.name === 'orders');
+        if (!ordersExplore || isExploreError(ordersExplore)) {
+            throw new Error(JSON.stringify(ordersExplore));
+        }
+        expect(ordersExplore.tables.orders.warnings).toBeUndefined();
     });
 
     it('fails the model on a warehouse that cannot unnest', async () => {
