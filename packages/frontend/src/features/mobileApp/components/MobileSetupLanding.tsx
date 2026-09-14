@@ -1,4 +1,4 @@
-import { Box, Button, Stack, Text, Title } from '@mantine/core';
+import { Box, Button, Paper, Stack, Text, Title } from '@mantine/core';
 import { IconDeviceMobile } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
@@ -97,6 +97,14 @@ export const MobileSetupLanding: FC = () => {
         <Box className={classes.page}>
             <Stack gap="md" className={classes.content}>
                 <Title order={3}>Sign in to the Lightdash app</Title>
+                <Paper withBorder p="sm" className={classes.origin}>
+                    <Text fz="xs" c="dimmed">
+                        Signing in to
+                    </Text>
+                    <Text fw={600} className={classes.originValue}>
+                        {link.instanceOrigin}
+                    </Text>
+                </Paper>
                 <Text c="dimmed">
                     Opening the app. If nothing happens, use the buttons below.
                 </Text>

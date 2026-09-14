@@ -49,6 +49,39 @@ describe('parseMobileSetupLinkParams', () => {
         ).toEqual({ status: 'unsupported-version' });
     });
 
+    it('rejects a cleartext instance origin', () => {
+        expect(
+            parse(
+                `v=1&i=${encodeURIComponent('http://evil.example')}&c=${CODE}`,
+            ),
+        ).toEqual({ status: 'invalid' });
+    });
+
+    it('allows cleartext on loopback so local development works', () => {
+        expect(
+            parse(
+                `v=1&i=${encodeURIComponent('http://localhost:3000')}&c=${CODE}`,
+            ),
+        ).toEqual({
+            status: 'valid',
+            instanceOrigin: 'http://localhost:3000',
+            code: CODE,
+        });
+        expect(
+            parse(
+                `v=1&i=${encodeURIComponent('http://127.0.0.1:8080')}&c=${CODE}`,
+            ),
+        ).toMatchObject({ status: 'valid' });
+    });
+
+    it('does not mistake a lookalike host for loopback', () => {
+        expect(
+            parse(
+                `v=1&i=${encodeURIComponent('http://localhost.evil.example')}&c=${CODE}`,
+            ),
+        ).toEqual({ status: 'invalid' });
+    });
+
     it('rejects a non-http instance origin', () => {
         expect(
             parse(
