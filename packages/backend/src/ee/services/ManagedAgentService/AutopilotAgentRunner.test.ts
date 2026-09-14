@@ -1,3 +1,4 @@
+import { APICallError } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
 import { runAutopilotAgent } from './AutopilotAgentRunner';
@@ -279,6 +280,48 @@ describe('runAutopilotAgent', () => {
             expect(result).toHaveProperty('error', expect.any(String));
         },
     );
+
+    it('ends once on context overflow and retains completed actions and summary', async () => {
+        const actions: string[] = [];
+        let calls = 0;
+        const model = new MockLanguageModelV3({
+            doGenerate: async () => {
+                calls += 1;
+                if (calls === 1)
+                    return toolCallTurn('log_insight', {
+                        title: 'Backlog',
+                        description: '350 broken charts',
+                    });
+                if (calls === 2)
+                    return toolCallTurn('write_slack_summary', {
+                        summary: 'Backlog recorded; remaining work incomplete.',
+                    });
+                throw new APICallError({
+                    message: 'maximum context length exceeded',
+                    url: 'https://provider.invalid/messages',
+                    requestBodyValues: {},
+                    statusCode: 400,
+                    isRetryable: false,
+                });
+            },
+        });
+        const result = await runAutopilotAgent({
+            ...baseArgs,
+            model,
+            executeTool: async (name) => {
+                actions.push(name);
+                return '{"ok":true}';
+            },
+        });
+        expect(result).toMatchObject({
+            stopReason: 'error',
+            stepCount: 2,
+            error: 'maximum context length exceeded',
+            slackSummary: 'Backlog recorded; remaining work incomplete.',
+        });
+        expect(calls).toBe(3);
+        expect(actions).toEqual(['log_insight']);
+    });
 
     it('keeps the summary when the next provider call fails', async () => {
         let turn = 0;

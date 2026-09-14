@@ -43,6 +43,9 @@ Supported test providers: `openai`, `anthropic`, `bedrock`, `azure`. `AUTOPILOT_
 
 This runs against a synthetic empty-project fixture. It exercises real action schemas and observe/flag/cleanup loops, but performs no application writes. Passing this smoke is **not cleanup qualification**.
 
+For the large synthetic intake benchmark, per-step measurements, and current
+context-management decision, see [context evaluation](autopilot-context-evaluation.md).
+
 ## Acceptance before switching the default
 
 Run each promised provider in all three modes on both a seeded project and a representative large/broken project. Use isolated, disposable content. Do not reset a shared developer or customer database to obtain fixtures.
