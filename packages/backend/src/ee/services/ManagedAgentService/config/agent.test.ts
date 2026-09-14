@@ -4,7 +4,6 @@ import {
 } from '@lightdash/common';
 import {
     AUTOPILOT_CHART_SKILL_NAME,
-    AUTOPILOT_SLACK_SKILL_NAME,
     autopilotToolDefinitions,
     getManagedAgentConfigHash,
     getManagedAgentMcpUrl,
@@ -287,7 +286,7 @@ describe('renderAutopilotAgent', () => {
             `Call loadSkill with name "${AUTOPILOT_CHART_SKILL_NAME}"`,
         );
         expect(system).toContain(
-            `Call loadSkill with name "${AUTOPILOT_SLACK_SKILL_NAME}"`,
+            'The application generates the factual report from saved actions',
         );
         expect(tools.map((tool) => tool.name)).toContain('write_slack_summary');
         expect(

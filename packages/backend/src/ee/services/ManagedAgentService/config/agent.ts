@@ -25,7 +25,6 @@ const getDataToolWording = (runtime: ManagedAgentRuntime) => {
         case 'anthropic-managed':
             return {
                 skills: `You have the **"Developing in Lightdash"** skill attached. Use it when creating or fixing charts:`,
-                slackSkill: `Use the "${AUTOPILOT_SLACK_SKILL_NAME}" skill to match Lightdash's Slack tone of voice`,
                 discover: `3. The MCP connection is already pinned to this project. Use MCP tools (list_explores, find_fields) to discover the data model. Do not attempt to switch projects
 4. Use find_content (MCP) to check if a chart already exists for the topic
 5. Call run_metric_query to validate the data before creating`,
@@ -33,7 +32,6 @@ const getDataToolWording = (runtime: ManagedAgentRuntime) => {
         case 'ai-sdk':
             return {
                 skills: `Call loadSkill with name "${AUTOPILOT_CHART_SKILL_NAME}" before creating or fixing charts:`,
-                slackSkill: `Call loadSkill with name "${AUTOPILOT_SLACK_SKILL_NAME}" and follow it to match Lightdash's Slack tone of voice`,
                 discover: `3. Use grepFields and getMetadata to discover the data model. Every field ID must come from those tools
 4. Use findContent to check if a chart already exists for the topic
 5. Call runMetricQuery to validate the data before creating`,
@@ -48,7 +46,6 @@ const getDataToolWording = (runtime: ManagedAgentRuntime) => {
 const buildChecklistTailSections = (
     options: ManagedAgentPromptOptions,
 ): string => {
-    const wording = getDataToolWording(options.runtime ?? 'anthropic-managed');
     const sections: Array<{ title: string; body: string }> = [
         {
             title: 'AI Agent Usage',
@@ -82,7 +79,7 @@ const buildChecklistTailSections = (
         },
         {
             title: 'Slack Summary',
-            body: `After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. ${wording.slackSkill}`,
+            body: 'After the run is complete, call write_slack_summary exactly once with a short completion note. The application generates the factual report from saved actions; do not draft a narrative or invent counts. The completion note is not published.',
         },
     ];
 
@@ -765,12 +762,12 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
     },
     {
         description:
-            'Persist the final Slack-ready summary for this run. Call exactly once after you finish your work and have written the final Slack message.',
+            'Finish reporting for this run. Call exactly once with a short completion note after your work. The application renders the published report from saved actions; the completion note is not published.',
         inputSchema: {
             properties: {
                 summary: {
                     description:
-                        'The final Slack-ready message to post for this run',
+                        'A short completion note for the tool loop; not published',
                     type: 'string',
                 },
             },

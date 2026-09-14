@@ -3,6 +3,7 @@ import {
     AnyType,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
+    ManagedAgentActionType,
     ManagedAgentRunStatus,
     ProjectMemberRole,
     ServiceAccountScope,
@@ -133,6 +134,7 @@ const buildService = ({
         setRunSessionId: vi.fn().mockResolvedValue(undefined),
         setRunModel: vi.fn().mockResolvedValue(undefined),
         getActionCountsByTypeForRun: vi.fn().mockResolvedValue({}),
+        getActions: vi.fn().mockResolvedValue([]),
         getAction: vi.fn(),
         reverseAction: vi.fn(),
         setCurrentActivity: vi.fn().mockResolvedValue(undefined),
@@ -193,6 +195,7 @@ const buildService = ({
     const aiAgentToolsService = {
         createRuntime: vi.fn().mockReturnValue(dataRuntime),
     };
+    const slackClient = { postMessage: vi.fn().mockResolvedValue({ ts: '1' }) };
     const analytics = { track: vi.fn() };
     const validationModel = { get: vi.fn().mockResolvedValue([]) };
     const savedChartModel = { get: vi.fn() };
@@ -235,7 +238,7 @@ const buildService = ({
         featureFlagModel: {},
         serviceAccountModel,
         schedulerClient,
-        slackClient: {},
+        slackClient,
         managedAgentClient,
         orgAiCopilotConfigResolver,
         aiOrganizationSettingsService,
@@ -243,6 +246,7 @@ const buildService = ({
     } as AnyType);
 
     return {
+        slackClient,
         validationModel,
         savedChartModel,
         spacePermissionService,
@@ -789,11 +793,12 @@ describe('ManagedAgentService discovery scope', () => {
 
 describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
     it.each([false, true])(
-        'persists runtime attribution, downgrade and partial summary (provider failure: %s)',
+        'renders saved actions instead of an invented draft (provider failure: %s)',
         async (fail) => {
-            const { service, managedAgentModel, analytics } = buildService({
-                runtime: 'ai-sdk',
-            });
+            const { service, managedAgentModel, analytics, slackClient } =
+                buildService({
+                    runtime: 'ai-sdk',
+                });
             managedAgentModel.getSettings.mockResolvedValue({
                 ...settings,
                 policy: {
@@ -801,6 +806,17 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                     aggression: 'cleanup',
                 },
             } as AnyType);
+            managedAgentModel.getSettings.mockResolvedValue({
+                ...(await managedAgentModel.getSettings()),
+                slackChannelId: 'test-channel',
+            });
+            managedAgentModel.getActions.mockResolvedValue([
+                {
+                    actionType: ManagedAgentActionType.CREATED_CONTENT,
+                    targetName: 'Saved chart',
+                    reversedAt: null,
+                },
+            ] as AnyType);
             let calls = 0;
             const model = new MockLanguageModelV3({
                 provider: 'openai.responses',
@@ -830,7 +846,8 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                                           toolCallId: 'summary',
                                           toolName: 'write_slack_summary',
                                           input: JSON.stringify({
-                                              summary: 'Checked the project.',
+                                              summary:
+                                                  'I flagged the only chart on the dashboard.',
                                           }),
                                       },
                                   ]
@@ -863,7 +880,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                 expect.objectContaining({
                     status: fail ? 'error' : 'completed',
                     error: fail ? 'Provider disconnected' : null,
-                    summary: expect.stringContaining('Checked the project.'),
+                    summary: expect.stringContaining('Stale flags: 0'),
                 }),
             );
             expect(analytics.track).toHaveBeenCalledWith(
@@ -879,6 +896,24 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                 }),
             );
             const { summary } = managedAgentModel.finishRun.mock.calls[0][1];
+            expect(summary).not.toContain('I flagged');
+            expect(summary).toContain('Created content: 1 — `Saved chart`');
+            expect(summary).toContain(
+                fail ? 'Run interrupted' : 'Run completed',
+            );
+            expect(managedAgentModel.getActions).toHaveBeenCalledTimes(1);
+            expect(slackClient.postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    text: 'Autopilot: Created content: 1',
+                }),
+            );
+            expect(slackClient.postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({ thread_ts: '1', text: summary }),
+            );
+            expect(managedAgentModel.getActions).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                { runUuid: 'run-uuid' },
+            );
             expect(summary).toContain(
                 'Provider: openai; model: unscored-model; key: instance.',
             );
@@ -889,6 +924,25 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             );
         },
     );
+
+    it('reports an unreadable action ledger without inventing zero actions', async () => {
+        const { service, managedAgentModel, orgAiCopilotConfigResolver } =
+            buildService({ runtime: 'ai-sdk' });
+        orgAiCopilotConfigResolver.getCopilotConfig.mockRejectedValue(
+            new Error('Provider unavailable'),
+        );
+        managedAgentModel.getActions.mockRejectedValue(
+            new Error('Database unavailable'),
+        );
+        await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        const { summary, status, error } =
+            managedAgentModel.finishRun.mock.calls[0][1];
+        expect(status).toBe('error');
+        expect(error).toContain('Provider unavailable');
+        expect(summary).toContain('saved action report is unavailable');
+        expect(summary).not.toContain('flags: 0');
+        expect(summary).not.toContain('No saved actions');
+    });
 
     it('leaves completion attribution unknown when preflight fails before choosing a model', async () => {
         const {

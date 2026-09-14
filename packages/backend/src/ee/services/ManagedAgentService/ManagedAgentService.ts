@@ -92,6 +92,7 @@ import {
     AUTOPILOT_MANAGED_MODEL_ID,
     renderAutopilotAgent,
 } from './config/agent';
+import { renderHeartbeatSummary } from './heartbeatSummary';
 import { pickAutopilotModel } from './modelSelection';
 import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import { loadAutopilotSkill } from './skills';
@@ -118,6 +119,7 @@ type HeartbeatContext = {
     triggeredBy: ManagedAgentRunTriggeredBy;
     startedAtMs: number;
     analyticsUserId: string | null;
+    summaryContext: string[];
     // Snapshot from the actual run resolver, never re-resolved on completion.
     modelAttribution: Pick<
         ManagedAgentRuntimeInfo,
@@ -1813,7 +1815,6 @@ export class ManagedAgentService extends BaseService {
         this.logger.info(`Running heartbeat for project: ${projectUuid}`);
 
         let sessionId = '';
-        let slackSummary = '';
         let runError: string | null = null;
 
         const onToolCall: AutopilotToolCallHandler = async (
@@ -1852,7 +1853,6 @@ export class ManagedAgentService extends BaseService {
                 onSessionCreated,
             );
             sessionId = result.sessionId;
-            slackSummary = result.slackSummary ?? '';
             runError = result.error;
             this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
         } catch (error) {
@@ -1861,9 +1861,37 @@ export class ManagedAgentService extends BaseService {
             );
             runError = error instanceof Error ? error.message : 'Unknown';
         } finally {
-            const actionCountsByType = await this.managedAgentModel
-                .getActionCountsByTypeForRun(runUuid)
-                .catch(() => ({}) as Record<string, number>);
+            let savedActions: ManagedAgentAction[] | null = null;
+            try {
+                savedActions = await this.managedAgentModel.getActions(
+                    projectUuid,
+                    { runUuid },
+                );
+            } catch (error) {
+                this.logger.error(
+                    `Failed to read actions for Autopilot report ${runUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
+                );
+                runError ??= 'Could not load saved actions for the run report';
+            }
+            const actionCountsByType = savedActions
+                ? savedActions.reduce<Record<string, number>>(
+                      (counts, action) => ({
+                          ...counts,
+                          [action.actionType]:
+                              (counts[action.actionType] ?? 0) + 1,
+                      }),
+                      {},
+                  )
+                : await this.managedAgentModel
+                      .getActionCountsByTypeForRun(runUuid)
+                      .catch(() => ({}) as Record<string, number>);
+            const report = renderHeartbeatSummary({
+                actions: savedActions,
+                interrupted: runError !== null,
+            });
+            const slackSummary = [...ctx.summaryContext, report.text].join(
+                '\n\n',
+            );
             const actionCount = Object.values(actionCountsByType).reduce(
                 (sum, n) => sum + n,
                 0,
@@ -1891,6 +1919,7 @@ export class ManagedAgentService extends BaseService {
                 ctx,
                 sessionId,
                 slackSummary,
+                report.compactSummary,
             );
 
             this.trackRunCompleted(ctx, {
@@ -1952,6 +1981,9 @@ export class ManagedAgentService extends BaseService {
             model: AUTOPILOT_MANAGED_MODEL_ID,
             keyManagement: null,
         };
+        ctx.summaryContext = [
+            `Provider: anthropic; model: ${AUTOPILOT_MANAGED_MODEL_ID}.`,
+        ];
         const result = await this.managedAgentClient.runSession(
             sessionConfig,
             projectUuid,
@@ -1996,6 +2028,10 @@ export class ManagedAgentService extends BaseService {
             model: runtimeInfo.model,
             keyManagement: runtimeInfo.keyManagement,
         };
+        ctx.summaryContext = [
+            `Provider: ${runtimeInfo.provider}; model: ${runtimeInfo.model}; key: ${runtimeInfo.keySource}.`,
+            runtimeInfo.notice,
+        ].filter((value): value is string => Boolean(value));
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
@@ -2170,6 +2206,7 @@ export class ManagedAgentService extends BaseService {
             triggeredBy: run.triggeredBy,
             startedAtMs: run.startedAt.getTime(),
             analyticsUserId: settings?.enabledByUserUuid ?? null,
+            summaryContext: [],
             modelAttribution: null,
         };
     }
@@ -2262,6 +2299,7 @@ export class ManagedAgentService extends BaseService {
         ctx: HeartbeatContext,
         sessionId: string,
         agentSummary: string,
+        compactSummary: string,
     ): Promise<boolean> {
         const slackChannelId = ctx.settings?.slackChannelId;
         this.logger.info(
@@ -2274,6 +2312,7 @@ export class ManagedAgentService extends BaseService {
                 sessionId,
                 slackChannelId,
                 agentSummary,
+                compactSummary,
             );
             return true;
         } catch (e) {
@@ -2356,62 +2395,22 @@ export class ManagedAgentService extends BaseService {
         sessionId: string,
         slackChannelId: string,
         agentSummary: string,
+        compactSummary: string,
     ): Promise<void> {
         this.logger.info(
             `Posting Slack summary: project=${projectUuid}, session=${sessionId}, channel=${slackChannelId}, summaryLength=${agentSummary.length}`,
         );
         try {
-            const actions = await this.managedAgentModel.getActions(
-                projectUuid,
-                { sessionId },
-            );
-
-            this.logger.info(
-                `Found ${actions.length} actions for session ${sessionId}`,
-            );
-
-            if (actions.length === 0 && !agentSummary) {
-                this.logger.info(
-                    'No actions or summary to report, skipping Slack',
-                );
-                return;
-            }
-
             const { organizationUuid } =
                 await this.projectModel.getSummary(projectUuid);
             const { siteUrl } = this.lightdashConfig;
             const activityUrl = `${siteUrl}/projects/${projectUuid}/autopilot`;
 
-            // Build compact action counts
-            const counts: Record<string, number> = {};
-            for (const a of actions) {
-                counts[a.actionType] = (counts[a.actionType] || 0) + 1;
-            }
-
-            const summaryParts: string[] = [];
-            if (counts.fixed_broken)
-                summaryParts.push(`*${counts.fixed_broken}* fixed`);
-            if (counts.created_content)
-                summaryParts.push(`*${counts.created_content}* created`);
-            if (counts.flagged_stale)
-                summaryParts.push(`*${counts.flagged_stale}* flagged stale`);
-            if (counts.flagged_broken)
-                summaryParts.push(`*${counts.flagged_broken}* flagged broken`);
-            if (counts.soft_deleted)
-                summaryParts.push(`*${counts.soft_deleted}* deleted`);
-            if (counts.insight)
-                summaryParts.push(
-                    `*${counts.insight}* insight${counts.insight > 1 ? 's' : ''}`,
-                );
-            if (counts.blocked)
-                summaryParts.push(`*${counts.blocked}* blocked by protections`);
-
-            // Convert agent's markdown summary to Slack mrkdwn
-            // Main message: compact summary with CTA
+            // Both messages use the snapshot captured when the run finished.
             const mainBlocks: KnownBlock[] = [
                 {
                     type: 'markdown',
-                    text: `### Autopilot health check\n${summaryParts.length > 0 ? summaryParts.join('  ·  ') : '_No actions this run_'}`,
+                    text: `### Autopilot health check\n${compactSummary}`,
                 } as unknown as KnownBlock,
                 {
                     type: 'actions',
@@ -2432,7 +2431,7 @@ export class ManagedAgentService extends BaseService {
             const mainMessage = await this.slackClient.postMessage({
                 organizationUuid,
                 channel: slackChannelId,
-                text: `Autopilot: ${summaryParts.join(', ') || 'health check complete'}`,
+                text: `Autopilot: ${compactSummary}`,
                 blocks: mainBlocks,
             });
 

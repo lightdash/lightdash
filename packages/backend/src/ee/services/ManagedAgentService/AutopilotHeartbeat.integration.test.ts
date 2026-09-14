@@ -925,6 +925,36 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                 finished?.modelProvider === provider,
             );
             check('summary persisted', Boolean(finished?.summary));
+            const summaryLabels: [ManagedAgentActionType, string][] = [
+                [ManagedAgentActionType.FLAGGED_STALE, 'Stale flags'],
+                [ManagedAgentActionType.FLAGGED_BROKEN, 'Broken flags'],
+                [ManagedAgentActionType.FLAGGED_SLOW, 'Slow-query flags'],
+                [ManagedAgentActionType.FIXED_BROKEN, 'Repairs'],
+                [ManagedAgentActionType.CREATED_CONTENT, 'Created content'],
+                [ManagedAgentActionType.SOFT_DELETED, 'Soft-deletions'],
+                [ManagedAgentActionType.INSIGHT, 'Insights for review'],
+                [ManagedAgentActionType.BLOCKED, 'Refused attempts'],
+            ];
+            for (const [actionType, label] of summaryLabels) {
+                const count = actions.filter(
+                    (action) =>
+                        action.actionType === actionType && !action.reversedAt,
+                ).length;
+                const reportedCount = finished?.summary?.match(
+                    new RegExp(`• ${label}: (\\d+)(?: —|$)`, 'm'),
+                )?.[1];
+                check(
+                    `summary ${label} matches saved actions`,
+                    reportedCount === String(count),
+                );
+            }
+            check(
+                'summary is factual report',
+                finished?.summary?.includes(
+                    'Actions in effect at report time',
+                ) === true,
+            );
+
             check(
                 'action count persisted',
                 finished?.actionCount === actions.length,
