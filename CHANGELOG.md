@@ -1,3 +1,11 @@
+## [2.205.1](https://github.com/lightdash/lightdash/compare/2.205.0...2.205.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **frontend:** scope filter suggestions to active filters ([#29128](https://github.com/lightdash/lightdash/issues/29128)) ([5c6cca6](https://github.com/lightdash/lightdash/commit/5c6cca67cfabb5a46c96c31e369c87d6f19aa2ff))
+* **sdk:** render Explore Configure controls inside Shadow DOM ([#29126](https://github.com/lightdash/lightdash/issues/29126)) ([6599210](https://github.com/lightdash/lightdash/commit/6599210be083071fbdfac1439dad52430bb75e72))
+
 # [2.205.0](https://github.com/lightdash/lightdash/compare/2.204.0...2.205.0) (2026-09-14)
 
 
