@@ -119,4 +119,25 @@ describe('periodOverPeriodComparison helpers', () => {
             'orders.payment_id',
         ]);
     });
+
+    test('generated to-date PoP metrics describe the matched elapsed period', () => {
+        const { additionalMetric } = buildPopAdditionalMetric({
+            metric: {
+                table: 'orders',
+                name: 'revenue',
+                label: 'Revenue',
+                type: MetricType.SUM,
+                sql: '${TABLE}.revenue',
+            } as Metric,
+            timeDimensionId: 'orders_order_date_month',
+            granularity: TimeFrames.MONTH,
+            periodOffset: 1,
+            comparisonMode: 'toDate',
+        });
+
+        expect(additionalMetric).toMatchObject({
+            label: 'Revenue (Previous month to date)',
+            comparisonMode: 'toDate',
+        });
+    });
 });

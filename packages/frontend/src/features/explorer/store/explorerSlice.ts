@@ -1,12 +1,17 @@
 import {
     ChartType,
     convertFieldRefToFieldId,
+    FilterOperator,
     getFieldRef,
+    getFilterRulesFromGroup,
     getItemId,
+    getPopPeriodLabel,
+    isPeriodOverPeriodAdditionalMetric,
     isSqlTableCalculation,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
     toggleArrayValue,
+    timeframeToUnitOfTime,
     updateFieldIdInFilters,
     type AdditionalMetric,
     type ChartConfig,
@@ -192,7 +197,41 @@ const explorerSlice = createSlice({
         },
 
         setFilters: (state, action: PayloadAction<MetricQuery['filters']>) => {
-            state.unsavedChartVersion.metricQuery.filters = action.payload;
+            const metricQuery = state.unsavedChartVersion.metricQuery;
+            metricQuery.filters = action.payload;
+            const dimensionFilters = getFilterRulesFromGroup(
+                action.payload.dimensions,
+            );
+            metricQuery.additionalMetrics?.forEach((metric) => {
+                if (
+                    !isPeriodOverPeriodAdditionalMetric(metric) ||
+                    metric.comparisonMode !== 'toDate'
+                )
+                    return;
+
+                const hasToDateFilter = dimensionFilters.some(
+                    (filter) =>
+                        !filter.disabled &&
+                        filter.operator === FilterOperator.IN_PERIOD_TO_DATE &&
+                        filter.target.fieldId === metric.timeDimensionId &&
+                        filter.settings?.unitOfTime ===
+                            timeframeToUnitOfTime(metric.granularity),
+                );
+                if (hasToDateFilter) return;
+
+                const suffix = ` (${getPopPeriodLabel(
+                    metric.granularity,
+                    metric.periodOffset,
+                    'toDate',
+                )})`;
+                if (metric.label?.endsWith(suffix)) {
+                    metric.label = `${metric.label.slice(0, -suffix.length)} (${getPopPeriodLabel(
+                        metric.granularity,
+                        metric.periodOffset,
+                    )})`;
+                }
+                metric.comparisonMode = 'full';
+            });
         },
 
         setSortFields: (state, action: PayloadAction<SortField[]>) => {

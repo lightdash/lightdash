@@ -1,4 +1,4 @@
-import { AnyType } from '@lightdash/common';
+import { AnyType, MetricType, TimeFrames } from '@lightdash/common';
 import knex from 'knex';
 import type { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
@@ -20,6 +20,40 @@ const projectSlugUniqueViolation = (): DatabaseError => {
     error.constraint = 'saved_queries_project_uuid_slug_unique';
     return error;
 };
+
+const savedPopMetric = {
+    name: 'revenue__pop',
+    label: 'Revenue (Previous month)',
+    type: MetricType.SUM,
+    sql: '${TABLE}.revenue',
+    table: 'orders',
+    uuid: 'metric-uuid',
+    generation_type: 'periodOverPeriod',
+    base_metric_id: 'orders_revenue',
+    time_dimension_id: 'orders_order_date_month',
+    granularity: TimeFrames.MONTH,
+    period_offset: 1,
+} as AnyType;
+
+describe('convertDbSavedChartAdditionalMetricToAdditionalMetric', () => {
+    test.each([
+        { persistedMode: 'toDate', expectedMode: 'toDate' },
+        { persistedMode: null, expectedMode: 'full' },
+    ])(
+        'restores $expectedMode mode from a saved PoP metric',
+        ({ persistedMode, expectedMode }) => {
+            const result =
+                SavedChartModel.convertDbSavedChartAdditionalMetricToAdditionalMetric(
+                    {
+                        ...savedPopMetric,
+                        comparison_mode: persistedMode,
+                    },
+                );
+
+            expect(result.comparisonMode).toBe(expectedMode);
+        },
+    );
+});
 
 describe('createSavedChart', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
@@ -96,6 +130,57 @@ describe('createSavedChart', () => {
         );
         expect(chartInsert?.sql).toContain('"project_uuid"');
         expect(chartInsert?.bindings).toContain(projectUuid);
+    });
+
+    test('persists the comparison mode for generated PoP metrics', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const spaceUuid = '33333333-3333-4333-8333-333333333333';
+
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on
+            .insert(SavedChartsTableName)
+            .responseOnce([
+                { saved_query_id: 11, saved_query_uuid: 'chart-uuid' },
+            ]);
+        tracker.on
+            .insert('saved_queries_versions')
+            .responseOnce([{ saved_queries_version_id: 13 }]);
+        tracker.on
+            .insert('saved_queries_version_additional_metrics')
+            .responseOnce([]);
+
+        await createSavedChart(
+            database,
+            projectUuid,
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid,
+                dashboardUuid: null,
+                metricQuery: {
+                    ...chartInput.metricQuery,
+                    additionalMetrics: [
+                        {
+                            ...savedPopMetric,
+                            generationType: 'periodOverPeriod',
+                            baseMetricId: savedPopMetric.base_metric_id,
+                            timeDimensionId: savedPopMetric.time_dimension_id,
+                            granularity: TimeFrames.MONTH,
+                            periodOffset: 1,
+                            comparisonMode: 'toDate',
+                        },
+                    ],
+                },
+            },
+        );
+
+        const additionalMetricInsert = tracker.history.insert.find((query) =>
+            query.sql.includes('saved_queries_version_additional_metrics'),
+        );
+        expect(additionalMetricInsert?.sql).toContain('"comparison_mode"');
+        expect(additionalMetricInsert?.bindings).toContain('toDate');
     });
 
     test('writes project_uuid for charts created in dashboards', async () => {

@@ -1,4 +1,14 @@
-import { ChartType, type TableCalculation } from '@lightdash/common';
+import {
+    buildPopAdditionalMetric,
+    ChartType,
+    FilterOperator,
+    MetricType,
+    TimeFrames,
+    UnitOfTime,
+    type FilterRule,
+    type Filters,
+    type TableCalculation,
+} from '@lightdash/common';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import { explorerActions, explorerReducer } from './explorerSlice';
 
@@ -323,4 +333,139 @@ describe('explorerSlice chart type authoring', () => {
         expect(cleared.chartSidebarStep).toBe('configure');
         expect(cleared.unsavedChartVersion.tableName).toBe('orders');
     });
+});
+
+describe('explorerSlice period comparison filters', () => {
+    it.each([
+        [TimeFrames.WEEK, UnitOfTime.weeks, 1, 'Revenue (Previous week)'],
+        [TimeFrames.MONTH, UnitOfTime.months, 1, 'Revenue (Previous month)'],
+        [
+            TimeFrames.QUARTER,
+            UnitOfTime.quarters,
+            1,
+            'Revenue (Previous quarter)',
+        ],
+        [TimeFrames.YEAR, UnitOfTime.years, 2, 'Revenue (2 years ago)'],
+    ])(
+        'renames a %s to-date comparison when its chart filter is removed',
+        (granularity, unitOfTime, periodOffset, label) => {
+            const { additionalMetric, metricId } = buildPopAdditionalMetric({
+                metric: {
+                    table: 'orders',
+                    name: 'revenue',
+                    label: 'Revenue',
+                    type: MetricType.SUM,
+                    sql: '${TABLE}.revenue',
+                },
+                timeDimensionId: 'orders_order_date_month',
+                granularity,
+                periodOffset,
+                comparisonMode: 'toDate',
+            });
+            const filters: Filters = {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'to-date',
+                            target: { fieldId: 'orders_order_date_month' },
+                            operator: FilterOperator.IN_PERIOD_TO_DATE,
+                            settings: { unitOfTime },
+                        },
+                    ],
+                },
+            };
+            const withMetric = explorerReducer(
+                undefined,
+                explorerActions.addAdditionalMetric(additionalMetric),
+            );
+            const initial = explorerReducer(
+                withMetric,
+                explorerActions.setFilters(filters),
+            );
+            const result = explorerReducer(
+                initial,
+                explorerActions.setFilters({}),
+            );
+
+            expect(
+                result.unsavedChartVersion.metricQuery.additionalMetrics,
+            ).toEqual([{ ...additionalMetric, label, comparisonMode: 'full' }]);
+            expect(result.unsavedChartVersion.metricQuery.metrics).toContain(
+                metricId,
+            );
+        },
+    );
+
+    it.each([
+        ['active nested match', {}, 'toDate'],
+        ['disabled match', { disabled: true }, 'full'],
+        [
+            'another field',
+            { target: { fieldId: 'orders_shipped_month' } },
+            'full',
+        ],
+        [
+            'another period',
+            { settings: { unitOfTime: UnitOfTime.years } },
+            'full',
+        ],
+        [
+            'another operator',
+            { operator: FilterOperator.IN_THE_CURRENT },
+            'full',
+        ],
+    ] as const)(
+        'preserves custom labels and checks the remaining filter: %s',
+        (_name, override, comparisonMode) => {
+            const rule: FilterRule = {
+                id: 'to-date',
+                target: { fieldId: 'orders_order_date_month' },
+                operator: FilterOperator.IN_PERIOD_TO_DATE,
+                settings: { unitOfTime: UnitOfTime.months },
+            };
+            const { additionalMetric } = buildPopAdditionalMetric({
+                metric: {
+                    table: 'orders',
+                    name: 'revenue',
+                    label: 'Revenue',
+                    type: MetricType.SUM,
+                    sql: '${TABLE}.revenue',
+                },
+                timeDimensionId: 'orders_order_date_month',
+                granularity: TimeFrames.MONTH,
+                periodOffset: 1,
+                comparisonMode: 'toDate',
+            });
+            const customMetric = {
+                ...additionalMetric,
+                label: 'Custom comparison',
+            };
+            const initial = explorerReducer(
+                explorerReducer(
+                    undefined,
+                    explorerActions.addAdditionalMetric(customMetric),
+                ),
+                explorerActions.setFilters({
+                    dimensions: { id: 'root', and: [rule] },
+                }),
+            );
+            const filters: Filters = {
+                dimensions: {
+                    id: 'root',
+                    and: [{ id: 'nested', or: [{ ...rule, ...override }] }],
+                },
+            };
+            const result = explorerReducer(
+                initial,
+                explorerActions.setFilters(filters),
+            );
+            expect(
+                result.unsavedChartVersion.metricQuery.additionalMetrics,
+            ).toEqual([{ ...customMetric, comparisonMode }]);
+            expect(result.unsavedChartVersion.metricQuery.filters).toEqual(
+                filters,
+            );
+        },
+    );
 });
