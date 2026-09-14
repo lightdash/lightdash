@@ -332,10 +332,6 @@ const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
 // wide results in one array and can OOM the worker on large queries
 const DATABRICKS_FETCH_CHUNK_MAX_ROWS = 5000;
 
-const DATABRICKS_TABLE_NOT_FOUND = 'TABLE_OR_VIEW_NOT_FOUND';
-// What a runtime without DESCRIBE ... AS JSON answers: the statement does not parse.
-const DATABRICKS_SYNTAX_ERROR = 'PARSE_SYNTAX_ERROR';
-
 type DescribedColumn = {
     path: string;
     /** Databricks type keyword, as `mapFieldType` expects it. */
@@ -439,6 +435,32 @@ const getDatabricksErrorMessage = (error: unknown) =>
     error instanceof StatusError && error.message
         ? error.message
         : getErrorMessage(error);
+
+/**
+ * The error conditions this client branches on, named exactly as in the
+ * Databricks catalogue (https://docs.databricks.com/error-messages/error-conditions).
+ * Only the ones we handle are listed; add here before matching a new one.
+ */
+export enum DatabricksErrorCondition {
+    /** SQLSTATE 42P01 */
+    TableOrViewNotFound = 'TABLE_OR_VIEW_NOT_FOUND',
+    /** SQLSTATE 42601. What a runtime without `DESCRIBE ... AS JSON` answers. */
+    ParseSyntaxError = 'PARSE_SYNTAX_ERROR',
+}
+
+// Databricks prefixes every SQL error with its condition, `[CONDITION] message
+// ... SQLSTATE: xxxxx`. The Node driver drops the Thrift sqlState, so the
+// prefix is the only structured signal that reaches us.
+export const getDatabricksErrorCondition = (
+    error: unknown,
+): DatabricksErrorCondition | undefined => {
+    const condition = /^\[([A-Z_.]+)\]/.exec(
+        getDatabricksErrorMessage(error),
+    )?.[1];
+    return Object.values(DatabricksErrorCondition).find(
+        (known) => known === condition,
+    );
+};
 
 // Don't let close errors override the original error
 const closeQuietly = async (close: () => Promise<void>, context: string) => {
@@ -712,16 +734,17 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 'getCatalog',
             );
         } catch (e: unknown) {
-            const message = getDatabricksErrorMessage(e);
-            if (message.includes(DATABRICKS_TABLE_NOT_FOUND)) {
+            const condition = getDatabricksErrorCondition(e);
+            if (condition === DatabricksErrorCondition.TableOrViewNotFound) {
                 return { discovery: 'described', columns: [] };
             }
             if (
                 isDatabricksWarehouseStartingError(e) ||
-                !message.includes(DATABRICKS_SYNTAX_ERROR)
+                condition !== DatabricksErrorCondition.ParseSyntaxError
             ) {
                 throw e;
             }
+            const message = getDatabricksErrorMessage(e);
             const flatColumns = (await DatabricksWarehouseClient.fetchAllRows(
                 session.getColumns({
                     catalogName: request.database,

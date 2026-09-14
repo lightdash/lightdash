@@ -8,8 +8,10 @@ import {
     getCatalogTimestampDomain,
 } from '@lightdash/common';
 import {
+    DatabricksErrorCondition,
     DatabricksSqlBuilder,
     DatabricksWarehouseClient,
+    getDatabricksErrorCondition,
 } from './DatabricksWarehouseClient';
 import { credentials, rows, schema } from './DatabricksWarehouseClient.mock';
 import { expectedFields } from './WarehouseClient.mock';
@@ -743,6 +745,48 @@ describe('DatabricksWarehouseClient', () => {
             expect(mocks.openSession).toHaveBeenCalledOnce();
             expect(session.close).toHaveBeenCalledOnce();
         });
+    });
+});
+
+describe('getDatabricksErrorCondition', () => {
+    // Messages as a serverless SQL warehouse returned them on 2026-09-14.
+    test('reads the condition Databricks prefixes to SQL errors', () => {
+        expect(
+            getDatabricksErrorCondition(
+                statusError(
+                    '[TABLE_OR_VIEW_NOT_FOUND] The table or view `lightdash_staging`.`nested`.`odd_names` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01; line 1 pos 24',
+                ),
+            ),
+        ).toBe(DatabricksErrorCondition.TableOrViewNotFound);
+        expect(
+            getDatabricksErrorCondition(
+                statusError(
+                    "[PARSE_SYNTAX_ERROR] Syntax error at or near 'JSON'. SQLSTATE: 42601 (line 1, pos 37)",
+                ),
+            ),
+        ).toBe(DatabricksErrorCondition.ParseSyntaxError);
+    });
+
+    test('ignores conditions we do not handle and messages without a prefix', () => {
+        expect(
+            getDatabricksErrorCondition(
+                statusError(
+                    '[INSUFFICIENT_PERMISSIONS] User does not have USE SCHEMA on Schema `schema`.',
+                ),
+            ),
+        ).toBeUndefined();
+        expect(
+            getDatabricksErrorCondition(
+                statusError(
+                    'Query could not be scheduled: TEMPORARILY_UNAVAILABLE',
+                ),
+            ),
+        ).toBeUndefined();
+        expect(
+            getDatabricksErrorCondition(
+                new Error('mentions TABLE_OR_VIEW_NOT_FOUND mid-sentence'),
+            ),
+        ).toBeUndefined();
     });
 });
 
