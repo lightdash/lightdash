@@ -2441,13 +2441,13 @@ export class AiAgentAdminService extends BaseService {
         } = {
             ...newExploreCacheReadContext('review-writeback', undefined),
             trigger: 'plan',
+            readStrategy: 'table-summary-projection',
         };
         const { result: explores } = await measureTime(
             async () => {
                 const [cachedExplores, storedExploreBytes] = await Promise.all([
-                    this.projectModel.findExploresFromCache(
+                    this.projectModel.findExploreTableSummariesFromCache(
                         projectUuid,
-                        'name',
                     ),
                     safeGetCachedExploreStorageBytes(() =>
                         this.projectModel.getCachedExploreStorageBytes(
@@ -2774,14 +2774,14 @@ export class AiAgentAdminService extends BaseService {
             } = {
                 ...newExploreCacheReadContext('review-writeback', undefined),
                 trigger: 'run',
+                readStrategy: 'table-summary-projection',
             };
             const { result: explores } = await measureTime(
                 async () => {
                     const [cachedExplores, storedExploreBytes] =
                         await Promise.all([
-                            this.projectModel.findExploresFromCache(
+                            this.projectModel.findExploreTableSummariesFromCache(
                                 projectUuid,
-                                'name',
                             ),
                             safeGetCachedExploreStorageBytes(() =>
                                 this.projectModel.getCachedExploreStorageBytes(

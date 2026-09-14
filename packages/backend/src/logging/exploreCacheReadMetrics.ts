@@ -24,6 +24,7 @@ export type ExploreCacheReadContext = {
     codePath: ExploreCacheReadCodePath;
     readStrategy:
         | 'full-explore-read'
+        | 'table-summary-projection'
         | 'catalog-search-count'
         | 'catalog-search-distinct-explore-hydration';
     exploreCount: number;
@@ -115,13 +116,26 @@ export const safeGetCachedExploreStorageBytes = async (
  * not re-serialize or otherwise re-read the underlying JSONB payload.
  */
 export const summarizeExploreCacheRead = (
-    explores: Record<string, Explore | ExploreError>,
+    explores: Record<
+        string,
+        | Explore
+        | ExploreError
+        | {
+              isExploreError: boolean;
+              tables: Record<string, unknown>;
+          }
+    >,
 ): Pick<ExploreCacheReadContext, 'exploreCount' | 'tableFanOut'> => {
     const values = Object.values(explores);
     const tableFanOut = values.reduce(
         (sum, explore) =>
             sum +
-            (isExploreError(explore) ? 0 : Object.keys(explore.tables).length),
+            ('isExploreError' in explore
+                ? explore.isExploreError
+                : isExploreError(explore)
+            )
+                ? 0
+                : Object.keys(explore.tables).length,
         0,
     );
     return { exploreCount: values.length, tableFanOut };

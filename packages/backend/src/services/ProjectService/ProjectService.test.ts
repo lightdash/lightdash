@@ -15,6 +15,7 @@ import {
     DownloadFileType,
     DuckdbConnectionType,
     EMPTY_WAREHOUSE_LOCATION,
+    ExploreType,
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
@@ -233,6 +234,31 @@ const projectModel = {
         queryTimezone: null,
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
+    findExploreTableSummariesFromCache: vi.fn<
+        ProjectModel['findExploreTableSummariesFromCache']
+    >(async () => ({
+        [validExplore.name]: {
+            name: validExplore.name,
+            type: validExplore.type,
+            baseTable: validExplore.baseTable,
+            isExploreError: false,
+            tables: Object.fromEntries(
+                Object.entries(validExplore.tables).map(([tableKey, table]) => [
+                    tableKey,
+                    {
+                        name: table.name,
+                        originalName: table.originalName,
+                        database: table.database,
+                        schema: table.schema,
+                        description: table.description,
+                        sqlTable: table.sqlTable,
+                        ymlPath: table.ymlPath,
+                        dbtSourceUuid: table.dbtSourceUuid,
+                    },
+                ]),
+            ),
+        },
+    })),
     findExploreSplitCandidates: vi.fn<
         ProjectModel['findExploreSplitCandidates']
     >(async () => []),
@@ -332,9 +358,15 @@ const savedChartModel = {
             spaceUuid: string;
         }[],
     })),
+    findInfoForDbtExposures: vi.fn<SavedChartModel['findInfoForDbtExposures']>(
+        async () => [],
+    ),
 };
 const dashboardModel = {
     savedChartExistsInDashboard: vi.fn(async () => false),
+    findInfoForDbtExposures: vi.fn<DashboardModel['findInfoForDbtExposures']>(
+        async () => [],
+    ),
 };
 const jobModel = {
     get: vi.fn(async () => job),
@@ -2655,6 +2687,199 @@ describe('ProjectService', () => {
         const results = await service.getCatalog(user, projectUuid);
 
         expect(results).toEqual(expectedCatalog);
+        expect(
+            projectModel.findExploreTableSummariesFromCache,
+        ).toHaveBeenCalledWith(projectUuid);
+        expect(projectModel.findExploresFromCache).not.toHaveBeenCalled();
+    });
+    test('keeps catalog error skipping and last-write-wins behavior', async () => {
+        vi.mocked(
+            projectModel.findExploreTableSummariesFromCache,
+        ).mockResolvedValueOnce({
+            first: {
+                name: 'first',
+                type: ExploreType.DEFAULT,
+                baseTable: 'first',
+                isExploreError: false,
+                tables: {
+                    first: {
+                        name: 'shared',
+                        database: 'database',
+                        schema: 'schema',
+                        description: 'first description',
+                        sqlTable: 'first.table',
+                    },
+                },
+            },
+            second: {
+                name: 'second',
+                type: ExploreType.DEFAULT,
+                baseTable: 'second',
+                isExploreError: false,
+                tables: {
+                    second: {
+                        name: 'shared',
+                        database: 'database',
+                        schema: 'schema',
+                        description: 'second description',
+                        sqlTable: 'second.table',
+                    },
+                },
+            },
+            broken: {
+                name: 'broken',
+                type: undefined,
+                baseTable: undefined,
+                isExploreError: true,
+                tables: {
+                    broken: {
+                        name: 'shared',
+                        database: 'database',
+                        schema: 'schema',
+                        description: 'broken description',
+                        sqlTable: 'broken.table',
+                    },
+                },
+            },
+        });
+
+        await expect(service.getCatalog(user, projectUuid)).resolves.toEqual({
+            database: {
+                schema: {
+                    shared: {
+                        description: 'second description',
+                        sqlTable: 'second.table',
+                    },
+                },
+            },
+        });
+    });
+    test('loads only chart explores for dbt exposures', async () => {
+        const manager = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'Project' },
+            ]),
+        };
+        vi.mocked(
+            savedChartModel.findInfoForDbtExposures,
+        ).mockResolvedValueOnce([
+            {
+                uuid: 'default-chart',
+                name: 'Default chart',
+                description: undefined,
+                tableName: 'default_explore',
+                firstName: 'First',
+                lastName: 'Owner',
+            },
+            {
+                uuid: 'default-chart-copy',
+                name: 'Default chart copy',
+                description: undefined,
+                tableName: 'default_explore',
+                firstName: 'First',
+                lastName: 'Owner',
+            },
+            {
+                uuid: 'virtual-chart',
+                name: 'Virtual chart',
+                description: undefined,
+                tableName: 'virtual_explore',
+                firstName: 'First',
+                lastName: 'Owner',
+            },
+            {
+                uuid: 'pre-aggregate-chart',
+                name: 'Pre-aggregate chart',
+                description: undefined,
+                tableName: 'pre_aggregate_explore',
+                firstName: 'First',
+                lastName: 'Owner',
+            },
+            {
+                uuid: 'broken-chart',
+                name: 'Broken chart',
+                description: undefined,
+                tableName: 'broken_explore',
+                firstName: 'First',
+                lastName: 'Owner',
+            },
+        ]);
+        vi.mocked(
+            projectModel.findExploreTableSummariesFromCache,
+        ).mockResolvedValueOnce({
+            default_explore: {
+                name: 'default_explore',
+                type: ExploreType.DEFAULT,
+                baseTable: 'orders',
+                isExploreError: false,
+                tables: {
+                    orders: {
+                        name: 'orders_alias',
+                        originalName: 'orders',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'database.schema.orders',
+                    },
+                },
+            },
+            virtual_explore: {
+                name: 'virtual_explore',
+                type: ExploreType.VIRTUAL,
+                baseTable: 'virtual',
+                isExploreError: false,
+                tables: {
+                    virtual: {
+                        name: 'virtual',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'database.schema.virtual',
+                    },
+                },
+            },
+            pre_aggregate_explore: {
+                name: 'pre_aggregate_explore',
+                type: ExploreType.PRE_AGGREGATE,
+                baseTable: 'pre_aggregate',
+                isExploreError: false,
+                tables: {
+                    pre_aggregate: {
+                        name: 'pre_aggregate',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'database.schema.pre_aggregate',
+                    },
+                },
+            },
+            broken_explore: {
+                name: 'broken_explore',
+                type: undefined,
+                baseTable: undefined,
+                isExploreError: true,
+                tables: {},
+            },
+        });
+
+        const results = await service.getDbtExposures(manager, projectUuid);
+
+        expect(
+            projectModel.findExploreTableSummariesFromCache,
+        ).toHaveBeenCalledWith(projectUuid, [
+            'default_explore',
+            'virtual_explore',
+            'pre_aggregate_explore',
+            'broken_explore',
+        ]);
+        expect(results.ld_chart_default_chart.dependsOn).toEqual([
+            "ref('orders')",
+        ]);
+        expect(results.ld_chart_default_chart_copy.dependsOn).toEqual([
+            "ref('orders')",
+        ]);
+        expect(results.ld_chart_virtual_chart).toBeUndefined();
+        expect(results.ld_chart_pre_aggregate_chart).toBeUndefined();
+        expect(results.ld_chart_broken_chart).toBeUndefined();
+        expect(projectModel.findExploresFromCache).not.toHaveBeenCalled();
     });
     test('should get tables configuration', async () => {
         const result = await service.getTablesConfiguration(
