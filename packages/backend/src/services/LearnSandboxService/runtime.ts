@@ -2,6 +2,12 @@ import { access, constants } from 'node:fs/promises';
 import path from 'node:path';
 
 export const LEARN_SANDBOX_COMMAND_TIMEOUT_MS = 120_000;
+/**
+ * Per-request deadline handed to the CLI (LIGHTDASH_API_TIMEOUT_MS). A stalled
+ * API then fails one request with a clear message instead of pinning the
+ * command until the 120 s kill; CS-306.
+ */
+export const LEARN_SANDBOX_API_TIMEOUT_MS = 30_000;
 
 const DEFAULT_PATH_PREFIX = ['/usr/local/dbt1.12/bin'];
 const RUNTIME_DETECTION_CACHE_MS = 60_000;
@@ -180,5 +186,6 @@ export const buildSandboxEnvironment = (
         DBT_PARTIAL_PARSE: 'false',
         DBT_SEND_ANONYMOUS_USAGE_STATS: 'false',
         CI: 'true',
+        LIGHTDASH_API_TIMEOUT_MS: String(LEARN_SANDBOX_API_TIMEOUT_MS),
     };
 };
