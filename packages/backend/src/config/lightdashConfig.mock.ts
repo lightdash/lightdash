@@ -256,6 +256,12 @@ export const lightdashConfigMock: LightdashConfig = {
             ios: null,
         },
     },
+    mobileApp: {
+        setupLinkBaseUrl: 'https://test.lightdash.cloud/mobile-setup',
+        appStoreUrl: null,
+        playStoreUrl:
+            'https://play.google.com/store/apps/details?id=com.lightdash.mobile',
+    },
     mobilePushNotifications: {
         enabled: false,
         bundleId: 'com.lightdash.mobile',

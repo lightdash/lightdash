@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     HealthState,
     LightdashInstallType,
     LightdashMode,
@@ -7,6 +8,7 @@ import {
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
@@ -18,6 +20,7 @@ import type { ReadinessService } from '../ReadinessService/ReadinessService';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
+    featureFlagModel: FeatureFlagModel;
     licenseService: LicenseService;
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
@@ -38,6 +41,8 @@ export class HealthService extends BaseService {
 
     private readonly readinessService?: Pick<ReadinessService, 'getReadiness'>;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor({
         organizationModel,
         migrationModel,
@@ -45,6 +50,7 @@ export class HealthService extends BaseService {
         licenseService,
         organizationSettingsModel,
         readinessService,
+        featureFlagModel,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -53,6 +59,7 @@ export class HealthService extends BaseService {
         this.migrationModel = migrationModel;
         this.organizationSettingsModel = organizationSettingsModel;
         this.readinessService = readinessService;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private isEnterpriseEnabled(): boolean {
@@ -131,6 +138,15 @@ export class HealthService extends BaseService {
             mode: this.lightdashConfig.mode,
             version: VERSION,
             mobile: this.lightdashConfig.mobile,
+            mobileApp: {
+                ...this.lightdashConfig.mobileApp,
+                enabled: (
+                    await this.featureFlagModel.get({
+                        user,
+                        featureFlagId: FeatureFlags.MobileAppSetup,
+                    })
+                ).enabled,
+            },
             localDbtEnabled,
             defaultProject: undefined,
             isAuthenticated,
