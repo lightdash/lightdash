@@ -952,7 +952,9 @@ const Dashboard: FC = () => {
             return undefined;
         if (!chartToEdit || chartToEdit.uuid !== editChartParamAtMount)
             return undefined;
-        return chartVersionAtMount.tableName === chartToEdit.tableName
+        return chartVersionAtMount.tableName === chartToEdit.tableName &&
+            chartVersionAtMount.metricQuery.exploreName ===
+                chartToEdit.tableName
             ? chartVersionAtMount
             : undefined;
     }, [

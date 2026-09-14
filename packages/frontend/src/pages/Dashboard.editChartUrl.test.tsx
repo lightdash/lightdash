@@ -373,6 +373,24 @@ describe('Dashboard in-dashboard chart editor url', () => {
         );
     });
 
+    it('falls back when the version query targets another explore', async () => {
+        renderDashboard(
+            withBothParams(
+                JSON.stringify({
+                    ...editedVersion,
+                    metricQuery: {
+                        ...editedVersion.metricQuery,
+                        exploreName: 'orders',
+                    },
+                }),
+            ),
+        );
+
+        expect(await screen.findByTestId('store-limit')).toHaveTextContent(
+            '500',
+        );
+    });
+
     it('writes the edits into the url and clears both params on close', async () => {
         const user = userEvent.setup();
         renderDashboard('?editChart=chart-uuid');

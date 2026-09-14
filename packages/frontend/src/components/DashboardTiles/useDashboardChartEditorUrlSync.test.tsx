@@ -1,3 +1,8 @@
+import {
+    CartesianSeriesType,
+    ChartType,
+    type SavedChart,
+} from '@lightdash/common';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -43,11 +48,14 @@ const Probe = () => {
     );
 };
 
-const renderSync = (initialSearch: string = '') => {
+const renderSync = (
+    initialSearch: string = '',
+    chart: SavedChart = editChart,
+) => {
     const store = createExplorerStore({
         explorer: buildDashboardEditorInitialState({
             exploreId: 'payments',
-            editChart,
+            editChart: chart,
             seededMetrics: [],
         }),
     });
@@ -70,6 +78,34 @@ const chartVersionFromUrl = () => {
 };
 
 describe('useDashboardChartEditorUrlSync', () => {
+    it('preserves large chart styling when an edit is carried in the dashboard URL', async () => {
+        const user = userEvent.setup();
+        const series = Array.from({ length: 20 }, (_, index) => ({
+            encode: {
+                xRef: { field: 'payments_payment_method' },
+                yRef: { field: `payments_metric_${index}` },
+            },
+            type: CartesianSeriesType.BAR,
+            name: `Series ${index} with a descriptive label`,
+            color: '#0f0f0f',
+            yAxisIndex: index % 2,
+            label: { show: true },
+        }));
+        const chart = mockSavedChartResponse({
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: { layout: {}, eChartsConfig: { series } },
+            },
+        });
+        expect(JSON.stringify(chart.chartConfig).length).toBeGreaterThan(3000);
+        renderSync('?editChart=chart-uuid', chart);
+
+        await user.click(screen.getByRole('button', { name: 'Edit' }));
+
+        expect(chartVersionFromUrl().chartConfig).toEqual(chart.chartConfig);
+        expect(chartVersionFromUrl().metricQuery.limit).toBe(25);
+    });
+
     it('writes nothing while the session is clean', () => {
         renderSync();
 

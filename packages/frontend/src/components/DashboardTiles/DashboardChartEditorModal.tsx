@@ -414,7 +414,7 @@ const DashboardChartEditorModal: FC<Props> = ({
     const handleOpenChartPage = useCallback(
         (target: { pathname: string; search: string }) => {
             onBeforeOpenChartPage();
-            void navigate(target, { viewTransition: true });
+            void navigate(target, { flushSync: true });
         },
         [navigate, onBeforeOpenChartPage],
     );

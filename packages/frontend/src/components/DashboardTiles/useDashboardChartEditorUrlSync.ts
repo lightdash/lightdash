@@ -27,7 +27,7 @@ export const useDashboardChartEditorUrlSync = (): void => {
     const desiredValue = useMemo(
         () =>
             savedChart && hasUnsavedChanges
-                ? stringifyCreateSavedChartVersion(unsavedChartVersion)
+                ? stringifyCreateSavedChartVersion(unsavedChartVersion, true)
                 : null,
         [savedChart, hasUnsavedChanges, unsavedChartVersion],
     );
