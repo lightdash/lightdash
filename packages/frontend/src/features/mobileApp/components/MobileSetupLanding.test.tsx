@@ -2,7 +2,12 @@ import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { navigateTo } from '../utils/navigation';
 import { MobileSetupLanding } from './MobileSetupLanding';
+
+vi.mock('../utils/navigation', () => ({
+    navigateTo: vi.fn(),
+}));
 
 vi.mock('../../../hooks/health/useHealth', () => ({
     default: () => ({
@@ -50,6 +55,7 @@ const validSearch = `?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`;
 
 afterEach(() => {
     setUserAgent(MAC_UA);
+    vi.clearAllMocks();
 });
 
 describe('MobileSetupLanding', () => {
@@ -80,6 +86,36 @@ describe('MobileSetupLanding', () => {
         expect(
             screen.queryByRole('link', { name: /app store/i }),
         ).not.toBeInTheDocument();
+    });
+
+    it('builds the app URL from the validated params only', () => {
+        setUserAgent(IPHONE_UA);
+        renderAt(
+            `?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}&redirect=https%3A%2F%2Fevil.example&extra=1`,
+        );
+
+        const open = screen.getByRole('link', { name: /open in lightdash/i });
+        const href = open.getAttribute('href') ?? '';
+        const params = new URLSearchParams(href.split('?')[1]);
+
+        expect([...params.keys()].sort()).toEqual(['c', 'i', 'v']);
+        expect(href).not.toContain('evil.example');
+    });
+
+    it('attempts the app on a mobile user agent', () => {
+        setUserAgent(ANDROID_UA);
+        renderAt(validSearch);
+
+        expect(navigateTo).toHaveBeenCalledWith(
+            `com.lightdash.mobile://setup?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`,
+        );
+    });
+
+    it('never navigates away on desktop', () => {
+        setUserAgent(MAC_UA);
+        renderAt(validSearch);
+
+        expect(navigateTo).not.toHaveBeenCalled();
     });
 
     it('shows no code and no open button on desktop', () => {

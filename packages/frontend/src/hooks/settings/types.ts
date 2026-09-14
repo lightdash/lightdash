@@ -84,6 +84,7 @@ export type SettingsContext = {
     externalSourcesFlag: FeatureFlag | undefined;
     isResultsCacheEnabled: boolean;
     isMobileAppSetupEnabled: boolean;
+    isMobileAppSetupFlagLoading: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
