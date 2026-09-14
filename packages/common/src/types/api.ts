@@ -268,6 +268,7 @@ import type {
     ApiMetricsExplorerQueryResults,
     ApiMetricsExplorerTotalResults,
 } from './metricsExplorer';
+import { type MobileAppHealth } from './mobileSetup';
 import {
     type CreateOAuthClientResponse,
     type OAuthClientSummary,
@@ -623,6 +624,7 @@ export type HealthState = {
             ios: string | null;
         };
     };
+    mobileApp: MobileAppHealth;
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
