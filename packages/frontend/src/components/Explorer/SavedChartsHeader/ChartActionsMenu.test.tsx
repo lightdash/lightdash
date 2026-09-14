@@ -26,7 +26,9 @@ vi.mock('../../../hooks/useExplorerQuery', () => ({
 
 vi.mock(
     '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem',
-    () => ({ AskAiAgentMenuItem: () => null }),
+    () => ({
+        AskAiAgentMenuItem: () => <button type="button">Ask AI Agent</button>,
+    }),
 );
 
 vi.mock('../../../hooks/useProjectRoute', () => ({
@@ -83,6 +85,7 @@ describe('ChartActionsMenu', () => {
 
         expect(await screen.findByText('Version history')).toBeVisible();
         expect(screen.queryByText('Move to space')).toBeNull();
+        expect(screen.getByText('Ask AI Agent')).toBeVisible();
 
         await user.click(screen.getByText('Version history'));
         expect(onOpenVersionHistory).toHaveBeenCalledTimes(1);

@@ -16,6 +16,7 @@ import {
 } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate } from 'react-router';
+import { AiAgentsLauncherModalHost } from '../../ee/features/aiCopilot/components/Launcher/AiAgentsLauncherPortal';
 import {
     createExplorerStore,
     explorerActions,
@@ -504,7 +505,9 @@ const DashboardChartEditorModal: FC<Props> = ({
                         id={DashboardChartEditorActionsPortalId}
                         gap="xs"
                         wrap="nowrap"
-                    />
+                    >
+                        <AiAgentsLauncherModalHost />
+                    </Group>
                 ) : undefined
             }
         >

@@ -19,6 +19,7 @@ import {
 import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './AiAgentsLauncher.module.css';
+import { AiAgentsLauncherPortal } from './AiAgentsLauncherPortal';
 import {
     getLauncherAgentUuid,
     getLauncherPanelAgent,
@@ -26,6 +27,7 @@ import {
 } from './launcherAgentSelection';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
+import { shouldRenderAiAgentsLauncher } from './launcherVisibility';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
 import { useLauncherDock } from './useLauncherDock';
 
@@ -44,8 +46,19 @@ export const AiAgentsLauncher: FC = () => {
     const isMobile = useMediaQuery('(max-width: 768px)');
     const isHidden = useIsLauncherHidden();
 
-    if (isMobile || isHidden) return null;
-    return <AiAgentsLauncherInner />;
+    return (
+        <AiAgentsLauncherPortal>
+            {(isModalHosted) =>
+                shouldRenderAiAgentsLauncher({
+                    isHidden,
+                    isMobile,
+                    isModalHosted,
+                }) ? (
+                    <AiAgentsLauncherInner />
+                ) : null
+            }
+        </AiAgentsLauncherPortal>
+    );
 };
 
 const AiAgentsLauncherInner: FC = () => {

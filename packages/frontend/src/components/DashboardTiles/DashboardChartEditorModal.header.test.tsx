@@ -102,7 +102,9 @@ vi.mock('../../ee/providers/Embed/useEmbed', () => ({
 // The AI entry point resolves agents through its own providers; not under test.
 vi.mock(
     '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem',
-    () => ({ AskAiAgentMenuItem: () => null }),
+    () => ({
+        AskAiAgentMenuItem: () => <button type="button">Ask AI Agent</button>,
+    }),
 );
 
 vi.mock('../../hooks/useProjectRoute', () => ({
@@ -489,7 +491,7 @@ describe('DashboardChartEditorModal header', () => {
         );
         expect(await screen.findByText('Version history')).toBeVisible();
         expect(screen.queryByText('Move to space')).toBeNull();
-        expect(screen.queryByText('Ask AI Agent')).toBeNull();
+        expect(screen.getByText('Ask AI Agent')).toBeVisible();
 
         await user.click(screen.getByText('Version history'));
 
