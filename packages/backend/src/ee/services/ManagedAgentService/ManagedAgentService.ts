@@ -3682,6 +3682,17 @@ chartConfig:
                 blocked: true,
             });
         }
+        if (
+            await this.managedAgentModel.isOnlyChartOnDashboard(
+                projectUuid,
+                chartUuid,
+            )
+        ) {
+            return JSON.stringify({
+                error: `Chart "${chartName}" is the only remaining chart on a dashboard. Cannot soft-delete it.`,
+                blocked: true,
+            });
+        }
         const chartEscalationBlock = await this.checkEscalationGuard(
             projectUuid,
             ManagedAgentTargetType.CHART,

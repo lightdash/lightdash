@@ -620,6 +620,42 @@ export class ManagedAgentModel {
         return row !== undefined;
     }
 
+    async isOnlyChartOnDashboard(
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<boolean> {
+        const result = await this.database.raw(
+            `SELECT EXISTS (
+                SELECT 1
+                FROM dashboards d
+                JOIN spaces s ON s.space_id = d.space_id
+                JOIN projects p ON p.project_id = s.project_id
+                JOIN dashboard_tile_charts target ON target.dashboard_version_id = (
+                    SELECT MAX(dv.dashboard_version_id)
+                    FROM dashboard_versions dv WHERE dv.dashboard_id = d.dashboard_id
+                )
+                JOIN saved_queries target_chart ON target_chart.saved_query_id = target.saved_chart_id
+                WHERE p.project_uuid = ? AND d.deleted_at IS NULL
+                    AND target_chart.saved_query_uuid = ?
+                    AND NOT EXISTS (
+                        SELECT 1 FROM dashboard_tile_charts other
+                        JOIN saved_queries other_chart ON other_chart.saved_query_id = other.saved_chart_id
+                        WHERE other.dashboard_version_id = target.dashboard_version_id
+                            AND other.saved_chart_id <> target.saved_chart_id
+                            AND other_chart.deleted_at IS NULL
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM dashboard_tile_sql_charts sql_tile
+                        JOIN saved_sql sql_chart ON sql_chart.saved_sql_uuid = sql_tile.saved_sql_uuid
+                        WHERE sql_tile.dashboard_version_id = target.dashboard_version_id
+                            AND sql_chart.deleted_at IS NULL
+                    )
+            ) AS only_chart`,
+            [projectUuid, chartUuid],
+        );
+        return result.rows[0].only_chart;
+    }
+
     async getChartSpaceUuid(chartUuid: string): Promise<string | null> {
         const row = await this.database('saved_queries as sq')
             .leftJoin('spaces as s', 's.space_id', 'sq.space_id')
