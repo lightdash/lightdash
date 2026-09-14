@@ -27,7 +27,10 @@ import {
 } from './launcherAgentSelection';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
-import { shouldRenderAiAgentsLauncher } from './launcherVisibility';
+import {
+    shouldRenderAiAgentsLauncher,
+    shouldRenderAiAgentsLauncherContent,
+} from './launcherVisibility';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
 import { useLauncherDock } from './useLauncherDock';
 
@@ -54,14 +57,16 @@ export const AiAgentsLauncher: FC = () => {
                     isMobile,
                     isModalHosted,
                 }) ? (
-                    <AiAgentsLauncherInner />
+                    <AiAgentsLauncherInner isModalHosted={isModalHosted} />
                 ) : null
             }
         </AiAgentsLauncherPortal>
     );
 };
 
-const AiAgentsLauncherInner: FC = () => {
+const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
+    isModalHosted,
+}) => {
     const { activeProjectUuid } = useActiveProjectUuid();
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
@@ -185,11 +190,16 @@ const AiAgentsLauncherInner: FC = () => {
         currentDashboard?.projectUuid === activeProjectUuid ||
         currentDataApp?.projectUuid === activeProjectUuid;
 
-    if (!isAllowed || !activeProjectUuid) return null;
     if (
-        !isPanelOpenSafe &&
-        dock.length === 0 &&
-        (!selectedAgent || !isContentPage)
+        !activeProjectUuid ||
+        !shouldRenderAiAgentsLauncherContent({
+            dockItemCount: dock.length,
+            hasSelectedAgent: !!selectedAgent,
+            isAllowed,
+            isContentPage,
+            isModalHosted,
+            isPanelOpen: isPanelOpenSafe,
+        })
     ) {
         return null;
     }
