@@ -4,7 +4,7 @@ import {
     type ApiError,
     type DataAppVizRenderMetadata,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import {
     getPreviewTokenRefetchInterval,
@@ -66,20 +66,34 @@ const shouldRetryDataAppVizRenderQuery = (
     return failureCount < DATA_APP_VIZ_RENDER_MAX_RETRIES;
 };
 
+const getRenderMetadataQueryKey = (
+    projectUuid: string | undefined,
+    dataAppVizUuid: string | null,
+    target: DataAppVizRenderTarget,
+    pinnedVersion: number | undefined,
+) => [
+    'data-app-viz-render-metadata',
+    projectUuid,
+    dataAppVizUuid,
+    target.isEmbedded ? 'embed' : 'registered',
+    target.savedChartUuid,
+    target.chartVersionUuid,
+    pinnedVersion,
+];
+
 export const useDataAppVizRenderMetadata = (
     projectUuid: string | undefined,
     dataAppVizUuid: string | null,
     target: DataAppVizRenderTarget,
+    pinnedVersion?: number,
 ) =>
     useQuery<DataAppVizRenderMetadata, ApiError>({
-        queryKey: [
-            'data-app-viz-render-metadata',
+        queryKey: getRenderMetadataQueryKey(
             projectUuid,
             dataAppVizUuid,
-            target.isEmbedded ? 'embed' : 'registered',
-            target.savedChartUuid,
-            target.chartVersionUuid,
-        ],
+            target,
+            pinnedVersion,
+        ),
         queryFn: () =>
             lightdashApi<ApiDataAppVizRenderMetadataResponse['results']>({
                 method: 'GET',
@@ -102,8 +116,10 @@ export const useDataAppVizPreviewToken = (
     dataAppVizUuid: string | null,
     version: number | undefined,
     target: DataAppVizRenderTarget,
-) =>
-    useQuery<string, ApiError>({
+    pinnedVersion?: number,
+) => {
+    const queryClient = useQueryClient();
+    return useQuery<string, ApiError>({
         queryKey: [
             'data-app-viz-preview-token',
             projectUuid,
@@ -133,7 +149,27 @@ export const useDataAppVizPreviewToken = (
             version !== undefined &&
             version > 0,
         retry: shouldRetryDataAppVizRenderQuery,
+        onError: (error) => {
+            queryClient.getDefaultOptions().queries?.onError?.(error);
+            // A repinned chart rejects tokens for the cached metadata's version.
+            // Refresh its metadata once; unchanged versions retain the error.
+            if (error.error.statusCode === 403 && target.savedChartUuid) {
+                void queryClient.invalidateQueries(
+                    {
+                        queryKey: getRenderMetadataQueryKey(
+                            projectUuid,
+                            dataAppVizUuid,
+                            target,
+                            pinnedVersion,
+                        ),
+                        exact: true,
+                    },
+                    { cancelRefetch: false },
+                );
+            }
+        },
         refetchInterval: (_data, query) =>
             getPreviewTokenRefetchInterval(query.state.error),
         ...previewTokenQueryOptions,
     });
+};

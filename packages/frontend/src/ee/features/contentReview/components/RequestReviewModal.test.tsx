@@ -98,6 +98,7 @@ describe('RequestReviewModal', () => {
         expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
 
         await pickFinanceAndContinue();
+        expect(createRequest).not.toHaveBeenCalled();
         await userEvent.type(
             screen.getByLabelText('Note for reviewers'),
             '  For the weekly review  ',
@@ -117,6 +118,28 @@ describe('RequestReviewModal', () => {
         );
     });
 
+    it('shows a failed check separately from no matches and offers retry', async () => {
+        const refetch = vi.fn();
+        similarContent.mockReturnValue({ isError: true, refetch });
+        renderModal();
+        await pickFinanceAndContinue();
+        expect(
+            screen.getByText('Related content could not be checked.'),
+        ).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(refetch).toHaveBeenCalledOnce();
+    });
+
+    it('shows a pending check without requiring a note', async () => {
+        similarContent.mockReturnValue({ isInitialLoading: true });
+        renderModal();
+        await pickFinanceAndContinue();
+        expect(screen.getByRole('status')).toHaveTextContent(
+            'Checking for related content',
+        );
+        expect(screen.getByLabelText('Note for reviewers')).not.toBeRequired();
+    });
+
     it('goes back to the space step without losing the choice', async () => {
         renderModal();
 
@@ -127,7 +150,7 @@ describe('RequestReviewModal', () => {
         expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
     });
 
-    it('requires a note when similar content exists and snapshots it', async () => {
+    it('keeps the note optional when similar names exist and submits the suggestions', async () => {
         const match = {
             contentType: ContentReviewContentType.CHART,
             contentUuid: 'existing',
@@ -143,16 +166,14 @@ describe('RequestReviewModal', () => {
 
         await pickFinanceAndContinue();
         expect(
-            screen.getByText('Something similar already exists'),
+            screen.getByRole('button', { name: '1 similar chart found' }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Request review' }),
-        ).toBeDisabled();
+        ).toBeEnabled();
 
-        await userEvent.type(
-            screen.getByLabelText(/Note for reviewers/),
-            'Adds a forecast',
-        );
+        expect(screen.getByLabelText('Note for reviewers')).not.toBeRequired();
+        expect(createRequest).not.toHaveBeenCalled();
         await userEvent.click(
             screen.getByRole('button', { name: 'Request review' }),
         );
@@ -160,7 +181,7 @@ describe('RequestReviewModal', () => {
         await waitFor(() =>
             expect(createRequest).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    note: 'Adds a forecast',
+                    note: null,
                     similarContent: [match],
                 }),
             ),

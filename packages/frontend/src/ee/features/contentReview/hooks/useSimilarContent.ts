@@ -11,7 +11,7 @@ export const useSimilarContent = (
     params: {
         contentType: ContentReviewContentType;
         name: string;
-        excludeContentUuid: string;
+        excludeContentUuid: string | null;
     },
     enabled: boolean,
 ) =>

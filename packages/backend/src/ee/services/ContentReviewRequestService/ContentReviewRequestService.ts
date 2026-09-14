@@ -77,7 +77,7 @@ type ProjectContext = { organizationUuid: string; projectUuid: string };
 
 const SIMILAR_CANDIDATE_LIMIT = 20;
 const SIMILAR_RESULT_LIMIT = 5;
-const VERIFIED_SCORE_BOOST = 10;
+const VERIFIED_SCORE_BOOST = 2;
 
 type ContentLookups = {
     locations: Map<string, ContentReviewContentLocation>;
@@ -689,6 +689,15 @@ export class ContentReviewRequestService extends BaseService {
             );
         }
 
+        const similarContent = await this.findSimilarContent(
+            user,
+            projectUuid,
+            {
+                contentType: body.contentType,
+                name: content.name,
+                excludeContentUuid: content.uuid,
+            },
+        );
         const settings = await this.contentReviewSettingsModel.get(projectUuid);
         const principals = await this.resolveReviewerPrincipals(
             settings,
@@ -712,7 +721,7 @@ export class ContentReviewRequestService extends BaseService {
                 targetSpaceUuid: targetSpace.uuid,
                 requestedByUserUuid: user.userUuid,
                 requestNote: body.note,
-                similarContent: body.similarContent,
+                similarContent,
                 grantedPrincipals,
             });
         } catch (error) {
@@ -738,7 +747,13 @@ export class ContentReviewRequestService extends BaseService {
                         : 'group',
                 reviewerCount: principals.length,
                 movedItemCount: moveSet.length,
-                similarContentShown: body.similarContent.length,
+                similarContentShown: similarContent.filter((item) =>
+                    body.similarContent.some(
+                        (shown) =>
+                            shown.contentType === item.contentType &&
+                            shown.contentUuid === item.contentUuid,
+                    ),
+                ).length,
             },
         });
 
@@ -1134,8 +1149,7 @@ export class ContentReviewRequestService extends BaseService {
         );
     }
 
-    // Name lookalikes in shared spaces the caller can see, verified ones
-    // first so the sanctioned version is easy to spot
+    // Rank accessible name matches, with a small preference for verified content.
     async findSimilarContent(
         user: SessionUser,
         projectUuid: string,
@@ -1147,23 +1161,25 @@ export class ContentReviewRequestService extends BaseService {
     ): Promise<ContentReviewSimilarContentItem[]> {
         const context = await this.getProjectContext(user, projectUuid);
         if (params.name.trim().length === 0) return [];
+        const spaces =
+            await this.spaceModel.getSpacesByProjectUuid(projectUuid);
+        const accessibleSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((space) => space.uuid),
+            );
         const candidates =
             await this.contentReviewRequestModel.findSimilarByName({
                 projectUuid,
                 contentType: params.contentType,
                 name: params.name,
                 excludeContentUuid: params.excludeContentUuid,
+                accessibleSpaceUuids,
                 limit: SIMILAR_CANDIDATE_LIMIT,
             });
         if (candidates.length === 0) return [];
-        const accessible = new Set(
-            await this.spacePermissionService.getAccessibleSpaceUuids(
-                'view',
-                user,
-                [...new Set(candidates.map((c) => c.spaceUuid))],
-            ),
-        );
-        const visible = candidates.filter((c) => accessible.has(c.spaceUuid));
+        const visible = candidates;
         const verifiedByType = new Map<ContentReviewContentType, Set<string>>();
         await Promise.all(
             [...new Set(visible.map((c) => c.contentType))].map(
@@ -1197,6 +1213,7 @@ export class ContentReviewRequestService extends BaseService {
                     spaceName: c.spaceName,
                     isVerified,
                     score: c.score + (isVerified ? VERIFIED_SCORE_BOOST : 0),
+                    matchReason: c.matchReason,
                 };
             })
             .sort((a, b) => b.score - a.score)

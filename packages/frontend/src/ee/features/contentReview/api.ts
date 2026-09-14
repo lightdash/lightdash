@@ -126,14 +126,15 @@ export const getSimilarContentForReview = (
     params: {
         contentType: ContentReviewContentType;
         name: string;
-        excludeContentUuid: string;
+        excludeContentUuid: string | null;
     },
 ) => {
     const search = new URLSearchParams({
         contentType: params.contentType,
         name: params.name,
-        excludeContentUuid: params.excludeContentUuid,
     });
+    if (params.excludeContentUuid !== null)
+        search.set('excludeContentUuid', params.excludeContentUuid);
     return lightdashApi<ApiContentReviewSimilarContentResponse['results']>({
         url: `${contentReviewBasePath(projectUuid)}/similar?${search.toString()}`,
         method: 'GET',
