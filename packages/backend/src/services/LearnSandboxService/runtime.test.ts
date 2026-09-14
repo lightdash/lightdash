@@ -75,6 +75,8 @@ describe('buildSandboxEnvironment', () => {
             DBT_PARTIAL_PARSE: 'false',
             DBT_SEND_ANONYMOUS_USAGE_STATS: 'false',
             CI: 'true',
+            // A stalled API surfaces as a CLI error well inside the command timeout
+            LIGHTDASH_API_TIMEOUT_MS: '30000',
         });
     });
 
