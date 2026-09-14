@@ -86,6 +86,8 @@ AUTOPILOT_EVAL_MODE=observe AUTOPILOT_EVAL_FIXTURE=seeded pnpm -F backend test:a
 
 `AUTOPILOT_EVAL_GUARDS_ONLY=true` on a cleanup clone makes no model calls and exercises the real deletion handlers directly: the sole chart on a dashboard is protected (duplicate tiles do not make it eligible, another active saved or SQL chart does, only the current dashboard version counts), exactly 25 individual deletions succeed, and repeated bulk calls delete 25 charts in total.
 
+`AUTOPILOT_EVAL_BACKLOG_GUARDS_ONLY=true` on a flag/large clone likewise makes no model calls: it flags the 105 removed-model charts in one group operation, retries without duplicate flags or escalation resets, checks excluded, protected and verified content, refuses observe-mode flagging and cancelled calls, resumes after a mid-group interruption, and records a project insight without a model-supplied target.
+
 ## Acceptance before switching the default
 
 Run each promised provider in all three modes on both a seeded project and a representative large/broken project. Use isolated, disposable content. Do not reset a shared developer or customer database to obtain fixtures.

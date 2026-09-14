@@ -346,6 +346,35 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             );
             if (process.env.AUTOPILOT_EVAL_BACKLOG_GUARDS_ONLY === 'true') {
                 expect(retiredCharts).toHaveLength(105);
+                const retiredDashboard = await models
+                    .getDashboardModel()
+                    .create(
+                        space.uuid,
+                        {
+                            name: 'Broken model dashboard',
+                            slug: 'broken-model-dashboard',
+                            tabs: [],
+                            tiles: [
+                                {
+                                    type: DashboardTileTypes.SAVED_CHART,
+                                    x: 0,
+                                    y: 0,
+                                    w: 12,
+                                    h: 6,
+                                    tabUuid: null,
+                                    properties: {
+                                        savedChartUuid: retiredCharts[0].uuid,
+                                    },
+                                },
+                            ],
+                        },
+                        actor,
+                        projectUuid,
+                    );
+                await validation.storeValidation(
+                    projectUuid,
+                    await validation.generateValidation(projectUuid),
+                );
                 const guardRun = await service.startRun(projectUuid, 'manual');
                 const call = (
                     name: string,
@@ -361,13 +390,8 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                         signal,
                     ).then(JSON.parse);
                 const summary = await call('get_broken_content', {});
-                expect(summary.insight_target).toEqual({
-                    target_type: 'project',
-                    target_uuid: projectUuid,
-                    target_name: 'Project broken-content backlog',
-                });
-                const insight = await call('log_insight', {
-                    ...summary.insight_target,
+                expect(summary.insight_tool).toBe('log_project_insight');
+                const insight = await call('log_project_insight', {
                     description:
                         '106 broken charts, including 105 on a removed model',
                 });
@@ -473,6 +497,60 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                         controller.signal,
                     ),
                 ).rejects.toThrow('Backlog probe canceled');
+                await Promise.all(
+                    Array.from({ length: 3 }, (_, index) =>
+                        makeChart(
+                            `Resumable retired chart ${index}`,
+                            retiredQuery,
+                            space.uuid,
+                            'retired_orders',
+                        ),
+                    ),
+                );
+                await validation.storeValidation(
+                    projectUuid,
+                    await validation.generateValidation(projectUuid),
+                );
+                const interrupted = new AbortController();
+                const originalCreateAction =
+                    agentModel.createAction.bind(agentModel);
+                const observer = vi
+                    .spyOn(agentModel, 'createAction')
+                    .mockImplementation(async (input) => {
+                        const action = await originalCreateAction(input);
+                        if (
+                            input.actionType ===
+                            ManagedAgentActionType.FLAGGED_BROKEN
+                        )
+                            interrupted.abort(
+                                new Error(
+                                    'Interrupted after first durable flag',
+                                ),
+                            );
+                        return action;
+                    });
+                try {
+                    await expect(
+                        call(
+                            'bulk_flag_broken_content',
+                            {
+                                table_name: 'retired_orders',
+                                reason: 'Partial progress probe',
+                            },
+                            interrupted.signal,
+                        ),
+                    ).rejects.toThrow('Interrupted after first durable flag');
+                } finally {
+                    observer.mockRestore();
+                }
+                const resumed = await call('bulk_flag_broken_content', {
+                    table_name: 'retired_orders',
+                    reason: 'Resume partial progress',
+                });
+                expect(resumed).toMatchObject({
+                    flagged_count: 2,
+                    already_flagged_count: 106,
+                });
                 const actions = await agentModel.getActions(projectUuid, {
                     sessionId: guardRun.runUuid,
                 });
@@ -494,7 +572,7 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                             action.actionType ===
                             ManagedAgentActionType.FLAGGED_BROKEN,
                     ),
-                ).toHaveLength(105);
+                ).toHaveLength(108);
                 expect(
                     actions.filter(
                         (action) =>
@@ -502,25 +580,31 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                             ManagedAgentActionType.INSIGHT,
                     ),
                 ).toHaveLength(1);
-                const directory = process.env.AUTOPILOT_EVAL_OUTPUT_DIR!;
-                await mkdir(directory, { recursive: true });
-                await writeFile(
-                    path.join(directory, 'backlog-guards.json'),
-                    JSON.stringify(
-                        {
-                            first,
-                            second,
-                            guarded,
-                            observe,
-                            abortedWithoutWrites: true,
-                            insight,
-                            flagged: 105,
-                            projectInsight: true,
-                        },
-                        null,
-                        2,
+                expect(
+                    actions.find(
+                        (action) => action.actionUuid === insight.action_uuid,
                     ),
-                );
+                ).toMatchObject({
+                    targetType: ManagedAgentTargetType.PROJECT,
+                    targetUuid: projectUuid,
+                });
+                expect(
+                    actions.some(
+                        (action) => action.targetUuid === retiredDashboard.uuid,
+                    ),
+                ).toBe(false);
+                await writeReport('backlog-guards.json', {
+                    first,
+                    second,
+                    guarded,
+                    observe,
+                    abortedWithoutWrites: true,
+                    insight,
+                    flagged: 108,
+                    dashboardLeftForIndividualReview: true,
+                    resumed,
+                    projectInsight: true,
+                });
                 await agentModel.finishRun(guardRun.runUuid, {
                     status: ManagedAgentRunStatus.COMPLETED,
                     actionCount: actions.length,

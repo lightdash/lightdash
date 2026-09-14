@@ -321,34 +321,34 @@ describe('renderAutopilotAgent', () => {
 });
 
 describe('broken-content action contracts', () => {
-    it('allows project-wide insights without inventing a chart target', () => {
+    it('records project-wide insights without accepting a model-supplied target', () => {
         const tool = autopilotToolDefinitions.find(
-            (item) => item.name === 'log_insight',
+            (item) => item.name === 'log_project_insight',
         );
-        expect(tool?.inputSchema.properties?.target_type).toMatchObject({
-            enum: expect.arrayContaining(['project']),
-        });
+        expect(tool).toBeDefined();
+        expect(tool?.inputSchema.properties).not.toHaveProperty('target_uuid');
+        expect(tool?.inputSchema.required).toEqual(['description']);
     });
 
     it.each(['flag', 'cleanup'] as const)(
         'offers group flagging in %s mode',
         (aggression) => {
-            const config = renderManagedAgentConfig({
-                ...baseArgs,
+            const config = renderAutopilotAgent({
+                runtime: 'ai-sdk',
                 policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
             });
-            expect(customToolNames(config)).toContain(
+            expect(config.tools.map((tool) => tool.name)).toContain(
                 'bulk_flag_broken_content',
             );
         },
     );
 
     it('removes group flagging in observe mode', () => {
-        const config = renderManagedAgentConfig({
-            ...baseArgs,
+        const config = renderAutopilotAgent({
+            runtime: 'ai-sdk',
             policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'observe' },
         });
-        expect(customToolNames(config)).not.toContain(
+        expect(config.tools.map((tool) => tool.name)).not.toContain(
             'bulk_flag_broken_content',
         );
     });

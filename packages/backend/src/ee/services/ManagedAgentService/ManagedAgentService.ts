@@ -167,6 +167,7 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
     bulk_flag_broken_content: 'Flagging broken content',
     soft_delete_content: 'Cleaning up stale content',
     log_insight: 'Logging an insight',
+    log_project_insight: 'Logging a project insight',
     fix_broken_chart: 'Fixing a broken chart',
     create_content_from_code: 'Creating chart suggestion',
     get_user_questions: 'Reviewing user questions',
@@ -2569,6 +2570,21 @@ export class ManagedAgentService extends BaseService {
                     input,
                     abortSignal,
                 );
+            case 'log_project_insight':
+                return this.handleLogInsight(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    {
+                        description: input.description,
+                        metadata: input.metadata,
+                        target_type: ManagedAgentTargetType.PROJECT,
+                        target_uuid: projectUuid,
+                        target_name: 'Project health',
+                    },
+                    abortSignal,
+                );
             case 'log_insight':
                 return this.handleLogInsight(
                     actor,
@@ -2876,11 +2892,7 @@ export class ManagedAgentService extends BaseService {
         );
 
         return JSON.stringify({
-            insight_target: {
-                target_type: ManagedAgentTargetType.PROJECT,
-                target_uuid: projectUuid,
-                target_name: 'Project broken-content backlog',
-            },
+            insight_tool: 'log_project_insight',
             total_errors: summary.totalErrors,
             total_affected_items: summary.totalAffectedItems,
             groups,
@@ -3599,6 +3611,7 @@ chartConfig:
             await this.validationModel.get(projectUuid)
         ).filter(
             (validation) =>
+                validation.source === ValidationSourceType.Chart &&
                 validation.errorType === ValidationErrorType.Model &&
                 getValidationRootCauseTableName(validation) === tableName,
         );
