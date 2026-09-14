@@ -12,8 +12,9 @@ import {
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
-import type { Client } from '@node-oauth/oauth2-server';
+import type { Client, Token } from '@node-oauth/oauth2-server';
 import { createHash, randomBytes } from 'crypto';
+import { type Knex } from 'knex';
 import { fromSession, toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { type DbMobileSetupCode } from '../../database/entities/mobileSetupCodes';
@@ -182,15 +183,24 @@ export class MobileSetupService extends BaseService {
         );
     }
 
-    async redeem({
-        code,
-        client,
-        platform,
-    }: {
-        code: unknown;
-        client: Client;
-        platform: unknown;
-    }): Promise<{ user: SessionUser; projectUuid: UUID }> {
+    async redeem(
+        {
+            code,
+            client,
+            platform,
+        }: {
+            code: unknown;
+            client: Client;
+            platform: unknown;
+        },
+        issueTokens: (
+            redeemed: {
+                user: SessionUser & { organizationUuid: UUID };
+                projectUuid: UUID;
+            },
+            transaction: Knex.Transaction,
+        ) => Promise<Token>,
+    ): Promise<Token> {
         if (
             typeof code !== 'string' ||
             !/^[A-Z2-7]{32}$/.test(code) ||
@@ -220,6 +230,18 @@ export class MobileSetupService extends BaseService {
             codeHash,
             client.id,
             platform,
+            stored.user_uuid,
+            (transaction) =>
+                issueTokens(
+                    {
+                        user: {
+                            ...user,
+                            organizationUuid: stored.organization_uuid,
+                        },
+                        projectUuid: stored.project_uuid,
+                    },
+                    transaction,
+                ),
         );
         if (redeemed === undefined) {
             assertPending(
@@ -229,6 +251,6 @@ export class MobileSetupService extends BaseService {
             );
             throw new MobileSetupRejection(MobileSetupCodeError.UNKNOWN);
         }
-        return { user, projectUuid: stored.project_uuid };
+        return redeemed;
     }
 }

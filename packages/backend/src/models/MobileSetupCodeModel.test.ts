@@ -51,13 +51,24 @@ describe('MobileSetupCodeModel', () => {
     });
 
     it('claims only an unexpired pending code in one update', async () => {
+        tracker.on.select('users').response({ user_uuid: code.user_uuid });
         tracker.on
             .update('mobile_setup_codes')
             .response([{ ...code, redeemed_platform: 'android' }]);
         await expect(
-            model.redeem(code.code_hash, 'client', 'android'),
+            model.redeem(
+                code.code_hash,
+                'client',
+                'android',
+                code.user_uuid,
+                async (transaction) => {
+                    expect(transaction.isTransaction).toBe(true);
+                    return { redeemed_platform: 'android' };
+                },
+            ),
         ).resolves.toMatchObject({ redeemed_platform: 'android' });
-        expect(tracker.history.all).toHaveLength(1);
+        expect(tracker.history.all).toHaveLength(2);
+        expect(tracker.history.all[0].sql).toContain('for update');
         const [query] = tracker.history.update;
         expect(query.sql).toContain('"redeemed_at" is null');
         expect(query.sql).toContain('"revoked_at" is null');
@@ -68,9 +79,18 @@ describe('MobileSetupCodeModel', () => {
     });
 
     it('returns no claim when another redemption wins', async () => {
+        tracker.on.select('users').response({ user_uuid: code.user_uuid });
         tracker.on.update('mobile_setup_codes').response([]);
+        const issueTokens = vi.fn();
         await expect(
-            model.redeem(code.code_hash, 'client', 'ios'),
+            model.redeem(
+                code.code_hash,
+                'client',
+                'ios',
+                code.user_uuid,
+                issueTokens,
+            ),
         ).resolves.toBeUndefined();
+        expect(issueTokens).not.toHaveBeenCalled();
     });
 });

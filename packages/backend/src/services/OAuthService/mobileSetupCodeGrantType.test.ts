@@ -4,11 +4,15 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import { type Knex } from 'knex';
+import { type OAuth2Model } from '../../models/OAuth2Model';
 import { MobileSetupRejection } from '../MobileSetupService/MobileSetupRejection';
 import type { MobileSetupService } from '../MobileSetupService/MobileSetupService';
 import { createMobileSetupCodeGrantType } from './mobileSetupCodeGrantType';
 
-const user = { userId: 7, organizationUuid: 'org-uuid' } as SessionUser;
+const user = { userId: 7, organizationUuid: 'org-uuid' } as SessionUser & {
+    organizationUuid: string;
+};
 const client: OAuth2Server.Client = {
     id: 'mobile-client',
     grants: [MOBILE_SETUP_CODE_GRANT_TYPE],
@@ -32,21 +36,25 @@ const createRequest = (
         body,
     });
 
+const transaction = { isTransaction: true } as Knex.Transaction;
+
 const createGrant = () => {
     const service = {
         redeem: vi
             .fn<MobileSetupService['redeem']>()
-            .mockResolvedValue({ user, projectUuid }),
+            .mockImplementation(async (_request, issueTokens) =>
+                issueTokens({ user, projectUuid }, transaction),
+            ),
     } as unknown as MobileSetupService;
     const model = {
         saveToken: vi
-            .fn<OAuth2Server.AuthorizationCodeModel['saveToken']>()
+            .fn<OAuth2Model['saveToken']>()
             .mockImplementation(async (token, tokenClient, tokenUser) => ({
                 ...token,
                 client: tokenClient,
                 user: tokenUser,
             })),
-    } as unknown as OAuth2Server.AuthorizationCodeModel;
+    } as unknown as OAuth2Model;
     const GrantType = createMobileSetupCodeGrantType(() => service);
     const grant = new GrantType({
         model,
@@ -60,11 +68,14 @@ describe('mobile setup code grant', () => {
     it('issues access and refresh tokens with the bound user and project', async () => {
         const { grant, service, model } = createGrant();
         const token = await grant.handle(createRequest(), client);
-        expect(vi.mocked(service.redeem)).toHaveBeenCalledWith({
-            code: validBody.code,
-            client,
-            platform: 'ios',
-        });
+        expect(vi.mocked(service.redeem)).toHaveBeenCalledWith(
+            {
+                code: validBody.code,
+                client,
+                platform: 'ios',
+            },
+            expect.any(Function),
+        );
         expect(token.accessToken).toBeTruthy();
         expect(token.refreshToken).toBeTruthy();
         expect(token.lightdash_project_uuid).toBe(projectUuid);
@@ -75,6 +86,7 @@ describe('mobile setup code grant', () => {
             }),
             client,
             user,
+            { trx: transaction },
         );
     });
 
@@ -143,7 +155,13 @@ describe('mobile setup code grant', () => {
     it('keeps the project UUID in the library extended token response', async () => {
         const { model, GrantType } = createGrant();
         const server = new OAuth2Server({
-            model: { ...model, getClient: vi.fn().mockResolvedValue(client) },
+            model: {
+                saveToken: model.saveToken,
+                getClient: vi.fn().mockResolvedValue(client),
+                getAccessToken: vi
+                    .fn<OAuth2Model['getAccessToken']>()
+                    .mockResolvedValue(false),
+            },
             extendedGrantTypes: { [MOBILE_SETUP_CODE_GRANT_TYPE]: GrantType },
             requireClientAuthentication: {
                 [MOBILE_SETUP_CODE_GRANT_TYPE]: false,

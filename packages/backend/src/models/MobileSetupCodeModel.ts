@@ -67,22 +67,32 @@ export class MobileSetupCodeModel {
             .update({ revoked_at: this.database.fn.now() });
     }
 
-    async redeem(
+    async redeem<T>(
         codeHash: string,
         clientId: string,
         platform: MobilePlatform,
-    ): Promise<DbMobileSetupCode | undefined> {
-        const [redeemed] = await this.database(MobileSetupCodesTableName)
-            .where('code_hash', codeHash)
-            .whereNull('redeemed_at')
-            .whereNull('revoked_at')
-            .where('expires_at', '>', this.database.fn.now())
-            .update({
-                redeemed_at: this.database.fn.now(),
-                redeemed_client_id: clientId,
-                redeemed_platform: platform,
-            })
-            .returning('*');
-        return redeemed;
+        userUuid: string,
+        issueTokens: (transaction: Knex.Transaction) => Promise<T>,
+    ): Promise<T | undefined> {
+        return this.database.transaction(async (transaction) => {
+            await transaction('users')
+                .where('user_uuid', userUuid)
+                .forUpdate()
+                .first();
+            const [redeemed] = await transaction(MobileSetupCodesTableName)
+                .where('code_hash', codeHash)
+                .where('user_uuid', userUuid)
+                .whereNull('redeemed_at')
+                .whereNull('revoked_at')
+                .where('expires_at', '>', transaction.fn.now())
+                .update({
+                    redeemed_at: transaction.fn.now(),
+                    redeemed_client_id: clientId,
+                    redeemed_platform: platform,
+                })
+                .returning('*');
+            if (redeemed === undefined) return undefined;
+            return issueTokens(transaction);
+        });
     }
 }
