@@ -5,6 +5,7 @@ import {
 import {
     AUTOPILOT_CHART_SKILL_NAME,
     AUTOPILOT_SLACK_SKILL_NAME,
+    autopilotToolDefinitions,
     getManagedAgentConfigHash,
     getManagedAgentMcpUrl,
     renderAutopilotAgent,
@@ -315,6 +316,40 @@ describe('renderAutopilotAgent', () => {
         );
         expect(aiSdk.tools.map((tool) => tool.name)).not.toContain(
             'create_content_from_code',
+        );
+    });
+});
+
+describe('broken-content action contracts', () => {
+    it('allows project-wide insights without inventing a chart target', () => {
+        const tool = autopilotToolDefinitions.find(
+            (item) => item.name === 'log_insight',
+        );
+        expect(tool?.inputSchema.properties?.target_type).toMatchObject({
+            enum: expect.arrayContaining(['project']),
+        });
+    });
+
+    it.each(['flag', 'cleanup'] as const)(
+        'offers group flagging in %s mode',
+        (aggression) => {
+            const config = renderManagedAgentConfig({
+                ...baseArgs,
+                policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+            });
+            expect(customToolNames(config)).toContain(
+                'bulk_flag_broken_content',
+            );
+        },
+    );
+
+    it('removes group flagging in observe mode', () => {
+        const config = renderManagedAgentConfig({
+            ...baseArgs,
+            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'observe' },
+        });
+        expect(customToolNames(config)).not.toContain(
+            'bulk_flag_broken_content',
         );
     });
 });

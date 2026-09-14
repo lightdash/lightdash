@@ -344,6 +344,191 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                     prompt: 'Can I see total revenue by order status? I need a reusable chart comparing the new and paid order statuses.',
                 })),
             );
+            if (process.env.AUTOPILOT_EVAL_BACKLOG_GUARDS_ONLY === 'true') {
+                expect(retiredCharts).toHaveLength(105);
+                const guardRun = await service.startRun(projectUuid, 'manual');
+                const call = (
+                    name: string,
+                    input: Record<string, unknown>,
+                    signal?: AbortSignal,
+                ) =>
+                    service['handleToolCall'](
+                        projectUuid,
+                        guardRun.runUuid,
+                        guardRun.runUuid,
+                        name,
+                        input,
+                        signal,
+                    ).then(JSON.parse);
+                const summary = await call('get_broken_content', {});
+                expect(summary.insight_target).toEqual({
+                    target_type: 'project',
+                    target_uuid: projectUuid,
+                    target_name: 'Project broken-content backlog',
+                });
+                const insight = await call('log_insight', {
+                    ...summary.insight_target,
+                    description:
+                        '106 broken charts, including 105 on a removed model',
+                });
+                expect(insight.action_uuid).toBeTruthy();
+                const first = await call('bulk_flag_broken_content', {
+                    table_name: 'retired_orders',
+                    reason: 'Underlying model was removed',
+                });
+                expect(first).toMatchObject({
+                    flagged_count: 105,
+                    already_flagged_count: 0,
+                    blocked_count: 0,
+                });
+                const second = await call('bulk_flag_broken_content', {
+                    table_name: 'retired_orders',
+                    reason: 'Retry the same backlog',
+                });
+                expect(second).toMatchObject({
+                    flagged_count: 0,
+                    already_flagged_count: 105,
+                });
+                const retiredQuery = {
+                    ...query,
+                    exploreName: 'retired_orders',
+                    metrics: ['retired_orders_count'],
+                };
+                const protectedRetired = await makeChart(
+                    'Protected retired chart',
+                    retiredQuery,
+                    space.uuid,
+                    'retired_orders',
+                );
+                const verifiedRetired = await makeChart(
+                    'Verified retired chart',
+                    retiredQuery,
+                    space.uuid,
+                    'retired_orders',
+                );
+                const excludedRetired = await makeChart(
+                    'Excluded retired chart',
+                    retiredQuery,
+                    excludedSpace.uuid,
+                    'retired_orders',
+                );
+                await agentModel.upsertProtection({
+                    projectUuid,
+                    entityType: ManagedAgentProtectedEntityType.CHART,
+                    entityUuid: protectedRetired.uuid,
+                    level: 'protected',
+                    createdByUserUuid: actor.userUuid,
+                });
+                await models
+                    .getContentVerificationModel()
+                    .verify(
+                        ContentType.CHART,
+                        verifiedRetired.uuid,
+                        projectUuid,
+                        actor.userUuid,
+                    );
+                await validation.storeValidation(
+                    projectUuid,
+                    await validation.generateValidation(projectUuid),
+                );
+                const guarded = await call('bulk_flag_broken_content', {
+                    table_name: 'retired_orders',
+                    reason: 'Protection and scope probe',
+                });
+                expect(guarded).toMatchObject({
+                    candidate_count: 107,
+                    flagged_count: 0,
+                    already_flagged_count: 105,
+                    blocked_count: 2,
+                });
+                const settings = await agentModel.getSettings(projectUuid);
+                await agentModel.upsertSettings(projectUuid, actor.userUuid, {
+                    policy: {
+                        ...DEFAULT_MANAGED_AGENT_POLICY,
+                        ...settings?.policy,
+                        aggression: 'observe',
+                    },
+                });
+                const observe = await call('bulk_flag_broken_content', {
+                    table_name: 'retired_orders',
+                    reason: 'Observe policy probe',
+                });
+                expect(observe.blocked).toBe(true);
+                await agentModel.upsertSettings(projectUuid, actor.userUuid, {
+                    policy: {
+                        ...DEFAULT_MANAGED_AGENT_POLICY,
+                        ...settings?.policy,
+                        aggression: 'flag',
+                    },
+                });
+                const controller = new AbortController();
+                controller.abort(new Error('Backlog probe canceled'));
+                await expect(
+                    call(
+                        'bulk_flag_broken_content',
+                        {
+                            table_name: 'retired_orders',
+                            reason: 'Canceled probe',
+                        },
+                        controller.signal,
+                    ),
+                ).rejects.toThrow('Backlog probe canceled');
+                const actions = await agentModel.getActions(projectUuid, {
+                    sessionId: guardRun.runUuid,
+                });
+                expect(
+                    actions.filter(
+                        (action) =>
+                            action.actionType ===
+                                ManagedAgentActionType.FLAGGED_BROKEN &&
+                            [
+                                protectedRetired.uuid,
+                                verifiedRetired.uuid,
+                                excludedRetired.uuid,
+                            ].includes(action.targetUuid),
+                    ),
+                ).toEqual([]);
+                expect(
+                    actions.filter(
+                        (action) =>
+                            action.actionType ===
+                            ManagedAgentActionType.FLAGGED_BROKEN,
+                    ),
+                ).toHaveLength(105);
+                expect(
+                    actions.filter(
+                        (action) =>
+                            action.actionType ===
+                            ManagedAgentActionType.INSIGHT,
+                    ),
+                ).toHaveLength(1);
+                const directory = process.env.AUTOPILOT_EVAL_OUTPUT_DIR!;
+                await mkdir(directory, { recursive: true });
+                await writeFile(
+                    path.join(directory, 'backlog-guards.json'),
+                    JSON.stringify(
+                        {
+                            first,
+                            second,
+                            guarded,
+                            observe,
+                            abortedWithoutWrites: true,
+                            insight,
+                            flagged: 105,
+                            projectInsight: true,
+                        },
+                        null,
+                        2,
+                    ),
+                );
+                await agentModel.finishRun(guardRun.runUuid, {
+                    status: ManagedAgentRunStatus.COMPLETED,
+                    actionCount: actions.length,
+                    summary: 'Backlog guards completed',
+                    error: null,
+                });
+                return;
+            }
             if (process.env.AUTOPILOT_EVAL_GUARDS_ONLY === 'true') {
                 const flag = await agentModel.createAction({
                     projectUuid,
@@ -825,6 +1010,16 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                 'write_slack_summary',
             ];
             const called = steps.flatMap((step) => step.tools);
+            check(
+                'no unblocked tool errors',
+                toolErrors.every(
+                    ({ result: output }) =>
+                        output !== null &&
+                        typeof output === 'object' &&
+                        'blocked' in output &&
+                        output.blocked === true,
+                ),
+            );
             check(
                 'full checklist covered',
                 checklistTools.every((tool) => called.includes(tool)),

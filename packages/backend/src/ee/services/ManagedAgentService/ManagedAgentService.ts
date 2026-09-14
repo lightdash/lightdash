@@ -164,6 +164,7 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
     get_chart_details: 'Inspecting chart details',
     get_chart_schema: 'Loading chart schema',
     flag_content: 'Flagging content',
+    bulk_flag_broken_content: 'Flagging broken content',
     soft_delete_content: 'Cleaning up stale content',
     log_insight: 'Logging an insight',
     fix_broken_chart: 'Fixing a broken chart',
@@ -2541,6 +2542,15 @@ export class ManagedAgentService extends BaseService {
                     input,
                     abortSignal,
                 );
+            case 'bulk_flag_broken_content':
+                return this.handleBulkFlagBrokenContent(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                    abortSignal,
+                );
             case 'soft_delete_content':
                 return this.handleSoftDelete(
                     actor,
@@ -2866,6 +2876,11 @@ export class ManagedAgentService extends BaseService {
         );
 
         return JSON.stringify({
+            insight_target: {
+                target_type: ManagedAgentTargetType.PROJECT,
+                target_uuid: projectUuid,
+                target_name: 'Project broken-content backlog',
+            },
             total_errors: summary.totalErrors,
             total_affected_items: summary.totalAffectedItems,
             groups,
@@ -3555,6 +3570,88 @@ chartConfig:
         });
         this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({ action_uuid: action.actionUuid });
+    }
+
+    private async handleBulkFlagBrokenContent(
+        actor: SessionUser,
+        projectUuid: string,
+        sessionId: string,
+        runUuid: string,
+        input: Record<string, unknown>,
+        abortSignal?: AbortSignal,
+    ): Promise<string> {
+        const { table_name: tableName, reason } = input;
+        if (
+            typeof tableName !== 'string' ||
+            !tableName.trim() ||
+            typeof reason !== 'string' ||
+            !reason.trim()
+        ) {
+            throw new Error('table_name and reason are required');
+        }
+        if ((await this.getPolicy(projectUuid)).aggression === 'observe') {
+            return JSON.stringify({
+                blocked: true,
+                error: 'Flagging is disabled by project policy (observe mode). Use log_insight instead.',
+            });
+        }
+        const validations = (
+            await this.validationModel.get(projectUuid)
+        ).filter(
+            (validation) =>
+                validation.errorType === ValidationErrorType.Model &&
+                getValidationRootCauseTableName(validation) === tableName,
+        );
+        const candidates = summarizeManagedAgentBrokenContent(
+            await this.mapVisibleBrokenContentRows(
+                actor,
+                projectUuid,
+                validations,
+            ),
+        );
+        let flaggedCount = 0;
+        let alreadyFlaggedCount = 0;
+        let skippedCount = 0;
+        const blocked: { uuid: string; reason: string }[] = [];
+        // Sequential, bounded by the run abort signal. Retrying preserves flags
+        // already written before an interruption and their escalation clocks.
+        for (const candidate of candidates) {
+            abortSignal?.throwIfAborted();
+            const result = JSON.parse(
+                // eslint-disable-next-line no-await-in-loop
+                await this.handleFlagContent(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    {
+                        target_type: candidate.type,
+                        target_uuid: candidate.uuid,
+                        target_name: candidate.name,
+                        flag_type: ManagedAgentActionType.FLAGGED_BROKEN,
+                        description: reason,
+                        metadata: { bulk: true, table_name: tableName },
+                    },
+                    abortSignal,
+                ),
+            );
+            if (result.action_uuid) flaggedCount += 1;
+            else if (result.already_flagged) alreadyFlaggedCount += 1;
+            else if (result.skipped) skippedCount += 1;
+            else
+                blocked.push({
+                    uuid: candidate.uuid,
+                    reason: result.error ?? 'Flagging was refused',
+                });
+        }
+        return JSON.stringify({
+            candidate_count: candidates.length,
+            flagged_count: flaggedCount,
+            already_flagged_count: alreadyFlaggedCount,
+            skipped_count: skippedCount,
+            blocked_count: blocked.length,
+            blocked: buildManagedAgentToolListResult(blocked),
+        });
     }
 
     // Code-enforced escalation: content may only be deleted after carrying an

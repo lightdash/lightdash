@@ -218,9 +218,9 @@ ${staleStep}
 
 ### 3. Broken Content
 Call get_broken_content. It returns the complete set of validation error groups, one per root cause, so start by triaging groups, not individual charts:
-- Always log_insight a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
+- Use log_insight with the exact insight_target returned by get_broken_content for a project-wide summary. Never invent a chart UUID or use a model name as a UUID. Always log_insight a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
 - A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name for details; keep the same table_name and pass next_cursor as cursor until next_cursor is null to reach all affected content. When bulk_delete_broken_content is available, use it to clean up charts on that deleted model within its run cap; report any remaining backlog for the next run; flag affected dashboards instead of deleting them
-- In flag-only mode, flag each eligible chart on a deleted model. A backlog insight does not replace those flags. Batch flag_content calls when possible, respect protections, and report any remaining unflagged count if the run budget is exhausted
+- In flag-only mode, call bulk_flag_broken_content once per deleted model using its table_name. The handler flags every eligible chart and dashboard in that group, applies protections, and skips existing flags. Use its counts in the summary; do not substitute a small sample of individual flags or a backlog insight for group flagging
 - For renamed or replaced fields, load the chart skill, call get_chart_details, and discover current fields and their descriptions before judging a repair ambiguous. Search for a documented replacement before falling back to an insight or flag. Use fix_broken_chart when the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose)
 - If the fix is ambiguous or would change what the chart shows, ${brokenFallback}
 - Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure
@@ -391,6 +391,25 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
         name: 'flag_content',
     },
     {
+        name: 'bulk_flag_broken_content',
+        description:
+            'Flag all visible, in-scope charts and dashboards whose underlying model was deleted. Use the table_name from a model-level get_broken_content group. One call processes the whole group, including items beyond detail pages; do not enumerate individual UUIDs. Existing active flags are preserved without resetting escalation. Protected or verified content is skipped. Reports created, already-flagged and blocked counts. Does not modify or delete content. Safe to retry after interruption.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                table_name: {
+                    type: 'string',
+                    description: 'Deleted model name from get_broken_content',
+                },
+                reason: {
+                    type: 'string',
+                    description: 'Why this model-level group needs review',
+                },
+            },
+            required: ['table_name', 'reason'],
+        },
+    },
+    {
         description:
             'Soft-delete a chart or dashboard. The content can be restored by an admin. Only usable on content that was flagged more than the escalation window ago and not dismissed; unflagged content is blocked, so flag_content it first. Do NOT use for content created in the last 30 days. Do NOT use for agent-created content (slug starts with agent-). Do NOT use if the chart is the only chart on a dashboard. At most 25 individual soft-deletes are allowed per run; further calls are blocked, so flag the remainder instead.',
         inputSchema: {
@@ -452,7 +471,7 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
     },
     {
         description:
-            'Log an actionable observation about popular content. For example: a chart is very popular but not pinned, or popular content is in a private space with limited access.',
+            'Log an actionable observation about a chart, dashboard, or the current project. For a broken-content backlog, copy the insight_target returned by get_broken_content. Model names and invented UUIDs are not valid targets.',
         inputSchema: {
             properties: {
                 description: {
@@ -471,7 +490,7 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
                 },
                 target_type: {
                     description: 'Type of content',
-                    enum: ['chart', 'dashboard'],
+                    enum: ['chart', 'dashboard', 'project'],
                     type: 'string',
                 },
                 target_uuid: {
@@ -841,6 +860,7 @@ const aggressionDisabledTools: Record<
 > = {
     observe: [
         'flag_content',
+        'bulk_flag_broken_content',
         'soft_delete_content',
         'bulk_delete_broken_content',
     ],
