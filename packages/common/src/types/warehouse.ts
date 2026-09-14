@@ -220,6 +220,29 @@ export const getCatalogNestedColumnShape = (
     return isWarehouseNestedColumnShape(shape) ? shape : undefined;
 };
 
+const ensureRecord = (
+    parent: Record<string, unknown>,
+    key: string,
+): Record<string, unknown> => {
+    const existing = parent[key];
+    if (isPlainRecord(existing)) return existing;
+    const created: Record<string, unknown> = {};
+    // eslint-disable-next-line no-param-reassign
+    parent[key] = created;
+    return created;
+};
+
+const getSidecar = (
+    catalog: WarehouseCatalog,
+    key: string,
+): Record<string, unknown> => {
+    const existing: unknown = catalog[key];
+    if (isPlainRecord(existing)) return existing;
+    const created: Record<string, unknown> = {};
+    Object.assign(catalog, { [key]: created });
+    return created;
+};
+
 export const setCatalogNestedColumnShape = (
     catalog: WarehouseCatalog,
     database: string,
@@ -229,22 +252,45 @@ export const setCatalogNestedColumnShape = (
     shape: WarehouseNestedColumnShape | undefined,
 ): void => {
     if (shape === undefined) return;
-    const sidecar = getNestedColumnsSidecar(catalog) ?? {};
-    Object.assign(catalog, { [WAREHOUSE_NESTED_COLUMNS_KEY]: sidecar });
-    const ensureRecord = (
-        parent: Record<string, unknown>,
-        key: string,
-    ): Record<string, unknown> => {
-        const existing = parent[key];
-        if (isPlainRecord(existing)) return existing;
-        const created: Record<string, unknown> = {};
-        // eslint-disable-next-line no-param-reassign
-        parent[key] = created;
-        return created;
-    };
+    const sidecar = getSidecar(catalog, WAREHOUSE_NESTED_COLUMNS_KEY);
     ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
         columnPath
     ] = shape;
+};
+
+/**
+ * Tables whose nested column shapes the warehouse would not report, keyed
+ * database → schema → table → reason. Tells the compiler apart a table with
+ * no nested columns from one it should warn about.
+ */
+export const WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY =
+    '__lightdashNestedColumnsUnavailable';
+
+export const getCatalogNestedColumnsUnavailableReason = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+): string | undefined => {
+    const reason = [database, schema, table].reduce<unknown>(
+        (node, key) => (isPlainRecord(node) ? node[key] : undefined),
+        catalog[WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY],
+    );
+    return typeof reason === 'string' ? reason : undefined;
+};
+
+export const setCatalogNestedColumnsUnavailable = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    reason: string,
+): void => {
+    const sidecar = getSidecar(
+        catalog,
+        WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY,
+    );
+    ensureRecord(ensureRecord(sidecar, database), schema)[table] = reason;
 };
 
 export enum WarehouseTableType {

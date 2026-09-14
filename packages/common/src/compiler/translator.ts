@@ -56,6 +56,7 @@ import { OrderFieldsByStrategy, type FieldGroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import {
     getCatalogNestedColumnShape,
+    getCatalogNestedColumnsUnavailableReason,
     getCatalogTimestampDomain,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
@@ -1046,6 +1047,13 @@ export const convertTable = (
             allowPartialCompilation,
         );
         tableWarnings.push(...warnings);
+    }
+
+    if (model.nested_columns_unavailable) {
+        tableWarnings.push({
+            type: InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+            message: `Nested columns in model "${model.name}" compile as plain columns: ${model.nested_columns_unavailable}`,
+        });
     }
 
     const sqlTable = meta.sql_from || model.relation_name;
@@ -2199,9 +2207,36 @@ export const attachTypesToModels = (
         return undefined;
     };
 
+    const getNestedColumnsUnavailableReason = (
+        model: DbtModelNode,
+    ): string | undefined => {
+        if (!Object.keys(model.columns).some((name) => name.includes('.'))) {
+            return undefined;
+        }
+        const hit = lookup(
+            model.database,
+            model.schema,
+            model.alias || model.name,
+        );
+        return hit
+            ? getCatalogNestedColumnsUnavailableReason(
+                  warehouseCatalog,
+                  hit.location.database,
+                  hit.location.schema,
+                  hit.location.table,
+              )
+            : undefined;
+    };
+
     // Update the dbt models with type info
     const typedModels = models.map((model) => ({
         ...model,
+        ...(getNestedColumnsUnavailableReason(model)
+            ? {
+                  nested_columns_unavailable:
+                      getNestedColumnsUnavailableReason(model),
+              }
+            : {}),
         columns: Object.fromEntries(
             Object.entries(model.columns).map(([column_name, column]) => {
                 columnCount += 1;

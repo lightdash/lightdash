@@ -17,6 +17,8 @@ import {
     Metric,
     MetricType,
     ParseError,
+    setCatalogNestedColumnShape,
+    setCatalogNestedColumnsUnavailable,
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
@@ -29,6 +31,7 @@ import {
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
+    type WarehouseNestedColumnShape,
 } from '@lightdash/common';
 import fetch from 'node-fetch';
 import { WarehouseCatalog } from '../types';
@@ -329,6 +332,77 @@ const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
 // wide results in one array and can OOM the worker on large queries
 const DATABRICKS_FETCH_CHUNK_MAX_ROWS = 5000;
 
+const DATABRICKS_TABLE_NOT_FOUND = 'TABLE_OR_VIEW_NOT_FOUND';
+
+type DescribedColumn = {
+    path: string;
+    /** Databricks type keyword, as `mapFieldType` expects it. */
+    typeName: string;
+    shape: WarehouseNestedColumnShape | undefined;
+};
+
+type TableColumns = {
+    columns: DescribedColumn[];
+    /** Set when the JSON description was refused and the flat column list was used instead. */
+    nestedColumnsUnavailable: string | null;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+// A plain TIMESTAMP column is described as timestamp_ltz.
+const describedTypeName = (
+    repeated: boolean,
+    record: boolean,
+    elementName: string,
+): string => {
+    if (repeated) return DatabricksTypes.ARRAY;
+    if (record) return DatabricksTypes.STRUCT;
+    return elementName === 'timestamp_ltz'
+        ? DatabricksTypes.TIMESTAMP
+        : elementName.toUpperCase();
+};
+
+/**
+ * Walks the `columns` of a `DESCRIBE TABLE ... AS JSON` result depth-first,
+ * emitting every node under its dotted path. A struct is `{name: "struct",
+ * fields}`, an array `{name: "array", element_type}`; an array of structs is
+ * both, and its children are the element's fields. Maps and variants have no
+ * addressable leaves and stay scalar.
+ */
+const flattenDescribedFields = (
+    fields: unknown,
+    prefix = '',
+): DescribedColumn[] => {
+    if (!Array.isArray(fields)) return [];
+    return fields.flatMap((field: unknown) => {
+        if (
+            !isRecord(field) ||
+            typeof field.name !== 'string' ||
+            !isRecord(field.type) ||
+            typeof field.type.name !== 'string'
+        ) {
+            return [];
+        }
+        const path = prefix ? `${prefix}.${field.name}` : field.name;
+        const repeated = field.type.name === 'array';
+        const element = repeated ? field.type.element_type : field.type;
+        const elementName =
+            isRecord(element) && typeof element.name === 'string'
+                ? element.name
+                : DatabricksTypes.STRING.toLowerCase();
+        const record = elementName === 'struct';
+        const node: DescribedColumn = {
+            path,
+            typeName: describedTypeName(repeated, record, elementName),
+            shape: repeated || record ? { repeated, record } : undefined,
+        };
+        return record && isRecord(element)
+            ? [node, ...flattenDescribedFields(element.fields, path)]
+            : [node];
+    });
+};
+
 const getDatabricksErrorMessage = (error: unknown) =>
     error instanceof StatusError && error.message
         ? error.message
@@ -569,26 +643,70 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         /* eslint-enable no-await-in-loop */
     }
 
-    private static async getTableColumns(
-        session: IDBSQLSession,
-        request: { database: string; schema: string; table: string },
-    ): Promise<SchemaResult[]> {
-        const query = await session.getColumns({
-            catalogName: request.database,
-            schemaName: request.schema,
-            tableName: request.table,
-        });
+    private static async fetchAllRows(
+        operation: Promise<IOperation>,
+        label: string,
+    ): Promise<Record<string, AnyType>[]> {
+        const query = await operation;
         try {
-            return (await query.fetchAll()) as SchemaResult[];
+            return (await query.fetchAll()) as Record<string, AnyType>[];
         } finally {
             try {
                 await query.close();
             } catch (e: unknown) {
-                console.error(
-                    'Error closing Databricks query on getCatalog',
-                    e,
-                );
+                console.error(`Error closing Databricks query on ${label}`, e);
             }
+        }
+    }
+
+    // DESCRIBE ... AS JSON gives the nested tree; older all-purpose clusters
+    // reject the JSON form, so those tables keep the flat column list and
+    // carry the reason for the compiler to surface.
+    private static async getTableColumns(
+        session: IDBSQLSession,
+        request: { database: string; schema: string; table: string },
+    ): Promise<TableColumns> {
+        const q = '`';
+        const tableRef = `${q}${request.database}${q}.${q}${request.schema}${q}.${q}${request.table}${q}`;
+        try {
+            const rows = await DatabricksWarehouseClient.fetchAllRows(
+                session.executeStatement(
+                    `DESCRIBE TABLE EXTENDED ${tableRef} AS JSON`,
+                ),
+                'getCatalog',
+            );
+            const json = rows[0] ? Object.values(rows[0])[0] : undefined;
+            const description: unknown =
+                typeof json === 'string' ? JSON.parse(json) : undefined;
+            if (!isRecord(description)) {
+                throw new Error('the table description was empty');
+            }
+            return {
+                columns: flattenDescribedFields(description.columns),
+                nestedColumnsUnavailable: null,
+            };
+        } catch (e: unknown) {
+            if (isDatabricksWarehouseStartingError(e)) throw e;
+            const message = getDatabricksErrorMessage(e);
+            if (message.includes(DATABRICKS_TABLE_NOT_FOUND)) {
+                return { columns: [], nestedColumnsUnavailable: null };
+            }
+            const flatColumns = (await DatabricksWarehouseClient.fetchAllRows(
+                session.getColumns({
+                    catalogName: request.database,
+                    schemaName: request.schema,
+                    tableName: request.table,
+                }),
+                'getCatalog',
+            )) as SchemaResult[];
+            return {
+                columns: flatColumns.map((column) => ({
+                    path: column.COLUMN_NAME,
+                    typeName: column.TYPE_NAME,
+                    shape: undefined,
+                })),
+                nestedColumnsUnavailable: `Databricks did not describe ${request.table} as JSON (${message}); nested columns need a SQL warehouse or Databricks Runtime 16.2 or newer.`,
+            };
         }
     }
 
@@ -600,7 +718,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         }[],
     ) {
         const retry = new DatabricksWarehouseStartupRetry();
-        const results = new Map<number, SchemaResult[]>();
+        const results = new Map<number, TableColumns>();
         let pending = requests.map((request, index) => ({ request, index }));
 
         /* eslint-disable no-await-in-loop */
@@ -661,19 +779,35 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             (acc, { schema, table }, index) => {
                 acc[catalog][schema] = acc[catalog][schema] || {};
                 acc[catalog][schema][table] = {};
-                (results.get(index) ?? []).forEach((col) => {
-                    acc[catalog][schema][table][col.COLUMN_NAME] = mapFieldType(
-                        col.TYPE_NAME,
-                    );
+                const described = results.get(index);
+                described?.columns.forEach(({ path, typeName, shape }) => {
+                    acc[catalog][schema][table][path] = mapFieldType(typeName);
                     setCatalogTimestampDomain(
                         acc,
                         catalog,
                         schema,
                         table,
-                        col.COLUMN_NAME,
-                        getDatabricksTimestampDomain(col.TYPE_NAME),
+                        path,
+                        getDatabricksTimestampDomain(typeName),
+                    );
+                    setCatalogNestedColumnShape(
+                        acc,
+                        catalog,
+                        schema,
+                        table,
+                        path,
+                        shape,
                     );
                 });
+                if (described?.nestedColumnsUnavailable) {
+                    setCatalogNestedColumnsUnavailable(
+                        acc,
+                        catalog,
+                        schema,
+                        table,
+                        described.nestedColumnsUnavailable,
+                    );
+                }
 
                 return acc;
             },

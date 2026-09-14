@@ -75,6 +75,8 @@ export type DbtRawModelNode = Omit<
 };
 export type DbtModelNode = DbtRawModelNode & {
     database: string;
+    /** Why the warehouse would not report nested column shapes for this model's table; set only when the model documents dotted columns. */
+    nested_columns_unavailable?: string;
     unrendered_config?: {
         meta?: {
             joins?: Array<{ join: string }>;
