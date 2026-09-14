@@ -1,5 +1,12 @@
 import { Box } from '@mantine/core';
-import { useEffect, useRef, type FC, type ReactNode } from 'react';
+import {
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { usePortalTargetById } from '../../../../../hooks/usePortalTargetById';
 import { store as aiAgentStore } from '../../store';
@@ -8,10 +15,7 @@ import styles from './AiAgentsLauncher.module.css';
 
 const AI_AGENTS_LAUNCHER_MODAL_HOST_ID = 'ai-agents-launcher-modal-host';
 
-/**
- * Keeps the launcher inside a modal's DOM and visual bounds. Unmounting the
- * host collapses its conversation so it cannot move behind the closed modal.
- */
+/** Keeps the launcher inside a modal's DOM and visual bounds. */
 export const AiAgentsLauncherModalHost: FC = () => {
     const hostRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +33,6 @@ export const AiAgentsLauncherModalHost: FC = () => {
 
         return () => {
             host?.removeEventListener('keydown', handleKeyDown);
-            aiAgentStore.dispatch(closePanel());
         };
     }, []);
 
@@ -49,8 +52,42 @@ type PortalProps = {
 /** Uses the normal page position unless a modal explicitly hosts the launcher. */
 export const AiAgentsLauncherPortal: FC<PortalProps> = ({ children }) => {
     const modalHost = usePortalTargetById(AI_AGENTS_LAUNCHER_MODAL_HOST_ID);
+    const previousModalHostRef = useRef<HTMLElement | null>(null);
+    const pageHostRef = useRef<HTMLDivElement>(null);
+    const [portalContainer] = useState<HTMLDivElement | null>(() => {
+        if (typeof document === 'undefined') return null;
+        const container = document.createElement('div');
+        container.className = styles.portalContainer;
+        return container;
+    });
     const content =
         typeof children === 'function' ? children(!!modalHost) : children;
 
-    return modalHost ? createPortal(content, modalHost) : content;
+    useLayoutEffect(() => {
+        if (previousModalHostRef.current && !modalHost) {
+            aiAgentStore.dispatch(closePanel());
+        }
+        previousModalHostRef.current = modalHost;
+    }, [modalHost]);
+
+    useLayoutEffect(() => {
+        const destination = modalHost ?? pageHostRef.current;
+        if (portalContainer && destination) {
+            destination.appendChild(portalContainer);
+        }
+    }, [modalHost, portalContainer]);
+
+    useLayoutEffect(
+        () => () => {
+            portalContainer?.remove();
+        },
+        [portalContainer],
+    );
+
+    return (
+        <>
+            <Box ref={pageHostRef} display="contents" />
+            {portalContainer && createPortal(content, portalContainer)}
+        </>
+    );
 };

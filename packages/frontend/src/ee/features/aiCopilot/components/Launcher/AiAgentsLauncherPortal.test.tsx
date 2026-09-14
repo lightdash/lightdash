@@ -1,10 +1,11 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { StrictMode, useEffect, useState } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { openPanel, resetActivePanel } from '../../store/aiAgentLauncherSlice';
+import styles from './AiAgentsLauncher.module.css';
 import {
     AiAgentsLauncherModalHost,
     AiAgentsLauncherPortal,
@@ -46,6 +47,9 @@ describe('AiAgentsLauncherPortal', () => {
 
         expect(screen.getByTestId('page')).toContainElement(
             screen.getByTestId('launcher'),
+        );
+        expect(screen.getByTestId('launcher').parentElement).toHaveClass(
+            styles.portalContainer,
         );
     });
 
@@ -110,13 +114,136 @@ describe('AiAgentsLauncherPortal', () => {
         expect(screen.getByTestId('conversation')).toBeVisible();
     });
 
-    it('collapses a hosted conversation when the modal closes', () => {
+    it('preserves launcher state while moving into and out of a modal host', async () => {
+        const user = userEvent.setup();
+        const lifecycle = { mounts: 0, unmounts: 0 };
+        const StatefulLauncher = () => {
+            const [draft, setDraft] = useState('');
+            useEffect(() => {
+                lifecycle.mounts += 1;
+                return () => {
+                    lifecycle.unmounts += 1;
+                };
+            }, []);
+            return (
+                <input
+                    aria-label="Draft"
+                    value={draft}
+                    onChange={(event) => setDraft(event.currentTarget.value)}
+                />
+            );
+        };
+        const Harness = () => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            return (
+                <>
+                    <button
+                        type="button"
+                        onClick={() => setIsModalOpen((opened) => !opened)}
+                    >
+                        Toggle modal
+                    </button>
+                    {isModalOpen && (
+                        <div role="dialog">
+                            <AiAgentsLauncherModalHost />
+                        </div>
+                    )}
+                    <AiAgentsLauncherPortal>
+                        <StatefulLauncher />
+                    </AiAgentsLauncherPortal>
+                </>
+            );
+        };
+        renderWithProviders(<Harness />);
+
+        const draft = await screen.findByRole('textbox', { name: 'Draft' });
+        await user.type(draft, 'Unsaved question');
+        await user.click(screen.getByRole('button', { name: 'Toggle modal' }));
+
+        await waitFor(() =>
+            expect(screen.getByRole('dialog')).toContainElement(
+                screen.getByRole('textbox', { name: 'Draft' }),
+            ),
+        );
+        const modalDraft = screen.getByRole('textbox', { name: 'Draft' });
+        expect(modalDraft).toHaveValue('Unsaved question');
+        expect(modalDraft).toBe(draft);
+        expect(lifecycle).toEqual({ mounts: 1, unmounts: 0 });
+
+        await user.click(screen.getByRole('button', { name: 'Toggle modal' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        const pageDraft = screen.getByRole('textbox', { name: 'Draft' });
+        expect(pageDraft).toHaveValue('Unsaved question');
+        expect(pageDraft).toBe(draft);
+        expect(lifecycle).toEqual({ mounts: 1, unmounts: 0 });
+    });
+
+    it('collapses a hosted conversation when the modal closes', async () => {
         store.dispatch(openPanel({ threadId: null, agentUuid: 'agent-uuid' }));
-        const { unmount } = renderWithProviders(<AiAgentsLauncherModalHost />);
+        const Harness = ({ isModalOpen }: { isModalOpen: boolean }) => (
+            <>
+                {isModalOpen && (
+                    <div role="dialog">
+                        <AiAgentsLauncherModalHost />
+                    </div>
+                )}
+                <AiAgentsLauncherPortal>
+                    <button type="button">Conversation input</button>
+                </AiAgentsLauncherPortal>
+            </>
+        );
+        const { rerender } = renderWithProviders(
+            <Harness isModalOpen={true} />,
+        );
 
-        unmount();
+        await waitFor(() =>
+            expect(screen.getByRole('dialog')).toContainElement(
+                screen.getByRole('button', { name: 'Conversation input' }),
+            ),
+        );
 
-        expect(store.getState().aiAgentLauncher.mode).toBe('collapsed');
+        rerender(<Harness isModalOpen={false} />);
+
+        await waitFor(() =>
+            expect(store.getState().aiAgentLauncher.mode).toBe('collapsed'),
+        );
+    });
+
+    it('does not collapse an open conversation during the Strict Mode effect probe', async () => {
+        const user = userEvent.setup();
+        const Harness = () => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            return (
+                <>
+                    <button type="button" onClick={() => setIsModalOpen(true)}>
+                        Open modal
+                    </button>
+                    {isModalOpen && (
+                        <div role="dialog">
+                            <AiAgentsLauncherModalHost />
+                        </div>
+                    )}
+                    <AiAgentsLauncherPortal>
+                        <button type="button">Conversation input</button>
+                    </AiAgentsLauncherPortal>
+                </>
+            );
+        };
+        renderWithProviders(
+            <StrictMode>
+                <Harness />
+            </StrictMode>,
+        );
+        store.dispatch(openPanel({ threadId: null, agentUuid: 'agent-uuid' }));
+        await user.click(screen.getByRole('button', { name: 'Open modal' }));
+
+        await waitFor(() =>
+            expect(screen.getByRole('dialog')).toContainElement(
+                screen.getByRole('button', { name: 'Conversation input' }),
+            ),
+        );
+        expect(store.getState().aiAgentLauncher.mode).toBe('panel-open');
     });
 
     it('collapses the conversation on Escape without passing it to the modal', async () => {

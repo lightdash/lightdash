@@ -1,4 +1,8 @@
-import { FeatureFlags, SEED_PROJECT } from '@lightdash/common';
+import {
+    FeatureFlags,
+    SEED_PROJECT,
+    type ApiChartSummaryListResponse,
+} from '@lightdash/common';
 
 describe('Dashboard chart version history', () => {
     it('keeps the freshness notice inset while a long version list scrolls', () => {
@@ -27,20 +31,21 @@ describe('Dashboard chart version history', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
         cy.contains('a', 'Jaffle dashboard').click();
-        cy.location('pathname').then((dashboardPath) => {
-            cy.contains('a', 'How much revenue do we have per payment method?')
-                .invoke('attr', 'href')
-                .then((href) => {
-                    const slug = href!.split('/').filter(Boolean).pop();
-                    cy.request(
-                        `/api/v1/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`,
-                    ).then(({ body }) => {
-                        cy.visit(
-                            `${dashboardPath}?editChart=${body.results.uuid}`,
-                        );
-                    });
+        cy.location('pathname')
+            .should('match', /\/dashboards\/[^/]+/)
+            .then((dashboardPath) => {
+                cy.request<ApiChartSummaryListResponse>(
+                    `/api/v1/projects/${SEED_PROJECT.project_uuid}/charts`,
+                ).then(({ body }) => {
+                    const chart = body.results.find(
+                        ({ name }) =>
+                            name ===
+                            'How much revenue do we have per payment method?',
+                    );
+                    expect(chart, 'seeded revenue chart').to.not.eq(undefined);
+                    cy.visit(`${dashboardPath}?editChart=${chart!.uuid}`);
                 });
-        });
+            });
         cy.findByRole('button', { name: 'Chart actions' }).click();
         cy.findByRole('menuitem', { name: 'Version history' }).click();
 

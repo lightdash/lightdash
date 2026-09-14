@@ -10,6 +10,10 @@
     max-width: calc(100vw - var(--mantine-spacing-md) * 2);
 }
 
+.portalContainer {
+    display: contents;
+}
+
 .modalHost {
     position: fixed;
     inset: 0;
