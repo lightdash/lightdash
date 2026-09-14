@@ -258,10 +258,11 @@ describe('ProjectModel', () => {
                 'column_name',
             ]);
             expect(tracker.history.select[0].sql).toContain(
-                "jsonb_exists(explore, 'errors')",
+                "jsonb_exists(cached_explore.explore, 'errors')",
             );
+            expect(tracker.history.select[0].sql).toContain('OFFSET 0');
             expect(tracker.history.select[0].sql).toContain(
-                "jsonb_typeof(explore_fields.tables) = 'object'",
+                "jsonb_typeof(explore_summary.tables) = 'object'",
             );
             expect(tracker.history.select[0].sql).toContain(
                 "jsonb_typeof(table_entry.value) = 'object'",

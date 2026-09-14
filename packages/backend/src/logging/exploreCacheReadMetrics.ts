@@ -125,9 +125,9 @@ export const summarizeExploreCacheRead = (
     const tableFanOut = values.reduce(
         (sum, explore) =>
             sum +
-            (explore.isExploreError || 'errors' in explore)
+            (explore.isExploreError || 'errors' in explore
                 ? 0
-                : Object.keys(explore.tables ?? {}).length,
+                : Object.keys(explore.tables ?? {}).length),
         0,
     );
     return { exploreCount: values.length, tableFanOut };
