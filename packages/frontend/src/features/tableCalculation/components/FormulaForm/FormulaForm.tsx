@@ -41,6 +41,8 @@ type Props = {
 export type FormulaFormHandle = {
     /** Triggers an AI fix using the current formula and the supplied error message. */
     fixWithAi: (errorMessage: string) => void;
+    /** Validates the current formula and resolves with the parser error, or null. */
+    validateNow: () => Promise<string | null>;
 };
 
 const AI_GENERIC_ERROR =
@@ -68,7 +70,10 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
         const { user } = useApp();
         const { track } = useTracking();
 
-        const { error, validate } = useFormulaValidation(formula, metricQuery);
+        const { error, validate, validateNow } = useFormulaValidation(
+            formula,
+            metricQuery,
+        );
         const isAmbientAiEnabled = useAmbientAiEnabled();
         const aiEnabled = isAmbientAiEnabled && !!onAiApply;
 
@@ -218,8 +223,9 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
                     const prompt = `Fix this formula error: "${errorMessage}". Return a corrected formula.`;
                     generateFromPrompt(prompt, true);
                 },
+                validateNow,
             }),
-            [aiEnabled, generateFromPrompt],
+            [aiEnabled, generateFromPrompt, validateNow],
         );
 
         const handleTab = useCallback(
@@ -284,8 +290,10 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
                             />
                         )}
                 </Box>
-                {aiError && !error && (
-                    <Text className={classes.errorText}>{aiError}</Text>
+                {(error || aiError) && (
+                    <Text className={classes.errorText}>
+                        {error || aiError}
+                    </Text>
                 )}
                 {isGenerating && pendingPrompt && (
                     <Group gap={6} wrap="nowrap" className={classes.generating}>

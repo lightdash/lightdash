@@ -344,6 +344,7 @@ const TableCalculationModal: FC<Props> = ({
     const [formulaParseError, setFormulaParseError] = useState<string | null>(
         null,
     );
+    const [isValidatingFormula, setIsValidatingFormula] = useState(false);
     const formulaFormRef = useRef<FormulaFormHandle>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -454,7 +455,7 @@ const TableCalculationModal: FC<Props> = ({
             form.values.formula.trim().length === 0 ||
             formulaParseError !== null);
 
-    const handleConfirm = useCallback(() => {
+    const handleConfirm = useCallback(async () => {
         const validation = form.validate();
         if (validation.hasErrors) {
             // Name lives at the bottom of the modal body; on viewports
@@ -466,6 +467,18 @@ const TableCalculationModal: FC<Props> = ({
             });
             nameInputRef.current?.focus({ preventScroll: true });
             return;
+        }
+
+        if (editMode === EditMode.FORMULA) {
+            // Validation is a round trip. Without waiting for it, a click that
+            // lands before the answer saves a formula the parser rejects.
+            setIsValidatingFormula(true);
+            const parseError = await formulaFormRef.current?.validateNow();
+            setIsValidatingFormula(false);
+            if (parseError) {
+                setFormulaParseError(parseError);
+                return;
+            }
         }
 
         const { name, sql, formula, format, type, totalMode } = form.values;
@@ -650,9 +663,10 @@ const TableCalculationModal: FC<Props> = ({
             }
             actions={
                 <Button
-                    onClick={handleConfirm}
+                    onClick={() => void handleConfirm()}
                     data-testid="table-calculation-save-button"
                     {...(isNewCalculation ? createTourAction : {})}
+                    loading={isValidatingFormula}
                     disabled={
                         (editMode === EditMode.SQL &&
                             form.values.sql.length === 0) ||
