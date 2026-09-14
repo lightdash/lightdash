@@ -1,17 +1,12 @@
 const FILTER_EXPRESSION_SKILL_REMINDER =
-    '### Filter Expressions\nBefore writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values.';
+    '- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values';
 
 // Only offered to sessions whose tools/list actually includes run_sql
 // (gated on manage:SqlRunner).
-const RUN_SQL_GUIDANCE = `### When to Use run_sql vs run_metric_query
-- **Prefer \`run_metric_query\`** for standard analysis — it leverages the semantic layer and ensures consistent metric definitions
-- **Use \`run_sql\`** only for ad-hoc queries, cross-table joins not modeled in explores, or when the user explicitly requests raw SQL
-- \`run_sql\` defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
-- Use the SQL dialect appropriate for the connected warehouse
-
+const RUN_SQL_GUIDANCE = `- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
 `;
 
-const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
+const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
 `;
 
@@ -52,34 +47,23 @@ Governed metric execution (\`run_metric_query\`) is not available in this sessio
 const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
     filterExpressionsEnabled: boolean,
-): string => `# Lightdash MCP Tools — Usage Guidelines
+): string => `## Query Building Workflow
 
-## Query Building Workflow
-
-${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scope; pass \`projectUuid\` and, when agent-scoped, \`agentUuid\` explicitly to project-scoped tools.
+${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
-3. \`search_field_values\`: discover valid filter values when needed.
-4. \`run_metric_query\`: query governed metrics${runSqlEnabled ? '; use `run_sql` for custom SQL' : ''}.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`run_metric_query\`: query governed metrics.
 5. \`get_query_result\`: poll running queries; never resubmit the original query.
 6. \`render_chart\`: render completed metric queries when a chart is wanted.
 7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search existing dashboards, charts, and Data Apps.
+8. \`find_content\`: search dashboards, charts, and Data Apps.
 
-## Critical Rules
+## Rules
 
-### Tool Catalogue
-- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
-
-### Explore Selection
-- When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
-- When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
-- If still ambiguous, ask the user which data source they want — do NOT guess
-
-${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n\n` : ''}### Field Usage
-- Never mix fields from different explores in a single query
-- Any field used for sorting MUST be included in dimensions, metrics, or table calculations
-- When similar field names exist in base and joined tables, match to the query's semantic level
+- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
 `;
 
 export const getMcpAnalystPrompt = ({
