@@ -104,6 +104,15 @@ export class AiService extends BaseService {
         Promise<ChartSimilarityMatch[]>
     >();
 
+    async isAmbientAiEnabled(user: SessionUser): Promise<boolean> {
+        try {
+            await this.getAmbientAiModel(user);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
     // Caller supplies freshly authorized chart definitions. Keys include the
     // caller and complete query context, so revisions and permissions are re-read.
     async compareCharts(

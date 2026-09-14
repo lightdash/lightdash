@@ -103,7 +103,7 @@ export class ContentReviewRequestController extends BaseController {
     }
 
     /**
-     * Charts or dashboards in shared spaces with a similar name, so a requester can check before submitting
+     * Legacy saved-chart comparison route. Name-only requests return no matches.
      * @summary Find similar content
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -121,7 +121,7 @@ export class ContentReviewRequestController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().findSimilarContent(
+            results: await this.getService().findSimilarContentWithAi(
                 toSessionUser(req.account),
                 projectUuid,
                 {

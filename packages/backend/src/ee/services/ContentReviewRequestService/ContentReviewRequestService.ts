@@ -82,10 +82,6 @@ type ContentReviewRequestServiceArguments = {
 
 type ProjectContext = { organizationUuid: string; projectUuid: string };
 
-const SIMILAR_CANDIDATE_LIMIT = 20;
-const SIMILAR_RESULT_LIMIT = 5;
-const VERIFIED_SCORE_BOOST = 2;
-
 type ContentLookups = {
     locations: Map<string, ContentReviewContentLocation>;
     spaces: Map<string, ContentReviewSpaceInfo>;
@@ -1171,10 +1167,12 @@ export class ContentReviewRequestService extends BaseService {
     ): Promise<ContentReviewSimilarContentItem[]> {
         await this.getProjectContext(user, projectUuid);
         let { name } = params;
-        const fallback = () =>
-            this.findSimilarContent(user, projectUuid, { ...params, name });
-        if (params.contentType !== ContentReviewContentType.CHART)
-            return fallback();
+        if (
+            params.contentType !== ContentReviewContentType.CHART ||
+            (!params.chart && !params.excludeContentUuid) ||
+            !(await this.aiService.isAmbientAiEnabled(user))
+        )
+            return [];
 
         // Saved source context comes from the server, with chart-level access.
         // Never accept a client's replacement query for a saved chart.
@@ -1188,7 +1186,7 @@ export class ContentReviewRequestService extends BaseService {
             chart = source;
             name = source.name;
         }
-        if (!chart) return fallback();
+        if (!chart) return [];
 
         try {
             const spaces =
@@ -1209,7 +1207,7 @@ export class ContentReviewRequestService extends BaseService {
                         accessibleSpaceUuids,
                     },
                 );
-            if (candidates.length === 0) return await fallback();
+            if (candidates.length === 0) return [];
             const context = (
                 value: ChartSimilarityContext,
             ): ChartSimilarityContext => ({
@@ -1240,7 +1238,7 @@ export class ContentReviewRequestService extends BaseService {
             const visible = definitions.filter(
                 (definition) => definition !== null,
             );
-            if (visible.length === 0) return await fallback();
+            if (visible.length === 0) return [];
             const matches = await this.aiService.compareCharts(
                 user,
                 projectUuid,
@@ -1250,7 +1248,7 @@ export class ContentReviewRequestService extends BaseService {
                 },
                 cachedOnly,
             );
-            if (matches === undefined) return await fallback();
+            if (matches === undefined) return [];
             const verified =
                 await this.contentVerificationModel.getByContentUuids(
                     ContentType.CHART,
@@ -1285,99 +1283,12 @@ export class ContentReviewRequestService extends BaseService {
             });
         } catch (error) {
             // Ambient AI is advisory. Provider failures must not prevent saving
-            // or submitting a review; preserve the existing name-only fallback.
+            // or submitting a review. Omit suggestions when the check fails.
             this.logger.debug(
                 `Chart similarity AI unavailable: ${getErrorMessage(error)}`,
             );
-            return fallback();
+            return [];
         }
-    }
-
-    // Rank accessible name matches, with a small preference for verified content.
-    async findSimilarContent(
-        user: SessionUser,
-        projectUuid: string,
-        params: {
-            contentType: ContentReviewContentType;
-            name: string;
-            excludeContentUuid: string | null;
-        },
-    ): Promise<ContentReviewSimilarContentItem[]> {
-        const context = await this.getProjectContext(user, projectUuid);
-        if (params.name.trim().length === 0) return [];
-        const spaces =
-            await this.spaceModel.getSpacesByProjectUuid(projectUuid);
-        const accessibleSpaceUuids =
-            await this.spacePermissionService.getAccessibleSpaceUuids(
-                'view',
-                user,
-                spaces.map((space) => space.uuid),
-            );
-        const candidates =
-            await this.contentReviewRequestModel.findSimilarByName({
-                projectUuid,
-                contentType: params.contentType,
-                name: params.name,
-                excludeContentUuid: params.excludeContentUuid,
-                accessibleSpaceUuids,
-                limit: SIMILAR_CANDIDATE_LIMIT,
-            });
-        if (candidates.length === 0) return [];
-        const visible = candidates;
-        const verifiedByType = new Map<ContentReviewContentType, Set<string>>();
-        await Promise.all(
-            [...new Set(visible.map((c) => c.contentType))].map(
-                async (candidateType) => {
-                    const verifiableType =
-                        ContentReviewRequestService.toVerifiableContentType(
-                            candidateType,
-                        );
-                    if (verifiableType === null) return;
-                    const verified =
-                        await this.contentVerificationModel.getByContentUuids(
-                            verifiableType,
-                            visible
-                                .filter((c) => c.contentType === candidateType)
-                                .map((c) => c.uuid),
-                        );
-                    verifiedByType.set(candidateType, new Set(verified.keys()));
-                },
-            ),
-        );
-        const results = visible
-            .map((c) => {
-                const isVerified =
-                    verifiedByType.get(c.contentType)?.has(c.uuid) ?? false;
-                return {
-                    contentType: c.contentType,
-                    contentUuid: c.uuid,
-                    name: c.name,
-                    slug: c.slug,
-                    spaceUuid: c.spaceUuid,
-                    spaceName: c.spaceName,
-                    isVerified,
-                    score: c.score + (isVerified ? VERIFIED_SCORE_BOOST : 0),
-                    matchReason: c.matchReason,
-                };
-            })
-            .sort((a, b) => b.score - a.score)
-            .slice(0, SIMILAR_RESULT_LIMIT);
-        if (results.length > 0) {
-            this.analytics.track({
-                event: 'content_review_request.similar_content_found',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: context.organizationUuid,
-                    projectId: projectUuid,
-                    contentType: params.contentType,
-                    contentId: params.excludeContentUuid,
-                    matchCount: results.length,
-                    verifiedMatchCount: results.filter((r) => r.isVerified)
-                        .length,
-                },
-            });
-        }
-        return results;
     }
 
     private assertCanManageSettings(

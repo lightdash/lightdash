@@ -126,25 +126,10 @@ export const getSimilarContentForReview = (
     projectUuid: string,
     params: FindSimilarContentBody,
     signal?: AbortSignal,
-) => {
-    if (params.chart || params.excludeContentUuid) {
-        return lightdashApi<ApiContentReviewSimilarContentResponse['results']>({
-            url: `${contentReviewBasePath(projectUuid)}/similar`,
-            method: 'POST',
-            body: JSON.stringify(params),
-            signal,
-        });
-    }
-    const search = new URLSearchParams({
-        contentType: params.contentType,
-        name: params.name,
-    });
-    if (params.excludeContentUuid !== null)
-        search.set('excludeContentUuid', params.excludeContentUuid);
-    return lightdashApi<ApiContentReviewSimilarContentResponse['results']>({
-        url: `${contentReviewBasePath(projectUuid)}/similar?${search.toString()}`,
+) =>
+    lightdashApi<ApiContentReviewSimilarContentResponse['results']>({
+        url: `${contentReviewBasePath(projectUuid)}/similar`,
+        method: 'POST',
+        body: JSON.stringify(params),
         signal,
-        method: 'GET',
-        body: undefined,
     });
-};

@@ -83,16 +83,12 @@ const RequestReviewModal: FC<Props> = ({
     );
     const { mutateAsync: createRequest, isLoading: isSubmitting } =
         useCreateContentReviewRequest(projectUuid);
-    const {
-        data: similarContent = [],
-        isInitialLoading: isCheckingSimilar,
-        isError: similarError,
-        refetch: retrySimilar,
-    } = useSimilarContent(
-        projectUuid,
-        { contentType, name: contentName, excludeContentUuid: contentUuid },
-        opened,
-    );
+    const { data: similarContent = [], isInitialLoading: isCheckingSimilar } =
+        useSimilarContent(
+            projectUuid,
+            { contentType, name: contentName, excludeContentUuid: contentUuid },
+            opened,
+        );
 
     const form = useForm<{ targetSpaceUuid: string | null; note: string }>({
         initialValues: { targetSpaceUuid: null, note: '' },
@@ -218,20 +214,6 @@ const RequestReviewModal: FC<Props> = ({
                             <Text size="xs" c="dimmed" role="status">
                                 Checking for related content…
                             </Text>
-                        )}
-                        {similarError && (
-                            <Group gap="xs">
-                                <Text size="xs" c="dimmed" role="status">
-                                    Related content could not be checked.
-                                </Text>
-                                <Button
-                                    variant="subtle"
-                                    size="compact-xs"
-                                    onClick={() => void retrySimilar()}
-                                >
-                                    Retry
-                                </Button>
-                            </Group>
                         )}
                         <SimilarContentPanel
                             projectUuid={projectUuid}

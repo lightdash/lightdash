@@ -151,7 +151,6 @@ let dashboardModelMock: { getByIdOrSlug: ReturnType<typeof vi.fn> };
 
 const buildService = () => {
     const contentReviewRequestModel = {
-        findSimilarByName: vi.fn().mockResolvedValue([]),
         findChartSimilarityCandidates: vi.fn().mockResolvedValue([]),
         findChartLocations: vi.fn().mockResolvedValue([chartLocation]),
         findDashboardLocations: vi.fn().mockResolvedValue([]),
@@ -205,7 +204,10 @@ const buildService = () => {
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
     };
-    const aiService = { compareCharts: vi.fn().mockResolvedValue(undefined) };
+    const aiService = {
+        isAmbientAiEnabled: vi.fn().mockResolvedValue(true),
+        compareCharts: vi.fn().mockResolvedValue(undefined),
+    };
     const savedChartModel = { get: vi.fn() };
     const savedChartService = {
         get: vi.fn().mockResolvedValue({ name: chartLocation.name }),
@@ -790,130 +792,6 @@ describe('ContentReviewRequestService', () => {
     });
 });
 
-describe('similar content', () => {
-    const candidate = {
-        contentType: ContentReviewContentType.CHART,
-        uuid: 'existing',
-        name: 'Weekly revenue',
-        slug: 'weekly-revenue',
-        spaceUuid: SHARED_SPACE,
-        spaceName: 'Finance',
-        score: 100,
-        matchReason: 'same_name' as const,
-    };
-    const params = {
-        contentType: ContentReviewContentType.CHART,
-        name: 'Weekly revenue',
-        excludeContentUuid: CHART,
-    };
-
-    it('passes accessible spaces into matching before limiting candidates', async () => {
-        const { service, contentReviewRequestModel, spacePermissionService } =
-            buildService();
-        contentReviewRequestModel.findSimilarByName.mockResolvedValue([
-            candidate,
-        ]);
-        const results = await service.findSimilarContent(
-            requester,
-            PROJECT,
-            params,
-        );
-        expect(
-            spacePermissionService.getAccessibleSpaceUuids,
-        ).toHaveBeenCalledWith('view', requester, [
-            SHARED_SPACE,
-            PERSONAL_SPACE,
-        ]);
-        expect(
-            contentReviewRequestModel.findSimilarByName,
-        ).toHaveBeenCalledWith(
-            expect.objectContaining({ accessibleSpaceUuids: [SHARED_SPACE] }),
-        );
-        expect(results[0]).toMatchObject({
-            contentUuid: 'existing',
-            matchReason: 'same_name',
-            isVerified: false,
-        });
-    });
-
-    it('prefers verified content without letting a weaker name match outrank an exact name', async () => {
-        const { service, contentReviewRequestModel, contentVerificationModel } =
-            buildService();
-        contentReviewRequestModel.findSimilarByName.mockResolvedValue([
-            candidate,
-            {
-                ...candidate,
-                uuid: 'verified-related',
-                score: 90,
-                matchReason: 'similar_name',
-            },
-        ]);
-        contentVerificationModel.getByContentUuids.mockResolvedValue(
-            new Map([['verified-related', {}]]),
-        );
-        const results = await service.findSimilarContent(
-            requester,
-            PROJECT,
-            params,
-        );
-        expect(results.map((item) => item.contentUuid)).toEqual([
-            'existing',
-            'verified-related',
-        ]);
-        expect(results[1].isVerified).toBe(true);
-    });
-
-    it('snapshots server matches and ignores fabricated client matches, without requiring a note', async () => {
-        const { service, contentReviewRequestModel } = buildService();
-        contentReviewRequestModel.findSimilarByName.mockResolvedValue([
-            candidate,
-        ]);
-        await service.submit(requester, PROJECT, {
-            ...submitBody,
-            note: null,
-            similarContent: [
-                { ...candidate, contentUuid: 'fabricated', isVerified: true },
-            ],
-        });
-        expect(contentReviewRequestModel.create).toHaveBeenCalledWith(
-            expect.objectContaining({
-                requestNote: null,
-                similarContent: [
-                    expect.objectContaining({
-                        contentUuid: 'existing',
-                        isVerified: false,
-                    }),
-                ],
-            }),
-        );
-    });
-
-    it('does not grant reviewer access when the server check fails', async () => {
-        const { service, contentReviewRequestModel, directAccessModel } =
-            buildService();
-        contentReviewRequestModel.findSimilarByName.mockRejectedValue(
-            new Error('Search unavailable'),
-        );
-        await expect(
-            service.submit(requester, PROJECT, submitBody),
-        ).rejects.toThrow('Search unavailable');
-        expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
-        expect(contentReviewRequestModel.create).not.toHaveBeenCalled();
-    });
-
-    it('enforces the feature gate before searching', async () => {
-        const { service, contentReviewRequestModel, directAccessFeatureGate } =
-            buildService();
-        directAccessFeatureGate.isEnabledForUser.mockResolvedValue(false);
-        await expect(
-            service.findSimilarContent(requester, PROJECT, params),
-        ).rejects.toThrow('not enabled');
-        expect(
-            contentReviewRequestModel.findSimilarByName,
-        ).not.toHaveBeenCalled();
-    });
-});
-
 describe('Ambient AI content similarity', () => {
     const chart: ChartSimilarityContext = {
         metricQuery: {
@@ -973,9 +851,6 @@ describe('Ambient AI content similarity', () => {
                 explanation: 'Same revenue metric and query settings.',
             },
         ]);
-        expect(
-            deps.contentReviewRequestModel.findSimilarByName,
-        ).not.toHaveBeenCalled();
         expect(deps.aiService.compareCharts).toHaveBeenCalledWith(
             requester,
             PROJECT,
@@ -986,6 +861,41 @@ describe('Ambient AI content similarity', () => {
                 ],
             },
             false,
+        );
+    });
+    it('scopes candidate retrieval to accessible spaces before limiting', async () => {
+        const deps = setup();
+        await deps.service.findSimilarContentWithAi(requester, PROJECT, params);
+        expect(
+            deps.contentReviewRequestModel.findChartSimilarityCandidates,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ accessibleSpaceUuids: [SHARED_SPACE] }),
+        );
+    });
+    it('uses server matches instead of fabricated browser matches', async () => {
+        const deps = setup();
+        await deps.service.submit(requester, PROJECT, {
+            ...submitBody,
+            note: null,
+            similarContent: [
+                {
+                    ...candidate,
+                    contentUuid: 'fabricated',
+                    isVerified: true,
+                    score: 100,
+                },
+            ],
+        });
+        expect(deps.contentReviewRequestModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                requestNote: null,
+                similarContent: [
+                    expect.objectContaining({
+                        contentUuid: 'existing',
+                        isVerified: false,
+                    }),
+                ],
+            }),
         );
     });
     it('keeps filter differences in the comparison and its explanation', async () => {
@@ -1029,24 +939,91 @@ describe('Ambient AI content similarity', () => {
                 params,
             ),
         ).toEqual([]);
-        expect(
-            deps.contentReviewRequestModel.findSimilarByName,
-        ).not.toHaveBeenCalled();
     });
-    it('falls back to name matching on provider failure or timeout', async () => {
+    it('omits suggestions on provider failure or timeout', async () => {
         const deps = setup();
         deps.aiService.compareCharts.mockRejectedValue(new Error('Timeout'));
-        deps.contentReviewRequestModel.findSimilarByName.mockResolvedValue([
-            { ...candidate, score: 100, matchReason: 'same_name' },
-        ]);
         expect(
             await deps.service.findSimilarContentWithAi(
                 requester,
                 PROJECT,
                 params,
             ),
-        ).toMatchObject([{ matchReason: 'same_name' }]);
+        ).toEqual([]);
     });
+    it('does not read any chart definitions or candidates when AI is disabled', async () => {
+        const deps = setup();
+        deps.aiService.isAmbientAiEnabled.mockResolvedValue(false);
+        expect(
+            await deps.service.findSimilarContentWithAi(requester, PROJECT, {
+                ...params,
+                excludeContentUuid: CHART,
+            }),
+        ).toEqual([]);
+        expect(
+            deps.contentReviewRequestModel.findChartSimilarityCandidates,
+        ).not.toHaveBeenCalled();
+        expect(deps.savedChartService.get).not.toHaveBeenCalled();
+        expect(deps.savedChartModel.get).not.toHaveBeenCalled();
+        expect(deps.aiService.compareCharts).not.toHaveBeenCalled();
+    });
+    it.each([
+        ContentReviewContentType.SQL_CHART,
+        ContentReviewContentType.DASHBOARD,
+    ])('does not check unsupported content: %s', async (contentType) => {
+        const deps = setup();
+        expect(
+            await deps.service.findSimilarContentWithAi(requester, PROJECT, {
+                ...params,
+                contentType,
+            }),
+        ).toEqual([]);
+        expect(
+            deps.contentReviewRequestModel.findChartSimilarityCandidates,
+        ).not.toHaveBeenCalled();
+        expect(deps.aiService.compareCharts).not.toHaveBeenCalled();
+    });
+    it('does not run a name-only request through AI', async () => {
+        const deps = setup();
+        expect(
+            await deps.service.findSimilarContentWithAi(requester, PROJECT, {
+                ...params,
+                chart: undefined,
+            }),
+        ).toEqual([]);
+        expect(deps.aiService.isAmbientAiEnabled).not.toHaveBeenCalled();
+        expect(
+            deps.contentReviewRequestModel.findChartSimilarityCandidates,
+        ).not.toHaveBeenCalled();
+    });
+    it.each(['disabled', 'cache-miss', 'failed'] as const)(
+        'allows review submission without suggestions when AI is %s',
+        async (mode) => {
+            const deps = setup();
+            if (mode === 'disabled')
+                deps.aiService.isAmbientAiEnabled.mockResolvedValue(false);
+            if (mode === 'cache-miss')
+                deps.aiService.compareCharts.mockResolvedValue(undefined);
+            if (mode === 'failed')
+                deps.aiService.compareCharts.mockRejectedValue(
+                    new Error('Unavailable'),
+                );
+            await deps.service.submit(requester, PROJECT, {
+                ...submitBody,
+                similarContent: [
+                    {
+                        ...candidate,
+                        contentUuid: 'fabricated',
+                        isVerified: true,
+                        score: 100,
+                    },
+                ],
+            });
+            expect(deps.contentReviewRequestModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({ similarContent: [] }),
+            );
+        },
+    );
     it('rechecks moved candidates before sending their queries to AI', async () => {
         const deps = setup();
         deps.savedChartModel.get.mockResolvedValue({

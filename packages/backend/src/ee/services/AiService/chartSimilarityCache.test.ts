@@ -117,3 +117,18 @@ it('enforces Ambient AI availability before calling the model', async () => {
     );
     expect(compareChartQueries).not.toHaveBeenCalled();
 });
+
+it('checks availability without running a comparison', async () => {
+    const { service, featureFlagService } = setup();
+    expect(await service.isAmbientAiEnabled(user)).toBe(true);
+    featureFlagService.get.mockResolvedValue({ enabled: false });
+    expect(await service.isAmbientAiEnabled(user)).toBe(false);
+    expect(compareChartQueries).not.toHaveBeenCalled();
+});
+
+it('treats configuration lookup failures as unavailable', async () => {
+    const { service, featureFlagService } = setup();
+    featureFlagService.get.mockRejectedValue(new Error('Unavailable'));
+    expect(await service.isAmbientAiEnabled(user)).toBe(false);
+    expect(compareChartQueries).not.toHaveBeenCalled();
+});
