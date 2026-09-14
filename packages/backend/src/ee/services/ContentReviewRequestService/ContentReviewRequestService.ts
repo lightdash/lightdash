@@ -153,8 +153,6 @@ export class ContentReviewRequestService extends BaseService {
         this.spacePermissionService = args.spacePermissionService;
     }
 
-    // Reviewers see personal-space content through direct-access grants, so
-    // that flag is the switch for the whole loop
     async isEnabled(user: SessionUser): Promise<boolean> {
         return this.directAccessFeatureGate.isEnabledForUser({
             userUuid: user.userUuid,
