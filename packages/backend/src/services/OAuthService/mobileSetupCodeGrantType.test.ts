@@ -22,7 +22,9 @@ const validBody = {
     platform: 'ios',
     scope: 'read write',
 };
-const createRequest = (body = validBody) =>
+const createRequest = (
+    body: Omit<typeof validBody, 'scope'> & { scope?: string } = validBody,
+) =>
     new OAuth2Server.Request({
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -104,8 +106,6 @@ describe('mobile setup code grant', () => {
     it.each([
         ['read write admin mcp:write', ['read', 'write']],
         ['read', ['read']],
-        ['admin', []],
-        [undefined, ['read', 'write']],
     ])('clamps requested scope %s', async (requested, expected) => {
         const { grant } = createGrant();
         const token = await grant.handle(
@@ -114,6 +114,31 @@ describe('mobile setup code grant', () => {
         );
         expect(token.scope).toEqual(expected);
     });
+
+    it('defaults to read write when the scope parameter is omitted', async () => {
+        const { grant } = createGrant();
+        const token = await grant.handle(
+            createRequest({
+                grant_type: validBody.grant_type,
+                code: validBody.code,
+                platform: validBody.platform,
+            }),
+            client,
+        );
+        expect(token.scope).toEqual(['read', 'write']);
+    });
+
+    it.each(['admin', 'unknown', ''])(
+        'rejects scope %s before consuming the code',
+        async (scope) => {
+            const { grant, service, model } = createGrant();
+            await expect(
+                grant.handle(createRequest({ ...validBody, scope }), client),
+            ).rejects.toMatchObject({ name: 'invalid_scope' });
+            expect(vi.mocked(service.redeem)).not.toHaveBeenCalled();
+            expect(vi.mocked(model.saveToken)).not.toHaveBeenCalled();
+        },
+    );
 
     it('keeps the project UUID in the library extended token response', async () => {
         const { model, GrantType } = createGrant();
