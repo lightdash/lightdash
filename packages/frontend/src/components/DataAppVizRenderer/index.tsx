@@ -7,7 +7,7 @@ import {
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
+import { Anchor, Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import {
     useCallback,
@@ -17,6 +17,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { Link } from 'react-router';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
@@ -48,12 +49,29 @@ type Props = {
     onScreenshotError?: () => void;
 };
 
-const DataAppVizPlaceholder: FC<{ message: string }> = ({ message }) => (
+const DataAppVizPlaceholder: FC<{
+    message: string;
+    hint?: string;
+    hintLink?: { label: string; to: string };
+}> = ({ message, hint, hintLink }) => (
     <Stack align="center" justify="center" gap="xs" h="100%" w="100%">
         <MantineIcon icon={IconPuzzle} size="xl" color="ldGray.5" />
         <Text c="dimmed" size="sm" ta="center">
             {message}
         </Text>
+        {hint && (
+            <Text c="dimmed" size="xs" ta="center" maw={360}>
+                {hint}
+                {hintLink && (
+                    <>
+                        {' '}
+                        <Anchor component={Link} to={hintLink.to} size="xs">
+                            {hintLink.label}
+                        </Anchor>
+                    </>
+                )}
+            </Text>
+        )}
     </Stack>
 );
 
@@ -93,7 +111,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const { embedToken } = useEmbed();
     const { canViewUnderlyingData, canDrillInto } = useContextMenuPermissions();
     const previewOrigin = usePreviewOrigin();
-    const { user } = useApp();
+    const { user, health } = useApp();
     // Fail-silent: /minimal routes at desktop viewports mount no
     // TrackingProvider (App.tsx `enabled={isMobile || !isMinimalPage}`), so
     // screenshot/export/unfurl renders simply skip the drill-by event.
@@ -387,10 +405,16 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     // Terminal placeholders never mount the iframe — their frame is final,
     // so report ready now instead of stalling until the fallback timeout.
-    const terminalRequestErrorMessage = getTerminalRequestErrorMessage([
+    const terminalRequestErrors = [
         renderMetadataError,
         getVisiblePreviewTokenError(previewTokenError, !!token),
-    ]);
+    ];
+    const terminalRequestErrorMessage = getTerminalRequestErrorMessage(
+        terminalRequestErrors,
+    );
+    const chartTypeRemoved = terminalRequestErrors.some(
+        (error) => error?.error.statusCode === 404,
+    );
     const isTerminalPlaceholder =
         !projectUuid ||
         dataAppVizUuid === null ||
@@ -419,7 +443,30 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     }
 
     if (terminalRequestErrorMessage) {
-        return <DataAppVizPlaceholder message={terminalRequestErrorMessage} />;
+        // Embed viewers and headless captures can't act on the removal, so
+        // the recovery hint only shows in-app.
+        const canRecover = chartTypeRemoved && !embedToken && !minimal;
+        const recoveryAction = isEditMode
+            ? 'Open Configure and choose another chart type'
+            : 'Edit the chart to choose another chart type';
+        const recoveryHint = health.data?.softDelete.enabled
+            ? `${recoveryAction}, or restore the chart type from Recently deleted.`
+            : `${recoveryAction}.`;
+        // Lands in edit mode with the config sidebar already open.
+        const editLink =
+            canRecover && !isEditMode && savedChartUuid
+                ? {
+                      label: 'Edit chart',
+                      to: `/projects/${projectUuid}/saved/${savedChartUuid}/edit?openVizConfig=true`,
+                  }
+                : undefined;
+        return (
+            <DataAppVizPlaceholder
+                message={terminalRequestErrorMessage}
+                hint={canRecover ? recoveryHint : undefined}
+                hintLink={editLink}
+            />
+        );
     }
 
     if (!renderMetadata) {
