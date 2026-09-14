@@ -1,5 +1,10 @@
 import { Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates a new table with a UUID default and indexes. Existing tables and writes stay unchanged.',
+} as const;
+
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
     await knex.schema.createTable('mobile_setup_codes', (table) => {
