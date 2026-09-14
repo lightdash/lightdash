@@ -1,3 +1,11 @@
+## [2.209.2](https://github.com/lightdash/lightdash/compare/2.209.1...2.209.2) (2026-09-14)
+
+
+### Bug Fixes
+
+* **embed:** match iframe header to background color ([#29174](https://github.com/lightdash/lightdash/issues/29174)) ([235042a](https://github.com/lightdash/lightdash/commit/235042ae4790a145eba2dc6273fd358f529473f5))
+* point users at recovery when a chart's chart type was removed ([#29147](https://github.com/lightdash/lightdash/issues/29147)) ([ad46412](https://github.com/lightdash/lightdash/commit/ad4641244545b5c35193fa9d4985564588bc4386))
+
 ## [2.209.1](https://github.com/lightdash/lightdash/compare/2.209.0...2.209.1) (2026-09-14)
 
 
