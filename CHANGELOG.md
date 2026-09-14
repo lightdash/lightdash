@@ -1,3 +1,10 @@
+# [2.206.0](https://github.com/lightdash/lightdash/compare/2.205.2...2.206.0) (2026-09-14)
+
+
+### Features
+
+* **explorer:** quick-create custom metrics from the sidebar and inherit dimension formatting ([#29136](https://github.com/lightdash/lightdash/issues/29136)) ([0d805ff](https://github.com/lightdash/lightdash/commit/0d805ffee2ec3e24f9214720cf2b15e7b5499b20))
+
 ## [2.205.2](https://github.com/lightdash/lightdash/compare/2.205.1...2.205.2) (2026-09-14)
 
 
