@@ -1,6 +1,6 @@
 # Autopilot AI SDK rollout
 
-Autopilot runs on the AI SDK. The hosted runtime has been removed; rollback now requires restoring an earlier application release. Stored hosted resource identifiers remain temporarily for retirement.
+Autopilot runs on the AI SDK. The hosted runtime has been removed; rollback now requires restoring an earlier application release. Hosted resource identifiers are removed in this stage; credential/resource retirement must already be complete before upgrading.
 
 ## Configuration and attribution
 

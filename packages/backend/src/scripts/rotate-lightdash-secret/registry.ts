@@ -97,11 +97,6 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'encoded_secret',
     },
     {
-        table: 'managed_agent_settings',
-        primaryKeyColumn: 'project_uuid',
-        column: 'service_account_token',
-    },
-    {
         table: 'mobile_push_installations',
         primaryKeyColumn: 'mobile_push_installation_uuid',
         column: 'encrypted_device_token',
