@@ -8,9 +8,9 @@ import {
 } from '@mantine/core';
 import {
     IconCheck,
-    IconChevronDown,
-    IconChevronRight,
     IconFolder,
+    IconFolderOpen,
+    IconFolders,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import React, { useMemo } from 'react';
@@ -55,6 +55,20 @@ const TreeItem: React.FC<Props> = ({
         );
     }, [label]);
 
+    const folderIcon = (
+        <MantineIcon
+            icon={
+                isRoot || (hasChildren && expanded)
+                    ? IconFolderOpen
+                    : IconFolder
+            }
+            color="ldGray.7"
+            size="lg"
+            stroke={1.5}
+            className={classes.itemIcon}
+        />
+    );
+
     const content = (
         <Paper
             component={Group}
@@ -66,9 +80,6 @@ const TreeItem: React.FC<Props> = ({
             w="100%"
             gap={rem(4)}
             h={rem(32)}
-            // This component isn't optimized for the top-level root item,
-            // so we apply a negative left margin when the chevron isn't needed.
-            // (Root spaces are always expanded and don’t require a chevron.)
             ml={isRoot ? rem(-4) : undefined}
             pl={withPadding ? rem(4) : undefined}
             pr={withPadding ? 'xs' : undefined}
@@ -77,9 +88,10 @@ const TreeItem: React.FC<Props> = ({
             wrap="nowrap"
             onClick={restricted ? undefined : onClick}
         >
-            {isRoot ? null : (
+            {!isRoot && hasChildren ? (
                 <ActionIcon
-                    data-has-children={hasChildren}
+                    aria-label={`${expanded ? 'Collapse' : 'Expand'} ${stringLabel}`}
+                    aria-expanded={expanded}
                     className={classes.actionIcon}
                     onClick={(e) => {
                         e.stopPropagation();
@@ -88,21 +100,32 @@ const TreeItem: React.FC<Props> = ({
                     size="xs"
                     variant="transparent"
                 >
-                    <MantineIcon
-                        icon={expanded ? IconChevronDown : IconChevronRight}
-                        size="lg"
-                        color="dimmed"
-                    />
+                    <span
+                        className={classes.folderToggle}
+                        data-expanded={expanded}
+                        aria-hidden
+                    >
+                        <span className={classes.folderClosed}>
+                            <MantineIcon
+                                icon={IconFolders}
+                                color="ldGray.7"
+                                size="lg"
+                                stroke={1.5}
+                            />
+                        </span>
+                        <span className={classes.folderOpen}>
+                            <MantineIcon
+                                icon={IconFolderOpen}
+                                color="ldGray.7"
+                                size="lg"
+                                stroke={1.5}
+                            />
+                        </span>
+                    </span>
                 </ActionIcon>
+            ) : (
+                folderIcon
             )}
-
-            <MantineIcon
-                icon={IconFolder}
-                color="ldGray.7"
-                size="lg"
-                stroke={1.5}
-                className={classes.itemIcon}
-            />
 
             <Highlight
                 truncate="end"

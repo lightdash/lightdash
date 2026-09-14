@@ -235,6 +235,7 @@ const Tree: React.FC<Props> = (props) => {
                 <MantineTree
                     data={treeData}
                     tree={tree}
+                    withLines
                     levelOffset={rem(23)}
                     renderNode={({
                         node,
@@ -321,6 +322,7 @@ const Tree: React.FC<Props> = (props) => {
                     classNames={{
                         node: classes.node,
                         label: classes.label,
+                        subtree: classes.subtree,
                     }}
                 />
             </Box>

@@ -26,17 +26,70 @@
 }
 
 .actionIcon {
+    overflow: visible;
+    flex-shrink: 0;
     opacity: 0.8;
 
     &:hover {
         opacity: 1;
     }
-
-    &:where([data-has-children='false']) {
-        visibility: hidden;
-    }
 }
 
 .itemIcon {
     flex-shrink: 0;
+}
+
+.folderToggle {
+    position: relative;
+    flex-shrink: 0;
+    width: var(--mantine-spacing-lg);
+    height: var(--mantine-spacing-lg);
+    pointer-events: none;
+}
+
+.folderClosed,
+.folderOpen {
+    position: absolute;
+    inset: 0;
+    transform-origin: 50% 85%;
+    transition:
+        transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 120ms ease;
+}
+
+.folderClosed {
+    opacity: 1;
+    transform: scaleY(1) rotate(0deg);
+}
+
+.folderOpen {
+    opacity: 0;
+    transform: scaleY(0.85) rotate(6deg);
+}
+
+.folderToggle[data-expanded='true'] {
+    .folderClosed {
+        opacity: 0;
+        transform: scaleY(0.85) rotate(-6deg);
+    }
+
+    .folderOpen {
+        opacity: 1;
+        transform: scaleY(1) rotate(0deg);
+    }
+}
+
+.actionIcon:focus-visible,
+:global([role='treeitem']):focus-visible {
+    .folderClosed,
+    .folderOpen {
+        transition: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .folderClosed,
+    .folderOpen {
+        transition: none;
+    }
 }
