@@ -959,6 +959,27 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     };
 };
 
+export const parseStaticAssetsS3Config = ():
+    | Omit<S3Config, 'expirationTime'>
+    | undefined => {
+    const bucket = process.env.ASSETS_S3_BUCKET;
+    if (!bucket) {
+        return undefined;
+    }
+    const base = parseBaseS3Config();
+    if (!base) {
+        return undefined;
+    }
+    return {
+        ...base,
+        bucket,
+        endpoint: process.env.ASSETS_S3_ENDPOINT || base.endpoint,
+        region: process.env.ASSETS_S3_REGION || base.region,
+        accessKey: process.env.ASSETS_S3_ACCESS_KEY || base.accessKey,
+        secretKey: process.env.ASSETS_S3_SECRET_KEY || base.secretKey,
+    };
+};
+
 export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     const baseS3Config = parseBaseS3Config();
 
@@ -1598,6 +1619,7 @@ export type LightdashConfig = {
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    staticAssets: { s3?: Omit<S3Config, 'expirationTime'> };
     natsWorker: {
         enabled: boolean;
         url: string | undefined;
@@ -3422,6 +3444,7 @@ export const parseConfig = (): LightdashConfig => {
             ),
             s3: parseResultsS3Config(),
         },
+        staticAssets: { s3: parseStaticAssetsS3Config() },
         natsWorker: {
             enabled: natsWorkerEnabled,
             url: natsWorkerUrl,

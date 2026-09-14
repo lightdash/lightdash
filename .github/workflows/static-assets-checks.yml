@@ -1,0 +1,19 @@
+name: Static asset uploader checks
+
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/upload-static-assets.py'
+      - '.github/scripts/test_upload_static_assets.py'
+      - '.github/workflows/static-assets-checks.yml'
+      - '.github/workflows/post-release.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: python3 -m unittest discover -s .github/scripts -p test_upload_static_assets.py

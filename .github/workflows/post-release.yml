@@ -82,6 +82,9 @@ jobs:
         with:
           version: '>= 381.0.0'
 
+      - name: Show release service account
+        run: gcloud auth list --filter=status:ACTIVE --format='value(account)'
+
       - name: Configure Docker authentication for GCP regions
         run: |
           gcloud auth configure-docker us-docker.pkg.dev
@@ -120,6 +123,32 @@ jobs:
             SENTRY_FRONTEND_PROJECT=lightdash-frontend
             SENTRY_BACKEND_PROJECT=lightdash-backend
             SENTRY_ENVIRONMENT=cloud_beta
+
+  # Asset retention is opt-in until the regional buckets and writer IAM exist.
+  push-static-assets:
+    name: Retain frontend assets
+    if: vars.STATIC_ASSETS_RETENTION_ENABLED == 'true'
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS_IMAGE_DEPLOY }}'
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+      - name: Upload the published image assets
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gcloud auth configure-docker us-docker.pkg.dev --quiet
+          python3 .github/scripts/upload-static-assets.py \
+            --image "us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${RELEASE_TAG}-commercial" \
+            --bucket lightdash-static-assets-us \
+            --bucket lightdash-static-assets-eu \
+            --bucket lightdash-static-assets-staging
 
   # ============================================================================
   # Job 2: QA Blast Radius
