@@ -1,3 +1,12 @@
+## [2.209.1](https://github.com/lightdash/lightdash/compare/2.209.0...2.209.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* contain chart history and AI within dashboard editor ([#29168](https://github.com/lightdash/lightdash/issues/29168)) ([351fd46](https://github.com/lightdash/lightdash/commit/351fd46c584f229df01faea39d6f826fe59742b7))
+* gate chart type schema and thumbnail reads on the explore, not app view ([#29093](https://github.com/lightdash/lightdash/issues/29093)) ([a99dec1](https://github.com/lightdash/lightdash/commit/a99dec1bde51a167ad1941ea5b9ac764a756214c))
+* search formula fields by their full label ([#29152](https://github.com/lightdash/lightdash/issues/29152)) ([016d65f](https://github.com/lightdash/lightdash/commit/016d65ffe9338d151e162507c2f320c92cdd0292))
+
 # [2.209.0](https://github.com/lightdash/lightdash/compare/2.208.0...2.209.0) (2026-09-14)
 
 

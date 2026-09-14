@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.209.0",
-  "previousVersion": "2.208.0",
-  "releaseDate": "2026-09-14T15:23:15.558Z",
+  "version": "2.209.1",
+  "previousVersion": "2.209.0",
+  "releaseDate": "2026-09-14T15:55:56.536Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,25 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/review-requests — added the new `potential_duplicate` enum value to the `results/data/items/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests — added the new `related` enum value to the `results/data/items/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests — added the new `potential_duplicate` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `201`",
-        "POST /api/v1/projects/{projectUuid}/review-requests — added the new `related` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `201`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid} — added the new `potential_duplicate` enum value to the `results/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid} — added the new `related` enum value to the `results/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/similar — added the new `potential_duplicate` enum value to the `results/items/matchReason` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/similar — added the new `related` enum value to the `results/items/matchReason` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/{requestUuid} — added the new `potential_duplicate` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/review-requests/{requestUuid} — added the new `related` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/approve — added the new `potential_duplicate` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/approve — added the new `related` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/cancel — added the new `potential_duplicate` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/cancel — added the new `related` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/reject — added the new `potential_duplicate` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/review-requests/{requestUuid}/reject — added the new `related` enum value to the `results/allOf[#/components/schemas/ContentReviewRequestListItem]/allOf[#/components/schemas/ContentReviewRequest]/similarContent/items/matchReason` response property for the response status `200`"
-      ],
-      "advisoryCount": 16
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
