@@ -1,11 +1,11 @@
 import {
+    getGroupByDimensions,
     getWebAiChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
     type CreateSavedChartVersion,
     type DashboardV2Visualization,
-    type DashboardVisualization,
 } from '@lightdash/common';
 
 export type VizQueryWithOverrides = ApiAiAgentThreadMessageVizQuery & {
@@ -15,7 +15,7 @@ export type VizQueryWithOverrides = ApiAiAgentThreadMessageVizQuery & {
 
 function convertAiVisualizationToCreateSavedChartVersion(
     aiVizData: VizQueryWithOverrides,
-    dashboardVisualization: DashboardVisualization | DashboardV2Visualization,
+    dashboardVisualization: DashboardV2Visualization,
     options: {
         name: string;
         description?: string;
@@ -29,17 +29,23 @@ function convertAiVisualizationToCreateSavedChartVersion(
         aiVizData;
     const { metricQuery } = query;
 
+    const webAiChartConfig = getWebAiChartConfig({
+        vizConfig: dashboardVisualization,
+        metricQuery,
+        maxQueryLimit: options.maxQueryLimit,
+        fieldsMap: aiVizData.query.fields,
+        overrideChartType: selectedChartType ?? undefined,
+    });
+
     // Use expanded chart config if available (user made custom changes to the chart),
     // otherwise generate config from dashboard visualization with chart type override
     const finalChartConfig =
-        expandedChartConfig ??
-        getWebAiChartConfig({
-            vizConfig: dashboardVisualization,
-            metricQuery,
-            maxQueryLimit: options.maxQueryLimit,
-            fieldsMap: aiVizData.query.fields,
-            overrideChartType: selectedChartType ?? undefined,
-        }).echartsConfig;
+        expandedChartConfig ?? webAiChartConfig.echartsConfig;
+
+    // The artifact preview pivots results by the groupBy hint; the saved chart
+    // needs the same dimensions persisted as pivotConfig or its series can't
+    // bind to the un-pivoted results and the chart renders flat.
+    const groupByDimensions = getGroupByDimensions(webAiChartConfig);
 
     // Create table config with proper column order
     const tableConfig = {
@@ -55,6 +61,9 @@ function convertAiVisualizationToCreateSavedChartVersion(
         tableName: metricQuery.exploreName,
         metricQuery,
         chartConfig: finalChartConfig,
+        pivotConfig: groupByDimensions?.length
+            ? { columns: groupByDimensions }
+            : undefined,
         tableConfig,
         dashboardUuid: options.dashboardUuid,
         dashboardName: options.dashboardName,
@@ -67,7 +76,7 @@ export function convertDashboardVisualizationsToChartData(
     dashboardConfig: {
         title: string;
         description: string;
-        visualizations: (DashboardVisualization | DashboardV2Visualization)[];
+        visualizations: DashboardV2Visualization[];
     },
     vizQueryResults: VizQueryWithOverrides[],
     options: {

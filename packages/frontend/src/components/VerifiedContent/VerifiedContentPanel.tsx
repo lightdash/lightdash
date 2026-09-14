@@ -4,15 +4,12 @@ import {
     Anchor,
     Badge,
     Button,
-    Group,
     Menu,
-    Paper,
     Stack,
     Text,
-    Title,
     useMantineTheme,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconChartBar,
     IconCircleX,
@@ -33,7 +30,7 @@ import {
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { SettingsEmptyState } from '../common/Settings/SettingsEmptyState';
 
 type Props = {
     projectUuid: string;
@@ -84,11 +81,11 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 enableSorting: false,
                 size: 250,
                 Cell: ({ row }) => {
-                    const { contentType, contentUuid, name } = row.original;
+                    const { contentType, name } = row.original;
                     const href =
                         contentType === ContentType.CHART
-                            ? `/projects/${projectUuid}/saved/${contentUuid}`
-                            : `/projects/${projectUuid}/dashboards/${contentUuid}`;
+                            ? `/projects/${projectUuid}/saved/${row.original.slug}`
+                            : `/projects/${projectUuid}/dashboards/${row.original.slug}`;
                     return (
                         <Anchor
                             component={Link}
@@ -112,7 +109,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                         row.original.contentType === ContentType.CHART;
                     return (
                         <Badge
-                            variant="light"
                             color={isChart ? 'blue' : 'violet'}
                             leftSection={
                                 <MantineIcon
@@ -175,11 +171,9 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 enableSorting: false,
                 size: 80,
                 Cell: ({ row }) => (
-                    <Menu withinPortal position="bottom-end">
+                    <Menu position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                 }}
@@ -209,7 +203,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         columns,
         data: items,
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: false,
         enableTopToolbar: false,
@@ -217,16 +210,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         enableStickyHeader: true,
         state: {
             isLoading,
-        },
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100vh - 300px)' },
@@ -262,11 +245,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 },
             };
         },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableBodyCellProps: () => ({
             h: 48,
             style: {
@@ -281,21 +259,16 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
 
     if (!isLoading && items.length === 0) {
         return (
-            <Paper p="xl">
-                <SuboptimalState
-                    icon={IconCircleX}
-                    title="No verified content"
-                    description="Charts and dashboards that are verified will appear here."
-                />
-            </Paper>
+            <SettingsEmptyState
+                icon={IconCircleX}
+                title="No verified content"
+                description="Charts and dashboards that are verified will appear here."
+            />
         );
     }
 
     return (
         <Stack gap="md">
-            <Group justify="space-between">
-                <Title order={4}>Verified content</Title>
-            </Group>
             <ContentTable table={table} />
 
             <MantineModal

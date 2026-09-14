@@ -3,9 +3,7 @@ import {
     type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
+    type DashboardV2Visualization,
 } from '@lightdash/common';
 import {
     Center,
@@ -17,11 +15,11 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
+} from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useState, type FC } from 'react';
+import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -33,7 +31,7 @@ import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 
 type Props = {
-    visualization: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
+    visualization: DashboardV2Visualization;
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
@@ -177,6 +175,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     <AiChartQuickOptions
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
+                        showDownloadResults={false}
                         saveChartOptions={{
                             name: visualization.title,
                             description: visualization.description ?? null,
@@ -184,6 +183,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                         }}
                         message={message}
                         compiledSql={compiledSql?.query}
+                        merge={null}
                     />
                 </Group>
             </Group>
@@ -217,28 +217,28 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     <Paper p="md" bg="ldGray.0">
                         <Center h={100}>
                             <Stack gap="xs" align="center">
-                                <HoverCard withinPortal position="left">
+                                <HoverCard position="left">
                                     <HoverCard.Target>
                                         <MantineIcon
                                             icon={IconExclamationCircle}
                                         />
                                     </HoverCard.Target>
                                     <HoverCard.Dropdown p={0} maw={500}>
-                                        <Prism
+                                        <CodeBlock
+                                            code={JSON.stringify(
+                                                visualization,
+                                                null,
+                                                2,
+                                            )}
                                             language="json"
+                                            lineNumberFontSize={10}
                                             withLineNumbers
                                             styles={{
                                                 code: {
                                                     fontSize: 10,
                                                 },
                                             }}
-                                        >
-                                            {JSON.stringify(
-                                                visualization,
-                                                null,
-                                                2,
-                                            )}
-                                        </Prism>
+                                        />
                                     </HoverCard.Dropdown>
                                 </HoverCard>
 

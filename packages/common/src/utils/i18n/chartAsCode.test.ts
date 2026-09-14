@@ -100,9 +100,10 @@ describe('ChartAsCodeInternalization', () => {
                 name: 'Test Chart',
                 description: '',
             });
-            expect(
-                languageMap.chart[chartAsCode.slug].chartConfig,
-            ).toBeUndefined();
+            expect(languageMap.chart[chartAsCode.slug].chartConfig).toEqual({
+                type: ChartType.CARTESIAN,
+                config: {},
+            });
         });
 
         it('should handle valid pie chart', () => {
@@ -274,6 +275,9 @@ describe('ChartAsCodeInternalization', () => {
                             column1: {
                                 name: 'Column 1',
                             },
+                            column2: {
+                                visible: false,
+                            },
                         },
                     },
                 },
@@ -302,12 +306,16 @@ describe('ChartAsCodeInternalization', () => {
             expect(languageMap).toBeDefined();
             expect(languageMap.chart).toBeDefined();
             expect(languageMap.chart[chartAsCode.slug]).toBeDefined();
-            expect(
-                languageMap.chart[chartAsCode.slug].chartConfig,
-            ).toBeDefined();
-            expect(languageMap.chart[chartAsCode.slug].chartConfig?.type).toBe(
-                ChartType.TABLE,
-            );
+            expect(languageMap.chart[chartAsCode.slug].chartConfig).toEqual({
+                type: ChartType.TABLE,
+                config: {
+                    columns: {
+                        column1: {
+                            name: 'Column 1',
+                        },
+                    },
+                },
+            });
         });
 
         it('should handle custom chart', () => {

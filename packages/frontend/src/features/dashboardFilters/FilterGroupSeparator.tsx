@@ -1,4 +1,4 @@
-import { Center, Tooltip } from '@mantine-8/core';
+import { Center, Tooltip } from '@mantine/core';
 import { type Icon } from '@tabler/icons-react';
 import { type FC, type JSX } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -25,7 +25,7 @@ const FilterGroupSeparator: FC<Props> = ({
             >
                 <MantineIcon
                     icon={icon}
-                    color="ldGray.6"
+                    color="dimmed"
                     size={size === 'md' ? undefined : 16}
                 />
             </Center>

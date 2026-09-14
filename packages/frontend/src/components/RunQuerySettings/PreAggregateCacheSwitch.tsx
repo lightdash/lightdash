@@ -1,4 +1,4 @@
-import { Switch, Tooltip, type MantineSize } from '@mantine-8/core';
+import { Switch, Tooltip, type MantineSize } from '@mantine/core';
 import { memo, useCallback, type FC } from 'react';
 import {
     explorerActions,
@@ -22,8 +22,6 @@ const PreAggregateCacheSwitch: FC<Props> = memo(({ size }) => {
             label="Route queries through pre-aggregate cache when available"
             position="bottom"
             refProp="rootRef"
-            withArrow
-            withinPortal
         >
             <Switch
                 size={size}

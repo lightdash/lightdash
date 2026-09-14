@@ -16,10 +16,10 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
+} from '@mantine/core';
 import { IconCode, IconTable } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
+import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExploreMetric } from '../hooks/useExploreMetric';
 import { useMetric } from '../hooks/useMetricsCatalog';
@@ -99,14 +99,13 @@ const CompiledQuerySection: FC<{
                             <Loader size="sm" />
                         </Group>
                     ) : data ? (
-                        <Prism
+                        <CodeBlock
+                            code={data.query}
                             language="sql"
                             className={classes.codeBlock}
                             copyLabel="Copy SQL"
                             copiedLabel="Copied!"
-                        >
-                            {data.query}
-                        </Prism>
+                        />
                     ) : (
                         <Text size="xs" c="dimmed">
                             Unable to load SQL
@@ -151,7 +150,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                         {metric.tableLabel}
                     </Text>
                 </Group>
-                <Badge size="xs" variant="light" color="indigo" radius="sm">
+                <Badge size="xs" color="indigo">
                     {metric.type.toUpperCase()}
                 </Badge>
             </Group>
@@ -163,7 +162,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                     <Text size="xs" c="dimmed" fw={500}>
                         {compiledQueryConfig ? 'Metric SQL' : 'SQL'}
                     </Text>
-                    <Tooltip label="Show compiled SQL" withinPortal>
+                    <Tooltip label="Show compiled SQL">
                         <Group
                             gap={4}
                             className={classes.compiledToggle}
@@ -184,9 +183,12 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                         </Group>
                     </Tooltip>
                 </Group>
-                <Prism language="sql" className={classes.codeBlock} noCopy>
-                    {sqlToShow}
-                </Prism>
+                <CodeBlock
+                    code={sqlToShow}
+                    language="sql"
+                    className={classes.codeBlock}
+                    withCopyButton={false}
+                />
             </Box>
 
             {metric.timeDimension && (
@@ -198,7 +200,6 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                         </Text>
                         <Tooltip
                             label={`${metric.timeDimension.table}.${metric.timeDimension.field}`}
-                            withinPortal
                         >
                             <Text size="xs">
                                 {metric.timeDimension.table !== metric.table &&
@@ -223,7 +224,6 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
 
             {showExploreButton && (
                 <Button
-                    variant="dark"
                     size="xs"
                     fullWidth
                     onClick={() => {
@@ -265,8 +265,6 @@ export const MetricDetailPopover: FC<Props> = ({
             key={instanceKey}
             position="bottom-start"
             withArrow
-            shadow="md"
-            radius="md"
             offset={8}
             openDelay={300}
             closeDelay={200}

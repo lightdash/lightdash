@@ -9,6 +9,11 @@ import {
     type TableCalculation,
 } from '../../../../types/field';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import {
+    tableCalcFormulaSchema,
+    withLeadingEquals,
+    type TableCalcFormulaSchema,
+} from './tableCalcFormula';
 import { tableCalcPercentChangeFromPreviousSchema } from './tableCalcPercentChangeFromPrevious';
 import { tableCalcPercentOfColumnTotalSchema } from './tableCalcPercentOfColumnTotal';
 import { tableCalcPercentOfPreviousValueSchema } from './tableCalcPercentOfPreviousValue';
@@ -16,7 +21,11 @@ import { tableCalcRankInColumnSchema } from './tableCalcRankInColumn';
 import { tableCalcRunningTotalSchema } from './tableCalcRunningTotal';
 import { tableCalcWindowFunctionSchema } from './tableCalcWindowFunction';
 
+// Wide union: `formula` plus the legacy template types. Kept for parsing
+// persisted tool args from old threads; new agent contracts advertise
+// formulaTableCalcsSchema only.
 const tableCalcSchema = z.discriminatedUnion('type', [
+    tableCalcFormulaSchema,
     tableCalcPercentChangeFromPreviousSchema,
     tableCalcPercentOfPreviousValueSchema,
     tableCalcPercentOfColumnTotalSchema,
@@ -29,9 +38,7 @@ export type TableCalcSchema = z.infer<typeof tableCalcSchema>;
 export const tableCalcsSchema = z.array(tableCalcSchema).nullable().describe(`
 Table calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.
 
-**Available Types:**
-- Simple calculations: percent_change_from_previous, percent_of_previous_value, percent_of_column_total, rank_in_column, running_total
-- Advanced window_function: Supports row_number, percent_rank, sum, avg, count, min, max with optional partitioning, ordering, and frame clauses
+**Prefer type "formula"** — it expresses arithmetic across fields, ratios, comparisons, conditionals, and partitioned window calculations. The other types are legacy single-field templates kept for backwards compatibility.
 
 **Technical Requirements:**
 - Appear as additional columns in query results
@@ -41,6 +48,24 @@ Table calculations perform row-by-row calculations on query results without coll
 `);
 
 export type TableCalcsSchema = z.infer<typeof tableCalcsSchema>;
+
+// Formula-only contract advertised to the agent. The wide tableCalcsSchema
+// above still parses everything this produces.
+export const formulaTableCalcsSchema = z
+    .array(tableCalcFormulaSchema)
+    .nullable().describe(`
+Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
+
+Use them whenever the question needs math the metric query alone can't express: arithmetic across metrics (\`metric_a + metric_b\`), ratios, percent of total, period-over-period change, running totals, moving averages, ranking, row-level comparisons, or aggregating already-aggregated metrics.
+
+**Technical Requirements:**
+- Appear as additional columns in query results
+- Can be used in sorts and filters alongside dimensions/metrics
+- Multiple calculations can be combined in a single query; a formula can reference another table calculation by name
+- All fields referenced must be selected in the query (dimensions, metrics, custom metrics, or other table calculations)
+`);
+
+export type FormulaTableCalcsSchema = z.infer<typeof formulaTableCalcsSchema>;
 
 function frameBoundaryStringToEnum(
     boundaryType:
@@ -66,6 +91,40 @@ function frameBoundaryStringToEnum(
     }
 }
 
+function formulaFormatToCustomFormatType(
+    format: TableCalcFormulaSchema['format'],
+): CustomFormatType {
+    switch (format) {
+        case 'percent':
+            return CustomFormatType.PERCENT;
+        case 'number':
+        case null:
+            return CustomFormatType.NUMBER;
+        default:
+            return assertUnreachable(format, 'Unknown formula format');
+    }
+}
+
+function formulaResultTypeToTableCalculationType(
+    resultType: TableCalcFormulaSchema['resultType'],
+): TableCalculationType {
+    switch (resultType) {
+        case 'string':
+            return TableCalculationType.STRING;
+        case 'date':
+            return TableCalculationType.DATE;
+        case 'timestamp':
+            return TableCalculationType.TIMESTAMP;
+        case 'boolean':
+            return TableCalculationType.BOOLEAN;
+        case 'number':
+        case null:
+            return TableCalculationType.NUMBER;
+        default:
+            return assertUnreachable(resultType, 'Unknown formula result type');
+    }
+}
+
 function convertTableCalcSchemaToTableCalc(
     tableCalc: TableCalcSchema,
 ): TableCalculation {
@@ -79,6 +138,28 @@ function convertTableCalcSchemaToTableCalc(
     };
 
     switch (type) {
+        case 'formula': {
+            const resultType = formulaResultTypeToTableCalculationType(
+                tableCalc.resultType,
+            );
+            return {
+                ...baseCalc,
+                type: resultType,
+                // Persisted formulas carry the leading '=' the grammar requires
+                formula: withLeadingEquals(tableCalc.formula),
+                // Numeric display formats don't apply to non-numeric results
+                ...(resultType === TableCalculationType.NUMBER
+                    ? {
+                          format: {
+                              type: formulaFormatToCustomFormatType(
+                                  tableCalc.format,
+                              ),
+                              separator: NumberSeparator.DEFAULT,
+                          },
+                      }
+                    : {}),
+            };
+        }
         case 'percent_change_from_previous':
             return {
                 ...baseCalc,

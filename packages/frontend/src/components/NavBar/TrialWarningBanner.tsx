@@ -2,7 +2,7 @@ import {
     OrganizationAccessStatus,
     type OrganizationAccess,
 } from '@lightdash/common';
-import { Center, Text } from '@mantine-8/core';
+import { Center, Text } from '@mantine/core';
 import { BANNER_HEIGHT } from '../common/Page/constants';
 import classes from './TrialWarningBanner.module.css';
 
@@ -33,7 +33,7 @@ export const TrialWarningBanner = ({ access }: Props) => {
             <Text
                 c={isExpired ? 'white' : 'gray.9'}
                 size="sm"
-                fw={700}
+                fw={600}
                 truncate
             >
                 {isExpired

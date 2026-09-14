@@ -15,7 +15,7 @@ import {
     Textarea,
     TextInput,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconDownload, IconEdit } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
@@ -35,6 +35,7 @@ import {
     useAiAgentDocumentContent,
     useUpdateAiAgentDocumentContent,
 } from '../hooks/useAiAgentDocuments';
+import classes from './AiAgentKnowledgeDocumentModal.module.css';
 
 const MARKDOWN_REMARK_PLUGINS = [remarkFrontmatter];
 
@@ -194,7 +195,7 @@ const LoadedDocumentModal = ({
                     <Box
                         data-color-mode={colorScheme}
                         h="100%"
-                        style={{ overflowY: 'auto' }}
+                        className={classes.markdownViewer}
                     >
                         <MDEditor.Markdown
                             source={form.values.content}

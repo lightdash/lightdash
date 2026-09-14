@@ -1,4 +1,4 @@
-import { Button, type ButtonProps } from '@mantine-8/core';
+import { Button, type ButtonProps } from '@mantine/core';
 import { IconTelescope, type Icon } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useNavigate } from 'react-router';

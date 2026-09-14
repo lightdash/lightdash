@@ -34,6 +34,13 @@ export type ContentArgs = {
     sortDirection?: 'asc' | 'desc';
     // Opt in to surfacing the caller's personal (space-less) data apps.
     includePersonalDataApps?: boolean;
+    // 'exclude' hides data app vizs (reusable custom chart types); 'only'
+    // returns just them.
+    dataAppVizsFilter?: 'exclude' | 'only';
+    // Restrict to dashboards owned by these users (other content types are excluded)
+    ownerUserUuids?: string[];
+    // Only resources directly granted to the caller or their groups.
+    sharedWithMe?: boolean;
 };
 
 const contentTypeLabel = (contentType: ContentType): string =>

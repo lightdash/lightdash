@@ -1,21 +1,30 @@
 import { subject } from '@casl/ability';
 import {
+    AGENT_SUGGESTIONS_SPACE_SLUG,
+    assertUnreachable,
+    computeAutopilotExcludedSpaceUuids,
+    DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
     ForbiddenError,
     getFixedBrokenMetadata,
     getManagedAgentActionCategory,
     getManagedAgentScheduleCron,
     ManagedAgentActionType,
+    ManagedAgentProtectedEntityType,
     ManagedAgentRunStatus,
     ManagedAgentTargetType,
     NotFoundError,
     ParameterError,
+    ProjectMemberRole,
     ProjectType,
     ServiceAccountScope,
     ValidationErrorType,
+    ValidationSourceType,
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentAudience,
+    type ManagedAgentPolicy,
     type ManagedAgentRun,
     type ManagedAgentRunsListResponse,
     type ManagedAgentRunTriggeredBy,
@@ -42,15 +51,23 @@ import type { ValidationModel } from '../../../models/ValidationModel/Validation
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import {
     ManagedAgentClient,
     type ManagedAgentSessionConfig,
 } from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
+import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import {
+    buildManagedAgentToolListResult,
     formatManagedAgentToolListResult,
     getManagedAgentToolResultLimit,
+    getValidationRootCauseTableName,
+    MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
+    MANAGED_AGENT_BULK_DELETE_RUN_LIMIT,
+    MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT,
+    MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
     summarizeManagedAgentBrokenContent,
 } from './toolResults';
 
@@ -274,29 +291,45 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
         serviceAccountToken: string,
     ): Promise<ManagedAgentSessionConfig> {
+        await this.ensureProjectScopedServiceAccount(
+            projectUuid,
+            serviceAccountToken,
+        );
+
         const {
             agentId,
             agentConfigHash,
             agentVersion,
             environmentId,
             vaultId,
+            vaultConfigHash,
         } = await this.managedAgentModel.getAnthropicResourceIds(projectUuid);
         const project = await this.projectModel.getSummary(projectUuid);
         const organization = await this.organizationModel.get(
             project.organizationUuid,
         );
         const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
 
         return {
+            projectUuid,
             serviceAccountPat: serviceAccountToken,
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
             skillIds: this.lightdashConfig.managedAgent.skillIds,
             toolSettings: settings?.toolSettings ?? {},
+            policy: {
+                ...policy,
+                audience: await this.resolveSuggestionsAudience(
+                    projectUuid,
+                    policy.audience,
+                ),
+            },
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
             persistedEnvironmentId: environmentId,
             persistedVaultId: vaultId,
+            persistedVaultConfigHash: vaultConfigHash,
             onAgentSynced: async (
                 newAgentId,
                 newAgentConfigHash,
@@ -309,14 +342,288 @@ export class ManagedAgentService extends BaseService {
                     newAgentVersion,
                 );
             },
-            onResourcesCreated: async (newEnvId, newVaultId) => {
+            onResourcesCreated: async (
+                newEnvId,
+                newVaultId,
+                newVaultConfigHash,
+            ) => {
                 await this.managedAgentModel.setAnthropicResourceIds(
                     projectUuid,
                     newEnvId,
                     newVaultId,
+                    newVaultConfigHash,
                 );
             },
         };
+    }
+
+    private async ensureProjectScopedServiceAccount(
+        projectUuid: string,
+        serviceAccountToken: string,
+    ): Promise<void> {
+        const serviceAccount =
+            await this.serviceAccountModel.findByToken(serviceAccountToken);
+        if (serviceAccount === undefined) {
+            throw new NotFoundError('Service account not found for token');
+        }
+        const projectGrants =
+            await this.projectModel.getServiceAccountProjectGrants(
+                serviceAccount.uuid,
+            );
+        const isProjectScoped =
+            serviceAccount.scopes.length === 1 &&
+            serviceAccount.scopes[0] === ServiceAccountScope.SYSTEM_MEMBER &&
+            projectGrants.length === 1 &&
+            projectGrants[0].projectUuid === projectUuid &&
+            projectGrants[0].role === ProjectMemberRole.EDITOR &&
+            projectGrants[0].roleUuid === null;
+
+        if (isProjectScoped) {
+            return;
+        }
+
+        await this.projectModel.setServiceAccountProjectAccess(
+            serviceAccount.uuid,
+            [
+                {
+                    projectUuid,
+                    role: ProjectMemberRole.EDITOR,
+                },
+            ],
+            { makeProjectScoped: true },
+        );
+        this.logger.info(
+            `Restricted managed agent service account to project ${projectUuid}`,
+        );
+    }
+
+    private async createProjectScopedServiceAccount(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<string> {
+        const serviceAccount = await this.serviceAccountModel.create({
+            user,
+            data: {
+                organizationUuid,
+                description: `Autopilot (${projectUuid})`,
+                expiresAt: null,
+                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+            },
+        });
+
+        try {
+            await this.projectModel.createServiceAccountProjectAccess(
+                projectUuid,
+                serviceAccount.uuid,
+                {
+                    role: ProjectMemberRole.EDITOR,
+                    roleUuid: undefined,
+                },
+            );
+        } catch (error) {
+            await this.serviceAccountModel.delete(serviceAccount.uuid);
+            throw error;
+        }
+
+        return serviceAccount.token;
+    }
+
+    private async getPolicy(projectUuid: string): Promise<ManagedAgentPolicy> {
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        return settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+    }
+
+    // Spaces Autopilot must not see, per the project's scope mode and space
+    // selection. Selections inherit down the space tree; the Agent Suggestions
+    // space is always in scope.
+    private async getExcludedSpaceUuids(
+        projectUuid: string,
+    ): Promise<Set<string>> {
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const mode =
+            settings?.policy.spaceScopeMode ??
+            DEFAULT_MANAGED_AGENT_POLICY.spaceScopeMode;
+        const selected = settings?.scopedSpaceUuids ?? [];
+        if (mode === 'all-except' && selected.length === 0) {
+            return new Set();
+        }
+        const spaces = await this.spaceModel.find({ projectUuid });
+        return computeAutopilotExcludedSpaceUuids(
+            spaces.map((space) => ({
+                uuid: space.uuid,
+                parentSpaceUuid: space.parentSpaceUuid,
+                slug: space.slug,
+            })),
+            mode,
+            selected,
+        );
+    }
+
+    // Single choke point for admin-configured protections. Returns a blocked
+    // tool result when the target may not be mutated, null when allowed.
+    // When `attempt` is provided, blocked attempts are recorded as dismissable
+    // 'blocked' actions so admins can see Autopilot tried and was stopped.
+    private async checkTargetProtectionGuard(
+        projectUuid: string,
+        targetType: ManagedAgentTargetType,
+        targetUuid: string,
+        targetName: string,
+        attempt?: {
+            actor: SessionUser;
+            sessionId: string;
+            runUuid: string;
+            attemptedAction: 'flag' | 'fix' | 'soft-delete';
+        },
+    ): Promise<string | null> {
+        let entityType: ManagedAgentProtectedEntityType;
+        switch (targetType) {
+            case ManagedAgentTargetType.CHART:
+                entityType = ManagedAgentProtectedEntityType.CHART;
+                break;
+            case ManagedAgentTargetType.DASHBOARD:
+                entityType = ManagedAgentProtectedEntityType.DASHBOARD;
+                break;
+            case ManagedAgentTargetType.SPACE:
+            case ManagedAgentTargetType.PROJECT:
+                return null;
+            default:
+                return assertUnreachable(
+                    targetType,
+                    `Unknown target type: ${targetType}`,
+                );
+        }
+
+        let blocked: { reason: string; message: string } | null = null;
+
+        const level = await this.managedAgentModel.findProtectionLevel(
+            projectUuid,
+            entityType,
+            targetUuid,
+        );
+        if (level) {
+            blocked = {
+                reason: level,
+                message: `"${targetName}" is ${level} from Autopilot by a project admin. Do not flag, fix, or delete it${
+                    level === 'excluded' ? ', and do not report on it' : ''
+                }.`,
+            };
+        }
+
+        // Verified content is protected by default: a human vouched for the
+        // definition, so Autopilot reports instead of rewriting.
+        if (!blocked) {
+            const policy = await this.getPolicy(projectUuid);
+            if (policy.verifiedContent === 'protected') {
+                const isVerified =
+                    await this.managedAgentModel.isContentVerified(
+                        entityType === ManagedAgentProtectedEntityType.CHART
+                            ? 'chart'
+                            : 'dashboard',
+                        targetUuid,
+                    );
+                if (isVerified) {
+                    blocked = {
+                        reason: 'verified',
+                        message: `"${targetName}" is verified content and protected by project policy. You may report on it with log_insight, but do not flag, fix, or delete it.`,
+                    };
+                }
+            }
+        }
+
+        // Defense in depth: content living in an out-of-scope space cannot be
+        // mutated even if a read tool leaked it.
+        if (!blocked) {
+            const spaceUuid =
+                entityType === ManagedAgentProtectedEntityType.CHART
+                    ? await this.managedAgentModel.getChartSpaceUuid(targetUuid)
+                    : await this.managedAgentModel.getDashboardSpaceUuid(
+                          targetUuid,
+                      );
+            if (spaceUuid) {
+                const excludedSpaces =
+                    await this.getExcludedSpaceUuids(projectUuid);
+                if (excludedSpaces.has(spaceUuid)) {
+                    blocked = {
+                        reason: 'out_of_scope',
+                        message: `"${targetName}" is in a space that is out of Autopilot's scope. Do not flag, fix, delete, or report on it.`,
+                    };
+                }
+            }
+        }
+
+        if (!blocked) {
+            return null;
+        }
+
+        if (attempt) {
+            await this.recordBlockedAttempt(
+                projectUuid,
+                targetType,
+                targetUuid,
+                targetName,
+                blocked.reason,
+                attempt,
+            );
+        }
+
+        return JSON.stringify({ error: blocked.message, blocked: true });
+    }
+
+    // One live blocked action per target: repeat attempts on the same target
+    // do not pile up until the admin dismisses the existing one.
+    private async recordBlockedAttempt(
+        projectUuid: string,
+        targetType: ManagedAgentTargetType,
+        targetUuid: string,
+        targetName: string,
+        reason: string,
+        attempt: {
+            actor: SessionUser;
+            sessionId: string;
+            runUuid: string;
+            attemptedAction: 'flag' | 'fix' | 'soft-delete';
+        },
+    ): Promise<void> {
+        try {
+            const alreadyRecorded =
+                await this.managedAgentModel.hasActiveBlockedActionForTarget(
+                    projectUuid,
+                    targetUuid,
+                );
+            if (alreadyRecorded) {
+                return;
+            }
+            const reasonText: Record<string, string> = {
+                protected: 'it is marked as protected by a project admin',
+                excluded: 'it is excluded from Autopilot by a project admin',
+                verified: 'it is verified content, protected by project policy',
+                out_of_scope: "its space is out of Autopilot's scope",
+            };
+            const action = await this.managedAgentModel.createAction({
+                projectUuid,
+                sessionId: attempt.sessionId,
+                managedAgentRunUuid: attempt.runUuid,
+                actionType: ManagedAgentActionType.BLOCKED,
+                targetType,
+                targetUuid,
+                targetName,
+                description: `Autopilot attempted to ${attempt.attemptedAction} "${targetName}" but was blocked: ${
+                    reasonText[reason] ?? reason
+                }.`,
+                metadata: {
+                    reason,
+                    attemptedAction: attempt.attemptedAction,
+                },
+            });
+            this.trackActionCreated(attempt.actor, attempt.runUuid, action);
+        } catch (error) {
+            this.logger.error(
+                `Failed to record blocked Autopilot attempt for ${targetUuid}: ${
+                    error instanceof Error ? error.message : 'Unknown'
+                }`,
+            );
+        }
     }
 
     private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
@@ -403,7 +710,7 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private async getChartAccessContext(
+    private async resolveChartAccess(
         actor: SessionUser,
         chart: {
             spaceUuid: string;
@@ -413,10 +720,10 @@ export class ManagedAgentService extends BaseService {
         access: unknown[];
     }> {
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                actor.userUuid,
-                chart.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(actor.userUuid, {
+                type: 'space',
+                spaceUuid: chart.spaceUuid,
+            });
         return { inheritsFromOrgOrProject, access };
     }
 
@@ -431,7 +738,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<boolean> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getChartAccessContext(actor, chart);
+            await this.resolveChartAccess(actor, chart);
         const auditedAbility = this.createAuditedAbility(actor);
         return auditedAbility.can(
             'view',
@@ -459,7 +766,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<void> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getChartAccessContext(actor, chart);
+            await this.resolveChartAccess(actor, chart);
         const auditedAbility = this.createAuditedAbility(actor);
         if (
             auditedAbility.cannot(
@@ -493,7 +800,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<void> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getChartAccessContext(actor, chart);
+            await this.resolveChartAccess(actor, chart);
         const auditedAbility = this.createAuditedAbility(actor);
         if (
             auditedAbility.cannot(
@@ -582,10 +889,10 @@ export class ManagedAgentService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                actor.userUuid,
+            await this.spacePermissionService.resolveAccess(actor.userUuid, {
+                type: 'space',
                 spaceUuid,
-            );
+            });
         const auditedAbility = this.createAuditedAbility(actor);
         if (
             auditedAbility.cannot(
@@ -605,7 +912,7 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private async getDashboardAccessContext(
+    private async resolveDashboardAccess(
         actor: SessionUser,
         dashboard: {
             spaceUuid: string;
@@ -615,10 +922,10 @@ export class ManagedAgentService extends BaseService {
         access: unknown[];
     }> {
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                actor.userUuid,
-                dashboard.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(actor.userUuid, {
+                type: 'space',
+                spaceUuid: dashboard.spaceUuid,
+            });
         return { inheritsFromOrgOrProject, access };
     }
 
@@ -633,7 +940,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<boolean> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getDashboardAccessContext(actor, dashboard);
+            await this.resolveDashboardAccess(actor, dashboard);
         const auditedAbility = this.createAuditedAbility(actor);
         return auditedAbility.can(
             'view',
@@ -661,7 +968,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<void> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getDashboardAccessContext(actor, dashboard);
+            await this.resolveDashboardAccess(actor, dashboard);
         const auditedAbility = this.createAuditedAbility(actor);
         if (
             auditedAbility.cannot(
@@ -742,12 +1049,23 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private createContentVisibilityChecker(actor: SessionUser): {
+    private createContentVisibilityChecker(
+        actor: SessionUser,
+        projectUuid: string,
+    ): {
         canViewChartUuid: (chartUuid: string) => Promise<boolean>;
         canViewDashboardUuid: (dashboardUuid: string) => Promise<boolean>;
     } {
         const chartVisibilityCache = new Map<string, Promise<boolean>>();
         const dashboardVisibilityCache = new Map<string, Promise<boolean>>();
+        // Lazy so callers that never resolve a uuid do not pay for it
+        let excludedSpacesPromise: Promise<Set<string>> | null = null;
+        const getExcludedSpaces = () => {
+            if (!excludedSpacesPromise) {
+                excludedSpacesPromise = this.getExcludedSpaceUuids(projectUuid);
+            }
+            return excludedSpacesPromise;
+        };
 
         const getCachedVisibility = (
             cache: Map<string, Promise<boolean>>,
@@ -775,6 +1093,9 @@ export class ManagedAgentService extends BaseService {
                             undefined,
                             { deleted: 'any' },
                         );
+                        if ((await getExcludedSpaces()).has(chart.spaceUuid)) {
+                            return false;
+                        }
                         return this.canActorViewChart(actor, chart);
                     },
                 ),
@@ -788,6 +1109,11 @@ export class ManagedAgentService extends BaseService {
                                 dashboardUuid,
                                 { deleted: 'any' },
                             );
+                        if (
+                            (await getExcludedSpaces()).has(dashboard.spaceUuid)
+                        ) {
+                            return false;
+                        }
                         return this.canActorViewDashboard(actor, dashboard);
                     },
                 ),
@@ -848,10 +1174,36 @@ export class ManagedAgentService extends BaseService {
     ): Promise<ManagedAgentSettings> {
         await this.assertCanManageProject(user, projectUuid);
         const previous = await this.managedAgentModel.getSettings(projectUuid);
+
+        // Space scope updates replace the selection atomically and keep the
+        // mode on the policy object. Reject uuids from other projects.
+        let effectiveUpdate = update;
+        if (update.spaceScope !== undefined) {
+            const projectSpaces = await this.spaceModel.find({ projectUuid });
+            const validSpaceUuids = new Set(
+                projectSpaces.map((space) => space.uuid),
+            );
+            await this.managedAgentModel.replaceSpaceScope(
+                projectUuid,
+                update.spaceScope.mode,
+                update.spaceScope.spaceUuids.filter((spaceUuid) =>
+                    validSpaceUuids.has(spaceUuid),
+                ),
+                userUuid,
+            );
+            effectiveUpdate = {
+                ...update,
+                policy: {
+                    ...update.policy,
+                    spaceScopeMode: update.spaceScope.mode,
+                },
+            };
+        }
+
         const settings = await this.managedAgentModel.upsertSettings(
             projectUuid,
             userUuid,
-            update,
+            effectiveUpdate,
         );
 
         // Create a service account for MCP auth if one doesn't exist yet.
@@ -864,18 +1216,15 @@ export class ManagedAgentService extends BaseService {
             if (!existingToken) {
                 const { organizationUuid } =
                     await this.projectModel.getSummary(projectUuid);
-                const serviceAccount = await this.serviceAccountModel.create({
-                    user,
-                    data: {
+                const serviceAccountToken =
+                    await this.createProjectScopedServiceAccount(
+                        user,
+                        projectUuid,
                         organizationUuid,
-                        description: `Autopilot (${projectUuid})`,
-                        expiresAt: null,
-                        scopes: [ServiceAccountScope.ORG_ADMIN],
-                    },
-                });
+                    );
                 await this.managedAgentModel.setServiceAccountToken(
                     projectUuid,
-                    serviceAccount.token,
+                    serviceAccountToken,
                 );
                 this.logger.info(
                     `Created service account for managed agent in project ${projectUuid}`,
@@ -895,7 +1244,11 @@ export class ManagedAgentService extends BaseService {
             await this.schedulerClient.cancelManagedAgentHeartbeat(projectUuid);
         }
 
-        if (update.enabled || update.toolSettings !== undefined) {
+        if (
+            update.enabled ||
+            update.toolSettings !== undefined ||
+            update.policy !== undefined
+        ) {
             await this.syncProjectAgentConfig(projectUuid);
         }
 
@@ -1524,6 +1877,8 @@ export class ManagedAgentService extends BaseService {
                 summaryParts.push(
                     `*${counts.insight}* insight${counts.insight > 1 ? 's' : ''}`,
                 );
+            if (counts.blocked)
+                summaryParts.push(`*${counts.blocked}* blocked by protections`);
 
             // Convert agent's markdown summary to Slack mrkdwn
             // Main message: compact summary with CTA
@@ -1635,7 +1990,7 @@ export class ManagedAgentService extends BaseService {
                     'dashboards',
                 );
             case 'get_broken_content':
-                return this.handleGetBrokenContent(actor, projectUuid);
+                return this.handleGetBrokenContent(actor, projectUuid, input);
             case 'get_preview_projects':
                 return this.handleGetPreviewProjects(actor, projectUuid);
             case 'get_popular_content':
@@ -1650,6 +2005,14 @@ export class ManagedAgentService extends BaseService {
                 );
             case 'soft_delete_content':
                 return this.handleSoftDelete(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
+            case 'bulk_delete_broken_content':
+                return this.handleBulkDeleteBrokenContent(
                     actor,
                     projectUuid,
                     sessionId,
@@ -1688,6 +2051,14 @@ export class ManagedAgentService extends BaseService {
                 return this.handleGetUserQuestions(actor, projectUuid, input);
             case 'get_slow_queries':
                 return this.handleGetSlowQueries(actor, projectUuid, input);
+            case 'get_inactive_users':
+                return this.handleGetInactiveUsers(projectUuid, input);
+            case 'get_orphaned_content':
+                return this.handleGetOrphanedContent(actor, projectUuid, input);
+            case 'get_unused_agents':
+                return this.handleGetUnusedAgents(projectUuid, input);
+            case 'get_preagg_candidates':
+                return this.handleGetPreAggCandidates(projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(actor, projectUuid, input);
             default:
@@ -1736,8 +2107,19 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
         type: 'charts' | 'dashboards',
     ): Promise<string> {
-        const unused = await this.analyticsModel.getUnusedContent(projectUuid);
-        const items = type === 'charts' ? unused.charts : unused.dashboards;
+        const policy = await this.getPolicy(projectUuid);
+        const [unused, excludedSpaces] = await Promise.all([
+            this.analyticsModel.getUnusedContent(projectUuid, {
+                stalenessChartDays: policy.stalenessChartDays,
+                stalenessDashboardDays: policy.stalenessDashboardDays,
+                protectRecentDays: policy.protectRecentDays,
+                limit: 50,
+            }),
+            this.getExcludedSpaceUuids(projectUuid),
+        ]);
+        const items = (
+            type === 'charts' ? unused.charts : unused.dashboards
+        ).filter((item) => !excludedSpaces.has(item.spaceUuid));
         const visibleItems = (
             await Promise.all(
                 items.map(async (item) => {
@@ -1769,29 +2151,22 @@ export class ManagedAgentService extends BaseService {
                 type: item.contentType,
                 last_viewed_at: item.lastViewedAt?.toISOString() ?? null,
                 views_count: item.viewsCount,
+                reason: item.reason,
                 created_by: item.createdByUserName,
                 created_at: item.createdAt.toISOString(),
             })),
         );
     }
 
-    private async handleGetBrokenContent(
+    private async mapVisibleBrokenContentRows(
         actor: SessionUser,
         projectUuid: string,
-    ): Promise<string> {
-        const validations: ValidationResponse[] = (
-            await this.validationModel.get(projectUuid)
-        ).filter(
-            // Exclude advisory "unused field" warnings so Autopilot does not
-            // remove valid fields or table calculations that are merely flagged
-            // as unused. These are the only validations using ChartConfiguration.
-            (validation) =>
-                validation.errorType !== ValidationErrorType.ChartConfiguration,
-        );
+        validations: ValidationResponse[],
+    ) {
         const { canViewChartUuid, canViewDashboardUuid } =
-            this.createContentVisibilityChecker(actor);
+            this.createContentVisibilityChecker(actor, projectUuid);
 
-        const visibleValidations = (
+        return (
             await Promise.all(
                 validations.map(async (validation) => {
                     if ('chartUuid' in validation && validation.chartUuid) {
@@ -1833,9 +2208,118 @@ export class ManagedAgentService extends BaseService {
                 }),
             )
         ).filter((validation) => validation !== null);
-        return formatManagedAgentToolListResult(
-            summarizeManagedAgentBrokenContent(visibleValidations),
+    }
+
+    private async handleGetBrokenContent(
+        actor: SessionUser,
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const validations: ValidationResponse[] = (
+            await this.validationModel.get(projectUuid)
+        ).filter(
+            // Exclude advisory "unused field" warnings so Autopilot does not
+            // remove valid fields or table calculations that are merely flagged
+            // as unused. These are the only validations using ChartConfiguration.
+            (validation) =>
+                validation.errorType !== ValidationErrorType.ChartConfiguration,
         );
+
+        // Detail mode: full item list for one root-cause model. Scoping by
+        // model keeps every item reachable without raising the global cap.
+        const tableNameFilter =
+            typeof input.table_name === 'string' && input.table_name.length > 0
+                ? input.table_name
+                : undefined;
+        if (tableNameFilter) {
+            const matching = validations.filter(
+                (validation) =>
+                    getValidationRootCauseTableName(validation) ===
+                    tableNameFilter,
+            );
+            const visibleValidations = await this.mapVisibleBrokenContentRows(
+                actor,
+                projectUuid,
+                matching,
+            );
+            return formatManagedAgentToolListResult(
+                summarizeManagedAgentBrokenContent(visibleValidations),
+                getManagedAgentToolResultLimit(
+                    input.limit,
+                    MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
+                ),
+            );
+        }
+
+        // Summary mode: EVERY root-cause group with complete counts (never
+        // truncated), plus a capped sample of affected content per group
+        const summary =
+            ValidationService.groupValidationsByRootCause(validations);
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor, projectUuid);
+
+        const groups = await Promise.all(
+            summary.groups.map(async (group) => {
+                const visibleContent = (
+                    await Promise.all(
+                        group.affectedContent.map(async (content) => {
+                            if (content.uuid === null) return null;
+                            if (
+                                content.source === ValidationSourceType.Chart &&
+                                !(await canViewChartUuid(content.uuid))
+                            ) {
+                                return null;
+                            }
+                            if (
+                                content.source ===
+                                    ValidationSourceType.Dashboard &&
+                                !(await canViewDashboardUuid(content.uuid))
+                            ) {
+                                return null;
+                            }
+                            return {
+                                uuid: content.uuid,
+                                name: content.name,
+                                source: content.source,
+                                views: content.views,
+                                error_count: content.errorCount,
+                            };
+                        }),
+                    )
+                ).filter((content) => content !== null);
+
+                const items = visibleContent.slice(
+                    0,
+                    MANAGED_AGENT_BROKEN_CONTENT_GROUP_ITEM_LIMIT,
+                );
+                const totalItems =
+                    group.affectedCharts +
+                    group.affectedDashboards +
+                    group.affectedTables +
+                    group.affectedDataApps;
+                return {
+                    group_key: group.groupKey,
+                    error_type: group.errorType,
+                    table_name: group.tableName,
+                    field_name: group.fieldName,
+                    error_count: group.errorCount,
+                    affected_charts: group.affectedCharts,
+                    affected_dashboards: group.affectedDashboards,
+                    affected_tables: group.affectedTables,
+                    affected_data_apps: group.affectedDataApps,
+                    sample_error: group.sampleError,
+                    items,
+                    items_truncated: items.length < totalItems,
+                };
+            }),
+        );
+
+        return JSON.stringify({
+            total_errors: summary.totalErrors,
+            total_affected_items: summary.totalAffectedItems,
+            groups,
+            note: 'This is the COMPLETE set of validation error groups. To list every affected item for one group, call get_broken_content again with table_name set to that group. Counts include content outside your visibility scope; items only list content you can act on.',
+        });
     }
 
     private async handleGetPreviewProjects(
@@ -1848,14 +2332,17 @@ export class ManagedAgentService extends BaseService {
         const allProjects = await this.projectModel.getAllByOrganizationUuid(
             project.organizationUuid,
         );
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        const policy = await this.getPolicy(projectUuid);
+        const previewCutoff = new Date();
+        previewCutoff.setDate(
+            previewCutoff.getDate() - policy.previewProjectDays,
+        );
 
         const oldPreviews = allProjects.filter(
             (p) =>
                 p.type === ProjectType.PREVIEW &&
                 p.upstreamProjectUuid === projectUuid &&
-                new Date(p.createdAt) < threeMonthsAgo,
+                new Date(p.createdAt) < previewCutoff,
         );
         const visiblePreviews = (
             await Promise.all(
@@ -1886,12 +2373,18 @@ export class ManagedAgentService extends BaseService {
         actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        const spaces = await this.spaceModel.find({ projectUuid });
+        const [spaces, excludedSpaces] = await Promise.all([
+            this.spaceModel.find({ projectUuid }),
+            this.getExcludedSpaceUuids(projectUuid),
+        ]);
+        const inScopeSpaces = spaces.filter(
+            (space) => !excludedSpaces.has(space.uuid),
+        );
         const spaceUuids =
             await this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
                 actor,
-                spaces.map((space) => space.uuid),
+                inScopeSpaces.map((space) => space.uuid),
             );
         if (spaceUuids.length === 0) {
             return JSON.stringify([]);
@@ -2077,6 +2570,17 @@ chartConfig:
             input.chart_config,
         );
 
+        const fixProtectionBlock = await this.checkTargetProtectionGuard(
+            projectUuid,
+            ManagedAgentTargetType.CHART,
+            chartUuid,
+            chartName,
+            { actor, sessionId, runUuid, attemptedAction: 'fix' },
+        );
+        if (fixProtectionBlock) {
+            return fixProtectionBlock;
+        }
+
         // Get the current chart and verify it belongs to this project
         const chart = await this.savedChartModel.get(chartUuid);
         ManagedAgentService.assertProjectOwnership(
@@ -2139,17 +2643,35 @@ chartConfig:
         });
     }
 
+    private async findAgentSpace(projectUuid: string) {
+        const [space] = await this.spaceModel.find({
+            projectUuid,
+            slug: AGENT_SUGGESTIONS_SPACE_SLUG,
+        });
+        return space ?? null;
+    }
+
+    /**
+     * Once the suggestions space exists its own permissions are the source of
+     * truth — admins edit them in the space access modal — so the stored
+     * audience policy only seeds the space when it is first created.
+     */
+    private async resolveSuggestionsAudience(
+        projectUuid: string,
+        storedAudience: ManagedAgentAudience,
+    ): Promise<ManagedAgentAudience> {
+        const space = await this.findAgentSpace(projectUuid);
+        if (!space) return storedAudience;
+        return space.inheritParentPermissions ? 'everyone' : 'admins';
+    }
+
     private async getOrCreateAgentSpace(
         actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        // Find existing "Agent Suggestions" space
-        const spaces = await this.spaceModel.find({
-            projectUuid,
-            slug: 'agent-suggestions',
-        });
-        if (spaces.length > 0) {
-            return spaces[0].uuid;
+        const existingSpace = await this.findAgentSpace(projectUuid);
+        if (existingSpace) {
+            return existingSpace.uuid;
         }
         await this.assertActorCanCreateSpace(
             actor,
@@ -2170,10 +2692,13 @@ chartConfig:
             await this.userModel.getUserDetailsByUuid(enabledByUserUuid);
         const { userId } = user;
 
+        // Audience 'admins' keeps the space restricted to its admin creator
+        const audience =
+            settings?.policy.audience ?? DEFAULT_MANAGED_AGENT_POLICY.audience;
         const space = await this.spaceModel.createSpace(
             {
                 name: 'Agent Suggestions',
-                inheritParentPermissions: true,
+                inheritParentPermissions: audience !== 'admins',
                 parentSpaceUuid: null,
             },
             { projectUuid, userId },
@@ -2365,11 +2890,29 @@ chartConfig:
             );
         }
 
+        const policy = await this.getPolicy(projectUuid);
+        if (policy.aggression === 'observe') {
+            return JSON.stringify({
+                error: 'Flagging is disabled by project policy (observe mode). Use log_insight instead.',
+                blocked: true,
+            });
+        }
+
         const targetType = ManagedAgentService.validateEnum(
             input.target_type,
             ManagedAgentTargetType,
             'target_type',
         );
+        const flagProtectionBlock = await this.checkTargetProtectionGuard(
+            projectUuid,
+            targetType,
+            targetUuid,
+            targetName,
+            { actor, sessionId, runUuid, attemptedAction: 'flag' },
+        );
+        if (flagProtectionBlock) {
+            return flagProtectionBlock;
+        }
         if (
             !(await this.canActorViewTarget(
                 actor,
@@ -2381,6 +2924,42 @@ chartConfig:
             throw new ForbiddenError(
                 `Autopilot actor cannot view ${targetType} ${targetUuid}`,
             );
+        }
+
+        // Flags on deleted content are pointless: refuse instead of
+        // recording an action nobody can act on
+        if (
+            targetType === ManagedAgentTargetType.CHART ||
+            targetType === ManagedAgentTargetType.DASHBOARD
+        ) {
+            try {
+                if (targetType === ManagedAgentTargetType.CHART) {
+                    await this.savedChartModel.get(targetUuid);
+                } else {
+                    await this.dashboardModel.getByIdOrSlug(targetUuid);
+                }
+            } catch {
+                return JSON.stringify({
+                    skipped: true,
+                    note: `"${targetName}" no longer exists (deleted); no flag was created.`,
+                });
+            }
+        }
+
+        // Idempotency: re-flagging an actively flagged target would reset the
+        // escalation clock and duplicate the activity feed, so report the
+        // existing flag instead of creating a new action
+        const existingFlaggedAt =
+            await this.managedAgentModel.findLatestActiveFlagCreatedAt(
+                projectUuid,
+                targetUuid,
+            );
+        if (existingFlaggedAt) {
+            return JSON.stringify({
+                already_flagged: true,
+                flagged_at: existingFlaggedAt.toISOString(),
+                note: 'This target already carries an active flag; no new action was created. Once the flag is older than the escalation window it becomes eligible for soft_delete_content.',
+            });
         }
 
         // Block flagging agent-created charts as stale
@@ -2416,6 +2995,151 @@ chartConfig:
         return JSON.stringify({ action_uuid: action.actionUuid });
     }
 
+    // Code-enforced escalation: content may only be deleted after carrying an
+    // unreversed flag for the policy's escalation window. Callers that target
+    // provably dead content (bulk deleted-model cleanup) opt out of the
+    // flag-first requirement for never-viewed items via flagFirstAlways=false.
+    private async checkEscalationGuard(
+        projectUuid: string,
+        targetType: ManagedAgentTargetType,
+        targetUuid: string,
+        targetName: string,
+        policy: ManagedAgentPolicy,
+        options: {
+            // Individual soft-deletes require a prior flag for ALL content.
+            // Bulk deletion of charts on deleted models keeps the viewed-only
+            // gate: that content is provably dead, and flag-first there would
+            // defeat the automatable cleanup.
+            flagFirstAlways: boolean;
+        },
+    ): Promise<string | null> {
+        if (!options.flagFirstAlways) {
+            const lastViewed =
+                targetType === ManagedAgentTargetType.CHART
+                    ? (
+                          await this.analyticsModel.getLastViewedAtForCharts([
+                              targetUuid,
+                          ])
+                      ).get(targetUuid)
+                    : (
+                          await this.analyticsModel.getLastViewedAtForDashboards(
+                              [targetUuid],
+                          )
+                      ).get(targetUuid);
+            if (!lastViewed) {
+                return null;
+            }
+        }
+        const flaggedAt =
+            await this.managedAgentModel.findLatestActiveFlagCreatedAt(
+                projectUuid,
+                targetUuid,
+            );
+        if (!flaggedAt) {
+            return JSON.stringify({
+                error: `"${targetName}" must be flagged first and stay flagged for ${policy.escalationHours}+ hours before soft-deleting. Use flag_content instead.`,
+                blocked: true,
+            });
+        }
+        const escalationMs = policy.escalationHours * 60 * 60 * 1000;
+        if (Date.now() - flaggedAt.getTime() < escalationMs) {
+            return JSON.stringify({
+                error: `"${targetName}" was flagged less than ${policy.escalationHours} hours ago. Wait for the escalation window before soft-deleting.`,
+                blocked: true,
+            });
+        }
+        return null;
+    }
+
+    // Full chart soft-delete guard chain shared by soft_delete_content and
+    // bulk_delete_broken_content. Returns a blocked JSON payload, or null
+    // after a successful soft delete.
+    private async guardAndSoftDeleteChart(args: {
+        actor: SessionUser;
+        projectUuid: string;
+        sessionId: string;
+        runUuid: string;
+        chartUuid: string;
+        chartName: string;
+        policy: ManagedAgentPolicy;
+        actorUuid: string;
+        attemptedAction: 'fix' | 'flag' | 'soft-delete';
+        flagFirstAlways: boolean;
+    }): Promise<string | null> {
+        const {
+            actor,
+            projectUuid,
+            sessionId,
+            runUuid,
+            chartUuid,
+            chartName,
+            policy,
+            actorUuid,
+            attemptedAction,
+            flagFirstAlways,
+        } = args;
+
+        const deleteProtectionBlock = await this.checkTargetProtectionGuard(
+            projectUuid,
+            ManagedAgentTargetType.CHART,
+            chartUuid,
+            chartName,
+            { actor, sessionId, runUuid, attemptedAction },
+        );
+        if (deleteProtectionBlock) {
+            return deleteProtectionBlock;
+        }
+
+        const protectCutoff = new Date();
+        protectCutoff.setDate(
+            protectCutoff.getDate() - policy.protectRecentDays,
+        );
+
+        const chart = await this.savedChartModel.get(chartUuid);
+        ManagedAgentService.assertProjectOwnership(
+            chart.projectUuid,
+            projectUuid,
+            'Chart',
+            chartUuid,
+        );
+        await this.assertActorCanDeleteChart(actor, chart);
+        // Hard guardrail: never delete agent-created charts
+        if (chart.slug?.startsWith('agent-')) {
+            return JSON.stringify({
+                error: `Chart "${chartName}" was created by the agent (slug: ${chart.slug}). Cannot soft-delete own content.`,
+                blocked: true,
+            });
+        }
+        // Hard guardrail: never delete recently created or edited charts
+        const chartModifiedAt =
+            await this.managedAgentModel.getChartLastModifiedAt(chartUuid);
+        if (chartModifiedAt && chartModifiedAt > protectCutoff) {
+            return JSON.stringify({
+                error: `Chart "${chartName}" was created or last edited on ${chartModifiedAt.toISOString().split('T')[0]}, less than ${policy.protectRecentDays} days ago. Cannot soft-delete recently touched content.`,
+                blocked: true,
+            });
+        }
+        const chartEscalationBlock = await this.checkEscalationGuard(
+            projectUuid,
+            ManagedAgentTargetType.CHART,
+            chartUuid,
+            chartName,
+            policy,
+            { flagFirstAlways },
+        );
+        if (chartEscalationBlock) {
+            return chartEscalationBlock;
+        }
+        await this.savedChartModel.softDelete(chartUuid, actorUuid);
+        // Clear the chart's validation errors so the Validator updates
+        // without waiting for the next validation run
+        await this.validationModel.deleteChartValidations(
+            chartUuid,
+            projectUuid,
+        );
+        return null;
+    }
+
     private async handleSoftDelete(
         actor: SessionUser,
         projectUuid: string,
@@ -2442,38 +3166,60 @@ chartConfig:
         // Use the admin who enabled the agent as the actor
         const settings = await this.managedAgentModel.getSettings(projectUuid);
         const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
 
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // Hard guardrail: aggression below 'cleanup' never deletes
+        if (policy.aggression !== 'cleanup') {
+            return JSON.stringify({
+                error: `Soft-delete is disabled by project policy (cleanup mode: ${policy.aggression}). Flag or log an insight instead.`,
+                blocked: true,
+            });
+        }
+
+        // Per-run blast-radius cap so a first run on a low-traffic project
+        // cannot sweep everything in one pass
+        const deletedThisRun =
+            await this.managedAgentModel.countNonBulkSoftDeletesForRun(runUuid);
+        if (deletedThisRun >= MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT) {
+            return JSON.stringify({
+                error: `Soft-delete run cap reached (${MANAGED_AGENT_SOFT_DELETE_RUN_LIMIT} per run). Flag remaining candidates instead and mention the backlog in your summary; the next run can continue the cleanup.`,
+                blocked: true,
+            });
+        }
 
         // Verify entity exists, belongs to this project, and apply guardrails
         if (targetType === ManagedAgentTargetType.CHART) {
-            const chart = await this.savedChartModel.get(targetUuid);
-            ManagedAgentService.assertProjectOwnership(
-                chart.projectUuid,
+            const chartBlock = await this.guardAndSoftDeleteChart({
+                actor,
                 projectUuid,
-                'Chart',
-                targetUuid,
-            );
-            await this.assertActorCanDeleteChart(actor, chart);
-            // Hard guardrail: never delete agent-created charts
-            if (chart.slug?.startsWith('agent-')) {
-                return JSON.stringify({
-                    error: `Chart "${targetName}" was created by the agent (slug: ${chart.slug}). Cannot soft-delete own content.`,
-                    blocked: true,
-                });
+                sessionId,
+                runUuid,
+                chartUuid: targetUuid,
+                chartName: targetName,
+                policy,
+                actorUuid,
+                attemptedAction: 'soft-delete',
+                flagFirstAlways: true,
+            });
+            if (chartBlock) {
+                return chartBlock;
             }
-            // Hard guardrail: never delete charts created in the last 30 days
-            const chartCreatedAt =
-                await this.managedAgentModel.getChartCreatedAt(targetUuid);
-            if (chartCreatedAt && chartCreatedAt > thirtyDaysAgo) {
-                return JSON.stringify({
-                    error: `Chart "${targetName}" was created on ${chartCreatedAt.toISOString().split('T')[0]}, less than 30 days ago. Cannot soft-delete recent content.`,
-                    blocked: true,
-                });
-            }
-            await this.savedChartModel.softDelete(targetUuid, actorUuid);
         } else if (targetType === ManagedAgentTargetType.DASHBOARD) {
+            const deleteProtectionBlock = await this.checkTargetProtectionGuard(
+                projectUuid,
+                targetType,
+                targetUuid,
+                targetName,
+                { actor, sessionId, runUuid, attemptedAction: 'soft-delete' },
+            );
+            if (deleteProtectionBlock) {
+                return deleteProtectionBlock;
+            }
+
+            const protectCutoff = new Date();
+            protectCutoff.setDate(
+                protectCutoff.getDate() - policy.protectRecentDays,
+            );
             const dashboard =
                 await this.dashboardModel.getByIdOrSlug(targetUuid);
             ManagedAgentService.assertProjectOwnership(
@@ -2483,16 +3229,35 @@ chartConfig:
                 targetUuid,
             );
             await this.assertActorCanDeleteDashboard(actor, dashboard);
-            // Hard guardrail: never delete dashboards created in the last 30 days
-            const dashCreatedAt =
-                await this.managedAgentModel.getDashboardCreatedAt(targetUuid);
-            if (dashCreatedAt && dashCreatedAt > thirtyDaysAgo) {
+            // Hard guardrail: never delete recently created or edited dashboards
+            const dashModifiedAt =
+                await this.managedAgentModel.getDashboardLastModifiedAt(
+                    targetUuid,
+                );
+            if (dashModifiedAt && dashModifiedAt > protectCutoff) {
                 return JSON.stringify({
-                    error: `Dashboard "${targetName}" was created on ${dashCreatedAt.toISOString().split('T')[0]}, less than 30 days ago. Cannot soft-delete recent content.`,
+                    error: `Dashboard "${targetName}" was created or last edited on ${dashModifiedAt.toISOString().split('T')[0]}, less than ${policy.protectRecentDays} days ago. Cannot soft-delete recently touched content.`,
                     blocked: true,
                 });
             }
+            const dashEscalationBlock = await this.checkEscalationGuard(
+                projectUuid,
+                targetType,
+                targetUuid,
+                targetName,
+                policy,
+                { flagFirstAlways: true },
+            );
+            if (dashEscalationBlock) {
+                return dashEscalationBlock;
+            }
             await this.dashboardModel.softDelete(targetUuid, actorUuid);
+            // Clear the dashboard's validation errors so the Validator
+            // updates without waiting for the next validation run
+            await this.validationModel.deleteDashboardValidations(
+                targetUuid,
+                projectUuid,
+            );
         } else {
             throw new Error(
                 `soft_delete_content only supports chart and dashboard, got: ${targetType}`,
@@ -2514,6 +3279,149 @@ chartConfig:
         return JSON.stringify({
             action_uuid: action.actionUuid,
             recoverable: true,
+        });
+    }
+
+    private async handleBulkDeleteBrokenContent(
+        actor: SessionUser,
+        projectUuid: string,
+        sessionId: string,
+        runUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const tableName = input.table_name as string;
+        const reason = input.reason as string;
+        if (!tableName || !reason) {
+            throw new Error('table_name and reason are required');
+        }
+
+        await this.assertActorCanManageProject(actor, projectUuid);
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+
+        // Hard guardrail: aggression below 'cleanup' never deletes
+        if (policy.aggression !== 'cleanup') {
+            return JSON.stringify({
+                error: `Bulk delete is disabled by project policy (cleanup mode: ${policy.aggression}). Flag or log an insight instead.`,
+                blocked: true,
+            });
+        }
+
+        // Candidates: charts whose whole model is gone. Dashboards referencing
+        // the model are never bulk-deleted; they usually have healthy tiles
+        const validations = await this.validationModel.get(projectUuid);
+        const candidates = new Map<string, string>();
+        validations.forEach((validation) => {
+            if (
+                validation.source === ValidationSourceType.Chart &&
+                validation.errorType === ValidationErrorType.Model &&
+                'chartUuid' in validation &&
+                validation.chartUuid &&
+                getValidationRootCauseTableName(validation) === tableName
+            ) {
+                candidates.set(validation.chartUuid, validation.name);
+            }
+        });
+
+        if (candidates.size === 0) {
+            return JSON.stringify({
+                error: `No charts with a model-level validation error were found for model '${tableName}'. Run get_broken_content to see current groups.`,
+            });
+        }
+
+        const entries = [...candidates.entries()];
+        const toProcess = entries.slice(0, MANAGED_AGENT_BULK_DELETE_RUN_LIMIT);
+        const remaining = entries.length - toProcess.length;
+
+        const deleted: { uuid: string; name: string; action_uuid: string }[] =
+            [];
+        const blocked: { uuid: string; name: string; reason: string }[] = [];
+
+        // Sequential on purpose: each delete runs the full guard chain and
+        // writes an action row
+        for (const [chartUuid, chartName] of toProcess) {
+            // eslint-disable-next-line no-await-in-loop
+            const chart = await this.savedChartModel.get(chartUuid);
+            // Defense against stale validation rows: the chart must still
+            // reference the deleted model
+            if (chart.tableName !== tableName) {
+                blocked.push({
+                    uuid: chartUuid,
+                    name: chartName,
+                    reason: `Chart no longer references model '${tableName}'`,
+                });
+            } else {
+                // eslint-disable-next-line no-await-in-loop
+                const chartBlock = await this.guardAndSoftDeleteChart({
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    chartUuid,
+                    chartName,
+                    policy,
+                    actorUuid,
+                    attemptedAction: 'soft-delete',
+                    flagFirstAlways: false,
+                });
+                if (chartBlock) {
+                    let blockReason = chartBlock;
+                    try {
+                        const parsed: unknown = JSON.parse(chartBlock);
+                        if (
+                            parsed !== null &&
+                            typeof parsed === 'object' &&
+                            'error' in parsed &&
+                            typeof parsed.error === 'string'
+                        ) {
+                            blockReason = parsed.error;
+                        }
+                    } catch {
+                        // keep the raw payload as the reason
+                    }
+                    blocked.push({
+                        uuid: chartUuid,
+                        name: chartName,
+                        reason: blockReason,
+                    });
+                } else {
+                    // eslint-disable-next-line no-await-in-loop
+                    const action = await this.managedAgentModel.createAction({
+                        projectUuid,
+                        sessionId,
+                        managedAgentRunUuid: runUuid,
+                        actionType: ManagedAgentActionType.SOFT_DELETED,
+                        targetType: ManagedAgentTargetType.CHART,
+                        targetUuid: chartUuid,
+                        targetName: chartName,
+                        description: reason,
+                        metadata: {
+                            bulk: true,
+                            table_name: tableName,
+                            reason,
+                        },
+                    });
+                    this.trackActionCreated(actor, runUuid, action);
+                    deleted.push({
+                        uuid: chartUuid,
+                        name: chartName,
+                        action_uuid: action.actionUuid,
+                    });
+                }
+            }
+        }
+
+        return JSON.stringify({
+            deleted_count: deleted.length,
+            deleted,
+            blocked,
+            remaining,
+            recoverable: true,
+            note:
+                remaining > 0
+                    ? `Run cap reached: ${remaining} more broken charts remain for model '${tableName}'. They will be picked up on the next run.`
+                    : undefined,
         });
     }
 
@@ -2594,7 +3502,9 @@ chartConfig:
         projectUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
-        const thresholdMs = (input.threshold_ms as number) ?? 2000;
+        const policy = await this.getPolicy(projectUuid);
+        const thresholdMs =
+            (input.threshold_ms as number) ?? policy.slowQueryThresholdMs;
         const limit = getManagedAgentToolResultLimit(input.limit, 20);
 
         const slowQueries = await this.managedAgentModel.getSlowQueries(
@@ -2603,7 +3513,7 @@ chartConfig:
             limit,
         );
         const { canViewChartUuid, canViewDashboardUuid } =
-            this.createContentVisibilityChecker(actor);
+            this.createContentVisibilityChecker(actor, projectUuid);
 
         const visibleQueries = (
             await Promise.all(
@@ -2635,6 +3545,276 @@ chartConfig:
                 ran_at: q.createdAt,
             })),
         );
+    }
+
+    private static readonly DEFAULT_INACTIVE_USER_DAYS = 90;
+
+    private async handleGetInactiveUsers(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const inactiveDays =
+            (input.inactive_days as number) ??
+            ManagedAgentService.DEFAULT_INACTIVE_USER_DAYS;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project, never the actor: membership drives who
+        // counts as a member, and the wrong org would silently change the set.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const users = await this.managedAgentModel.getInactiveUsers(
+            projectUuid,
+            organizationUuid,
+            inactiveDays,
+            limit,
+        );
+
+        return formatManagedAgentToolListResult(
+            users.map((user) => ({
+                user_uuid: user.userUuid,
+                name: user.userName,
+                email: user.email,
+                role: user.role,
+                last_active_at: user.lastActiveAt,
+                last_active_source: user.lastActiveSource,
+                inactive_days_threshold: inactiveDays,
+            })),
+        );
+    }
+
+    private async handleGetOrphanedContent(
+        actor: SessionUser,
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project, never the actor: a mismatched org makes
+        // every current member look like they left, orphaning the whole project.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const orphaned = await this.managedAgentModel.getOrphanedContent(
+            projectUuid,
+            organizationUuid,
+            limit,
+        );
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor, projectUuid);
+
+        const visible = (
+            await Promise.all(
+                orphaned.map(async (item) => {
+                    const canView =
+                        item.contentType === 'chart'
+                            ? await canViewChartUuid(item.contentUuid)
+                            : await canViewDashboardUuid(item.contentUuid);
+                    return canView ? item : null;
+                }),
+            )
+        ).filter((item) => item !== null);
+
+        return formatManagedAgentToolListResult(
+            visible.map((item) => ({
+                content_type: item.contentType,
+                content_uuid: item.contentUuid,
+                content_name: item.contentName,
+                space_uuid: item.spaceUuid,
+                owner_uuid: item.ownerUserUuid,
+                owner_name: item.ownerName,
+                owner_status: item.ownerStatus,
+                last_viewed_at: item.lastViewedAt,
+            })),
+        );
+    }
+
+    private static readonly DEFAULT_UNUSED_AGENT_WINDOW_DAYS = 30;
+
+    private static readonly DEFAULT_UNUSED_AGENT_MIN_PROMPTS = 5;
+
+    private async handleGetUnusedAgents(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const windowDays =
+            (input.window_days as number) ??
+            ManagedAgentService.DEFAULT_UNUSED_AGENT_WINDOW_DAYS;
+        const minPrompts =
+            (input.min_prompts as number) ??
+            ManagedAgentService.DEFAULT_UNUSED_AGENT_MIN_PROMPTS;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project: the router is org-scoped, and the wrong
+        // org would report every agent as unrouted.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const agents = await this.managedAgentModel.getUnusedAgents(
+            projectUuid,
+            organizationUuid,
+            windowDays,
+            minPrompts,
+            limit,
+        );
+
+        return formatManagedAgentToolListResult(
+            agents.map((agent) => ({
+                agent_uuid: agent.agentUuid,
+                name: agent.agentName,
+                created_at: agent.createdAt,
+                admin_only: agent.adminOnly,
+                reason: agent.reason,
+                routing_signal: agent.routingSignal,
+                last_used_at: agent.lastUsedAt,
+                threads_total: agent.totalThreads,
+                threads_in_window: agent.recentThreads,
+                prompts_total: agent.totalPrompts,
+                prompts_in_window: agent.recentPrompts,
+                answered_prompts_in_window: agent.recentAnswered,
+                distinct_askers_in_window: agent.recentAskers,
+                router_candidate_count: agent.routedCandidateCount,
+                router_suggested_count: agent.routedSuggestedCount,
+                router_chosen_count: agent.routedChosenCount,
+                window_days: windowDays,
+                min_prompts_threshold: minPrompts,
+            })),
+        );
+    }
+
+    private static readonly DEFAULT_PREAGG_WINDOW_DAYS = 30;
+
+    private static readonly DEFAULT_PREAGG_MIN_QUERIES = 10;
+
+    // Wide enough that one dominant non-additive metric cannot crowd every
+    // additive shape out of the sample.
+    private static readonly PREAGG_SHAPES_PER_EXPLORE = 10;
+
+    private async handleGetPreAggCandidates(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        if (!this.lightdashConfig.preAggregates.enabled) {
+            return JSON.stringify({
+                enabled: false,
+                message:
+                    'Pre-aggregates are not enabled on this instance, so there is nothing to check.',
+            });
+        }
+
+        const windowDays =
+            (input.window_days as number) ??
+            ManagedAgentService.DEFAULT_PREAGG_WINDOW_DAYS;
+        const minQueries =
+            (input.min_queries as number) ??
+            ManagedAgentService.DEFAULT_PREAGG_MIN_QUERIES;
+        const limit = getManagedAgentToolResultLimit(input.limit, 10);
+
+        const candidates =
+            await this.managedAgentModel.getPreAggCandidateExplores(
+                projectUuid,
+                windowDays,
+                minQueries,
+                limit,
+            );
+        if (candidates.length === 0) {
+            return formatManagedAgentToolListResult([]);
+        }
+
+        const exploreNames = candidates.map((c) => c.exploreName);
+        const [shapes, missStats, explores] = await Promise.all([
+            this.managedAgentModel.getPreAggQueryShapes(
+                projectUuid,
+                exploreNames,
+                windowDays,
+                ManagedAgentService.PREAGG_SHAPES_PER_EXPLORE,
+            ),
+            this.managedAgentModel.getPreAggMissStats(projectUuid, windowDays),
+            this.projectModel.findExploresFromCache(
+                projectUuid,
+                'name',
+                exploreNames,
+            ),
+        ]);
+
+        const results = candidates.map((candidate) => {
+            const exploreShapes = shapes.filter(
+                (shape) => shape.exploreName === candidate.exploreName,
+            );
+            const exploreMissStats = missStats.filter(
+                (stat) => stat.exploreName === candidate.exploreName,
+            );
+            const explore = explores[candidate.exploreName];
+            const suggestion =
+                explore && !('errors' in explore)
+                    ? buildPreAggCandidateSuggestion({
+                          explore,
+                          shapes: exploreShapes.map((shape) => ({
+                              dimensionFieldIds: shape.dimensionFieldIds,
+                              metricFieldIds: shape.metricFieldIds,
+                              filterFieldIds: shape.filterFieldIds,
+                              hasCustomFields: shape.hasCustomFields,
+                              queryCount: shape.queryCount,
+                          })),
+                      })
+                    : null;
+
+            return {
+                explore_name: candidate.exploreName,
+                query_count: candidate.queryCount,
+                distinct_users: candidate.distinctUsers,
+                total_warehouse_ms: candidate.totalExecutionMs,
+                avg_warehouse_ms: candidate.avgExecutionMs,
+                p95_warehouse_ms: candidate.p95ExecutionMs,
+                queries_already_served_by_preagg: candidate.preAggHitCount,
+                query_contexts: candidate.contextCounts,
+                preagg_hits_in_window: exploreMissStats.reduce(
+                    (sum, stat) => sum + stat.hitCount,
+                    0,
+                ),
+                preagg_misses_by_reason: exploreMissStats
+                    .filter((stat) => stat.missReason !== null)
+                    .map((stat) => ({
+                        reason: stat.missReason,
+                        miss_count: stat.missCount,
+                    })),
+                top_query_shapes: exploreShapes.map((shape) => ({
+                    dimensions: shape.dimensionFieldIds,
+                    metrics: shape.metricFieldIds,
+                    filter_fields: shape.filterFieldIds,
+                    uses_custom_fields: shape.hasCustomFields,
+                    query_count: shape.queryCount,
+                    avg_warehouse_ms: shape.avgExecutionMs,
+                })),
+                suggestion: suggestion
+                    ? {
+                          suggested_yaml: suggestion.suggestedYaml,
+                          no_suggestion_reason: suggestion.noSuggestionReason,
+                          time_dimension: suggestion.timeDimension,
+                          granularity: suggestion.granularity,
+                          covered_query_count: suggestion.coveredQueryCount,
+                          coverable_query_count: suggestion.coverableQueryCount,
+                          custom_field_query_count:
+                              suggestion.customFieldQueryCount,
+                          ineligible_fields: suggestion.ineligibleFields.map(
+                              (field) => ({
+                                  field_id: field.fieldId,
+                                  kind: field.kind,
+                                  reason: field.reason,
+                              }),
+                          ),
+                          unresolved_field_ids: suggestion.unresolvedFieldIds,
+                      }
+                    : {
+                          suggested_yaml: null,
+                          no_suggestion_reason:
+                              'explore_not_found_or_has_compile_errors',
+                      },
+            };
+        });
+
+        return JSON.stringify({
+            window_days: windowDays,
+            min_queries_threshold: minQueries,
+            ...buildManagedAgentToolListResult(results, limit),
+        });
     }
 
     private async handleReverseOwnAction(

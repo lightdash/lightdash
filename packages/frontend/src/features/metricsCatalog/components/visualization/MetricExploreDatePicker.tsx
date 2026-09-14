@@ -15,10 +15,12 @@ import {
     Button,
     SegmentedControl,
     Popover,
-} from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
-import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
+    Tooltip,
+} from '@mantine/core';
 import { useCallback, useEffect, useRef, type FC } from 'react';
+import CalendarRangePicker from '../../../../components/common/DatePickers/CalendarRangePicker';
+import MonthRangePicker from '../../../../components/common/DatePickers/MonthRangePicker';
+import YearRangePicker from '../../../../components/common/DatePickers/YearRangePicker';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
@@ -120,7 +122,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                 >
                     <Text size="sm" fw={500} c="ldDark.8">
                         Custom:{' '}
-                        <Text size="sm" fw={500} c="ldGray.6" span>
+                        <Text size="sm" fw={500} c="dimmed" span>
                             {buttonLabel}
                         </Text>
                     </Text>
@@ -131,7 +133,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
         ...presets.map((preset) => ({
             label: (
                 <Tooltip
-                    variant="xs"
                     label={`${formatDate(preset.getValue()[0])} to ${formatDate(
                         preset.getValue()[1],
                     )}`}
@@ -144,12 +145,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
     ];
 
     return (
-        <Popover
-            opened={isOpen}
-            onChange={handleOpen}
-            position="bottom-start"
-            shadow="sm"
-        >
+        <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
             <Popover.Target>
                 <Group justify="space-between" w="fill-available" wrap="nowrap">
                     <SegmentedControl
@@ -202,12 +198,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     />
                     {showTimeDimensionIntervalPicker &&
                         timeDimensionBaseField && (
-                            <Tooltip
-                                variant="xs"
-                                label="Change granularity"
-                                position="top"
-                                withinPortal
-                            >
+                            <Tooltip label="Change granularity" position="top">
                                 <Box>
                                     <TimeDimensionIntervalPicker
                                         dimension={timeDimensionBaseField}
@@ -247,29 +238,26 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     <Stack gap={0}>
                         <Box px="xs">
                             {calendarConfig?.type === TimeFrames.YEAR ? (
-                                <YearPicker
+                                <YearRangePicker
                                     {...calendarConfig.props}
                                     mih={180}
                                     w="100%"
-                                    color="dark"
                                     size="xs"
                                 />
                             ) : calendarConfig?.type === TimeFrames.MONTH ? (
-                                <MonthPicker
+                                <MonthRangePicker
                                     {...calendarConfig.props}
                                     mih={180}
-                                    color="dark"
                                     size="xs"
                                 />
-                            ) : (
-                                <DatePicker
-                                    {...calendarConfig?.props}
+                            ) : calendarConfig ? (
+                                <CalendarRangePicker
+                                    {...calendarConfig.props}
                                     mih={225}
-                                    color="dark"
                                     size="xs"
                                     withCellSpacing={false}
                                 />
-                            )}
+                            ) : null}
                         </Box>
                         <Divider color="ldGray.2" />
                         <Box p="sm">
@@ -277,7 +265,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                 <Group gap="xs">
                                     <TextInput
                                         size="xs"
-                                        radius="md"
                                         w={100}
                                         value={formattedTempDateRange[0]}
                                         readOnly
@@ -294,7 +281,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     </Text>
                                     <TextInput
                                         size="xs"
-                                        radius="md"
                                         w={100}
                                         value={formattedTempDateRange[1]}
                                         readOnly
@@ -311,7 +297,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                 <Group gap="xs">
                                     <Button
                                         size="xs"
-                                        radius="md"
                                         variant="default"
                                         onClick={() => handleOpen(false)}
                                         style={(theme) => ({
@@ -323,8 +308,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     </Button>
                                     <Button
                                         size="xs"
-                                        radius="md"
-                                        color="dark"
                                         onClick={() => {
                                             handleApply();
 

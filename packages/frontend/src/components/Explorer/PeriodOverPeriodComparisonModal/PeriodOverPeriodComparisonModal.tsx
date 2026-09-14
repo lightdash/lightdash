@@ -12,14 +12,7 @@ import {
     type Metric,
     type TimeFrames,
 } from '@lightdash/common';
-import {
-    Group,
-    NumberInput,
-    Select,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { IconTimelineEvent } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -31,6 +24,7 @@ import {
 } from '../../../features/explorer/store';
 import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
+import { NumberInput } from '../../common/NumberInput';
 
 const PeriodOverPeriodComparisonModalContent: FC<{
     metric: Metric;
@@ -87,7 +81,6 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                 <Tooltip
                     label="Your results are grouped by a finer time period"
                     position="right"
-                    withinPortal
                 >
                     <Text size="sm" c="dimmed">
                         {option.label}
@@ -98,9 +91,16 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         return <Text size="sm">{option.label}</Text>;
     };
 
-    const [selectedTimeDimensionId, setSelectedTimeDimensionId] = useState<
+    const [chosenTimeDimensionId, setSelectedTimeDimensionId] = useState<
         string | null
     >(null);
+    const eligibleTimeDimensions = selectData.filter(
+        (option) => !option.disabled,
+    );
+    const singleTimeDimension =
+        eligibleTimeDimensions.length === 1 ? eligibleTimeDimensions[0] : null;
+    const selectedTimeDimensionId =
+        singleTimeDimension?.value ?? chosenTimeDimensionId;
     const [periodOffset, setPeriodOffset] = useState<number>(1);
 
     const selectedDimensionObj = useMemo(() => {
@@ -213,21 +213,30 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                         different time dimension or offset.
                     </Callout>
                 ) : null}
-                <Select
-                    label="Time dimension"
-                    placeholder={
-                        canConfigure
-                            ? 'Select time dimension'
-                            : 'Add a time dimension to enable comparison'
-                    }
-                    data={selectData}
-                    value={selectedTimeDimensionId}
-                    onChange={setSelectedTimeDimensionId}
-                    disabled={!canConfigure}
-                    renderOption={renderSelectOption}
-                    searchable
-                    clearable
-                />
+                {singleTimeDimension ? (
+                    <Stack gap={4}>
+                        <Text size="sm" fw={500}>
+                            Time dimension
+                        </Text>
+                        <Text size="sm">{singleTimeDimension.label}</Text>
+                    </Stack>
+                ) : (
+                    <Select
+                        label="Time dimension"
+                        placeholder={
+                            canConfigure
+                                ? 'Select time dimension'
+                                : 'Add a time dimension to enable comparison'
+                        }
+                        data={selectData}
+                        value={selectedTimeDimensionId}
+                        onChange={setSelectedTimeDimensionId}
+                        disabled={!canConfigure}
+                        renderOption={renderSelectOption}
+                        searchable
+                        clearable
+                    />
+                )}
 
                 <Group gap="xs" align="center">
                     <NumberInput

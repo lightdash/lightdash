@@ -1,5 +1,5 @@
 import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
-import { Center, Loader, Select, Stack } from '@mantine-8/core';
+import { Center, Loader, Select, Stack } from '@mantine/core';
 import startCase from 'lodash/startCase';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';

@@ -13,13 +13,18 @@ import {
     Stack,
     Text,
     UnstyledButton,
-} from '@mantine-8/core';
-import { IconChevronRight, IconNotes } from '@tabler/icons-react';
+} from '@mantine/core';
+import {
+    IconChevronRight,
+    IconNotes,
+    type Icon as TablerIconType,
+} from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import { AgentStepGroups } from './AgentStepGroups';
+import { type ComposerQueryNodeStatus } from './descriptions/ComposerQueriesToolCallDescription';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
@@ -80,11 +85,7 @@ type Props = {
 
 const REASONING_PREVIEW_LENGTH = 140;
 
-const TOOLS_WITHOUT_PREVIEW = new Set<string>([
-    'runSql',
-    'improveContext',
-    'runSavedChart',
-]);
+const TOOLS_WITHOUT_PREVIEW = new Set<string>(['runSql', 'runSavedChart']);
 
 // Built-in tools whose ToolCallDescription returns an empty fragment.
 // Listing them lets the latest-description Box opt out entirely, instead
@@ -98,7 +99,6 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'getProjectInfo',
     'generateHashes',
     'generateUuids',
-    'improveContext',
     'loadSkill',
     'loadProjectContext',
     'editDbtProject',
@@ -174,7 +174,11 @@ const McpSummaryIconStack: FC<{
 export const ReasoningHistoryRow: FC<{
     texts: string[];
     isLive: boolean;
-}> = ({ texts, isLive }) => {
+    /** Row identity overrides so other surfaces (e.g. data-app builds) can
+     *  reuse the collapsed-history pattern for non-reasoning content. */
+    icon?: TablerIconType;
+    label?: string;
+}> = ({ texts, isLive, icon = IconNotes, label = 'Reasoning' }) => {
     const [open, setOpen] = useState(false);
     const combined = texts.join('\n\n');
     // While streaming, the preview is the *latest* reasoning chunk (it rolls
@@ -187,7 +191,7 @@ export const ReasoningHistoryRow: FC<{
     const hasOverflow = previewClean.length > REASONING_PREVIEW_LENGTH;
 
     return (
-        <Box className={styles.reasoningRow}>
+        <Box className={styles.reasoningRow} data-live={isLive}>
             <UnstyledButton
                 w="100%"
                 onClick={() => setOpen((prev) => !prev)}
@@ -198,7 +202,7 @@ export const ReasoningHistoryRow: FC<{
                     {isLive ? (
                         <Box className={styles.iconChip} data-live="true">
                             <MantineIcon
-                                icon={IconNotes}
+                                icon={icon}
                                 size={12}
                                 stroke={1.7}
                                 className={styles.reasoningIcon}
@@ -207,7 +211,7 @@ export const ReasoningHistoryRow: FC<{
                         </Box>
                     ) : (
                         <MantineIcon
-                            icon={IconNotes}
+                            icon={icon}
                             size={13}
                             stroke={1.6}
                             className={styles.reasoningIcon}
@@ -217,13 +221,14 @@ export const ReasoningHistoryRow: FC<{
                         size="xs"
                         className={styles.reasoningLabel}
                         data-live={isLive ? 'true' : 'false'}
+                        data-tour-status={isLive ? 'true' : undefined}
                     >
-                        Reasoning
+                        {label}
                     </Text>
                     <Text
                         size="xs"
                         c="dimmed"
-                        lineClamp={1}
+                        truncate
                         fs="italic"
                         className={styles.reasoningPreview}
                     >
@@ -239,7 +244,7 @@ export const ReasoningHistoryRow: FC<{
                 </Group>
             </UnstyledButton>
             <Collapse
-                in={open}
+                expanded={open}
                 transitionDuration={240}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
@@ -322,6 +327,9 @@ const LatestRow: FC<{
                     size="xs"
                     className={styles.latestLabel}
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
+                    // Walkthrough: the product's own words for what the
+                    // agent is doing right now.
+                    data-tour-status={isLive ? 'true' : undefined}
                 >
                     {label}
                 </Text>
@@ -532,11 +540,77 @@ const renderInlineLiveStepProgress = (params: {
                     size="xs"
                     className={styles.liveStepProgressLabel}
                     data-active="true"
+                    data-tour-status="true"
                 >
                     {currentMessage}
                 </Text>
             </Group>
         </Box>
+    );
+};
+
+/**
+ * Derive per-node execution statuses for a live composer pipeline from the
+ * transient step-progress events the runComposerQueries tool emits
+ * (progressId = `${toolCallId}:${nodeId}`). Nodes without an event yet show
+ * as pending while the call is in flight, and flip to success wholesale when
+ * the tool's final output lands successfully. Returns undefined for other
+ * tools so persisted pipelines render without indicators.
+ */
+const getComposerNodeStatuses = (
+    call: ToolCallSummary,
+    stepProgressMessages: StepProgressMessage[],
+): Record<string, ComposerQueryNodeStatus> | undefined => {
+    if (call.toolName !== 'runComposerQueries') return undefined;
+    const args = call.toolArgs as
+        | { queries?: { nodeId?: unknown }[] }
+        | undefined;
+    const nodeIds = (args?.queries ?? [])
+        .map((query) => query?.nodeId)
+        .filter((nodeId): nodeId is string => typeof nodeId === 'string');
+    if (nodeIds.length === 0) return undefined;
+
+    const progressIdPrefix = `${call.toolCallId}:`;
+    const eventStatuses = new Map<string, ComposerQueryNodeStatus>();
+    for (const event of stepProgressMessages) {
+        if (event.toolName !== 'runComposerQueries') continue;
+        if (
+            !event.progressId?.startsWith(progressIdPrefix) ||
+            !event.progressStatus
+        )
+            continue;
+        const nodeId = event.progressId.slice(progressIdPrefix.length);
+        if (event.progressStatus === 'in_progress') {
+            eventStatuses.set(nodeId, { status: 'running' });
+        } else if (event.progressStatus === 'complete') {
+            eventStatuses.set(nodeId, { status: 'success' });
+        } else {
+            const failurePrefix = `Query "${nodeId}" failed: `;
+            eventStatuses.set(nodeId, {
+                status: 'error',
+                errorMessage: event.message.startsWith(failurePrefix)
+                    ? event.message.slice(failurePrefix.length)
+                    : null,
+            });
+        }
+    }
+
+    const output = call.toolOutput as
+        | { metadata?: { status?: string } }
+        | undefined;
+    const outputStatus = output?.metadata?.status;
+
+    return Object.fromEntries(
+        nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
+            const fromEvent = eventStatuses.get(nodeId);
+            if (fromEvent) return [[nodeId, fromEvent]];
+            if (outputStatus === 'success')
+                return [[nodeId, { status: 'success' }]];
+            if (output === undefined) return [[nodeId, { status: 'pending' }]];
+            // Rejected/timed-out/unattributed failure: nothing truthful to
+            // claim about this node, so show no indicator.
+            return [];
+        }),
     );
 };
 
@@ -581,10 +655,8 @@ export const LiveActivityCard: FC<Props> = ({
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
-    // When the latest tool changes, auto-expand for runSql (so users see the
-    // query immediately) and auto-collapse otherwise. The user's explicit
-    // toggle is reset on every tool change so the bento has fresh "default
-    // state" for each new step.
+    // Query tools expand by default so their SQL is legible while running.
+    // The user's explicit toggle resets when the active tool changes.
     const latestKeyId =
         toolGroups.length > 0
             ? toolGroups[toolGroups.length - 1].keyId
@@ -594,7 +666,11 @@ export const LiveActivityCard: FC<Props> = ({
             ? toolGroups[toolGroups.length - 1].toolName
             : undefined;
     useEffect(() => {
-        if (latestToolName === 'runSql') setUserExpanded(true);
+        if (
+            latestToolName === 'runSql' ||
+            latestToolName === 'runComposerQueries'
+        )
+            setUserExpanded(true);
         else setUserExpanded(false);
     }, [latestKeyId, latestToolName]);
 
@@ -623,7 +699,9 @@ export const LiveActivityCard: FC<Props> = ({
     // sees it immediately, without needing to click the chevron.
     const expanded = hasPending || userExpanded;
 
-    const latestNeedsExpandedBody = latest?.toolName === 'runSql';
+    const latestNeedsExpandedBody =
+        latest?.toolName === 'runSql' ||
+        latest?.toolName === 'runComposerQueries';
     const showBody =
         expanded && (hasHistory || hasPending || latestNeedsExpandedBody);
 
@@ -698,6 +776,7 @@ export const LiveActivityCard: FC<Props> = ({
                                     size="xs"
                                     className={styles.latestLabel}
                                     data-live="true"
+                                    data-tour-status="true"
                                 >
                                     Running SQL query
                                 </Text>
@@ -754,7 +833,7 @@ export const LiveActivityCard: FC<Props> = ({
                     );
                 })()}
             <Collapse
-                in={showBody}
+                expanded={showBody}
                 transitionDuration={260}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
@@ -813,6 +892,14 @@ export const LiveActivityCard: FC<Props> = ({
                                                         result.toolCallId ===
                                                         tc.toolCallId,
                                                 )}
+                                                composerNodeStatuses={
+                                                    isLive
+                                                        ? getComposerNodeStatuses(
+                                                              tc,
+                                                              stepProgressMessages,
+                                                          )
+                                                        : undefined
+                                                }
                                             />
                                         )}
                                         {trace && (

@@ -11,6 +11,12 @@ describeContentAsCodeSchemaContract({
         'dashboardUuid',
         'deletedAt',
         'deletedBy',
+        // Overlay flags for unpublished drafts; not part of the as-code document.
+        'dismissedDraftUuid',
+        'draftOverlayError',
+        'draftStaleness',
+        'draftsAwaitingReview',
+        'hasUnpublishedChanges',
         'organizationUuid',
         'pinnedListOrder',
         'pinnedListUuid',
@@ -22,8 +28,8 @@ describeContentAsCodeSchemaContract({
         'uuid',
     ],
     documentOnlyFields: [
+        'access',
         'contentType',
-        'dashboardSlug',
         'downloadedAt',
         'spaceSlug',
         'verified',

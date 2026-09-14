@@ -280,6 +280,20 @@ type CliLogin = BaseTrack & {
     };
 };
 
+export type ProjectContentAsCodeCounts = {
+    chartsNum?: number;
+    dashboardsNum?: number;
+    spacesNum?: number;
+    virtualViewsNum?: number;
+    agentsNum?: number;
+    appsNum?: number;
+    chartTypesNum?: number;
+    alertsNum?: number;
+    scheduledDeliveriesNum?: number;
+    googleSheetsNum?: number;
+    externalConnectionsNum?: number;
+};
+
 type CliContentAsCode = BaseTrack &
     (
         | {
@@ -296,10 +310,8 @@ type CliContentAsCode = BaseTrack &
                   userId?: string;
                   organizationId?: string;
                   projectId: string;
-                  chartsNum?: number;
-                  dashboardsNum?: number;
                   timeToCompleted: number; // in seconds
-              };
+              } & ProjectContentAsCodeCounts;
           }
         | {
               event: 'download.error' | 'upload.error';
@@ -370,8 +382,10 @@ type CliValidateStarted = BaseTrack & {
         projectId: string;
         isPreview: boolean;
         validationTargets: string[];
+        validateWarehouseColumns: boolean;
         includedSpacesCount: number;
         excludedSpacesCount: number;
+        severity: 'error' | 'warning';
     };
 };
 /** `success` indicates whether 0 validation errors were found, not whether the process ran without crashing (crashes fire `validate.error` instead). */
@@ -382,14 +396,18 @@ type CliValidateCompleted = BaseTrack & {
         projectId: string;
         isPreview: boolean;
         validationTargets: string[];
+        validateWarehouseColumns: boolean;
         includedSpacesCount: number;
         excludedSpacesCount: number;
         durationMs: number;
         success: boolean;
         totalErrors: number;
+        totalWarnings: number;
         tableErrors: number;
         chartErrors: number;
         dashboardErrors: number;
+        appErrors: number;
+        severity: 'error' | 'warning';
     };
 };
 type CliValidateError = BaseTrack & {
@@ -462,6 +480,7 @@ type CliRenameCompleted = BaseTrack & {
         chartsUpdated: number;
         dashboardsUpdated: number;
         durationMs: number;
+        validationStatus: 'skipped' | 'passed' | 'failed';
     };
 };
 type CliRenameError = BaseTrack & {
@@ -635,5 +654,3 @@ export class LightdashAnalytics {
         }
     }
 }
-
-export const analytics: LightdashAnalytics = new LightdashAnalytics();

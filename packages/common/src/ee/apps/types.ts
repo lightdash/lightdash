@@ -1,11 +1,35 @@
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
+import {
+    type DashboardConfig,
+    type DashboardTab,
+    type DashboardTile,
+} from '../../types/dashboard';
+import { type DashboardFilters } from '../../types/filter';
 import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '../../types/knex-paginate';
 import { type MetricQuery } from '../../types/metricQuery';
+import { type DashboardParameters } from '../../types/parameters';
+import { type ResultRow } from '../../types/results';
+import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
+import assertUnreachable from '../../utils/assertUnreachable';
+import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
+import { type ChartTypeIcon } from './chartTypeIcons';
+import {
+    type DataAppVizConfigOption,
+    type DataAppVizOptionValue,
+    type DataAppVizPaletteDeclaration,
+} from './dataAppVizConfigOptions';
+
+export type {
+    DataAppVizConfigOption,
+    DataAppVizConfigOptionType,
+    DataAppVizOptionValue,
+    DataAppVizPaletteDeclaration,
+} from './dataAppVizConfigOptions';
 
 /**
  * Ordered pipeline stages. Index position determines progression — used to
@@ -24,6 +48,14 @@ export const APP_VERSION_STAGE_ORDER = [
 ] as const;
 
 export const APP_VERSION_TERMINAL_STATUSES = ['ready', 'error'] as const;
+
+/**
+ * Error message stamped on a version when the user cancels its build. There is
+ * no dedicated 'cancelled' status — cancellation is an 'error' carrying this
+ * marker, which the pipeline also reads to detect that a previous prompt was
+ * cancelled mid-generation.
+ */
+export const APP_VERSION_CANCELLED_BY_USER = 'Cancelled by user';
 
 export type AppVersionStatus =
     | (typeof APP_VERSION_STAGE_ORDER)[number]
@@ -48,9 +80,24 @@ export type ApiGenerateAppResponse = ApiSuccess<{
     version: number;
 }>;
 
-export type ApiAppImageUploadResponse = ApiSuccess<{
+export type ApiAppFileUploadResponse = ApiSuccess<{
+    fileId: string;
+    /** @deprecated Same value as `fileId` — kept while older frontends read it. */
     imageId: string;
+    /** Sanitized original filename, canonicalized server-side. */
+    filename: string;
+    /** Normalized MIME type as stored on the staged S3 object. */
+    mimeType: string;
 }>;
+
+/** @deprecated Use ApiAppFileUploadResponse. */
+export type ApiAppImageUploadResponse = ApiAppFileUploadResponse;
+
+/**
+ * Attachment cap per generation/iteration request. Shared by the frontend
+ * composer and the backend validator so the limits can't drift apart.
+ */
+export const MAX_APP_FILES_PER_VERSION = 10;
 
 /** Starter template for a single-tile renderer that emits a typed viz schema. */
 export const DATA_APP_VIZ_TEMPLATE = 'data_app_viz' as const;
@@ -64,6 +111,19 @@ export const DATA_APP_TEMPLATES = [
 ] as const;
 export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 
+export const DATA_APP_CREATION_EXPERIENCES = [
+    'app_builder',
+    'explorer_chart_config',
+    'chart_type_builder',
+    'ai_agent',
+] as const;
+export type DataAppCreationExperience =
+    (typeof DATA_APP_CREATION_EXPERIENCES)[number];
+
+/** Coding agent used inside the data-app sandbox. */
+export const DATA_APP_CODING_AGENTS = ['claude', 'codex'] as const;
+export type DataAppCodingAgent = (typeof DATA_APP_CODING_AGENTS)[number];
+
 /**
  * Claude model used to generate / iterate the data app inside the sandbox.
  * Mapped to the Claude CLI's `--model <alias>` flag verbatim. Persisted
@@ -73,6 +133,81 @@ export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 export const DATA_APP_CLAUDE_MODELS = ['opus', 'sonnet', 'haiku'] as const;
 export type DataAppClaudeModel = (typeof DATA_APP_CLAUDE_MODELS)[number];
 export const DEFAULT_DATA_APP_CLAUDE_MODEL: DataAppClaudeModel = 'sonnet';
+
+/**
+ * Codex model used to generate / iterate the data app inside the sandbox.
+ * These are passed to `codex exec --model` verbatim. Kept separate from the
+ * Claude model contract because Claude visibility is managed by org admins,
+ * while Codex currently exposes this fixed instance-level set.
+ */
+export const DATA_APP_CODEX_MODELS = [
+    'gpt-5.6-sol',
+    'gpt-5.6-terra',
+    'gpt-5.6-luna',
+] as const;
+export type DataAppCodexModel = (typeof DATA_APP_CODEX_MODELS)[number];
+export const DEFAULT_DATA_APP_CODEX_MODEL: DataAppCodexModel = 'gpt-5.6-terra';
+
+export type DataAppCodingAgentModel = DataAppClaudeModel | DataAppCodexModel;
+
+/**
+ * Reasoning effort passed to the Claude CLI as `--effort`. Resolved from the
+ * app's template and version when the generation job is enqueued.
+ */
+export type DataAppClaudeEffort = 'low' | 'high';
+
+/**
+ * Org-admin control over which Data App Claude models users can pick.
+ * A model is hidden only when explicitly set to `false`; an absent key (or a
+ * null/undefined visibility map) defaults to visible.
+ */
+export type DataAppModelVisibility = Partial<
+    Record<DataAppClaudeModel, boolean>
+>;
+
+export const getVisibleDataAppClaudeModels = (
+    visibility: DataAppModelVisibility | null | undefined,
+): DataAppClaudeModel[] =>
+    DATA_APP_CLAUDE_MODELS.filter((model) => visibility?.[model] !== false);
+
+/**
+ * Fallback preference when the default model is unavailable. Deliberately NOT
+ * `DATA_APP_CLAUDE_MODELS` order: that list is ordered by capability for
+ * display (Opus first), and reusing it here would promote a request to the
+ * most expensive model when an admin hides Sonnet — turning a cost-control
+ * action into a cost increase. Ordered by ascending cost instead.
+ */
+const DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER: readonly DataAppClaudeModel[] = [
+    'sonnet',
+    'haiku',
+    'opus',
+];
+
+/**
+ * The model to use when the caller doesn't specify one. Prefers
+ * `DEFAULT_DATA_APP_CLAUDE_MODEL`, then the cheapest remaining visible model,
+ * so hiding the system default never leaves nothing selectable and never
+ * silently upgrades the user to a pricier model. Returns `null` only when
+ * every model has been hidden (rejected at write time — see
+ * AiOrganizationSettingsService).
+ */
+export const resolveDefaultDataAppClaudeModel = (
+    visibleModels: readonly DataAppClaudeModel[],
+): DataAppClaudeModel | null => {
+    if (visibleModels.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
+        return DEFAULT_DATA_APP_CLAUDE_MODEL;
+    }
+    return (
+        DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER.find((model) =>
+            visibleModels.includes(model),
+        ) ?? null
+    );
+};
+
+export const resolveDefaultVisibleDataAppClaudeModel = (
+    visibility: DataAppModelVisibility | null | undefined,
+): DataAppClaudeModel | null =>
+    resolveDefaultDataAppClaudeModel(getVisibleDataAppClaudeModels(visibility));
 
 /**
  * A saved-chart reference attached to a generation request.
@@ -97,6 +232,28 @@ export type AppChartReference = {
 export type AppDashboardReference = {
     uuid: string;
     includeSampleData: boolean;
+};
+
+/**
+ * Structural snapshot of an attached dashboard, written into the sandbox so
+ * the agent can recreate the dashboard's design — tabs, tile layout, filters —
+ * instead of inventing a layout from the flattened chart queries. Built
+ * server-side at enqueue time from the resolved dashboard.
+ */
+export type DashboardBlueprint = {
+    dashboardUuid: string;
+    name: string;
+    description: string | null;
+    /** Sorted by `order`. Empty when the dashboard has no tabs. */
+    tabs: DashboardTab[];
+    /** Tile positions use the dashboard's 36-column grid: `x`/`w` are column
+     *  units, `y`/`h` are row units. `tabUuid` links a tile to its tab. Chart
+     *  tiles carry `properties.savedChartUuid` — the same uuid as the matching
+     *  ChartReference in the sandbox. */
+    tiles: DashboardTile[];
+    filters: DashboardFilters;
+    parameters: DashboardParameters | null;
+    config: DashboardConfig | null;
 };
 
 /**
@@ -142,8 +299,15 @@ export const formatPromptWithClarifications = (
 export type GenerateAppRequestBody = {
     prompt: string;
     template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
+    // Product surface that submitted this version's AI generation. Optional for
+    // API compatibility; older callers remain unattributed.
+    creationExperience?: DataAppCreationExperience;
+    /** @deprecated Use `fileIds` — kept while older frontends send it. */
     imageIds?: string[];
-    appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
+    // Staged attachment ids (images, PDFs, text files) in display order.
+    // Uploaded beforehand via the upload-file endpoint.
+    fileIds?: string[];
+    appUuid?: string; // pre-generated UUID so files can be scoped to the app in S3
     charts?: AppChartReference[]; // saved charts to resolve, optionally with sample rows
     dashboard?: AppDashboardReference; // dashboard — resolved server-side to its chart tiles
     clarifications?: AppClarification[]; // pre-build Q&A folded into the prompt server-side
@@ -157,6 +321,9 @@ export type GenerateAppRequestBody = {
     // switched between iterations — `claude --continue` keeps the prior
     // conversation context but accepts a fresh `--model` flag per turn.
     claudeModel?: DataAppClaudeModel;
+    // Codex model to use when APPS_CODING_AGENT=codex. Defaults to
+    // DEFAULT_DATA_APP_CODEX_MODEL on the backend when absent.
+    codexModel?: DataAppCodexModel;
     // Theme (org design) to apply to this app's source tree and system
     // prompt. On initial creation, omit to use the org default, null for no
     // theme, or pass a uuid for a specific theme. On iteration, omit to
@@ -182,7 +349,9 @@ export type ApiClarifyAppRequest = {
     // question is worth asking.
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
+    /** @deprecated Use `fileIds` — kept while older frontends send it. */
     imageIds?: string[];
+    fileIds?: string[];
 };
 
 export type ApiClarifyAppResponse = ApiSuccess<{
@@ -195,6 +364,18 @@ export type ApiPreviewTokenResponse = ApiSuccess<{
 
 export type AppVersionImageResource = {
     imageId: string;
+};
+
+/**
+ * A non-image file attached to a generation request (JSON, Tableau workbook,
+ * markdown, code, PDF…). Filename and MIME type are canonicalized server-side
+ * from the staged S3 object at version creation, so the chat can render a
+ * named chip without touching S3.
+ */
+export type AppVersionFileResource = {
+    fileId: string;
+    filename: string;
+    mimeType: string;
 };
 
 export type AppVersionChartResource = {
@@ -220,9 +401,20 @@ export type AppVersionDesignSnapshot = {
 
 export type AppVersionResources = {
     images: AppVersionImageResource[];
+    // AI-generation surface for this version. Optional for versions built
+    // before creation-experience tracking and for non-generated versions.
+    creationExperience?: DataAppCreationExperience;
+    // Non-image attachments. Optional for backwards compatibility — versions
+    // built before file uploads shipped only carry `images`.
+    files?: AppVersionFileResource[];
     charts: AppVersionChartResource[];
     externalConnections?: AppVersionExternalConnectionResource[];
     dashboardName: string | null;
+    // Uuid of the attached dashboard, so later features can re-resolve its
+    // structure (the name alone is ambiguous). Optional for backwards
+    // compatibility — versions built before dashboard blueprints shipped
+    // don't carry the field.
+    dashboardUuid?: string | null;
     // Pre-build Q&A captured at the time of generation. Persisted alongside
     // the prompt so the chat history can render the clarifications as their
     // own card on the user message — rather than mashing them into the
@@ -233,6 +425,9 @@ export type AppVersionResources = {
     // shipped don't carry the field; readers should fall back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL.
     claudeModel?: DataAppClaudeModel;
+    // Codex model picked for this version. Separate from claudeModel so the
+    // existing Claude visibility and history contract stays unchanged.
+    codexModel?: DataAppCodexModel;
     // Snapshot of the theme used to generate this version (org design). Null
     // when no theme was applied. Captured at generation time so the chat
     // history reflects which theme was active even if it was later renamed
@@ -267,11 +462,30 @@ export type ApiAppThumbnailUrlResponse = ApiSuccess<{
     thumbnailUrl: string;
 }>;
 
+// What produced a narration entry: a pipeline stage label, a summarized
+// thinking snippet from the generation stream, or a tool-activity status.
+// The chat UI renders 'thinking' (Reasoning row) and 'tool' (Activity row);
+// 'stage' entries are stored but filtered out of API responses.
+export type AppVersionStatusHistoryEntryKind = 'stage' | 'thinking' | 'tool';
+
+// One narration message recorded while a version was building. Persisted on
+// app_versions.status_history (jsonb) so the full chain survives the poll
+// cadence and page reloads.
+export type AppVersionStatusHistoryEntry = {
+    message: string;
+    // ISO-8601, stamped when the message was recorded.
+    timestamp: string;
+    kind: AppVersionStatusHistoryEntryKind;
+};
+
 export type ApiAppVersionSummary = {
     version: number;
     prompt: string;
     status: AppVersionStatus;
     statusMessage: string | null;
+    // Accumulated build narration, oldest first — live and after completion.
+    // Server-filtered before serving; see filterStatusHistoryForApi.
+    statusHistory: AppVersionStatusHistoryEntry[];
     // Detailed failure reason (e.g. the build's stderr) when `status` is
     // `error`; null otherwise. `statusMessage` carries the short user-facing
     // line (e.g. "Build failed"); this carries the why.
@@ -306,23 +520,34 @@ export type ApiGetAppResponse = ApiSuccess<{
     template: Exclude<DataAppTemplate, 'custom'> | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    slug: string;
+    views: number;
     versions: ApiAppVersionSummary[];
     hasMore: boolean;
     // Latest ready version across ALL versions, not just the returned page.
     // Viewers must use this (not scan `versions`) to decide whether the app
     // can be previewed — the ready version may be older than the page window.
     latestReadyVersion: number | null;
+    // The registry slug it was installed from, or null for a project-authored
+    // (or forked) app. Registry-installed chart types are read-only.
+    registrySlug: string | null;
+    // Curated Tabler icon name of a custom chart type; null for other apps
+    // and for chart types with no icon chosen.
+    icon: ChartTypeIcon | null;
 }>;
 
 export type ApiUpdateAppRequest = {
     name?: string;
     description?: string;
+    // Custom chart types only; null clears the icon.
+    icon?: ChartTypeIcon | null;
 };
 
 export type ApiUpdateAppResponse = ApiSuccess<{
     appUuid: string;
     name: string;
     description: string;
+    icon: ChartTypeIcon | null;
 }>;
 
 export type ApiCancelAppVersionResponse = ApiSuccessEmpty;
@@ -332,7 +557,48 @@ export type ApiRestoreAppVersionResponse = ApiSuccess<{
     version: number;
 }>;
 
+export type ApiDuplicateAppRequest = {
+    name?: string;
+};
+
 export type ApiDuplicateAppResponse = ApiSuccess<{
+    appUuid: string;
+    slug: string;
+    version: number;
+}>;
+
+/**
+ * A feature the frontend's SDK registry says may be new to this app.
+ * Mirrors the SdkFeature shape from @lightdash/query-sdk/features.
+ */
+export type UpgradeCandidateFeature = {
+    key: string;
+    label: string;
+    description: string;
+    /** Agent-facing app-code wiring the feature needs before it works;
+     *  absent = activates automatically on the new SDK. */
+    wiring?: string;
+};
+
+export const APP_UPGRADE_PROMPT_LABEL = 'Upgrade to the latest app template';
+
+/**
+ * What the app's running bundle reported about itself via the SDK's
+ * `lightdash:sdk:manifest` message. Both fields absent for legacy bundles
+ * whose SDK predates feature reporting. Forwarded into the upgrade prompt —
+ * the backend does not validate against any registry.
+ *
+ * candidateFeatures is the authoritative "possibly new" list computed by the
+ * frontend from its own SDK registry — the in-sandbox agent only verifies and
+ * filters it, never discovers features on its own.
+ */
+export type UpgradeAppRequestBody = {
+    reportedSdkVersion?: string;
+    reportedFeatures?: string[];
+    candidateFeatures?: UpgradeCandidateFeature[];
+};
+
+export type ApiUpgradeAppResponse = ApiSuccess<{
     appUuid: string;
     version: number;
 }>;
@@ -380,10 +646,27 @@ export type ApiAppSummary = {
     lastVersionStatus: AppVersionStatus | null;
 };
 
+export type MyAppsSortBy = 'createdAt' | 'latestActivity';
+
+/**
+ * Narrows an app listing to real data apps ('exclude' drops custom chart
+ * types) or to custom chart types only ('only'). Same vocabulary as the
+ * content API's dataAppVizsFilter query param.
+ */
+export type DataAppVizsFilter = 'exclude' | 'only';
+
 /** Minimal app shape for the embed config's standalone-app allowlist picker. */
 export type EmbedProjectApp = {
     appUuid: string;
     name: string;
+    // Project-scoped identity, used by the CLI to tell whether a dashboard's
+    // app already exists in an upload target.
+    slug: string;
+    // The stored template flavor; distinguishes custom chart types
+    // (data_app_viz) from data apps. Null for "Custom" or pre-template apps.
+    // Optional because servers predating the apps/chart-types split omit it —
+    // consumers must treat an absent field as "unknown", not "data app".
+    template?: Exclude<DataAppTemplate, 'custom'> | null;
 };
 
 export type ApiEmbedProjectAppsResponse = ApiSuccess<EmbedProjectApp[]>;
@@ -414,6 +697,11 @@ export type ChartReference = {
     chartDescription: string;
     exploreName: string;
     metricQuery: MetricQuery;
+    /** Saved visualization config (bar/line/table/big number…) so the agent
+     *  can reproduce the chart type and styling, not just the query. */
+    chartConfig: ChartConfig;
+    /** Saved pivot layout, including ordered row fields when configured. */
+    pivotConfig: NonNullable<SavedChart['pivotConfig']> | null;
     sampleData: ChartSampleData | null; // null when the user did not opt in
     /** Saved chart UUID — surfaced into the sandbox so a linked chart can be
      *  run live via savedChart(uuid). */
@@ -424,6 +712,87 @@ export type ChartReference = {
 
 export type ApiMyAppsResponse = ApiSuccess<{
     data: ApiAppSummary[];
+    pagination?: KnexPaginateArgs & {
+        totalPageCount: number;
+        totalResults: number;
+    };
+}>;
+
+/**
+ * Usage for one generation, aggregated across every coding-agent invocation in
+ * that version's pipeline, including build-fix retries.
+ *
+ * This is spend attributable to a generation, not all data-app AI spend: the
+ * short prompt-clarification and app-naming calls happen outside any version.
+ *
+ * `costUsd` is an estimate rather than an invoice. It is null when the coding
+ * agent reports tokens without a trustworthy price.
+ */
+export type DataAppGenerationUsage = {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+    numTurns: number;
+    durationApiMs: number;
+    costUsd: number | null;
+};
+
+/**
+ * One data app generation event — a row of the org-wide activity log. Backed by
+ * an `app_versions` row, so it covers both new apps and iterations, and both
+ * successful and failed generations.
+ */
+export type DataAppActivityEvent = {
+    appUuid: string;
+    appName: string;
+    // Activity outlives the app: a deleted app's generations still show, so the
+    // log stays a complete record of what the org spent effort on.
+    appDeleted: boolean;
+    // 'data_app_viz' marks a custom chart type build rather than a data app,
+    // so admins can tell the two products' spend apart. Null for "Custom" or
+    // pre-template apps.
+    template: Exclude<DataAppTemplate, 'custom'> | null;
+    // Version 1 created the app; every later version iterated on it.
+    version: number;
+    status: AppVersionStatus;
+    prompt: string;
+    codingAgent: DataAppCodingAgent;
+    codingAgentModel: DataAppCodingAgentModel;
+    // Backwards-compatible Claude-only field. Codex activity omits it rather
+    // than reporting the Claude default for a model that did not run.
+    claudeModel?: DataAppClaudeModel;
+    createdAt: Date;
+    projectUuid: string;
+    projectName: string;
+    // Null only when the author's user row is gone (hard-deleted user).
+    user: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+    // Null for versions generated before spend was recorded, and for those that
+    // never called the model at all — "not recorded", not "spent nothing".
+    usage: DataAppGenerationUsage | null;
+};
+
+export type DataAppActivityFilters = {
+    projectUuids?: string[];
+    userUuids?: string[];
+    // Matches the model as reported, so filtering on the default model also
+    // returns versions that carry no model of their own — the ones that ran on
+    // the default before the picker shipped.
+    models?: DataAppCodingAgentModel[];
+    // ISO-8601, inclusive.
+    dateFrom?: string;
+    dateTo?: string;
+    // 'exclude' = data app builds only, 'only' = custom chart type builds
+    // only. Omitted = both.
+    dataAppVizsFilter?: DataAppVizsFilter;
+};
+
+export type ApiDataAppActivityResponse = ApiSuccess<{
+    data: DataAppActivityEvent[];
     pagination?: KnexPaginateArgs & {
         totalPageCount: number;
         totalResults: number;
@@ -443,137 +812,166 @@ export type DataAppVizField = {
     required: boolean;
 };
 
-export type DataAppVizConfigOptionType =
-    | 'boolean'
-    | 'select'
-    | 'number'
-    | 'text'
-    | 'color'
-    | 'palette';
-
-// A whole-viz config option rendered as a form control; `group` is an optional tab label.
-export type DataAppVizConfigOption =
-    | {
-          type: 'boolean';
-          name: string;
-          label: string;
-          group?: string;
-          default: boolean;
-      }
-    | {
-          type: 'select';
-          name: string;
-          label: string;
-          group?: string;
-          choices: { value: string; label: string }[];
-          default: string;
-      }
-    | {
-          type: 'number';
-          name: string;
-          label: string;
-          group?: string;
-          default: number;
-          min?: number;
-          max?: number;
-      }
-    | {
-          type: 'text';
-          name: string;
-          label: string;
-          group?: string;
-          default: string;
-      }
-    | {
-          type: 'color';
-          name: string;
-          label: string;
-          group?: string;
-          default: string;
-      }
-    | {
-          type: 'palette';
-          name: string;
-          label: string;
-          group?: string;
-          default: string[];
-      };
-
-/** A persisted config value; its shape is set by the option's declared `type`. */
-export type DataAppVizOptionValue = boolean | number | string | string[];
-
 /** The full declaration a data app viz emits: data-binding fields + config form. */
 export type DataAppVizSchema = {
     fields: DataAppVizField[];
     configOptions: DataAppVizConfigOption[];
+    /** Null when the viz colours nothing from the resolved palette. */
+    colorPalette: DataAppVizPaletteDeclaration | null;
 };
 
 const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
     new Set(arr.map((a) => a.name)).size === arr.length;
 
 const optionBase = {
-    name: z.string().min(1),
-    label: z.string(),
-    group: z.string().optional(),
+    name: z
+        .string()
+        .min(1)
+        .describe(
+            'Key the component reads from `options`. Unique across options, no spaces.',
+        ),
+    label: z
+        .string()
+        .describe('Human label shown next to the control in the config panel.'),
+    group: z
+        .string()
+        .nullable()
+        .transform((value) => value ?? undefined)
+        .optional()
+        .describe(
+            'Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab.',
+        ),
 };
 
-// Runtime validator for the untrusted generated declaration. Also the source
-// for the JSON Schema embedded in the generation prompt.
+const vizFields = z
+    .array(
+        z.object({
+            name: z
+                .string()
+                .min(1)
+                .describe(
+                    'Key the component reads from `fieldMapping`. Unique across fields, no spaces.',
+                ),
+            label: z
+                .string()
+                .describe('Human label shown in the field-mapping UI.'),
+            type: z
+                .enum(['dimension', 'metric', 'series'])
+                .describe(
+                    'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart.',
+                ),
+            required: z
+                .boolean()
+                .describe(
+                    'false only when the chart still renders with this field unmapped.',
+                ),
+        }),
+    )
+    .describe(
+        'Every data column the component reads. Declare exactly what you read — no more, no less.',
+    );
+
+const vizConfigOptions = z.array(
+    z.discriminatedUnion('type', [
+        z.object({
+            ...optionBase,
+            type: z.literal('boolean'),
+            default: z
+                .boolean()
+                .describe('Value used until the viewer changes it.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('select'),
+            choices: z
+                .array(
+                    z.object({
+                        value: z
+                            .string()
+                            .describe('Value delivered on `options`.'),
+                        label: z.string().describe('Human label in the list.'),
+                    }),
+                )
+                .min(1)
+                .describe('The selectable choices; at least one.'),
+            default: z
+                .string()
+                .describe('One of the declared choice `value`s.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('number'),
+            default: z
+                .number()
+                .describe('Value used until the viewer changes it.'),
+            min: z
+                .number()
+                .nullable()
+                .transform((value) => value ?? undefined)
+                .optional()
+                .describe('Optional lower bound.'),
+            max: z
+                .number()
+                .nullable()
+                .transform((value) => value ?? undefined)
+                .optional()
+                .describe('Optional upper bound.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('text'),
+            default: z
+                .string()
+                .describe('Value used until the viewer changes it.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('color'),
+            default: z
+                .string()
+                .describe('Hex colour used until the viewer changes it.'),
+        }),
+    ]),
+);
+
+const vizColorPalette = z
+    .object({
+        group: z
+            .string()
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe(
+                'Optional tab name, matching a config option `group`. The picker gets its own tab when no option shares it.',
+            ),
+    })
+    .nullable()
+    .describe(
+        'Declare this when the component colours anything from `colorPalette`. It surfaces the standard Lightdash palette picker, so the viz inherits the same colours as the charts around it. Not a config option: the chosen colours arrive on `colorPalette`, never on `options`. Null when the component colours nothing.',
+    );
+
+// Runtime validator for the untrusted generated declaration, and for schemas
+// round-tripped through an app manifest. `configOptions` defaults to `[]` so a
+// declaration persisted before config options existed still parses.
 export const dataAppVizSchema = z.object({
-    fields: z
-        .array(
-            z.object({
-                name: z.string().min(1),
-                label: z.string(),
-                type: z.enum(['dimension', 'metric', 'series']),
-                required: z.boolean(),
-            }),
-        )
-        .refine(uniqueNames, 'duplicate field name'),
-    configOptions: z
-        .array(
-            z.discriminatedUnion('type', [
-                z.object({
-                    ...optionBase,
-                    type: z.literal('boolean'),
-                    default: z.boolean(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('select'),
-                    choices: z
-                        .array(
-                            z.object({ value: z.string(), label: z.string() }),
-                        )
-                        .min(1),
-                    default: z.string(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('number'),
-                    default: z.number(),
-                    min: z.number().optional(),
-                    max: z.number().optional(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('text'),
-                    default: z.string(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('color'),
-                    default: z.string(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('palette'),
-                    default: z.array(z.string()),
-                }),
-            ]),
-        )
+    fields: vizFields.refine(uniqueNames, 'duplicate field name'),
+    configOptions: vizConfigOptions
         .default([])
         .refine(uniqueNames, 'duplicate option name'),
+    colorPalette: vizColorPalette.default(null),
+});
+
+// The stricter contract handed to the generator CLI: `configOptions` and
+// `colorPalette` are required, so an empty declaration is a deliberate answer
+// rather than the shape of the schema's defaults.
+export const dataAppVizGenerationSchema = z.object({
+    fields: vizFields.refine(uniqueNames, 'duplicate field name'),
+    configOptions: vizConfigOptions
+        .refine(uniqueNames, 'duplicate option name')
+        .describe(
+            'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
+        ),
+    colorPalette: vizColorPalette,
 });
 
 // Compile-time guard: the zod schema's output type must match the explicit
@@ -583,24 +981,139 @@ type AssertMutuallyAssignable<A, B> = [A] extends [B]
         ? true
         : never
     : never;
+type AssertAssignable<A, B> = [A] extends [B] ? true : never;
 const dataAppVizSchemaMatchesApiType: AssertMutuallyAssignable<
     z.infer<typeof dataAppVizSchema>,
     DataAppVizSchema
 > = true;
 void dataAppVizSchemaMatchesApiType;
 
-// JSON Schema form of `dataAppVizSchema` for the generator CLI's `--json-schema`
-// flag. Refinements (e.g. unique names) don't survive the conversion and stay
-// enforced by the runtime `safeParse`.
-export const dataAppVizJsonSchema = zodToJsonSchema(dataAppVizSchema);
+// Whatever the generator emits must be persistable without a second shape.
+const dataAppVizGenerationSchemaIsPersistable: AssertAssignable<
+    z.infer<typeof dataAppVizGenerationSchema>,
+    DataAppVizSchema
+> = true;
+void dataAppVizGenerationSchemaIsPersistable;
 
-/** Effective option values = stored value ?? declared default (derive, never seed). */
+// JSON Schema form of the generation contract for the generator CLI's
+// `--json-schema` flag. Refinements (e.g. unique names) don't survive the
+// conversion and stay enforced by the runtime `safeParse`. The OpenAI target
+// represents optional properties as required and nullable for strict structured
+// output. Inline shared schemas because Codex only accepts top-level references,
+// and retain draft-07 because the Claude CLI does not support the OpenAI
+// target's 2019-09 meta-schema.
+type JsonSchemaObject = Record<string, unknown>;
+
+const isJsonSchemaObject = (value: unknown): value is JsonSchemaObject =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const makeOpenAiStrict = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+        return value.map(makeOpenAiStrict);
+    }
+    if (!isJsonSchemaObject(value)) {
+        return value;
+    }
+
+    const schema = Object.fromEntries(
+        Object.entries(value).map(([key, child]) => [
+            key,
+            makeOpenAiStrict(child),
+        ]),
+    );
+    if (!isJsonSchemaObject(schema.properties)) {
+        return schema;
+    }
+
+    const required = new Set(
+        Array.isArray(schema.required) ? schema.required : [],
+    );
+    const properties = Object.fromEntries(
+        Object.entries(schema.properties).map(([property, propertySchema]) => [
+            property,
+            required.has(property)
+                ? propertySchema
+                : { anyOf: [propertySchema, { type: 'null' }] },
+        ]),
+    );
+
+    return {
+        ...schema,
+        properties,
+        required: Object.keys(properties),
+    };
+};
+
+export const dataAppVizJsonSchema = makeOpenAiStrict(
+    toLlmJsonSchema(dataAppVizGenerationSchema),
+);
+
+/** Whether a stored value still has the shape the option declares. */
+const matchesDeclaredType = (
+    option: DataAppVizConfigOption,
+    value: DataAppVizOptionValue,
+): boolean => {
+    switch (option.type) {
+        case 'boolean':
+            return typeof value === 'boolean';
+        case 'number':
+            return typeof value === 'number';
+        case 'select':
+            // A choice dropped by a regeneration is as stale as a wrong type.
+            return option.choices.some((choice) => choice.value === value);
+        case 'text':
+        case 'color':
+            return typeof value === 'string';
+        default:
+            return assertUnreachable(
+                option,
+                'Unknown data app viz config option type',
+            );
+    }
+};
+
+/**
+ * Effective value of one option: the stored value, or the declared default when
+ * nothing is stored or the stored value no longer matches the declared type —
+ * stored values are untyped JSONB and a regeneration can change an option's
+ * type (derive, never seed).
+ */
+export const getEffectiveOptionValue = <T extends DataAppVizConfigOption>(
+    option: T,
+    storedValue: DataAppVizOptionValue | undefined,
+): T['default'] =>
+    storedValue !== undefined && matchesDeclaredType(option, storedValue)
+        ? (storedValue as T['default'])
+        : option.default;
+
+/**
+ * The explicitly stored values that still fit the declared options. Used when
+ * a chart moves to a newer contract: stale names and mistyped values go,
+ * defaults are still never seeded.
+ */
+export const pruneDataAppVizOptionValues = (
+    configOptions: DataAppVizConfigOption[],
+    optionValues: Record<string, DataAppVizOptionValue>,
+): Record<string, DataAppVizOptionValue> =>
+    Object.fromEntries(
+        configOptions.flatMap((option) => {
+            const stored = optionValues[option.name];
+            return stored !== undefined && matchesDeclaredType(option, stored)
+                ? [[option.name, stored]]
+                : [];
+        }),
+    );
+
+/** Effective values for every declared option. */
 export const getEffectiveOptionValues = (
     configOptions: DataAppVizConfigOption[],
     optionValues: Record<string, DataAppVizOptionValue>,
 ): Record<string, DataAppVizOptionValue> =>
     Object.fromEntries(
-        configOptions.map((o) => [o.name, optionValues[o.name] ?? o.default]),
+        configOptions.map((o) => [
+            o.name,
+            getEffectiveOptionValue(o, optionValues[o.name]),
+        ]),
     );
 
 // A reusable, by-reference data app viz: a single-tile data app that declares a
@@ -608,19 +1121,58 @@ export const getEffectiveOptionValues = (
 // copy. `schema` is null until a version generates one.
 export type DataAppViz = {
     dataAppVizUuid: string;
+    slug: string;
     name: string;
     description: string;
     projectUuid: string;
     spaceUuid: string | null;
     schema: DataAppVizSchema | null;
+    // Tabler icon name from the curated set; null renders the puzzle piece.
+    icon: ChartTypeIcon | null;
     createdAt: Date;
     createdByUserUuid: string;
+    // Registry slug it was installed from, or null if project-authored (or
+    // forked). Registry-installed chart types are read-only; fork to edit.
+    registrySlug: string | null;
 };
+
+/** Whether a chart type is a registry install: read-only, only editable by forking. */
+export const isOfficialChartType = (
+    viz: Pick<DataAppViz, 'registrySlug'>,
+): boolean => viz.registrySlug !== null;
 
 export type ApiListDataAppVizsResponse = ApiSuccess<
     KnexPaginatedData<DataAppViz[]>
 >;
 export type ApiGetDataAppVizResponse = ApiSuccess<DataAppViz>;
+
+export type DataAppVizRenderMetadata =
+    | {
+          state: 'ready';
+          version: number;
+          schema: DataAppVizSchema;
+          latestBuildInProgress: boolean;
+      }
+    | {
+          state: 'building';
+          latestBuildInProgress: true;
+      }
+    // Built successfully, but its bundle is no longer in storage.
+    | {
+          state: 'unavailable';
+          latestBuildInProgress: false;
+      }
+    | {
+          state: 'failed';
+          latestBuildInProgress: false;
+      };
+
+export type ApiDataAppVizRenderMetadataResponse =
+    ApiSuccess<DataAppVizRenderMetadata>;
+
+export type ApiDataAppVizPreviewTokenResponse = ApiSuccess<{
+    token: string;
+}>;
 
 // postMessage type the host uses to push render context into the sandboxed
 // iframe over the existing app SDK bridge (no new transport).
@@ -633,9 +1185,65 @@ export const APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE =
 export const APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE =
     'lightdash:sdk:viz-context-request';
 
+// The light/dark mode an app iframe renders in: the host's resolved Mantine
+// scheme, or the embed's `?theme=`.
+export type AppColorScheme = 'light' | 'dark';
+
+// postMessage type the host uses to tell a running app which color scheme to
+// render in. Also seeded into the iframe URL hash as `theme=` so the SDK can
+// apply the right scheme before the app's first render.
+export const APP_SDK_COLOR_SCHEME_MESSAGE = 'lightdash:sdk:theme';
+
+// Posted by the app's SDK once its theme listener is live, so the host replies
+// with the current scheme instead of the app depending on having been listening
+// when the load-time push went out.
+export const APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE =
+    'lightdash:sdk:theme-request';
+
+// Bridge-only virtual route: the viz posts semantic click intent here and the
+// host rewrites it into the real underlying-data POST. Never forwarded to the
+// API — `useAppSdkBridge` resolves it before allowlist matching.
+export const APP_SDK_VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
+
+// Click intent a viz sends to the virtual route: the untransformed source row
+// (as pushed in the viz context) and the declared field NAME bound to the
+// clicked metric slot. The host resolves everything else at request time.
+export type DataAppVizUnderlyingDataIntent = {
+    row: ResultRow;
+    metric: string;
+    limit?: number | null;
+};
+
+// Bridge-only virtual route: the viz posts a drill click intent here and the
+// host resolves it and opens its drill dialog. Never forwarded to the API —
+// `useAppSdkBridge` answers it before allowlist matching.
+export const APP_SDK_VIZ_DRILL_DOWN_PATH = '/__sdk/viz/drill-down';
+
+// Drill click intent a viz sends to the virtual route: the untransformed
+// source row (as pushed in the viz context) and the declared field NAME bound
+// to the clicked metric slot. The host resolves everything else.
+export type DataAppVizDrillDownIntent = {
+    row: ResultRow;
+    metric: string;
+};
+
 // Host-owned render context pushed into a data app viz: field name → bound query
-// field id, plus the host-fetched result rows the renderer reads.
+// field id, the host-fetched result rows the renderer reads, the effective
+// config option values (stored value ?? declared default), and the palette
+// resolved for this chart (org → project → space → dashboard → chart, dark-mode
+// corrected), plus the host-resolved colors for pivot columns and raw dimension
+// values. `colorPalette` is pushed whether or not the viz declared one, so a viz
+// that colours series never has to check first. `underlyingData.enabled` and
+// `drillDown.enabled` are required so every push site decides availability
+// explicitly.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
-    rows: Record<string, unknown>[];
+    rows: ResultRow[];
+    options: Record<string, DataAppVizOptionValue>;
+    colorPalette: string[];
+    seriesColors: Record<string, string>;
+    valueColors: Record<string, Record<string, string>>;
+    pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    underlyingData: { enabled: boolean };
+    drillDown: { enabled: boolean };
 };

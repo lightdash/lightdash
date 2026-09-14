@@ -5,9 +5,11 @@
 If the app is linked to one or more **external connections** (third-party HTTP APIs the project admin configured), you'll see a `[Linked external connections — each file in /tmp/external-data/ ...]` block at the top of this prompt and one JSON file per connection at **`/tmp/external-data/{alias}.json`**.
 
 Each file documents one connection:
+
 - `instructions` — admin-authored notes on how to use this API (auth quirks, pagination, which endpoints matter, response caveats). Present only when the admin wrote them; when present, read and follow them.
 - `signature` / `howToCall` — the exact typed SDK call. Auth is injected by Lightdash — never include credentials or API keys.
 - `origin` / `requestUrl` — the connection's base origin (host only) and how the URL is formed: **the full request URL is `origin + path`.** Your `path` is appended to the origin verbatim — the origin and the path prefix are NOT auto-prepended.
+- `browserImageOrigin` — when non-null, the app may load public images directly from this exact origin in `<img>`, CSS image URLs, canvas-compatible image loaders, or map tile layers such as Leaflet. This is an image-rendering exception only: keep API/data calls on `externalFetch`, and never put Lightdash data or secrets in an image URL.
 - `rules` — hard requirements. The big ones: (1) **`path` is the COMPLETE path from the origin** — pass the whole path (e.g. `/repos/owner/repo/issues`, never a shortened `/issues`) and make sure it starts with one of `allowedPathPrefixes`. (2) **`query` is `Record<string, string>` — every query value MUST be a string** (`{ latitude: '52.52' }`, never `{ latitude: 52.52 }`); numbers and booleans are rejected with a 422. Read the response from `result.body`.
 - `allowedMethods` / `allowedPathPrefixes` — the methods and path prefixes the admin has permitted; only call within these bounds.
 - `samples` — example `{ request, response }` pairs. Copy the request shape — including the FULL `request.path` — when building your `externalFetch` calls. Treat response values as illustrative of shape, not exhaustive.
@@ -23,26 +25,32 @@ Lightdash that stores the origin (host) and credentials. The app references it b
 
 ```tsx
 const res = await lightdash.externalFetch('stripe', {
-    method: 'GET',          // 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' — defaults to 'GET'. Must be one of the connection's allowed methods.
-    path: '/v1/charges',    // COMPLETE path appended to the connection's origin (host). Full URL = origin + path. Must start with an allowed prefix; it is NOT relative to the prefix.
+    method: 'GET', // 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' — defaults to 'GET'. Must be one of the connection's allowed methods.
+    path: '/v1/charges', // COMPLETE path appended to the connection's origin (host). Full URL = origin + path. Must start with an allowed prefix; it is NOT relative to the prefix.
     query: { limit: '10' }, // Record<string, string> — values MUST be strings
     // body: { ... },       // JSON body — sent for every method except GET
 });
 
 // res.status      — upstream HTTP status (number)
 // res.contentType — upstream Content-Type
+// res.headers     — safe upstream response headers (lowercase names)
 // res.body        — parsed JSON (or raw text for non-JSON)
 // res.truncated   — true if Lightdash truncated an oversized response
 ```
 
 Lightdash resolves the alias to the stored connection, attaches its
 credentials, makes the request server-side, and returns the response.
+`res.headers` includes lowercase cache, pagination, and rate-limit headers such
+as `retry-after`, `ratelimit-*`, `x-ratelimit-*`, `etag`, and `link`. Other
+upstream headers are deliberately omitted.
 
 **Rules — follow exactly:**
 
 - **Always** use `lightdash.externalFetch()` for external data. **Never** use
   raw `fetch()`, `XMLHttpRequest`, `axios`, or any other client to call an
   external API directly — those calls are blocked by the sandbox and will fail.
+  The only exception is image rendering from a connection whose doc has a
+  non-null `browserImageOrigin`; use the exact origin shown there.
 - **Never** hardcode API keys, tokens, passwords, or any secret in the app.
   The connection holds the credentials; the app holds only the alias.
 - **Never** ask the user for an API key or secret, and never add an input field

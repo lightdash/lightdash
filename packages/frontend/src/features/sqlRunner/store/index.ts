@@ -3,6 +3,7 @@
 import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
 import { barChartConfigSlice } from '../../../components/DataViz/store/barChartSlice';
+import { bigNumberConfigSlice } from '../../../components/DataViz/store/bigNumberSlice';
 import { lineChartConfigSlice } from '../../../components/DataViz/store/lineChartSlice';
 import { pieChartConfigSlice } from '../../../components/DataViz/store/pieChartSlice';
 import { tableVisSlice } from '../../../components/DataViz/store/tableVisSlice';
@@ -22,6 +23,7 @@ export const store = configureStore({
         barChartConfig: barChartConfigSlice.reducer,
         lineChartConfig: lineChartConfigSlice.reducer,
         pieChartConfig: pieChartConfigSlice.reducer,
+        bigNumberConfig: bigNumberConfigSlice.reducer,
         tableVisConfig: tableVisSlice.reducer,
         [metricsCatalogSlice.name]: metricsCatalogSlice.reducer,
         [funnelBuilderSlice.name]: funnelBuilderSlice.reducer,

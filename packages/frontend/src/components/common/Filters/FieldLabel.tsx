@@ -7,7 +7,7 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { Text, type TextProps } from '@mantine-8/core';
+import { Text, type TextProps } from '@mantine/core';
 import { type FC } from 'react';
 
 interface FieldLabelProps {

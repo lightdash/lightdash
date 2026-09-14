@@ -1,5 +1,5 @@
 import { type InlineError } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine-8/core';
+import { Box, Stack, Text } from '@mantine/core';
 import type { FC } from 'react';
 import styles from './WarningsHoverCardContent.module.css';
 

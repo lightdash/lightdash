@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type AiAgentSummary,
     type AiPromptContext,
     type AiPromptContextInput,
@@ -14,9 +13,10 @@ import {
     Loader,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     useCallback,
+    useEffect,
     useMemo,
     useState,
     type CSSProperties,
@@ -24,15 +24,21 @@ import {
 } from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
-import { type StartDeepResearchArgs } from '../../deepResearch/types';
+import { findRetryableDeepResearchRun } from '../../deepResearch/deepResearchRegistry';
+import { runDeepResearchAgain } from '../../deepResearch/runAgain';
+import {
+    type DeepResearchRunRegistration,
+    type StartDeepResearchArgs,
+} from '../../deepResearch/types';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import {
     useStartDeepResearchForThreadMutation,
     useStartDeepResearchMutation,
+    useTrackDeepResearchFollowUp,
 } from '../../hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../hooks/useDeepResearchAccess';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../hooks/usePinnedContext';
 import {
@@ -134,11 +140,12 @@ const NewThreadPanel: FC<{
 
     const chartUuid = pendingContext?.chartUuid;
     const dashboardUuid = pendingContext?.dashboardUuid;
+    const dataAppUuid = pendingContext?.dataAppUuid;
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
     const concreteAgent = getConcreteLauncherAgent(agent);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
 
     const {
         contextInput,
@@ -149,6 +156,7 @@ const NewThreadPanel: FC<{
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dataAppUuidOrSlug: dataAppUuid,
     });
     const { curateContext } = useDashboardPageContextCuration({
         previousContext: contextInput,
@@ -169,7 +177,19 @@ const NewThreadPanel: FC<{
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     // New threads have no uuid yet — keep the toggle in local state and seed
     // the per-thread slice entry once the thread is created.
-    const [sqlMode, setSqlMode] = useState(true);
+    const [sqlModeOverride, setSqlModeOverride] = useState<boolean>();
+    const sqlMode = sqlModeOverride ?? concreteAgent?.enableSqlMode ?? true;
+    const getSqlModeForAgent = useCallback(
+        (agentUuid: string) =>
+            sqlModeOverride ??
+            agents.find((candidate) => candidate.uuid === agentUuid)
+                ?.enableSqlMode ??
+            true,
+        [agents, sqlModeOverride],
+    );
+    useEffect(() => {
+        setSqlModeOverride(undefined);
+    }, [concreteAgent?.uuid]);
     const [composerSeed, setComposerSeed] = useState<string | null>(null);
     const dispatchToStore = useAiAgentStoreDispatch();
     const handleToolResult = useCallback(
@@ -207,7 +227,9 @@ const NewThreadPanel: FC<{
                 dispatchToStore(
                     setThreadSqlMode({
                         threadUuid: thread.uuid,
-                        enabled: sqlModeAvailable && sqlMode,
+                        enabled:
+                            sqlModeAvailable &&
+                            getSqlModeForAgent(thread.agentUuid),
                     }),
                 );
             },
@@ -217,8 +239,12 @@ const NewThreadPanel: FC<{
         useStartDeepResearchForThreadMutation(projectUuid);
 
     const handleStartDeepResearch = useCallback(
-        async ({ question, depth }: StartDeepResearchArgs) => {
-            if (!concreteAgent || !isPinnedContextReady) {
+        async ({ question }: StartDeepResearchArgs) => {
+            if (
+                !concreteAgent ||
+                !isPinnedContextReady ||
+                !canStartDeepResearch
+            ) {
                 return;
             }
             const thread = await createAgentThread({
@@ -230,12 +256,14 @@ const NewThreadPanel: FC<{
             });
             await startDeepResearch.mutateAsync({
                 question,
-                depth,
+                agentUuid: concreteAgent.uuid,
                 threadUuid: thread.uuid,
+                promptUuid: thread.firstMessage.uuid,
             });
         },
         [
             concreteAgent,
+            canStartDeepResearch,
             contextInputWithPageContext,
             createAgentThread,
             isPinnedContextReady,
@@ -263,11 +291,12 @@ const NewThreadPanel: FC<{
                 prompt: message,
                 context,
                 optimisticContext,
-                enableSqlMode: sqlModeAvailable && sqlMode,
+                enableSqlMode:
+                    sqlModeAvailable && getSqlModeForAgent(agentUuid),
                 toolHints,
             });
         },
-        [createAgentThread, sqlMode, sqlModeAvailable],
+        [createAgentThread, getSqlModeForAgent, sqlModeAvailable],
     );
 
     const {
@@ -310,7 +339,7 @@ const NewThreadPanel: FC<{
                 >
                     {isAuto ? (
                         <Avatar size="lg" color="ldGray" radius="xl">
-                            <Text size="sm" fw={700} c="ldGray.6">
+                            <Text size="sm" fw={600} c="dimmed">
                                 AI
                             </Text>
                         </Avatar>
@@ -350,6 +379,7 @@ const NewThreadPanel: FC<{
                                     key={getPromptContextItemKey(item)}
                                     item={item}
                                     projectUuid={projectUuid}
+                                    previewScope={null}
                                 />
                             ))}
                         </Group>
@@ -366,7 +396,7 @@ const NewThreadPanel: FC<{
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
                     onStartDeepResearch={
-                        concreteAgent && deepResearchFlag.data?.enabled
+                        concreteAgent && canStartDeepResearch
                             ? handleStartDeepResearch
                             : undefined
                     }
@@ -376,8 +406,12 @@ const NewThreadPanel: FC<{
                     projectUuid={projectUuid}
                     agentUuid={concreteAgent?.uuid}
                     fullWidth
-                    sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                    onSqlModeChange={sqlModeAvailable ? setSqlMode : undefined}
+                    sqlMode={sqlModeAvailable && !isAuto ? sqlMode : undefined}
+                    onSqlModeChange={
+                        sqlModeAvailable && !isAuto
+                            ? setSqlModeOverride
+                            : undefined
+                    }
                     contentMentionPriorityItems={contentMentionItems}
                 />
             </div>
@@ -413,12 +447,7 @@ const LauncherAgentPicker: FC<{
                             {candidate.name}
                         </Box>
                         {candidate.isRecommended && (
-                            <Badge
-                                size="xs"
-                                color="violet"
-                                variant="light"
-                                radius="sm"
-                            >
+                            <Badge size="xs" color="violet">
                                 Recommended
                             </Badge>
                         )}
@@ -437,7 +466,7 @@ const ExistingThreadPanel: FC<{
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, threadId, style }) => {
     const { user } = useApp();
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const navigate = useNavigate();
     const location = useLocation();
     const {
@@ -446,7 +475,7 @@ const ExistingThreadPanel: FC<{
         refetch,
     } = useAiAgentThread(projectUuid, agent.uuid, threadId);
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadId,
         refetch,
@@ -473,11 +502,18 @@ const ExistingThreadPanel: FC<{
     });
     const startDeepResearch = useStartDeepResearchMutation({
         projectUuid,
+        agentUuid: agent.uuid,
+        threadUuid: threadId,
+    });
+    const trackDeepResearchFollowUp = useTrackDeepResearchFollowUp({
+        projectUuid,
         threadUuid: threadId,
     });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
+    const sqlMode = useAiAgentStoreSelector(
+        selectThreadSqlMode(threadId, agent.enableSqlMode),
+    );
     const dispatchToStore = useAiAgentStoreDispatch();
     const threadContext = useMemo(
         () =>
@@ -494,10 +530,22 @@ const ExistingThreadPanel: FC<{
         });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
+    const isBusy = Boolean(
+        isCreatingMessage ||
+        isStreaming ||
+        isThreadPending ||
+        startDeepResearch.isLoading,
+    );
+    const isInputDisabled =
+        thread?.createdFrom === 'slack' || !isThreadFromCurrentUser;
     const contentMentionItems = useMemo(
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
     );
+    const firstAssistantMessage = thread?.messages?.find(
+        (message) => message.role === 'assistant',
+    );
+    const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
 
     const handleSubmit = ({
         message,
@@ -512,10 +560,6 @@ const ExistingThreadPanel: FC<{
             typeof createAgentThreadMessage
         >[0]['optimisticContext'];
     }) => {
-        const firstAssistantMessage = thread?.messages?.find(
-            (m) => m.role === 'assistant',
-        );
-        const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
         const curatedContext = curateContext({ context, optimisticContext });
 
         void createAgentThreadMessage({
@@ -527,18 +571,55 @@ const ExistingThreadPanel: FC<{
             toolHints,
         }).then(() => {
             recordSubmittedContext(curatedContext.context);
+            trackDeepResearchFollowUp();
         });
     };
 
     const handleStartDeepResearch = async ({
         question,
-        depth,
-    }: Parameters<typeof startDeepResearch.mutateAsync>[0]) => {
-        await createAgentThreadMessage({
-            prompt: question,
-            skipAgentResponse: true,
+    }: StartDeepResearchArgs) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
+        const retryableRun = findRetryableDeepResearchRun({
+            projectUuid,
+            agentUuid: agent.uuid,
+            threadUuid: threadId,
+            userUuid: user?.data?.userUuid,
+            question,
         });
-        await startDeepResearch.mutateAsync({ question, depth });
+        const promptUuid =
+            retryableRun?.promptUuid ??
+            (
+                await createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig,
+                    skipAgentResponse: true,
+                })
+            ).uuid;
+        await startDeepResearch.mutateAsync({
+            question,
+            promptUuid,
+        });
+    };
+
+    const handleRunDeepResearchAgain = async (
+        registration: DeepResearchRunRegistration,
+    ) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
+
+        return runDeepResearchAgain({
+            registration,
+            createPrompt: (question) =>
+                createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig,
+                    skipAgentResponse: true,
+                }),
+            startRun: startDeepResearch.mutateAsync,
+        });
     };
 
     const headerTitle =
@@ -592,17 +673,22 @@ const ExistingThreadPanel: FC<{
                     agentUuid={agent.uuid}
                     renderArtifactsInline
                     onDashboardLinkClick={handleDashboardLinkClick}
+                    canRetryDeepResearch={
+                        canStartDeepResearch && !isInputDisabled && !isBusy
+                    }
+                    onRunDeepResearchAgain={(registration) => {
+                        void handleRunDeepResearchAgain(registration).catch(
+                            () => undefined,
+                        );
+                    }}
                 >
                     <AgentChatInput
-                        disabled={
-                            thread.createdFrom === 'slack' ||
-                            !isThreadFromCurrentUser
-                        }
+                        disabled={isInputDisabled}
                         disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
-                        loading={isCreatingMessage || isStreaming || isPending}
+                        loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
+                            canStartDeepResearch
                                 ? handleStartDeepResearch
                                 : undefined
                         }

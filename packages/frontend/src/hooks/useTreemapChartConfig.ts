@@ -1,5 +1,6 @@
 import { isField, isMetric, isTableCalculation } from '@lightdash/common';
 import type {
+    ApiError,
     CustomDimension,
     Dimension,
     ItemsMap,
@@ -16,6 +17,8 @@ import { type InfiniteQueryResults } from './useQueryResults';
 
 type TreemapChartConfig = {
     validConfig: TreemapChart;
+    isLoadingSubtotals: boolean;
+    subtotalsError: ApiError | null;
 
     groupFieldIds: (string | null)[];
     groupReorder: (args: { from: number; to: number }) => void;
@@ -37,9 +40,9 @@ type TreemapChartConfig = {
     topLevelColors?: string[];
 
     startColorThreshold?: number;
-    setStartColorThreshold: (startColorThreshold: number) => void;
+    setStartColorThreshold: (startColorThreshold: number | undefined) => void;
     endColorThreshold?: number;
-    setEndColorThreshold: (endColorThreshold: number) => void;
+    setEndColorThreshold: (endColorThreshold: number | undefined) => void;
 
     visibleMin: number;
     setVisibleMin: (visibleMin: number) => void;
@@ -212,7 +215,11 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         [],
     );
 
-    const { data: groupedSubtotals } = useAsyncCalculateSubtotals({
+    const {
+        data: groupedSubtotals,
+        isFetching: isLoadingSubtotals,
+        error: subtotalsError,
+    } = useAsyncCalculateSubtotals({
         projectUuid,
         sourceQueryUuid: resultsData?.queryUuid,
         dimensions: resultsData?.metricQuery?.dimensions,
@@ -368,6 +375,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
 
     return {
         validConfig,
+        isLoadingSubtotals,
+        subtotalsError,
 
         groupFieldIds: Array.from(groupFieldIds),
         groupReorder: handleGroupReorder,

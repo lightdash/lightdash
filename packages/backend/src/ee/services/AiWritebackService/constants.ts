@@ -59,9 +59,6 @@ export const PR_DESCRIPTION_CLOSE = '</lightdash-writeback-pr-description>';
 export const PR_SUMMARY_OPEN = '<lightdash-writeback-pr-summary>';
 export const PR_SUMMARY_CLOSE = '</lightdash-writeback-pr-summary>';
 
-// Installation tokens authenticate over HTTPS with a fixed username.
-export const GIT_USERNAME = 'x-access-token';
-
 // Commit identity for changes the agent produces.
 export const COMMIT_AUTHOR_NAME = 'Lightdash';
 export const COMMIT_AUTHOR_EMAIL = 'developers@lightdash.com';
@@ -115,6 +112,8 @@ export const COMPILE_TIMINGS_PATH = '/tmp/ld-writeback-compile-timings';
 // also drop common token vars defensively in case that changes.
 export const COMPILE_STRIPPED_ENV_VARS = [
     'ANTHROPIC_API_KEY',
+    // Gateway mode carries the key here instead.
+    'ANTHROPIC_AUTH_TOKEN',
     'GITHUB_TOKEN',
     'GH_TOKEN',
 ];
@@ -126,8 +125,7 @@ export const COMPILE_STRIPPED_ENV_VARS = [
 //   - read/edit/write/glob/grep over the cloned repo at CWD
 //   - read/write/edit under TMP_PROFILES_DIR (the patched profiles copy)
 //   - write to the two PR metadata files the host reads after the run
-//   - bash scoped to the compile wrapper (COMPILE_WRAPPER_PATH) and the file
-//     ops needed to set up the temporary profiles dir
+//   - bash scoped to the compile wrapper (COMPILE_WRAPPER_PATH)
 export const ALLOWED_TOOLS = [
     `Read(/${CWD}/**)`,
     `Glob(/${CWD}/**)`,
@@ -146,18 +144,23 @@ export const ALLOWED_TOOLS = [
     // outside the cwd workspace so it must also be passed via `--add-dir`.
     'Skill',
     `Read(/${CLAUDE_SKILLS_DIR}/**)`,
-    // PR metadata files live directly in /tmp. This permission alone is not
-    // enough: Claude Code also confines Write/Edit to the cwd workspace, so
-    // /tmp must additionally be passed via `--add-dir /tmp` (see
-    // runAgentInSandbox). Without that the agent's /tmp write is refused and it
-    // falls back to the repo root, where the host has to scrub it.
-    `Write(//tmp/**)`,
+    // PR metadata files live directly in /tmp, which is also passed via
+    // `--add-dir /tmp`. Keep these paths explicit: the compile wrapper is an
+    // executable in /tmp and must never be writable by the agent.
+    `Write(/${PR_TITLE_PATH})`,
+    `Write(/${PR_DESCRIPTION_PATH})`,
     // Compile only via the secret-stripping wrapper, never raw
     // `lightdash compile` — see COMPILE_WRAPPER_PATH.
     `Bash(${COMPILE_WRAPPER_PATH}:*)`,
-    'Bash(mkdir:*)',
-    'Bash(cp:*)',
 ].join(',');
+
+// Native compilation runs on the host with the shared compiler. The agent
+// needs neither shell execution nor access to temporary dbt profiles.
+export const NATIVE_ALLOWED_TOOLS = ALLOWED_TOOLS.split(',')
+    .filter(
+        (tool) => !tool.startsWith('Bash(') && !tool.includes(TMP_PROFILES_DIR),
+    )
+    .join(',');
 
 // Anthropic model used for the writeback agent. Pinned to a specific Sonnet
 // snapshot rather than the CLI default so runs stay deterministic across
@@ -238,6 +241,27 @@ export const REPO_CONTEXT_TIMEOUT_MS = 30 * 1000;
 // before running it (see buildGatherRepoContextScript).
 export const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 
+// Largest repo file listing we inject into the system prompt verbatim. Above
+// this the listing is replaced by a directory-level digest and the agent is
+// told to find files with Glob/Grep instead.
+//
+// Sized against the model's context window, not aesthetics. Repo listings are
+// mostly paths, which tokenise far worse than prose — measured at ~2.2
+// chars/token on a real customer project (deep directories, long model names)
+// versus ~4 for English. So 96KB is roughly 45K tokens, leaving the bulk of
+// the 200K window for the system prompt, skills, file reads, and the turns
+// that actually do the work. An uncapped listing has been measured at 410KB
+// (~187K tokens), which overflows the window on its own and fails every run
+// before the agent edits anything.
+export const REPO_CONTEXT_MAX_BYTES = 96 * 1024;
+
 // Last N bytes of the agent's stderr kept for diagnostics on a non-zero exit /
 // timeout, so the Sentry payload carries the real error without inflating it.
 export const STDERR_TAIL_BYTES = 4096;
+
+// Last N characters of the agent's final assistant message kept for diagnostics
+// on a failed run. When the agent gives up it says why in prose ("I cannot find
+// a dbt project at ..."), and on that path the CLI writes nothing to stderr, so
+// this is the only human-readable explanation available. Clipped because the
+// message is model output over customer files — enough to diagnose, not a dump.
+export const ASSISTANT_TEXT_TAIL_CHARS = 2000;

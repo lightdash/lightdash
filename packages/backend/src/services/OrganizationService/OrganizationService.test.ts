@@ -1,13 +1,17 @@
 import { Ability } from '@casl/ability';
 import {
+    FeatureFlags,
+    ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import Logger from '../../logging/logger';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -15,22 +19,42 @@ import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationA
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
-import { OrganizationService } from './OrganizationService';
+import { projectSummary } from '../ProjectService/ProjectService.mock';
+import {
+    OrganizationService,
+    type OrganizationServiceArguments,
+} from './OrganizationService';
 import { organization, user } from './OrganizationService.mock';
+
+vi.mock('@sentry/node', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@sentry/node')>();
+    return {
+        ...actual,
+        captureException: vi.fn(),
+    };
+});
 
 const projectModel = {
     hasProjects: vi.fn(async () => true),
     getProjectGroupAccesses: vi.fn(),
+    getAllByOrganizationUuid: vi.fn(),
 };
 const organizationModel = {
     get: vi.fn(async () => organization),
     create: vi.fn<OrganizationModel['create']>(async () => organization),
     hasOrgs: vi.fn<OrganizationModel['hasOrgs']>(async () => false),
+    getImpersonationEnabled: vi.fn<
+        OrganizationModel['getImpersonationEnabled']
+    >(async () => true),
 };
 const userModel = {
     hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
     joinOrg: vi.fn<UserModel['joinOrg']>(async () => user),
+    findSessionUserAndOrgByUuid: vi.fn<
+        UserModel['findSessionUserAndOrgByUuid']
+    >(async () => user),
 };
 const featureFlagModel = {
     get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
@@ -41,26 +65,128 @@ const featureFlagModel = {
 vi.spyOn(analyticsMock, 'track');
 const organizationMemberProfileModel = {
     getOrganizationMembersAndGroups: vi.fn(),
+    getOrganizationAdmins: vi.fn(),
+    updateOrganizationMember: vi.fn(),
+};
+const rolesModel = {
+    getRoleWithScopesByUuid: vi.fn(),
+    getOrganizationUserRoleSet: vi
+        .fn()
+        .mockResolvedValue({ systemRole: 'admin', customRoleUuids: [] }),
+    assertAnotherActiveAdmin: vi.fn(),
+    db: {
+        transaction: vi.fn(async (cb: (trx: unknown) => unknown) => cb({})),
+    },
 };
 
 describe('organization service', () => {
-    const organizationService = new OrganizationService({
-        lightdashConfig: lightdashConfigMock,
-        analytics: analyticsMock,
-        organizationModel: organizationModel as unknown as OrganizationModel,
-        projectModel: projectModel as unknown as ProjectModel,
-        onboardingModel: {} as OnboardingModel,
-        organizationMemberProfileModel:
-            organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
-        userModel: userModel as unknown as UserModel,
-        organizationAllowedEmailDomainsModel:
-            {} as OrganizationAllowedEmailDomainsModel,
-        groupsModel: {} as GroupsModel,
-        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
-    });
+    const buildOrganizationService = (
+        onOrganizationCreated?: OrganizationServiceArguments['onOrganizationCreated'],
+    ) =>
+        new OrganizationService({
+            lightdashConfig: lightdashConfigMock,
+            analytics: analyticsMock,
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            projectModel: projectModel as unknown as ProjectModel,
+            onboardingModel: {} as OnboardingModel,
+            organizationMemberProfileModel:
+                organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
+            userModel: userModel as unknown as UserModel,
+            organizationAllowedEmailDomainsModel:
+                {} as OrganizationAllowedEmailDomainsModel,
+            groupsModel: {} as GroupsModel,
+            featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+            rolesModel: rolesModel as unknown as RolesModel,
+            onOrganizationCreated,
+        });
+    const organizationService = buildOrganizationService();
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    it.each([true, false])(
+        'lists analytics projects according to Console enablement: %s',
+        async (enabled) => {
+            const account = buildAccount();
+            const organizationUuid = account.organization.organizationUuid!;
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'Project' },
+                {
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: { organizationUuid },
+                },
+            ]);
+            const ordinaryProject = {
+                ...projectSummary,
+                provisioningSource: null,
+            };
+            const analyticsProject = {
+                ...projectSummary,
+                projectUuid: 'analytics',
+                provisioningSource: 'analytics',
+            };
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                ordinaryProject,
+                analyticsProject,
+            ]);
+            featureFlagModel.get.mockResolvedValueOnce({
+                id: FeatureFlags.AnalyticsProject,
+                enabled,
+            });
+            await expect(
+                organizationService.getProjects(account),
+            ).resolves.toEqual(
+                enabled
+                    ? [ordinaryProject, analyticsProject]
+                    : [ordinaryProject],
+            );
+            expect(featureFlagModel.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AnalyticsProject,
+                user: { organizationUuid },
+            });
+        },
+    );
+
+    describe('updateMember', () => {
+        it('rejects assigning a system role above a custom-role caller', async () => {
+            const limitedAbility = new Ability<PossibleAbilities>([
+                {
+                    action: 'update',
+                    subject: 'OrganizationMemberProfile',
+                    conditions: {
+                        organizationUuid: organization.organizationUuid,
+                    },
+                },
+            ]);
+            rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: organization.organizationUuid,
+                level: 'organization',
+                scopes: ['manage:Organization'],
+            });
+            organizationMemberProfileModel.getOrganizationAdmins.mockResolvedValue(
+                [{ userUuid: 'target-user' }, { userUuid: 'remaining-admin' }],
+            );
+
+            await expect(
+                organizationService.updateMember(
+                    {
+                        ...user,
+                        role: OrganizationMemberRole.MEMBER,
+                        roleUuid: 'limited-org-manager-role',
+                        ability: limitedAbility,
+                    },
+                    'target-user',
+                    { role: OrganizationMemberRole.ADMIN },
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(
+                organizationMemberProfileModel.updateOrganizationMember,
+            ).not.toHaveBeenCalled();
+        });
     });
 
     beforeEach(() => {
@@ -83,6 +209,72 @@ describe('organization service', () => {
                 organizationId: organization.organizationUuid,
                 organizationName: organization.name,
                 onboardingFlow: 'new',
+            },
+        });
+    });
+
+    it('awaits the organization-created hook', async () => {
+        let resolveHook = () => {};
+        const hookPending = new Promise<void>((resolve) => {
+            resolveHook = resolve;
+        });
+        const onOrganizationCreated = vi.fn<
+            NonNullable<OrganizationServiceArguments['onOrganizationCreated']>
+        >(async () => hookPending);
+        const service = buildOrganizationService(onOrganizationCreated);
+        let completed = false;
+
+        const creation = service
+            .createAndJoinOrg(
+                { ...user, organizationUuid: undefined },
+                { name: 'Organization' },
+            )
+            .then(() => {
+                completed = true;
+            });
+
+        await vi.waitFor(() => {
+            expect(onOrganizationCreated).toHaveBeenCalledExactlyOnceWith({
+                user,
+                organizationUuid: organization.organizationUuid,
+            });
+        });
+        expect(completed).toBe(false);
+
+        resolveHook();
+        await creation;
+
+        expect(completed).toBe(true);
+    });
+
+    it('survives an organization-created hook failure', async () => {
+        const error = new Error('Hook failed');
+        const errorSpy = vi
+            .spyOn(Logger, 'error')
+            .mockImplementation(() => Logger);
+        const onOrganizationCreated = vi.fn<
+            NonNullable<OrganizationServiceArguments['onOrganizationCreated']>
+        >(async () => {
+            throw error;
+        });
+        const service = buildOrganizationService(onOrganizationCreated);
+
+        await expect(
+            service.createAndJoinOrg(
+                { ...user, organizationUuid: undefined },
+                { name: 'Organization' },
+            ),
+        ).resolves.toBeUndefined();
+
+        expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error);
+        expect(errorSpy).toHaveBeenCalledOnce();
+        expect(analyticsMock.track).toHaveBeenCalledWith({
+            userId: user.userUuid,
+            event: 'user.joined_organization',
+            properties: {
+                organizationId: organization.organizationUuid,
+                role: OrganizationMemberRole.ADMIN,
+                projectIds: [],
             },
         });
     });
@@ -189,5 +381,43 @@ describe('organization service', () => {
         // the member keeps their own org role (no system-role conversion).
         expect(result.data).toHaveLength(1);
         expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+    });
+
+    describe('getImpersonationEnabled', () => {
+        const orgCondition = { organizationUuid: user.organizationUuid };
+
+        it('lets a user with only impersonate:User read the setting', async () => {
+            const impersonatorAbility = new Ability<PossibleAbilities>([
+                {
+                    action: 'impersonate',
+                    subject: 'User',
+                    conditions: { ...orgCondition, isActive: true },
+                },
+            ]);
+
+            await expect(
+                organizationService.getImpersonationEnabled({
+                    ...user,
+                    ability: impersonatorAbility,
+                }),
+            ).resolves.toBe(true);
+        });
+
+        it('rejects a user who can neither update the org nor impersonate', async () => {
+            const memberAbility = new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'OrganizationMemberProfile',
+                    conditions: orgCondition,
+                },
+            ]);
+
+            await expect(
+                organizationService.getImpersonationEnabled({
+                    ...user,
+                    ability: memberAbility,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
     });
 });

@@ -1,4 +1,8 @@
-import { ParameterError } from '@lightdash/common';
+import {
+    CUSTOM_HEADER_LIMITS,
+    FORBIDDEN_CUSTOM_HEADER_NAMES,
+    ParameterError,
+} from '@lightdash/common';
 
 // Throwaway base used only to resolve a relative path through the WHATWG URL
 // parser for segment-collapse normalization — its `.pathname` is read and the
@@ -231,4 +235,184 @@ export function assertSafeApiKeyHeaderName(name: string): void {
     if (FORBIDDEN_API_KEY_HEADERS.has(name.toLowerCase())) {
         throw new ParameterError(`api key header "${name}" is not allowed`);
     }
+}
+
+// The shared name blocklist (routing/framing + credential-shaped headers) —
+// see FORBIDDEN_CUSTOM_HEADER_NAMES in @lightdash/common for the rationale.
+const FORBIDDEN_CUSTOM_HEADERS = new Set<string>(FORBIDDEN_CUSTOM_HEADER_NAMES);
+
+// Printable ASCII + tab. No CR/LF or other control chars (header injection).
+// eslint-disable-next-line no-control-regex
+const HTTP_HEADER_VALUE = /^[\t\x20-\x7e]+$/;
+
+/**
+ * Validate a connection's custom request headers. Enforced at write time AND
+ * at send time in the proxy core, so a row that bypassed validation can never
+ * inject an unsafe header. A custom header may not collide with
+ * `apiKeyHeaderName` so the injected credential is never shadowed.
+ */
+export function validateCustomHeaders(
+    customHeaders: Record<string, string> | null | undefined,
+    apiKeyHeaderName: string | null,
+): void {
+    if (!customHeaders) return;
+    const entries = Object.entries(customHeaders);
+    if (entries.length > CUSTOM_HEADER_LIMITS.maxCount) {
+        throw new ParameterError(
+            `At most ${CUSTOM_HEADER_LIMITS.maxCount} custom headers are allowed`,
+        );
+    }
+    const seen = new Set<string>();
+    for (const [name, value] of entries) {
+        if (
+            !HTTP_HEADER_TOKEN.test(name) ||
+            name.length > CUSTOM_HEADER_LIMITS.maxNameChars
+        ) {
+            throw new ParameterError(
+                `Custom header name ${JSON.stringify(name)} is not a valid HTTP header name`,
+            );
+        }
+        if (FORBIDDEN_CUSTOM_HEADERS.has(name.toLowerCase())) {
+            throw new ParameterError(
+                `Custom header "${name}" is not allowed — credentials belong in the connection secret`,
+            );
+        }
+        if (
+            typeof value !== 'string' ||
+            value.length === 0 ||
+            value.length > CUSTOM_HEADER_LIMITS.maxValueChars ||
+            !HTTP_HEADER_VALUE.test(value)
+        ) {
+            throw new ParameterError(
+                `Custom header "${name}" has an invalid value`,
+            );
+        }
+        const lower = name.toLowerCase();
+        if (seen.has(lower)) {
+            throw new ParameterError(
+                `Duplicate custom header "${name}" (names are case-insensitive)`,
+            );
+        }
+        seen.add(lower);
+        if (apiKeyHeaderName && lower === apiKeyHeaderName.toLowerCase()) {
+            throw new ParameterError(
+                `Custom header "${name}" conflicts with the connection's api key header`,
+            );
+        }
+    }
+}
+
+/** Keep the public response-header contract intentionally small. External
+ * connection credentials are injected by Lightdash, so arbitrary upstream
+ * headers are not safe to expose to app code even though they arrived over an
+ * admin-approved connection. */
+const EXPOSED_RESPONSE_HEADER_NAMES = new Set([
+    'accept-ranges',
+    'cache-control',
+    'content-range',
+    'etag',
+    'expires',
+    'last-modified',
+    'link',
+    'ratelimit',
+    'retry-after',
+]);
+
+const EXPOSED_RESPONSE_HEADER_PREFIXES = [
+    'ratelimit-',
+    'x-ratelimit-',
+    'x-rate-limit-',
+] as const;
+
+/** Matches Node's default maximum inbound response-header size. Keep a local
+ * cap as well so the API contract does not depend on a process-wide Node flag. */
+export const EXTERNAL_RESPONSE_HEADER_MAX_BYTES = 16 * 1024;
+
+const shouldExposeResponseHeader = (name: string): boolean =>
+    EXPOSED_RESPONSE_HEADER_NAMES.has(name) ||
+    EXPOSED_RESPONSE_HEADER_PREFIXES.some((prefix) => name.startsWith(prefix));
+
+/**
+ * Sanitize RFC 8288 Link targets before exposing them to app code. A
+ * query-authenticated upstream commonly builds pagination links from the
+ * request URL, which would otherwise reflect the injected API key. Same-origin
+ * absolute links become relative paths, which are also directly reusable with
+ * externalFetch.
+ */
+const sanitizeLinkHeader = (
+    value: string,
+    requestUrl: string,
+    queryApiKeyName: string | null,
+): string | null => {
+    const requestOrigin = new URL(requestUrl).origin;
+    let foundTarget = false;
+    let invalidTarget = false;
+
+    const sanitized = value.replace(/<([^<>]*)>/g, (_match, target: string) => {
+        foundTarget = true;
+        try {
+            const url = new URL(target, requestUrl);
+            if (url.username || url.password) {
+                invalidTarget = true;
+                return '';
+            }
+            if (queryApiKeyName) {
+                url.searchParams.delete(queryApiKeyName);
+            }
+            const safeTarget =
+                url.origin === requestOrigin
+                    ? `${url.pathname}${url.search}${url.hash}`
+                    : url.toString();
+            return `<${safeTarget}>`;
+        } catch {
+            invalidTarget = true;
+            return '';
+        }
+    });
+
+    return foundTarget && !invalidTarget ? sanitized : null;
+};
+
+/**
+ * Select the response metadata app code may consume. Header names are
+ * case-insensitive and returned lowercase. Malformed Link values are omitted;
+ * oversized exposed metadata rejects the response instead of silently losing
+ * a rate-limit or pagination header.
+ */
+export function filterExternalResponseHeaders(args: {
+    headers: Record<string, string>;
+    requestUrl: string;
+    queryApiKeyName: string | null;
+}): Record<string, string> {
+    const exposed = Object.create(null) as Record<string, string>;
+    let exposedBytes = 0;
+
+    for (const [name, rawValue] of Object.entries(args.headers)) {
+        const normalizedName = name.toLowerCase();
+        if (shouldExposeResponseHeader(normalizedName)) {
+            const value =
+                normalizedName === 'link'
+                    ? sanitizeLinkHeader(
+                          rawValue,
+                          args.requestUrl,
+                          args.queryApiKeyName,
+                      )
+                    : rawValue;
+
+            if (value !== null) {
+                exposedBytes += Buffer.byteLength(
+                    `${normalizedName}: ${value}\r\n`,
+                    'utf8',
+                );
+                if (exposedBytes > EXTERNAL_RESPONSE_HEADER_MAX_BYTES) {
+                    throw new ParameterError(
+                        `Upstream response headers exceed the maximum of ${EXTERNAL_RESPONSE_HEADER_MAX_BYTES} bytes`,
+                    );
+                }
+                exposed[normalizedName] = value;
+            }
+        }
+    }
+
+    return exposed;
 }

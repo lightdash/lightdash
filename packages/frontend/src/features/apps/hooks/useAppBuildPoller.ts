@@ -1,8 +1,9 @@
 import {
     APP_VERSION_TERMINAL_STATUSES,
+    type ApiAppVersionSummary,
     type ApiGetAppResponse,
 } from '@lightdash/common';
-import { useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
 type GetAppResult = ApiGetAppResponse['results'];
@@ -38,16 +39,49 @@ async function pollLoop(url, interval) {
 `;
 
 /**
+ * Fold a poll result into the cached first page.
+ *
+ * The poll asks for `limit=1`, so it carries only the newest version.
+ * Overwriting the page with it would evict the already-loaded ready version,
+ * and surfaces that render straight from this cache (the Explorer's data app
+ * viz chart) would lose their last good render for the length of a build.
+ */
+export const mergePolledVersions = (
+    existing: GetAppResult['versions'],
+    polled: GetAppResult['versions'],
+): GetAppResult['versions'] => {
+    const polledNumbers = new Set(polled.map((v) => v.version));
+    return [
+        ...polled,
+        ...existing.filter((v) => !polledNumbers.has(v.version)),
+    ].sort((a, b) => b.version - a.version);
+};
+
+export const invalidateDataAppVisualizationOnReady = (
+    queryClient: QueryClient,
+    projectUuid: string,
+    appUuid: string,
+    version: ApiAppVersionSummary,
+): void => {
+    if (version.status !== 'ready') return;
+    void queryClient.invalidateQueries({
+        queryKey: ['data-app-viz', projectUuid, appUuid],
+    });
+};
+
+/**
  * Polls the app versions API via a Web Worker while a version is building.
  * Results are fed into the React Query cache so the UI updates reactively.
  *
- * Calls `onDone(version, status)` once when the build finishes.
+ * Calls `onDone` once when the build finishes, with the version the poll just
+ * fetched — callers must not read it back out of the query cache, which is
+ * still a render behind at that point.
  */
 export function useAppBuildPoller(
     projectUuid: string | undefined,
     appUuid: string | undefined,
     isBuilding: boolean,
-    onDone: (version: number, status: string) => void,
+    onDone: (version: ApiAppVersionSummary) => void,
 ) {
     const queryClient = useQueryClient();
     const onDoneRef = useRef(onDone);
@@ -77,20 +111,29 @@ export function useAppBuildPoller(
                                   pageParams: unknown[];
                               }
                             | undefined,
-                    ) => ({
-                        // The poll uses limit=1, so its `hasMore` reflects that
-                        // limit rather than the original page size. Keep the
-                        // first page's `hasMore` so pagination stays accurate.
-                        pages: [
-                            {
-                                ...poll,
-                                hasMore:
-                                    old?.pages?.[0]?.hasMore ?? poll.hasMore,
-                            },
-                            ...(old?.pages?.slice(1) ?? []),
-                        ],
-                        pageParams: old?.pageParams ?? [undefined],
-                    }),
+                    ) => {
+                        const versions = mergePolledVersions(
+                            old?.pages?.[0]?.versions ?? [],
+                            poll.versions ?? [],
+                        );
+                        return {
+                            pages: [
+                                {
+                                    ...poll,
+                                    versions,
+                                    // The poll's `hasMore` reflects limit=1
+                                    // rather than the original page size. Keep
+                                    // the first page's so pagination stays
+                                    // accurate.
+                                    hasMore:
+                                        old?.pages?.[0]?.hasMore ??
+                                        poll.hasMore,
+                                },
+                                ...(old?.pages?.slice(1) ?? []),
+                            ],
+                            pageParams: old?.pageParams ?? [undefined],
+                        };
+                    },
                 );
 
                 const latest = poll.versions?.[0];
@@ -100,10 +143,13 @@ export function useAppBuildPoller(
                         APP_VERSION_TERMINAL_STATUSES as readonly string[]
                     ).includes(latest.status)
                 ) {
-                    onDoneRef.current(
-                        latest.version as number,
-                        latest.status as string,
+                    invalidateDataAppVisualizationOnReady(
+                        queryClient,
+                        projectUuid,
+                        appUuid,
+                        latest,
                     );
+                    onDoneRef.current(latest);
                 }
             }
         };

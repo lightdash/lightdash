@@ -1,9 +1,10 @@
 import { subject } from '@casl/ability';
-import { Badge, Box, Button, Group, Tooltip } from '@mantine-8/core';
+import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
+    selectIsChartTypeAuthoring,
     selectIsValidQuery,
     selectQueryLimit,
     selectSavedChart,
@@ -15,9 +16,11 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
+import { useVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
 import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
+import { useIsModalHosted } from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import { RefreshButton } from '../../RefreshButton';
@@ -44,6 +47,10 @@ const ExplorerHeader: FC = memo(() => {
     const queryWarnings = query.data?.warnings;
 
     const savedChart = useExplorerSelector(selectSavedChart);
+    // A chart type being authored is not the chart; it finishes or cancels first.
+    const isChartTypeAuthoring = useExplorerSelector(
+        selectIsChartTypeAuthoring,
+    );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
@@ -63,6 +70,8 @@ const ExplorerHeader: FC = memo(() => {
     );
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
+    const isModalHosted = useIsModalHosted();
+    const verificationSavePrompt = useVerificationSavePrompt(savedChart);
     const hasEmbedWriteActions =
         !!embed.writeActions?.spaceUuid &&
         (!!embed.writeActions.userUuid ||
@@ -72,6 +81,10 @@ const ExplorerHeader: FC = memo(() => {
         embed.embedWriteContext?.canCreateSavedChart === true;
 
     const buttonDisabledMessage = useMemo(() => {
+        if (isChartTypeAuthoring) {
+            return 'Finish editing the chart type first';
+        }
+
         if (isEmbedded) {
             return canCreateEmbedSavedChart
                 ? null
@@ -86,6 +99,7 @@ const ExplorerHeader: FC = memo(() => {
         return "You don't have permission to save charts in this project";
     }, [
         canCreateEmbedSavedChart,
+        isChartTypeAuthoring,
         isEmbedded,
         userCanCreateChartsInSpace,
         userCanCreateSpace,
@@ -149,7 +163,6 @@ const ExplorerHeader: FC = memo(() => {
                     <Tooltip
                         w={400}
                         label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
-                        multiline
                         position={'bottom'}
                     >
                         <Badge
@@ -161,7 +174,6 @@ const ExplorerHeader: FC = memo(() => {
                             }
                             color="yellow"
                             variant="outline"
-                            tt="none"
                             style={{ cursor: 'help' }}
                         >
                             Results may be incomplete
@@ -177,20 +189,26 @@ const ExplorerHeader: FC = memo(() => {
 
                 <RefreshButton size="xs" />
 
-                {!savedChart && (!isEmbedded || canCreateEmbedSavedChart) && (
-                    <Tooltip
-                        disabled={buttonDisabledMessage === null}
-                        withinPortal
-                        position="bottom"
-                        label={buttonDisabledMessage}
-                    >
-                        <div>
-                            <SaveChartButton
-                                disabled={buttonDisabledMessage !== null}
-                            />
-                        </div>
-                    </Tooltip>
-                )}
+                {/* Saved charts save from the page header (SavedChartsHeader)
+                    or the editor modal's header actions. Embeds have no such
+                    header, so they keep the button ("Save changes") here */}
+                {(!savedChart || (isEmbedded && !isModalHosted)) &&
+                    (!isEmbedded || canCreateEmbedSavedChart) && (
+                        <Tooltip
+                            disabled={buttonDisabledMessage === null}
+                            position="bottom"
+                            label={buttonDisabledMessage}
+                        >
+                            <div>
+                                <SaveChartButton
+                                    disabled={buttonDisabledMessage !== null}
+                                    verificationSavePrompt={
+                                        verificationSavePrompt
+                                    }
+                                />
+                            </div>
+                        </Tooltip>
+                    )}
                 <Can
                     I="update"
                     this={subject('Explore', {

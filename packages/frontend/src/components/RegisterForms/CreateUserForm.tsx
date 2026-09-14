@@ -1,6 +1,7 @@
 import {
     getEmailSchema,
     getPasswordSchema,
+    getUserNameSchema,
     type CreateUserArgs,
 } from '@lightdash/common';
 import {
@@ -11,9 +12,11 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { Link } from 'react-router';
 import { z } from 'zod';
 import PasswordTextInput from '../PasswordTextInput';
 
@@ -24,6 +27,8 @@ type Props = {
 };
 
 const validationSchema = z.object({
+    firstName: getUserNameSchema(),
+    lastName: getUserNameSchema(),
     email: getEmailSchema(),
     password: getPasswordSchema(),
 });
@@ -92,7 +97,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                 </Button>
                 <Text mx="auto" c="ldGray.7" ta="center" fz="sm" fw={500}>
                     Already Registered?{' '}
-                    <Anchor href="/signin" fz="sm" fw={500}>
+                    <Anchor component={Link} to="/login" fz="sm" fw={500}>
                         Sign in
                     </Anchor>
                 </Text>

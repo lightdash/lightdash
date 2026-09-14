@@ -1,5 +1,6 @@
 import {
     convertFieldRefToFieldId,
+    flattenAiHints,
     getDefaultTimeDimension,
     getEffectiveFieldAiHints,
     getFieldIdForDateDimension,
@@ -9,10 +10,7 @@ import {
     type CompiledTable,
     type Explore,
 } from '@lightdash/common';
-
-/** aiHint can be a string or string[]; flatten to one space-joined string. */
-const flatHint = (hint?: string | string[]): string =>
-    Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
+import { truncate } from '../utils/truncation';
 
 type DefaultTimeDimensionFieldIds = {
     defaultTimeDimension: string;
@@ -61,7 +59,12 @@ export const summarizeRequiredFilters = (explore: Explore): string | null => {
         const kind = filter.required === false ? 'suggested' : 'required';
         return `${kind} ${fieldId} ${filter.operator}${values}`;
     });
-    return `⚠ table filters: ${parts.join('; ')}`;
+    const requiredFilterGuidance = filters.some(
+        (filter) => filter.required !== false,
+    )
+        ? '. Required filter values are replaceable defaults, not fixed data limits; use a compatible query filter on the same field or a derived time dimension of that field when the requested scope differs.'
+        : '';
+    return `⚠ table filters: ${parts.join('; ')}${requiredFilterGuidance}`;
 };
 
 /** One greppable "file": a field flattened with its searchable annotations. */
@@ -76,6 +79,9 @@ export type FieldEntry = {
     aiHint: string;
     defaultTimeDimension: string | null;
     defaultTimeDimensionGranularity: string | null;
+    // Parameters referenced in the field's compiled SQL — the field returns
+    // different results depending on the values those parameters resolve to.
+    requiredParameters: string[];
     // Locality slices of the haystack, so callers can rank a match in the
     // field's own name/label above one buried in a description or hint.
     nameHaystack: string;
@@ -105,7 +111,7 @@ export const buildExploreIndex = (explores: Explore[]): ExploreEntry[] =>
         haystack: [
             explore.name,
             explore.label,
-            flatHint(explore.aiHint),
+            flattenAiHints(explore.aiHint),
             ...(explore.tags ?? []),
         ]
             .filter(Boolean)
@@ -137,7 +143,7 @@ export const buildFieldIndex = (
                 if (!field.hidden) {
                     const fieldId = `${field.table}_${field.name}`;
                     const description = field.description ?? '';
-                    const aiHint = flatHint(
+                    const aiHint = flattenAiHints(
                         getEffectiveFieldAiHints(field, table),
                     );
                     const nameHaystack = [fieldId, field.label]
@@ -168,6 +174,7 @@ export const buildFieldIndex = (
                         defaultTimeDimensionGranularity:
                             defaultTimeDimensionFieldIds?.defaultTimeDimensionGranularity ??
                             null,
+                        requiredParameters: field.parameterReferences ?? [],
                         nameHaystack,
                         descHaystack,
                         hintHaystack,
@@ -354,12 +361,16 @@ export const selectCandidateFields = (
 const fieldLine = (f: FieldEntry): string => {
     const verified = f.verifiedUsage > 0 ? ' ✓verified' : '';
     const desc = f.description
-        ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
+        ? ` — ${truncate(f.description.replace(/\s+/g, ' '), 140)}`
         : '';
     const defaultTimeDimension = f.defaultTimeDimension
         ? ` default_time_dimension: ${f.defaultTimeDimension} default_time_dimension_granularity: ${f.defaultTimeDimensionGranularity}`
         : '';
-    return `  ${f.path}  [${f.kind} ${f.type}]${verified} ${f.label}${defaultTimeDimension}${desc}`;
+    const params =
+        f.requiredParameters.length > 0
+            ? ` ⚠params: ${f.requiredParameters.join(',')}`
+            : '';
+    return `  ${f.path}  [${f.kind} ${f.type}]${verified}${params} ${f.label}${defaultTimeDimension}${desc}`;
 };
 
 export const renderCandidateBlock = (candidates: FieldEntry[]): string => {

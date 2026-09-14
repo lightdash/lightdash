@@ -1,0 +1,9 @@
+.root {
+    border-color: var(--mantine-color-default-border);
+    background-color: var(--mantine-color-body);
+}
+
+.legend {
+    font-weight: 500;
+    font-size: var(--mantine-font-size-sm);
+}

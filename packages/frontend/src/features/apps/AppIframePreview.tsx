@@ -1,7 +1,10 @@
 import {
+    type AppColorScheme,
     type DataAppVizContext,
     type DashboardFilters,
+    type QueryExecutionContext,
 } from '@lightdash/common';
+import { useComputedColorScheme } from '@mantine/core';
 import {
     forwardRef,
     useCallback,
@@ -9,15 +12,19 @@ import {
     useImperativeHandle,
     useMemo,
     useRef,
+    useState,
 } from 'react';
+import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
     type ElementSelectedEvent,
     type ExternalRequestEvent,
     type QueryEvent,
+    type SdkManifest,
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
+import { withColorSchemeParam } from './utils/appIframeUrl';
 
 export type AppIframePreviewHandle = {
     captureScreenshot: () => Promise<File>;
@@ -25,6 +32,8 @@ export type AppIframePreviewHandle = {
 
 type Props = {
     src: string;
+    /** Signed capability for the exact app version served by `src`. */
+    previewToken: string;
     /** Origin the iframe will load from — used to gate the postMessage bridge.
      *  Same value for all preview iframes from the same Lightdash instance
      *  (the configured preview-host), or the parent's own origin in the
@@ -67,6 +76,10 @@ type Props = {
      *  sits during inspect mode (the toolbar button before any click; the
      *  prompt editor after each click — TipTap yanks focus back on insert). */
     onInspectorCancelled?: () => void;
+    /** Fires when the iframe SDK reports its capability manifest. Old
+     *  bundles never send one — the parent owns the silence timeout that
+     *  classifies them as legacy (see `useSdkUpgradeStatus`). */
+    onSdkManifest?: (manifest: SdkManifest) => void;
     /** When true, clicks inside the iframe are intercepted to reveal the query. */
     lineageEnabled?: boolean;
     onLineageAvailabilityChange?: (available: boolean) => void;
@@ -83,6 +96,17 @@ type Props = {
      *  Set by `DashboardDataAppTile` after a dashboard refresh, mirroring what
      *  chart tiles send; left undefined elsewhere. */
     invalidateCache?: boolean;
+    /** Accumulates a delivery-capture manifest from the bridge's query
+     *  lifecycle events. Set by `MinimalApp` in capture modes only. */
+    deliveryCapture?: DeliveryCaptureAccumulator;
+    /** Tells the iframe SDK this render is a delivery/preview capture, not an
+     *  interactive load, via the `lightdash:sdk:ready` handshake — apps use
+     *  `useDeliveryRender()` to mount every tab's data instead of only the
+     *  visible one. Set by `MinimalApp` in both capture modes. */
+    captureRender?: boolean;
+    /** Overrides the query-execution-context stamped onto every metric
+     *  query the iframe runs, e.g. scheduled-delivery capture. */
+    queryContextOverride?: QueryExecutionContext;
     /** Fired on every iframe `onload` (including the initial about:blank).
      *  Used by `MinimalApp` to gate the screenshot readiness signal. */
     onIframeLoad?: () => void;
@@ -93,10 +117,24 @@ type Props = {
     // Render context for data app vizs: the field mapping + host rows, pushed
     // into the iframe over the SDK bridge. Undefined for ordinary data apps.
     dataAppVizContext?: DataAppVizContext;
+    /** Rewrites the viz underlying-data virtual route into the real API
+     *  request. Only set by DataAppVizRenderer when the capability is on. */
+    rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
+        method: 'POST';
+        path: string;
+        body: unknown;
+    };
+    /** Handles the viz drill-down virtual route. Only set by
+     *  DataAppVizRenderer when the capability is on. */
+    onVizDrillDownIntent?: (intentBody: unknown) => void;
     // Round-trip the app's `useUrlState` controls through the page's `?state=`
     // param. Leave unset where the page URL isn't the app's share surface
     // (dashboard tiles, screenshots).
     urlStateSync?: boolean;
+    /** Pins the scheme the app renders in, ignoring the host's own. Set by
+     *  `MinimalApp` so scheduled screenshots don't depend on whichever theme
+     *  the rendering browser happens to have stored. */
+    forceColorScheme?: AppColorScheme;
 };
 
 /**
@@ -124,6 +162,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
     (
         {
             src,
+            previewToken,
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
@@ -142,25 +181,73 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageCancelled,
             dashboardFilters,
             invalidateCache,
+            deliveryCapture,
+            captureRender,
+            queryContextOverride,
             onIframeLoad,
             capabilities,
             dataAppVizContext,
+            rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
             urlStateSync,
+            onSdkManifest,
+            forceColorScheme,
         },
         ref,
     ) => {
         const iframeRef = useRef<HTMLIFrameElement>(null);
+        // Resolves to an exact light/dark (embed routes force it from
+        // `?theme=`), so this is the scheme the surrounding page renders in.
+        const hostColorScheme = useComputedColorScheme('light');
+        const colorScheme: AppColorScheme = forceColorScheme ?? hostColorScheme;
         const { applySeed, handleUrlStateChange } = useAppUrlStateSync({
             appUuid,
             enabled: urlStateSync === true,
         });
-        // Memoized on `src`: the seed is re-latched exactly when the iframe
-        // would reload anyway (refresh counter, version bump, token refetch),
-        // never on state changes alone — that would reload per filter click.
-        const effectiveSrc = useMemo(
-            () => (urlStateSync ? applySeed(src) : src),
-            [urlStateSync, applySeed, src],
+        // Latest scheme in a ref so the seed helper stays identity-stable: a
+        // theme toggle must restyle the running app over the bridge, never
+        // change the iframe URL (which would reload it and lose app state).
+        const colorSchemeRef = useRef(colorScheme);
+        colorSchemeRef.current = colorScheme;
+        const applyColorSchemeSeed = useCallback(
+            (baseUrl: string) =>
+                withColorSchemeParam(baseUrl, colorSchemeRef.current),
+            [],
         );
+        // A refreshed capability must reach the query bridge without reloading
+        // the running app and dropping its state. Ignore token-only URL changes;
+        // version, filter, and manual-refresh changes still navigate with the
+        // latest complete URL (and therefore the latest token).
+        const navigationKey = src.replace(previewToken, '{preview-token}');
+        const [iframeNavigation, setIframeNavigation] = useState(() => ({
+            key: navigationKey,
+            src,
+        }));
+        useEffect(() => {
+            setIframeNavigation((current) =>
+                current.key === navigationKey
+                    ? current
+                    : { key: navigationKey, src },
+            );
+        }, [navigationKey, src]);
+
+        // Seeds are re-latched exactly when the iframe navigates, never on URL
+        // state changes alone — that would reload per filter click.
+        const effectiveSrc = useMemo(
+            () =>
+                applyColorSchemeSeed(
+                    urlStateSync
+                        ? applySeed(iframeNavigation.src)
+                        : iframeNavigation.src,
+                ),
+            [
+                urlStateSync,
+                applySeed,
+                applyColorSchemeSeed,
+                iframeNavigation.src,
+            ],
+        );
+        const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
         // Memoized so the bridge's message listener doesn't re-attach on every
         // parent render — AppGenerate re-renders on every keystroke (editor's
         // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
@@ -185,18 +272,26 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
+            previewToken,
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable: handleInspectorAnnounce,
             onScreenshotAvailable: handleScreenshotAnnounce,
             dashboardFilters,
             invalidateCache,
+            deliveryCapture,
+            captureRender,
+            queryContextOverride,
             capabilities,
             onLineageAvailable: handleLineageAnnounce,
             onLineageSelected,
             onExternalRequestEvent,
             dataAppVizContext,
+            rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
+            onSdkManifest,
+            colorScheme,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 
@@ -263,6 +358,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         // re-fire if `inspectorEnabled` was already true, so re-sync on load.
         const handleLoad = () => {
             handleIframeLoad();
+            setLoadedSrc(effectiveSrc);
             if (inspectorEnabled) enableInspector();
             if (lineageEnabled) enableLineage();
             highlightLineage(lineageHighlightQueryUuid ?? null);
@@ -271,9 +367,22 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
 
         return (
             <iframe
+                data-tour-scope="view:DataApp"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"]'
+                data-tour-label="Read Jaffle pulse"
+                data-tour-docs="data-apps.mdx#choosing-a-template:li1"
                 ref={iframeRef}
                 src={effectiveSrc}
-                style={{ width: '100%', height: '100%', border: 'none' }}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    colorScheme,
+                    // Keep the host surface visible until the app applies its theme.
+                    visibility:
+                        loadedSrc === effectiveSrc ? 'visible' : 'hidden',
+                }}
                 title="App preview"
                 sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""

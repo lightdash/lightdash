@@ -3,6 +3,7 @@ import {
     friendlyName,
     getErrorMessage,
     getSlackErrorCode,
+    getSlackInvalidBlockIndices,
     isSlackRateLimitedError,
     isUnrecoverableSlackError,
     MissingConfigError,
@@ -43,6 +44,10 @@ import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackChannelCacheModel } from '../../models/SlackChannelCacheModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import {
+    replaceImageBlocksWithNotice,
+    type SlackChartImage,
+} from './SlackMessageBlocks';
 
 export type SlackStreamChunk =
     | {
@@ -82,16 +87,17 @@ const INITIAL_SYNC_TIMEOUT_MS = 60000; // 60 seconds
 const SYNC_POLL_INTERVAL_MS = 1000; // 1 second
 
 // Slack Tier 2 rate limit throttling configuration
-// Tier 2 allows 20+ requests/minute - we use only 20% to be a good API citizen
+// Tier 2 allows at least 20 requests/minute. Use 60% of that documented minimum
+// to balance sync throughput with headroom for workspace-specific rate limits.
 const TIER_2_REQUESTS_PER_MIN = 20;
-const RATE_LIMIT_USAGE_PERCENT = 0.2; // Use only 20% of the rate limit
+const RATE_LIMIT_USAGE_PERCENT = 0.6;
 const THROTTLE_MIN_DELAY_MS = Math.ceil(
     60000 / (TIER_2_REQUESTS_PER_MIN * RATE_LIMIT_USAGE_PERCENT),
-); // 15000ms = 15 seconds between requests
+); // 5000ms = 5 seconds between requests
 
 /**
  * Creates a throttled executor for Slack API calls.
- * Uses lodash throttle pattern to proactively stay within 20% of Tier 2 rate limits.
+ * Uses lodash throttle pattern to proactively stay within 60% of Tier 2 rate limits.
  * This prevents rate limit errors instead of reacting to them.
  * Includes a simple retry as safety net for unexpected rate limits (e.g., from other integrations).
  */
@@ -118,7 +124,7 @@ const createThrottledSlackExecutor = () => {
         if (lastCallTime > 0 && timeSinceLastCall < THROTTLE_MIN_DELAY_MS) {
             const waitTime = THROTTLE_MIN_DELAY_MS - timeSinceLastCall;
             Logger.debug(
-                `Throttling ${context}: waiting ${waitTime}ms to stay within 20% of Tier 2 rate limit`,
+                `Throttling ${context}: waiting ${waitTime}ms to stay within the Tier 2 rate limit`,
             );
             // eslint-disable-next-line no-await-in-loop
             await sleep(waitTime);
@@ -984,7 +990,7 @@ export class SlackClient {
                 channel: resolvedChannel,
                 ...slackMessageArgs,
             })
-            .catch((e) => {
+            .catch(async (e) => {
                 if (getSlackErrorCode(e) === 'invalid_blocks') {
                     Logger.error(
                         `Slack invalid_blocks error for channel ${channel}`,
@@ -992,6 +998,44 @@ export class SlackClient {
                             blocks: JSON.stringify(slackMessageArgs.blocks),
                         },
                     );
+                    // Slack points at the rejected blocks in the error
+                    // metadata. When every rejected block is an image (e.g.
+                    // Slack can't fetch the image URL), retry once with
+                    // those blocks swapped for a notice so the message still
+                    // delivers. Any other rejected block means the message
+                    // itself is malformed — retrying wouldn't help.
+                    const { blocks } = slackMessageArgs;
+                    const rejectedIndices = getSlackInvalidBlockIndices(e);
+                    const onlyImagesRejected =
+                        blocks !== undefined &&
+                        rejectedIndices.length > 0 &&
+                        rejectedIndices.every(
+                            (index) => blocks[index]?.type === 'image',
+                        );
+                    if (onlyImagesRejected) {
+                        Logger.info(
+                            `Retrying Slack message without rejected image blocks for channel ${channel}`,
+                        );
+                        return webClient.chat
+                            .postMessage({
+                                ...(appProfilePhotoUrl
+                                    ? { icon_url: appProfilePhotoUrl }
+                                    : {}),
+                                channel: resolvedChannel,
+                                ...slackMessageArgs,
+                                blocks: replaceImageBlocksWithNotice(
+                                    blocks,
+                                    rejectedIndices,
+                                ),
+                            })
+                            .catch((retryError) => {
+                                slackErrorHandler(
+                                    retryError,
+                                    'Unable to post message on Slack without image blocks',
+                                );
+                                throw retryError;
+                            });
+                    }
                 }
                 slackErrorHandler(e, 'Unable to post message on Slack');
                 throw e;
@@ -1349,14 +1393,13 @@ export class SlackClient {
     /*
     This method will try to upload an image to slack, so it can be used in blocks,
     instead of sharing the file directly on a channel or a thread
-    It returns a promise that resolves to the file url, but it takes a while for the file to be uploaded
     Note: method sharedPublicURL will not work here because it requires a user token, and we only use bot tokens
     */
     async uploadFile(args: {
         organizationUuid: string;
         file: Buffer;
         title: string;
-    }) {
+    }): Promise<{ id: string; url: string }> {
         const webClient = await this.getWebClient(args.organizationUuid);
         const filename = friendlyName(args.title);
         const result = (await webClient.files.uploadV2({
@@ -1404,9 +1447,9 @@ export class SlackClient {
             return checkFile(0);
         }
 
-        const fileUrl = await waitForFileReady(uploadedFile?.id);
+        const fileUrl = await waitForFileReady(uploadedFile.id);
 
-        return fileUrl;
+        return { id: uploadedFile.id, url: fileUrl };
     }
 
     async getUserInfo(
@@ -1474,33 +1517,46 @@ export class SlackClient {
     }
 
     /**
-     * Helper method to try to upload an image to slack, so it can be used in blocks without expiration
-     * If it fails, we will keep using the same URL (s3)
+     * Helper method to try to upload an image to slack, so blocks can reference
+     * it by file id — no public URL and no expiration. If the upload fails we
+     * fall back to the external URL, which requires the instance to be
+     * reachable by Slack's servers.
      */
-    async tryUploadingImageToSlack(
-        organizationUuid: string,
-        imageUrl: string | undefined,
-        name: string,
-    ) {
+    async tryUploadingImageToSlack(args: {
+        organizationUuid: string;
+        imageUrl: string | undefined;
+        imageBuffer: Buffer | undefined;
+        title: string;
+    }): Promise<SlackChartImage | undefined> {
+        const { organizationUuid, imageUrl, imageBuffer, title } = args;
+        const fallback: SlackChartImage | undefined = imageUrl
+            ? { source: 'url', url: imageUrl }
+            : undefined;
         try {
-            if (!imageUrl) {
-                return { url: imageUrl, expiring: true };
+            let buffer = imageBuffer;
+            if (buffer === undefined) {
+                if (!imageUrl) return undefined;
+                const response = await fetch(imageUrl);
+                if (!response.ok) {
+                    throw new SlackFileUploadError(
+                        `Failed to fetch image for Slack upload (status ${response.status})`,
+                    );
+                }
+                buffer = Buffer.from(await response.arrayBuffer());
             }
-            const response = await fetch(imageUrl);
-            const buffer = Buffer.from(await response.arrayBuffer());
-            const slackFileUrl = await this.uploadFile({
+            const { id } = await this.uploadFile({
                 organizationUuid,
                 file: buffer,
-                title: name,
+                title,
             });
-            return { url: slackFileUrl, expiring: false };
+            return { source: 'slackFile', fileId: id };
         } catch (e) {
             if (e instanceof SlackFileUploadError) {
                 Logger.warn(e.message);
             } else {
                 slackErrorHandler(e, 'Failed to upload image to slack');
             }
-            return { url: imageUrl, expiring: true };
+            return fallback;
         }
     }
 

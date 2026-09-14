@@ -2,7 +2,7 @@ import {
     getReferencedParameterDefinitions,
     getShadowedReservedNames,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { memo, useCallback, useMemo } from 'react';
 import {
     explorerActions,

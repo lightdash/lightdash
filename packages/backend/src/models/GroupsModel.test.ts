@@ -5,6 +5,7 @@ import { GroupMembershipTableName } from '../database/entities/groupMemberships'
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
+import { ProjectGroupAccessCustomRolesTableName } from '../database/entities/projectGroupAccessCustomRoles';
 import { GroupsModel } from './GroupsModel';
 
 describe('GroupsModel', () => {
@@ -21,6 +22,7 @@ describe('GroupsModel', () => {
     });
 
     it('only updates allowed project access fields', async () => {
+        tracker.on.delete(ProjectGroupAccessCustomRolesTableName).response(0);
         tracker.on.update(ProjectGroupAccessTableName).responseOnce([
             {
                 project_id: 1,
@@ -46,9 +48,15 @@ describe('GroupsModel', () => {
         expect(query.sql).toContain(ProjectGroupAccessTableName);
         expect(query.sql).toContain('set "role" = $1 where');
         expect(query.bindings).not.toContain('attacker-project-uuid');
+        // singular write clears extra custom roles
+        expect(tracker.history.delete).toHaveLength(1);
+        expect(tracker.history.delete[0].sql).toContain(
+            ProjectGroupAccessCustomRolesTableName,
+        );
     });
 
     it('preserves null role_uuid when unsetting custom project access role', async () => {
+        tracker.on.delete(ProjectGroupAccessCustomRolesTableName).response(0);
         tracker.on.update(ProjectGroupAccessTableName).responseOnce([
             {
                 project_id: 1,

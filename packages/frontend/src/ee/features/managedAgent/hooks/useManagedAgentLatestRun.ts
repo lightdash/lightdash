@@ -1,7 +1,7 @@
 import { ManagedAgentRunStatus, type ManagedAgentRun } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 
 const POLL_INTERVAL_RUNNING_MS = 3000;
 const POLL_INTERVAL_IDLE_MS = 30000;
@@ -16,7 +16,7 @@ const getLatestRun = async (
     });
 
 export const useManagedAgentLatestRun = (opts: { enabled?: boolean } = {}) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isEnabled = opts.enabled ?? true;
     return useQuery<ManagedAgentRun | null>({
         queryKey: ['managed-agent-latest-run', projectUuid],

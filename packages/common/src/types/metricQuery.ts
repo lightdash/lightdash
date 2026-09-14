@@ -2,7 +2,6 @@ import { type AnyType } from './any';
 import { type DateZoom } from './api/paginatedQuery';
 import {
     BinType,
-    friendlyName,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -229,9 +228,6 @@ export type SortField = {
     /** Pins the row-sort anchor to a specific pivot column. Ignored for non-pivoted results. */
     pivotValues?: PivotSortAnchor[];
 };
-
-export const getAdditionalMetricLabel = (item: AdditionalMetric) =>
-    `${friendlyName(item.table)} ${item.label}`;
 
 type FilterGroupResponse =
     | {

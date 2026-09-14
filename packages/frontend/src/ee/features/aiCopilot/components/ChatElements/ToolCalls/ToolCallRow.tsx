@@ -12,7 +12,7 @@ import {
     Stack,
     Text,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -38,7 +38,6 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'generateHashes',
     'generateUuids',
     'getProjectInfo',
-    'improveContext',
     'listKnowledgeDocuments',
     'listProjects',
     'loadSkill',
@@ -49,7 +48,7 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
 
 // Tools whose description renders something tall (e.g. a code block) and can't
 // be sensibly clipped to a single-line preview — collapse to verb + chevron.
-const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runSql']);
+const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runComposerQueries', 'runSql']);
 
 const INLINE_CHIP_PREVIEW_TOOLS = new Set<ToolName>([
     'readContent',
@@ -245,7 +244,7 @@ export const ToolCallRow: FC<Props> = ({
                 {head}
             </UnstyledButton>
             <Collapse
-                in={expanded}
+                expanded={expanded}
                 transitionDuration={240}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >

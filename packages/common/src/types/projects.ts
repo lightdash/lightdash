@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { type WeekDay } from '../utils/timeFrames';
 import { type ProjectDefaults } from './lightdashProjectConfig';
 import { type ProjectGroupAccess } from './projectGroupAccess';
@@ -5,6 +6,14 @@ import { type ProjectGroupAccess } from './projectGroupAccess';
 export enum ProjectType {
     DEFAULT = 'DEFAULT',
     PREVIEW = 'PREVIEW',
+    /**
+     * Sample-data training project. One per organization, created only by
+     * internal provisioning. Every org member gets the trainee scope set on
+     * it (see `getTrainingProjectScopes` in authorization) so people can be
+     * taught controls they do not hold on real projects.
+     */
+    TRAINING = 'TRAINING',
+    /** Backend-provisioned usage metadata project, never user-configurable. */
 }
 
 export enum DbtProjectType {
@@ -30,9 +39,25 @@ export enum WarehouseTypes {
     DUCKDB = 'duckdb',
 }
 
+/**
+ * Warehouse types where personal warehouse credentials are optional: they are
+ * used when the user has them, and queries fall back to the shared project
+ * connection when they don't, regardless of `requireUserCredentials`.
+ */
+export const WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS: WarehouseTypes[] =
+    [WarehouseTypes.DATABRICKS, WarehouseTypes.TRINO];
+
+export const supportsOptionalUserCredentials = (
+    warehouseType: WarehouseTypes | undefined,
+): boolean =>
+    !!warehouseType &&
+    WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS.includes(warehouseType);
+
 export enum DuckdbConnectionType {
     MOTHERDUCK = 'motherduck',
     DUCKLAKE = 'ducklake',
+    EMBEDDED = 'embedded',
+    ANALYTICS = 'analytics',
 }
 
 export type SshTunnelConfiguration = {
@@ -242,6 +267,28 @@ export type DuckdbMotherduckCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
+export type CreateDuckdbEmbeddedCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.EMBEDDED;
+    dataset: string;
+    requireUserCredentials?: boolean;
+    dataTimezone?: string;
+    startOfWeek?: number;
+    schema?: string;
+};
+export type DuckdbEmbeddedCredentials = CreateDuckdbEmbeddedCredentials;
+
+/** An identifier only: storage locations and credentials belong to the backend. */
+export type DuckdbAnalyticsCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.ANALYTICS;
+    database: 'memory';
+    schema: 'main';
+    requireUserCredentials?: false;
+    dataTimezone?: string;
+    startOfWeek?: number;
+};
+
 export enum DucklakeCatalogType {
     POSTGRES = 'postgres',
     SQLITE = 'sqlite',
@@ -369,16 +416,19 @@ export type DuckdbDucklakeCredentials = Omit<
 
 export type CreateDuckdbCredentials =
     | CreateDuckdbMotherduckCredentials
-    | CreateDuckdbDucklakeCredentials;
+    | CreateDuckdbDucklakeCredentials
+    | CreateDuckdbEmbeddedCredentials
+    | DuckdbAnalyticsCredentials;
 
 export type DuckdbCredentials =
     | DuckdbMotherduckCredentials
-    | DuckdbDucklakeCredentials;
+    | DuckdbDucklakeCredentials
+    | DuckdbEmbeddedCredentials
+    | DuckdbAnalyticsCredentials;
 
 /**
- * Rows created before the connectionType field was introduced are
- * MotherDuck-shaped DuckDB credentials. Default the field at decrypt time
- * so the discriminated union narrows correctly without a data migration.
+ * Normalize legacy credential values at decrypt time so callers receive a
+ * valid discriminated union without requiring data migrations.
  */
 export const normalizeWarehouseCredentials = <
     T extends CreateWarehouseCredentials,
@@ -395,6 +445,16 @@ export const normalizeWarehouseCredentials = <
             connectionType: DuckdbConnectionType.MOTHERDUCK,
         };
     }
+
+    if (credentials.type === WarehouseTypes.SNOWFLAKE) {
+        const { timeoutSeconds } = credentials as {
+            timeoutSeconds?: number | string | null;
+        };
+        if (timeoutSeconds === '' || timeoutSeconds === null) {
+            return { ...credentials, timeoutSeconds: undefined };
+        }
+    }
+
     return credentials;
 };
 
@@ -551,6 +611,96 @@ export type CreateWarehouseCredentials =
     | CreateClickhouseCredentials
     | CreateAthenaCredentials
     | CreateDuckdbCredentials;
+// Secrets the settings form never loads back may be omitted; the saved
+// values are merged in, as on save.
+type WithOptionalSecrets<T> = Omit<T, SensitiveCredentialsFieldNames> &
+    Partial<T>;
+export type CreateWarehouseCredentialsWithOptionalSecrets =
+    | WithOptionalSecrets<CreateRedshiftCredentials>
+    | WithOptionalSecrets<CreateBigqueryCredentials>
+    | WithOptionalSecrets<CreatePostgresCredentials>
+    | WithOptionalSecrets<CreateSnowflakeCredentials>
+    | WithOptionalSecrets<CreateDatabricksCredentials>
+    | WithOptionalSecrets<CreateTrinoCredentials>
+    | WithOptionalSecrets<CreateClickhouseCredentials>
+    | WithOptionalSecrets<CreateAthenaCredentials>
+    | WithOptionalSecrets<CreateDuckdbMotherduckCredentials>
+    | WithOptionalSecrets<CreateDuckdbDucklakeCredentials>
+    | WithOptionalSecrets<CreateDuckdbEmbeddedCredentials>
+    | WithOptionalSecrets<DuckdbAnalyticsCredentials>;
+
+const isSensitiveCredentialsFieldName = (
+    key: string,
+): key is SensitiveCredentialsFieldNames =>
+    (sensitiveCredentialsFieldNames as readonly string[]).includes(key);
+
+// The settings form sends an empty string for every secret the user left
+// untouched. Dropping those yields a body that only carries typed secrets.
+export const omitEmptySecrets = (
+    credentials: CreateWarehouseCredentials,
+): CreateWarehouseCredentialsWithOptionalSecrets =>
+    Object.fromEntries(
+        Object.entries(credentials).filter(
+            ([key, value]) =>
+                !(isSensitiveCredentialsFieldName(key) && value === ''),
+        ),
+    ) as CreateWarehouseCredentialsWithOptionalSecrets;
+
+export const isMissingBigqueryKeyfile = (
+    credentials: CreateWarehouseCredentialsWithOptionalSecrets,
+): boolean =>
+    credentials.type === WarehouseTypes.BIGQUERY &&
+    (credentials.authenticationType === undefined ||
+        credentials.authenticationType ===
+            BigqueryAuthenticationType.PRIVATE_KEY) &&
+    !credentials.keyfileContents;
+
+// Reverses omitEmptySecrets once saved secrets are merged in: string secrets
+// still absent go back to the empty string the form would have sent, so the
+// warehouse client fails the way a save would. A BigQuery key has no such
+// empty form; callers check isMissingBigqueryKeyfile first.
+export const fillOmittedSecrets = (
+    credentials: CreateWarehouseCredentialsWithOptionalSecrets,
+): CreateWarehouseCredentials => {
+    switch (credentials.type) {
+        case WarehouseTypes.REDSHIFT:
+        case WarehouseTypes.SNOWFLAKE:
+            return { ...credentials, user: credentials.user ?? '' };
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.TRINO:
+        case WarehouseTypes.CLICKHOUSE:
+            return {
+                ...credentials,
+                user: credentials.user ?? '',
+                password: credentials.password ?? '',
+            };
+        case WarehouseTypes.BIGQUERY:
+            return {
+                ...credentials,
+                keyfileContents: credentials.keyfileContents ?? {},
+            };
+        case WarehouseTypes.DATABRICKS:
+        case WarehouseTypes.ATHENA:
+            return credentials;
+        case WarehouseTypes.DUCKDB:
+            switch (credentials.connectionType) {
+                case DuckdbConnectionType.MOTHERDUCK:
+                    return { ...credentials, token: credentials.token ?? '' };
+                case DuckdbConnectionType.DUCKLAKE:
+                case DuckdbConnectionType.EMBEDDED:
+                case DuckdbConnectionType.ANALYTICS:
+                    return credentials;
+                default:
+                    return assertUnreachable(
+                        credentials,
+                        'Unknown DuckDB connection type',
+                    );
+            }
+        default:
+            return assertUnreachable(credentials, 'Unknown warehouse type');
+    }
+};
+
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -676,25 +826,53 @@ export const LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX =
 
 const DBT_ENVIRONMENT_VARIABLE_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+// Keys that load code into an interpreter or linker, name a program to run, or
+// relocate where dbt and git read code and config from.
 const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEYS = new Set([
-    'GIT_ASKPASS',
-    'GIT_SSH',
-    'GIT_SSH_COMMAND',
+    'BASH_ENV',
+    'BROWSER',
+    'CLASSPATH',
+    'DBT_PACKAGES_INSTALL_PATH',
+    'DBT_PROFILES_DIR',
+    'DBT_PROJECT_DIR',
+    'DBT_TARGET_PATH',
+    'EDITOR',
+    'GCONV_PATH',
+    'HOME',
+    'IFS',
+    'JAVA_TOOL_OPTIONS',
+    'JDK_JAVA_OPTIONS',
+    '_JAVA_OPTIONS',
     'LD_AUDIT',
     'LD_LIBRARY_PATH',
     'LD_PRELOAD',
-    'NODE_OPTIONS',
-    'NODE_PATH',
+    'LOCPATH',
+    'PAGER',
     'PATH',
+    'PERL5LIB',
     'PERL5OPT',
-    'PYTHONHOME',
-    'PYTHONPATH',
+    'PERLLIB',
+    'RUBYLIB',
     'RUBYOPT',
     'SHELL',
-    'SSH_ASKPASS',
+    'SHELLOPTS',
+    'TEMP',
+    'TMP',
+    'TMPDIR',
+    'VIRTUAL_ENV',
+    'VISUAL',
 ]);
 
-const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEY_PREFIXES = ['DYLD_', 'GIT_CONFIG_'];
+const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEY_PREFIXES = [
+    'BASH_FUNC_',
+    'DYLD_',
+    'GIT_',
+    'NODE_',
+    'PIP_',
+    'PYTHON',
+    'SSH_',
+    'XDG_', // git reads $XDG_CONFIG_HOME/git/config, which can name a pager, editor or ssh command
+];
 
 export const getDbtEnvironmentVariableKeyError = (
     key: string,
@@ -742,6 +920,33 @@ export const getInvalidDbtEnvironmentVariableKeys = (
     (environment ?? [])
         .map(({ key }) => key)
         .filter((key) => getDbtEnvironmentVariableKeyError(key) !== undefined);
+
+export type SafeDbtEnvironmentVariables = {
+    environment: Record<string, string>;
+    blockedKeys: string[];
+};
+
+// Re-applies the write-time rules at execution time, since stored config can
+// predate a key being blocked.
+export const buildSafeDbtEnvironmentVariables = (
+    environment: DbtProjectEnvironmentVariable[] | undefined,
+): SafeDbtEnvironmentVariables => {
+    const safeEnvironment: Record<string, string> = {};
+    const blockedKeys: string[] = [];
+
+    (environment ?? []).forEach(({ key, value }) => {
+        if (key.length === 0) {
+            return;
+        }
+        if (isSafeDbtEnvironmentVariableKey(key)) {
+            safeEnvironment[key] = value;
+        } else {
+            blockedKeys.push(key);
+        }
+    });
+
+    return { environment: safeEnvironment, blockedKeys };
+};
 
 export enum SupportedDbtVersions {
     V1_4 = 'v1.4',
@@ -817,9 +1022,7 @@ export const DBT_VERSION_SUPPORTED_WAREHOUSES: Record<
     [SupportedDbtVersions.V1_9]: dbtWarehousesExcept(),
     [SupportedDbtVersions.V1_10]: dbtWarehousesExcept(),
     [SupportedDbtVersions.V1_11]: dbtWarehousesExcept(),
-    [SupportedDbtVersions.V1_12]: dbtWarehousesExcept(
-        WarehouseTypes.DATABRICKS,
-    ),
+    [SupportedDbtVersions.V1_12]: dbtWarehousesExcept(),
 };
 
 export const getDbtVersionSupportedWarehouses = (
@@ -832,7 +1035,7 @@ export const isWarehouseSupportedByDbtVersion = (
 ): boolean => DBT_VERSION_SUPPORTED_WAREHOUSES[version].includes(warehouseType);
 
 export const LATEST_SUPPORTED_DBT_VERSION: SupportedDbtVersions =
-    SupportedDbtVersions.V1_11;
+    SupportedDbtVersions.V1_12;
 
 export const getLatestSupportDbtVersion = (): SupportedDbtVersions =>
     LATEST_SUPPORTED_DBT_VERSION;
@@ -881,6 +1084,8 @@ export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
 
 export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.GITHUB;
+    /** Omitted on existing connections, which continue to build with dbt. */
+    semanticLayer?: 'dbt' | 'lightdash';
     authorization_method: 'personal_access_token' | 'installation_id';
     personal_access_token?: string;
     installation_id?: string;
@@ -901,6 +1106,7 @@ export interface DbtGitlabProjectConfig extends DbtProjectCompilerBase {
 
 export interface DbtBitBucketProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.BITBUCKET;
+    semanticLayer?: 'dbt' | 'lightdash';
     username: string;
     personal_access_token: string;
     repository: string;
@@ -930,6 +1136,17 @@ export type DbtProjectConfig =
     | DbtManifestProjectConfig;
 
 /**
+ * Where in the warehouse a set of models lives — the two levels of a table
+ * reference, whatever a given warehouse calls them (BigQuery project and
+ * dataset, Snowflake database and schema, Databricks catalog and schema). A
+ * null field means "inherit from the project's warehouse connection".
+ */
+export type WarehouseLocation = {
+    database: string | null;
+    schema: string | null;
+};
+
+/**
  * One dbt source connected to a project (PROD-7484 multiple dbt sources). The
  * project's own `dbt_connection` is the primary source (precedence 0); when a
  * project has no source rows it runs the single-source path unchanged (N=0
@@ -952,9 +1169,26 @@ export type ProjectDbtSource = {
     isPrimary: boolean;
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
+    warehouseLocation: WarehouseLocation;
     hasCredentialError: boolean;
     createdAt: Date;
     updatedAt: Date;
+};
+
+export const DEFAULT_PROJECT_DBT_SOURCE_NAME = 'dbt_project';
+export const PROJECT_DBT_SOURCE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
+export const PROJECT_DBT_SOURCE_NAME_MAX_LENGTH = 64;
+
+export const validateProjectDbtSourceName = (name: string): string | null => {
+    if (!name) return 'Name is required';
+    if (!PROJECT_DBT_SOURCE_NAME_PATTERN.test(name)) {
+        return 'Use only letters, numbers, and underscores';
+    }
+    if (name.length > PROJECT_DBT_SOURCE_NAME_MAX_LENGTH) {
+        return `Name must be ${PROJECT_DBT_SOURCE_NAME_MAX_LENGTH} characters or fewer`;
+    }
+    if (name.includes('__')) return 'Name cannot contain "__"';
+    return null;
 };
 
 export type CreateProjectDbtSource = {
@@ -962,12 +1196,14 @@ export type CreateProjectDbtSource = {
     isPrimary: boolean;
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
+    warehouseLocation: WarehouseLocation;
 };
 
 export type UpdateProjectDbtSource = {
     name?: string;
     precedence?: number;
     dbtConnection?: DbtProjectConfig | null;
+    warehouseLocation?: WarehouseLocation;
 };
 
 /**
@@ -979,6 +1215,10 @@ export type UpdateProjectDbtSource = {
  *
  * `hasCredentialError` is always `false` for the synthesised primary source.
  * See `ProjectDbtSource` for what it means on an additional source.
+ *
+ * `warehouseLocation` is where this source's models live in the project's
+ * warehouse. For the primary source it is the location the project's warehouse
+ * connection already points at.
  */
 export type ProjectDbtSourceSummary = {
     projectDbtSourceUuid: string;
@@ -989,12 +1229,14 @@ export type ProjectDbtSourceSummary = {
     repository: string | null;
     branch: string | null;
     projectSubPath: string | null;
+    warehouseLocation: WarehouseLocation;
     hasCredentialError: boolean;
 };
 
 export type ApiCreateProjectDbtSource = {
     name: string;
     dbtConnection: DbtProjectConfig;
+    warehouseLocation?: WarehouseLocation;
 };
 
 export type ApiProjectDbtSourcesResponse = {
@@ -1024,6 +1266,7 @@ export type ApiProjectDbtSourceWithConnectionResponse = {
 export type ApiUpdateProjectDbtSource = {
     name?: string;
     dbtConnection?: DbtProjectConfig;
+    warehouseLocation?: WarehouseLocation;
 };
 
 export const isGitProjectType = (
@@ -1078,6 +1321,7 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
+    slug?: string;
     name: string;
     type: ProjectType;
     dbtConnection: DbtProjectConfig;
@@ -1097,21 +1341,85 @@ export type Project = {
     projectDefaults?: ProjectDefaults;
     colorPaletteUuid: string | null;
     expiresAt: Date | null;
+    provisioningSource?: string | null;
+    agentSqlScope: AgentSqlScope | null;
 };
 
 export type ProjectSummary = Pick<
     Project,
     | 'name'
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'type'
     | 'upstreamProjectUuid'
     | 'createdByUserUuid'
+    | 'provisioningSource'
 >;
 
 export type ApiProjectResponse = {
     status: 'ok';
     results: Project;
+};
+
+export type EnsurePlaygroundProjectResults = {
+    projectUuid: string;
+    created: boolean;
+};
+
+/** The training project an org admin enabled Learn with (CS-257). */
+export type EnableLearnResults = {
+    projectUuid: string;
+    created: boolean;
+};
+
+export type ApiEnableLearnResponse = {
+    status: 'ok';
+    results: EnableLearnResults;
+};
+
+/**
+ * What a learner can do, anywhere (CS-267): every scope they hold through
+ * their organization role, any organization-level custom roles, and every
+ * project role they hold directly or through a group. The library shows the
+ * features in this set and keeps the rest behind a toggle.
+ */
+export type LearnAccess = {
+    scopes: string[];
+};
+
+export type ApiLearnAccessResponse = {
+    status: 'ok';
+    results: LearnAccess;
+};
+
+export const playgroundProjectTriggers = [
+    'invite_expert',
+    'agent_onboarding_wait',
+    'get_started',
+] as const;
+
+export type PlaygroundProjectTrigger =
+    (typeof playgroundProjectTriggers)[number];
+
+export type EnsurePlaygroundProjectRequest = {
+    trigger?: PlaygroundProjectTrigger;
+};
+
+/** A learner's own throwaway copy of the training project, made for one walkthrough. */
+export type CreateTrainingPreviewResults = {
+    projectUuid: string;
+    expiresAt: Date | null;
+};
+
+export type ApiCreateTrainingPreviewResponse = {
+    status: 'ok';
+    results: CreateTrainingPreviewResults;
+};
+
+export type ApiEnsurePlaygroundProjectResponse = {
+    status: 'ok';
+    results: EnsurePlaygroundProjectResults;
 };
 
 export type UpdateProjectDetails = Partial<Pick<Project, 'name'>>;
@@ -1147,4 +1455,39 @@ export type UpdateSchedulerSettings = {
 export type UpdateQueryTimezoneSettings = {
     queryTimezone?: string | null;
     useProjectTimezoneInFilters?: boolean;
+};
+
+/**
+ * Restricts which part of the warehouse the AI agent may read via raw SQL.
+ *
+ * Null (or an empty `schemas` list) means unrestricted — the agent can reach
+ * anything the project's warehouse connection can reach, which is the
+ * behaviour for every project that has not configured a scope.
+ *
+ * This is a correctness control rather than a security boundary: raw SQL
+ * already requires `manage SqlRunner`, so the same data is reachable through
+ * the SQL Runner regardless. It exists so an agent can be kept off schemas a
+ * customer knows are wrong to answer from, such as a retired dbt project
+ * living in the same catalog as the current one.
+ */
+export type AgentSqlScope = {
+    /** Schemas the agent may read. Empty means every schema is allowed. */
+    schemas: string[];
+    /** Catalogs/databases the agent may read. Empty means any catalog. */
+    catalogs?: string[];
+    /**
+     * Schemas the agent may never read. Takes precedence over the allow list.
+     *
+     * Denying is often the better fit: an allow list goes stale the moment a
+     * new schema is created (the agent silently cannot see the new models),
+     * whereas "everything except the retired project" keeps working as the
+     * warehouse grows.
+     */
+    deniedSchemas?: string[];
+    /** Catalogs/databases the agent may never read. Takes precedence. */
+    deniedCatalogs?: string[];
+};
+
+export type UpdateAgentSqlScope = {
+    agentSqlScope: AgentSqlScope | null;
 };

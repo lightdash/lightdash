@@ -2,27 +2,40 @@ import { z } from 'zod';
 import type {
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
+    ApiExecuteAsyncSqlQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
     CacheMetadata,
     ItemsMap,
     KnexPaginatedData,
-    ToolDashboardArgs,
+    MetricSourcedMergeQuery,
+    ToolDashboardV2Args,
     ToolName,
     ToolRunQueryArgs,
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
 } from '../..';
+import { type UUID } from '../../types/api/uuid';
+import {
+    MAX_RETENTION_WINDOW_HOURS,
+    MIN_RETENTION_WINDOW_HOURS,
+} from '../../types/dataRetention';
+import assertUnreachable from '../../utils/assertUnreachable';
+import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
+import { type AiComposerChartArtifactConfig } from './composerArtifact';
+import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentModelConfig,
     type AiPromptContext,
     type AiPromptContextInput,
+    type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiThreadCreatedFrom,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
+import type {
+    PersistedMergeRunQueryPayload,
+    PersistedRunQueryPayload,
+} from './schemas/persistedRunQueryArgs';
 import { ToolNameSchema } from './schemas/visualizations';
 import { type AiMetricQuery, type AiResultType } from './types';
 
@@ -32,11 +45,11 @@ export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
+export * from './composerArtifact';
 export * from './dashboardContext';
 export * from './aiAgentReviewClassifierTypes';
 export * from './documentTypes';
 export * from './filterExploreByTags';
-export * from './followUpTools';
 export * from './projectContext';
 export * from './requestTypes';
 export * from './schemas';
@@ -147,9 +160,16 @@ export const baseAgentSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
+    enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
+    threadRetentionHours: z
+        .number()
+        .int()
+        .min(MIN_RETENTION_WINDOW_HOURS)
+        .max(MAX_RETENTION_WINDOW_HOURS)
+        .nullable(),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -175,9 +195,11 @@ export type AiAgent = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
+    | 'enableSqlMode'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
+    | 'threadRetentionHours'
 >;
 
 export type AiAgentSummary = Pick<
@@ -201,17 +223,23 @@ export type AiAgentSummary = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
+    | 'enableSqlMode'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
+    | 'threadRetentionHours'
 >;
 
 // An empty spaceAccess list means the agent is unrestricted (all spaces).
+export const isSpaceRestrictedAgent = (
+    agent: Pick<AiAgent, 'spaceAccess'>,
+): boolean => agent.spaceAccess.length > 0;
+
 export const hasAiAgentAccessToSpace = (
     agent: Pick<AiAgent, 'spaceAccess'>,
     spaceUuid: string,
 ): boolean =>
-    agent.spaceAccess.length === 0 || agent.spaceAccess.includes(spaceUuid);
+    !isSpaceRestrictedAgent(agent) || agent.spaceAccess.includes(spaceUuid);
 
 export type AiAgentUser = {
     uuid: string;
@@ -290,11 +318,23 @@ export type AiAgentMessageAssistant = {
     referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
+    responseTiming: AiPromptResponseTiming | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
     | AiAgentMessageUser<TUser>
     | AiAgentMessageAssistant;
+
+export type AiAgentThreadLiveState = 'working' | 'waiting_for_you' | 'idle';
+
+export type AiAgentThreadStateSource = 'deterministic' | 'classified';
+
+export type AiAgentThreadLiveStatus = {
+    threadUuid: string;
+    state: AiAgentThreadLiveState;
+    stateChangedAt: string | null;
+    source: AiAgentThreadStateSource;
+};
 
 export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
@@ -303,11 +343,13 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     createdFrom: AiThreadCreatedFrom;
     title: string | null;
     titleGeneratedAt: string | null;
+    pinnedAt: string | null;
     firstMessage: {
         uuid: string;
         message: string;
     };
     user: TUser;
+    liveStatus: AiAgentThreadLiveStatus | null;
 };
 
 export type AiAgentThreadShare = {
@@ -335,6 +377,212 @@ export type ApiAiAgentResponse = {
     results: AiAgent;
 };
 
+export type AiAgentMemorySource = {
+    slug: string;
+    agentUuid: string | null;
+    threadUuid: string;
+    threadTitle: string | null;
+    threadSummary: string;
+};
+
+export type AiAgentMemoryStatus =
+    | 'active'
+    | 'superseded'
+    | 'retired'
+    | 'promoted';
+
+export type AiAgentMemoryEditableStatus = 'active' | 'retired';
+
+/**
+ * Never affects which memories are recalled: selection, pull, ranking and
+ * access all filter on ownership alone. The label IS rendered into the injected
+ * fence, so it shapes how the agent treats an entry it already has.
+ * `project` means "nominate for review", never "safe to broadcast".
+ */
+export type AiAgentMemoryScope = 'user' | 'project';
+
+export type AiAgentMemory = {
+    uuid: string;
+    slug: string;
+    title: string;
+    rawMemory: string;
+    terms: string[];
+    objects: AiProjectContextTypedObjectRef[];
+    status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
+    generatedAt: string;
+    citedCount: number;
+    provenance:
+        | { type: 'source_thread'; source: AiAgentMemorySource }
+        | { type: 'consolidated'; sources: AiAgentMemorySource[] };
+    replacementSlug: string | null;
+    promotionReviewItem: {
+        uuid: string;
+        status: AiAgentReviewItemStatus;
+        blocksNewNomination: boolean;
+    } | null;
+};
+
+export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
+
+/** A memory list row as its owner sees it. Not shared with the admin list row. */
+export type AiAgentUserMemoryItem = {
+    uuid: string;
+    slug: string;
+    title: string;
+    // Memory body, truncated server-side for the list view
+    summary: string;
+    status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
+    // Null when the memory was consolidated across agents
+    agent: {
+        uuid: string;
+        name: string;
+        imageUrl: string | null;
+    } | null;
+    sourceThreadUuid: string | null;
+    citedCount: number;
+    lastCitedAt: string | null;
+    pulledCount: number;
+    lastPulledAt: string | null;
+    generatedAt: string;
+};
+
+export type AiAgentUserMemoriesSummary = {
+    memories: AiAgentUserMemoryItem[];
+};
+
+export type ApiAiAgentUserMemoriesResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentUserMemoriesSummary>
+>;
+
+/**
+ * One curated memory as the consolidation curator sees it. Slug is the only
+ * identifier; thread summaries and non-citation counters are absent.
+ */
+export type AiAgentMemoryConsolidationInputEntry = {
+    id: string;
+    title: string;
+    memory: string;
+    terms: string[];
+    objects: Array<{
+        object: AiProjectContextTypedObjectRef;
+        resolved: boolean;
+    }>;
+    scope: AiAgentMemoryScope;
+    cited_count: number;
+    age_days: number;
+    generated_at: string;
+};
+
+export type AiAgentMemoryConsolidationOperation =
+    | {
+          type: 'merge';
+          source_slugs: string[];
+          slug: string;
+          title: string;
+          memory: string;
+          terms: string[];
+          objects: AiProjectContextTypedObjectRef[];
+          reason: string;
+      }
+    | {
+          type: 'promote';
+          slug: string;
+          reason: string;
+      }
+    | {
+          type: 'supersede';
+          loser_slug: string;
+          winner_slug: string;
+          reason: string;
+      }
+    | {
+          type: 'retire';
+          slug: string;
+          reason: string;
+      };
+
+export type AiAgentMemoryConsolidationOperationType =
+    AiAgentMemoryConsolidationOperation['type'];
+
+export const AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES: ReadonlyArray<AiAgentMemoryConsolidationOperationType> =
+    ['merge', 'promote', 'supersede', 'retire'];
+
+export const AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT = 10;
+
+export const hasSufficientPromotionCitations = (citedCount: number): boolean =>
+    citedCount >= AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT;
+
+/** The one operation that creates a row. */
+export type AiAgentMemoryConsolidationMergeOperation = Extract<
+    AiAgentMemoryConsolidationOperation,
+    { type: 'merge' }
+>;
+
+/**
+ * Every existing row an operation names — a merge's sources included. Validation
+ * and the apply transaction's locking share it, so the set of rows an operation
+ * is checked against can never drift from the set it locks.
+ */
+export const getAiAgentMemoryConsolidationOperationSlugs = (
+    operation: AiAgentMemoryConsolidationOperation,
+): string[] => {
+    switch (operation.type) {
+        case 'merge':
+            return operation.source_slugs;
+        case 'promote':
+            return [operation.slug];
+        case 'supersede':
+            return [operation.loser_slug, operation.winner_slug];
+        case 'retire':
+            return [operation.slug];
+        default:
+            return assertUnreachable(operation, 'Unknown consolidation op');
+    }
+};
+
+/** Enumerable and content-free, so both the run audit and metrics can label by it. */
+export const AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS = [
+    'unknown_slug',
+    'duplicate_target',
+    'self_supersede',
+    'insufficient_sources',
+    'insufficient_citations',
+    'promotion_conflict',
+    'promotion_failed',
+    'row_moved',
+] as const;
+
+export type AiAgentMemoryConsolidationRejectionReason =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS)[number];
+
+export type AiAgentMemoryConsolidationRejection = {
+    operation: AiAgentMemoryConsolidationOperation;
+    reason: AiAgentMemoryConsolidationRejectionReason;
+};
+
+export type AiAgentMemoryConsolidationRunStatus = 'succeeded' | 'failed';
+
+/** Identifies the path that started a consolidation run. */
+export const AI_AGENT_MEMORY_CONSOLIDATION_TRIGGERS = [
+    'scheduled',
+    'manual',
+] as const;
+
+export type AiAgentMemoryConsolidationTrigger =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATION_TRIGGERS)[number];
+
+export type ApiUpdateAiAgentMemoryStatusRequest = {
+    status: AiAgentMemoryEditableStatus;
+};
+
+export type ApiUpdateAiAgentMemoryStatusResponse = ApiSuccessEmpty;
+
+export type ApiTriggerAiAgentMemoryDistillResponse = ApiSuccess<{
+    jobId: string;
+}>;
+
 export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
 
 export type ApiAiAgentSummaryResponse = {
@@ -360,9 +608,11 @@ export type ApiCreateAiAgent = Pick<
 > & {
     enableContentTools?: boolean;
     enableUserContext?: boolean;
+    enableSqlMode?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
+    threadRetentionHours?: number | null;
 };
 
 export type ApiUpdateAiAgent = Partial<
@@ -388,7 +638,9 @@ export type ApiUpdateAiAgent = Partial<
     >
 > & {
     uuid: string;
+    enableSqlMode?: boolean;
     mcpServerUuids?: string[];
+    threadRetentionHours?: number | null;
 };
 
 export type ApiCreateAiAgentResponse = {
@@ -436,18 +688,37 @@ export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
 export const GITHUB_MCP_SERVER_URL = 'https://api.githubcopilot.com/mcp/';
 export const GITHUB_MCP_SERVER_NAME = 'GitHub';
 
+// Hostname match rather than exact URL so trailing-slash or path variants
+// can't sidestep checks that gate GitHub MCP credentials.
+export const isGithubMcpServerUrl = (url: string): boolean => {
+    try {
+        return (
+            new URL(url).hostname === new URL(GITHUB_MCP_SERVER_URL).hostname
+        );
+    } catch {
+        return false;
+    }
+};
+
 export type ApiConnectGithubMcpServerBody = {
     personalAccessToken: string;
     credentialScope: AiMcpCredentialScope;
 };
 
+// 'github_app' mints a short-lived token per run and stores no long-lived
+// secret; 'pat' stores a user-provided token, gated by ai-mcp-github-pat.
+export type AiMcpGithubConnectMode = 'github_app' | 'pat';
+
 export type AiMcpGithubAvailability = {
-    // The org has a GitHub App installation AND the caller has permission to
-    // manage that integration (manage:GitIntegration).
+    /** @deprecated Use availableModes */
     available: boolean;
+    availableModes: AiMcpGithubConnectMode[];
     // A GitHub MCP server (matching GITHUB_MCP_SERVER_URL) already exists for
-    // this project.
+    // this project and is usable by the caller.
     alreadyConnected: boolean;
+    // The org has a Lightdash GitHub App installation. When false and no mode
+    // is available, the UI nudges the user to install the App.
+    hasGithubAppInstallation: boolean;
 };
 export type ApiAiMcpGithubAvailabilityResponse =
     ApiSuccess<AiMcpGithubAvailability>;
@@ -455,6 +726,14 @@ export type ApiAiMcpGithubAvailabilityResponse =
 export type ApiAiAgentThreadSummaryListResponse = {
     status: 'ok';
     results: AiAgentThreadSummary[];
+};
+
+export type ApiAiAgentThreadLiveStatusesResponse = {
+    status: 'ok';
+    results: {
+        statuses: AiAgentThreadLiveStatus[];
+        generatedAt: string;
+    };
 };
 
 export type AiAgentThreadFilters = {
@@ -524,6 +803,7 @@ export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
     context?: AiPromptContextInput;
     modelConfig?: AiAgentModelConfig;
+    originatingInstallationUuid?: string;
 };
 
 export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
@@ -532,6 +812,7 @@ export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
     context?: AiPromptContextInput;
     modelConfig?: AiAgentModelConfig;
+    originatingInstallationUuid?: string;
     /**
      * Inject the prompt as a hidden turn — the agent responds to it, but the UI
      * does not render the user bubble. Used by the post-merge content-migration
@@ -549,8 +830,7 @@ export type ApiAiAgentThreadStreamRequest = {
      * Per-thread toggle that decides whether the agent gets access to the
      * runSql / listWarehouseTables / describeWarehouseTable tools for this
      * stream. Frontend tracks the toggle in its slice; passed in on every
-     * stream call. Falls back to `false` when omitted (e.g. older clients,
-     * API callers) so the safer "semantic layer only" mode is the default.
+     * stream call. Falls back to the agent-level default when omitted.
      */
     enableSqlMode?: boolean;
     /**
@@ -588,6 +868,18 @@ export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
     AiAgentMessageUser<AiAgentUser>
 >;
 
+export type ApiAiAgentThreadDataAppRestoreRequest = {
+    appUuid: UUID;
+    version: number;
+};
+
+export type ApiAiAgentThreadDataAppRestoreResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+    restoredFromVersion: number;
+    promptUuid: string;
+}>;
+
 export type ApiAiAgentStartThreadResponse = {
     status: 'ok';
     results: {
@@ -608,6 +900,12 @@ export type ApiAiAgentThreadGenerateTitleResponse = {
     results: {
         title: string;
     };
+};
+
+export const AI_AGENT_THREAD_TITLE_MAX_LENGTH = 200;
+
+export type ApiAiAgentThreadUpdateRequest = {
+    title: string;
 };
 
 export type ApiAiAgentThreadMessageViz = {
@@ -632,14 +930,39 @@ export type AiVizMetadata = {
 };
 
 export type ApiAiAgentThreadMessageVizQuery = {
+    source: 'semantic';
     type: AiResultType;
     query: ApiExecuteAsyncMetricQueryResults;
+    /** The executed merge, so clients need not re-derive it from tool args. */
+    mergeQuery: MetricSourcedMergeQuery | null;
     metadata: AiVizMetadata;
 };
 
 export type ApiAiAgentThreadMessageVizQueryResponse = {
     status: 'ok';
     results: ApiAiAgentThreadMessageVizQuery;
+};
+
+export type ApiAiAgentSqlArtifactVizQuery = {
+    source: 'sql';
+    type: AiResultType.TABLE_RESULT;
+    query: ApiExecuteAsyncSqlQueryResults;
+    sql: string;
+    limit: number;
+    metadata: AiVizMetadata;
+};
+
+export type ApiAiAgentArtifactVizQuery =
+    | ApiAiAgentThreadMessageVizQuery
+    | ApiAiAgentSqlArtifactVizQuery;
+
+export const isAiAgentSqlArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentSqlArtifactVizQuery => query.source === 'sql';
+
+export type ApiAiAgentArtifactVizQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentArtifactVizQuery;
 };
 
 export type AiAgentUserPreferences = {
@@ -739,30 +1062,86 @@ export type ApiAiAgentExploreAccessSummaryResponse = ApiSuccess<
     AiAgentExploreAccessSummary[]
 >;
 
+export type AiSqlChartArtifactConfig = {
+    source: 'sql';
+    sql: string;
+    limit: number;
+};
+
+export type AiLegacySemanticChartArtifactConfig = ToolRunQueryArgs;
+
+export type AiSemanticChartArtifactConfig = {
+    source: 'semantic';
+    config: PersistedRunQueryPayload;
+};
+
+export type AiMergeChartArtifactConfig = {
+    source: 'merge';
+    schemaVersion: 1;
+    config: PersistedMergeRunQueryPayload;
+};
+
+// Custom chart type answer envelope: the persisted query payload keeps the
+// slug chartConfig intact, while the server-derived dataAppVizUuid sits beside
+// it.
+export type AiCustomChartTypeChartArtifactConfig = {
+    source: 'customChartType';
+    schemaVersion: 1;
+    dataAppVizUuid: string;
+    config: PersistedRunQueryPayload;
+};
+
+export type AiChartArtifactConfig =
+    | AiSemanticChartArtifactConfig
+    | AiMergeChartArtifactConfig
+    | AiCustomChartTypeChartArtifactConfig
+    | AiSqlChartArtifactConfig
+    | AiComposerChartArtifactConfig;
+
 export type AiArtifact = {
     artifactUuid: string;
     threadUuid: string;
     promptUuid: string | null;
     artifactType: 'chart' | 'dashboard';
     savedQueryUuid: string | null;
+    savedSqlUuid: string | null;
     savedDashboardUuid: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;
     title: string | null;
     description: string | null;
-    // We store raw tool calls
-    chartConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs
-        | null;
-    dashboardConfig: ToolDashboardArgs | null;
+    chartConfig: AiChartArtifactConfig | null;
+    dashboardConfig: ToolDashboardV2Args | null;
     versionCreatedAt: Date;
     verifiedByUserUuid: string | null;
     verifiedAt: Date | null;
 };
+
+export const isAiSqlChartArtifactConfig = (
+    config: unknown,
+): config is AiSqlChartArtifactConfig =>
+    typeof config === 'object' &&
+    config !== null &&
+    'source' in config &&
+    config.source === 'sql' &&
+    'sql' in config &&
+    typeof config.sql === 'string' &&
+    'limit' in config &&
+    typeof config.limit === 'number';
+
+export const isAiMergeChartArtifactConfig = (
+    config: unknown,
+): config is AiMergeChartArtifactConfig =>
+    typeof config === 'object' &&
+    config !== null &&
+    'source' in config &&
+    config.source === 'merge' &&
+    'schemaVersion' in config &&
+    config.schemaVersion === 1 &&
+    'config' in config &&
+    typeof config.config === 'object' &&
+    config.config !== null;
 
 export type AiArtifactTSOACompat = Omit<
     AiArtifact,
@@ -964,11 +1343,14 @@ export type AiAgentWithContext = AiAgentSummary & {
 
 export type AiModelOption = {
     name: string;
+    modelId: string;
     displayName: string;
     description: string;
     provider: string;
+    groupLabel?: string;
     default: boolean;
     supportsReasoning: boolean;
+    deprecated: boolean;
 };
 
 export type ApiAiAgentModelOptionsResponse = ApiSuccess<AiModelOption[]>;

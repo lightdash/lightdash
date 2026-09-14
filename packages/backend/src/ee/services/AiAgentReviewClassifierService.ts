@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import {
-    aiAgentReviewClassifierJudgeOutputSchema,
+    aiAgentReviewClassifierJudgeCallOutputSchema,
     assertUnreachable,
     CatalogType,
     filterExploreByTags,
@@ -8,11 +8,13 @@ import {
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     isExploreError,
+    isHiddenAiAgentReviewRootCause,
     ProjectType,
     type AiAgentAvailableCapability,
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
     type AiAgentEvidenceExcerpt,
+    type AiAgentJudgeProjectContextEntry,
     type AiAgentKnowledgeDocumentSnapshot,
     type AiAgentMcpServerSnapshot,
     type AiAgentReviewClassifierEventType,
@@ -45,9 +47,12 @@ import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import { type ProjectContextModel } from '../models/ProjectContextModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
-import { getModel } from './ai/models';
+import { type getModel } from './ai/models';
 import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
+import { authorProjectContextEntry } from './ai/projectContext/authorProjectContextEntry';
+import { resolveReviewJudgeModel } from './ai/reviewJudgeModel';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -68,18 +73,6 @@ const SUCCESSFUL_WRITEBACK_RESULT_PATTERN =
 const NON_ACTIONABLE_WRITEBACK_RESULT_PATTERN =
     /no pull request was opened|made no file changes|error running ai writeback/i;
 
-/**
- * Provider for the review judge. Prefer Anthropic (Claude) when it is configured
- * — it follows the project_context vs semantic_layer routing far more reliably
- * than other providers. Returns undefined to fall back to the org's default
- * provider, so EE orgs that have an EE license but no Anthropic key (OpenAI /
- * Azure only) keep working.
- */
-export const resolveReviewJudgeProvider = (
-    copilot: LightdashConfig['ai']['copilot'],
-): LightdashConfig['ai']['copilot']['defaultProvider'] | undefined =>
-    copilot.providers.anthropic ? 'anthropic' : undefined;
-
 type AiAgentReviewClassifierJudge = (
     candidate: AiAgentReviewClassifierTurnCandidate,
     evidencePacket: AiAgentReviewJudgeEvidencePacket,
@@ -98,6 +91,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
     lightdashConfig: LightdashConfig;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
+    projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
     judgeTurn?: AiAgentReviewClassifierJudge;
 };
 
@@ -292,6 +286,11 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly projectContextModel: Pick<
+        ProjectContextModel,
+        'getDocument'
+    >;
+
     private readonly judgeTurn: AiAgentReviewClassifierJudge;
 
     constructor(dependencies: AiAgentReviewClassifierServiceDependencies) {
@@ -309,6 +308,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.aiAgentReviewNotificationService =
             dependencies.aiAgentReviewNotificationService;
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.projectContextModel = dependencies.projectContextModel;
         this.judgeTurn =
             dependencies.judgeTurn ??
             ((candidate, evidencePacket) =>
@@ -665,8 +665,14 @@ export class AiAgentReviewClassifierService extends BaseService {
                         reviewItemFingerprints.add(fingerprint);
                         reviewItemCount = reviewItemFingerprints.size;
                         // Only newly created items ping Slack; a recurrence
-                        // accrues onto its existing card without re-notifying.
-                        if (reviewItemOutcome === 'created') {
+                        // accrues onto its existing card without re-notifying,
+                        // and hidden root causes never reach a board to open.
+                        if (
+                            reviewItemOutcome === 'created' &&
+                            !isHiddenAiAgentReviewRootCause(
+                                classifiedTurn.finding.primaryRootCause,
+                            )
+                        ) {
                             const projectFingerprints =
                                 reviewItemFingerprintsByProject.get(
                                     classifiedTurn.signal.subject.projectUuid,
@@ -1519,20 +1525,10 @@ export class AiAgentReviewClassifierService extends BaseService {
         // Run the judge on the org's own key when they have a BYO Anthropic key
         // that can serve the review model — never fall back to the instance
         // provider for their turn data.
-        const { canJudgeOnByoKey } =
-            await this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
-                candidate.subject.organizationUuid,
-            );
-        const copilotConfig = canJudgeOnByoKey
-            ? await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                  candidate.subject.organizationUuid,
-              )
-            : this.lightdashConfig.ai.copilot;
-        const model = getModel(copilotConfig, {
-            provider: canJudgeOnByoKey
-                ? 'anthropic'
-                : resolveReviewJudgeProvider(copilotConfig),
-            useFastModel: true,
+        const { model } = await resolveReviewJudgeModel({
+            organizationUuid: candidate.subject.organizationUuid,
+            orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
+            instanceCopilotConfig: this.lightdashConfig.ai.copilot,
         });
 
         this.debugLog('JudgeRequest', {
@@ -1563,6 +1559,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             agentUuid: candidate.subject.agentUuid,
             threadUuid: candidate.subject.threadUuid,
             promptUuid: candidate.subject.assistantPromptUuid,
+            keyManagement: model.keyManagement,
             ...getLanguageModelAttribution(model.model),
         });
         const result = await generateObject({
@@ -1571,7 +1568,10 @@ export class AiAgentReviewClassifierService extends BaseService {
             ...model.callOptions,
             providerOptions: model.providerOptions,
             experimental_telemetry: telemetry,
-            schema: aiAgentReviewClassifierJudgeOutputSchema,
+            // This schema is near the provider's strict-output grammar-size limit;
+            // growing it breaks EVERY judge call silently ("compiled grammar is too
+            // large"). Put new fields in a follow-up call like emitProjectContextEntry.
+            schema: aiAgentReviewClassifierJudgeCallOutputSchema,
             messages: [
                 {
                     role: 'system',
@@ -1663,14 +1663,6 @@ reviewItem.description should summarize why this grouping exists.
 
 Always populate targetRefs with every object the fix would touch (model, dimension, metric, join, explore). For semantic_layer and project_context findings these drive how findings collapse into one review item, so name the same object consistently across turns rather than varying the wording.
 
-Set projectContextEntry ONLY when primaryRootCause=project_context and a single durable, project-specific fact (a business definition or acronym, routing/join guidance, or object-scoped context) would prevent this class of failure in future turns. Otherwise set it to null.
-- op: "update" if one of the project context entries already injected into the reviewed turn was present but insufficient (reference its id); otherwise "create".
-- id: the existing entry id when op="update", otherwise null.
-- kind: definition | context. Use "definition" for acronyms and business vocabulary ("X means Y"); use "context" for everything else (routing/join rules, guidance, durable object-scoped facts).
-- content: a single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').
-- terms: the prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.
-- objects: the semantic objects this fact concerns, from targetRefs — explore names and/or field ids in the \`table_field\` form shown as fieldId in field results (e.g. "payments_total_amount"); [] when purely prompt-driven.
-
 Existing review items — dedup rules. The evidence packet field existingReviewItems lists this project's existing review items (key, title, status, dismissedReason, primaryRootCause, objectSummary). Apply these rules when promoting:
 - If the finding's underlying user need matches an existing item — even when you would assign a DIFFERENT root cause or blame a DIFFERENT object — set matchedExistingItemKey to that item's key. The test is "would a human say this is the same problem?", not "same technical label". A timeout, a missing field, and a routing gap that all block the same user question are ONE problem.
 - Items with dismissedReason=expected_behavior are known non-issues already reviewed by a human. If the turn's failure is that same behavior, set promotedToFinding=false and matchedExistingItemKey=null — do not re-file it.
@@ -1684,7 +1676,90 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         });
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-        return result.object as AiAgentReviewClassifierJudgeOutput;
+        const projectContextEntry =
+            result.object.promotedToFinding &&
+            result.object.primaryRootCause === 'project_context'
+                ? await this.emitProjectContextEntry({
+                      candidate,
+                      evidencePacket,
+                      model,
+                      judgeOutput: result.object,
+                  })
+                : null;
+
+        return {
+            ...result.object,
+            projectContextEntry,
+        } as AiAgentReviewClassifierJudgeOutput;
+    }
+
+    /**
+     * Second, smaller LLM call that emits the structured project_context entry
+     * for a promoted project_context finding. Split from the main judge call
+     * because the combined schema exceeds the provider's strict-structured-
+     * output grammar size limit ("the compiled grammar is too large") and every
+     * judge call then fails. Failure here degrades to a finding without an
+     * entry (writeback preview reports unavailable) instead of losing the
+     * whole judgment.
+     */
+    private async emitProjectContextEntry(input: {
+        candidate: AiAgentReviewClassifierTurnCandidate;
+        evidencePacket: AiAgentReviewJudgeEvidencePacket;
+        model: ReturnType<typeof getModel>;
+        judgeOutput: Omit<
+            AiAgentReviewClassifierJudgeOutput,
+            'projectContextEntry'
+        >;
+    }): Promise<AiAgentJudgeProjectContextEntry | null> {
+        const { candidate, evidencePacket, model, judgeOutput } = input;
+        this.debugLog('ProjectContextEntryRequest', {
+            promptUuid: candidate.subject.assistantPromptUuid,
+            threadUuid: candidate.subject.threadUuid,
+            judgeModelId: model.model.modelId,
+        });
+        const telemetry = getAiCallTelemetry({
+            functionId: 'aiAgentReviewClassifierJudgeProjectContextEntry',
+            feature: 'review-classifier',
+            organizationUuid: candidate.subject.organizationUuid,
+            projectUuid: candidate.subject.projectUuid,
+            agentUuid: candidate.subject.agentUuid,
+            threadUuid: candidate.subject.threadUuid,
+            promptUuid: candidate.subject.assistantPromptUuid,
+            keyManagement: model.keyManagement,
+            ...getLanguageModelAttribution(model.model),
+        });
+        try {
+            const currentEntries = await this.projectContextModel.getDocument(
+                candidate.subject.projectUuid,
+            );
+            return await authorProjectContextEntry({
+                evidence: {
+                    type: 'turn',
+                    evidencePacket,
+                    finding: {
+                        reviewItem: judgeOutput.reviewItem,
+                        promotionReason: judgeOutput.promotionReason,
+                        targetRefs: judgeOutput.targetRefs,
+                        subcategories: judgeOutput.subcategories,
+                        recommendation: judgeOutput.recommendation,
+                    },
+                },
+                currentEntries,
+                model,
+                telemetry,
+            });
+        } catch (error) {
+            Logger.error(
+                'AI review project context entry emission failed; keeping finding without an entry',
+                {
+                    promptUuid: candidate.subject.assistantPromptUuid,
+                    threadUuid: candidate.subject.threadUuid,
+                    errorMessage:
+                        error instanceof Error ? error.message : String(error),
+                },
+            );
+            return null;
+        }
     }
 
     private async isEnabled(args: {

@@ -112,6 +112,27 @@ export function isNumericItem(
     return isNumericType(getItemType(item));
 }
 
+export const isBooleanType = (
+    type: DimensionType | MetricType | TableCalculationType,
+) =>
+    type === DimensionType.BOOLEAN ||
+    type === MetricType.BOOLEAN ||
+    type === TableCalculationType.BOOLEAN;
+
+export function isBooleanItem(
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+) {
+    if (!item) {
+        return false;
+    }
+    return isBooleanType(getItemType(item));
+}
+
 export const isStringDimension = (
     item:
         | Field

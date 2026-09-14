@@ -10,7 +10,7 @@ import {
     Group,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useDataTimezonePreviewMutation } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -24,7 +24,7 @@ const PipelineStep: FC<{ n: number; title: string; value: ReactNode }> = ({
     value,
 }) => (
     <Group gap="sm" wrap="nowrap" align="flex-start">
-        <Badge size="sm" circle variant="light">
+        <Badge size="sm" circle>
             {n}
         </Badge>
         <Stack gap={0}>

@@ -215,6 +215,10 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
         element: <Navigate to="/generalSettings/ai/agents" replace />,
     },
     {
+        path: '/ai-agents/admin/memories',
+        element: <Navigate to="/generalSettings/ai/memories" replace />,
+    },
+    {
         path: '/ai-agents/admin/reviews',
         element: <Navigate to="/generalSettings/ai/issues" replace />,
     },
@@ -299,6 +303,36 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                         () => import('./pages/AiAgents/AiAgentThreadSharePage'),
                     );
                     return { Component: AiAgentThreadSharePage };
+                },
+            },
+            {
+                path: 'memories/:slug',
+                lazy: async () => {
+                    const AiAgentMemoryPage = await loadLazyRouteDefault(
+                        './pages/AiAgents/AiAgentMemoryPage',
+                        () => import('./pages/AiAgents/AiAgentMemoryPage'),
+                    );
+                    return { Component: AiAgentMemoryPage };
+                },
+            },
+            {
+                path: 'deep-research/:runUuid',
+                lazy: async () => {
+                    const DeepResearchReportPage = await loadLazyRouteDefault(
+                        './pages/AiAgents/DeepResearchReportPage',
+                        () => import('./pages/AiAgents/DeepResearchReportPage'),
+                    );
+                    return { Component: DeepResearchReportPage };
+                },
+            },
+            {
+                path: ':agentUuid/memories/:slug',
+                lazy: async () => {
+                    const AiAgentMemoryPage = await loadLazyRouteDefault(
+                        './pages/AiAgents/AiAgentMemoryPage',
+                        () => import('./pages/AiAgents/AiAgentMemoryPage'),
+                    );
+                    return { Component: AiAgentMemoryPage };
                 },
             },
             {
@@ -430,6 +464,18 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                                                 import('./pages/AiAgents/AgentThreadPage'),
                                         );
                                     return { Component: AiAgentThreadPage };
+                                },
+                            },
+                            {
+                                path: 'battle/:threadUuidA/:threadUuidB',
+                                lazy: async () => {
+                                    const AiAgentBattlePage =
+                                        await loadLazyRouteDefault(
+                                            './pages/AiAgents/AiAgentBattlePage',
+                                            () =>
+                                                import('./pages/AiAgents/AiAgentBattlePage'),
+                                        );
+                                    return { Component: AiAgentBattlePage };
                                 },
                             },
                             {

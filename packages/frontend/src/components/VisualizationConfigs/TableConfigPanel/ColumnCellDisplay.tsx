@@ -5,7 +5,7 @@ import {
     isNumericItem,
     type FilterableItem,
 } from '@lightdash/common';
-import { ActionIcon, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconEye, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -60,11 +60,9 @@ export const ColumnCellDisplay: FC = () => {
                     <Config.Heading>Bars in cells</Config.Heading>
                     <Tooltip
                         label="Display numeric values as bars in cells"
-                        withinPortal
                         position="right"
-                        variant="xs"
                     >
-                        <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
+                        <MantineIcon icon={IconInfoCircle} color="dimmed" />
                     </Tooltip>
                 </Group>
                 <Stack gap="xs">
@@ -76,6 +74,24 @@ export const ColumnCellDisplay: FC = () => {
                         const barColor =
                             chartConfig.columnProperties[fieldId]?.color ||
                             colorPalette[0];
+                        const negativeColor =
+                            chartConfig.columnProperties[fieldId]
+                                ?.negativeColor;
+                        // Negative bars default to the positive color until set.
+                        const negativeBarColor = negativeColor || barColor;
+
+                        const positiveColorSelector = (
+                            <ColorSelector
+                                color={barColor}
+                                swatches={colorPalette}
+                                ariaLabel="Select positive bar color"
+                                onColorChange={(color) => {
+                                    chartConfig.updateColumnProperty(fieldId, {
+                                        color,
+                                    });
+                                }}
+                            />
+                        );
 
                         return (
                             <Group
@@ -84,18 +100,59 @@ export const ColumnCellDisplay: FC = () => {
                                 justify="space-between"
                             >
                                 <Group gap="xs">
-                                    <ColorSelector
-                                        color={barColor}
-                                        swatches={colorPalette}
-                                        onColorChange={(color) => {
-                                            chartConfig.updateColumnProperty(
-                                                fieldId,
-                                                {
-                                                    color,
-                                                },
-                                            );
-                                        }}
-                                    />
+                                    {isBarChart ? (
+                                        <>
+                                            <Tooltip
+                                                label="Positive values"
+                                                variant="xs"
+                                                position="top"
+                                            >
+                                                <Box>
+                                                    {positiveColorSelector}
+                                                </Box>
+                                            </Tooltip>
+                                            <Tooltip
+                                                label="Negative values"
+                                                variant="xs"
+                                                position="top"
+                                            >
+                                                <Box>
+                                                    <ColorSelector
+                                                        color={negativeBarColor}
+                                                        swatches={colorPalette}
+                                                        ariaLabel="Select negative bar color"
+                                                        onColorChange={(
+                                                            newColor,
+                                                        ) => {
+                                                            chartConfig.updateColumnProperty(
+                                                                fieldId,
+                                                                {
+                                                                    negativeColor:
+                                                                        newColor,
+                                                                },
+                                                            );
+                                                        }}
+                                                        onColorReset={
+                                                            negativeColor
+                                                                ? () => {
+                                                                      chartConfig.updateColumnProperty(
+                                                                          fieldId,
+                                                                          {
+                                                                              negativeColor:
+                                                                                  undefined,
+                                                                          },
+                                                                      );
+                                                                  }
+                                                                : undefined
+                                                        }
+                                                        resetLabel="Match positive color"
+                                                    />
+                                                </Box>
+                                            </Tooltip>
+                                        </>
+                                    ) : (
+                                        positiveColorSelector
+                                    )}
                                     <Text size="sm">
                                         {'label' in field
                                             ? field.label
@@ -113,7 +170,6 @@ export const ColumnCellDisplay: FC = () => {
                                             },
                                         );
                                     }}
-                                    color="ldGray.6"
                                     variant="light"
                                 >
                                     <MantineIcon

@@ -1,0 +1,62 @@
+import { Box, Text } from '@mantine/core';
+import { IconFolder, IconFolders } from '@tabler/icons-react';
+import { type FC } from 'react';
+import { Link } from 'react-router';
+import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
+import { type KeySpace } from '../hooks/rankKeySpaces';
+import { BlockHeader, IconSquare } from './BlockShell';
+import classes from './blockStyles.module.css';
+import { PageGrid, PageGridItem } from './PageGrid';
+
+const itemLabel = (count: number) => `${count} item${count === 1 ? '' : 's'}`;
+
+const KeySpaceCard: FC<{
+    space: KeySpace;
+    projectUrlIdentifier: string;
+}> = ({ space, projectUrlIdentifier }) => {
+    return (
+        <Link
+            to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
+            className={`${classes.hoverCard} ${classes.clickable} ${classes.plainLink} ${classes.contentTile}`}
+        >
+            <IconSquare icon={IconFolder} />
+            <Box className={classes.tileBody}>
+                <Text size="sm" fw={600} truncate>
+                    {space.name}
+                </Text>
+                <Text size="xs" c="dimmed">
+                    {itemLabel(space.itemCount)}
+                </Text>
+            </Box>
+        </Link>
+    );
+};
+
+/** The spaces a viewer should start from. Renders nothing when the project has
+ * none with content — an empty header is worse than no section. */
+export const KeySpaces: FC<{
+    spaces: KeySpace[];
+    projectUuid: string;
+    title?: string;
+}> = ({ spaces, projectUuid, title = 'Spaces' }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
+
+    if (spaces.length === 0) return null;
+    return (
+        <Box>
+            <BlockHeader icon={IconFolders} title={title} />
+            <PageGrid itemSpan={3}>
+                {spaces.map((space) => (
+                    <PageGridItem key={space.uuid}>
+                        <KeySpaceCard
+                            space={space}
+                            projectUrlIdentifier={projectUrlIdentifier}
+                        />
+                    </PageGridItem>
+                ))}
+            </PageGrid>
+        </Box>
+    );
+};

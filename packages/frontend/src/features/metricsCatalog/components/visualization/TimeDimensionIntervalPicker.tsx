@@ -1,9 +1,9 @@
 import { TimeFrames, type TimeDimensionConfig } from '@lightdash/common';
-import { Select } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { useSelectStyles } from '../../styles/useSelectStyles';
+import selectStyles from '../../styles/selectStyles.module.css';
 
 type Props = {
     dimension: TimeDimensionConfig;
@@ -14,7 +14,6 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
     dimension,
     onChange,
 }) => {
-    const { classes } = useSelectStyles();
     const [optimisticInterval, setOptimisticInterval] = useState(
         dimension.interval,
     );
@@ -23,7 +22,6 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
             allowDeselect={false}
             w={100}
             size="xs"
-            radius="md"
             color="gray"
             data={[
                 {
@@ -64,9 +62,10 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
                 />
             }
             classNames={{
-                input: classes.input,
-                option: classes.option,
-                section: classes.rightSection,
+                wrapper: selectStyles.wrapper,
+                input: selectStyles.input,
+                option: selectStyles.option,
+                section: selectStyles.rightSection,
             }}
         />
     );

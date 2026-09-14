@@ -1,0 +1,231 @@
+import {
+    Project,
+    ProjectType,
+    RenameType,
+    SchedulerJobStatus,
+} from '@lightdash/common';
+import { LightdashAnalytics } from '../analytics/analytics';
+import { getConfig } from '../config';
+import GlobalState from '../globalState';
+import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { getProject } from './dbt/refresh';
+import { renameHandler } from './renameHandler';
+
+vi.mock('../analytics/analytics');
+vi.mock('../config');
+vi.mock('./dbt/apiClient');
+vi.mock('./dbt/refresh');
+
+type RenameOptions = Parameters<typeof renameHandler>[0];
+
+const baseOptions: RenameOptions = {
+    verbose: false,
+    type: RenameType.FIELD,
+    project: '11111111-1111-4111-8111-111111111111',
+    from: 'old_name',
+    to: 'new_name',
+    dryRun: false,
+    assumeYes: true,
+    list: false,
+    validate: true,
+};
+
+const emptyResults = {
+    charts: [],
+    dashboards: [],
+    alerts: [],
+    dashboardSchedulers: [],
+};
+
+const RENAME_JOB_ID = 'rename-job-id';
+const VALIDATION_JOB_ID = 'validation-job-id';
+const PREVIEW_PROJECT = '33333333-3333-4333-8333-333333333333';
+
+describe('renameHandler follow-up validation', () => {
+    let errorOutput: string[];
+
+    const mockApi = (failingJobId: string | null) => {
+        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
+            if (method === 'POST' && url.endsWith('/rename')) {
+                return { jobId: RENAME_JOB_ID };
+            }
+            if (method === 'POST' && url.endsWith('/validate')) {
+                return { jobId: VALIDATION_JOB_ID };
+            }
+            if (url.includes(`/schedulers/job/${failingJobId}/status`)) {
+                return {
+                    status: SchedulerJobStatus.ERROR,
+                    details: { error: 'job blew up' },
+                };
+            }
+            if (url.includes('/schedulers/job/')) {
+                return {
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: { results: emptyResults },
+                };
+            }
+            if (url.includes('/validate?jobId=')) {
+                return [];
+            }
+            if (
+                method === 'GET' &&
+                url === `/api/v1/projects/${PREVIEW_PROJECT}`
+            ) {
+                return {
+                    projectUuid: PREVIEW_PROJECT,
+                    type: ProjectType.PREVIEW,
+                } as Project;
+            }
+            throw new Error(`Unexpected API call: ${method} ${url}`);
+        });
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubEnv('LIGHTDASH_PROJECT', undefined);
+        vi.mocked(checkLightdashVersion).mockResolvedValue(undefined);
+        vi.mocked(getConfig).mockResolvedValue({
+            context: {
+                apiKey: 'test-key',
+                serverUrl: 'http://localhost',
+                project: '11111111-1111-4111-8111-111111111111',
+            },
+        } as Awaited<ReturnType<typeof getConfig>>);
+        vi.mocked(getProject).mockResolvedValue({
+            name: 'test project',
+        } as Awaited<ReturnType<typeof getProject>>);
+
+        errorOutput = [];
+        vi.spyOn(console, 'error').mockImplementation((...args) => {
+            errorOutput.push(args.map(String).join(' '));
+        });
+        vi.spyOn(console, 'info').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+    });
+
+    const trackedEvents = () =>
+        vi.mocked(LightdashAnalytics.track).mock.calls.map(([payload]) => ({
+            event: payload.event,
+            properties: payload.properties,
+        }));
+
+    test.each([undefined, baseOptions.project])(
+        'targets the environment project unless --project overrides it (%s)',
+        async (explicitProject) => {
+            const envProject = '22222222-2222-4222-8222-222222222222';
+            vi.stubEnv('LIGHTDASH_PROJECT', envProject);
+            vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(true);
+            vi.mocked(getConfig).mockResolvedValue({
+                context: {
+                    apiKey: 'test-key',
+                    serverUrl: 'http://localhost',
+                    project: envProject,
+                    previewProject: PREVIEW_PROJECT,
+                    previewName: 'Stale preview',
+                },
+            });
+            mockApi(null);
+
+            await renameHandler({ ...baseOptions, project: explicitProject });
+
+            const expectedProject = explicitProject || envProject;
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'POST',
+                    url: `/api/v1/projects/${expectedProject}/rename`,
+                }),
+            );
+            const output = errorOutput.join('\n');
+            expect(output).toContain(`Renaming in project: ${expectedProject}`);
+            if (explicitProject) {
+                expect(output).not.toContain('Stale preview');
+            } else {
+                expect(output).toContain(
+                    'active preview "Stale preview" ignored',
+                );
+            }
+        },
+    );
+
+    test('reports a failed validation job as a validation failure, not a rename failure', async () => {
+        mockApi(VALIDATION_JOB_ID);
+
+        await renameHandler({ ...baseOptions });
+
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Rename completed');
+        expect(output).toContain('Validation failed: job blew up');
+        expect(output).not.toContain('Rename failed');
+        expect(output).not.toContain('unexpected error');
+    });
+
+    test('counts a rename whose follow-up validation failed as completed', async () => {
+        mockApi(VALIDATION_JOB_ID);
+
+        await renameHandler({ ...baseOptions });
+
+        expect(trackedEvents()).toEqual([
+            {
+                event: 'rename.completed',
+                properties: expect.objectContaining({
+                    validationStatus: 'failed',
+                }),
+            },
+        ]);
+    });
+
+    test('still reports a failed rename job as a rename failure', async () => {
+        mockApi(RENAME_JOB_ID);
+
+        await renameHandler({ ...baseOptions });
+
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Rename failed: job blew up');
+        expect(output).not.toContain('Validation failed');
+        expect(trackedEvents()).toEqual([
+            { event: 'rename.error', properties: expect.anything() },
+        ]);
+    });
+
+    test('records a passing validation on the completed event', async () => {
+        mockApi(null);
+
+        await renameHandler({ ...baseOptions });
+
+        expect(trackedEvents()).toEqual([
+            {
+                event: 'rename.completed',
+                properties: expect.objectContaining({
+                    validationStatus: 'passed',
+                }),
+            },
+        ]);
+    });
+
+    test('does not run the validation job when --validate is not set', async () => {
+        mockApi(null);
+
+        await renameHandler({ ...baseOptions, validate: false });
+
+        const validationCalls = vi
+            .mocked(lightdashApi)
+            .mock.calls.filter(([{ url }]) => url.endsWith('/validate'));
+        expect(validationCalls).toEqual([]);
+
+        const output = errorOutput.join('\n');
+        expect(output).not.toContain('failed');
+        expect(output).not.toContain('unexpected error');
+        expect(trackedEvents()).toEqual([
+            {
+                event: 'rename.completed',
+                properties: expect.objectContaining({
+                    validationStatus: 'skipped',
+                }),
+            },
+        ]);
+    });
+});

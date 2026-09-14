@@ -42,6 +42,18 @@ import { useMetric } from './useMetricsCatalog';
 
 const METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT = 1;
 const METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT = TimeFrames.YEAR;
+const METRICS_EXPLORER_PREVIOUS_YEAR_WEEK_OFFSET = 52;
+
+const getPreviousPeriodComparison = (timeFrame: TimeFrames) =>
+    timeFrame === TimeFrames.WEEK
+        ? {
+              granularity: TimeFrames.WEEK,
+              periodOffset: METRICS_EXPLORER_PREVIOUS_YEAR_WEEK_OFFSET,
+          }
+        : {
+              granularity: METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT,
+              periodOffset: METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
+          };
 
 const buildMetricQueryFromField = (
     field: MetricWithAssociatedTimeDimension,
@@ -120,16 +132,34 @@ const buildMetricQueryFromField = (
                   name: compareMetric.name,
               })
             : undefined;
-    const popResult =
-        shouldCompareToPreviousYear && timeDimensionFieldId
-            ? buildPopAdditionalMetric({
-                  metric: field,
-                  timeDimensionId: timeDimensionFieldId,
-                  granularity:
-                      METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT,
-                  periodOffset: METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
-              })
-            : null;
+    const getPreviousYearMetric = () => {
+        if (
+            !shouldCompareToPreviousYear ||
+            !timeDimensionConfig ||
+            !timeDimensionFieldId
+        ) {
+            return null;
+        }
+
+        const result = buildPopAdditionalMetric({
+            metric: field,
+            timeDimensionId: timeDimensionFieldId,
+            ...getPreviousPeriodComparison(timeDimensionConfig.interval),
+        });
+
+        return {
+            ...result,
+            additionalMetric: {
+                ...result.additionalMetric,
+                label: `${field.label} (${getPopPeriodLabel(
+                    METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT,
+                    METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
+                )})`,
+            },
+        };
+    };
+
+    const popResult = getPreviousYearMetric();
 
     const popMetricId = popResult?.metricId;
 

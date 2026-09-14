@@ -9,8 +9,8 @@ import {
     Badge,
     ColorSwatch,
     Menu,
-} from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+    Tooltip,
+} from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconDotsVertical,
@@ -33,6 +33,7 @@ type PaletteItemProps = {
     isActive: boolean;
     onSetActive?: ((uuid: string) => void) | undefined;
     readOnly?: boolean;
+    canManage: boolean;
 };
 
 export const PaletteItem: FC<PaletteItemProps> = ({
@@ -40,6 +41,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
     isActive,
     onSetActive,
     readOnly,
+    canManage,
 }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -65,7 +67,6 @@ export const PaletteItem: FC<PaletteItemProps> = ({
         <>
             <Paper
                 p="sm"
-                withBorder
                 radius="sm"
                 pos="relative"
                 onMouseEnter={() => setIsHovered(true)}
@@ -128,11 +129,9 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             <Tooltip
                                 label="This palette is read only. It has been configured as the override color palette for your organization. While this is set, you cannot update/edit, or delete this palette."
                                 position="bottom-end"
-                                multiline
                                 maw={200}
-                                variant="xs"
                             >
-                                <Badge color="gray" variant="light">
+                                <Badge>
                                     <Group gap={2}>
                                         Override
                                         <MantineIcon
@@ -163,21 +162,11 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             </Button>
                         )}
 
-                        {isActive && (
-                            <Badge color="green" variant="light">
-                                Active
-                            </Badge>
-                        )}
+                        {isActive && <Badge color="green">Active</Badge>}
 
-                        <Menu
-                            shadow="subtle"
-                            position="bottom-end"
-                            disabled={readOnly}
-                        >
+                        <Menu position="bottom-end" disabled={readOnly}>
                             <Menu.Target>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     size="xs"
                                     aria-label="Palette actions"
                                 >
@@ -194,25 +183,33 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 >
                                     Copy UUID
                                 </Menu.Item>
-                                <Menu.Item
-                                    disabled={readOnly}
-                                    leftSection={
-                                        <MantineIcon icon={IconEdit} />
-                                    }
-                                    onClick={() => setIsEditModalOpen(true)}
-                                >
-                                    Edit palette
-                                </Menu.Item>
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconTrash} />
-                                    }
-                                    onClick={() => setIsDeleteModalOpen(true)}
-                                    disabled={isActive || readOnly}
-                                    color="red"
-                                >
-                                    Delete palette
-                                </Menu.Item>
+                                {canManage && (
+                                    <>
+                                        <Menu.Item
+                                            disabled={readOnly}
+                                            leftSection={
+                                                <MantineIcon icon={IconEdit} />
+                                            }
+                                            onClick={() =>
+                                                setIsEditModalOpen(true)
+                                            }
+                                        >
+                                            Edit palette
+                                        </Menu.Item>
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                            onClick={() =>
+                                                setIsDeleteModalOpen(true)
+                                            }
+                                            disabled={isActive || readOnly}
+                                            color="red"
+                                        >
+                                            Delete palette
+                                        </Menu.Item>
+                                    </>
+                                )}
                             </Menu.Dropdown>
                         </Menu>
                     </Group>

@@ -1,4 +1,5 @@
 import {
+    calculateComparisonValue,
     applyCustomFormat,
     ComparisonFormatTypes,
     CustomFormatType,
@@ -20,7 +21,7 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartDots, IconHash, IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -35,7 +36,7 @@ import {
     useRunMetricSeries,
     useRunMetricTotal,
 } from '../../../../features/metricsCatalog/hooks/useRunMetricExplorerQuery';
-import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
+import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import MetricSparkline from './MetricSparkline';
@@ -186,21 +187,34 @@ const MetricsPickerModal: FC<{
 }> = ({ opened, onClose, projectUuid, selected, atLimit, onAdd }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
-    const { data, isFetching } = useMetricsCatalog({
+    const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
         projectUuid: opened ? projectUuid : undefined,
         search: debouncedSearch.length >= 2 ? debouncedSearch : undefined,
+        // Match the metrics catalog ordering so the most-used metrics surface first
+        sortBy: 'chartUsage',
+        sortDirection: 'desc',
         pageSize: 25,
     });
-    const results = (data?.pages ?? [])
-        .flatMap((page) => page.data)
-        .filter(
-            (metric) =>
-                !selected.some(
-                    (ref) =>
-                        ref.tableName === metric.tableName &&
-                        ref.metricName === metric.name,
+    const results = useMemo(
+        () =>
+            (data?.pages ?? [])
+                .flatMap((page) => page.data)
+                .filter(
+                    (metric) =>
+                        !selected.some(
+                            (ref) =>
+                                ref.tableName === metric.tableName &&
+                                ref.metricName === metric.name,
+                        ),
                 ),
-        );
+        [data, selected],
+    );
+
+    const { containerRef: scrollRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     return (
         <MantineModal
@@ -223,7 +237,13 @@ const MetricsPickerModal: FC<{
                         add another.
                     </Text>
                 )}
-                <Stack gap={4} mah={360} className={classes.pickerScrollList}>
+                <Stack
+                    gap={4}
+                    mah={360}
+                    className={classes.pickerScrollList}
+                    ref={scrollRef}
+                    onScroll={onScroll}
+                >
                     {!atLimit &&
                         results.map((metric) => (
                             <Group
@@ -240,7 +260,7 @@ const MetricsPickerModal: FC<{
                                     })
                                 }
                             >
-                                <MantineIcon icon={IconHash} color="ldGray.6" />
+                                <MantineIcon icon={IconHash} color="dimmed" />
                                 <Box flex={1} miw={0}>
                                     <Text size="sm" fw={500} truncate>
                                         {metric.label ?? metric.name}
@@ -249,13 +269,18 @@ const MetricsPickerModal: FC<{
                                         {metric.tableLabel ?? metric.tableName}
                                     </Text>
                                 </Box>
-                                <MantineIcon icon={IconPlus} color="ldGray.6" />
+                                <MantineIcon icon={IconPlus} color="dimmed" />
                             </Group>
                         ))}
                     {!atLimit && results.length === 0 && !isFetching && (
                         <Text size="sm" c="dimmed" p="sm">
                             No matching metrics.
                         </Text>
+                    )}
+                    {!atLimit && isFetching && (
+                        <Group justify="center" p="xs">
+                            <Loader size="xs" />
+                        </Group>
                     )}
                 </Stack>
             </Stack>
@@ -323,7 +348,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                     <PageGridItem
                         key={`${metricRef.tableName}-${metricRef.metricName}`}
                     >
-                        <Card withBorder p="sm" h="100%">
+                        <Card p="sm" h="100%">
                             <Group
                                 gap="xs"
                                 wrap="nowrap"
@@ -338,8 +363,6 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                                     </Text>
                                 </Box>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="ldGray.6"
                                     size="sm"
                                     aria-label={`Remove metric ${metricRef.label}`}
                                     onClick={() =>

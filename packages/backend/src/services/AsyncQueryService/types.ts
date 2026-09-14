@@ -1,19 +1,30 @@
 import {
     Account,
     DownloadFileType,
+    MergeQuery,
+    MergeQueryChart,
+    MergeQueryExecutionMode,
     MetricQuery,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
     type AndFilterGroup,
+    type ApiExecuteAsyncMetricQueryResults,
     type CacheMetadata,
     type ConditionalFormattingConfig,
     type DashboardFilters,
     type DateZoom,
     type DownloadAsyncQueryResultsPayload,
+    type DuckdbExecutionSpec,
+    type ExecuteAsyncQueryRequestParams,
+    type ExternalSourceTableReference,
     type Filters,
     type ItemsMap,
     type ParametersValuesMap,
+    type PreAggregateExecutionEngine,
     type QueryExecutionContext,
+    type QueryHistory,
+    type QuerySourceTableName,
     type ResultColumns,
     type ResultsPaginationArgs,
     type RunQueryTags,
@@ -21,10 +32,15 @@ import {
     type SortField,
     type UserAccessControls,
     type UserAttributeValueMap,
+    type UUID,
+    type WarehouseClient,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
-import type { TotalConfiguration } from '../../utils/QueryBuilder/QueryComposer';
+import type {
+    QueryComposer,
+    TotalConfiguration,
+} from '../../utils/QueryBuilder/QueryComposer';
 
 export type CommonAsyncQueryArgs = {
     account: Account;
@@ -48,6 +64,10 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     CommonAsyncQueryArgs,
     'invalidateCache' | 'context' | 'parameters'
 > & {
+    accessMode: Exclude<
+        PersistentDownloadFileAccessMode,
+        PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+    >;
     queryUuid: string;
     type?: DownloadFileType;
     onlyRaw?: boolean;
@@ -60,6 +80,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     attachmentDownloadName?: string;
     expirationSecondsOverride?: number;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
 };
 
 export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
@@ -79,6 +100,8 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
+    dataAppPreviewToken?: string;
+    customSqlProvenanceChartUuid?: UUID;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
@@ -95,7 +118,11 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     versionUuid?: string;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    // ANDed onto the chart's filters: callers (including embeds) can only narrow.
     filterOverrides?: Filters;
+    // Scheduled-delivery overrides: replace the chart's saved rules by id,
+    // AND the rest. Server-side only, never accepted from the API.
+    schedulerFilters?: Filters;
     // Silent-drop semantics for fields outside the chart's explore — unlike
     // filterOverrides, which fails the run on unknown fields.
     dashboardFilters?: DashboardFilters;
@@ -110,6 +137,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dateZoom?: DateZoom;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    includeUnpublishedDraft?: boolean;
     sessionTimezone?: string | null;
     preloadedSavedChart?: SavedChartDAO;
     preloadedProjectParameters?: DbProjectParameter[];
@@ -129,18 +157,56 @@ export type ExecuteAsyncQueryReturn = {
     cacheMetadata: CacheMetadata;
 };
 
+// The export's cell-based cap (floor(csvCellsLimit / columnCount)) can land
+// at or below a wide query's own already-applied limit — rerunning would
+// then return no more rows than the capped result already has, so the
+// caller must skip execution rather than deliver a same-or-smaller "upgrade".
+export type UnboundedRerunFromQueryHistoryResult =
+    | {
+          outcome: 'executed';
+          queryUuid: string;
+          appliedLimit: number;
+      }
+    | {
+          outcome: 'noImprovementPossible';
+      };
+
 export type PreAggregationRouteMode = 'required' | 'opportunistic';
+
+export type { PreAggregateExecutionEngine };
 
 export type PreAggregationRoute = {
     sourceExploreName: string;
     preAggregateName: string;
     mode: PreAggregationRouteMode;
+    // Present ⇒ external pre-aggregate served from this table on the project warehouse
+    externalTable?: string;
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> queryUuid of a previous async query to expose as that table. */
+    references?: Record<string, UUID>;
+};
+
+export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> external source table (name or uuid) to expose as that table. */
+    tables: Record<QuerySourceTableName, ExternalSourceTableReference>;
+};
+
+export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
+    mergeQuery: MergeQuery;
+    mode: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
@@ -214,6 +280,9 @@ export type RunAsyncWarehouseQueryArgs = {
     onboardingFlow: OnboardingFlow;
     queryTags: RunQueryTags;
     fieldsMap: ItemsMap;
+    /** Resolved parameter values for this execution — interpolates parameter
+     *  placeholders in column format expressions at column-build time. */
+    usedParameters: ParametersValuesMap | null;
     cacheKey: string;
     warehouseCredentialsOverrides?: {
         snowflakeVirtualWarehouse?: string;
@@ -232,4 +301,138 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
 > & {
     preAggregateQuery: string;
     warehouseQuery: string;
+    preAggregateExecution: PreAggregateExecutionEngine;
+};
+
+/** Known at compile time, so nothing is probed and nothing overwritten. */
+export type SuppliedDuckdbQueryColumns = {
+    mode: 'supplied';
+    fieldsMap: ItemsMap;
+    usedParameters: ParametersValuesMap | null;
+    originalColumns: ResultColumns;
+    pivotConfiguration: PivotConfiguration | undefined;
+};
+
+/** Where a DuckDB query's output columns come from. */
+export type DuckdbQueryColumns =
+    | {
+          /** Probe the SQL with a one-row query: raw SQL has no known shape. */
+          mode: 'discover';
+          limit: number | undefined;
+          parameters: ParametersValuesMap;
+      }
+    | SuppliedDuckdbQueryColumns;
+
+/**
+ * Runs once every referenced query has completed and before anything
+ * executes. Returns the refusal message, or null to proceed.
+ */
+export type DuckdbQueryReferenceGuard = (
+    completed: Record<string, QueryHistory>,
+) => string | null;
+
+/** How a DuckDB query binds the results it reads. */
+export type DuckdbQueryReferences =
+    | {
+          /** CTEs built at submit time, such as over ingested external tables. */
+          kind: 'bound';
+          referenceCtes: string[];
+      }
+    | {
+          /** Other queries' results, waited on and bound once they complete. */
+          kind: 'queries';
+          references: Record<string, string>;
+          guard: DuckdbQueryReferenceGuard | null;
+          /** What the user calls each referenced table, for messages that name one. */
+          labelByTable: Record<string, string>;
+      };
+
+/** Which compose engine session executes a DuckDB query. */
+export type DuckdbQueryEngine =
+    | { kind: 'client'; warehouseClient: WarehouseClient }
+    | {
+          /** An isolated results session whose credentials reach only the bound result files. */
+          kind: 'scopedToReferencedResults';
+      };
+
+/**
+ * How a DuckDB source query executes, decided by whoever built it. A public
+ * submission discovers its columns on the shared results session; an
+ * internal caller such as a merge supplies its compile-time columns, a
+ * session scoped to the results it reads, and a guard over those results.
+ *
+ * Supplied columns come from a composer the node builds over its own SQL,
+ * for the engine's dialect and with the node's own pivot, so the pivot stage
+ * belongs to the node and nothing upstream of it needs to know. The
+ * composer's fields, metric query and parameters are recorded on the history
+ * row as they are, with the request that produced them. A supplied column's
+ * provenance may name a node of the same submission instead of a queryUuid;
+ * it resolves to that node's query at submit time, the way a table
+ * reference does.
+ */
+export type DuckdbQueryPlanComposer = (args: {
+    warehouseClient: WarehouseClient;
+    pivotConfiguration: PivotConfiguration | undefined;
+}) => QueryComposer;
+
+export type DuckdbQueryPlan = {
+    columns:
+        | { mode: 'discover' }
+        | {
+              mode: 'supplied';
+              compose: DuckdbQueryPlanComposer;
+              originalColumns: ResultColumns;
+              requestParameters: ExecuteAsyncQueryRequestParams;
+          };
+    /** A planned node runs on a session scoped to what it references. */
+    engine: 'scopedToReferencedResults';
+    /** Persisted with the row, so a worker rebuilds the same guard. */
+    guard: DuckdbExecutionSpec['guard'];
+    /** What the user calls each referenced table; empty when nothing names them. */
+    referenceLabels: Record<string, string>;
+};
+
+/** Who a history row was created by, as a worker sees it without a session. */
+export type QueryHistoryActor = {
+    userUuid: string;
+    isRegisteredUser: boolean;
+    isServiceAccount: boolean;
+};
+
+export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> queryUuid of a previous async query to expose as that table. */
+    references?: Record<string, UUID>;
+    /** The node's own pivot stage; only a supplied plan can compose it. */
+    pivotConfiguration?: PivotConfiguration;
+    plan: DuckdbQueryPlan;
+};
+
+/** A query's references, bound: the CTEs to attach and the result files they read. */
+export type BoundDuckdbQueryReferences = {
+    referenceCtes: string[];
+    resultFileUris: string[];
+};
+
+export type RunDuckdbQueryArgs = {
+    actor: QueryHistoryActor;
+    /** Skip the lookup by result files and run regardless. */
+    invalidateCache: boolean;
+    projectUuid: string;
+    organizationUuid: string;
+    isPreviewProject: boolean;
+    onboardingFlow: OnboardingFlow;
+    queryUuid: string;
+    /** The statement before its reference CTEs are attached. */
+    sql: string;
+    references: DuckdbQueryReferences;
+    columns: DuckdbQueryColumns;
+    /** Persisted instead of the executed SQL when that carries private URIs. */
+    storedCompiledSql: string | null;
+    engine: DuckdbQueryEngine;
+    queryTags: RunQueryTags;
+    queryCreatedAt: Date;
+    cacheKey: string;
+    context: QueryExecutionContext;
 };

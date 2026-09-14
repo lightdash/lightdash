@@ -1,5 +1,5 @@
 import { getTimezoneLabel } from '@lightdash/common';
-import { Badge, Tooltip } from '@mantine-8/core';
+import { Badge, Tooltip } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { getTimezoneSourceLabel } from '../../../utils/timezoneSourceLabel';
@@ -22,7 +22,6 @@ const VisualizationTimezone: FC<Props> = ({
         <Tooltip
             label={getTimezoneSourceLabel(timezoneSetting, resolvedTimezone)}
             position="bottom"
-            multiline
             w={260}
         >
             <Badge
@@ -30,7 +29,6 @@ const VisualizationTimezone: FC<Props> = ({
                 color="ldGray.6"
                 variant="transparent"
                 size="sm"
-                tt="none"
             >
                 {getTimezoneLabel(resolvedTimezone)}
             </Badge>

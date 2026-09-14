@@ -1,3 +1,5 @@
+import { quoteShellArgument } from './utils';
+
 /**
  * Bash scripts that the host writes into the sandbox at runtime. Each export
  * is a function returning the rendered script body so call sites get
@@ -10,11 +12,18 @@
  * reads the listing as `<repo_context>` in its system prompt and `Read`s
  * individual files on demand.
  */
-export const buildGatherRepoContextScript = (projectSubPath: string): string =>
-    `
-cd ${JSON.stringify(projectSubPath)} || { echo "(could not enter ${projectSubPath})"; exit 0; }
+export const buildGatherRepoContextScript = (
+    projectSubPath: string,
+): string => {
+    const quotedPath = quoteShellArgument(projectSubPath);
+    const quotedError = quoteShellArgument(
+        `(could not enter ${projectSubPath})`,
+    );
+    return `
+cd ${quotedPath} || { echo ${quotedError}; exit 0; }
 
 find . \\( -name target -o -name dbt_packages -o -name logs -o -name .git \\) -prune -o \\
   -type f \\( -name "*.sql" -o -name "*.yml" -o -name "*.yaml" \\) -print \\
   | LC_ALL=C sort
 `;
+};

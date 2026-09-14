@@ -1,0 +1,4 @@
+.root {
+    /* Anchor links must clear the fixed app navbar and the sticky action bar. */
+    scroll-margin-top: calc(var(--navbar-height) + var(--mantine-spacing-md));
+}

@@ -1,45 +1,53 @@
-import { Alert, Button, Paper, Skeleton, Stack, Text } from '@mantine-8/core';
-import { useMemo } from 'react';
-import useUser from '../../../../../hooks/user/useUser';
-import { useDeepResearchRunsForThread } from '../../deepResearch/deepResearchRegistry';
-import { toDeepResearchRegistration } from '../../deepResearch/runProgress';
+import { Alert, Button, Paper, Skeleton, Stack, Text } from '@mantine/core';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import {
     useContinueDeepResearchMutation,
     useDeepResearchRun,
-    useDeepResearchThreadRuns,
 } from '../../hooks/useDeepResearch';
-import { DeepResearchRunCard } from './DeepResearchRunCard';
+import {
+    DeepResearchRunCard,
+    DeepResearchRunHeading,
+} from './DeepResearchRunCard';
+import styles from './DeepResearchRunCard.module.css';
 
 const DeepResearchThreadRun = ({
     registration,
+    canRetry,
+    onRunAgain,
 }: {
     registration: DeepResearchRunRegistration;
+    canRetry: boolean;
+    onRunAgain?: (registration: DeepResearchRunRegistration) => void;
 }) => {
     const runQuery = useDeepResearchRun(registration);
     const continueMutation = useContinueDeepResearchMutation({
         projectUuid: registration.projectUuid,
+        agentUuid: registration.agentUuid,
         threadUuid: registration.threadUuid,
     });
 
     if (registration.state !== 'started') {
         const failed = registration.state === 'start_failed';
         return (
-            <Paper p="lg" radius="md" withBorder aria-label="Deep research run">
-                <Stack gap="xs">
-                    <Text size="xs" c="indigo" fw={700} tt="uppercase">
-                        Deep research
-                    </Text>
-                    <Text fw={600}>{registration.question}</Text>
+            <Paper
+                className={styles.card}
+                p="lg"
+                radius="md"
+                aria-label="Deep research run"
+            >
+                <Stack gap="md">
+                    <DeepResearchRunHeading
+                        statusLabel={failed ? 'Could not start' : 'Queued'}
+                    />
                     {failed ? (
-                        <Alert color="red" title="Research did not start">
+                        <Alert color="red">
                             {registration.errorMessage ??
-                                'The run could not be created. Your question is preserved in this thread; try again when the service is available.'}
+                                'Research didn’t start. Your question is saved in this thread.'}
                         </Alert>
                     ) : (
                         <Text size="sm" c="dimmed" aria-live="polite">
-                            Starting research… The run card is saved in this
-                            thread.
+                            Starting research… You can leave this page while it
+                            runs.
                         </Text>
                     )}
                     {failed && (
@@ -47,14 +55,18 @@ const DeepResearchThreadRun = ({
                             size="xs"
                             w="fit-content"
                             loading={continueMutation.isLoading}
-                            onClick={() =>
+                            disabled={!canRetry}
+                            onClick={() => {
+                                if (!canRetry) {
+                                    return;
+                                }
                                 continueMutation.mutate({
                                     question: registration.question,
-                                    depth: registration.depth,
-                                })
-                            }
+                                    promptUuid: registration.promptUuid,
+                                });
+                            }}
                         >
-                            Try again
+                            Try starting again
                         </Button>
                     )}
                 </Stack>
@@ -62,19 +74,24 @@ const DeepResearchThreadRun = ({
         );
     }
     if (runQuery.isLoading) {
-        return <Skeleton h={190} radius="md" />;
+        return <Skeleton h={160} radius="md" />;
     }
-    if (runQuery.isError || runQuery.eventsQuery.isError) {
+    if (runQuery.isError && !runQuery.data) {
         return (
-            <Paper p="lg" radius="md" withBorder aria-label="Deep research run">
+            <Paper
+                className={styles.card}
+                p="lg"
+                radius="md"
+                aria-label="Deep research run"
+            >
                 <Stack gap="sm">
-                    <Text size="xs" c="indigo" fw={700} tt="uppercase">
-                        Deep research
-                    </Text>
-                    <Text fw={600}>{registration.question}</Text>
-                    <Alert color="yellow" title="Could not refresh this run">
-                        The durable run is still saved. Check your connection
-                        and try loading its latest state again.
+                    <DeepResearchRunHeading statusLabel="Updates unavailable" />
+                    <Alert
+                        color="yellow"
+                        title="Couldn’t load the latest activity"
+                    >
+                        Your research is still saved. Check your connection,
+                        then refresh the activity.
                     </Alert>
                     <Button
                         size="xs"
@@ -85,7 +102,7 @@ const DeepResearchThreadRun = ({
                             void runQuery.eventsQuery.refetch();
                         }}
                     >
-                        Try again
+                        Refresh activity
                     </Button>
                 </Stack>
             </Paper>
@@ -98,46 +115,21 @@ const DeepResearchThreadRun = ({
         <DeepResearchRunCard
             run={runQuery.data}
             projectUuid={registration.projectUuid}
+            canRunAgain={canRetry}
+            onRunAgain={onRunAgain ? () => onRunAgain(registration) : undefined}
         />
     );
 };
 
 export const DeepResearchThreadRuns = ({
-    projectUuid,
-    threadUuid,
+    registrations,
+    canRetry = false,
+    onRunAgain,
 }: {
-    projectUuid: string;
-    threadUuid: string;
+    registrations: DeepResearchRunRegistration[];
+    canRetry?: boolean;
+    onRunAgain?: (registration: DeepResearchRunRegistration) => void;
 }) => {
-    const user = useUser(true);
-    const userUuid = user.data?.userUuid;
-    // Server is the source of truth; the local registry only contributes
-    // optimistic entries (starting / start_failed / just-started runs the
-    // list has not caught up with yet).
-    const serverRuns = useDeepResearchThreadRuns(projectUuid, threadUuid);
-    const localRegistrations = useDeepResearchRunsForThread(
-        projectUuid,
-        threadUuid,
-        userUuid,
-    );
-    const registrations = useMemo(() => {
-        const fromServer = (serverRuns.data ?? []).map((run) =>
-            toDeepResearchRegistration(run, {
-                threadUuid,
-                userUuid: userUuid ?? '',
-            }),
-        );
-        const serverRunUuids = new Set(
-            fromServer.map((registration) => registration.runUuid),
-        );
-        return [
-            ...fromServer,
-            ...localRegistrations.filter(
-                (registration) => !serverRunUuids.has(registration.runUuid),
-            ),
-        ];
-    }, [serverRuns.data, localRegistrations, threadUuid, userUuid]);
-
     if (!registrations.length) {
         return null;
     }
@@ -147,6 +139,8 @@ export const DeepResearchThreadRuns = ({
                 <DeepResearchThreadRun
                     key={registration.runUuid}
                     registration={registration}
+                    canRetry={canRetry}
+                    onRunAgain={onRunAgain}
                 />
             ))}
         </Stack>

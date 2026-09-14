@@ -1,7 +1,6 @@
 import type { ProjectParameterSummary } from '@lightdash/common';
 import {
     ActionIcon,
-    Anchor,
     Badge,
     Box,
     Code,
@@ -16,16 +15,17 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue, useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { IconEye, IconSearch, IconVariable, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useTableStyles } from '../../hooks/styles/useTableStyles';
+import tableStyles from '../../hooks/styles/tableStyles.module.css';
 import { useProjectParametersList } from '../../hooks/useProjectParameters';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
+import classes from './ProjectParameters.module.css';
 
 interface ProjectParametersProps {
     projectUuid: string;
@@ -63,7 +63,6 @@ const ConfigModal: FC<ConfigModalProps> = ({
 );
 
 const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
-    const { cx, classes } = useTableStyles();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [page, setPage] = useState(1);
@@ -136,7 +135,6 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     <Table.Td>
                         <Badge
                             size="sm"
-                            variant="light"
                             color={
                                 parameter.source === 'config' ? 'blue' : 'green'
                             }
@@ -149,7 +147,6 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     <Table.Td>
                         <Tooltip label="View configuration">
                             <ActionIcon
-                                variant="subtle"
                                 onClick={() =>
                                     handleViewConfig(
                                         parameter.name,
@@ -176,23 +173,10 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
 
     return (
         <Stack>
-            <Text c="dimmed">
-                Learn more about parameters in our{' '}
-                <Anchor
-                    role="button"
-                    href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    docs
-                </Anchor>
-                .
-            </Text>
-
             <SettingsCard shadow="none" p={0}>
                 <Paper p="sm" bd={0}>
                     <Group gap="md" align="center">
-                        <Title order={5}>Parameters</Title>
+                        <Title order={5}>Defined parameters</Title>
                     </Group>
 
                     <Box mt="sm">
@@ -205,10 +189,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                             leftSection={<MantineIcon icon={IconSearch} />}
                             rightSection={
                                 search.length > 0 && (
-                                    <ActionIcon
-                                        variant="subtle"
-                                        onClick={() => setSearch('')}
-                                    >
+                                    <ActionIcon onClick={() => setSearch('')}>
                                         <MantineIcon icon={IconX} />
                                     </ActionIcon>
                                 )
@@ -219,12 +200,12 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
 
                 <Table
                     withRowBorders
-                    className={cx(classes.root, classes.alignLastTdRight)}
+                    className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th
-                                style={{ cursor: 'pointer' }}
+                                className={classes.sortableHeader}
                                 onClick={() => handleSort('name')}
                             >
                                 <Group gap="xs">
@@ -238,7 +219,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                             <Table.Th></Table.Th>
                         </Table.Tr>
                     </Table.Thead>
-                    <Table.Tbody style={{ position: 'relative' }}>
+                    <Table.Tbody pos="relative">
                         {!isLoading && parameters && parameters.length ? (
                             tableRows
                         ) : isLoading ? (
@@ -252,7 +233,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                         ) : (
                             <Table.Tr>
                                 <Table.Td colSpan={3}>
-                                    <Text c="ldGray.6" fs="italic" ta="center">
+                                    <Text c="dimmed" fs="italic" ta="center">
                                         {debouncedSearch
                                             ? 'No parameters found matching your search'
                                             : 'No parameters configured for this project'}

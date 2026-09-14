@@ -13,7 +13,7 @@ export const getAiAgentModelName = (model: AiAgentArgs['model']) =>
  * generateText/streamText call.
  *
  * Passing distinct `functionId`s — e.g. `generateAgentResponse`,
- * `streamAgentResponse`, `discoverFieldsSubagent` — lets observability
+ * `streamAgentResponse`, `generateAgentResponse` — lets observability
  * stacks separate parent vs. subagent latency, token usage, and step
  * counts. The metadata pins each call to the org/project/agent/thread/prompt
  * for cost attribution and cross-referencing with persisted tool calls.
@@ -31,6 +31,8 @@ export const getAgentTelemetryConfig = (
         userId,
         telemetryEnabled,
         model,
+        keyManagement,
+        execution,
     }: Pick<
         AiAgentArgs,
         | 'agentSettings'
@@ -40,7 +42,8 @@ export const getAgentTelemetryConfig = (
         | 'userId'
         | 'telemetryEnabled'
         | 'model'
-    >,
+        | 'keyManagement'
+    > & { execution?: AiAgentArgs['execution'] },
     feature: AiCallFeature = 'agent',
 ) =>
     getAiCallTelemetry({
@@ -53,5 +56,14 @@ export const getAgentTelemetryConfig = (
         promptUuid,
         userUuid: userId,
         ...getLanguageModelAttribution(model),
+        keyManagement,
+        ...(execution?.mode === 'deep_research'
+            ? {
+                  extra: {
+                      deepResearchRunUuid: execution.runUuid,
+                      deepResearchPhase: execution.phase,
+                  },
+              }
+            : {}),
         recordIO: telemetryEnabled,
     });

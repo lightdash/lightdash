@@ -7,7 +7,7 @@ import {
     Select,
     Switch,
     Card,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 interface FormCardProps {
@@ -59,7 +59,6 @@ export function FormCard({ hasError = false }: FormCardProps) {
                     <Button
                         type="submit"
                         radius="md"
-                        variant="dark"
                         style={{
                             alignSelf: 'flex-end',
                         }}

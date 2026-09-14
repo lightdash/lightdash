@@ -1,9 +1,14 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    DEFAULT_VISIBLE_ROOT_CAUSES,
     formatRelativeReviewDate,
     getIssueTitle,
+    getReviewReasoningText,
+    getReviewSecondaryDetail,
     getTargetAnchor,
+    getWhyText,
+    SURFACED_ROOT_CAUSES,
 } from './reviewItemDetails';
 
 const makeItem = (
@@ -22,6 +27,7 @@ const makeItem = (
                 ? null
                 : {
                       fixTargets: [],
+                      subcategories: [],
                       targetRefs: [],
                       evidenceExcerpts: [],
                       recommendation: null,
@@ -29,6 +35,14 @@ const makeItem = (
                       ...overrides.latestFinding,
                   },
     }) as unknown as AiAgentReviewItemSummary;
+
+describe('SURFACED_ROOT_CAUSES', () => {
+    it('never offers product capability as a category', () => {
+        expect(SURFACED_ROOT_CAUSES).not.toContain('product_capability');
+        expect(SURFACED_ROOT_CAUSES).toContain('semantic_layer');
+        expect(DEFAULT_VISIBLE_ROOT_CAUSES).not.toContain('product_capability');
+    });
+});
 
 describe('getIssueTitle', () => {
     it('no longer special-cases semantic_layer into a "Review {target}" title', () => {
@@ -61,6 +75,102 @@ describe('getIssueTitle', () => {
             latestFinding: { recommendation: null },
         });
         expect(getIssueTitle(item)).toBe('No metric for weekly active users');
+    });
+});
+
+describe('getReviewReasoningText', () => {
+    it('formats a persisted legacy string ref', () => {
+        const item = makeItem({
+            primaryRootCause: 'project_context',
+            latestFinding: {
+                projectContextEntry: {
+                    op: 'create',
+                    id: null,
+                    kind: 'context',
+                    content: 'Use the orders explore.',
+                    terms: [],
+                    objects: ['orders'],
+                },
+            },
+        });
+
+        expect(getReviewReasoningText(item)).toContain('Objects: orders.');
+    });
+
+    it('uses the review item project context entry for memory nominations', () => {
+        const item = makeItem({
+            source: 'memory',
+            projectContextEntry: {
+                op: 'create',
+                id: null,
+                kind: 'context',
+                content: 'Use approved net revenue definitions.',
+                terms: [],
+                objects: ['orders'],
+            },
+            latestFinding: null,
+        });
+
+        expect(getReviewReasoningText(item)).toContain(
+            'Use approved net revenue definitions.',
+        );
+    });
+
+    it('ignores finding entries for memory items without an item entry', () => {
+        const item = makeItem({
+            source: 'memory',
+            nominationReason: 'Promote the approved revenue definition.',
+            projectContextEntry: null,
+            latestFinding: {
+                projectContextEntry: {
+                    op: 'create',
+                    id: null,
+                    kind: 'context',
+                    content: 'Stray finding entry.',
+                    terms: [],
+                    objects: [],
+                },
+            },
+        });
+
+        expect(getReviewReasoningText(item)).toBe(
+            'Promote the approved revenue definition.',
+        );
+        expect(getReviewSecondaryDetail(item)).toBeNull();
+    });
+
+    it('ignores item entries for non-memory items', () => {
+        const item = makeItem({
+            source: 'manual',
+            description: 'Manually filed issue.',
+            projectContextEntry: {
+                op: 'create',
+                id: null,
+                kind: 'context',
+                content: 'Stray item entry.',
+                terms: [],
+                objects: [],
+            },
+            latestFinding: null,
+        });
+
+        expect(getReviewReasoningText(item)).toBe('Manually filed issue.');
+        expect(getReviewSecondaryDetail(item)).toBeNull();
+    });
+});
+
+describe('getWhyText', () => {
+    it('keeps delimiter-like text in a structured nomination reason', () => {
+        const reason = 'Useful\n\nNominated by is part of the reason';
+        expect(
+            getWhyText(
+                makeItem({
+                    source: 'memory',
+                    description: 'Legacy description',
+                    nominationReason: reason,
+                }),
+            ),
+        ).toBe(reason);
     });
 });
 

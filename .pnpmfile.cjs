@@ -1,17 +1,21 @@
-// INFO: this is needed to install both Mantine v8 and v6 in the same project!
-// code taken from https://gist.github.com/dvins/33b8fb52480149d37cdeb98890244c5b
-
 // https://pnpm.io/pnpmfile
 // https://github.com/pnpm/pnpm/issues/4214
 // https://github.com/pnpm/pnpm/issues/5391
 
+// TypeScript 7 omits the legacy compiler API; keep dependent tools on TypeScript 6.
+const LEGACY_TYPESCRIPT_API_PACKAGE = 'npm:@typescript/typescript6@6.0.2';
+
+const legacyTypeScriptApiPackages = new Set([
+    '@joshwooding/vite-plugin-react-docgen-typescript',
+    'cosmiconfig',
+    'react-docgen-typescript',
+    'rollup-plugin-dts',
+    'ts-api-utils',
+    'ts-node',
+    'ts-unused-exports',
+]);
+
 const remapPeerDependencies = [
-    {
-        package: '@mantine/core',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/hooks',
-        newVersion: '8.0.0',
-    },
     {
         package: 'echarts-for-react',
         packageVersion: '3.0.1',
@@ -22,6 +26,18 @@ const remapPeerDependencies = [
 
 function overridesPeerDependencies(pkg) {
     if (pkg.peerDependencies) {
+        if (
+            (pkg.peerDependencies.typescript ||
+                pkg.peerDependenciesMeta?.typescript) &&
+            (pkg.name.startsWith('@typescript-eslint/') ||
+                legacyTypeScriptApiPackages.has(pkg.name))
+        ) {
+            pkg.dependencies ??= {};
+            pkg.dependencies.typescript = LEGACY_TYPESCRIPT_API_PACKAGE;
+            delete pkg.peerDependencies.typescript;
+            delete pkg.peerDependenciesMeta?.typescript;
+        }
+
         remapPeerDependencies.map((dep) => {
             if (
                 pkg.name === dep.package &&

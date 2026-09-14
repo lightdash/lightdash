@@ -56,6 +56,25 @@ describe('DbtSchemaEditor', () => {
         );
     });
 
+    it('returns a warehouse-aware custom bin definition for previews', () => {
+        const editor = new DbtSchemaEditor(`version: 2
+models:
+  - name: table_a
+    columns:
+      - name: dim_a
+        meta:
+          dimension:
+            sql: \${TABLE}.dim_a * 2`);
+
+        const definition = editor.getCustomDimensionDefinition(
+            FIXED_WIDTH_BIN_DIMENSION,
+            warehouseClientMock,
+        );
+
+        expect(definition.sql).toContain('${TABLE}.dim_a * 2');
+        expect(definition.sql).not.toContain('${reference_column}');
+    });
+
     it('should create a new file', () => {
         const editor = new DbtSchemaEditor('');
         // confirm it has no models
@@ -85,6 +104,77 @@ models:
         expect(editor.toString()).toContain(
             'description: "This is a very long description that should remain on a single line after the schema editor serializes the document back to YAML."',
         );
+    });
+});
+
+describe('AI hint schema validation', () => {
+    it.each([
+        {
+            name: 'model',
+            metadata: `    ai_hint:
+      - Formula: clicks + keys`,
+        },
+        {
+            name: 'field group',
+            metadata: `    group_details:
+      finance:
+        label: Finance
+        ai_hint:
+          - Formula: clicks + keys`,
+        },
+        {
+            name: 'model metric',
+            metadata: `    metrics:
+      revenue:
+        type: sum
+        sql: '\${TABLE}.revenue'
+        ai_hint:
+          - Formula: clicks + keys`,
+        },
+    ])('rejects malformed $name hints', ({ metadata }) => {
+        const schema = `version: 2
+models:
+  - name: orders
+    meta:
+${metadata}`;
+
+        expect(() => new DbtSchemaEditor(schema)).toThrowError(ParseError);
+    });
+
+    it.each([
+        {
+            name: 'column metric',
+            metadata: `        metrics:
+          revenue:
+            type: sum
+            ai_hint:
+              - Formula: clicks + keys`,
+        },
+        {
+            name: 'dimension',
+            metadata: `        dimension:
+          ai_hint:
+            - Formula: clicks + keys`,
+        },
+        {
+            name: 'additional dimension',
+            metadata: `        additional_dimensions:
+          normalized_name:
+            type: string
+            sql: '\${TABLE}.name'
+            ai_hint:
+              - Formula: clicks + keys`,
+        },
+    ])('rejects malformed $name hints', ({ metadata }) => {
+        const schema = `version: 2
+models:
+  - name: orders
+    columns:
+      - name: status
+        meta:
+${metadata}`;
+
+        expect(() => new DbtSchemaEditor(schema)).toThrowError(ParseError);
     });
 });
 

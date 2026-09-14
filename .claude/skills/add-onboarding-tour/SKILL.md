@@ -1,5 +1,7 @@
 ---
 name: add-onboarding-tour
+metadata:
+  internal: true
 description: Add a first-run guided tour, product walkthrough, coachmarks, or empty-state mock/example data to a Lightdash frontend feature. Use when the user wants to onboard users to a page, add a "Take the tour" flow, explain an unfamiliar UI, or show sample data on an empty page.
 allowed-tools: Read, Edit, Write, Glob, Grep
 ---

@@ -1,4 +1,4 @@
-import { Skeleton } from '@mantine-8/core';
+import { Skeleton } from '@mantine/core';
 import { lazy, Suspense, type FC } from 'react';
 import { type SuggestionsItem } from '../../types';
 
@@ -15,7 +15,7 @@ const CommentWithMentionsComponent = lazy(() =>
 );
 
 type Props = {
-    suggestions?: SuggestionsItem[];
+    fetchSuggestions: (query: string) => Promise<SuggestionsItem[]>;
     content?: string;
     onUpdate?: (editor: LazyEditor | null) => void;
     shouldClearEditor?: boolean;

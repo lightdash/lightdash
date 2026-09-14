@@ -1,11 +1,15 @@
 import {
+    assignSeriesZByOrder,
     CartesianSeriesType,
     createConditionalFormattingConfigWithSingleColor,
     DimensionType,
     FieldType,
     FilterOperator,
+    getLegendStyle,
+    REFERENCE_LINE_Z,
     TimeFrames,
     transformToPercentageStacking,
+    type CartesianChart,
     type Dimension,
     type EChartsSeries,
     type Field,
@@ -23,6 +27,9 @@ import {
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
+    getAxisType,
+    getCartesianLabelLayout,
+    getCartesianLabelPosition,
     getCategoryDateAxisConfig,
     getLongestLabelsForAxis,
     getMinAndMaxValues,
@@ -30,6 +37,8 @@ import {
     getPinnedDayTickFormatter,
     getStackTotalSeries,
     getTimeAxisPinnedTickValues,
+    composeLegendConfig,
+    getOutsideLegendLabelWidth,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
     relocateMarkLinesToVisibleSeries,
@@ -37,11 +46,276 @@ import {
     selectContinuousDateRange,
     transformStack100ByValueAxis,
 } from './useEchartsCartesianConfig';
+import {
+    LEGEND_INTERACTION_HINT,
+    type LegendDoubleClickTooltip,
+} from './useLegendDoubleClickTooltip';
 
 dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
 
 vi.mock('./../../providers/TrackingProvider');
+
+describe('getCartesianLabelLayout', () => {
+    const rect = (width: number, height: number) => ({
+        x: 0,
+        y: 0,
+        width,
+        height,
+    });
+
+    test('shows every top label in grouped bar charts', () => {
+        expect(
+            getCartesianLabelLayout({
+                isGroupedBarChart: true,
+                isStacked: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'top',
+                showOverlappingLabels: false,
+                flipAxes: false,
+            }),
+        ).toEqual({ hideOverlap: false });
+    });
+
+    test.each([
+        {
+            name: 'single bar series',
+            isGroupedBarChart: false,
+            isStacked: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+        },
+        {
+            name: 'stacked bars keeping their configured position',
+            isGroupedBarChart: true,
+            isStacked: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+        },
+        {
+            name: 'grouped bars with inside labels',
+            isGroupedBarChart: true,
+            isStacked: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'inside' as const,
+        },
+        {
+            name: 'line series',
+            isGroupedBarChart: true,
+            isStacked: false,
+            seriesType: CartesianSeriesType.LINE,
+            position: 'top' as const,
+        },
+        {
+            name: 'series without a label position',
+            isGroupedBarChart: true,
+            isStacked: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: undefined,
+        },
+    ])(
+        'hides overlapping labels for $name',
+        ({ isGroupedBarChart, isStacked, seriesType, position }) => {
+            expect(
+                getCartesianLabelLayout({
+                    isGroupedBarChart,
+                    isStacked,
+                    seriesType,
+                    position,
+                    showOverlappingLabels: false,
+                    flipAxes: false,
+                }),
+            ).toEqual({ hideOverlap: true });
+        },
+    );
+
+    test('only fit-checks labels that are anchored inside their segment', () => {
+        expect(
+            getCartesianLabelLayout({
+                isGroupedBarChart: false,
+                isStacked: true,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'bottom',
+                showOverlappingLabels: true,
+                flipAxes: false,
+            }),
+        ).toEqual({ hideOverlap: true });
+    });
+
+    describe('labels anchored inside a stacked bar segment', () => {
+        const layout = (
+            overrides: Partial<
+                Parameters<typeof getCartesianLabelLayout>[0]
+            > = {},
+        ) => {
+            const result = getCartesianLabelLayout({
+                isGroupedBarChart: false,
+                isStacked: true,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'insideTop',
+                showOverlappingLabels: false,
+                flipAxes: false,
+                ...overrides,
+            });
+            expect(typeof result).toBe('function');
+            if (typeof result !== 'function') {
+                throw new Error('expected a labelLayout callback');
+            }
+            return result;
+        };
+
+        // A 12px label needs 12 + MIN_LABEL_SEGMENT_SLACK of segment to fit.
+        const label = rect(12, 12);
+
+        test('keeps labels that fit inside their segment', () => {
+            expect(layout()({ rect: rect(4, 40), labelRect: label })).toEqual({
+                hideOverlap: true,
+            });
+        });
+
+        test('keeps labels in a segment exactly tall enough', () => {
+            expect(layout()({ rect: rect(4, 16), labelRect: label })).toEqual({
+                hideOverlap: true,
+            });
+        });
+
+        test('moves labels off canvas one pixel below the fit threshold', () => {
+            expect(layout()({ rect: rect(40, 15), labelRect: label })).toEqual({
+                x: -1e5,
+                y: -1e5,
+            });
+        });
+
+        test('moves labels off canvas when the segment has no height', () => {
+            expect(layout()({ rect: rect(40, 0), labelRect: label })).toEqual({
+                x: -1e5,
+                y: -1e5,
+            });
+        });
+
+        test('still hides labels that cannot fit when overlapping labels are forced', () => {
+            expect(
+                layout({ showOverlappingLabels: true })({
+                    rect: rect(40, 4),
+                    labelRect: label,
+                }),
+            ).toEqual({ x: -1e5, y: -1e5 });
+        });
+
+        test('stops hiding fitting labels on overlap when they are forced', () => {
+            expect(
+                layout({ showOverlappingLabels: true })({
+                    rect: rect(4, 40),
+                    labelRect: label,
+                }),
+            ).toEqual({ hideOverlap: false });
+        });
+
+        test('measures the width axis on horizontal charts', () => {
+            const horizontal = layout({
+                flipAxes: true,
+                position: 'insideRight',
+            });
+            expect(horizontal({ rect: rect(40, 4), labelRect: label })).toEqual(
+                { hideOverlap: true },
+            );
+            expect(horizontal({ rect: rect(4, 40), labelRect: label })).toEqual(
+                { x: -1e5, y: -1e5 },
+            );
+        });
+    });
+});
+
+describe('getCartesianLabelPosition', () => {
+    test('moves top labels inside segments that are not the end of a stack', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'top',
+                flipAxes: false,
+            }),
+        ).toBe('insideTop');
+    });
+
+    test('moves right labels inside segments of a horizontal stack', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'right',
+                flipAxes: true,
+            }),
+        ).toBe('insideRight');
+    });
+
+    test.each([
+        {
+            name: 'the segment that ends the stack',
+            isStacked: true,
+            isStackEnd: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'unstacked bars',
+            isStacked: false,
+            isStackEnd: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'stacked lines',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.LINE,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'positions that are not painted over by the next segment',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'bottom' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'top labels on a horizontal stack',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: true,
+        },
+        {
+            name: 'right labels on a vertical stack',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'right' as const,
+            flipAxes: false,
+        },
+    ])('keeps the configured position for $name', ({ name, ...args }) => {
+        expect(getCartesianLabelPosition(args)).toBe(args.position);
+    });
+
+    test('leaves an unset position unset', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: undefined,
+                flipAxes: false,
+            }),
+        ).toBeUndefined();
+    });
+});
 
 describe('resolveCartesianGranularityLabels', () => {
     test('resolves x-axis and y-axis name placeholders', () => {
@@ -716,6 +990,97 @@ describe('getPinnedDayTickFormatter', () => {
         expect(f(Date.UTC(2025, 5, 30, 22))).toBe('30');
         expect(f(Date.UTC(2025, 6, 1, 22))).toBe('{bold|Jul}');
         expect(f(Date.UTC(2025, 6, 2, 22))).toBe('2');
+    });
+});
+
+describe('getAxisType with treatAsCategory', () => {
+    const xFieldId = 'orders_year_number';
+    const yFieldId = 'orders_count';
+
+    const numericField = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.NUMBER,
+        name: 'year_number',
+        table: 'orders',
+    } as unknown as Field;
+
+    const itemsMap = {
+        [xFieldId]: numericField,
+        [yFieldId]: numericField,
+    } as ItemsMap;
+
+    const createConfig = ({
+        treatAsCategory,
+        flipAxes,
+    }: {
+        treatAsCategory?: boolean;
+        flipAxes?: boolean;
+    }): CartesianChart => ({
+        layout: { xField: xFieldId, yField: [yFieldId], flipAxes },
+        eChartsConfig: {
+            xAxis: [{ treatAsCategory }],
+            series: [
+                {
+                    type: CartesianSeriesType.BAR,
+                    yAxisIndex: 0,
+                    encode: {
+                        xRef: { field: xFieldId },
+                        yRef: { field: yFieldId },
+                    },
+                },
+            ],
+        },
+    });
+
+    const getBottomAxisType = (config: CartesianChart) =>
+        getAxisType({
+            validCartesianConfig: config,
+            itemsMap,
+            bottomAxisXId: xFieldId,
+            leftAxisYId: yFieldId,
+        }).bottomAxisType;
+
+    test('numeric x-axis stays a value axis by default', () => {
+        expect(getBottomAxisType(createConfig({}))).toBe('value');
+        expect(
+            getBottomAxisType(createConfig({ treatAsCategory: false })),
+        ).toBe('value');
+    });
+
+    test('numeric x-axis becomes a category axis when treatAsCategory is on', () => {
+        expect(getBottomAxisType(createConfig({ treatAsCategory: true }))).toBe(
+            'category',
+        );
+    });
+
+    test('treatAsCategory is ignored when axes are flipped', () => {
+        expect(
+            getBottomAxisType(
+                createConfig({ treatAsCategory: true, flipAxes: true }),
+            ),
+        ).toBe('value');
+    });
+
+    test('treatAsCategory does not override a time axis', () => {
+        const dateFieldId = 'orders_created_at';
+        const config = createConfig({ treatAsCategory: true });
+        expect(
+            getAxisType({
+                validCartesianConfig: config,
+                itemsMap: {
+                    [dateFieldId]: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.DATE,
+                        name: 'created_at',
+                        table: 'orders',
+                        timeInterval: TimeFrames.DAY,
+                    },
+                    [yFieldId]: numericField,
+                } as unknown as ItemsMap,
+                bottomAxisXId: dateFieldId,
+                leftAxisYId: yFieldId,
+            }).bottomAxisType,
+        ).toBe('time');
     });
 });
 
@@ -2194,6 +2559,16 @@ describe('mergeLegendSettings', () => {
         expect(result.bottom).toBeUndefined();
     });
 
+    test('uses the provided outside label width', () => {
+        const result = mergeLegendSettings(
+            { placement: 'outsideRight' },
+            selected,
+            series,
+            220,
+        );
+        expect(result.textStyle).toEqual({ overflow: 'truncate', width: 220 });
+    });
+
     test("placement 'custom' is treated as no override", () => {
         const result = mergeLegendSettings(
             { placement: 'custom', orient: 'vertical', right: '5' },
@@ -2206,6 +2581,116 @@ describe('mergeLegendSettings', () => {
             selected,
         });
         expect(result).not.toHaveProperty('placement');
+    });
+});
+
+describe('getOutsideLegendLabelWidth', () => {
+    const squareStyle = getLegendStyle('square');
+
+    test('falls back to a fixed width when the chart width is unknown', () => {
+        expect(getOutsideLegendLabelWidth(null, '25%', squareStyle)).toBe(150);
+        expect(getOutsideLegendLabelWidth(0, '25%', squareStyle)).toBe(150);
+    });
+
+    test('derives the width from a percentage legend area', () => {
+        // 250px area - 20px margin - 10px box padding - 12px icon - 5px gap - 2px text padding
+        expect(getOutsideLegendLabelWidth(1000, '25%', squareStyle)).toBe(201);
+    });
+
+    test('accepts pixel legend areas with or without a unit', () => {
+        expect(getOutsideLegendLabelWidth(1000, '300px', squareStyle)).toBe(
+            251,
+        );
+        expect(getOutsideLegendLabelWidth(1000, '300', squareStyle)).toBe(251);
+    });
+
+    test('accounts for the wider line icon', () => {
+        expect(
+            getOutsideLegendLabelWidth(1000, '25%', getLegendStyle('line')),
+        ).toBe(195);
+    });
+
+    test('never drops below the minimum on narrow charts', () => {
+        expect(getOutsideLegendLabelWidth(200, '25%', squareStyle)).toBe(40);
+    });
+
+    test('falls back when the legend area cannot be parsed', () => {
+        expect(getOutsideLegendLabelWidth(1000, 'auto', squareStyle)).toBe(150);
+    });
+});
+
+describe('composeLegendConfig', () => {
+    const series = [{ name: 'A' }, { name: 'B' }] as any;
+    const selected = { A: true, B: true };
+    const legendStyle = getLegendStyle('square');
+    const doubleClickTooltip: LegendDoubleClickTooltip = {
+        show: true,
+        backgroundColor: '#fff',
+        borderColor: '#ddd',
+        borderWidth: 0,
+        borderRadius: 4,
+        textStyle: { color: '#333', fontSize: 12, fontWeight: 400 },
+        padding: [4, 8],
+        extraCssText: '',
+        formatter: () => LEGEND_INTERACTION_HINT,
+    };
+
+    test('keeps outside-legend truncation alongside the shared typography', () => {
+        const merged = mergeLegendSettings(
+            { placement: 'outsideRight' },
+            selected,
+            series,
+            200,
+        );
+        const result = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(result.textStyle).toEqual({
+            ...legendStyle.textStyle,
+            overflow: 'truncate',
+            width: 200,
+        });
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            right: '2%',
+            icon: 'roundRect',
+            itemWidth: 12,
+        });
+    });
+
+    test('shows the full label above the hint when labels can be truncated', () => {
+        const merged = mergeLegendSettings(
+            { placement: 'outsideLeft' },
+            selected,
+            series,
+        );
+        const { tooltip } = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(tooltip).toMatchObject({ show: true, borderRadius: 4 });
+        const html = tooltip.formatter({ name: '<Long> & wordy label' });
+        expect(html).toContain('&lt;Long&gt; &amp; wordy label');
+        expect(html).toContain(LEGEND_INTERACTION_HINT);
+    });
+
+    test('leaves in-chart legends with the plain hint tooltip and typography', () => {
+        const merged = mergeLegendSettings(
+            { orient: 'horizontal', top: '0' },
+            selected,
+            series,
+        );
+        const result = composeLegendConfig(
+            merged,
+            legendStyle,
+            doubleClickTooltip,
+        );
+        expect(result.tooltip).toBe(doubleClickTooltip);
+        expect(result.textStyle).toEqual(legendStyle.textStyle);
     });
 });
 
@@ -2530,5 +3015,81 @@ describe('applyConditionalFormattingToStackedSeries', () => {
 
         expect(result[0]).toBe(flatBar);
         expect(result[1]).toBe(line);
+    });
+});
+
+describe('assignSeriesZByOrder', () => {
+    const mkSeries = (type: CartesianSeriesType, name: string): EChartsSeries =>
+        ({ type, name }) as unknown as EChartsSeries;
+
+    test('assigns a strictly increasing z matching array position', () => {
+        const result = assignSeriesZByOrder([
+            mkSeries(CartesianSeriesType.AREA, 'area'),
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].z!).toBe(2);
+        expect(result[1].z!).toBeGreaterThan(result[0].z!);
+    });
+
+    test('later series paint on top regardless of type (bar over area)', () => {
+        const area = mkSeries(CartesianSeriesType.AREA, 'area');
+        const bar = mkSeries(CartesianSeriesType.BAR, 'bar');
+
+        // area first in list -> lower z -> painted behind the bar
+        const result = assignSeriesZByOrder([area, bar]);
+        const areaZ = result.find((s) => s.name === 'area')?.z ?? 0;
+        const barZ = result.find((s) => s.name === 'bar')?.z ?? 0;
+
+        expect(barZ).toBeGreaterThan(areaZ);
+    });
+
+    test('keeps every series z below the reference-line z, even with many series', () => {
+        const many = Array.from({ length: 40 }, (_, i) =>
+            mkSeries(CartesianSeriesType.BAR, `s${i}`),
+        );
+
+        const result = assignSeriesZByOrder(many);
+
+        result.forEach((s) => expect(s.z!).toBeLessThan(REFERENCE_LINE_Z));
+        // still strictly ordered
+        for (let i = 1; i < result.length; i += 1) {
+            expect(result[i].z!).toBeGreaterThan(result[i - 1].z!);
+        }
+    });
+
+    test('pins markLine z so persisted config cannot sink reference lines', () => {
+        const withRefLine = {
+            ...mkSeries(CartesianSeriesType.AREA, 'area'),
+            markLine: { z: 1, data: [{ yAxis: 5 }] },
+        } as unknown as EChartsSeries;
+
+        const result = assignSeriesZByOrder([
+            withRefLine,
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].markLine).toMatchObject({
+            z: REFERENCE_LINE_Z,
+            data: [{ yAxis: 5 }],
+        });
+        // series without a markLine don't gain one
+        expect(result[1].markLine).toBeUndefined();
+    });
+
+    test('preserves other series properties and does not mutate the input', () => {
+        const input = [mkSeries(CartesianSeriesType.LINE, 'line')];
+        const result = assignSeriesZByOrder(input);
+
+        expect(result[0]).toMatchObject({
+            type: CartesianSeriesType.LINE,
+            name: 'line',
+            z: 2,
+        });
+        expect(input[0]).not.toHaveProperty('z');
+    });
+
+    test('handles an empty series list', () => {
+        expect(assignSeriesZByOrder([])).toEqual([]);
     });
 });

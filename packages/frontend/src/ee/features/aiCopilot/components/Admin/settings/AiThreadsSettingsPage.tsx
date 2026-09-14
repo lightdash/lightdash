@@ -1,13 +1,16 @@
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
-import { Button, Drawer, Group, Stack } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Button, Drawer } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconChartDots, IconMessageCircleShare } from '@tabler/icons-react';
 import { useState } from 'react';
 import LinkButton from '../../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../../components/common/MantineModal';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
-import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
+import {
+    SettingsPage,
+    SettingsPageActions,
+} from '../../../../../../components/common/Settings/SettingsPage';
 import useHealth from '../../../../../../hooks/health/useHealth';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import AiAgentAdminThreadsTable from '../AiAgentAdminThreadsTable';
@@ -43,15 +46,11 @@ export const AiThreadsSettingsPage = () => {
         health?.ai.analyticsProjectUuid && health?.ai.analyticsDashboardUuid;
 
     return (
-        <Stack mb="lg" gap="md">
-            <Group justify="space-between" align="flex-start">
-                <PageBreadcrumbs
-                    items={[
-                        { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                        { title: 'Threads', active: true },
-                    ]}
-                />
-                <Group gap="xs">
+        <SettingsPage
+            title="Threads"
+            description="Review AI conversations across your organization."
+            actions={
+                <SettingsPageActions>
                     {isAnalyticsEmbedEnabled && (
                         <Button
                             onClick={toggleAnalyticsEmbed}
@@ -67,18 +66,24 @@ export const AiThreadsSettingsPage = () => {
                         leftIcon={IconMessageCircleShare}
                         variant="default"
                         radius="md"
+                        size="xs"
                     >
                         New Thread
                     </LinkButton>
-                </Group>
-            </Group>
-
+                </SettingsPageActions>
+            }
+        >
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
 
             <AiAgentAdminThreadsTable
                 onThreadSelect={handleThreadSelect}
                 selectedThread={selectedThread}
                 setSelectedThread={setSelectedThread}
+                onThreadDeleted={(threadUuid) => {
+                    if (selectedThread?.uuid === threadUuid) {
+                        handleCloseSidebar();
+                    }
+                }}
             />
 
             <Drawer
@@ -117,6 +122,6 @@ export const AiThreadsSettingsPage = () => {
             >
                 <AnalyticsEmbedDashboard />
             </MantineModal>
-        </Stack>
+        </SettingsPage>
     );
 };

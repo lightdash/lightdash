@@ -88,7 +88,8 @@ function annotateJsx(code, filename, relPath) {
     for (const node of targets) {
         const line = offsetToLine(lineIdx, node.start);
         const insertion = ` data-loc="${relPath}:${line}"`;
-        out = out.slice(0, node.name.end) + insertion + out.slice(node.name.end);
+        out =
+            out.slice(0, node.name.end) + insertion + out.slice(node.name.end);
     }
     return out;
 }
@@ -132,9 +133,7 @@ function jsxSourceLocVitePlugin() {
             // an opinion-free `code`.
             if (!/<[A-Za-z]/.test(code)) return null;
 
-            const relPath = path
-                .relative(cwd, filename)
-                .replace(/\\/g, '/');
+            const relPath = path.relative(cwd, filename).replace(/\\/g, '/');
             const annotated = annotateJsx(code, filename, relPath);
             return annotated ?? code;
         },
@@ -142,7 +141,56 @@ function jsxSourceLocVitePlugin() {
 }
 
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, process.cwd(), 'VITE_');
+    // Load VITE_* (inlined into the browser bundle) AND the preview-only
+    // LIGHTDASH_PREVIEW_PROXY_* vars (stay server-side — never inlined, since
+    // envPrefix defaults to 'VITE_'). `lightdash apps preview` starts a
+    // loopback proxy that holds the real credential and enforces the data-app
+    // SDK route allowlist; this dev server only ever learns the proxy's
+    // address and a run-scoped nonce. The browser receives that nonce as a
+    // project- and route-limited capability, never the durable credential.
+    const env = loadEnv(mode, process.cwd(), ['VITE_', 'LIGHTDASH_PREVIEW_']);
+    const previewProxyTarget = env.LIGHTDASH_PREVIEW_PROXY_TARGET;
+    const previewProxyNonce = env.LIGHTDASH_PREVIEW_PROXY_NONCE;
+    let browserImageOrigins = [];
+    try {
+        const parsed = JSON.parse(
+            env.LIGHTDASH_PREVIEW_BROWSER_IMAGE_ORIGINS || '[]',
+        );
+        browserImageOrigins = Array.isArray(parsed)
+            ? parsed.filter((origin) => {
+                  try {
+                      const url = new URL(origin);
+                      return url.protocol === 'https:' && url.origin === origin;
+                  } catch {
+                      return false;
+                  }
+              })
+            : [];
+    } catch {
+        browserImageOrigins = [];
+    }
+    const lightdashUrl =
+        env.VITE_LIGHTDASH_URL || 'https://app.lightdash.cloud';
+
+    // Dev-server CSP that emulates the deployed app policy for the vectors that
+    // matter for credential/data theft: network egress is locked to same-origin
+    // so all API traffic must pass through the allowlisted /api proxy.
+    // script-src/style-src stay permissive because Vite's dev runtime needs
+    // inline + eval, so this is NOT a full stand-in for the deployed sandbox.
+    const previewCsp = [
+        `default-src 'none'`,
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:`,
+        `style-src 'self' 'unsafe-inline'`,
+        `connect-src 'self'`,
+        `img-src 'self' data: blob: ${browserImageOrigins.join(' ')}`,
+        `font-src 'self' data:`,
+        `worker-src 'self' blob:`,
+        `child-src 'self' blob:`,
+        `object-src 'none'`,
+        `base-uri 'self'`,
+        `form-action 'self'`,
+        `frame-ancestors 'self'`,
+    ].join('; ');
 
     return {
         plugins: [jsxSourceLocVitePlugin(), react()],
@@ -153,12 +201,41 @@ export default defineConfig(({ mode }) => {
             },
         },
         server: {
+            host: '127.0.0.1',
+            // Vite otherwise permits every localhost origin. Preview is a
+            // credentialed endpoint, so only the page's own origin may read it.
+            cors: false,
+            headers: { 'Content-Security-Policy': previewCsp },
             proxy: {
                 '/api': {
-                    target:
-                        env.VITE_LIGHTDASH_URL || 'https://app.lightdash.cloud',
+                    // Under `lightdash apps preview`, /api goes to the CLI's
+                    // loopback proxy, which checks the route against the
+                    // data-app SDK allowlist and attaches the credential
+                    // before forwarding to Lightdash. Without the CLI (bare
+                    // `npm run dev`) requests go to the instance uncredentialed
+                    // and fail with 401 — preview requires the CLI command.
+                    target: previewProxyTarget || lightdashUrl,
                     changeOrigin: true,
                     secure: true,
+                    configure: (proxy) => {
+                        if (!previewProxyNonce) return;
+                        proxy.on('proxyReq', (proxyReq, req) => {
+                            // Do not turn Vite into an unauthenticated front
+                            // door to the nonce-protected CLI proxy. The SDK
+                            // presents the run-scoped nonce as its local API
+                            // key; only matching requests receive the inner
+                            // proxy header.
+                            if (
+                                req.headers.authorization ===
+                                `ApiKey ${previewProxyNonce}`
+                            ) {
+                                proxyReq.setHeader(
+                                    'x-lightdash-preview-nonce',
+                                    previewProxyNonce,
+                                );
+                            }
+                        });
+                    },
                 },
             },
         },

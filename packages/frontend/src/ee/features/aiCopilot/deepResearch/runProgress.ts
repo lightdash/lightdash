@@ -2,60 +2,15 @@ import {
     assertUnreachable,
     countDeepResearchFindings,
     type AiDeepResearchActivity,
-    type AiDeepResearchBudget,
-    type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchPhase,
     type AiDeepResearchRun,
 } from '@lightdash/common';
 import {
-    DEEP_RESEARCH_DEPTHS,
-    type DeepResearchDepth,
     type DeepResearchRunRegistration,
     type DeepResearchRunStatus,
     type DeepResearchRunView,
 } from './types';
-
-export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
-    DeepResearchDepth,
-    {
-        label: string;
-        effort: AiDeepResearchEffort;
-        duration: string;
-        warehouseQueries: number;
-        description: string;
-    }
-> = {
-    quick: {
-        label: 'Low',
-        effort: 'low',
-        duration: 'Up to 15 minutes',
-        warehouseQueries: 10,
-        description: 'A focused check of the strongest available evidence.',
-    },
-    standard: {
-        label: 'Medium',
-        effort: 'medium',
-        duration: 'Up to 30 minutes',
-        warehouseQueries: 25,
-        description:
-            'A balanced investigation with validation and alternatives.',
-    },
-    deep: {
-        label: 'High',
-        effort: 'high',
-        duration: 'Up to 45 minutes',
-        warehouseQueries: 50,
-        description: 'A broad investigation with more competing explanations.',
-    },
-    exhaustive: {
-        label: 'Extra High',
-        effort: 'xhigh',
-        duration: 'Up to 55 minutes',
-        warehouseQueries: 100,
-        description: 'The widest evidence review for high-stakes questions.',
-    },
-};
 
 const getActivityLabel = (activity: AiDeepResearchActivity | null): string => {
     switch (activity) {
@@ -84,6 +39,8 @@ const getEventLabel = (event: AiDeepResearchEvent): string => {
             return 'Cancellation requested';
         case 'progress':
             return getActivityLabel(event.payload.progress.activity);
+        case 'report_adjusted':
+            return 'Report adjusted to preserve valid evidence';
         default:
             return assertUnreachable(event, 'Unknown research event');
     }
@@ -113,6 +70,28 @@ const getPhaseLabel = (
     }
 };
 
+const getLatestEvents = (events: AiDeepResearchEvent[]) => {
+    const labels = new Set<string>();
+    return events.reduceRight<DeepResearchRunView['latestEvents']>(
+        (latestEvents, event) => {
+            const label = getEventLabel(event);
+            if (latestEvents.length === 4 || labels.has(label)) {
+                return latestEvents;
+            }
+
+            labels.add(label);
+            latestEvents.push({
+                uuid: event.aiDeepResearchEventUuid,
+                type: event.eventType,
+                label,
+                createdAt: event.createdAt,
+            });
+            return latestEvents;
+        },
+        [],
+    );
+};
+
 export const isDeepResearchRunTerminal = (
     status: DeepResearchRunStatus,
 ): boolean =>
@@ -125,14 +104,6 @@ export const isDeepResearchRunTerminal = (
         'waiting_for_reconnection',
     ].includes(status);
 
-/** The budget is a pure function of depth, so it round-trips a run's depth. */
-const getDepthFromBudget = (budget: AiDeepResearchBudget): DeepResearchDepth =>
-    DEEP_RESEARCH_DEPTHS.find(
-        (depth) =>
-            DEEP_RESEARCH_DEPTH_CONFIG[depth].warehouseQueries ===
-            budget.maxWarehouseQueries,
-    ) ?? 'standard';
-
 /** A registration equivalent for a run loaded from the server. */
 export const toDeepResearchRegistration = (
     run: AiDeepResearchRun,
@@ -140,22 +111,22 @@ export const toDeepResearchRegistration = (
 ): DeepResearchRunRegistration => ({
     runUuid: run.aiDeepResearchRunUuid,
     projectUuid: run.projectUuid,
+    agentUuid: run.agentUuid,
     threadUuid: args.threadUuid,
+    promptUuid: run.promptUuid,
+    resumeFromRunUuid:
+        run.status === 'partially_completed' || run.status === 'failed'
+            ? run.aiDeepResearchRunUuid
+            : undefined,
     userUuid: args.userUuid,
     question: run.prompt,
-    depth: getDepthFromBudget(run.budget),
     createdAt: run.createdAt,
     state: 'started',
 });
 
-/** Plain-text intro of the report markdown, for compact previews. */
+/** Intro of the report markdown, before the detailed report sections. */
 export const getDeepResearchReportPreview = (markdown: string): string =>
-    markdown
-        .split(/^## /m)[0]
-        .replace(/^(`{3,}|~{3,})[\s\S]*?(\1|$)/gm, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    markdown.split(/^## /m)[0].trim();
 
 export const adaptDeepResearchRun = ({
     run,
@@ -186,16 +157,18 @@ export const adaptDeepResearchRun = ({
     return {
         uuid: run.aiDeepResearchRunUuid,
         projectUuid: run.projectUuid,
+        agentUuid: run.agentUuid,
         threadUuid: registration.threadUuid,
         question: registration.question,
-        depth: registration.depth,
         status: run.status,
+        terminalReason: run.terminalReason,
         phase: getPhaseLabel(
             latestProgress?.phase ?? null,
             latestProgress?.activity ?? null,
         ),
         startedAt: run.startedAt,
         completedAt: run.completedAt,
+        updatedAt: run.updatedAt,
         elapsedMs: Math.max(0, endTime - startTime),
         sourceCount: null,
         queryCount,
@@ -203,17 +176,11 @@ export const adaptDeepResearchRun = ({
             ? countDeepResearchFindings(run.resultMarkdown)
             : 0,
         actionRequired: null,
-        latestEvents: events
-            .slice(-4)
-            .reverse()
-            .map((event) => ({
-                uuid: event.aiDeepResearchEventUuid,
-                type: event.eventType,
-                label: getEventLabel(event),
-                createdAt: event.createdAt,
-            })),
+        latestEvents: getLatestEvents(events),
         resultMarkdown: run.resultMarkdown,
-        resultChartData: run.resultChartData,
+        reportExpiresAt: run.reportExpiresAt,
+        reportExpiredAt: run.reportExpiredAt,
+        isReportExpired: run.isReportExpired,
         errorMessage: run.errorMessage,
     };
 };

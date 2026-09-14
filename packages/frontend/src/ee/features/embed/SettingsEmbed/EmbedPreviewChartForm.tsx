@@ -21,8 +21,8 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+    useComputedColorScheme,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconEye,
@@ -32,7 +32,13 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { useCallback, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -80,13 +86,22 @@ type FormValues = {
 const EmbedPreviewChartForm: FC<{
     projectUuid: string;
     siteUrl: string;
-    charts: Pick<SavedChart, 'uuid' | 'name'>[];
+    charts: Pick<SavedChart, 'uuid' | 'name' | 'spaceUuid'>[];
     writeActions?: CreateEmbedJwt['writeActions'];
     writeActionsPanel?: ReactNode;
-}> = ({ projectUuid, siteUrl, charts, writeActions, writeActionsPanel }) => {
+    onChartSpaceChange?: (spaceUuid: string | undefined) => void;
+}> = ({
+    projectUuid,
+    siteUrl,
+    charts,
+    writeActions,
+    writeActionsPanel,
+    onChartSpaceChange,
+}) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
+
     const { data: user } = useUser(true);
     const [embedMethod, setEmbedMethod] = useState<EmbedMethod>('iframe');
 
@@ -112,6 +127,13 @@ const EmbedPreviewChartForm: FC<{
         },
     });
     const { onSubmit, values: formValues } = form;
+
+    useEffect(() => {
+        onChartSpaceChange?.(
+            charts.find((chart) => chart.uuid === form.values.chartUuid)
+                ?.spaceUuid,
+        );
+    }, [charts, form.values.chartUuid, onChartSpaceChange]);
 
     const convertFormValuesToCreateEmbedJwt = useCallback(
         (
@@ -163,7 +185,7 @@ const EmbedPreviewChartForm: FC<{
         // Open data.url in a new tab, matching the current app color scheme
         const previewUrl = new URL(data.url);
         previewUrl.searchParams.set('theme', colorScheme);
-        window.open(previewUrl.toString(), '_blank');
+        window.open(previewUrl.toString(), '_blank', 'noopener,noreferrer');
     }, [
         formValues,
         form,
@@ -203,6 +225,13 @@ const EmbedPreviewChartForm: FC<{
                     placeholder="Select a chart..."
                     searchable
                     {...form.getInputProps('chartUuid')}
+                    onChange={(chartUuid) => {
+                        form.setFieldValue('chartUuid', chartUuid ?? undefined);
+                        onChartSpaceChange?.(
+                            charts.find((chart) => chart.uuid === chartUuid)
+                                ?.spaceUuid,
+                        );
+                    }}
                 />
 
                 <Stack gap="xs">
@@ -214,7 +243,6 @@ const EmbedPreviewChartForm: FC<{
                         onChange={(value) =>
                             form.setFieldValue('expiresIn', value)
                         }
-                        radius="md"
                         data={[
                             { label: '1 hour', value: '1 hour' },
                             { label: '1 day', value: '1 day' },
@@ -226,7 +254,7 @@ const EmbedPreviewChartForm: FC<{
                     />
                 </Stack>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="md">
                         <Title order={6}>Identification & Security</Title>
                         <Stack gap="xs">
@@ -258,7 +286,7 @@ const EmbedPreviewChartForm: FC<{
                                                 <TextInput
                                                     size="xs"
                                                     placeholder="E.g. user_country"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.key`,
                                                     )}
@@ -266,7 +294,7 @@ const EmbedPreviewChartForm: FC<{
                                                 <TextInput
                                                     size="xs"
                                                     placeholder="E.g. US"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.value`,
                                                     )}
@@ -313,7 +341,7 @@ const EmbedPreviewChartForm: FC<{
                     </Stack>
                 </Paper>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="md">
                         <Title order={6}>Interactivity & Permissions</Title>
                         <Stack gap="xs">
@@ -346,12 +374,11 @@ const EmbedPreviewChartForm: FC<{
                 </Paper>
 
                 {writeActionsPanel && (
-                    <Paper p="md" withBorder>
+                    <Paper p="md">
                         <Stack gap="xs" mb="md">
                             <Group gap="sm">
                                 <Title order={6}>Write actions</Title>
                                 <Badge
-                                    variant="light"
                                     color="violet"
                                     size="sm"
                                     leftSection={<IconFlask2Filled size={12} />}

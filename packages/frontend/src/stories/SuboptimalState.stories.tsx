@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
     type StackProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
     IconAlertCircle,

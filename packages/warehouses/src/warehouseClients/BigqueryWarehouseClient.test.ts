@@ -4,7 +4,19 @@ import {
     type DatasetsResponse,
     type QueryRowsResponse,
 } from '@google-cloud/bigquery';
-import { type BigqueryProject } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    BigqueryTokenError,
+    DimensionType,
+    getCatalogNestedColumnShape,
+    setCatalogNestedColumnShape,
+    setCatalogTimestampDomain,
+    WarehouseConnectionError,
+    WarehouseQueryError,
+    type BigqueryProject,
+    type CreateBigqueryCredentials,
+    type WarehouseNestedColumnShape,
+} from '@lightdash/common';
 import type { Mock, MockInstance } from 'vitest';
 import {
     BigquerySqlBuilder,
@@ -19,7 +31,7 @@ import {
     config,
     expectedFields,
     expectedRow,
-    expectedWarehouseSchema,
+    expectedWarehouseSchemaWithAwareTimestamp,
 } from './WarehouseClient.mock';
 
 describe('BigqueryWarehouseClient', () => {
@@ -32,8 +44,28 @@ describe('BigqueryWarehouseClient', () => {
 
         const results = await warehouse.runQuery('fake sql');
 
-        expect(results.fields).toEqual(expectedFields);
-        expect(results.rows[0]).toEqual(expectedRow);
+        expect(results.fields).toEqual({
+            ...expectedFields,
+            // NUMERIC is (38, 9) unless declared; BIGNUMERIC reports no kind
+            myNumberColumn: {
+                type: 'number',
+                numericKind: { kind: 'decimal', scale: 9 },
+            },
+            myBigNumberColumn: { type: 'number' },
+            myRepeatedColumn: { type: 'string' },
+            myRecordColumn: { type: 'string' },
+        });
+        expect(results.rows[0]).toEqual({
+            ...expectedRow,
+            myNumberColumn: 100.25,
+            myBigNumberColumn: 200.5,
+            // BigQuery serialises nested values as JSON; other clients pass them through
+            myArrayColumn: '["1","2","3"]',
+            myObjectColumn: '{"test":"1"}',
+            myRepeatedColumn: '["a","b"]',
+            myRecordColumn:
+                '{"id":7,"createdAt":"1990-03-02T08:30:00.010Z","tags":[{"label":"x"},{"label":"y"}]}',
+        });
         expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledTimes(
             1,
         );
@@ -76,11 +108,77 @@ describe('BigqueryWarehouseClient', () => {
             .mockImplementationOnce(() => getTableResponse);
         Dataset.prototype.table = getTableMock;
         const warehouse = new BigqueryWarehouseClient(credentials);
-        expect(await warehouse.getCatalog(config)).toEqual(
-            expectedWarehouseSchema,
+        const expectedCatalog = structuredClone(
+            expectedWarehouseSchemaWithAwareTimestamp,
         );
+        Object.assign(expectedCatalog.myDatabase.mySchema.myTable, {
+            myBigNumberColumn: DimensionType.NUMBER,
+            myRepeatedColumn: DimensionType.STRING,
+            myRecordColumn: DimensionType.STRING,
+            'myRecordColumn.id': DimensionType.NUMBER,
+            'myRecordColumn.createdAt': DimensionType.TIMESTAMP,
+            'myRecordColumn.tags': DimensionType.STRING,
+            'myRecordColumn.tags.label': DimensionType.STRING,
+        });
+        setCatalogTimestampDomain(
+            expectedCatalog,
+            'myDatabase',
+            'mySchema',
+            'myTable',
+            'myRecordColumn.createdAt',
+            'aware',
+        );
+        const nestedShapes: Record<string, WarehouseNestedColumnShape> = {
+            myObjectColumn: { repeated: false, record: true },
+            myRepeatedColumn: { repeated: true, record: false },
+            myRecordColumn: { repeated: false, record: true },
+            'myRecordColumn.tags': { repeated: true, record: true },
+        };
+        Object.entries(nestedShapes).forEach(([path, shape]) =>
+            setCatalogNestedColumnShape(
+                expectedCatalog,
+                'myDatabase',
+                'mySchema',
+                'myTable',
+                path,
+                shape,
+            ),
+        );
+        expect(await warehouse.getCatalog(config)).toEqual(expectedCatalog);
         expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
+    });
+    it('expect getFields to flatten nested columns with the same shapes as getCatalog', async () => {
+        Dataset.prototype.table = vi
+            .fn()
+            .mockImplementationOnce(() => getTableResponse);
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const fields = await warehouse.getFields(
+            'myTable',
+            'mySchema',
+            'myDatabase',
+        );
+        expect(fields.myDatabase.mySchema.myTable['myRecordColumn.id']).toBe(
+            DimensionType.NUMBER,
+        );
+        expect(
+            getCatalogNestedColumnShape(
+                fields,
+                'myDatabase',
+                'mySchema',
+                'myTable',
+                'myRecordColumn.tags',
+            ),
+        ).toEqual({ repeated: true, record: true });
+        expect(
+            getCatalogNestedColumnShape(
+                fields,
+                'myDatabase',
+                'mySchema',
+                'myTable',
+                'myStringColumn',
+            ),
+        ).toBeUndefined();
     });
 });
 
@@ -395,7 +493,7 @@ describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
         });
         expect(result).toEqual({ job_id: '224187' });
         expect(warnSpy).toHaveBeenCalledWith(
-            expect.stringContaining('coerced non-string label value'),
+            expect.stringContaining('coerced non-string tag value'),
             { key: 'job_id', valueType: 'number' },
         );
     });
@@ -522,5 +620,227 @@ describe('BigquerySqlBuilder escaping', () => {
             stringWithBlockComment,
         );
         expect(escapedBlock).toBe('test  value');
+    });
+});
+
+describe('BigquerySqlBuilder temporal literals', () => {
+    // BigQuery refuses to COALESCE mixed DATE/DATETIME/TIMESTAMP, so each
+    // temporal kind needs its own literal.
+    const builder = new BigquerySqlBuilder();
+    const epoch = new Date(0);
+
+    test('casts to an aware TIMESTAMP', () => {
+        expect(builder.castToTimestamp(epoch)).toBe(
+            "TIMESTAMP('1970-01-01T00:00:00.000Z')",
+        );
+    });
+
+    test('casts to a DATE literal', () => {
+        expect(builder.castToDate(epoch)).toBe("DATE '1970-01-01'");
+    });
+
+    test('casts to a zoneless DATETIME literal', () => {
+        expect(builder.castToNaiveTimestamp(epoch)).toBe(
+            "DATETIME '1970-01-01 00:00:00'",
+        );
+    });
+});
+
+describe('BigqueryWarehouseClient Google OAuth token errors', () => {
+    type GaxiosErrorData = {
+        error: string;
+        error_description?: string;
+        error_subtype?: string;
+    };
+
+    const createGaxiosError = (
+        data: GaxiosErrorData,
+        message = data.error,
+        status = 400,
+    ) =>
+        Object.assign(new Error(message), {
+            status,
+            response: { status, data },
+        });
+
+    const invalidGrant = {
+        error: 'invalid_grant',
+        error_description: 'Token has been expired or revoked.',
+        error_subtype: 'invalid_rapt',
+    };
+
+    const userCredentials: CreateBigqueryCredentials = {
+        ...credentials,
+        authenticationType: BigqueryAuthenticationType.SSO,
+        keyfileContents: {
+            type: 'authorized_user',
+            client_id: 'client-id',
+            client_secret: 'client-secret',
+            refresh_token: 'refresh-token',
+        },
+    };
+
+    const serviceAccountCredentials: CreateBigqueryCredentials = {
+        ...credentials,
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        keyfileContents: {
+            type: 'service_account',
+            client_email: 'robot@example.iam.gserviceaccount.com',
+            private_key: 'private-key',
+        },
+    };
+
+    const createWarehouseRejectingQueries = (
+        warehouseCredentials: CreateBigqueryCredentials,
+        error: unknown,
+    ) => {
+        const warehouse = new BigqueryWarehouseClient(warehouseCredentials);
+        const createQueryJob = vi.fn<() => Promise<never>>();
+        vi.mocked(createQueryJob).mockRejectedValue(error);
+        warehouse.client.createQueryJob =
+            createQueryJob as unknown as BigQuery['createQueryJob'];
+        return warehouse;
+    };
+
+    const executeAsyncQuery = (warehouse: BigqueryWarehouseClient) =>
+        warehouse.executeAsyncQuery({
+            sql: 'SELECT 1',
+            tags: {},
+        });
+
+    it('translates an invalid_grant rejection of a user keyfile into a BigqueryTokenError', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            createGaxiosError(invalidGrant),
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            BigqueryTokenError,
+        );
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            'Google rejected the BigQuery refresh token (invalid_grant: Token has been expired or revoked.; invalid_rapt). Reconnect your BigQuery account in personal settings.',
+        );
+    });
+
+    it('translates an invalid_grant rejection of a service account keyfile into a connection error', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            serviceAccountCredentials,
+            createGaxiosError(invalidGrant),
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            WarehouseConnectionError,
+        );
+        await expect(executeAsyncQuery(warehouse)).rejects.not.toThrow(
+            BigqueryTokenError,
+        );
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            'Google rejected the BigQuery credentials (invalid_grant: Token has been expired or revoked.; invalid_rapt).',
+        );
+    });
+
+    it('omits the subtype clause and falls back to invalid_grant alone', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            createGaxiosError({ error: 'invalid_grant' }),
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            'Google rejected the BigQuery refresh token (invalid_grant). Reconnect your BigQuery account in personal settings.',
+        );
+    });
+
+    it('leaves other 400 responses untranslated', async () => {
+        const original = createGaxiosError({
+            error: 'invalid_request',
+            error_description: 'Missing required parameter: refresh_token',
+        });
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            original,
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+    });
+
+    it('detects invalid_grant from the response body, not the error message', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            createGaxiosError(
+                invalidGrant,
+                'Token has been expired or revoked.',
+            ),
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            BigqueryTokenError,
+        );
+    });
+
+    it('leaves a bare invalid_grant error without a response untranslated', async () => {
+        const original = new Error('invalid_grant');
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            original,
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+    });
+
+    it('still translates structured BigQuery errors', async () => {
+        const warehouse = createWarehouseRejectingQueries(userCredentials, {
+            errors: [
+                {
+                    reason: 'quotaExceeded',
+                    message: 'Query exceeded the daily quota',
+                },
+            ],
+        });
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            WarehouseQueryError,
+        );
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            'BigQuery quota exceeded. Query exceeded the daily quota',
+        );
+    });
+
+    it('translates an invalid_grant rejection raised while fetching table metadata', async () => {
+        const warehouse = new BigqueryWarehouseClient(userCredentials);
+        const getMetadata = vi.fn<() => Promise<never>>();
+        vi.mocked(getMetadata).mockRejectedValue(
+            createGaxiosError(invalidGrant),
+        );
+        Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
+
+        await expect(
+            warehouse.getFields('myTable', 'mySchema', 'myDatabase'),
+        ).rejects.toThrow(BigqueryTokenError);
+        await expect(warehouse.getCatalog(config)).rejects.toThrow(
+            BigqueryTokenError,
+        );
+    });
+
+    it('translates an invalid_grant rejection raised while listing datasets', async () => {
+        const warehouse = new BigqueryWarehouseClient(userCredentials);
+        const getDatasets = vi.fn<() => Promise<never>>();
+        vi.mocked(getDatasets).mockRejectedValue(
+            createGaxiosError(invalidGrant),
+        );
+        warehouse.client.getDatasets =
+            getDatasets as unknown as BigQuery['getDatasets'];
+
+        await expect(warehouse.getAllTables()).rejects.toThrow(
+            BigqueryTokenError,
+        );
+    });
+
+    it('translates an invalid_grant rejection from the connection test', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            createGaxiosError(invalidGrant),
+        );
+
+        await expect(warehouse.test()).rejects.toThrow(BigqueryTokenError);
     });
 });

@@ -185,10 +185,10 @@ export class RenameService extends BaseService {
             name: chartName,
         } = chart;
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
                 spaceUuid,
-            );
+            });
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -305,6 +305,18 @@ export class RenameService extends BaseService {
                 updatedChart,
                 undefined,
             );
+
+            if (type === RenameType.MODEL) {
+                this.analytics.track({
+                    event: 'saved_chart.explore_changed',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: chartProjectUuid,
+                        savedChartId: chart.uuid,
+                    },
+                });
+            }
         }
 
         this.analytics.track({

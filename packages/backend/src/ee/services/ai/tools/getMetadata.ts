@@ -1,18 +1,24 @@
 import {
+    flattenAiHints,
     getEffectiveFieldAiHints,
     getFilterTypeFromItemType,
     getMetadataToolDefinition,
+    getParameterOptionValues,
+    getReferencedExploreParameterDefinitions,
     isDimension,
     isMetric,
     type CompiledField,
     type Explore,
+    type GetMetadataParameter,
     type GetMetadataResult,
+    type ParameterDefinitions,
     type ToolGetMetadataArgs,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { truncate } from '../utils/truncation';
 import {
     getDefaultTimeDimensionFieldIds,
     summarizeRequiredFilters,
@@ -22,13 +28,13 @@ const toolDefinition = getMetadataToolDefinition.for('agent');
 
 type Dependencies = {
     availableExplores: Explore[];
+    // Project-level parameter definitions (from the project_parameters table).
+    // Model-level definitions come from the explores themselves.
+    projectParameterDefinitions: ParameterDefinitions;
 };
 
-const flatHint = (hint?: string | string[]): string =>
-    Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
-
 const collapse = (text: string, max = 240): string =>
-    text.replace(/\s+/g, ' ').trim().slice(0, max);
+    truncate(text.replace(/\s+/g, ' ').trim(), max);
 
 // Field descriptions carry critical info (allowed values, units, semantics), so
 // they get a generous cap — a tight one silently truncates them and misleads the
@@ -65,13 +71,65 @@ const renderFieldList = (
     return `  base ${kind} (${ids.length}): ${shown.join(', ')}${overflow}`;
 };
 
-const renderExplore = (explore: Explore): string => {
+// Only parameters the explore's compiled SQL actually references can change
+// query results, so only those are surfaced.
+const getExploreParameters = (
+    explore: Explore,
+    projectParameterDefinitions: ParameterDefinitions,
+): GetMetadataParameter[] =>
+    Object.entries(
+        getReferencedExploreParameterDefinitions(
+            explore,
+            projectParameterDefinitions,
+        ),
+    ).map(([name, definition]) => ({
+        name,
+        label: definition.label,
+        description: definition.description ?? null,
+        type: definition.type ?? 'string',
+        default: definition.default ?? null,
+        multiple: definition.multiple ?? false,
+        allowCustomValues: definition.allow_custom_values ?? false,
+        options: getParameterOptionValues(definition),
+        optionsFromDimension: definition.options_from_dimension ?? null,
+    }));
+
+const renderParameter = (parameter: GetMetadataParameter): string => {
+    const parts = [
+        `    ${parameter.name}  [${parameter.type}${
+            parameter.multiple ? ', multi-value' : ''
+        }] ${parameter.label}`,
+    ];
+    if (parameter.default !== null) {
+        parts.push(`default: ${JSON.stringify(parameter.default)}`);
+    }
+    if (parameter.options) {
+        parts.push(`options: ${parameter.options.join(', ')}`);
+    }
+    if (parameter.optionsFromDimension) {
+        parts.push(
+            `options from dimension: ${parameter.optionsFromDimension.model}.${parameter.optionsFromDimension.dimension}`,
+        );
+    }
+    if (parameter.allowCustomValues) {
+        parts.push('(custom values allowed)');
+    }
+    const description = parameter.description
+        ? ` — ${collapse(parameter.description)}`
+        : '';
+    return parts.join('  ') + description;
+};
+
+const renderExplore = (
+    explore: Explore,
+    parameters: GetMetadataParameter[],
+): string => {
     const baseTable = explore.tables[explore.baseTable];
     const lines = [`Explore: ${explore.name} (${explore.label})`];
     if (baseTable?.description) {
         lines.push(`  description: ${collapse(baseTable.description)}`);
     }
-    const hint = flatHint(explore.aiHint);
+    const hint = flattenAiHints(explore.aiHint);
     if (hint) lines.push(`  hint: ${collapse(hint)}`);
     lines.push(`  base table: ${explore.baseTable}`);
     const joined = explore.joinedTables.map((join) => join.table);
@@ -84,6 +142,12 @@ const renderExplore = (explore: Explore): string => {
     }
     const required = summarizeRequiredFilters(explore);
     if (required) lines.push(`  ${required}`);
+    if (parameters.length > 0) {
+        lines.push(
+            '  ⚠ parameters — fields marked "requires parameters" return different results depending on these values; an unset parameter resolves to its default:',
+            ...parameters.map(renderParameter),
+        );
+    }
     lines.push(
         renderFieldList(
             'dimensions',
@@ -144,6 +208,13 @@ const renderField = (
     if (isDimension(field) && field.type === 'string') {
         lines.push(`  case-sensitive filters: ${field.caseSensitive ?? true}`);
     }
+    if (field.parameterReferences && field.parameterReferences.length > 0) {
+        lines.push(
+            `  ⚠ requires parameters: ${field.parameterReferences.join(
+                ', ',
+            )} — what this field returns depends on their values; an unset parameter resolves to its default. See the explore metadata for the definitions.`,
+        );
+    }
     const defaultTimeDimension = getResolvedDefaultTimeDimension(
         explore,
         field,
@@ -159,7 +230,7 @@ const renderField = (
             `  description: ${collapse(field.description, FIELD_DESCRIPTION_MAX)}`,
         );
     }
-    const hint = flatHint(
+    const hint = flattenAiHints(
         getEffectiveFieldAiHints(field, explore.tables[field.table]),
     );
     if (hint) lines.push(`  hint: ${collapse(hint, FIELD_DESCRIPTION_MAX)}`);
@@ -168,9 +239,10 @@ const renderField = (
 
 const buildExploreStructuredResult = (
     explore: Explore,
+    parameters: GetMetadataParameter[],
 ): GetMetadataResult['explores'][number] => {
     const baseTable = explore.tables[explore.baseTable];
-    const hint = flatHint(explore.aiHint);
+    const hint = flattenAiHints(explore.aiHint);
     const dimensionIds = getVisibleFieldIds(
         Object.values(baseTable?.dimensions ?? {}),
     );
@@ -188,6 +260,7 @@ const buildExploreStructuredResult = (
         baseTable: explore.baseTable,
         joinedTables: explore.joinedTables.map((join) => join.table),
         requiredFilters: getExploreRequiredFilters(explore),
+        parameters,
         baseDimensions: {
             count: dimensionIds.length,
             fieldIds: dimensionIds.slice(0, FIELD_LIST_MAX),
@@ -206,7 +279,7 @@ const buildFieldStructuredResult = (
 ): GetMetadataResult['fields'][number] => {
     const { field, isJoined } = found;
     const exploreId = explore.name;
-    const hint = flatHint(
+    const hint = flattenAiHints(
         getEffectiveFieldAiHints(field, explore.tables[field.table]),
     );
     const defaultTimeDimension = getResolvedDefaultTimeDimension(
@@ -231,6 +304,7 @@ const buildFieldStructuredResult = (
             defaultTimeDimension?.defaultTimeDimension ?? null,
         defaultTimeDimensionGranularity:
             defaultTimeDimension?.defaultTimeDimensionGranularity ?? null,
+        requiredParameters: field.parameterReferences ?? [],
         description: field.description
             ? collapse(field.description, FIELD_DESCRIPTION_MAX)
             : null,
@@ -238,9 +312,51 @@ const buildFieldStructuredResult = (
     };
 };
 
+// A field that misses on the requested explore often exists on another explore
+// (grep surfaces fields across the whole catalog, so the agent may pair a real
+// fieldId with the wrong explore). Without a redirect the "not found" is a dead
+// end and the agent loops grep -> getMetadata -> not found indefinitely.
+const REACHABLE_EXPLORES_MAX = 5;
+
+const findExploresContainingField = (
+    explores: Explore[],
+    fieldId: string,
+    excludeExploreId: string,
+): string[] =>
+    explores
+        .filter(
+            (explore) =>
+                explore.name !== excludeExploreId &&
+                findField(explore, fieldId) !== null,
+        )
+        .map((explore) => explore.name);
+
+const buildFieldNotFoundError = (
+    availableExplores: Explore[],
+    exploreId: string,
+    fieldId: string,
+): string => {
+    const reachableFrom = findExploresContainingField(
+        availableExplores,
+        fieldId,
+        exploreId,
+    );
+    if (reachableFrom.length === 0) {
+        return `Field "${fieldId}" not found in explore "${exploreId}".`;
+    }
+    const shown = reachableFrom.slice(0, REACHABLE_EXPLORES_MAX);
+    const overflow =
+        reachableFrom.length > shown.length
+            ? ` (+${reachableFrom.length - shown.length} more)`
+            : '';
+    return `Field "${fieldId}" not found in explore "${exploreId}" — its table is not joined there. It IS available in: ${shown.join(
+        ', ',
+    )}${overflow}. Query it from one of those explores instead; it cannot be combined with "${exploreId}" fields in a single query.`;
+};
+
 export const executeGetMetadata = (
     { requests }: ToolGetMetadataArgs,
-    { availableExplores }: Dependencies,
+    { availableExplores, projectParameterDefinitions }: Dependencies,
 ): ExecuteStructuredToolResult<GetMetadataResult> => {
     const byName = new Map(
         availableExplores.map((explore) => [explore.name, explore]),
@@ -262,8 +378,14 @@ export const executeGetMetadata = (
                         error,
                     });
                 } else {
-                    textBlocks.push(renderExplore(explore));
-                    explores.push(buildExploreStructuredResult(explore));
+                    const parameters = getExploreParameters(
+                        explore,
+                        projectParameterDefinitions,
+                    );
+                    textBlocks.push(renderExplore(explore, parameters));
+                    explores.push(
+                        buildExploreStructuredResult(explore, parameters),
+                    );
                 }
             }
         } else {
@@ -281,7 +403,11 @@ export const executeGetMetadata = (
                 } else {
                     const found = findField(explore, fieldId);
                     if (!found) {
-                        const error = `Field "${fieldId}" not found in explore "${exploreId}".`;
+                        const error = buildFieldNotFoundError(
+                            availableExplores,
+                            exploreId,
+                            fieldId,
+                        );
                         textBlocks.push(error);
                         fields.push({
                             exploreId,

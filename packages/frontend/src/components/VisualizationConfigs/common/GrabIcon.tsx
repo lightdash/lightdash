@@ -1,5 +1,5 @@
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
-import { Box, Tooltip } from '@mantine-8/core';
+import { Box, Tooltip } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -28,7 +28,7 @@ export const GrabIcon: FC<Props> = ({
                 cursor: disabled ? 'default' : 'grab',
             }}
         >
-            <MantineIcon color="ldGray.6" icon={IconGripVertical} />
+            <MantineIcon color="dimmed" icon={IconGripVertical} />
         </Box>
     );
 

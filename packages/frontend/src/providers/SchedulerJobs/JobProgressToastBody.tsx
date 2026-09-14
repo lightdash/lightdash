@@ -1,5 +1,5 @@
 import { SchedulerJobStatus } from '@lightdash/common';
-import { Progress, Text } from '@mantine-8/core';
+import { Progress, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { type TrackedJob } from './types';
 

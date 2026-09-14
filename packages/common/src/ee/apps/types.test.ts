@@ -1,7 +1,15 @@
 import {
+    dataAppVizGenerationSchema,
+    dataAppVizJsonSchema,
     dataAppVizSchema,
     getEffectiveOptionValues,
+    getVisibleDataAppClaudeModels,
+    isOfficialChartType,
+    pruneDataAppVizOptionValues,
+    resolveDefaultDataAppClaudeModel,
+    resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
+    type DataAppVizOptionValue,
 } from './types';
 
 const validFields = {
@@ -17,11 +25,23 @@ const validFields = {
     ],
 };
 
+describe('isOfficialChartType', () => {
+    it('is true only when registrySlug is set', () => {
+        expect(isOfficialChartType({ registrySlug: 'radial-gauge' })).toBe(
+            true,
+        );
+        expect(isOfficialChartType({ registrySlug: null })).toBe(false);
+    });
+});
+
 describe('dataAppVizSchema', () => {
-    it('accepts a well-formed fields declaration (configOptions defaults to [])', () => {
+    it('accepts a well-formed fields declaration (configOptions defaults to [], colorPalette to null)', () => {
         const r = dataAppVizSchema.safeParse(validFields);
         expect(r.success).toBe(true);
-        if (r.success) expect(r.data.configOptions).toEqual([]);
+        if (r.success) {
+            expect(r.data.configOptions).toEqual([]);
+            expect(r.data.colorPalette).toBeNull();
+        }
     });
 
     it('accepts an empty field list', () => {
@@ -114,15 +134,43 @@ describe('dataAppVizSchema', () => {
                     type: 'color',
                     default: '#7262ff',
                 },
-                {
-                    name: 'palette',
-                    label: 'Palette',
-                    type: 'palette',
-                    default: ['#111', '#222'],
-                },
             ],
         });
         expect(r.success).toBe(true);
+    });
+
+    it('rejects an option whose type is outside the declared vocabulary', () => {
+        expect(
+            dataAppVizSchema.safeParse({
+                fields: [],
+                configOptions: [
+                    {
+                        name: 'series',
+                        label: 'Series colours',
+                        type: 'palette',
+                        default: ['#111', '#222'],
+                    },
+                ],
+            }).success,
+        ).toBe(false);
+    });
+
+    it('accepts a colorPalette declaration, with or without a group', () => {
+        const grouped = dataAppVizSchema.safeParse({
+            fields: [],
+            colorPalette: { group: 'Colours' },
+        });
+        expect(grouped.success).toBe(true);
+        if (grouped.success) {
+            expect(grouped.data.colorPalette).toEqual({ group: 'Colours' });
+        }
+
+        const ungrouped = dataAppVizSchema.safeParse({
+            fields: [],
+            colorPalette: {},
+        });
+        expect(ungrouped.success).toBe(true);
+        if (ungrouped.success) expect(ungrouped.data.colorPalette).toEqual({});
     });
 
     it('rejects a boolean option with a non-boolean default', () => {
@@ -186,5 +234,337 @@ describe('getEffectiveOptionValues', () => {
                 { gone: 5, a: true },
             ),
         ).toEqual({ a: true });
+    });
+
+    it('ignores a stored value whose shape no longer matches the declared type', () => {
+        const declared: DataAppVizConfigOption[] = [
+            {
+                name: 'showLegend',
+                label: 'Show legend',
+                type: 'boolean',
+                default: true,
+            },
+            { name: 'maxBars', label: 'Max bars', type: 'number', default: 10 },
+            { name: 'title', label: 'Title', type: 'text', default: 'Sales' },
+            {
+                name: 'barColor',
+                label: 'Bar colour',
+                type: 'color',
+                default: '#7162FF',
+            },
+            {
+                name: 'layout',
+                label: 'Layout',
+                type: 'select',
+                choices: [
+                    { value: 'vertical', label: 'Vertical' },
+                    { value: 'horizontal', label: 'Horizontal' },
+                ],
+                default: 'vertical',
+            },
+        ];
+
+        // Each stored value was written under the same name by a declaration
+        // that gave the option a different type.
+        expect(
+            getEffectiveOptionValues(declared, {
+                showLegend: 'yes',
+                maxBars: '24',
+                title: 12,
+                // Stored values are untyped JSONB, so a shape the value type no
+                // longer allows can still be sitting in the column.
+                barColor: ['#7162FF'] as unknown as DataAppVizOptionValue,
+                layout: 24,
+            }),
+        ).toEqual({
+            showLegend: true,
+            maxBars: 10,
+            title: 'Sales',
+            barColor: '#7162FF',
+            layout: 'vertical',
+        });
+    });
+
+    it('ignores a stored select value that is no longer a declared choice', () => {
+        const declared: DataAppVizConfigOption[] = [
+            {
+                name: 'layout',
+                label: 'Layout',
+                type: 'select',
+                choices: [{ value: 'vertical', label: 'Vertical' }],
+                default: 'vertical',
+            },
+        ];
+
+        expect(
+            getEffectiveOptionValues(declared, { layout: 'horizontal' }),
+        ).toEqual({ layout: 'vertical' });
+    });
+});
+
+describe('getVisibleDataAppClaudeModels', () => {
+    it('shows all models when visibility is null/undefined', () => {
+        expect(getVisibleDataAppClaudeModels(null)).toEqual([
+            'opus',
+            'sonnet',
+            'haiku',
+        ]);
+        expect(getVisibleDataAppClaudeModels(undefined)).toEqual([
+            'opus',
+            'sonnet',
+            'haiku',
+        ]);
+    });
+
+    it('hides only models explicitly set to false', () => {
+        expect(getVisibleDataAppClaudeModels({ opus: false })).toEqual([
+            'sonnet',
+            'haiku',
+        ]);
+    });
+
+    it('treats an explicit true the same as absent', () => {
+        expect(
+            getVisibleDataAppClaudeModels({ opus: true, sonnet: false }),
+        ).toEqual(['opus', 'haiku']);
+    });
+});
+
+describe('resolveDefaultDataAppClaudeModel', () => {
+    it('selects from an already-resolved model list', () => {
+        expect(resolveDefaultDataAppClaudeModel(['opus', 'haiku'])).toBe(
+            'haiku',
+        );
+    });
+
+    it('returns null when the resolved model list is empty', () => {
+        expect(resolveDefaultDataAppClaudeModel([])).toBeNull();
+    });
+});
+
+describe('resolveDefaultVisibleDataAppClaudeModel', () => {
+    it('prefers the system default (sonnet) when visible', () => {
+        expect(resolveDefaultVisibleDataAppClaudeModel(null)).toBe('sonnet');
+    });
+
+    // Hiding Sonnet is the obvious cost-control action; falling back to Opus
+    // (the display-order first entry) would make it a cost increase.
+    it('falls back to the cheaper model, not the pricier one, when the default is hidden', () => {
+        expect(resolveDefaultVisibleDataAppClaudeModel({ sonnet: false })).toBe(
+            'haiku',
+        );
+    });
+
+    it('falls back to opus only when it is the sole visible model', () => {
+        expect(
+            resolveDefaultVisibleDataAppClaudeModel({
+                sonnet: false,
+                haiku: false,
+            }),
+        ).toBe('opus');
+    });
+
+    it('falls back to haiku when only haiku remains visible', () => {
+        expect(
+            resolveDefaultVisibleDataAppClaudeModel({
+                opus: false,
+                sonnet: false,
+            }),
+        ).toBe('haiku');
+    });
+
+    it('returns null when every model is hidden', () => {
+        expect(
+            resolveDefaultVisibleDataAppClaudeModel({
+                opus: false,
+                sonnet: false,
+                haiku: false,
+            }),
+        ).toBeNull();
+    });
+});
+
+describe('dataAppVizGenerationSchema', () => {
+    it('requires configOptions and colorPalette, unlike the persistence schema', () => {
+        expect(dataAppVizGenerationSchema.safeParse(validFields).success).toBe(
+            false,
+        );
+        expect(
+            dataAppVizGenerationSchema.safeParse({
+                ...validFields,
+                configOptions: [],
+            }).success,
+        ).toBe(false);
+        expect(
+            dataAppVizGenerationSchema.safeParse({
+                ...validFields,
+                configOptions: [],
+                colorPalette: null,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('accepts the same vocabulary the persistence schema does', () => {
+        const declaration = {
+            ...validFields,
+            configOptions: [
+                {
+                    name: 'accent',
+                    label: 'Accent',
+                    type: 'color',
+                    default: '#7162FF',
+                },
+            ],
+            colorPalette: { group: 'Colours' },
+        };
+        expect(dataAppVizGenerationSchema.safeParse(declaration).success).toBe(
+            true,
+        );
+        expect(dataAppVizSchema.safeParse(declaration).success).toBe(true);
+    });
+
+    it('normalizes nullable placeholders for optional properties', () => {
+        expect(
+            dataAppVizGenerationSchema.safeParse({
+                ...validFields,
+                configOptions: [
+                    {
+                        name: 'barWidth',
+                        label: 'Bar width',
+                        group: null,
+                        type: 'number',
+                        default: 24,
+                        min: null,
+                        max: null,
+                    },
+                ],
+                colorPalette: { group: null },
+            }),
+        ).toEqual({
+            success: true,
+            data: {
+                ...validFields,
+                configOptions: [
+                    {
+                        name: 'barWidth',
+                        label: 'Bar width',
+                        type: 'number',
+                        default: 24,
+                    },
+                ],
+                colorPalette: {},
+            },
+        });
+    });
+});
+
+describe('dataAppVizJsonSchema', () => {
+    // What the generator CLI receives via --json-schema.
+    const jsonSchema = dataAppVizJsonSchema as {
+        $schema?: string;
+        required?: string[];
+        properties?: Record<string, { description?: string }>;
+    };
+
+    it('uses the JSON Schema draft supported by both generator CLIs', () => {
+        expect(jsonSchema.$schema).toBe(
+            'http://json-schema.org/draft-07/schema#',
+        );
+    });
+
+    it('makes fields, configOptions and colorPalette required', () => {
+        expect(jsonSchema.required).toEqual(
+            expect.arrayContaining(['fields', 'configOptions', 'colorPalette']),
+        );
+    });
+
+    it('describes what each top-level property is for', () => {
+        expect(jsonSchema.properties?.fields.description).toBeTruthy();
+        expect(jsonSchema.properties?.configOptions.description).toBeTruthy();
+        expect(jsonSchema.properties?.colorPalette.description).toBeTruthy();
+    });
+
+    it('uses strict object schemas compatible with Codex structured output', () => {
+        const findMissingRequiredProperties = (
+            value: unknown,
+            path = '$',
+        ): string[] => {
+            if (value === null || typeof value !== 'object') {
+                return [];
+            }
+
+            const schema = value as Record<string, unknown>;
+            const missing: string[] = [];
+            if (
+                schema.properties !== null &&
+                typeof schema.properties === 'object'
+            ) {
+                const propertyNames = Object.keys(schema.properties);
+                const required = Array.isArray(schema.required)
+                    ? schema.required
+                    : [];
+                const missingAtPath = propertyNames.filter(
+                    (property) => !required.includes(property),
+                );
+                if (missingAtPath.length > 0) {
+                    missing.push(`${path}: ${missingAtPath.join(', ')}`);
+                }
+            }
+
+            return Object.entries(schema).reduce<string[]>(
+                (errors, [key, child]) => [
+                    ...errors,
+                    ...findMissingRequiredProperties(child, `${path}.${key}`),
+                ],
+                missing,
+            );
+        };
+
+        expect(findMissingRequiredProperties(jsonSchema)).toEqual([]);
+    });
+
+    it('does not use local JSON Schema references', () => {
+        const findReferences = (value: unknown): string[] => {
+            if (value === null || typeof value !== 'object') {
+                return [];
+            }
+
+            const schema = value as Record<string, unknown>;
+            return [
+                ...(typeof schema.$ref === 'string' ? [schema.$ref] : []),
+                ...Object.values(schema).flatMap(findReferences),
+            ];
+        };
+
+        expect(findReferences(jsonSchema)).toEqual([]);
+    });
+});
+
+describe('pruneDataAppVizOptionValues', () => {
+    const options: DataAppVizConfigOption[] = [
+        { type: 'boolean', name: 'showLegend', label: 'Legend', default: true },
+        {
+            type: 'select',
+            name: 'mode',
+            label: 'Mode',
+            choices: [{ value: 'stacked', label: 'Stacked' }],
+            default: 'stacked',
+        },
+        { type: 'number', name: 'limit', label: 'Limit', default: 10 },
+    ];
+
+    it('keeps stored values that still fit and drops the rest', () => {
+        expect(
+            pruneDataAppVizOptionValues(options, {
+                showLegend: false,
+                mode: 'grouped',
+                limit: 'ten',
+                gone: true,
+            }),
+        ).toEqual({ showLegend: false });
+    });
+
+    it('never seeds defaults', () => {
+        expect(pruneDataAppVizOptionValues(options, {})).toEqual({});
     });
 });

@@ -4,17 +4,17 @@ import {
     Code,
     Group,
     Loader,
-    NumberInput,
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import {
     usePreviewExpirationSettings,
     useUpdatePreviewExpirationSettings,
 } from '../../hooks/useProjectPreviewExpirationSettings';
+import { NumberInput } from '../common/NumberInput';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 
 const formatHoursAsDays = (hours: number) => {
@@ -92,7 +92,7 @@ const ProjectPreviewExpirationForm: FC<FormProps> = ({
                     rightSectionWidth={90}
                     rightSection={
                         typeof form.values.defaultHours === 'number' ? (
-                            <Text c="ldGray.6" fz="xs">
+                            <Text c="dimmed" fz="xs">
                                 {formatHoursAsDays(form.values.defaultHours)}
                             </Text>
                         ) : null
@@ -108,7 +108,7 @@ const ProjectPreviewExpirationForm: FC<FormProps> = ({
                     rightSectionWidth={90}
                     rightSection={
                         typeof form.values.maxHours === 'number' ? (
-                            <Text c="ldGray.6" fz="xs">
+                            <Text c="dimmed" fz="xs">
                                 {formatHoursAsDays(form.values.maxHours)}
                             </Text>
                         ) : null
@@ -138,8 +138,8 @@ const ProjectPreviewExpiration: FC<Props> = ({ projectUuid }) => {
     return (
         <SettingsGridCard>
             <Box>
-                <Title order={4}>Preview projects</Title>
-                <Text c="ldGray.6" fz="xs">
+                <Title order={5}>Preview projects</Title>
+                <Text c="dimmed" fz="xs">
                     Control how long preview projects created from this project
                     stick around before they're auto-deleted. Users can override
                     the duration with <Code>--expires-in</Code>, but values

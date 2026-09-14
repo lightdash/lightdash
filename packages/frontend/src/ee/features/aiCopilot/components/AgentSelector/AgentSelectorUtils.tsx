@@ -1,5 +1,5 @@
 import { type AiAgent } from '@lightdash/common';
-import { Badge, Group, Text, type ComboboxItem } from '@mantine-8/core';
+import { Badge, Group, Text, type ComboboxItem } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -36,11 +36,7 @@ export const renderSelectOption = ({
             {option.label}
         </Text>
 
-        {option.adminOnly && (
-            <Badge size="xs" color="gray" variant="light" radius="sm">
-                Admins only
-            </Badge>
-        )}
+        {option.adminOnly && <Badge size="xs">Admins only</Badge>}
 
         {checked && <MantineIcon icon={IconCheck} size="sm" color="violet" />}
     </Group>

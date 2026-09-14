@@ -8,7 +8,11 @@ import {
     CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
+    FeatureFlags,
     ForbiddenError,
+    getAllScopesForRole,
+    getTrainingProjectScopes,
+    getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
     getUserAvatarUrl,
     InvalidUser,
@@ -23,6 +27,7 @@ import {
     OpenIdUser,
     OrganizationMemberRole,
     ParameterError,
+    PasswordLoginBlockedError,
     PersonalAccessToken,
     ProjectAbilityProfile,
     projectMemberAbilities,
@@ -31,6 +36,7 @@ import {
     ProjectType,
     Role,
     RoleWithScopes,
+    ServiceAccount,
     ServiceAccountScope,
     SessionUser,
     UpdateUserArgs,
@@ -46,19 +52,26 @@ import {
     EmailTableName,
 } from '../database/entities/emails';
 import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
+import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
 import {
+    DbPasswordLogin,
     DbPasswordLoginIn,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
+import { ProjectGroupAccessCustomRolesTableName } from '../database/entities/projectGroupAccessCustomRoles';
+import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { ProjectTableName } from '../database/entities/projects';
-import { ScopedRolesTableName } from '../database/entities/roles';
+import {
+    RolesTableName,
+    ScopedRolesTableName,
+} from '../database/entities/roles';
 import {
     DbUser,
     DbUserIn,
@@ -66,7 +79,7 @@ import {
     UserTableName,
 } from '../database/entities/users';
 import Logger from '../logging/logger';
-import { deprecatedHash, hash } from '../utils/hash';
+import { deprecatedHash, hashWithSecret } from '../utils/hash';
 import {
     CachedPatSessionUser,
     PatSessionCache,
@@ -74,6 +87,9 @@ import {
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import Transaction = Knex.Transaction;
+
+const DUMMY_PASSWORD_HASH =
+    '$2b$10$a.FcCmXh5HpTV62l7zh1b.yhpfcv/L5F/.8u2DMzar5eH1Qtrltvy';
 
 export type CreatePasswordlessUserArgs = {
     firstName: string;
@@ -222,7 +238,7 @@ export class UserModel {
         const cacheKey = `${userUuid}::${organizationUuid}`;
         // Try to get from cache first
         const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
-        if (cachedUser) {
+        if (cachedUser?.isSetupComplete) {
             // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
         }
@@ -232,7 +248,9 @@ export class UserModel {
             organizationUuid,
         );
         // Store in cache
-        sessionUserCache?.set(cacheKey, sessionUser);
+        if (sessionUser.isSetupComplete) {
+            sessionUserCache?.set(cacheKey, sessionUser);
+        }
         return { sessionUser, cacheHit: false };
     }
 
@@ -294,17 +312,17 @@ export class UserModel {
         trx: Transaction,
         createUser: (Omit<CreateUserWithRole, 'role'> | OpenIdUser) & {
             isActive: boolean;
+            isSetupComplete: boolean;
             isVerified?: boolean;
         },
     ) {
-        const canSkipSetupForAnalytics = !this.lightdashConfig.rudder.writeKey;
         const userIn: DbUserIn = isOpenIdUser(createUser)
             ? {
                   first_name: createUser.openId.firstName || '',
                   last_name: createUser.openId.lastName || '',
                   is_marketing_opted_in: false,
                   is_tracking_anonymized: this.canTrackingBeAnonymized(),
-                  is_setup_complete: canSkipSetupForAnalytics,
+                  is_setup_complete: createUser.isSetupComplete,
                   is_active: createUser.isActive,
               }
             : {
@@ -312,7 +330,7 @@ export class UserModel {
                   last_name: createUser.lastName.trim(),
                   is_marketing_opted_in: false,
                   is_tracking_anonymized: this.canTrackingBeAnonymized(),
-                  is_setup_complete: canSkipSetupForAnalytics,
+                  is_setup_complete: createUser.isSetupComplete,
                   is_active: createUser.isActive,
               };
         const [newUser] = await trx<DbUser>('users')
@@ -381,7 +399,9 @@ export class UserModel {
                 'organizations.organization_uuid',
                 'organizations.created_at',
                 'organizations.organization_name',
-            );
+            )
+            .orderBy('organizations.created_at', 'asc')
+            .orderBy('organizations.organization_id', 'asc');
 
         return organizations.map((organization) => ({
             organizationUuid: organization.organization_uuid,
@@ -393,6 +413,23 @@ export class UserModel {
     async hasUsers(): Promise<boolean> {
         const results = await userDetailsQueryBuilder(this.database);
         return results.length > 0;
+    }
+
+    async getIsTrackingAnonymizedByUserUuids(
+        userUuids: string[],
+    ): Promise<Record<string, boolean>> {
+        if (userUuids.length === 0) {
+            return {};
+        }
+        const users = await this.database(UserTableName)
+            .whereIn('user_uuid', userUuids)
+            .select<Pick<DbUser, 'user_uuid' | 'is_tracking_anonymized'>[]>(
+                'user_uuid',
+                'is_tracking_anonymized',
+            );
+        return Object.fromEntries(
+            users.map((user) => [user.user_uuid, user.is_tracking_anonymized]),
+        );
     }
 
     async getUserDetailsByUuid(userUuid: string): Promise<LightdashUser> {
@@ -426,42 +463,109 @@ export class UserModel {
         email: string,
         password: string,
     ): Promise<LightdashUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .leftJoin(
-                'password_logins',
-                'users.user_id',
-                'password_logins.user_id',
-            )
-            .where('email', email)
-            // Defence-in-depth: internal user records (service accounts,
-            // future: persisted embed/AI principals) have no email row, so
-            // this is already empty for them — the explicit guard documents
-            // intent and survives any join refactor.
-            .andWhere(`${UserTableName}.is_internal`, false)
-            .select<(DbUserDetails & { password_hash: string })[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
+        const result = await this.database.transaction(async (trx) => {
+            const passwordLogin = await trx(PasswordLoginTableName)
+                .innerJoin(
+                    'emails',
+                    `${PasswordLoginTableName}.user_id`,
+                    'emails.user_id',
+                )
+                .innerJoin(
+                    UserTableName,
+                    `${PasswordLoginTableName}.user_id`,
+                    `${UserTableName}.user_id`,
+                )
+                .where('emails.email', email)
+                .andWhere('emails.is_primary', true)
+                .andWhere(`${UserTableName}.is_internal`, false)
+                .forUpdate(`${PasswordLoginTableName}`)
+                .first<DbPasswordLogin>(`${PasswordLoginTableName}.*`);
+
+            if (passwordLogin === undefined) {
+                await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
+                throw new NotFoundError(
+                    `No user found with email ${email} and password`,
+                );
+            }
+
+            const now = new Date();
+            if (
+                passwordLogin.blocked_until !== null &&
+                passwordLogin.blocked_until > now
+            ) {
+                throw new PasswordLoginBlockedError(
+                    passwordLogin.blocked_until,
+                );
+            }
+
+            const match = await bcrypt.compare(
+                password,
+                passwordLogin.password_hash,
             );
-        if (user === undefined) {
-            throw new NotFoundError(
-                `No user found with email ${email} and password`,
-            );
+            if (!match) {
+                const attemptWindowStartedAt = new Date(
+                    now.getTime() - 5 * 60 * 1000,
+                );
+                const failedAttemptCount =
+                    passwordLogin.last_attempt_at >= attemptWindowStartedAt
+                        ? passwordLogin.failed_attempt_count + 1
+                        : 1;
+                const blockedUntil =
+                    failedAttemptCount >= 5
+                        ? new Date(now.getTime() + 30 * 60 * 1000)
+                        : null;
+
+                await trx(PasswordLoginTableName)
+                    .where('user_id', passwordLogin.user_id)
+                    .update({
+                        failed_attempt_count: failedAttemptCount,
+                        last_attempt_at: now,
+                        blocked_until: blockedUntil,
+                    });
+
+                if (blockedUntil !== null) {
+                    return {
+                        user: null,
+                        error: new PasswordLoginBlockedError(blockedUntil),
+                    };
+                }
+                return {
+                    user: null,
+                    error: new NotFoundError(
+                        `No user found with email ${email} and password`,
+                    ),
+                };
+            }
+
+            await trx(PasswordLoginTableName)
+                .where('user_id', passwordLogin.user_id)
+                .update({
+                    failed_attempt_count: 0,
+                    last_attempt_at: now,
+                    blocked_until: null,
+                });
+
+            const [user] = await userDetailsQueryBuilder(trx)
+                .where(`${UserTableName}.user_id`, passwordLogin.user_id)
+                .select(
+                    '*',
+                    'organizations.created_at as organization_created_at',
+                );
+            if (user === undefined) {
+                throw new NotFoundError(`Cannot find user with email ${email}`);
+            }
+            return {
+                user: mapDbUserDetailsToLightdashUser(
+                    user,
+                    await this.hasAuthentication(user.user_uuid, trx),
+                ),
+                error: null,
+            };
+        });
+        if (result.error !== null) {
+            throw result.error;
         }
-        if (!user.password_hash) {
-            throw new NotFoundError(
-                `No User found with email ${email} and password`,
-            );
-        }
-        const match = await bcrypt.compare(password, user.password_hash);
-        if (!match) {
-            throw new NotFoundError(
-                `No User found with email ${email} and password`,
-            );
-        }
-        return mapDbUserDetailsToLightdashUser(
-            user,
-            await this.hasAuthentication(user.user_uuid),
-        );
+        return result.user;
     }
 
     async hasPassword(userUuid: string): Promise<boolean> {
@@ -529,6 +633,7 @@ export class UserModel {
             isActive,
             timezone,
             avatarGradient,
+            howDidYouHearAboutUs,
         }: Partial<UpdateUserArgs>,
         isEmailVerified: boolean = false,
     ): Promise<LightdashUser> {
@@ -546,6 +651,7 @@ export class UserModel {
                         : false,
                     timezone,
                     avatar_gradient: avatarGradient,
+                    how_did_you_hear_about_us: howDidYouHearAboutUs,
                     updated_at: new Date(),
                 })
                 .returning('*');
@@ -597,6 +703,7 @@ export class UserModel {
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<ProjectAbilityProfile[]> {
         type Row = {
+            project_id: number;
             project_uuid: string;
             role: ProjectMemberRole | null;
             role_uuid: string | null;
@@ -611,6 +718,7 @@ export class UserModel {
             )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
             .select<Row[]>([
+                `${ProjectTableName}.project_id`,
                 `${ProjectTableName}.project_uuid`,
                 'project_memberships.role',
                 'project_memberships.role_uuid',
@@ -619,6 +727,12 @@ export class UserModel {
             ])
             .where('users.user_uuid', userUuid);
 
+        const extraRoleUuidsByProjectId = await this.getProjectExtraRoleUuids(
+            projectMemberships.map((m) => m.project_id),
+            userUuid,
+            trx,
+        );
+
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
             role: membership.role || ProjectMemberRole.VIEWER,
@@ -626,7 +740,61 @@ export class UserModel {
             roleUuid: membership.role_uuid || undefined,
             projectType: membership.project_type,
             projectCreatedByUserUuid: membership.created_by_user_uuid,
+            extraRoleUuids:
+                extraRoleUuidsByProjectId.get(membership.project_id) ?? [],
         }));
+    }
+
+    /** Extra custom roles per project for one user's direct memberships. */
+    private async getProjectExtraRoleUuids(
+        projectIds: number[],
+        userUuid: string,
+        trx: Knex = this.database,
+    ): Promise<Map<number, string[]>> {
+        if (projectIds.length === 0) {
+            return new Map();
+        }
+        const rows = await trx(ProjectMembershipCustomRolesTableName)
+            .join(
+                'users',
+                `${ProjectMembershipCustomRolesTableName}.user_id`,
+                'users.user_id',
+            )
+            .where('users.user_uuid', userUuid)
+            .whereIn(
+                `${ProjectMembershipCustomRolesTableName}.project_id`,
+                projectIds,
+            )
+            .select<{ project_id: number; role_uuid: string }[]>(
+                `${ProjectMembershipCustomRolesTableName}.project_id`,
+                `${ProjectMembershipCustomRolesTableName}.role_uuid`,
+            )
+            .orderBy([
+                {
+                    column: `${ProjectMembershipCustomRolesTableName}.created_at`,
+                },
+                {
+                    column: `${ProjectMembershipCustomRolesTableName}.role_uuid`,
+                },
+            ]);
+        return rows.reduce<Map<number, string[]>>((acc, row) => {
+            acc.set(row.project_id, [
+                ...(acc.get(row.project_id) ?? []),
+                row.role_uuid,
+            ]);
+            return acc;
+        }, new Map());
+    }
+
+    private async getOrganizationExtraRoleUuids(
+        userId: number,
+        organizationId: number,
+        trx: Knex = this.database,
+    ): Promise<string[]> {
+        return trx(OrganizationMembershipCustomRolesTableName)
+            .where({ organization_id: organizationId, user_id: userId })
+            .orderBy([{ column: 'created_at' }, { column: 'role_uuid' }])
+            .pluck('role_uuid');
     }
 
     private async getUserGroupProjectRoles(
@@ -651,12 +819,44 @@ export class UserModel {
             .andWhere('group_memberships.user_id', userId)
             .select(
                 'projects.project_uuid',
+                'project_group_access.group_uuid',
                 'project_group_access.role',
                 'project_group_access.role_uuid',
                 'projects.project_type',
                 'projects.created_by_user_uuid',
             );
         const projectMemberships = await query;
+        const extraRows: {
+            project_uuid: string;
+            group_uuid: string;
+            role_uuid: string;
+        }[] =
+            projectMemberships.length === 0
+                ? []
+                : await trx(ProjectGroupAccessCustomRolesTableName)
+                      .innerJoin(
+                          'group_memberships',
+                          'group_memberships.group_uuid',
+                          `${ProjectGroupAccessCustomRolesTableName}.group_uuid`,
+                      )
+                      .where(
+                          'group_memberships.organization_id',
+                          organizationId,
+                      )
+                      .andWhere('group_memberships.user_id', userId)
+                      .select(
+                          `${ProjectGroupAccessCustomRolesTableName}.project_uuid`,
+                          `${ProjectGroupAccessCustomRolesTableName}.group_uuid`,
+                          `${ProjectGroupAccessCustomRolesTableName}.role_uuid`,
+                      );
+        const extrasByAccess = extraRows.reduce<Map<string, string[]>>(
+            (acc, row) => {
+                const key = `${row.project_uuid}:${row.group_uuid}`;
+                acc.set(key, [...(acc.get(key) ?? []), row.role_uuid]);
+                return acc;
+            },
+            new Map(),
+        );
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
             role: membership.role,
@@ -664,6 +864,10 @@ export class UserModel {
             roleUuid: membership.role_uuid || undefined,
             projectType: membership.project_type,
             projectCreatedByUserUuid: membership.created_by_user_uuid,
+            extraRoleUuids:
+                extrasByAccess.get(
+                    `${membership.project_uuid}:${membership.group_uuid}`,
+                ) ?? [],
         }));
     }
 
@@ -694,6 +898,90 @@ export class UserModel {
         return scopesRecord;
     }
 
+    /**
+     * Every scope the user holds anywhere: their organization role, the
+     * custom roles held at organization level, and every project role they
+     * hold directly or through a group, with the scopes of any custom role
+     * among them. Learn asks for this to show a learner the features they
+     * can actually practise, which follows their real access rather than one
+     * role's rank.
+     */
+    async getScopesHeldAnywhere(
+        userUuid: string,
+        { includeCustomRoles = true }: { includeCustomRoles?: boolean } = {},
+    ): Promise<string[]> {
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .where('user_uuid', userUuid)
+            .select('*', 'organizations.created_at as organization_created_at');
+        if (user === undefined) {
+            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
+        }
+
+        const [projectRoles, groupProjectRoles, orgExtraRoleUuids] =
+            await Promise.all([
+                this.getUserProjectRoles(user.user_uuid),
+                this.getUserGroupProjectRoles(
+                    user.user_id,
+                    user.organization_id,
+                    user.user_uuid,
+                ),
+                this.getOrganizationExtraRoleUuids(
+                    user.user_id,
+                    user.organization_id,
+                ),
+            ]);
+
+        const roleUuids = [
+            user.role_uuid,
+            ...orgExtraRoleUuids,
+            ...[...projectRoles, ...groupProjectRoles].flatMap((role) => [
+                role.roleUuid,
+                ...(role.extraRoleUuids ?? []),
+            ]),
+        ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
+        const customScopes = includeCustomRoles
+            ? await this.customRoleScopes(roleUuids)
+            : {};
+
+        // An organization role and a project role are named alike, so the
+        // system role's scope set is the same mapping either way; a `member`
+        // holds nothing on its own.
+        const systemRoles = [
+            user.role,
+            ...[...projectRoles, ...groupProjectRoles].map((role) => role.role),
+        ].filter((role): role is ProjectMemberRole =>
+            Object.values(ProjectMemberRole).includes(
+                role as ProjectMemberRole,
+            ),
+        );
+
+        return [
+            ...new Set([
+                ...systemRoles.flatMap((role) => getAllScopesForRole(role)),
+                ...roleUuids.flatMap(
+                    (roleUuid) => customScopes[roleUuid] ?? [],
+                ),
+            ]),
+        ];
+    }
+
+    /**
+     * Whether an org custom role uuid exists in `roles` (vs. missing/unknown).
+     * Scoped narrowly to the human primary-org-role empty-role check below —
+     * project roles, extra roles, and service accounts keep the legacy
+     * "no scopes entry" fallback untouched.
+     */
+    private async roleExists(
+        roleUuid: string,
+        trx: Knex = this.database,
+    ): Promise<boolean> {
+        const row = await trx(RolesTableName)
+            .select('role_uuid')
+            .where('role_uuid', roleUuid)
+            .first();
+        return row !== undefined;
+    }
+
     private async generateUserAbilityBuilder(
         user: DbUserDetails,
         trx: Knex = this.database,
@@ -701,17 +989,26 @@ export class UserModel {
         abilityBuilder: AbilityBuilder<MemberAbility>;
         lightdashUser: LightdashUser;
     }> {
-        const [hasAuthentication, projectRoles, groupProjectRoles] =
-            await Promise.all([
-                this.hasAuthentication(user.user_uuid, trx),
-                this.getUserProjectRoles(user.user_uuid, { trx }),
-                this.getUserGroupProjectRoles(
-                    user.user_id,
-                    user.organization_id,
-                    user.user_uuid,
-                    trx,
-                ),
-            ]);
+        const [
+            hasAuthentication,
+            projectRoles,
+            groupProjectRoles,
+            orgExtraRoleUuids,
+        ] = await Promise.all([
+            this.hasAuthentication(user.user_uuid, trx),
+            this.getUserProjectRoles(user.user_uuid, { trx }),
+            this.getUserGroupProjectRoles(
+                user.user_id,
+                user.organization_id,
+                user.user_uuid,
+                trx,
+            ),
+            this.getOrganizationExtraRoleUuids(
+                user.user_id,
+                user.organization_id,
+                trx,
+            ),
+        ]);
         const lightdashUser = mapDbUserDetailsToLightdashUser(
             user,
             hasAuthentication,
@@ -737,6 +1034,38 @@ export class UserModel {
             // silently neutered role-driven SAs whenever an admin toggled
             // the flag off, every CI workflow on those tokens would 403
             // overnight.
+            const applyOrgExtraRoles = async (
+                builder: AbilityBuilder<MemberAbility>,
+            ) => {
+                if (orgExtraRoleUuids.length === 0) {
+                    return;
+                }
+                const extraScopes = await this.customRoleScopes(
+                    orgExtraRoleUuids,
+                    trx,
+                );
+                orgExtraRoleUuids.forEach((roleUuid) => {
+                    const scopes = extraScopes[roleUuid];
+                    if (!scopes) {
+                        return;
+                    }
+                    buildAbilityFromScopes(
+                        {
+                            organizationUuid: user.organization_uuid as string,
+                            userUuid: user.user_uuid,
+                            scopes,
+                            isEnterprise:
+                                this.lightdashConfig.license.licenseKey !==
+                                undefined,
+                            organizationRole: user.role,
+                            permissionsConfig: {
+                                pat: this.lightdashConfig.auth.pat,
+                            },
+                        },
+                        builder,
+                    );
+                });
+            };
             if (user.role_uuid) {
                 const customRoleScopes = await this.customRoleScopes(
                     [user.role_uuid],
@@ -769,6 +1098,7 @@ export class UserModel {
                             )}`,
                         );
                     }
+                    await applyOrgExtraRoles(builder);
                     await this.applyServiceAccountProjectMemberships(
                         user.user_id,
                         user.user_uuid,
@@ -798,6 +1128,7 @@ export class UserModel {
                     userUuid: user.user_uuid,
                     builder,
                 });
+                await applyOrgExtraRoles(builder);
                 await this.applyServiceAccountProjectMemberships(
                     user.user_id,
                     user.user_uuid,
@@ -817,10 +1148,24 @@ export class UserModel {
         // runtime (getUserAbilityBuilder reads customRoleScopes[user.roleUuid]).
         const customRoleUuids = [
             lightdashUser.roleUuid,
-            ...projectRoles.map((role) => role.roleUuid),
-            ...groupProjectRoles.map((role) => role.roleUuid),
+            ...orgExtraRoleUuids,
+            ...projectRoles.flatMap((role) => [
+                role.roleUuid,
+                ...(role.extraRoleUuids ?? []),
+            ]),
+            ...groupProjectRoles.flatMap((role) => [
+                role.roleUuid,
+                ...(role.extraRoleUuids ?? []),
+            ]),
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
-        const [customRoleScopes, customRolesFlag] = await Promise.all([
+        const isEnterprise =
+            this.lightdashConfig.license.licenseKey !== undefined;
+        const [
+            customRoleScopes,
+            customRolesFlag,
+            patScopeAuthoritativeFlag,
+            learnFlag,
+        ] = await Promise.all([
             this.customRoleScopes(customRoleUuids, trx),
             this.featureFlagModel.get(
                 {
@@ -829,10 +1174,44 @@ export class UserModel {
                 },
                 { trx },
             ),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: CommercialFeatureFlags.PatScopeAuthoritative,
+                },
+                { trx },
+            ),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                },
+                { trx },
+            ),
         ]);
+
+        // Narrow empty-role resolution: only the flagged enterprise human's
+        // primary org role uuid is checked for existence when it has no
+        // scopes entry. If the role still exists (zero scoped_roles rows),
+        // seed an authoritative empty list so it does not fall back to the
+        // system role. Service accounts, project roles and extra roles keep
+        // the legacy "missing entry falls back" behavior untouched.
+        if (
+            patScopeAuthoritativeFlag.enabled &&
+            isEnterprise &&
+            lightdashUser.roleUuid &&
+            !(lightdashUser.roleUuid in customRoleScopes)
+        ) {
+            const exists = await this.roleExists(lightdashUser.roleUuid, trx);
+            if (exists) {
+                customRoleScopes[lightdashUser.roleUuid] = [];
+            }
+        }
+
         const { builder: abilityBuilder, invalidScopes } =
             getUserAbilityBuilder({
                 user: lightdashUser,
+                orgExtraRoleUuids,
                 projectProfiles: [...projectRoles, ...groupProjectRoles],
                 permissionsConfig: {
                     pat: this.lightdashConfig.auth.pat,
@@ -841,8 +1220,8 @@ export class UserModel {
                 customRolesEnabled:
                     this.lightdashConfig.customRoles.enabled ||
                     customRolesFlag.enabled,
-                isEnterprise:
-                    this.lightdashConfig.license.licenseKey !== undefined,
+                isEnterprise,
+                patScopeAuthoritative: patScopeAuthoritativeFlag.enabled,
             });
 
         if (invalidScopes.length > 0) {
@@ -855,10 +1234,122 @@ export class UserModel {
             );
         }
 
+        await this.applyTrainingProjectAbilities(
+            user.organization_id,
+            user.user_uuid,
+            isEnterprise,
+            abilityBuilder,
+            learnFlag.enabled,
+            trx,
+        );
+
         return {
             abilityBuilder,
             lightdashUser,
         };
+    }
+
+    /**
+     * The organization's training project, if one has been provisioned, plus
+     * this user's own preview copies of it (made for walkthroughs). Other
+     * users' copies are not included.
+     */
+    private async getTrainingProjects(
+        organizationId: number,
+        userUuid: string,
+        trx: Knex = this.database,
+    ): Promise<
+        {
+            projectUuid: string;
+            projectType: ProjectType;
+            createdByUserUuid: string | null;
+        }[]
+    > {
+        const training = await trx(ProjectTableName)
+            .select<{
+                project_uuid: string;
+                created_by_user_uuid: string | null;
+            }>('project_uuid', 'created_by_user_uuid')
+            .where('organization_id', organizationId)
+            .where('project_type', ProjectType.TRAINING)
+            .first();
+        if (!training) {
+            return [];
+        }
+        // Only copies the training service made: `copied_from` alone can be
+        // set through the project metadata API on a preview of a real
+        // project, which must never inherit the trainee set.
+        const copies = await trx(ProjectTableName)
+            .select<
+                { project_uuid: string; created_by_user_uuid: string | null }[]
+            >('project_uuid', 'created_by_user_uuid')
+            .where('organization_id', organizationId)
+            .where('project_type', ProjectType.PREVIEW)
+            .where('provisioning_source', 'training')
+            .where('copied_from_project_uuid', training.project_uuid)
+            .where('created_by_user_uuid', userUuid);
+        return [
+            {
+                projectUuid: training.project_uuid,
+                projectType: ProjectType.TRAINING,
+                createdByUserUuid: training.created_by_user_uuid,
+            },
+            ...copies.map((copy) => ({
+                projectUuid: copy.project_uuid,
+                projectType: ProjectType.PREVIEW,
+                createdByUserUuid: copy.created_by_user_uuid,
+            })),
+        ];
+    }
+
+    /**
+     * The trainee layer: every member of an organization, whatever their org
+     * role, gets `getTrainingProjectScopes()` on the org's training project
+     * (`projects.project_type = 'TRAINING'`) and on their own preview copies
+     * of it. No membership rows are involved,
+     * so new joiners are covered and admins grant nothing. Resolved by the
+     * user's own organization so no one gets the layer on another org's
+     * training project. Human users only; service accounts never get it.
+     */
+    private async applyTrainingProjectAbilities(
+        organizationId: number,
+        userUuid: string,
+        isEnterprise: boolean,
+        builder: AbilityBuilder<MemberAbility>,
+        learnEnabled: boolean,
+        trx: Knex = this.database,
+    ): Promise<void> {
+        // Learn off for the org: no trainee scopes, even if a training
+        // project is left over, so switching off also closes the sandbox.
+        if (!learnEnabled) return;
+        const trainingProjects = await this.getTrainingProjects(
+            organizationId,
+            userUuid,
+            trx,
+        );
+        // The shared training project is read-only for learners; their own
+        // copy is where the trainee set applies.
+        const viewerScopes = getTrainingProjectViewerScopes();
+        const traineeScopes = getTrainingProjectScopes();
+        trainingProjects.forEach((project) => {
+            buildAbilityFromScopes(
+                {
+                    projectUuid: project.projectUuid,
+                    projectType: project.projectType,
+                    projectCreatedByUserUuid: project.createdByUserUuid,
+                    userUuid,
+                    scopes:
+                        project.projectType === ProjectType.TRAINING
+                            ? viewerScopes
+                            : traineeScopes,
+                    isEnterprise,
+                    permissionsConfig: {
+                        pat: this.lightdashConfig.auth.pat,
+                    },
+                },
+                builder,
+            );
+        });
     }
 
     /**
@@ -880,6 +1371,7 @@ export class UserModel {
         trx: Knex = this.database,
     ): Promise<void> {
         type Row = {
+            project_id: number;
             project_uuid: string;
             role: ProjectMemberRole;
             role_uuid: string | null;
@@ -893,6 +1385,7 @@ export class UserModel {
                 `${ProjectTableName}.project_id`,
             )
             .select<Row[]>(
+                `${ProjectTableName}.project_id`,
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectMembershipsTableName}.role`,
                 `${ProjectMembershipsTableName}.role_uuid`,
@@ -900,13 +1393,21 @@ export class UserModel {
                 `${ProjectTableName}.created_by_user_uuid`,
             )
             .where(`${ProjectMembershipsTableName}.user_id`, userId);
+        const extraRoleUuidsByProjectId = await this.getProjectExtraRoleUuids(
+            rows.map((r) => r.project_id),
+            userUuid,
+            trx,
+        );
 
         // Bulk-load scopes for any custom-role grants. Matches the human
         // path's philosophy (UserModel.generateUserAbilityBuilder): once a
         // role is bound in the DB the runtime must respect it, regardless
         // of the customRoles.enabled feature flag (which gates UI only).
         const customRoleUuids = rows
-            .map((r) => r.role_uuid)
+            .flatMap((r) => [
+                r.role_uuid,
+                ...(extraRoleUuidsByProjectId.get(r.project_id) ?? []),
+            ])
             .filter((u): u is string => u !== null);
         const customRoleScopes =
             customRoleUuids.length > 0
@@ -917,10 +1418,7 @@ export class UserModel {
 
         const aggregatedInvalidScopes = new Set<string>();
         for (const row of rows) {
-            const scopes = row.role_uuid
-                ? customRoleScopes[row.role_uuid]
-                : undefined;
-            if (scopes) {
+            const applyScopes = (scopes: string[]) => {
                 const invalid = buildAbilityFromScopes(
                     {
                         projectUuid: row.project_uuid,
@@ -936,6 +1434,12 @@ export class UserModel {
                     builder,
                 );
                 invalid.forEach((s) => aggregatedInvalidScopes.add(s));
+            };
+            const scopes = row.role_uuid
+                ? customRoleScopes[row.role_uuid]
+                : undefined;
+            if (scopes) {
+                applyScopes(scopes);
             } else {
                 projectMemberAbilities[row.role](
                     {
@@ -946,6 +1450,15 @@ export class UserModel {
                     builder,
                 );
             }
+            // Extra custom roles are unioned on top of the slot.
+            (extraRoleUuidsByProjectId.get(row.project_id) ?? []).forEach(
+                (roleUuid) => {
+                    const extraScopes = customRoleScopes[roleUuid];
+                    if (extraScopes) {
+                        applyScopes(extraScopes);
+                    }
+                },
+            );
         }
         if (aggregatedInvalidScopes.size > 0) {
             Logger.warn(
@@ -960,12 +1473,14 @@ export class UserModel {
         userUuid: string,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<
-        | {
-              uuid: string;
-              description: string;
-              scopes: ServiceAccountScope[];
-              organizationUuid: string;
-          }
+        | Pick<
+              ServiceAccount,
+              | 'uuid'
+              | 'description'
+              | 'scopes'
+              | 'organizationUuid'
+              | 'expiresAt'
+          >
         | undefined
     > {
         const row = await trx('service_accounts')
@@ -976,12 +1491,14 @@ export class UserModel {
                     description: string;
                     scopes: string[];
                     organization_uuid: string;
+                    expires_at: Date | null;
                 }[]
             >(
                 'service_account_uuid',
                 'description',
                 'scopes',
                 'organization_uuid',
+                'expires_at',
             )
             .first();
         if (!row) {
@@ -992,6 +1509,7 @@ export class UserModel {
             description: row.description,
             scopes: row.scopes as ServiceAccountScope[],
             organizationUuid: row.organization_uuid,
+            expiresAt: row.expires_at,
         };
     }
 
@@ -1028,6 +1546,7 @@ export class UserModel {
         organizationUuid: string,
         createUser: CreateUserWithRole,
         isActive: boolean = true,
+        isSetupComplete?: boolean,
     ): Promise<LightdashUser> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
@@ -1050,10 +1569,14 @@ export class UserModel {
             throw new ParameterError("Password doesn't meet requirements");
         }
 
+        // Default preserves the legacy analytics-consent skip.
+        const setupComplete =
+            isSetupComplete ?? !this.lightdashConfig.rudder.writeKey;
         const user = await this.database.transaction(async (trx) => {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
                 isActive,
+                isSetupComplete: setupComplete,
             });
             await trx(OrganizationMembershipsTableName).insert({
                 organization_id: org.organization_id,
@@ -1134,7 +1657,10 @@ export class UserModel {
     async createUser(
         createUser: CreateLocalUserArgs | OpenIdUser,
         isActive: boolean = true,
+        isSetupComplete?: boolean,
     ): Promise<LightdashUser> {
+        const setupComplete =
+            isSetupComplete ?? !this.lightdashConfig.rudder.writeKey;
         const user = await this.database.transaction(async (trx) => {
             if (
                 !isOpenIdUser(createUser) &&
@@ -1159,6 +1685,7 @@ export class UserModel {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
                 isActive,
+                isSetupComplete: setupComplete,
             });
             return newUser;
         });
@@ -1174,6 +1701,8 @@ export class UserModel {
     async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
+            .orderBy('organizations.created_at', 'asc')
+            .orderBy('organizations.organization_id', 'asc')
             .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
@@ -1248,6 +1777,8 @@ export class UserModel {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
             .andWhere(`${UserTableName}.is_internal`, false)
+            .orderBy('organizations.created_at', 'asc')
+            .orderBy('organizations.organization_id', 'asc')
             .select('*', 'organizations.created_at as organization_created_at');
         return user
             ? mapDbUserDetailsToLightdashUser(
@@ -1292,19 +1823,52 @@ export class UserModel {
         if (cached) {
             return { data: cached, cacheHit: true };
         }
-        const tokenHash = await hash(token);
-        const [row] = await userDetailsQueryBuilder(this.database)
-            .innerJoin(
-                'personal_access_tokens',
-                'personal_access_tokens.created_by_user_id',
-                'users.user_id',
-            )
-            .where('token_hash', tokenHash)
-            .orWhere('token_hash', deprecatedHash(token)) // Adding old sha256 hash for backwards compatibility
-            .select<(DbUserDetails & DbPersonalAccessToken)[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+        const findRowByTokenHashes = (tokenHashes: string[]) =>
+            userDetailsQueryBuilder(this.database)
+                .innerJoin(
+                    'personal_access_tokens',
+                    'personal_access_tokens.created_by_user_id',
+                    'users.user_id',
+                )
+                .whereIn('personal_access_tokens.token_hash', tokenHashes)
+                .select<(DbUserDetails & DbPersonalAccessToken)[]>(
+                    '*',
+                    'organizations.created_at as organization_created_at',
+                );
+        // Active bcrypt and legacy sha256 hashes cover every non-rotation
+        // deployment with a single bcrypt operation; fallback bcrypt hashes
+        // are only derived after a miss — concurrently (config caps fallbacks
+        // at three) — and matched with one grouped query that prefers the
+        // earliest configured fallback.
+        const activeTokenHash = await hashWithSecret(
+            token,
+            this.lightdashConfig.lightdashSecrets.active,
+        );
+        const activeRows = await findRowByTokenHashes([
+            activeTokenHash,
+            deprecatedHash(token),
+        ]);
+        let row: (typeof activeRows)[number] | undefined = activeRows[0];
+        if (row === undefined) {
+            const { fallbacks } = this.lightdashConfig.lightdashSecrets;
+            if (fallbacks.length > 0) {
+                const fallbackTokenHashes = await Promise.all(
+                    fallbacks.map((fallbackSecret) =>
+                        hashWithSecret(token, fallbackSecret),
+                    ),
+                );
+                const fallbackRows =
+                    await findRowByTokenHashes(fallbackTokenHashes);
+                row = fallbackTokenHashes
+                    .map((fallbackTokenHash) =>
+                        fallbackRows.find(
+                            (fallbackRow) =>
+                                fallbackRow.token_hash === fallbackTokenHash,
+                        ),
+                    )
+                    .find((match) => match !== undefined);
+            }
+        }
         if (row === undefined) {
             return undefined;
         }

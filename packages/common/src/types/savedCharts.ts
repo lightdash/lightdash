@@ -1,11 +1,14 @@
+import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
+import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type SavedMergeQuery } from './mergeQuery';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
@@ -411,6 +414,8 @@ export type ColumnProperties = {
     displayStyle?: 'text' | 'bar';
     /** Color for bar display style (hex code) */
     color?: string;
+    /** Color for negative bars in diverging bar display (hex code). Falls back to `color` when unset. */
+    negativeColor?: string;
     width?: number;
 };
 
@@ -707,6 +712,8 @@ export type XAxis = Axis & {
     dataZoomAnchor?: 'start' | 'end';
     /** Number of items visible at once in the data-zoom window */
     dataZoomItemCount?: number;
+    /** Render a numeric X axis as discrete categories instead of a continuous scale */
+    treatAsCategory?: boolean;
 };
 
 export enum XAxisSortType {
@@ -783,10 +790,29 @@ export type CustomVis = {
 /** Maps a data app viz's field name → the host query field id bound to it. */
 export type DataAppVizFieldMapping = Record<string, string>;
 
+/** Maps a declared config option's name → the value the user chose for it. */
+export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
+
 export type DataAppVizChart = {
-    /** The reusable data app viz this chart renders with (by reference). */
+    /**
+     * The reusable data app viz this chart renders with (by reference).
+     * Content-as-code files carry the viz's project-scoped slug instead —
+     * see DataAppVizChartAsCode.
+     */
     dataAppVizUuid: string;
+    /**
+     * The version of the project chart type this saved chart renders.
+     * @isInt
+     * @minimum 1
+     */
+    dataAppVizVersion?: number;
     fieldMapping: DataAppVizFieldMapping;
+    /**
+     * Only options the user explicitly changed — declared defaults are never
+     * seeded here, they're resolved at render time. Absent on charts saved
+     * before config options shipped.
+     */
+    optionValues?: DataAppVizOptionValues;
 };
 
 export type CartesianChart = {
@@ -916,7 +942,14 @@ export type SavedChart = {
     pivotConfig?: {
         /** Fields to use as pivot columns */
         columns: string[];
+        /** Ordered fields to render on the pivot row axis */
+        rows?: string[];
     };
+    /**
+     * Second query this chart's query is merged with, when it has one. Absent
+     * on the overwhelming majority of charts.
+     */
+    merge?: SavedMergeQuery | null;
     /** Visualization configuration for the chart */
     chartConfig: ChartConfig;
     /** Table view configuration */
@@ -936,6 +969,7 @@ export type SavedChart = {
     pinnedListOrder: number | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    dashboardSlug?: string | null;
     /**
      * @deprecated Use `resolvedColorPalette.colors` instead. This field carries
      * only the resolved colors and will be removed once renderers migrate to
@@ -960,6 +994,19 @@ export type SavedChart = {
     /** Unique identifier slug for this chart */
     slug: string;
     verification: ContentVerificationInfo | null;
+    /** The caller's unpublished content-as-code draft is applied. */
+    hasUnpublishedChanges?: boolean;
+    /** Open drafts from other authors visible to content-as-code reviewers. */
+    draftsAwaitingReview?: number;
+    /** The caller's latest dismissed draft, available to reopen. */
+    dismissedDraftUuid?: string;
+    /** The caller's draft started from an upload snapshot the repo has since moved past. */
+    draftStaleness?: ContentDraftStaleness;
+    /** The caller's draft could not be safely applied. */
+    draftOverlayError?: {
+        code: 'invalid_chart_draft';
+        draftUuid: string;
+    };
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;
@@ -978,16 +1025,20 @@ type CreateChartBase = Pick<
     | 'chartConfig'
     | 'tableConfig'
     | 'parameters'
+    | 'merge'
 >;
 
+// colorPaletteUuid is on each member to avoid an allOf in the OpenAPI schema.
 export type CreateChartInSpace = CreateChartBase & {
     spaceUuid?: string;
     dashboardUuid?: null;
+    colorPaletteUuid?: string | null;
 };
 
 export type CreateChartInDashboard = CreateChartBase & {
     dashboardUuid: string;
     spaceUuid?: null;
+    colorPaletteUuid?: string | null;
 };
 
 export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
@@ -1093,6 +1144,13 @@ export const getConditionalFormattingsFromChartConfig = (
 ): ConditionalFormattingConfig[] | undefined =>
     config && isTableChartConfig(config)
         ? config.conditionalFormattings
+        : undefined;
+
+export const getShowColumnTotalsFromChartConfig = (
+    config: ChartConfig['config'] | undefined,
+): boolean | undefined =>
+    config && isTableChartConfig(config)
+        ? config.showColumnCalculation
         : undefined;
 
 export const hashFieldReference = (reference: PivotReference) =>
@@ -1313,6 +1371,7 @@ export type ChartSummary = Pick<
     | 'pinnedListUuid'
     | 'dashboardUuid'
     | 'dashboardName'
+    | 'dashboardSlug'
     | 'slug'
 > & {
     chartType?: ChartType | undefined;

@@ -18,6 +18,9 @@ const selectLineChartConfigState = (
 const selectPieChartConfigState = (
     state: RootState,
 ): RootState['pieChartConfig'] => state.pieChartConfig;
+const selectBigNumberConfigState = (
+    state: RootState,
+): RootState['bigNumberConfig'] => state.bigNumberConfig;
 const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
@@ -28,6 +31,7 @@ const selectChartMetadataByKind = createSelector(
         selectBarChartConfigState,
         selectLineChartConfigState,
         selectPieChartConfigState,
+        selectBigNumberConfigState,
         selectTableVisConfigState,
     ],
     (
@@ -35,6 +39,7 @@ const selectChartMetadataByKind = createSelector(
         barChartConfigState,
         lineChartConfigState,
         pieChartConfigState,
+        bigNumberConfigState,
         tableVisConfigState,
     ) => {
         switch (chartKind) {
@@ -44,6 +49,8 @@ const selectChartMetadataByKind = createSelector(
                 return lineChartConfigState.metadata;
             case ChartKind.PIE:
                 return pieChartConfigState.metadata;
+            case ChartKind.BIG_NUMBER:
+                return bigNumberConfigState.metadata;
             case ChartKind.TABLE:
                 return tableVisConfigState.metadata;
             default:
@@ -58,6 +65,7 @@ export const selectChartFieldConfigByKind = createSelector(
         selectBarChartConfigState,
         selectLineChartConfigState,
         selectPieChartConfigState,
+        selectBigNumberConfigState,
         selectTableVisConfigState,
     ],
     (
@@ -65,6 +73,7 @@ export const selectChartFieldConfigByKind = createSelector(
         barChartConfigState,
         lineChartConfigState,
         pieChartConfigState,
+        bigNumberConfigState,
         tableVisConfigState,
     ) => {
         switch (chartKind) {
@@ -74,6 +83,8 @@ export const selectChartFieldConfigByKind = createSelector(
                 return lineChartConfigState.fieldConfig;
             case ChartKind.PIE:
                 return pieChartConfigState.fieldConfig;
+            case ChartKind.BIG_NUMBER:
+                return bigNumberConfigState.fieldConfig;
             case ChartKind.TABLE:
                 return tableVisConfigState.columns;
             default:
@@ -88,6 +99,7 @@ export const selectChartDisplayByKind = createSelector(
         selectBarChartConfigState,
         selectLineChartConfigState,
         selectPieChartConfigState,
+        selectBigNumberConfigState,
         selectTableVisConfigState,
     ],
     (
@@ -95,6 +107,7 @@ export const selectChartDisplayByKind = createSelector(
         barChartConfigState,
         lineChartConfigState,
         pieChartConfigState,
+        bigNumberConfigState,
         tableVisConfigState,
     ) => {
         switch (chartKind) {
@@ -104,6 +117,8 @@ export const selectChartDisplayByKind = createSelector(
                 return lineChartConfigState.display;
             case ChartKind.PIE:
                 return pieChartConfigState.display;
+            case ChartKind.BIG_NUMBER:
+                return bigNumberConfigState.display;
             case ChartKind.TABLE:
                 return tableVisConfigState.display;
             default:
@@ -169,8 +184,15 @@ export const selectPivotChartDataByKind = createSelector(
         selectBarChartConfigState,
         selectLineChartConfigState,
         selectPieChartConfigState,
+        selectBigNumberConfigState,
     ],
-    (chartKind, barChartConfig, lineChartConfig, pieChartConfig) => {
+    (
+        chartKind,
+        barChartConfig,
+        lineChartConfig,
+        pieChartConfig,
+        bigNumberConfig,
+    ) => {
         switch (chartKind) {
             case ChartKind.VERTICAL_BAR:
                 return {
@@ -189,6 +211,12 @@ export const selectPivotChartDataByKind = createSelector(
                     data: pieChartConfig.chartData,
                     loading: pieChartConfig.chartDataLoading,
                     error: pieChartConfig.chartDataError,
+                };
+            case ChartKind.BIG_NUMBER:
+                return {
+                    data: bigNumberConfig.chartData,
+                    loading: bigNumberConfig.chartDataLoading,
+                    error: bigNumberConfig.chartDataError,
                 };
             default:
                 return undefined;

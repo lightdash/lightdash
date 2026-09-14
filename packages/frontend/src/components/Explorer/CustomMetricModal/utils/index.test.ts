@@ -7,14 +7,31 @@ import {
     MetricType,
     NumberSeparator,
     TimeFrames,
+    formatItemValue,
+    type Dimension,
     type Metric,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    buildNewAdditionalMetric,
     getFilterRulesFromMetricBaseFilters,
-    getFormatFromBaseMetric,
+    getFormatFromBaseField,
+    getInheritedCustomMetricFormat,
     prepareCustomMetricData,
 } from '.';
+
+const usdDimension: Dimension = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.NUMBER,
+    name: 'amount',
+    label: 'Amount',
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: '${TABLE}.amount',
+    hidden: false,
+    format: 'usd',
+    round: 2,
+};
 
 const baseMetric: Metric = {
     fieldType: FieldType.METRIC,
@@ -73,10 +90,16 @@ describe('getFilterRulesFromMetricBaseFilters', () => {
     });
 });
 
-describe('getFormatFromBaseMetric', () => {
+describe('getFormatFromBaseField', () => {
+    it('keeps a format expression as a custom format', () => {
+        expect(
+            getFormatFromBaseField({ ...baseMetric, format: '#,##0.0' }),
+        ).toEqual({ type: CustomFormatType.CUSTOM, custom: '#,##0.0' });
+    });
+
     it('converts a compact-only legacy format', () => {
         expect(
-            getFormatFromBaseMetric({
+            getFormatFromBaseField({
                 ...baseMetric,
                 compact: Compact.THOUSANDS,
             }),
@@ -89,7 +112,7 @@ describe('getFormatFromBaseMetric', () => {
 
     it('carries the field-level separator alongside a legacy format', () => {
         expect(
-            getFormatFromBaseMetric({
+            getFormatFromBaseField({
                 ...baseMetric,
                 format: 'usd',
                 round: 2,
@@ -106,7 +129,7 @@ describe('getFormatFromBaseMetric', () => {
 
     it('carries the field-level separator alongside structured formatOptions', () => {
         expect(
-            getFormatFromBaseMetric({
+            getFormatFromBaseField({
                 ...baseMetric,
                 formatOptions: { type: CustomFormatType.NUMBER, round: 1 },
                 separator: NumberSeparator.PERIOD_COMMA,
@@ -120,7 +143,7 @@ describe('getFormatFromBaseMetric', () => {
 
     it('converts a separator-only metric', () => {
         expect(
-            getFormatFromBaseMetric({
+            getFormatFromBaseField({
                 ...baseMetric,
                 separator: NumberSeparator.SPACE_PERIOD,
             }),
@@ -133,7 +156,7 @@ describe('getFormatFromBaseMetric', () => {
     });
 
     it('returns undefined when the base metric has no formatting', () => {
-        expect(getFormatFromBaseMetric(baseMetric)).toBeUndefined();
+        expect(getFormatFromBaseField(baseMetric)).toBeUndefined();
     });
 });
 
@@ -205,5 +228,121 @@ describe('prepareCustomMetricData from an explore metric', () => {
         });
 
         expect(data.name).toBe('total_revenue_revenue_gb');
+    });
+});
+
+describe('getInheritedCustomMetricFormat', () => {
+    it('carries a numeric dimension format into value-preserving aggregations', () => {
+        [
+            MetricType.SUM,
+            MetricType.AVERAGE,
+            MetricType.MIN,
+            MetricType.MAX,
+            MetricType.MEDIAN,
+            MetricType.PERCENTILE,
+        ].forEach((type) => {
+            expect(getInheritedCustomMetricFormat(usdDimension, type)).toEqual({
+                type: CustomFormatType.CURRENCY,
+                currency: 'USD',
+                round: 2,
+                compact: undefined,
+            });
+        });
+    });
+
+    it('does not carry a dimension format into counts', () => {
+        expect(
+            getInheritedCustomMetricFormat(usdDimension, MetricType.COUNT),
+        ).toBeUndefined();
+        expect(
+            getInheritedCustomMetricFormat(
+                usdDimension,
+                MetricType.COUNT_DISTINCT,
+            ),
+        ).toBeUndefined();
+    });
+
+    it('ignores non-numeric dimension formats', () => {
+        expect(
+            getInheritedCustomMetricFormat(
+                {
+                    ...usdDimension,
+                    type: DimensionType.DATE,
+                    format: 'dd mmmm yyyy',
+                },
+                MetricType.MAX,
+            ),
+        ).toBeUndefined();
+    });
+
+    it('always carries a metric format into its clone', () => {
+        expect(
+            getInheritedCustomMetricFormat(
+                {
+                    ...baseMetric,
+                    type: MetricType.COUNT,
+                    compact: Compact.THOUSANDS,
+                },
+                MetricType.COUNT,
+            ),
+        ).toEqual({
+            type: CustomFormatType.NUMBER,
+            compact: Compact.THOUSANDS,
+            round: undefined,
+        });
+    });
+
+    it('prefers a chart-level format override to the dimension format', () => {
+        expect(
+            getInheritedCustomMetricFormat(usdDimension, MetricType.SUM, {
+                type: CustomFormatType.PERCENT,
+                round: 1,
+            }),
+        ).toEqual({
+            type: CustomFormatType.PERCENT,
+            round: 1,
+        });
+    });
+});
+
+describe('buildNewAdditionalMetric', () => {
+    it('renders a sum of a usd dimension as currency', () => {
+        const metric = buildNewAdditionalMetric({
+            item: usdDimension,
+            type: MetricType.SUM,
+            customMetricLabel: 'Sum of Amount',
+            customMetricFiltersWithIds: [],
+            formatOptions: getInheritedCustomMetricFormat(
+                usdDimension,
+                MetricType.SUM,
+            ),
+        });
+
+        expect(metric.baseDimensionName).toBe('amount');
+        expect(metric.name).toBe('amount_sum_of_amount');
+        expect(formatItemValue(metric, 2397)).toMatch(/^(?:US)?\$2,397\.00$/);
+    });
+
+    it('a default format would have hidden the dimension currency', () => {
+        const metric = buildNewAdditionalMetric({
+            item: usdDimension,
+            type: MetricType.SUM,
+            customMetricLabel: 'Sum of Amount',
+            customMetricFiltersWithIds: [],
+            formatOptions: { type: CustomFormatType.DEFAULT },
+        });
+
+        expect(formatItemValue(metric, 2397)).toBe('2,397');
+    });
+
+    it('references the base metric when cloning a metric', () => {
+        const metric = buildNewAdditionalMetric({
+            item: baseMetric,
+            type: baseMetric.type,
+            customMetricLabel: 'Copy of Total revenue',
+            customMetricFiltersWithIds: [],
+        });
+        expect(metric.baseMetricName).toBe('total_revenue');
+        expect(metric.baseDimensionName).toBeUndefined();
     });
 });

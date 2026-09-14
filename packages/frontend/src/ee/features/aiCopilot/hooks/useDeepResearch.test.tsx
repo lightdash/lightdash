@@ -2,22 +2,68 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    registerDeepResearchRun,
+    subscribeToDeepResearchComposerPrompt,
+} from '../deepResearch/deepResearchRegistry';
 import { type DeepResearchRunRegistration } from '../deepResearch/types';
-import { useDeepResearchRun } from './useDeepResearch';
+import {
+    useHasActiveDeepResearchRun,
+    useDeepResearchChartLiveQuery,
+    useDeepResearchReport,
+    useDeepResearchRun,
+    useStartDeepResearchMutation,
+    useTrackDeepResearchFollowUp,
+    useTrackDeepResearchReportEngagement,
+} from './useDeepResearch';
 
 const lightdashApiMock = vi.fn();
+const showToastApiErrorMock = vi.fn();
+const trackMock = vi.fn();
+const appUser = {
+    current: {
+        userUuid: 'user-1',
+        organizationUuid: 'org-1',
+    } as
+        | {
+              userUuid: string;
+              organizationUuid: string;
+          }
+        | undefined,
+};
 
 vi.mock('../../../../api', () => ({
     lightdashApi: (args: unknown) => lightdashApiMock(args),
 }));
 
+vi.mock('../../../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastApiError: showToastApiErrorMock }),
+}));
+
+vi.mock('../../../../hooks/user/useUser', () => ({
+    default: () => ({ data: { userUuid: 'user-1' } }),
+}));
+
+vi.mock('../../../../providers/App/useApp', () => ({
+    default: () => ({
+        user: {
+            data: appUser.current,
+        },
+    }),
+}));
+
+vi.mock('../../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: trackMock }),
+}));
+
 const registration: DeepResearchRunRegistration = {
     runUuid: 'run-1',
     projectUuid: 'project-1',
+    agentUuid: 'agent-1',
     threadUuid: 'thread-1',
+    promptUuid: 'prompt-1',
     userUuid: 'user-1',
     question: 'Why did enterprise retention fall in Q2?',
-    depth: 'standard',
     createdAt: '2026-07-15T09:00:00.000Z',
     state: 'started',
 };
@@ -25,6 +71,11 @@ const registration: DeepResearchRunRegistration = {
 const getRun = (status: 'running' | 'completed') => ({
     aiDeepResearchRunUuid: 'run-1',
     projectUuid: 'project-1',
+    agentUuid: 'agent-1',
+    aiThreadUuid: 'thread-1',
+    promptUuid: 'prompt-1',
+    entryPoint: 'ask_ai',
+    prompt: 'Why did enterprise retention fall in Q2?',
     status,
     result:
         status === 'completed'
@@ -39,11 +90,12 @@ const getRun = (status: 'running' | 'completed') => ({
               }
             : null,
     budget: {
-        maxRuntimeMs: 1_800_000,
-        maxTokens: 10_000,
         maxToolCalls: 25,
         maxWarehouseQueries: 25,
         maxResultRows: 10_000,
+        maxSteps: 16,
+
+        deadlineMs: 600_000,
     },
     errorMessage: null,
     cancellationRequestedAt: null,
@@ -63,6 +115,285 @@ const getWrapper = () => {
         </QueryClientProvider>
     );
 };
+
+describe('useDeepResearchChartLiveQuery', () => {
+    afterEach(() => {
+        lightdashApiMock.mockReset();
+    });
+
+    it('executes the chart query again when the report chart remounts', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false,
+                    cacheTime: Infinity,
+                    staleTime: Infinity,
+                },
+            },
+        });
+        const wrapper = ({ children }: PropsWithChildren) => (
+            <QueryClientProvider client={queryClient}>
+                {children}
+            </QueryClientProvider>
+        );
+        lightdashApiMock.mockResolvedValue({
+            query: { queryUuid: 'live-query-uuid' },
+        });
+        const renderLiveQuery = () =>
+            renderHook(
+                () =>
+                    useDeepResearchChartLiveQuery({
+                        projectUuid: 'project-1',
+                        runUuid: 'run-1',
+                        chartKey: 'chart-1',
+                    }),
+                { wrapper },
+            );
+
+        const firstView = renderLiveQuery();
+        await waitFor(() =>
+            expect(firstView.result.current.isSuccess).toBe(true),
+        );
+        firstView.unmount();
+
+        const secondView = renderLiveQuery();
+        await waitFor(() => expect(lightdashApiMock).toHaveBeenCalledTimes(2));
+        secondView.unmount();
+    });
+});
+
+describe('useStartDeepResearchMutation', () => {
+    afterEach(() => {
+        window.localStorage.clear();
+        lightdashApiMock.mockReset();
+        showToastApiErrorMock.mockReset();
+    });
+
+    it('restores the composer prompt when a run fails to start', async () => {
+        const apiError = {
+            error: {
+                message: 'Could not enqueue run',
+                statusCode: 500,
+            },
+        };
+        lightdashApiMock.mockRejectedValueOnce(apiError);
+        const promptListener = vi.fn();
+        const unsubscribe =
+            subscribeToDeepResearchComposerPrompt(promptListener);
+        const { result } = renderHook(
+            () =>
+                useStartDeepResearchMutation({
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await act(async () => {
+            await expect(
+                result.current.mutateAsync({
+                    question: 'Why did retention fall?',
+                    promptUuid: 'prompt-1',
+                }),
+            ).rejects.toEqual(apiError);
+        });
+
+        expect(promptListener).toHaveBeenCalledWith({
+            threadUuid: 'thread-1',
+            prompt: 'Why did retention fall?',
+        });
+        expect(showToastApiErrorMock).toHaveBeenCalledOnce();
+        expect(
+            JSON.parse(lightdashApiMock.mock.calls[0][0].body),
+        ).toStrictEqual({
+            prompt: 'Why did retention fall?',
+            agentUuid: 'agent-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            entryPoint: 'ask_ai',
+        });
+        expect(
+            JSON.parse(
+                window.localStorage.getItem(
+                    'lightdash.deep-research-runs.v1',
+                ) ?? '[]',
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                promptUuid: 'prompt-1',
+                state: 'start_failed',
+            }),
+        ]);
+        unsubscribe();
+    });
+});
+
+describe('useHasActiveDeepResearchRun', () => {
+    afterEach(() => {
+        window.localStorage.clear();
+        lightdashApiMock.mockReset();
+    });
+
+    it('reports an active persisted run in the current thread', async () => {
+        lightdashApiMock.mockResolvedValue([getRun('running')]);
+
+        const { result } = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(result.current).toBe(true));
+    });
+
+    it('reports no active run after a terminal state', async () => {
+        lightdashApiMock.mockResolvedValue([getRun('completed')]);
+
+        const { result } = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(lightdashApiMock).toHaveBeenCalledOnce());
+        expect(result.current).toBe(false);
+    });
+
+    it('includes an optimistic start only in its own thread', async () => {
+        lightdashApiMock.mockResolvedValue([]);
+        registerDeepResearchRun({
+            ...registration,
+            runUuid: 'starting-run',
+            threadUuid: 'thread-with-run',
+            state: 'starting',
+        });
+
+        const currentThread = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-with-run',
+                }),
+            { wrapper: getWrapper() },
+        );
+        const otherThread = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-without-run',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        expect(currentThread.result.current).toBe(true);
+        expect(otherThread.result.current).toBe(false);
+    });
+});
+
+describe('useTrackDeepResearchFollowUp', () => {
+    afterEach(() => {
+        lightdashApiMock.mockReset();
+        trackMock.mockReset();
+    });
+
+    it('attributes a follow-up to the most recent terminal run', async () => {
+        lightdashApiMock.mockResolvedValue([
+            {
+                ...getRun('completed'),
+                aiDeepResearchRunUuid: 'older-run',
+                completedAt: '2026-07-15T09:04:00.000Z',
+            },
+            getRun('completed'),
+        ]);
+        const { result } = renderHook(
+            () =>
+                useTrackDeepResearchFollowUp({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(lightdashApiMock).toHaveBeenCalledOnce());
+        act(() => result.current());
+
+        expect(trackMock).toHaveBeenCalledWith({
+            name: 'ai_deep_research.report_engaged',
+            properties: expect.objectContaining({
+                action: 'follow_up',
+                runUuid: 'run-1',
+                threadId: 'thread-1',
+                aiAgentId: 'agent-1',
+                runStatus: 'completed',
+            }),
+        });
+    });
+});
+
+describe('useTrackDeepResearchReportEngagement', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-07-15T09:05:05.000Z'));
+        appUser.current = {
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+        };
+        trackMock.mockReset();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        appUser.current = {
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+        };
+    });
+
+    it('tracks the full terminal-run payload with persisted completion time', () => {
+        const { result } = renderHook(
+            () => useTrackDeepResearchReportEngagement(),
+            { wrapper: getWrapper() },
+        );
+
+        act(() => result.current('opened', getRun('completed')));
+
+        expect(trackMock).toHaveBeenCalledExactlyOnceWith({
+            name: 'ai_deep_research.report_engaged',
+            properties: {
+                action: 'opened',
+                organizationId: 'org-1',
+                projectId: 'project-1',
+                userId: 'user-1',
+                runUuid: 'run-1',
+                threadId: 'thread-1',
+                aiAgentId: 'agent-1',
+                runStatus: 'completed',
+                timeSinceCompletedMs: 5_000,
+            },
+        });
+    });
+
+    it('suppresses engagement for nonterminal runs or missing user context', () => {
+        const { result, rerender } = renderHook(
+            () => useTrackDeepResearchReportEngagement(),
+            { wrapper: getWrapper() },
+        );
+
+        act(() => result.current('opened', getRun('running')));
+        appUser.current = undefined;
+        rerender();
+        act(() => result.current('opened', getRun('completed')));
+
+        expect(trackMock).not.toHaveBeenCalled();
+    });
+});
 
 describe('useDeepResearchRun', () => {
     beforeEach(() => {
@@ -115,6 +446,165 @@ describe('useDeepResearchRun', () => {
         expect(lightdashApiMock).toHaveBeenCalledTimes(callsAtCompletion);
     });
 
+    it.each([403, 404])(
+        'stops run and event polling after a %s run response',
+        async (statusCode) => {
+            lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
+                if (url.includes('/events')) {
+                    return Promise.resolve({
+                        events: [],
+                        nextCursor: null,
+                    });
+                }
+                return Promise.reject({
+                    error: {
+                        message: 'Run is unavailable',
+                        statusCode,
+                    },
+                });
+            });
+
+            const { result } = renderHook(
+                () => useDeepResearchRun(registration),
+                { wrapper: getWrapper() },
+            );
+
+            await waitFor(() => expect(result.current.isError).toBe(true));
+            const callsAfterFailure = lightdashApiMock.mock.calls.length;
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+
+            expect(lightdashApiMock).toHaveBeenCalledTimes(callsAfterFailure);
+            expect(
+                lightdashApiMock.mock.calls.filter(([args]) =>
+                    (args as { url: string }).url.includes('/events'),
+                ),
+            ).toHaveLength(1);
+        },
+    );
+
+    it.each([403, 404])(
+        'stops event polling after a %s event response',
+        async (statusCode) => {
+            lightdashApiMock.mockImplementation(({ url }: { url: string }) =>
+                url.includes('/events')
+                    ? Promise.reject({
+                          error: {
+                              message: 'Events are unavailable',
+                              statusCode,
+                          },
+                      })
+                    : Promise.resolve(getRun('running')),
+            );
+
+            const { result } = renderHook(
+                () => useDeepResearchRun(registration),
+                { wrapper: getWrapper() },
+            );
+
+            await waitFor(() =>
+                expect(result.current.eventsQuery.isError).toBe(true),
+            );
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+
+            expect(
+                lightdashApiMock.mock.calls.filter(([args]) =>
+                    (args as { url: string }).url.includes('/events'),
+                ),
+            ).toHaveLength(1);
+            expect(
+                lightdashApiMock.mock.calls.filter(
+                    ([args]) =>
+                        !(args as { url: string }).url.includes('/events'),
+                ).length,
+            ).toBeGreaterThan(1);
+        },
+    );
+
+    it('backs off consecutive event failures and resets after success', async () => {
+        let eventReads = 0;
+        const eventReadTimes: number[] = [];
+        lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
+            if (!url.includes('/events')) {
+                return Promise.resolve(getRun('running'));
+            }
+            eventReads += 1;
+            eventReadTimes.push(Date.now());
+            return eventReads <= 2
+                ? Promise.reject({
+                      error: {
+                          message: 'Events are temporarily unavailable',
+                          statusCode: 500,
+                      },
+                  })
+                : Promise.resolve({ events: [], nextCursor: null });
+        });
+
+        renderHook(() => useDeepResearchRun(registration), {
+            wrapper: getWrapper(),
+        });
+
+        await waitFor(() => expect(eventReads).toBe(1));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(30_000);
+        });
+
+        expect(eventReadTimes.length).toBeGreaterThanOrEqual(4);
+        expect(eventReadTimes[1] - eventReadTimes[0]).toBeGreaterThanOrEqual(
+            4_000,
+        );
+        expect(eventReadTimes[2] - eventReadTimes[1]).toBeGreaterThanOrEqual(
+            8_000,
+        );
+        expect(
+            (eventReadTimes.at(-1) ?? 0) - (eventReadTimes.at(-2) ?? 0),
+        ).toBeLessThanOrEqual(2_100);
+    });
+
+    it('resumes polling when a mounted hook switches away from an unavailable run', async () => {
+        lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
+            if (url.includes('/events')) {
+                return Promise.resolve({ events: [], nextCursor: null });
+            }
+            if (url.includes('/run-1')) {
+                return Promise.reject({
+                    error: {
+                        message: 'Run is unavailable',
+                        statusCode: 404,
+                    },
+                });
+            }
+            return Promise.resolve({
+                ...getRun('running'),
+                aiDeepResearchRunUuid: 'run-2',
+            });
+        });
+        let currentRegistration = registration;
+        const { result, rerender } = renderHook(
+            () => useDeepResearchRun(currentRegistration),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(result.current.isError).toBe(true));
+
+        currentRegistration = { ...registration, runUuid: 'run-2' };
+        rerender();
+        await waitFor(() => expect(result.current.data?.uuid).toBe('run-2'));
+        const callsAfterSwitch = lightdashApiMock.mock.calls.length;
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(2_100);
+        });
+
+        expect(lightdashApiMock.mock.calls.length).toBeGreaterThan(
+            callsAfterSwitch,
+        );
+    });
+
     it('loads every event page before calculating activity counts', async () => {
         lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
             if (url.includes('/events') && !url.includes('cursor=')) {
@@ -159,6 +649,9 @@ describe('useDeepResearchRun', () => {
 
         await waitFor(() => expect(result.current.data?.queryCount).toBe(1));
         expect(
+            result.current.data?.latestEvents.map((event) => event.label),
+        ).toEqual(['Executed a warehouse query', 'Research running']);
+        expect(
             lightdashApiMock.mock.calls.filter(([args]) =>
                 (args as { url: string }).url.includes('/events'),
             ),
@@ -200,5 +693,45 @@ describe('useDeepResearchRun', () => {
                 (args as { url: string }).url.includes('/events'),
             ),
         ).toHaveLength(2);
+    });
+});
+
+describe('useDeepResearchReport', () => {
+    afterEach(() => {
+        lightdashApiMock.mockReset();
+    });
+
+    it('loads a durable report directly by project and run UUID', async () => {
+        lightdashApiMock.mockResolvedValue({
+            ...getRun('completed'),
+            terminalReason: null,
+            resultMarkdown: '# Durable report',
+            reportExpiresAt: '2026-08-14T09:05:00.000Z',
+            reportExpiredAt: null,
+            isReportExpired: false,
+        });
+
+        const { result } = renderHook(
+            () => useDeepResearchReport('project-1', 'run-1'),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(lightdashApiMock).toHaveBeenCalledWith({
+            version: 'v1',
+            url: '/ee/projects/project-1/ai-deep-research/run-1',
+            method: 'GET',
+            body: undefined,
+        });
+        expect(result.current.data).toEqual(
+            expect.objectContaining({
+                uuid: 'run-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                threadUuid: 'thread-1',
+                resultMarkdown: '# Durable report',
+            }),
+        );
     });
 });

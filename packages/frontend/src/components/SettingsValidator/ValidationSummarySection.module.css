@@ -1,0 +1,18 @@
+.groupCard {
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.groupCardActive {
+    flex-shrink: 0;
+    cursor: pointer;
+    border-color: var(--mantine-color-indigo-5);
+    background-color: var(--mantine-color-indigo-light);
+}
+
+.title {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

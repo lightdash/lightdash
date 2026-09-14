@@ -49,7 +49,7 @@ const getOperationLabel = (
     return tense === 'running' ? 'Uploading' : 'Uploaded';
 };
 
-export const formatDurationTag = (durationMs: number) =>
+const formatDurationTag = (durationMs: number) =>
     chalk.gray(getDurationLabel(durationMs));
 
 export const formatContentAsCodeAction = ({
@@ -135,7 +135,7 @@ export const formatContentAsCodeComplete = ({
     return [header, ...items.map(formatTreeItem), pathItem].join('\n');
 };
 
-export const canRenderContentAsCodeTree = (): boolean =>
+const canRenderContentAsCodeTree = (): boolean =>
     Boolean(
         process.stderr.isTTY &&
         process.env.CI !== 'true' &&
@@ -152,7 +152,7 @@ export const logContentAsCodeDiscovery = (message: string): void => {
     }
 };
 
-export const renderContentAsCodeComplete = (
+const renderContentAsCodeComplete = (
     props: ContentAsCodeOutputProps,
 ): boolean => {
     if (!canRenderContentAsCodeTree()) {
@@ -256,11 +256,38 @@ export const createContentAsCodeOutput = ({
         return value;
     };
 
+    // The spinner repaints its line continuously, drawing over interactive
+    // prompts rendered beneath it — the prompt becomes invisible and the
+    // command looks hung while waiting for input. Stop the spinner for the
+    // prompt's lifetime, then resume with the current progress text.
+    const promptWhilePaused = async <T>(
+        prompt: () => Promise<T>,
+    ): Promise<T> => {
+        if (!spinner) return prompt();
+        spinner.stop();
+        try {
+            return await prompt();
+        } finally {
+            spinner.start(
+                useTree
+                    ? formatContentAsCodeProgress({
+                          operation,
+                          scope,
+                          items,
+                          activeLabel,
+                          activeDetail,
+                      })
+                    : `${runningLabel} ${activeLabel.toLowerCase()}`,
+            );
+        }
+    };
+
     return {
         startItem,
         updateActive,
         completeItem,
         runItem,
+        promptWhilePaused,
         prepareForFailureDetails: () => {
             if (!useTree && spinner) {
                 spinner.stop();

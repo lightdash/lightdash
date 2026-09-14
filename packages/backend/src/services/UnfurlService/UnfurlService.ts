@@ -5,9 +5,12 @@ import {
     AuthorizationError,
     ChartType,
     DashboardTileTypes,
+    DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
+    expandSelectedTabs,
     EXPORT_TAB_PAGE_CLASS,
     ForbiddenError,
+    getChartType,
     getErrorMessage,
     HealthState,
     isDashboardChartTileType,
@@ -19,6 +22,7 @@ import {
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
+    parseDeliveryCaptureManifest,
     QueryHistoryStatus,
     RequestMethod,
     resolveExportTabs,
@@ -31,9 +35,13 @@ import {
     snakeCaseName,
     UnexpectedServerError,
     validateSelectedTabs,
+    type AiArtifact,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DeliveryCaptureManifest,
+    type Filters,
     type ParametersValuesMap,
+    type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -44,7 +52,6 @@ import {
 import { StringIndexed } from '@slack/bolt/dist/types/helpers';
 import { WebClient } from '@slack/web-api';
 import * as fsPromise from 'fs/promises';
-import { uniq } from 'lodash';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import playwright, { type ElementHandle, type Page } from 'playwright';
@@ -62,20 +69,22 @@ import Logger from '../../logging/logger';
 import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { HeadlessBrowserLoginGrantModel } from '../../models/HeadlessBrowserLoginGrantModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
-import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { traceSpan } from '../../tracing/tracing';
+import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { countPdfPages } from './countPdfPages';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
+const uuidExactRegex = new RegExp(`^${uuid}$`);
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
 const shareUrlRegex = new RegExp(`/share/(${nanoid})`);
@@ -216,16 +225,26 @@ const appViewport = {
 
 const APP_SCREENSHOT_MIN_HEIGHT = 600;
 
+// How long we wait for `MinimalApp` to mount the ready indicator.
+
 const bigNumberViewport = {
     width: 768,
     height: 500,
 };
+
+// Fixed-frame AI artifact card, captured @2x for crisp Slack rendering.
+const aiArtifactViewport = {
+    width: 800,
+    height: 600,
+    deviceScaleFactor: 2,
+} as const;
 
 export enum ScreenshotContext {
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     SLACK = 'slack',
     EXPORT_DASHBOARD = 'export_dashboard',
     EXPORT_CHART = 'export_chart',
+    EXPORT_AI_ARTIFACT = 'export_ai_artifact',
 }
 
 // Default values
@@ -239,6 +258,34 @@ const getBackoffDelay = (retryCount: number, baseDelayMs: number): number => {
     const exponentialDelay = baseDelayMs * 2 ** retryCount;
     const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);
     return Math.round(exponentialDelay + jitter);
+};
+
+// Headroom over the screenshot timeout for goto + evaluate around the wait, so
+// the requested session budget always outlives the work.
+const BROWSERLESS_SESSION_BUFFER_MS = 30_000;
+
+// Browserless honours the window size only through launch args, not the
+// Playwright viewport, and app iframes size themselves to the window. The
+// explicit `timeout` overrides the container's TIMEOUT config, which otherwise
+// can kill the session before the app's ready indicator appears.
+const getAppBrowserEndpoint = (
+    browserEndpoint: string,
+    size: { width: number; height: number },
+    timeoutMs: number,
+    internalHost?: string,
+): string => {
+    const endpoint = new URL(browserEndpoint);
+    endpoint.searchParams.set('timeout', String(timeoutMs));
+    const args = [`--window-size=${size.width},${size.height}`];
+    // App bundles call secure-context APIs (crypto.randomUUID in the SDK
+    // transport), which a plain-http internal host silently breaks.
+    if (internalHost?.startsWith('http://')) {
+        args.push(
+            `--unsafely-treat-insecure-origin-as-secure=${new URL(internalHost).origin}`,
+        );
+    }
+    endpoint.searchParams.set('launch', JSON.stringify({ args }));
+    return endpoint.toString();
 };
 
 const isBrowserQueueFullError = (error: unknown): boolean => {
@@ -305,6 +352,7 @@ type UnfurlServiceArguments = {
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
     spacePermissionService: SpacePermissionService;
+    headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
 };
 
 export class UnfurlService extends BaseService {
@@ -336,6 +384,8 @@ export class UnfurlService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
+
     private readonly screenshotTimeoutMs: number;
 
     constructor({
@@ -353,6 +403,7 @@ export class UnfurlService extends BaseService {
         analytics,
         slackAuthenticationModel,
         spacePermissionService,
+        headlessBrowserLoginGrantModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -369,6 +420,7 @@ export class UnfurlService extends BaseService {
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.spacePermissionService = spacePermissionService;
+        this.headlessBrowserLoginGrantModel = headlessBrowserLoginGrantModel;
         this.screenshotTimeoutMs =
             lightdashConfig.headlessBrowser.screenshotTimeoutMs;
     }
@@ -418,7 +470,8 @@ export class UnfurlService extends BaseService {
             throw new NotFoundError('Slack unfurl image object missing');
         }
 
-        return this.fileStorageClient.getFileStream(record.s3_key);
+        return (await this.fileStorageClient.getFileStream(record.s3_key))
+            .stream;
     }
 
     async getTitleAndDescription(
@@ -496,6 +549,9 @@ export class UnfurlService extends BaseService {
                     title: sqlChart.name,
                     description: sqlChart.description ?? undefined,
                     organizationUuid: sqlChart.organization.organizationUuid,
+                    // Drives the screenshot viewport; big numbers get a
+                    // shorter one so the value isn't lost in whitespace.
+                    chartType: getChartType(sqlChart.chartKind),
                     resourceUuid: sqlChart.savedSqlUuid,
                 };
             case LightdashPage.EXPLORE:
@@ -529,6 +585,12 @@ export class UnfurlService extends BaseService {
                     organizationUuid: app.organization_uuid,
                     resourceUuid: app.app_id,
                 };
+            case LightdashPage.AI_ARTIFACT:
+                // Never produced by parseUrl; artifact exports go through
+                // exportAiAgentArtifact, not unfurls.
+                throw new ParameterError(
+                    `AI artifact pages cannot be unfurled: ${parsedUrl.url}`,
+                );
             case undefined:
                 throw new Error(`Unrecognized page for URL ${parsedUrl.url}`);
             default:
@@ -542,8 +604,12 @@ export class UnfurlService extends BaseService {
     async unfurlDetails(
         originUrl: string,
         selectedTabs: string[] | null,
+        organizationUuidContext?: string,
     ): Promise<Unfurl | undefined> {
-        const parsedUrl = await this.parseUrl(originUrl);
+        const parsedUrl = await this.parseUrl(
+            originUrl,
+            organizationUuidContext,
+        );
 
         if (
             !parsedUrl.isValid ||
@@ -614,6 +680,7 @@ export class UnfurlService extends BaseService {
         selectedTabs,
         sendNowSchedulerDashboardFilters,
         sendNowSchedulerFilters,
+        sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
     }: {
         url: string;
@@ -629,6 +696,7 @@ export class UnfurlService extends BaseService {
         selectedTabs: string[] | null;
         sendNowSchedulerDashboardFilters?: DashboardFilters | undefined;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
+        sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
     }): Promise<{
         imageUrl?: string;
@@ -657,6 +725,7 @@ export class UnfurlService extends BaseService {
             selectedTabs,
             sendNowSchedulerDashboardFilters,
             sendNowSchedulerFilters,
+            sendNowSchedulerChartFilters,
             sendNowSchedulerParameters,
         };
 
@@ -674,38 +743,11 @@ export class UnfurlService extends BaseService {
 
         let imageUrl;
         if (imageBuffer) {
-            if (this.fileStorageClient.isEnabled()) {
-                imageUrl = await this.fileStorageClient.uploadImage(
-                    imageBuffer,
-                    imageId,
-                );
-
-                if (details?.organizationUuid) {
-                    const previewId = useNanoid();
-                    await this.slackUnfurlImageModel.create({
-                        nanoid: previewId,
-                        s3Key: `${imageId}.png`,
-                        organizationUuid: details.organizationUuid,
-                    });
-                    imageUrl = new URL(
-                        `/api/v1/slack/preview/${previewId}`,
-                        this.lightdashConfig.siteUrl,
-                    ).href;
-                }
-            } else {
-                const filePath = `/tmp/${imageId}.png`;
-                const downloadFileId = useNanoid();
-                await this.downloadFileModel.createDownloadFile(
-                    downloadFileId,
-                    filePath,
-                    DownloadFileType.IMAGE,
-                );
-
-                imageUrl = new URL(
-                    `/api/v1/slack/image/${downloadFileId}`,
-                    this.lightdashConfig.siteUrl,
-                ).href;
-            }
+            imageUrl = await this.hostImage(
+                imageBuffer,
+                imageId,
+                details?.organizationUuid,
+            );
         }
 
         let pdfFile;
@@ -717,6 +759,51 @@ export class UnfurlService extends BaseService {
             imageUrl,
             pdfFile,
         };
+    }
+
+    /**
+     * Hosts a screenshot buffer and returns a fetchable URL. With storage +
+     * an org, the stable Lightdash preview URL; with storage only, the raw
+     * storage URL; otherwise a local /tmp-backed download URL.
+     */
+    private async hostImage(
+        imageBuffer: Buffer,
+        imageId: string,
+        organizationUuid: string | undefined,
+    ): Promise<string> {
+        if (this.fileStorageClient.isEnabled()) {
+            let imageUrl = await this.fileStorageClient.uploadImage(
+                imageBuffer,
+                imageId,
+            );
+
+            if (organizationUuid) {
+                const previewId = useNanoid();
+                await this.slackUnfurlImageModel.create({
+                    nanoid: previewId,
+                    s3Key: `${imageId}.png`,
+                    organizationUuid,
+                });
+                imageUrl = new URL(
+                    `/api/v1/slack/preview/${previewId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
+            }
+            return imageUrl;
+        }
+
+        const filePath = `/tmp/${imageId}.png`;
+        const downloadFileId = useNanoid();
+        await this.downloadFileModel.createDownloadFile(
+            downloadFileId,
+            filePath,
+            DownloadFileType.IMAGE,
+        );
+
+        return new URL(
+            `/api/v1/slack/image/${downloadFileId}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
     }
 
     /**
@@ -887,22 +974,19 @@ export class UnfurlService extends BaseService {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboard.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
 
-        // Create a new URLSearchParams object for query filters.
-        // When selectedTabs is null we forward every tab UUID present on the
-        // dashboard (and `null` for orphan tiles) so the frontend's
-        // `schedulerTabsSelected.includes(tile.tabUuid)` filter keeps orphans
-        // in the aggregated screenshot. See PROD-2505.
         const selectedTabsParams = new URLSearchParams();
-        const selectedTabsList: (string | null)[] =
-            selectedTabs ??
-            uniq(dashboard.tiles.map((tile) => tile.tabUuid ?? null));
+        const selectedTabsList = expandSelectedTabs(
+            selectedTabs,
+            dashboard.tiles,
+        );
 
         if (selectedTabsList.length > 0)
             selectedTabsParams.set(
@@ -982,13 +1066,20 @@ export class UnfurlService extends BaseService {
     async exportChart(
         chartUuidOrSlug: string,
         user: SessionUser,
+        projectUuid?: string,
     ): Promise<string> {
-        const chart = await this.savedChartModel.get(chartUuidOrSlug);
+        const chart = await this.savedChartModel.get(
+            chartUuidOrSlug,
+            undefined,
+            projectUuid ? { projectUuid } : undefined,
+        );
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                chart.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'chart',
+                chartUuid: chart.uuid,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: chart.spaceUuid,
+            });
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1031,6 +1122,154 @@ export class UnfurlService extends BaseService {
         }
         this.logger.info(`Chart "${chart.name}" exported successfully`);
         return unfurlImage.imageUrl;
+    }
+
+    /**
+     * Renders a custom chart type AI artifact version to a hosted PNG under
+     * the acting user's identity (one-time login grant). The caller must
+     * resolve `artifact` — and the project/agent refs it passes — via
+     * AiAgentService.getArtifact for the same user, which enforces the
+     * agent + thread access chain. Returns the buffer beside the hosted URL
+     * so callers with their own delivery path (e.g. Slack file send) don't
+     * need to fetch the image back.
+     */
+    async exportAiAgentArtifact(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifact,
+        }: {
+            projectUuid: UUID;
+            agentUuid: UUID;
+            artifact: AiArtifact;
+        },
+    ): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
+        const { artifactUuid, versionUuid } = artifact;
+        if (artifact.chartConfig?.source !== 'customChartType') {
+            throw new ParameterError(
+                `Artifact version ${artifactUuid}/${versionUuid} is not a custom chart type answer`,
+            );
+        }
+
+        const minimalUrl = new URL(
+            `/minimal/projects/${projectUuid}/ai-agents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        ).href;
+
+        this.logger.info(`Exporting AI artifact to hosted image`, {
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            minimalUrl,
+        });
+
+        const cookie = await this.getUserCookie(user.userUuid);
+        const imageId = `ai-artifact-image_${snakeCaseName(
+            artifact.title ?? 'chart',
+        )}_${useNanoid()}`;
+
+        const result = await this.saveScreenshot({
+            authUserUuid: user.userUuid,
+            imageId,
+            cookie,
+            url: minimalUrl,
+            lightdashPage: LightdashPage.AI_ARTIFACT,
+            organizationUuid: user.organizationUuid,
+            resourceUuid: versionUuid,
+            resourceName: artifact.title ?? undefined,
+            context: ScreenshotContext.EXPORT_AI_ARTIFACT,
+            selectedTabs: null,
+        });
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError(
+                'Unable to export AI artifact image',
+            );
+        }
+
+        const imageUrl = await this.hostImage(
+            result.imageBuffer,
+            imageId,
+            user.organizationUuid,
+        );
+        this.logger.info(`AI artifact exported successfully`, {
+            userUuid: user.userUuid,
+            artifactUuid,
+            versionUuid,
+        });
+        return { imageBuffer: result.imageBuffer, imageUrl };
+    }
+
+    /**
+     * Renders a data app's minimal page to a hosted PNG under the acting
+     * user's identity (one-time login grant). The caller is responsible for
+     * verifying the user may see the app. Returns the buffer beside the
+     * hosted URL so callers with their own delivery path (e.g. Slack file
+     * upload) don't need to fetch the image back.
+     */
+    async exportDataApp({
+        projectUuid,
+        appUuid,
+        appName,
+        authUserUuid,
+        organizationUuid,
+        context,
+        contextId,
+    }: {
+        projectUuid: UUID;
+        appUuid: UUID;
+        appName: string;
+        authUserUuid: UUID;
+        organizationUuid: UUID;
+        context: ScreenshotContext;
+        contextId?: unknown;
+    }): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
+        const minimalUrl = new URL(
+            `/minimal/projects/${projectUuid}/apps/${appUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        ).href;
+
+        this.logger.info(`Exporting data app to hosted image`, {
+            userUuid: authUserUuid,
+            organizationUuid,
+            projectUuid,
+            appUuid,
+            minimalUrl,
+        });
+
+        const cookie = await this.getUserCookie(authUserUuid);
+        const imageId = `app-image_${snakeCaseName(appName)}_${useNanoid()}`;
+
+        const result = await this.saveScreenshot({
+            authUserUuid,
+            imageId,
+            cookie,
+            url: minimalUrl,
+            lightdashPage: LightdashPage.APP,
+            organizationUuid,
+            resourceUuid: appUuid,
+            resourceName: appName,
+            context,
+            contextId,
+            selectedTabs: null,
+        });
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError('Unable to export data app image');
+        }
+
+        const imageUrl = await this.hostImage(
+            result.imageBuffer,
+            imageId,
+            organizationUuid,
+        );
+        this.logger.info(`Data app exported successfully`, {
+            userUuid: authUserUuid,
+            appUuid,
+        });
+        return { imageBuffer: result.imageBuffer, imageUrl };
     }
 
     /**
@@ -1104,6 +1343,102 @@ export class UnfurlService extends BaseService {
         }
     }
 
+    private async registerHeadlessBrowserRoutes({
+        browserContext,
+        context,
+        contextId,
+    }: {
+        browserContext: playwright.BrowserContext;
+        context: ScreenshotContext;
+        contextId?: unknown;
+    }): Promise<void> {
+        const internalLightdashUrl = new URL(
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        );
+        const isInternalLightdashUrl = (url: URL): boolean => {
+            const getHttpProtocol = (): string => {
+                if (url.protocol === 'ws:') {
+                    return 'http:';
+                }
+                if (url.protocol === 'wss:') {
+                    return 'https:';
+                }
+                return url.protocol;
+            };
+
+            return (
+                getHttpProtocol() === internalLightdashUrl.protocol &&
+                url.host === internalLightdashUrl.host
+            );
+        };
+        const isAllowedDestination = async (
+            url: URL,
+            allowedProtocols: string[],
+        ): Promise<boolean> => {
+            if (isInternalLightdashUrl(url)) {
+                return true;
+            }
+
+            try {
+                await validatePublicHttpUrl(url.toString(), {
+                    allowedProtocols,
+                });
+                return true;
+            } catch {
+                this.logger.warn(
+                    `Blocked headless browser request to non-public origin: ${url.origin}`,
+                );
+                return false;
+            }
+        };
+
+        await Promise.all([
+            browserContext.route('**', async (route) => {
+                const requestUrl = new URL(route.request().url());
+
+                if (isInternalLightdashUrl(requestUrl)) {
+                    try {
+                        await route.continue({
+                            headers: {
+                                ...route.request().headers(),
+                                [LightdashRequestMethodHeader]:
+                                    RequestMethod.HEADLESS_BROWSER,
+                                'Lightdash-Headless-Browser-Context': context,
+                                'Lightdash-Headless-Browser-Context-Id': String(
+                                    contextId ?? 'undefined',
+                                ),
+                            },
+                        });
+                    } catch {
+                        await route.continue().catch(() => {});
+                    }
+                    return;
+                }
+
+                if (
+                    await isAllowedDestination(requestUrl, ['http:', 'https:'])
+                ) {
+                    await route.continue().catch(() => {});
+                    return;
+                }
+
+                await route.abort('accessdenied').catch(() => {});
+            }),
+            browserContext.routeWebSocket('**', async (webSocketRoute) => {
+                const requestUrl = new URL(webSocketRoute.url());
+                if (await isAllowedDestination(requestUrl, ['ws:', 'wss:'])) {
+                    webSocketRoute.connectToServer();
+                    return;
+                }
+
+                await webSocketRoute.close({
+                    code: 1008,
+                    reason: 'Destination is not permitted',
+                });
+            }),
+        ]);
+    }
+
     private async saveScreenshot({
         imageId,
         cookie,
@@ -1126,6 +1461,7 @@ export class UnfurlService extends BaseService {
         selectedTabs,
         sendNowSchedulerDashboardFilters,
         sendNowSchedulerFilters,
+        sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
         outputFormat = 'image',
         withPdf = false,
@@ -1151,6 +1487,7 @@ export class UnfurlService extends BaseService {
         selectedTabs: string[] | null;
         sendNowSchedulerDashboardFilters?: DashboardFilters | undefined;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
+        sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
@@ -1214,6 +1551,12 @@ export class UnfurlService extends BaseService {
                             ...appViewport,
                             width: gridWidth ?? appViewport.width,
                         };
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        // Fixed frame: never widened by gridWidth or content.
+                        initialViewport = {
+                            width: aiArtifactViewport.width,
+                            height: aiArtifactViewport.height,
+                        };
                     } else {
                         initialViewport = {
                             ...viewport,
@@ -1221,21 +1564,23 @@ export class UnfurlService extends BaseService {
                         };
                     }
 
-                    const browserConnectionEndpoint =
-                        lightdashPage === LightdashPage.APP
-                            ? (() => {
-                                  const endpoint = new URL(browserEndpoint);
-                                  endpoint.searchParams.set(
-                                      'launch',
-                                      JSON.stringify({
-                                          args: [
-                                              `--window-size=${initialViewport.width},${initialViewport.height}`,
-                                          ],
-                                      }),
-                                  );
-                                  return endpoint.toString();
-                              })()
-                            : browserEndpoint;
+                    // Both page types host the sandboxed iframe SDK, which
+                    // needs the app-style launch args (window sizing + secure
+                    // context).
+                    const usesAppLaunchArgs =
+                        lightdashPage === LightdashPage.APP ||
+                        lightdashPage === LightdashPage.AI_ARTIFACT;
+
+                    const browserConnectionEndpoint = usesAppLaunchArgs
+                        ? getAppBrowserEndpoint(
+                              browserEndpoint,
+                              initialViewport,
+                              this.screenshotTimeoutMs +
+                                  BROWSERLESS_SESSION_BUFFER_MS,
+                              this.lightdashConfig.headlessBrowser
+                                  .internalLightdashHost,
+                          )
+                        : browserEndpoint;
 
                     browser = await playwright.chromium.connectOverCDP(
                         browserConnectionEndpoint,
@@ -1267,6 +1612,13 @@ export class UnfurlService extends BaseService {
 
                     page = await browser.newPage({
                         viewport: initialViewport,
+                        ...(lightdashPage === LightdashPage.AI_ARTIFACT
+                            ? {
+                                  deviceScaleFactor:
+                                      aiArtifactViewport.deviceScaleFactor,
+                              }
+                            : {}),
+                        serviceWorkers: 'block',
                         // Allow self-signed / untrusted certs when the
                         // internal Lightdash host is reached through an
                         // HTTPS ingress whose cert isn't in the browserless
@@ -1278,57 +1630,24 @@ export class UnfurlService extends BaseService {
                     });
 
                     if (lightdashPage === LightdashPage.APP) {
-                        // Browserless drops Playwright's viewport over CDP (see [APP-DIAG]
-                        // logs stuck at 800×600); push the override straight to Chrome.
-                        try {
-                            const cdp = await page
-                                .context()
-                                .newCDPSession(page);
-                            await cdp.send(
-                                'Emulation.setDeviceMetricsOverride',
-                                {
-                                    width: initialViewport.width,
-                                    height: initialViewport.height,
-                                    deviceScaleFactor: 1,
-                                    mobile: false,
-                                },
-                            );
-                        } catch (cdpErr) {
-                            this.logger.warn(
-                                `[APP] CDP viewport override failed; falling through - unfurlId: ${imageId}, err: ${
-                                    cdpErr instanceof Error
-                                        ? cdpErr.message
-                                        : String(cdpErr)
-                                }`,
-                            );
-                        }
+                        await this.overrideCdpViewport(
+                            page,
+                            initialViewport,
+                            `unfurlId: ${imageId}`,
+                        );
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        await this.overrideCdpViewport(
+                            page,
+                            initialViewport,
+                            `unfurlId: ${imageId}`,
+                            aiArtifactViewport.deviceScaleFactor,
+                        );
                     }
 
-                    // Scope custom headers to internal requests only — setting them
-                    // on every request (e.g. Google Fonts) triggers CORS preflight failures.
-                    const internalHost =
-                        this.lightdashConfig.headlessBrowser.internalLightdashHost.replace(
-                            /\/+$/,
-                            '',
-                        );
-                    await page.route(`${internalHost}/**`, async (route) => {
-                        try {
-                            await route.continue({
-                                headers: {
-                                    ...route.request().headers(),
-                                    [LightdashRequestMethodHeader]:
-                                        RequestMethod.HEADLESS_BROWSER,
-                                    'Lightdash-Headless-Browser-Context':
-                                        context,
-                                    'Lightdash-Headless-Browser-Context-Id':
-                                        contextId
-                                            ? contextId.toString()
-                                            : 'undefined',
-                                },
-                            });
-                        } catch {
-                            await route.fallback().catch(() => {});
-                        }
+                    await this.registerHeadlessBrowserRoutes({
+                        browserContext: page.context(),
+                        context,
+                        contextId,
                     });
 
                     // Polyfill crypto.randomUUID (needed for Loom iframes)
@@ -1372,6 +1691,8 @@ export class UnfurlService extends BaseService {
                         {
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_FILTERS]:
                                 sendNowSchedulerFilters,
+                            [SessionStorageKeys.SEND_NOW_SCHEDULER_CHART_FILTERS]:
+                                sendNowSchedulerChartFilters,
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_DASHBOARD_FILTERS]:
                                 sendNowSchedulerDashboardFilters,
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS]:
@@ -1711,29 +2032,49 @@ export class UnfurlService extends BaseService {
                         // (the bridge sees every metric query the iframe
                         // runs). After the signal we sleep briefly so CSS /
                         // chart entrance animations can finish.
-                        const APP_READY_TIMEOUT_MS = 60_000;
                         const APP_ANIMATION_BUFFER_MS = 5_000;
                         this.logger.info(
-                            `Waiting for app screenshot ready indicator (timeout ${APP_READY_TIMEOUT_MS}ms) - unfurlId: ${imageId}`,
+                            `Waiting for app screenshot ready indicator (timeout ${this.screenshotTimeoutMs}ms) - unfurlId: ${imageId}`,
                         );
+                        const waitStart = Date.now();
                         try {
                             await page.waitForSelector(
                                 SCREENSHOT_SELECTORS.READY_INDICATOR,
                                 {
                                     state: 'attached',
-                                    timeout: APP_READY_TIMEOUT_MS,
+                                    timeout: this.screenshotTimeoutMs,
                                 },
                             );
                             this.logger.info(
                                 `App ready indicator found - waiting ${APP_ANIMATION_BUFFER_MS}ms for animations - unfurlId: ${imageId}`,
                             );
+                            this.analytics.track({
+                                event: 'headless_browser.app_ready_wait',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    ready: true,
+                                    waitMs: Date.now() - waitStart,
+                                    context,
+                                    imageId,
+                                },
+                            });
                         } catch (waitError) {
                             // Fall through to the animation buffer so the
                             // screenshot still happens for apps that never
                             // signal (older bundles, or pathological cases).
                             this.logger.warn(
-                                `App ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms; proceeding with animation buffer only - unfurlId: ${imageId}`,
+                                `App ready indicator not detected within ${this.screenshotTimeoutMs}ms; proceeding with animation buffer only - unfurlId: ${imageId}`,
                             );
+                            this.analytics.track({
+                                event: 'headless_browser.app_ready_wait',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    ready: false,
+                                    waitMs: Date.now() - waitStart,
+                                    context,
+                                    imageId,
+                                },
+                            });
                         }
                         // page.evaluate keeps CDP traffic flowing during the
                         // animation buffer so a remote Chromium doesn't drop
@@ -1939,23 +2280,27 @@ export class UnfurlService extends BaseService {
                         }
                     }
 
-                    const fullPage = await page.locator(finalSelector);
-                    const fullPageSize = await fullPage?.boundingBox({
-                        timeout: this.screenshotTimeoutMs,
-                    });
-
-                    if (
-                        chartType !== ChartType.BIG_NUMBER &&
-                        lightdashPage !== LightdashPage.APP &&
-                        fullPageSize?.height
-                    ) {
-                        await page.setViewportSize({
-                            width: gridWidth ?? viewport.width,
-                            height: Math.round(fullPageSize.height),
+                    // AI artifacts keep their fixed frame: no content
+                    // measurement, no viewport resize.
+                    if (lightdashPage !== LightdashPage.AI_ARTIFACT) {
+                        const fullPage = await page.locator(finalSelector);
+                        const fullPageSize = await fullPage?.boundingBox({
+                            timeout: this.screenshotTimeoutMs,
                         });
-                        // Viewport changes can trigger layout shifts - wait for things to settle
-                        // before taking the shot 📸
-                        await page.waitForTimeout(100);
+
+                        if (
+                            chartType !== ChartType.BIG_NUMBER &&
+                            lightdashPage !== LightdashPage.APP &&
+                            fullPageSize?.height
+                        ) {
+                            await page.setViewportSize({
+                                width: gridWidth ?? viewport.width,
+                                height: Math.round(fullPageSize.height),
+                            });
+                            // Viewport changes can trigger layout shifts - wait for things to settle
+                            // before taking the shot 📸
+                            await page.waitForTimeout(100);
+                        }
                     }
 
                     // Helper: generate PDF from the current page state
@@ -2118,153 +2463,6 @@ export class UnfurlService extends BaseService {
                                     ),
                                 ),
                             );
-                            // DIAG-app-screenshot-viewport — remove after investigation.
-                            // Fully isolated: errors and timeouts cannot affect the screenshot,
-                            // and the entire block is unreachable for non-APP deliveries.
-                            if (lightdashPage === LightdashPage.APP) {
-                                if (lightdashPage !== LightdashPage.APP) {
-                                    this.logger.warn(
-                                        `[APP-DIAG] unreachable non-APP diagnostic path - unfurlId: ${imageId}`,
-                                    );
-                                } else {
-                                    const DIAG_BUDGET_MS = 2000;
-                                    const diagWork = (async () => {
-                                        const frames = page!.frames();
-                                        const diagFrame = frames.find(
-                                            (f) => f !== page!.mainFrame(),
-                                        );
-                                        const playwrightViewport =
-                                            page!.viewportSize();
-                                        const parentView = await page!.evaluate(
-                                            () => ({
-                                                innerW: window.innerWidth,
-                                                innerH: window.innerHeight,
-                                                dpr: window.devicePixelRatio,
-                                                docW: document.documentElement
-                                                    .clientWidth,
-                                                docH: document.documentElement
-                                                    .clientHeight,
-                                            }),
-                                        );
-                                        const iframeView = diagFrame
-                                            ? await diagFrame.evaluate(() => ({
-                                                  innerW: window.innerWidth,
-                                                  innerH: window.innerHeight,
-                                                  dpr: window.devicePixelRatio,
-                                                  bodyScrollW:
-                                                      document.body
-                                                          ?.scrollWidth ?? null,
-                                                  bodyScrollH:
-                                                      document.body
-                                                          ?.scrollHeight ??
-                                                      null,
-                                                  docScrollW:
-                                                      document.documentElement
-                                                          .scrollWidth,
-                                                  docScrollH:
-                                                      document.documentElement
-                                                          .scrollHeight,
-                                                  rootRect: (() => {
-                                                      const r = (
-                                                          document.querySelector(
-                                                              '#root',
-                                                          ) ?? document.body
-                                                      )?.getBoundingClientRect();
-                                                      return r
-                                                          ? {
-                                                                w: r.width,
-                                                                h: r.height,
-                                                                x: r.x,
-                                                                y: r.y,
-                                                            }
-                                                          : null;
-                                                  })(),
-                                                  maxLeafRight: (() => {
-                                                      let maxRight = 0;
-                                                      const root =
-                                                          document.querySelector(
-                                                              '#root',
-                                                          ) ?? document.body;
-                                                      if (!root) return 0;
-                                                      const walker =
-                                                          document.createTreeWalker(
-                                                              root,
-                                                              NodeFilter.SHOW_ELEMENT,
-                                                          );
-                                                      let node: Node | null =
-                                                          walker.currentNode;
-                                                      while (node) {
-                                                          const el =
-                                                              node as Element;
-                                                          if (
-                                                              el.children
-                                                                  .length === 0
-                                                          ) {
-                                                              const rect =
-                                                                  el.getBoundingClientRect();
-                                                              if (
-                                                                  rect.width >
-                                                                      0 &&
-                                                                  rect.height >
-                                                                      0
-                                                              ) {
-                                                                  maxRight =
-                                                                      Math.max(
-                                                                          maxRight,
-                                                                          rect.right,
-                                                                      );
-                                                              }
-                                                          }
-                                                          node =
-                                                              walker.nextNode();
-                                                      }
-                                                      return Math.ceil(
-                                                          maxRight,
-                                                      );
-                                                  })(),
-                                              }))
-                                            : null;
-                                        this.logger.info(
-                                            `[APP-DIAG] unfurlId=${imageId} playwrightViewport=${JSON.stringify(
-                                                playwrightViewport,
-                                            )} parent=${JSON.stringify(
-                                                parentView,
-                                            )} iframe=${JSON.stringify(
-                                                iframeView,
-                                            )} iframeBox=${JSON.stringify(
-                                                iframeBox,
-                                            )} clipW=${clipWidth} clipH=${clipHeight} appContentHeight=${
-                                                appContentHeight ?? null
-                                            }`,
-                                        );
-                                    })();
-
-                                    try {
-                                        await Promise.race([
-                                            diagWork,
-                                            new Promise<void>((_, reject) => {
-                                                setTimeout(
-                                                    () =>
-                                                        reject(
-                                                            new Error(
-                                                                'diag timeout',
-                                                            ),
-                                                        ),
-                                                    DIAG_BUDGET_MS,
-                                                );
-                                            }),
-                                        ]);
-                                    } catch (diagErr) {
-                                        this.logger.warn(
-                                            `[APP-DIAG] skipped: ${
-                                                diagErr instanceof Error
-                                                    ? diagErr.message
-                                                    : String(diagErr)
-                                            } - unfurlId: ${imageId}`,
-                                        );
-                                    }
-                                }
-                            }
                             imageBuffer = await page.screenshot({
                                 path,
                                 animations: 'disabled',
@@ -2286,6 +2484,13 @@ export class UnfurlService extends BaseService {
                                     timeout: this.screenshotTimeoutMs,
                                 });
                         }
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        // Fixed-frame capture at the declared viewport.
+                        imageBuffer = await page.screenshot({
+                            path,
+                            animations: 'disabled',
+                            timeout: this.screenshotTimeoutMs,
+                        });
                     } else {
                         // Full page screenshot for charts
                         imageBuffer = await page.screenshot({
@@ -2365,6 +2570,7 @@ export class UnfurlService extends BaseService {
                             selectedTabs,
                             sendNowSchedulerDashboardFilters,
                             sendNowSchedulerFilters,
+                            sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
                             outputFormat,
                             withPdf,
@@ -2425,6 +2631,140 @@ export class UnfurlService extends BaseService {
         );
     }
 
+    // Browserless drops Playwright's viewport over CDP; push it to Chrome.
+    private async overrideCdpViewport(
+        page: playwright.Page,
+        size: { width: number; height: number },
+        logContext: string,
+        deviceScaleFactor = 1,
+    ): Promise<void> {
+        try {
+            const cdp = await page.context().newCDPSession(page);
+            await cdp.send('Emulation.setDeviceMetricsOverride', {
+                width: size.width,
+                height: size.height,
+                deviceScaleFactor,
+                mobile: false,
+            });
+        } catch (cdpErr) {
+            this.logger.warn(
+                `[APP] CDP viewport override failed; falling through - ${logContext}, err: ${
+                    cdpErr instanceof Error ? cdpErr.message : String(cdpErr)
+                }`,
+            );
+        }
+    }
+
+    // Fail-closed: a missing ready indicator, missing global or invalid
+    // manifest all throw — an empty manifest would ship a partial delivery.
+    async captureAppDeliveryManifest({
+        url,
+        authUserUuid,
+        contextId,
+    }: {
+        url: string;
+        authUserUuid: string;
+        contextId?: string;
+    }): Promise<DeliveryCaptureManifest> {
+        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
+            throw new UnexpectedServerError(
+                `Can't capture app delivery queries if HEADLESS_BROWSER_HOST env variable is not defined`,
+            );
+        }
+        const cookie = await this.getUserCookie(authUserUuid);
+
+        let browser: playwright.Browser | undefined;
+        let page: playwright.Page | undefined;
+        try {
+            browser = await playwright.chromium.connectOverCDP(
+                getAppBrowserEndpoint(
+                    this.lightdashConfig.headlessBrowser.browserEndpoint,
+                    appViewport,
+                    this.screenshotTimeoutMs + BROWSERLESS_SESSION_BUFFER_MS,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
+                ),
+                { timeout: 1000 * 60 * 30 },
+            );
+            page = await browser.newPage({
+                viewport: appViewport,
+                serviceWorkers: 'block',
+                ignoreHTTPSErrors:
+                    this.lightdashConfig.headlessBrowser
+                        .internalLightdashHostIgnoreHttpsErrors,
+            });
+            // Same geometry as the screenshot render so the app issues the
+            // same set of queries.
+            await this.overrideCdpViewport(
+                page,
+                appViewport,
+                `contextId: ${contextId}`,
+            );
+
+            await this.registerHeadlessBrowserRoutes({
+                browserContext: page.context(),
+                context: ScreenshotContext.SCHEDULED_DELIVERY,
+                contextId,
+            });
+
+            const cookieMatch = cookie.match(/connect\.sid=([^;]+)/);
+            if (!cookieMatch)
+                throw new UnexpectedServerError('Invalid cookie provided');
+            await page.context().addCookies([
+                {
+                    name: 'connect.sid',
+                    value: cookieMatch[1],
+                    domain: new URL(url).hostname,
+                    path: '/',
+                    sameSite: 'Strict',
+                },
+            ]);
+
+            page.on('console', (msg) => {
+                if (msg.type() === 'error') {
+                    this.logger.error(
+                        `Delivery capture console error - contextId: ${contextId}, text: ${msg.text()}`,
+                    );
+                }
+            });
+
+            await page.goto(url, { timeout: 150000 });
+
+            try {
+                await page.waitForSelector(
+                    SCREENSHOT_SELECTORS.READY_INDICATOR,
+                    { state: 'attached', timeout: this.screenshotTimeoutMs },
+                );
+            } catch (waitError) {
+                // Fail-closed: unlike the screenshot path there is no partial
+                // result worth shipping, so the timeout propagates.
+                this.logger.error(
+                    `App delivery capture ready indicator not detected within ${this.screenshotTimeoutMs}ms - contextId: ${contextId}`,
+                );
+                throw waitError;
+            }
+
+            const raw = await page.evaluate(
+                (globalName) =>
+                    (window as unknown as Record<string, unknown>)[globalName],
+                DELIVERY_CAPTURE_GLOBAL,
+            );
+            const manifest = parseDeliveryCaptureManifest(raw);
+            if (manifest === null) {
+                throw new UnexpectedServerError(
+                    `App delivery capture missing or malformed - contextId: ${contextId}`,
+                );
+            }
+
+            this.logger.info(
+                `App delivery capture returned ${manifest.items.length} queries (overflow ${manifest.overflowCount}) - contextId: ${contextId}`,
+            );
+            return manifest;
+        } finally {
+            if (page) await page.close().catch(() => {});
+            if (browser) await browser.close().catch(() => {});
+        }
+    }
+
     private async getSharedUrl(linkUrl: string): Promise<string> {
         const [shareId] = linkUrl.match(nanoidRegex) || [];
         if (!shareId) return linkUrl;
@@ -2440,21 +2780,73 @@ export class UnfurlService extends BaseService {
         return fullUrl;
     }
 
-    async parseUrl(linkUrl: string): Promise<ParsedUrl> {
+    private async resolveProjectUuid(
+        projectIdentifier: string,
+        organizationUuid?: string,
+    ): Promise<string> {
+        const decodedIdentifier = decodeURIComponent(projectIdentifier);
+        if (uuidExactRegex.test(decodedIdentifier)) {
+            return decodedIdentifier;
+        }
+        if (!organizationUuid) {
+            throw new NotFoundError(
+                `Cannot resolve project slug without an organization`,
+            );
+        }
+
+        return this.projectModel.getUuidBySlug(
+            organizationUuid,
+            decodedIdentifier,
+        );
+    }
+
+    async parseUrl(
+        linkUrl: string,
+        organizationUuid?: string,
+    ): Promise<ParsedUrl> {
         const url = matchShareUrlNanoid(linkUrl)
             ? await this.getSharedUrl(linkUrl)
             : linkUrl;
 
-        const dashboardUrl = new RegExp(`/projects/${uuid}/dashboards/${uuid}`);
-        const chartUrl = new RegExp(`/projects/${uuid}/saved/${uuid}`);
+        const projectMatch = url.match(/\/projects\/([^/?#]+)/);
+        let resolvedUrl = url;
+        if (projectMatch) {
+            const [, projectIdentifier] = projectMatch;
+            try {
+                const projectUuid = await this.resolveProjectUuid(
+                    projectIdentifier,
+                    organizationUuid,
+                );
+                resolvedUrl = url.replace(
+                    `/projects/${projectIdentifier}`,
+                    `/projects/${projectUuid}`,
+                );
+            } catch (e) {
+                this.logger.debug(
+                    `Project ${projectIdentifier} did not resolve: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+                return {
+                    isValid: false,
+                    url,
+                    minimalUrl: url,
+                };
+            }
+        }
+
+        const dashboardUrl = new RegExp(
+            `/projects/(${uuid})/dashboards/([^/?#]+)`,
+        );
+        const chartUrl = new RegExp(`/projects/(${uuid})/saved/([^/?#]+)`);
         const exploreUrl = new RegExp(`/projects/${uuid}/tables/`);
         const sqlChartUrl = new RegExp(
             `/projects/(${uuid})/sql-runner/([^/?#]+)`,
         );
         const appUrl = new RegExp(`/projects/${uuid}/apps/${uuid}`);
 
-        if (url.match(appUrl) !== null) {
-            const [projectUuid, appUuid] = url.match(uuidRegex) || [];
+        if (resolvedUrl.match(appUrl) !== null) {
+            const [projectUuid, appUuid] = resolvedUrl.match(uuidRegex) || [];
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.APP,
@@ -2467,41 +2859,82 @@ export class UnfurlService extends BaseService {
                 appUuid,
             };
         }
-        if (url.match(dashboardUrl) !== null) {
-            const [projectUuid, dashboardUuid] = url.match(uuidRegex) || [];
+        const dashboardMatch = resolvedUrl.match(dashboardUrl);
+        if (dashboardMatch !== null) {
+            const [, projectUuid, encodedIdentifier] = dashboardMatch;
+            try {
+                const dashboardIdentifier =
+                    decodeURIComponent(encodedIdentifier);
+                const dashboardUuid = uuidExactRegex.test(dashboardIdentifier)
+                    ? dashboardIdentifier
+                    : (
+                          await this.dashboardModel.getByIdOrSlug(
+                              dashboardIdentifier,
+                              { projectUuid },
+                          )
+                      ).uuid;
 
-            const { searchParams } = new URL(url);
-            return {
-                isValid: true,
-                lightdashPage: LightdashPage.DASHBOARD,
-                url,
-                minimalUrl: `${
-                    this.lightdashConfig.headlessBrowser.internalLightdashHost
-                }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
-                projectUuid,
-                dashboardUuid,
-            };
+                const { searchParams } = new URL(url);
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.DASHBOARD,
+                    url,
+                    minimalUrl: `${
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost
+                    }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
+                    projectUuid,
+                    dashboardUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `Dashboard ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
         }
-        if (url.match(chartUrl) !== null) {
-            const [projectUuid, chartUuid] = url.match(uuidRegex) || [];
-            return {
-                isValid: true,
-                lightdashPage: LightdashPage.CHART,
-                url,
-                minimalUrl: new URL(
-                    `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
-                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
-                ).href,
-                projectUuid,
-                chartUuid,
-            };
-        }
-        if (url.match(exploreUrl) !== null) {
-            const [projectUuid] = url.match(uuidRegex) || [];
+        const chartMatch = resolvedUrl.match(chartUrl);
+        if (chartMatch !== null) {
+            const [, projectUuid, encodedIdentifier] = chartMatch;
+            try {
+                const chartIdentifier = decodeURIComponent(encodedIdentifier);
+                const chartUuid = uuidExactRegex.test(chartIdentifier)
+                    ? chartIdentifier
+                    : (
+                          await this.savedChartModel.get(
+                              chartIdentifier,
+                              undefined,
+                              { projectUuid },
+                          )
+                      ).uuid;
 
-            const urlWithoutParams = url.split('?')[0];
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.CHART,
+                    url,
+                    minimalUrl: new URL(
+                        `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost,
+                    ).href,
+                    projectUuid,
+                    chartUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `Chart ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
+        }
+        if (resolvedUrl.match(exploreUrl) !== null) {
+            const [projectUuid] = resolvedUrl.match(uuidRegex) || [];
+
+            const urlWithoutParams = resolvedUrl.split('?')[0];
             const exploreModel = urlWithoutParams.split('/tables/')[1];
-            const internalUrl = url.replace(
+            const internalUrl = resolvedUrl.replace(
                 this.lightdashConfig.siteUrl,
                 this.lightdashConfig.headlessBrowser.internalLightdashHost,
             );
@@ -2514,7 +2947,7 @@ export class UnfurlService extends BaseService {
                 exploreModel,
             };
         }
-        const sqlChartMatch = url.match(sqlChartUrl);
+        const sqlChartMatch = resolvedUrl.match(sqlChartUrl);
         if (sqlChartMatch !== null) {
             const [, projectUuid, slug] = sqlChartMatch;
             try {
@@ -2554,10 +2987,13 @@ export class UnfurlService extends BaseService {
 
     private async getUserCookie(userUuid: string): Promise<string> {
         this.logger.debug(`Getting cookie for user ${userUuid}`);
-        const token = getAuthenticationToken(userUuid);
+        const token =
+            await this.headlessBrowserLoginGrantModel.createLoginGrant(
+                userUuid,
+            );
         // Use internal URL for the request (could be the same as the site URL)
         const internalUrl = new URL(
-            `/api/v1/headless-browser/login/${userUuid}`,
+            '/api/v1/headless-browser/login',
             this.lightdashConfig.headlessBrowser.internalLightdashHost,
         );
 
@@ -2646,11 +3082,20 @@ export class UnfurlService extends BaseService {
             return;
         }
 
+        const organizationUuid =
+            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                teamId,
+            );
+
         void event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {
-                const details = await this.unfurlDetails(l.url, null);
+                const details = await this.unfurlDetails(
+                    l.url,
+                    null,
+                    organizationUuid,
+                );
 
                 if (details) {
                     this.analytics.track({

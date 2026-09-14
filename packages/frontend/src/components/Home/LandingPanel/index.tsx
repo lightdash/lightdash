@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Group, Stack, Text, Title } from '@mantine-8/core';
+import { Group, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -9,9 +9,14 @@ import MantineLinkButton from '../../common/MantineLinkButton';
 interface Props {
     userName: string | undefined;
     projectUuid: string;
+    projectUrlIdentifier: string;
 }
 
-const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
+const LandingPanel: FC<Props> = ({
+    userName,
+    projectUuid,
+    projectUrlIdentifier,
+}) => {
     const { user } = useApp();
     return (
         <Group justify="space-between" my="xl">
@@ -33,7 +38,7 @@ const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
                 })}
             >
                 <MantineLinkButton
-                    href={`/projects/${projectUuid}/tables`}
+                    href={`/projects/${projectUrlIdentifier}/tables`}
                     trackingEvent={{
                         name: EventName.LANDING_RUN_QUERY_CLICKED,
                         properties: {

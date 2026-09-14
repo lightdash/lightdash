@@ -28,6 +28,11 @@
     overflow-y: visible;
 }
 
+/* Hosted in a modal (or any non-viewport container): fill the parent, not 100vh */
+.root[data-container-height='true'] {
+    --page-height: 100%;
+}
+
 .root[data-full-page-scroll='true'] {
     height: auto;
     max-height: none;
@@ -66,6 +71,9 @@
 
 .content[data-with-sidebar='true'] {
     min-width: var(--page-min-content-width);
+    /* Absorb the row's negative free space down to the min-width above before
+       the (shrinkable) sidebars start giving up their width. */
+    flex-shrink: 1000;
 }
 
 .content[data-with-footer='true'] {
@@ -118,7 +126,7 @@
 }
 
 .content[data-sidebar-border='true'] {
-    border-left: 1px solid var(--mantine-color-ldGray-3);
+    border-left: 1px solid var(--mantine-color-default-border);
 }
 
 .fixedContainer {

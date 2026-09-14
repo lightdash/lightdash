@@ -3,6 +3,7 @@ import https from 'https';
 import * as ipaddr from 'ipaddr.js';
 import { LookupFunction } from 'net';
 import fetch, { FetchError } from 'node-fetch';
+import { isPrivateAddress } from '../ssrfProtection';
 
 export type SecureFetchReason =
     | 'non_https'
@@ -34,9 +35,14 @@ export type SecureFetchOptions = {
     allowedContentTypes: string[];
 };
 
+// Non-2xx responses are returned, not thrown, so callers can forward upstream
+// errors; only security failures and network errors throw SecureFetchError.
 export type SecureFetchResult = {
     status: number;
     contentType: string;
+    /** Upstream response headers, normalized to lowercase names. Callers must
+     *  still apply their own exposure policy before returning these to users. */
+    headers: Record<string, string>;
     bodyText: string;
     truncated: boolean;
 };
@@ -66,11 +72,8 @@ const parseHttpsUrl = (rawUrl: string): URL => {
 // (64:ff9b::/96) collapse to their IPv4 range via ipaddr.process(). Fail-closed:
 // if the address cannot be parsed it is treated as blocked.
 const isNonPublicAddress = (address: string): boolean => {
-    try {
-        return ipaddr.process(address).range() !== 'unicast';
-    } catch {
-        return true; // unparseable — fail closed
-    }
+    if (!ipaddr.isValid(address)) return true;
+    return isPrivateAddress(address);
 };
 
 const resolveAndValidateHost = async (
@@ -202,13 +205,6 @@ export async function secureFetch(
             'Redirects are not allowed for security reasons',
         );
     }
-    if (!response.ok) {
-        throw new SecureFetchError(
-            'request_failed',
-            `Request failed with status ${response.status}`,
-        );
-    }
-
     const contentLength = response.headers.get('content-length');
     if (
         contentLength &&
@@ -224,8 +220,12 @@ export async function secureFetch(
         response.headers.get('content-type') ?? '',
     );
     // Empty allowlist = no content-type restriction (explicit opt-out; the proxy
-    // always passes a non-empty list). When non-empty, enforce a strict allowlist.
-    if (!isAllowedContentType(contentType, options.allowedContentTypes)) {
+    // always passes a non-empty list). Enforced only on success responses: error
+    // bodies are often text/html (gateway 502 pages) and must survive.
+    if (
+        response.ok &&
+        !isAllowedContentType(contentType, options.allowedContentTypes)
+    ) {
         throw new SecureFetchError(
             'disallowed_content_type',
             `Disallowed content-type: ${contentType || '(none)'}`,
@@ -247,9 +247,15 @@ export async function secureFetch(
         throw new SecureFetchError('request_failed', 'Failed to read response');
     }
 
+    const headers = Object.create(null) as Record<string, string>;
+    response.headers.forEach((value, name) => {
+        headers[name.toLowerCase()] = value;
+    });
+
     return {
         status: response.status,
         contentType,
+        headers,
         bodyText,
         truncated: false,
     };

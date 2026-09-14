@@ -209,6 +209,59 @@ describe('SandboxManager', () => {
             });
         });
 
+        it('runs beforeSuspend with the connected handle before the snapshot is taken', async () => {
+            const provider = makeProvider(true);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: 'live-running',
+                snapshotRef: null,
+                workspace,
+            });
+            const manager = makeManager(provider, registry);
+            const order: string[] = [];
+            provider.persist.mockImplementation(async () => {
+                order.push('persist');
+                return { kind: 'e2b-paused', sandboxId: 'live-1' };
+            });
+            const beforeSuspend = vi
+                .fn()
+                .mockImplementation(async (handle: SandboxHandle) => {
+                    order.push(`hook:${handle.sandboxId}`);
+                });
+
+            await manager.suspendByUuid('sb-1', { beforeSuspend });
+
+            // The hook must see the live container before it is frozen —
+            // running it after persist would snapshot the processes it was
+            // meant to interrupt.
+            expect(order).toEqual(['hook:live-reconnect', 'persist']);
+        });
+
+        it('propagates a beforeSuspend error without suspending', async () => {
+            const provider = makeProvider(true);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: 'live-running',
+                snapshotRef: null,
+                workspace,
+            });
+            const manager = makeManager(provider, registry);
+            const hookError = new Error('interrupt failed');
+
+            await expect(
+                manager.suspendByUuid('sb-1', {
+                    beforeSuspend: vi.fn().mockRejectedValue(hookError),
+                }),
+            ).rejects.toBe(hookError);
+            expect(provider.persist).not.toHaveBeenCalled();
+        });
+
         it('GCs a row that has no live sandbox to preserve', async () => {
             const provider = makeProvider(false);
             const registry = makeRegistry();
@@ -221,11 +274,14 @@ describe('SandboxManager', () => {
                 workspace,
             });
             const manager = makeManager(provider, registry);
+            const beforeSuspend = vi.fn();
 
-            await manager.suspendByUuid('sb-1');
+            await manager.suspendByUuid('sb-1', { beforeSuspend });
 
             expect(provider.connect).not.toHaveBeenCalled();
             expect(provider.persist).not.toHaveBeenCalled();
+            // No live container — nothing for the hook to interrupt.
+            expect(beforeSuspend).not.toHaveBeenCalled();
             // Storage cleanup is delegated to the provider, not the Manager.
             expect(provider.deleteSnapshot).toHaveBeenCalledWith({
                 kind: 's3-tar',

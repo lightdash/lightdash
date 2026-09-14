@@ -1,8 +1,11 @@
 import {
     LightdashAppUuidHeader,
+    LightdashBuildHashHeader,
+    LightdashCliVersionHeader,
     LightdashMode,
     LightdashRequestMethodHeader,
     LightdashSdkVersionHeader,
+    LightdashSignedDownloadHeader,
     LightdashVersionHeader,
     SessionUser,
 } from '@lightdash/common';
@@ -89,18 +92,6 @@ export const getSchedulerContext = ():
     | undefined => {
     if (!ExecutionContext.exists()) return undefined;
     return ExecutionContext.get<ExecutionContextInfo>().scheduler;
-};
-
-export const getOrganizationContext = (): Pick<
-    ExecutionContextInfo,
-    'organization_uuid' | 'organization_name'
-> => {
-    if (!ExecutionContext.exists()) return {};
-    const ctx = ExecutionContext.get<ExecutionContextInfo>();
-    return {
-        organization_uuid: ctx.organization_uuid,
-        organization_name: ctx.organization_name,
-    };
 };
 
 // Reads the originating data app from the request-scoped ExecutionContext
@@ -237,12 +228,22 @@ export const formatAuditActor = (actor: AuditActor): string => {
     return actor.uuid;
 };
 
+const formatAuditMetadataValue = (value: unknown): string => {
+    if (typeof value !== 'object' || value === null) return String(value);
+
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+};
+
 export const formatAuditResource = (resource: AuditResource): string => {
     const typePart = resource.type;
 
     if (resource.metadata) {
         const parts = Object.entries(resource.metadata)
-            .map(([key, value]) => `${key}: ${value}`)
+            .map(([key, value]) => `${key}: ${formatAuditMetadataValue(value)}`)
             .join(', ');
         return `${typePart} -> ${parts}`;
     }
@@ -267,6 +268,8 @@ export const formatAuditMessage = (event: AuditLogEvent): string => {
 };
 
 export const logAuditEvent = (event: AuditLogEvent): void => {
+    if (!winstonLogger.isLevelEnabled('audit')) return;
+
     winstonLogger.log({
         level: 'audit',
         message: formatAuditMessage(event),
@@ -284,11 +287,40 @@ declare global {
     }
 }
 
+export const sanitizeRequestUrl = (url: string): string =>
+    url.replace(/([?&]downloadToken=)[^&#\s]*/gi, '$1[REDACTED]');
+
+const safeRequestHeaderNames = new Set([
+    'content-length',
+    'content-type',
+    'host',
+    'user-agent',
+    'x-amzn-trace-id',
+    'x-request-id',
+    LightdashAppUuidHeader.toLowerCase(),
+    LightdashBuildHashHeader.toLowerCase(),
+    LightdashCliVersionHeader.toLowerCase(),
+    LightdashRequestMethodHeader.toLowerCase(),
+    LightdashSdkVersionHeader.toLowerCase(),
+    LightdashSignedDownloadHeader.toLowerCase(),
+    LightdashVersionHeader.toLowerCase(),
+]);
+
+const filterRequestHeaders = (
+    headers: express.Request['headers'],
+): express.Request['headers'] =>
+    Object.fromEntries(
+        Object.entries(headers).filter(([name]) =>
+            safeRequestHeaderNames.has(name.toLowerCase()),
+        ),
+    );
+
 export const expressWinstonMiddleware: express.RequestHandler =
     expressWinston.logger({
         winstonInstance: winstonLogger,
         level: 'http',
-        msg: '{{req.method}} {{req.url}} {{res.statusCode}} - {{res.responseTime}} ms',
+        msg: (req, res) =>
+            `${req.method} ${sanitizeRequestUrl(req.url)} ${res.statusCode} - ${(res as typeof res & { responseTime?: number }).responseTime} ms`,
         colorize: false,
         meta: true,
         metaField: null, // on root of log
@@ -303,13 +335,14 @@ export const expressWinstonMiddleware: express.RequestHandler =
             includesResponse: true,
         }),
         requestWhitelist: ['url', 'headers', 'method'],
+        requestFilter: (req, propertyName) => {
+            if (propertyName === 'url') return sanitizeRequestUrl(req.url);
+            if (propertyName === 'headers') {
+                return filterRequestHeaders(req.headers);
+            }
+            return (req as unknown as Record<string, unknown>)[propertyName];
+        },
         responseWhitelist: ['statusCode'],
-        headerBlacklist: [
-            'cookie',
-            'authorization',
-            'connection',
-            'accept-encoding',
-        ],
     });
 
 // Logs the request before the response is sent
@@ -321,11 +354,10 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
     if (lightdashConfig.mode !== LightdashMode.DEV) {
         winstonLogger.log({
             level: 'http',
-            message: `${req.method} ${req.url}`,
+            message: `${req.method} ${sanitizeRequestUrl(req.url)}`,
             req: {
                 method: req.method,
-                url: req.url,
-                headers: req.headers,
+                url: sanitizeRequestUrl(req.url),
             },
             includesResponse: false,
             userUuid: req.user?.userUuid,

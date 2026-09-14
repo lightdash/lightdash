@@ -2,8 +2,9 @@ import {
     FeatureFlags,
     type CacheMetadata,
     type QueryResultsPerformance,
+    type QueryResultsPreAggregate,
 } from '@lightdash/common';
-import { ActionIcon, Divider, Stack, HoverCard } from '@mantine-8/core';
+import { ActionIcon, Divider, Stack, HoverCard } from '@mantine/core';
 import {
     IconClock,
     IconClockBolt,
@@ -21,19 +22,41 @@ import InfoRow from '../common/PageHeader/InfoRow';
 
 type TileExecutionInfoProps = {
     cacheMetadata: CacheMetadata;
+    preAggregate: QueryResultsPreAggregate | null;
     performance: QueryResultsPerformance | undefined;
     totalClientFetchTimeMs: number | undefined;
     totalResults: number | undefined;
 };
 
-function getResultSource(cacheMetadata: CacheMetadata): string {
+// `cacheMetadata.preAggregate.hit` is the plan-time match; `preAggregate` from
+// results metadata is the post-execution truth, including warehouse fallback.
+function getResultSource(
+    cacheMetadata: CacheMetadata,
+    preAggregate: QueryResultsPreAggregate | null,
+): string {
     if (cacheMetadata.cacheHit) return 'Result cache';
+    if (preAggregate) {
+        if (preAggregate.fallbackReason !== null)
+            return 'Warehouse (pre-aggregate failed)';
+        return preAggregate.execution === 'duckdb'
+            ? 'DuckDB pre-aggregate'
+            : 'External pre-aggregate';
+    }
     if (cacheMetadata.preAggregate?.hit) return 'DuckDB pre-aggregate';
     return 'Warehouse';
 }
 
+function isServedFromPreAggregate(
+    cacheMetadata: CacheMetadata,
+    preAggregate: QueryResultsPreAggregate | null,
+): boolean {
+    if (preAggregate) return preAggregate.fallbackReason === null;
+    return cacheMetadata.preAggregate?.hit ?? false;
+}
+
 const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
     cacheMetadata,
+    preAggregate,
     performance,
     totalClientFetchTimeMs,
     totalResults,
@@ -57,14 +80,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
         (performance.queueTimeMs ?? 0);
 
     return (
-        <HoverCard
-            withArrow
-            withinPortal
-            shadow="md"
-            position="bottom-end"
-            offset={4}
-            arrowOffset={10}
-        >
+        <HoverCard withArrow position="bottom-end" offset={4} arrowOffset={10}>
             <HoverCard.Dropdown>
                 <Stack gap={10} w={240} p={4}>
                     <InfoRow icon={IconLayoutRows} label="Rows">
@@ -72,7 +88,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                     </InfoRow>
 
                     <InfoRow icon={IconDatabase} label="Source">
-                        {getResultSource(cacheMetadata)}
+                        {getResultSource(cacheMetadata, preAggregate)}
                     </InfoRow>
 
                     <Divider />
@@ -103,10 +119,13 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                 </Stack>
             </HoverCard.Dropdown>
             <HoverCard.Target>
-                <ActionIcon size="sm" variant="subtle" color="gray">
+                <ActionIcon size="sm">
                     <MantineIcon
                         icon={
-                            cacheMetadata.preAggregate?.hit
+                            isServedFromPreAggregate(
+                                cacheMetadata,
+                                preAggregate,
+                            )
                                 ? IconClockBolt
                                 : IconClock
                         }

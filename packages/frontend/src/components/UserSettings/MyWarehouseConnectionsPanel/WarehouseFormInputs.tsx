@@ -1,5 +1,7 @@
 import {
+    DatabricksAuthenticationType,
     RedshiftAuthenticationType,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
@@ -9,12 +11,13 @@ import {
     Button,
     Code,
     Collapse,
+    FileInput,
     PasswordInput,
     Select,
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
     IconChevronDown,
@@ -26,13 +29,48 @@ import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import { useDatabricksLoginPopup } from '../../../hooks/useDatabricks';
 import { useProject } from '../../../hooks/useProject';
 import { useRedshiftAwsSsoLoginPopup } from '../../../hooks/useRedshiftAwsSso';
+import { getUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { useSnowflakeLoginPopup } from '../../../hooks/useSnowflake';
 import MantineIcon from '../../common/MantineIcon';
-import { getSsoLabel } from '../../ProjectConnection/WarehouseForms/util';
+import {
+    getSsoLabel,
+    PASSWORD_LABEL,
+    PERSONAL_ACCESS_TOKEN_LABEL,
+    PRIVATE_KEY_LABEL,
+} from '../../ProjectConnection/WarehouseForms/util';
+import { PRIVATE_KEY_FIELD_PATH } from './utils';
 import { WarehouseSsoButton } from './WarehouseSsoButton';
 
-const BigQueryFormInput: FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { mutate: openLoginPopup } = useGoogleLoginPopup('bigquery', onClose);
+const BigQueryFormInput: FC<{
+    onClose: () => void;
+    onSuccess?: (data: UserWarehouseCredentials) => void;
+}> = ({ onClose, onSuccess }) => {
+    const { mutate: openLoginPopup } = useGoogleLoginPopup(
+        'bigquery',
+        async () => {
+            // The credential is created server-side during the OAuth flow, so
+            // fetch it to save the project preference like the form-based path
+            try {
+                const credentials = await getUserWarehouseCredentials();
+                const bigqueryCredential = credentials
+                    .filter(
+                        ({ credentials: c }) =>
+                            c.type === WarehouseTypes.BIGQUERY,
+                    )
+                    .sort(
+                        (a, b) =>
+                            new Date(b.createdAt).getTime() -
+                            new Date(a.createdAt).getTime(),
+                    )[0];
+                if (bigqueryCredential) {
+                    onSuccess?.(bigqueryCredential);
+                }
+            } catch {
+                // Auth itself succeeded; preference is a best-effort extra
+            }
+            onClose();
+        },
+    );
 
     // If this popup happens, it means we don't have warehouse credentials,
     // (aka isAuthenticated is false), so we need to authenticate
@@ -46,34 +84,185 @@ const BigQueryFormInput: FC<{ onClose: () => void }> = ({ onClose }) => {
     );
 };
 
-export const SnowflakeFormInput: FC<{ onClose: () => void }> = ({
-    onClose,
-}) => {
-    const { mutate: openLoginPopup } = useSnowflakeLoginPopup({
+export const SnowflakeFormInput: FC<{
+    disabled?: boolean;
+    form?: UseFormReturnType<UpsertUserWarehouseCredentials>;
+    onClose: () => void;
+}> = ({ disabled = false, form, onClose }) => {
+    const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
+    const { mutate: openLoginPopup, isSsoEnabled } = useSnowflakeLoginPopup({
         onLogin: async () => {
             onClose();
         },
     });
+    const credentials =
+        form?.values.credentials.type === WarehouseTypes.SNOWFLAKE
+            ? form.values.credentials
+            : undefined;
+    const authenticationType =
+        credentials?.authenticationType ?? SnowflakeAuthenticationType.PASSWORD;
+    // Keep SSO listed for a credential already saved as SSO, so an instance
+    // that later turned Snowflake OAuth off still labels the stored value
+    // instead of rendering an empty select.
+    const showSsoOption =
+        isSsoEnabled || authenticationType === SnowflakeAuthenticationType.SSO;
+    const authenticationOptions = [
+        ...(showSsoOption
+            ? [
+                  {
+                      value: SnowflakeAuthenticationType.SSO,
+                      label: getSsoLabel(WarehouseTypes.SNOWFLAKE),
+                  },
+              ]
+            : []),
+        {
+            value: SnowflakeAuthenticationType.PRIVATE_KEY,
+            label: PRIVATE_KEY_LABEL,
+        },
+        {
+            value: SnowflakeAuthenticationType.PASSWORD,
+            label: PASSWORD_LABEL,
+        },
+    ];
 
-    // If this popup happens, it means we don't have warehouse credentials,
-    // (aka isAuthenticated is false), so we need to authenticate
+    if (!form) {
+        return (
+            <WarehouseSsoButton
+                warehouseType={WarehouseTypes.SNOWFLAKE}
+                providerName="Snowflake"
+                disabled={disabled}
+                openLoginPopup={openLoginPopup}
+            />
+        );
+    }
+
     return (
-        <WarehouseSsoButton
-            warehouseType={WarehouseTypes.SNOWFLAKE}
-            providerName="Snowflake"
-            disabled={false}
-            openLoginPopup={openLoginPopup}
-        />
+        <Stack gap="xs">
+            <Select
+                required
+                allowDeselect={false}
+                size="xs"
+                label="Authentication type"
+                data={authenticationOptions}
+                value={authenticationType}
+                disabled={disabled}
+                onChange={(value) => {
+                    if (!value || !credentials) return;
+                    form.setFieldValue('credentials', {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        user: credentials.user,
+                        authenticationType:
+                            value as SnowflakeAuthenticationType,
+                    });
+                    setPrivateKeyFile(null);
+                }}
+            />
+
+            {authenticationType === SnowflakeAuthenticationType.SSO ? (
+                <WarehouseSsoButton
+                    warehouseType={WarehouseTypes.SNOWFLAKE}
+                    providerName="Snowflake"
+                    disabled={disabled}
+                    openLoginPopup={openLoginPopup}
+                />
+            ) : (
+                <>
+                    <TextInput
+                        required
+                        size="xs"
+                        label="Username/email"
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.user')}
+                    />
+                    {authenticationType ===
+                    SnowflakeAuthenticationType.PRIVATE_KEY ? (
+                        <>
+                            <FileInput
+                                required
+                                size="xs"
+                                label="Private key file"
+                                description="Upload your Snowflake .p8 private key."
+                                placeholder="Choose file..."
+                                accept=".p8"
+                                value={privateKeyFile}
+                                disabled={disabled}
+                                error={form.errors[PRIVATE_KEY_FIELD_PATH]}
+                                onChange={(file) => {
+                                    setPrivateKeyFile(null);
+                                    if (!file) {
+                                        form.setFieldValue(
+                                            'credentials.privateKey',
+                                            undefined,
+                                        );
+                                        return;
+                                    }
+
+                                    const fileReader = new FileReader();
+                                    fileReader.onload = (event) => {
+                                        const contents = event.target?.result;
+                                        setPrivateKeyFile(
+                                            typeof contents === 'string'
+                                                ? file
+                                                : null,
+                                        );
+                                        form.setFieldValue(
+                                            'credentials.privateKey',
+                                            typeof contents === 'string'
+                                                ? contents
+                                                : undefined,
+                                        );
+                                    };
+                                    fileReader.onerror = () => {
+                                        setPrivateKeyFile(null);
+                                        form.setFieldValue(
+                                            'credentials.privateKey',
+                                            undefined,
+                                        );
+                                    };
+                                    fileReader.readAsText(file);
+                                }}
+                            />
+                            <PasswordInput
+                                size="xs"
+                                label="Private key passphrase"
+                                description="Optional passphrase for encrypted private keys."
+                                disabled={disabled}
+                                {...form.getInputProps(
+                                    'credentials.privateKeyPass',
+                                )}
+                            />
+                        </>
+                    ) : (
+                        <PasswordInput
+                            required
+                            size="xs"
+                            label="Password"
+                            disabled={disabled}
+                            {...form.getInputProps('credentials.password')}
+                        />
+                    )}
+                </>
+            )}
+        </Stack>
     );
 };
 
-const DatabricksFormInput: FC<{
+const DatabricksFormInputs: FC<{
+    disabled: boolean;
+    form: UseFormReturnType<UpsertUserWarehouseCredentials>;
     onClose: () => void;
     projectUuid?: string;
     projectName?: string;
     credentialsName?: string;
-}> = ({ onClose, projectUuid, projectName, credentialsName }) => {
-    const { mutate: openLoginPopup } = useDatabricksLoginPopup({
+}> = ({
+    disabled,
+    form,
+    onClose,
+    projectUuid,
+    projectName,
+    credentialsName,
+}) => {
+    const { mutate: openLoginPopup, isSsoEnabled } = useDatabricksLoginPopup({
         onLogin: async () => {
             onClose();
         },
@@ -82,15 +271,54 @@ const DatabricksFormInput: FC<{
         credentialsName,
     });
 
-    // If this popup happens, it means we don't have warehouse credentials,
-    // (aka isAuthenticated is false), so we need to authenticate
+    const authenticationType =
+        form.values.credentials.type === WarehouseTypes.DATABRICKS
+            ? form.values.credentials.authenticationType
+            : undefined;
+
     return (
-        <WarehouseSsoButton
-            warehouseType={WarehouseTypes.DATABRICKS}
-            providerName="Databricks"
-            disabled={false}
-            openLoginPopup={openLoginPopup}
-        />
+        <Stack gap="xs">
+            {isSsoEnabled && (
+                <Select
+                    required
+                    allowDeselect={false}
+                    size="xs"
+                    label="Authentication type"
+                    data={[
+                        {
+                            value: DatabricksAuthenticationType.OAUTH_U2M,
+                            label: getSsoLabel(WarehouseTypes.DATABRICKS),
+                        },
+                        {
+                            value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                            label: PERSONAL_ACCESS_TOKEN_LABEL,
+                        },
+                    ]}
+                    disabled={disabled}
+                    {...form.getInputProps('credentials.authenticationType')}
+                />
+            )}
+
+            {authenticationType === DatabricksAuthenticationType.OAUTH_U2M ? (
+                // If this popup happens, it means we don't have warehouse credentials,
+                // (aka isAuthenticated is false), so we need to authenticate
+                <WarehouseSsoButton
+                    warehouseType={WarehouseTypes.DATABRICKS}
+                    providerName="Databricks"
+                    disabled={false}
+                    openLoginPopup={openLoginPopup}
+                />
+            ) : (
+                <PasswordInput
+                    required
+                    size="xs"
+                    label="Personal access token"
+                    description="Create a personal access token in your Databricks user settings."
+                    disabled={disabled}
+                    {...form.getInputProps('credentials.personalAccessToken')}
+                />
+            )}
+        </Stack>
     );
 };
 
@@ -253,7 +481,7 @@ const RedshiftIamFormInputs: FC<{
                 Advanced IAM options
             </Button>
 
-            <Collapse in={isAdvancedOpen}>
+            <Collapse expanded={isAdvancedOpen}>
                 <Stack gap="xs">
                     <TextInput
                         size="xs"
@@ -292,6 +520,7 @@ export const WarehouseFormInputs: FC<{
     projectUuid?: string;
     projectName?: string;
     databricksCredentialsName?: string;
+    existingAthenaAccessKeyId?: string;
 }> = ({
     form,
     disabled,
@@ -300,6 +529,7 @@ export const WarehouseFormInputs: FC<{
     projectUuid,
     projectName,
     databricksCredentialsName,
+    existingAthenaAccessKeyId,
 }) => {
     const { data: project } = useProject(projectUuid, {
         enabled:
@@ -344,7 +574,13 @@ export const WarehouseFormInputs: FC<{
 
     switch (form.values.credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
-            return <SnowflakeFormInput onClose={onClose} />;
+            return (
+                <SnowflakeFormInput
+                    disabled={disabled}
+                    form={form}
+                    onClose={onClose}
+                />
+            );
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.TRINO:
         case WarehouseTypes.CLICKHOUSE:
@@ -432,15 +668,47 @@ export const WarehouseFormInputs: FC<{
                 </>
             );
         case WarehouseTypes.BIGQUERY:
-            return <BigQueryFormInput onClose={onClose} />;
+            return (
+                <BigQueryFormInput onClose={onClose} onSuccess={onSuccess} />
+            );
         case WarehouseTypes.DATABRICKS:
             return (
-                <DatabricksFormInput
+                <DatabricksFormInputs
+                    disabled={disabled}
+                    form={form}
                     onClose={onClose}
                     projectUuid={projectUuid}
                     projectName={projectName}
                     credentialsName={databricksCredentialsName}
                 />
+            );
+        case WarehouseTypes.ATHENA:
+            const accessKeyId = form.values.credentials.accessKeyId?.trim();
+            const isSecretAccessKeyRequired =
+                !existingAthenaAccessKeyId ||
+                accessKeyId !== existingAthenaAccessKeyId;
+            return (
+                <>
+                    <TextInput
+                        required
+                        size="xs"
+                        label="AWS access key ID"
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.accessKeyId')}
+                    />
+                    <PasswordInput
+                        withAsterisk={isSecretAccessKeyRequired}
+                        size="xs"
+                        label="AWS secret access key"
+                        description={
+                            isSecretAccessKeyRequired
+                                ? undefined
+                                : 'Leave blank to keep the current secret access key.'
+                        }
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.secretAccessKey')}
+                    />
+                </>
             );
         case WarehouseTypes.DUCKDB:
             return (

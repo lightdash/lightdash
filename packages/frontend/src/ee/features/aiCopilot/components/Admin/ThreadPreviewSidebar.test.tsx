@@ -79,7 +79,7 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
                         content:
                             'Active user means a customer with a completed checkout in the last 28 days.',
                         terms: ['active user'],
-                        objects: ['customers'],
+                        objects: [{ type: 'explore', name: 'customers' }],
                     },
                     createdAt: new Date('2026-06-10T08:00:00.000Z'),
                 },
@@ -119,6 +119,7 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
             createdFrom: 'web_app',
             title: 'Dense review thread',
             titleGeneratedAt: null,
+            pinnedAt: null,
             firstMessage: {
                 uuid: 'prompt-1',
                 message: 'What does active user mean?',
@@ -177,7 +178,7 @@ describe('ThreadPreviewSidebar', () => {
         fireEvent.click(screen.getByRole('button', { name: /why flagged/i }));
         expect(
             screen.getAllByText(
-                'Adds project context: Active user means a customer with a completed checkout in the last 28 days.',
+                'Adds project context: Active user means a customer with a completed checkout in the last 28 days. Objects: explore "customers".',
             ).length,
         ).toBeGreaterThan(0);
 

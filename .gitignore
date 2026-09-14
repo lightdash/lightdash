@@ -2,7 +2,11 @@
 
 # version control
 .git
+.local/
 .worktrees/
+
+# Conductor workspace context
+/.context/
 
 # dependencies
 node_modules/
@@ -32,12 +36,14 @@ packages/e2e/lightdash
 
 # development
 lightdash_dev.yml
+/.dev-chart-registry/
 
 # production
 /packages/frontend/build
 /packages/frontend/sdk/dist
 /packages/common/dist
 /packages/backend/dist
+/packages/formula/dist
 /packages/cli/dist
 /packages/warehouses/dist
 /packages/sdk/dist
@@ -134,6 +140,11 @@ agent-harness/cloud/credentials.env
 
 # AI
 .agents
+!.agents/
+.agents/*
+!.agents/plugins/
+.agents/plugins/*
+!.agents/plugins/marketplace.json
 .codex
 .claude/*.lock
 AGENTS.md
@@ -144,9 +155,21 @@ AGENTS.md
 # editor swap files
 *.swp
 
-# release-safety marker is a generated release asset (PROD-8359), never committed
-/release-safety.json
 
 # Superpowers brainstorm scratch
 .superpowers/
 docs/superpowers/
+
+# Playground bundle builder venv
+scripts/playground-bundle/.venv/
+
+# Local pnpm store
+.pnpm-store/
+
+# Heavy local development paths
+scripts/k8s-dev/terraform/.terraform/
+examples/metricflow-demo/.fusion/
+.claude/worktrees/
+
+# Impeccable design-skill artifacts
+.impeccable/

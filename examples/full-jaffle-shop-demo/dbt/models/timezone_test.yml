@@ -24,6 +24,13 @@ models:
       continuous monthly axis that crosses both DST transitions (Mar 10 spring
       forward, Nov 3 fall back). Used to exercise the cartesian category date
       axis snap for non-UTC DST timezones.
+
+      Rows 32-33: dst_gap_wall_clock — the naive wall clock 2024-03-10 02:30
+      (row 32) does not exist in America/New_York (spring-forward gap), so
+      converting it maps past the real post-gap row 33 (03:00 EDT = 07:00Z).
+      Exercises operand-side MIN/MAX conversion: over rows 32-33,
+      MAX(convert(x)) = row 32's mapped instant while convert(MAX(x)) = 07:00Z
+      — the two placements disagree.
     config:
       # Delta gates TIMESTAMP_NTZ behind a table feature; non-Databricks
       # adapters ignore tblproperties.

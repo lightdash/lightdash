@@ -8,7 +8,5 @@ type TableCalculationFormInputs = {
     format: CustomFormat;
 };
 
-export type TableCalculationForm = UseFormReturnType<
-    TableCalculationFormInputs,
-    (values: TableCalculationFormInputs) => TableCalculationFormInputs
->;
+export type TableCalculationForm =
+    UseFormReturnType<TableCalculationFormInputs>;

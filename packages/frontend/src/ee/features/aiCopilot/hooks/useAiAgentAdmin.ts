@@ -1,9 +1,17 @@
 import {
+    isApiError,
+    type AiAgentAdminEvalFilters,
     type AiAgentAdminFilters,
+    type AiAgentAdminMemoryFilters,
+    type AiAgentAdminMemorySort,
     type AiAgentAdminSort,
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
+    type AiAgentThreadDump,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentAdminEvalPromptsResponse,
+    type ApiAiAgentAdminEvalsResponse,
+    type ApiAiAgentAdminMemoriesResponse,
     type ApiAiAgentAdminPromptActivityResponse,
     type ApiAiAgentReviewItemActivityResponse,
     type ApiAiAgentReviewItemPrDiffResponse,
@@ -12,6 +20,7 @@ import {
     type ApiAiAgentReviewItemWritebackPreviewResponse,
     type ApiAiAgentReviewSignalsResponse,
     type ApiAiAgentSummaryResponse,
+    type ApiAiAgentThreadDumpResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
     type ApiUpstreamDiffResponse,
@@ -110,6 +119,132 @@ export const useInfiniteAiAgentAdminThreads = (
     });
 };
 
+export type AiAgentAdminEvalsArgs = {
+    filters: AiAgentAdminEvalFilters;
+    sort: AiAgentAdminSort;
+    pagination: {
+        pageSize?: number;
+        page?: number;
+    };
+};
+
+const getAiAgentAdminEvals = async (
+    args: AiAgentAdminEvalFilters & {
+        sortField: AiAgentAdminSort['field'];
+        sortDirection: AiAgentAdminSort['direction'];
+    } & {
+        pageSize?: number;
+        page?: number;
+    },
+) => {
+    const params = createQueryString(args);
+    return lightdashApi<ApiAiAgentAdminEvalsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/evals?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useInfiniteAiAgentAdminEvals = (
+    args: AiAgentAdminEvalsArgs,
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiAiAgentAdminEvalsResponse['results'],
+        ApiError
+    > = {},
+) =>
+    useInfiniteQuery<ApiAiAgentAdminEvalsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-evals', args],
+        queryFn: ({ pageParam }) =>
+            getAiAgentAdminEvals({
+                ...args.filters,
+                sortField: args.sort.field,
+                sortDirection: args.sort.direction,
+                ...args.pagination,
+                page: (pageParam as number) ?? 1,
+            }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
+        },
+        ...infinityQueryOpts,
+    });
+
+const getAiAgentAdminEvalPrompts = async (evalUuid: string) =>
+    lightdashApi<ApiAiAgentAdminEvalPromptsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/evals/${encodeURIComponent(evalUuid)}/prompts`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiAgentAdminEvalPrompts = (evalUuid: string | undefined) =>
+    useQuery<ApiAiAgentAdminEvalPromptsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-eval-prompts', evalUuid],
+        queryFn: () => getAiAgentAdminEvalPrompts(evalUuid!),
+        enabled: !!evalUuid,
+        staleTime: 30 * 1000,
+    });
+
+export type AiAgentAdminMemoriesArgs = {
+    filters: AiAgentAdminMemoryFilters;
+    sort: AiAgentAdminMemorySort;
+    pagination: {
+        pageSize?: number;
+        page?: number;
+    };
+};
+
+const getAiAgentAdminMemories = async (
+    args: AiAgentAdminMemoryFilters & {
+        sortField: AiAgentAdminMemorySort['field'];
+        sortDirection: AiAgentAdminMemorySort['direction'];
+    } & {
+        pageSize?: number;
+        page?: number;
+    },
+) => {
+    const params = createQueryString(args);
+    return lightdashApi<ApiAiAgentAdminMemoriesResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/memories?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useInfiniteAiAgentAdminMemories = (
+    args: AiAgentAdminMemoriesArgs,
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiAiAgentAdminMemoriesResponse['results'],
+        ApiError
+    > = {},
+) =>
+    useInfiniteQuery<ApiAiAgentAdminMemoriesResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-memories', args],
+        queryFn: ({ pageParam }) =>
+            getAiAgentAdminMemories({
+                ...args.filters,
+                sortField: args.sort.field,
+                sortDirection: args.sort.direction,
+                ...args.pagination,
+                page: (pageParam as number) ?? 1,
+            }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
+        },
+        ...infinityQueryOpts,
+    });
+
 const getAiAgentAdminProjectPromptActivity = async ({
     projectUuid,
     days,
@@ -184,6 +319,72 @@ const createAiAgentReviewItem = async (body: CreateAiAgentReviewItem) => {
         url: `/aiAgents/admin/review-items`,
         method: 'POST',
         body: JSON.stringify(body),
+    });
+};
+
+const getAiAgentAdminThreadDump = async (threadUuid: string) =>
+    lightdashApi<ApiAiAgentThreadDumpResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/threads/${threadUuid}/dump`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useDownloadAiAgentAdminThreadDump = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<AiAgentThreadDump, ApiError, string>({
+        mutationFn: getAiAgentAdminThreadDump,
+        onSuccess: (dump) => {
+            const blob = new Blob([JSON.stringify(dump, null, 2)], {
+                type: 'application/json',
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ai-thread-dump-${dump.threadUuid}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToastSuccess({
+                title: 'Thread dump downloaded',
+                subtitle: 'Review the file before sharing it.',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to download thread dump',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const deleteAiAgentAdminThread = async (threadUuid: string) =>
+    lightdashApi<undefined>({
+        version: 'v1',
+        url: `/aiAgents/admin/threads/${threadUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentAdminThread = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<undefined, ApiError, string>({
+        mutationFn: deleteAiAgentAdminThread,
+        onSuccess: () => {
+            showToastSuccess({ title: 'Thread deleted' });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-threads'],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to delete thread',
+                apiError: error,
+            });
+        },
     });
 };
 
@@ -477,7 +678,9 @@ export const useAiAgentReviewItemByPreviewThread = (
             try {
                 return await getAiAgentReviewItemByPreviewThread(threadUuid!);
             } catch (error) {
-                if ((error as ApiError).error?.statusCode === 404) return null;
+                if (isApiError(error) && error.error.statusCode === 404) {
+                    return null;
+                }
                 throw error;
             }
         },

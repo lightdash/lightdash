@@ -14,24 +14,32 @@ import {
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
     ApiEmbedProjectAppsResponse,
+    ApiExternalConnectionAsCodeListResponse,
+    ApiExternalConnectionAsCodeUpsertResponse,
     ApiGoogleSheetsSyncAsCodeListResponse,
     ApiGoogleSheetsSyncAsCodeUpsertResponse,
     ApiImportAppCodeResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
+    ApiSpaceSummaryListResponse,
     ApiSqlChartAsCodeListResponse,
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     assertUnreachable,
     AuthorizationError,
     ChartAsCode,
+    ChartType,
     computeCustomDependencies,
     ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
+    DashboardTileTypes,
+    DATA_APP_VIZ_TEMPLATE,
+    ExternalConnectionAsCode,
     generateSlug,
     getErrorMessage,
     GoogleSheetsSyncAsCode,
     LightdashError,
+    normalizeContentAsCodePath,
     ParameterError,
     Project,
     PromotionAction,
@@ -41,7 +49,11 @@ import {
     SqlChartAsCode,
     validateDataAppDependencies,
     VirtualViewAsCode,
+    type ContentAsCodeSettingsStamp,
+    type ContentAsCodeUploadAdvisory,
+    type DashboardAsCodeUpsertResult,
     type DataAppCodeDownload,
+    type LightdashProjectConfig,
     type SpaceAsCode,
 } from '@lightdash/common';
 import { Dirent, promises as fs, type Stats } from 'fs';
@@ -50,10 +62,15 @@ import * as yaml from 'js-yaml';
 import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
 import * as path from 'path';
-import { LightdashAnalytics } from '../analytics/analytics';
+import { validate as isUuid } from 'uuid';
+import {
+    LightdashAnalytics,
+    type ProjectContentAsCodeCounts,
+} from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
 import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
+import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import * as styles from '../styles';
 import {
     createContentAsCodeOutput,
@@ -62,38 +79,44 @@ import {
     type ContentAsCodeOutputVariant,
 } from '../terminal/contentAsCodeOutput';
 import {
-    appFolderName,
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
-    retargetManifest,
-    writeBundleToDir,
-    writeContextToDir,
-    writeDependenciesToDir,
-    writeFilesToDir,
 } from './apps/appCodeFiles';
 import {
     appsDownloadSummary,
     capListedApps,
-    classifyAppDownloadError,
-    classifyAppUpload,
-    ensureDownloadedAppContext,
-    manifestRetargetHint,
+    computeLinkedAppSlugs,
+    downloadAppsToDir,
+    getDataAppReference,
+    getDataAppUploadFilter,
+    matchedUploadRefs,
+    preSlugServerHint,
+    preSlugUploadHint,
     resolveAppsLimit,
+    resolveAppSpaceUuid,
+    resolveUploadFilterUuids,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
-    type AppDownloadFailure,
+    unmatchedUploadRefsWarning,
+    uploadFilterMatches,
 } from './apps/appsDownload';
+import { loadTemplateDependencies } from './apps/scaffolding';
 import {
-    buildStaticAuthoringFiles,
-    loadTemplateDependencies,
-} from './apps/scaffolding';
+    createBuildLimitWaitState,
+    withBuildLimitRetry,
+} from './apps/uploadRetry';
+import {
+    classifyContentFilePath,
+    isSqlChartContent,
+} from './contentAsCode/fileDiscovery';
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
+    EXTERNAL_CONNECTION_CODE_RESOURCE,
     GOOGLE_SHEETS_CODE_RESOURCE,
     SCHEDULED_DELIVERY_CODE_RESOURCE,
     VIRTUAL_VIEW_CODE_RESOURCE,
@@ -130,9 +153,7 @@ import {
     getFlatSpaceFileNames,
     getSpaceNames,
     getUniqueExistingSpaceFilePathsBySlug,
-    isSpaceAsCodeDownloadError,
     isSpaceAsCodeFetchError,
-    isSpaceAsCodeUploadError,
     logUploadChanges,
     readSpaceFiles,
     readSpaceNames,
@@ -153,16 +174,23 @@ export type DownloadHandlerOptions = {
     googleSheets: string[];
     scheduledDeliveries: string[];
     virtualViews: string[];
-    apps?: string[]; // specific app UUIDs (enterprise); absent = no explicit selection
+    externalConnections: string[]; // external connection slugs (enterprise)
+    apps?: string[]; // specific app UUIDs or URLs (enterprise); absent = no explicit selection
+    chartTypes?: string[]; // specific custom chart type UUIDs or URLs (enterprise); absent = no explicit selection
     includeAgents?: boolean;
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
+    includeChartTypes?: boolean; // download: all custom chart types, capped at --chart-types-limit; upload: all chart-type folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
+    chartTypesLimit?: string; // download only: cap for the --include-chart-types listing (default 50); raw string from commander
     createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
+    allowCustomDependencies?: boolean; // upload only: approve custom-dependency uploads without prompting
+    appSpace?: string; // upload only: space (slug or uuid) for data apps this run creates
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
     languageMap: boolean;
     skipSpaceCreate: boolean;
+    skipSpaceAccess?: boolean; // Upload only: preserve destination access policies
     public: boolean;
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
@@ -176,12 +204,15 @@ export type DownloadHandlerOptions = {
     skipGoogleSheets: boolean;
     skipScheduledDeliveries: boolean;
     skipVirtualViews: boolean;
+    skipExternalConnections: boolean;
     includeAlerts: boolean;
     includeGoogleSheets: boolean;
     includeScheduledDeliveries: boolean;
     includeVirtualViews: boolean;
+    includeExternalConnections: boolean;
     includeAll: boolean;
-    appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
+    appsOnly?: boolean; // download: implies skipCharts + skipDashboards + skipSpaces; upload: apps-only filtered run
+    chartTypesOnly?: boolean; // download: implies skipCharts + skipDashboards + skipSpaces; upload: chart-types-only filtered run
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
@@ -204,6 +235,46 @@ const shouldDownloadAiAgents = ({
     appsOnly !== true &&
     (includeAll === true || includeAgents === true || agents.length > 0);
 
+const hasContentFilters = ({
+    spacesOnly,
+    charts,
+    dashboards,
+    agents,
+    alerts,
+    googleSheets,
+    scheduledDeliveries,
+    virtualViews,
+    externalConnections,
+    apps,
+    chartTypes,
+}: Pick<
+    DownloadHandlerOptions,
+    | 'spacesOnly'
+    | 'charts'
+    | 'dashboards'
+    | 'agents'
+    | 'alerts'
+    | 'googleSheets'
+    | 'scheduledDeliveries'
+    | 'virtualViews'
+    | 'externalConnections'
+    | 'apps'
+    | 'chartTypes'
+>): boolean =>
+    !spacesOnly &&
+    [
+        charts,
+        dashboards,
+        agents,
+        alerts,
+        googleSheets,
+        scheduledDeliveries,
+        virtualViews,
+        externalConnections,
+        apps ?? [],
+        chartTypes ?? [],
+    ].some((filters) => filters.length > 0);
+
 /*
     This function is used to parse the content filters.
     It can be slugs, uuids or urls
@@ -213,10 +284,10 @@ const parseContentFilters = (items: string[]): string => {
     if (items.length === 0) return '';
 
     const parsedItems = items.map((item) => {
-        const uuidMatch = item.match(
-            /https?:\/\/.+\/(?:saved|dashboards)\/([a-f0-9-]+)/i,
+        const urlMatch = item.match(
+            /https?:\/\/.+\/(?:saved|dashboards)\/([^/?#]+)/i,
         );
-        return uuidMatch ? uuidMatch[1] : item;
+        return urlMatch ? urlMatch[1] : item;
     });
 
     return `?${new URLSearchParams(
@@ -292,7 +363,9 @@ const sanitizeChartForDownload = (
     chart: ChartAsCode,
     stripPivotSeries: boolean,
 ): ChartAsCode =>
-    stripPivotSeries
+    // Only cartesian configs carry pivoted series; the helper takes the
+    // runtime config union, so narrow before calling.
+    stripPivotSeries && chart.chartConfig.type === ChartType.CARTESIAN
         ? {
               ...chart,
               chartConfig: removePivotedSeriesValuesFromChartConfig(
@@ -385,21 +458,45 @@ const hasUnsortedKeys = (obj: unknown): boolean => {
     return Object.values(obj).some(hasUnsortedKeys);
 };
 
-const isLightdashContentFile = (folder: string, entry: Dirent) =>
-    entry.isFile() &&
-    entry.parentPath &&
-    entry.parentPath.endsWith(path.sep + folder) &&
-    entry.name.endsWith('.yml') &&
-    !entry.name.endsWith('.space.yml') &&
-    !entry.name.endsWith('.language.map.yml');
+const isLightdashContentFile = (
+    folder: 'charts' | 'dashboards',
+    entry: Dirent,
+) => {
+    if (!entry.isFile() || !entry.parentPath) return false;
 
-const isLooseContentFile = (entry: Dirent) =>
-    entry.isFile() &&
-    entry.parentPath &&
-    !entry.parentPath.endsWith(`${path.sep}charts`) &&
-    !entry.parentPath.endsWith(`${path.sep}dashboards`) &&
-    entry.name.endsWith('.yml') &&
-    !entry.name.endsWith('.language.map.yml');
+    const classification = classifyContentFilePath(
+        path.join(entry.parentPath, entry.name),
+    );
+    return (
+        classification?.kind === 'content' &&
+        classification.supportedExtension &&
+        `${classification.contentType}s` === folder
+    );
+};
+
+const isLooseContentFile = (entry: Dirent) => {
+    if (!entry.isFile() || !entry.parentPath) return false;
+
+    const classification = classifyContentFilePath(
+        path.join(entry.parentPath, entry.name),
+    );
+    return (
+        classification?.kind === 'loose' && classification.supportedExtension
+    );
+};
+
+// The file's path relative to the project dir, posix; undefined outside it
+const sourceFilePath = (filePath: string): string | undefined => {
+    const relative = path.relative(process.cwd(), filePath);
+    if (
+        path.isAbsolute(relative) ||
+        relative === '..' ||
+        relative.startsWith(`..${path.sep}`)
+    ) {
+        return undefined;
+    }
+    return relative.split(path.sep).join('/');
+};
 
 const processYamlItem = <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
@@ -409,6 +506,7 @@ const processYamlItem = <
     stats: Stats,
     folder: 'charts' | 'dashboards',
     metadata: LightdashMetadata,
+    filePath: string,
 ) => {
     if (hasUnsortedKeys(item)) {
         GlobalState.log(
@@ -436,6 +534,8 @@ const processYamlItem = <
         ...item,
         updatedAt: needsUpdating ? stats.mtime : item.updatedAt,
         needsUpdating: needsUpdating ?? true,
+        // Sent with the upsert so write-back returns to this file
+        filePath: sourceFilePath(filePath),
     };
 };
 
@@ -453,7 +553,7 @@ const loadYamlFile = async <
     ]);
 
     const item = yaml.load(fileContent) as T;
-    return processYamlItem(item, file.name, stats, folder, metadata);
+    return processYamlItem(item, file.name, stats, folder, metadata, filePath);
 };
 
 const readCodeFiles = async <
@@ -466,10 +566,10 @@ const readCodeFiles = async <
 
     logContentAsCodeDiscovery(`Reading ${folder} from ${baseDir}`);
 
-    const [major, minor] = process.versions.node.split('.').map(Number);
-    if (major < 20 || (major === 20 && minor < 12)) {
+    const [major] = process.versions.node.split('.').map(Number);
+    if (major < 24) {
         throw new Error(
-            `Node.js v20.12.0 or later is required for this command (current: ${process.version}).`,
+            `Node.js v24.0.0 or later is required for this command (current: ${process.version}).`,
         );
     }
 
@@ -562,6 +662,7 @@ const readLooseCodeFiles = async (
                                 stats,
                                 'charts',
                                 metadata,
+                                filePath,
                             ),
                         );
                     } else if (
@@ -574,6 +675,7 @@ const readLooseCodeFiles = async (
                                 stats,
                                 'dashboards',
                                 metadata,
+                                filePath,
                             ),
                         );
                     } else if (contentType === ContentAsCodeTypeEnum.SPACE) {
@@ -717,6 +819,59 @@ const extractChartSlugsFromDashboards = (
         return [...acc, ...slugs];
     }, []);
 
+const extractAppSlugsFromDashboards = (
+    dashboards: DashboardAsCode[],
+): string[] => [
+    ...new Set(
+        dashboards.flatMap((dashboard) =>
+            dashboard.tiles.reduce<string[]>((acc, tile) => {
+                if (tile.type !== DashboardTileTypes.DATA_APP) return acc;
+                return tile.properties.appSlug
+                    ? [...acc, tile.properties.appSlug]
+                    : acc;
+            }, []),
+        ),
+    ),
+];
+
+/**
+ * Custom chart type refs bound by DATA_APP_VIZ charts — the portable slug,
+ * or the legacy uuid for files written before slug bindings.
+ */
+const extractChartTypeRefsFromCharts = (charts: ChartAsCode[]): string[] => [
+    ...new Set(
+        charts.reduce<string[]>((acc, chart) => {
+            if (chart.chartConfig.type !== ChartType.DATA_APP_VIZ) return acc;
+            const ref =
+                chart.chartConfig.config?.dataAppVizSlug ??
+                chart.chartConfig.config?.dataAppVizUuid;
+            return ref ? [...acc, ref] : acc;
+        }, []),
+    ),
+];
+
+// A virtual view's slug is the explore name charts store in tableName, so
+// these names double as virtual view slug candidates.
+const extractChartTableNames = (charts: ChartAsCode[]): string[] => [
+    ...new Set(
+        charts
+            .map((chart) => chart.tableName)
+            .filter((tableName): tableName is string => !!tableName),
+    ),
+];
+
+export type DownloadContentResult = {
+    total: number;
+    chartSlugs: string[];
+    chartTableNames: string[];
+    appSlugs: string[];
+    // Custom chart types the downloaded charts render with (slug or legacy
+    // uuid refs), for the Linked custom chart types step.
+    chartTypeRefs: string[];
+    metadataEntries: MetadataEntry[];
+    spaces: SpaceAsCode[];
+};
+
 export const downloadContent = async (
     ids: string[],
     type: DownloadContentType,
@@ -729,7 +884,7 @@ export const downloadContent = async (
     stripPivotSeries: boolean = false,
     rootSpaces: boolean = false,
     onProgress?: (detail: string) => void,
-): Promise<[number, string[], MetadataEntry[], SpaceAsCode[]]> => {
+): Promise<DownloadContentResult> => {
     const contentFilters = parseContentFilters(ids);
     const folderScheme: FolderScheme = nested ? 'nested' : 'flat';
     const config = getContentTypeConfig(type, projectId);
@@ -737,6 +892,9 @@ export const downloadContent = async (
     let offset = 0;
     let total = 0;
     let chartSlugs: string[] = [];
+    let chartTableNames: string[] = [];
+    let appSlugs: string[] = [];
+    let chartTypeRefs: string[] = [];
     let allMetadataEntries: MetadataEntry[] = [];
     let allSpaces: SpaceAsCode[] = [];
 
@@ -817,6 +975,10 @@ export const downloadContent = async (
                 ...chartSlugs,
                 ...extractChartSlugsFromDashboards(results.dashboards),
             ];
+            appSlugs = [
+                ...appSlugs,
+                ...extractAppSlugsFromDashboards(results.dashboards),
+            ];
         } else {
             const chartsBySpace = groupBySpace(results.charts);
             for (const [spaceSlug, chartsInSpace] of Object.entries(
@@ -836,6 +998,14 @@ export const downloadContent = async (
                 });
                 allMetadataEntries = [...allMetadataEntries, ...entries];
             }
+            chartTableNames = [
+                ...chartTableNames,
+                ...extractChartTableNames(results.charts),
+            ];
+            chartTypeRefs = [
+                ...chartTypeRefs,
+                ...extractChartTypeRefsFromCharts(results.charts),
+            ];
         }
 
         // Accumulate space metadata from each page
@@ -862,7 +1032,15 @@ export const downloadContent = async (
         );
     }
 
-    return [total, [...new Set(chartSlugs)], allMetadataEntries, allSpaces];
+    return {
+        total,
+        chartSlugs: [...new Set(chartSlugs)],
+        chartTableNames: [...new Set(chartTableNames)],
+        appSlugs: [...new Set(appSlugs)],
+        chartTypeRefs: [...new Set(chartTypeRefs)],
+        metadataEntries: allMetadataEntries,
+        spaces: allSpaces,
+    };
 };
 
 const getScheduledDeliveriesFolder = (customPath?: string): string =>
@@ -901,6 +1079,7 @@ const downloadVirtualViews = async (
         definition: VIRTUAL_VIEW_CODE_RESOURCE,
         basePath: getDownloadFolder(customPath),
         documents: results.virtualViews,
+        pruneOtherDocuments: slugs.length === 0,
     });
     results.skipped.forEach(({ slug, reason }) =>
         GlobalState.log(
@@ -909,6 +1088,60 @@ const downloadVirtualViews = async (
     );
     results.missingSlugs.forEach((slug) =>
         GlobalState.log(styles.warning(`Virtual view "${slug}" was not found`)),
+    );
+    return results.virtualViews.length;
+};
+
+// This download is implicit (derived from a dashboard's charts, not asked for
+// by the user), so an older server without the endpoint (404) or a user
+// without content-as-code access (403) must not fail the run.
+const isVirtualViewsUnavailableError = (error: unknown): boolean =>
+    error instanceof LightdashError && [403, 404].includes(error.statusCode);
+
+/**
+ * Downloads the virtual views backing a dashboard's charts. The candidates are
+ * chart table names, so ones the server reports as missing are just regular
+ * dbt explores — expected, never warned. Returns null when virtual views are
+ * unavailable on the server.
+ */
+const downloadLinkedVirtualViews = async (
+    projectId: string,
+    tableNames: string[],
+    customPath?: string,
+): Promise<number | null> => {
+    const query = new URLSearchParams(
+        tableNames.map((name) => ['slugs', name] as [string, string]),
+    ).toString();
+    let results: ApiVirtualViewAsCodeListResponse['results'];
+    try {
+        results = await lightdashApi<
+            ApiVirtualViewAsCodeListResponse['results']
+        >({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/code/virtualViews?${query}`,
+            body: undefined,
+        });
+    } catch (error) {
+        if (isVirtualViewsUnavailableError(error)) {
+            GlobalState.debug(
+                `Could not download linked virtual views: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+        throw error;
+    }
+    if (results.virtualViews.length > 0) {
+        await writeCodeResourceDocuments({
+            definition: VIRTUAL_VIEW_CODE_RESOURCE,
+            basePath: getDownloadFolder(customPath),
+            documents: results.virtualViews,
+            pruneOtherDocuments: false,
+        });
+    }
+    results.skipped.forEach(({ slug, reason }) =>
+        GlobalState.log(
+            styles.warning(`Skipped virtual view "${slug}": ${reason}`),
+        ),
     );
     return results.virtualViews.length;
 };
@@ -931,11 +1164,18 @@ const upsertVirtualViews = async (
     force: boolean,
     canUpload: boolean,
     customPath?: string,
+    candidateSlugs: string[] = [],
 ): Promise<Record<string, number>> => {
     const virtualViews = await readVirtualViewFiles(customPath);
-    const selected = slugs.length
-        ? virtualViews.filter(({ slug }) => slugs.includes(slug))
-        : virtualViews;
+    // Candidates are chart table names, and most are regular dbt explores
+    // with no local file — unmatched candidates never warn; explicit slugs do.
+    const candidateSet = new Set(candidateSlugs);
+    const selected =
+        slugs.length > 0 || candidateSet.size > 0
+            ? virtualViews.filter(
+                  ({ slug }) => slugs.includes(slug) || candidateSet.has(slug),
+              )
+            : virtualViews;
     const selectedSlugs = new Set(selected.map(({ slug }) => slug));
     slugs
         .filter((slug) => !selectedSlugs.has(slug))
@@ -994,6 +1234,207 @@ const upsertVirtualViews = async (
     return changes;
 };
 
+export const getExternalConnectionSecretEnvVar = (slug: string): string =>
+    `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_${slug
+        .replace(/-/g, '_')
+        .toUpperCase()}`;
+
+const EXTERNAL_CONNECTION_SECRET_TYPES = new Set([
+    'api_key',
+    'bearer_token',
+    'google_service_account',
+    'oauth_client_credentials',
+]);
+
+/**
+ * External connections are enterprise-only and admin-gated; when the download
+ * was reached implicitly through --include-all these statuses mean "not
+ * available here" rather than a real failure: 403 = missing
+ * manage:ExternalConnection, 404 = pre-feature server, 422 = OSS server with
+ * no EE coder service provider (MissingConfigError).
+ */
+const isExternalConnectionsUnavailableError = (error: unknown): boolean =>
+    error instanceof LightdashError &&
+    [403, 404, 422].includes(error.statusCode);
+
+const isAiAgentsUnavailableError = (error: unknown): boolean =>
+    error instanceof LightdashError &&
+    [403, 404, 422].includes(error.statusCode);
+
+const downloadExternalConnections = async (
+    projectId: string,
+    slugs: string[],
+    implicit: boolean,
+    customPath?: string,
+): Promise<number> => {
+    const slugQuery = slugs.map((slug) => ['slugs', slug] as [string, string]);
+    let offset = 0;
+    let total = 0;
+    const connections: ExternalConnectionAsCode[] = [];
+    // Every page repeats the same full list, so warn once after the loop.
+    let missingSlugs: string[] = [];
+
+    try {
+        do {
+            const query = new URLSearchParams([
+                ...slugQuery,
+                ['offset', String(offset)],
+            ]).toString();
+            const results = await lightdashApi<
+                ApiExternalConnectionAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v1/projects/${projectId}/code/externalConnections?${query}`,
+                body: undefined,
+            });
+
+            connections.push(...results.externalConnections);
+            missingSlugs = results.missingSlugs;
+            offset = results.offset;
+            total = results.total;
+        } while (offset < total);
+    } catch (error) {
+        if (implicit && isExternalConnectionsUnavailableError(error)) {
+            GlobalState.log(
+                styles.warning(
+                    'Skipping external connections: they require Lightdash Enterprise and the manage:ExternalConnection permission.',
+                ),
+            );
+            GlobalState.debug(
+                `Could not download external connections: ${getErrorMessage(error)}`,
+            );
+            return 0;
+        }
+        throw error;
+    }
+
+    missingSlugs.forEach((slug) =>
+        GlobalState.log(
+            styles.warning(`External connection "${slug}" was not found`),
+        ),
+    );
+
+    await writeCodeResourceDocuments({
+        definition: EXTERNAL_CONNECTION_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+        documents: connections,
+        pruneOtherDocuments: slugs.length === 0,
+    });
+
+    const secretEnvVars = connections
+        .filter(({ authType }) =>
+            EXTERNAL_CONNECTION_SECRET_TYPES.has(authType),
+        )
+        .map(({ slug }) => getExternalConnectionSecretEnvVar(slug));
+    if (secretEnvVars.length > 0) {
+        GlobalState.log(
+            styles.warning(
+                `Secrets are never downloaded. To create these connections on another instance, set:\n\t${secretEnvVars.join('\n\t')}`,
+            ),
+        );
+    }
+
+    return connections.length;
+};
+
+const readExternalConnectionFiles = async (
+    customPath?: string,
+): Promise<ExternalConnectionAsCode[]> => {
+    const result = await readCodeResourceFiles({
+        definition: EXTERNAL_CONNECTION_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+    });
+    assertCodeResourceFilesValid(result);
+    return result.files.map(({ document }) => document);
+};
+
+const upsertExternalConnections = async (
+    projectId: string,
+    slugs: string[],
+    changes: Record<string, number>,
+    force: boolean,
+    canUpload: boolean,
+    customPath?: string,
+): Promise<Record<string, number>> => {
+    const connections = await readExternalConnectionFiles(customPath);
+    const selected = slugs.length
+        ? connections.filter(({ slug }) => slugs.includes(slug))
+        : connections;
+    const selectedSlugs = new Set(selected.map(({ slug }) => slug));
+    slugs
+        .filter((slug) => !selectedSlugs.has(slug))
+        .forEach((slug) =>
+            GlobalState.log(
+                styles.warning(
+                    `External connection "${slug}" was not found locally`,
+                ),
+            ),
+        );
+    if (selected.length > 0 && !canUpload) {
+        GlobalState.log(
+            styles.error(
+                `Error uploading external connections: the manage:ExternalConnection permission is required (enterprise feature)`,
+            ),
+        );
+        return changes;
+    }
+    for (const connection of selected.sort((left, right) =>
+        left.slug.localeCompare(right.slug),
+    )) {
+        const envVar = getExternalConnectionSecretEnvVar(connection.slug);
+        const envValue = process.env[envVar];
+        const secret =
+            envValue !== undefined && envValue !== '' ? envValue : undefined;
+        if (envValue === '') {
+            GlobalState.log(
+                styles.warning(
+                    `Environment variable ${envVar} is set but empty; treating the secret as not provided.`,
+                ),
+            );
+        }
+        // The parser keeps unknown keys, so a secret authored into the YAML
+        // would otherwise be sent verbatim — strip it and tell the user.
+        if ('secret' in connection) {
+            delete (connection as Record<string, unknown>).secret;
+            GlobalState.log(
+                styles.warning(
+                    `Ignoring "secret" in the file for "${connection.slug}" — secrets must never be stored in YAML. Set ${envVar} instead.`,
+                ),
+            );
+        }
+        try {
+            const result = await lightdashApi<
+                ApiExternalConnectionAsCodeUpsertResponse['results']
+            >({
+                method: 'POST',
+                url: `/api/v1/projects/${projectId}/code/externalConnections/${encodeURIComponent(
+                    connection.slug,
+                )}?force=${force}`,
+                body: JSON.stringify({
+                    connection,
+                    ...(secret !== undefined ? { secret } : {}),
+                }),
+            });
+            const action = `external connections ${getPromoteAction(result.action)}`;
+            changes[action] = (changes[action] ?? 0) + 1;
+        } catch (error) {
+            const errorKey = 'external connections with errors';
+            changes[errorKey] = (changes[errorKey] ?? 0) + 1;
+            const secretHint =
+                secret === undefined &&
+                EXTERNAL_CONNECTION_SECRET_TYPES.has(connection.authType)
+                    ? `\n\tSet ${envVar} to provide the secret for "${connection.slug}" — secrets are read from the environment at upload time and never stored in YAML.`
+                    : '';
+            GlobalState.log(
+                styles.error(
+                    `Error upserting external connection:\n\t"${connection.name}" (slug: "${connection.slug}")\n\t${getErrorMessage(error)}${secretHint}`,
+                ),
+            );
+        }
+    }
+    return changes;
+};
+
 type ScheduledContentAsCode =
     | ScheduledDeliveryAsCode
     | AlertAsCode
@@ -1043,6 +1484,7 @@ const getScheduledContentConfig = (
 const downloadAiAgents = async (
     projectId: string,
     ids: string[],
+    implicit: boolean,
     customPath?: string,
 ): Promise<number> => {
     const idQuery = ids.map((id) => ['ids', id] as [string, string]);
@@ -1051,34 +1493,50 @@ const downloadAiAgents = async (
     let downloaded = 0;
     const agents: AgentAsCode[] = [];
 
-    do {
-        const query = new URLSearchParams([
-            ...idQuery,
-            ['offset', String(offset)],
-        ]).toString();
-        const results = await lightdashApi<
-            ApiAgentAsCodeListResponse['results']
-        >({
-            method: 'GET',
-            url: `/api/v1/projects/${projectId}/code/aiAgents?${query}`,
-            body: undefined,
+    try {
+        do {
+            const query = new URLSearchParams([
+                ...idQuery,
+                ['offset', String(offset)],
+            ]).toString();
+            const results = await lightdashApi<
+                ApiAgentAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v1/projects/${projectId}/code/aiAgents?${query}`,
+                body: undefined,
+            });
+
+            agents.push(...results.agents);
+
+            results.missingIds.forEach((id) =>
+                GlobalState.debug(`No AI agent with id "${id}"`),
+            );
+            downloaded += results.agents.length;
+            offset = results.offset;
+            total = results.total;
+        } while (offset < total);
+
+        await writeCodeResourceDocuments({
+            definition: AI_AGENT_CODE_RESOURCE,
+            basePath: getDownloadFolder(customPath),
+            documents: agents,
+            pruneOtherDocuments: ids.length === 0,
         });
-
-        agents.push(...results.agents);
-
-        results.missingIds.forEach((id) =>
-            GlobalState.debug(`No AI agent with id "${id}"`),
-        );
-        downloaded += results.agents.length;
-        offset = results.offset;
-        total = results.total;
-    } while (offset < total);
-
-    await writeCodeResourceDocuments({
-        definition: AI_AGENT_CODE_RESOURCE,
-        basePath: getDownloadFolder(customPath),
-        documents: agents,
-    });
+    } catch (error) {
+        if (implicit && isAiAgentsUnavailableError(error)) {
+            GlobalState.log(
+                styles.warning(
+                    'Skipping AI agents: they require Lightdash Enterprise and AI agent access.',
+                ),
+            );
+            GlobalState.debug(
+                `Could not download AI agents: ${getErrorMessage(error)}`,
+            );
+            return 0;
+        }
+        throw error;
+    }
 
     return downloaded;
 };
@@ -1112,6 +1570,7 @@ const upsertAiAgents = async (
     changes: Record<string, number>,
     force: boolean,
     customPath?: string,
+    implicit: boolean = false,
 ): Promise<Record<string, number>> => {
     const agents = await readAiAgentFiles(customPath);
     const filteredAgents = slugs.length
@@ -1128,12 +1587,30 @@ const upsertAiAgents = async (
     }
     logContentAsCodeDiscovery(`Found ${filteredAgents.length} AI agent files`);
 
-    const results = await lightdashApi<ApiAgentAsCodeUpsertResponse['results']>(
-        {
+    let results: ApiAgentAsCodeUpsertResponse['results'];
+    try {
+        results = await lightdashApi<ApiAgentAsCodeUpsertResponse['results']>({
             method: 'POST',
             url: `/api/v1/projects/${projectId}/code/aiAgents?force=${force}`,
             body: JSON.stringify({ agents: filteredAgents }),
-        },
+        });
+    } catch (error) {
+        if (implicit && isAiAgentsUnavailableError(error)) {
+            GlobalState.log(
+                styles.warning(
+                    'Skipping AI agents: they require Lightdash Enterprise and AI agent access.',
+                ),
+            );
+            GlobalState.debug(
+                `Could not upload AI agents: ${getErrorMessage(error)}`,
+            );
+            return changes;
+        }
+        throw error;
+    }
+
+    (results.warnings ?? []).forEach((warning) =>
+        GlobalState.log(styles.warning(`  ⚠ ${warning}`)),
     );
 
     const counts = {
@@ -1293,12 +1770,14 @@ const upsertScheduledContent = async (
     return changes;
 };
 
+type ListedApp = { appUuid: string; slug: string };
+
 // Space-scoped fallback listing for servers without the project-wide apps
 // endpoint; omits apps that were never added to a space.
-const listAppUuidsViaContentApi = async (
+const listAppsViaContentApi = async (
     projectId: string,
-): Promise<string[]> => {
-    const listedAppUuids: string[] = [];
+): Promise<ListedApp[]> => {
+    const listedApps: ListedApp[] = [];
     let page = 1;
     let totalPageCount = 1;
     do {
@@ -1309,15 +1788,15 @@ const listAppUuidsViaContentApi = async (
                 body: undefined,
             },
         );
-        listedAppUuids.push(
+        listedApps.push(
             ...contentResult.data
                 .filter((item) => item.contentType === 'data_app')
-                .map((item) => item.uuid),
+                .map((item) => ({ appUuid: item.uuid, slug: item.slug })),
         );
         totalPageCount = contentResult.pagination?.totalPageCount ?? 1;
         page += 1;
     } while (page <= totalPageCount);
-    return listedAppUuids;
+    return listedApps;
 };
 
 export const downloadHandler = async (
@@ -1327,15 +1806,58 @@ export const downloadHandler = async (
 
     const isOrganizationDownload = options.organization === true;
 
+    if (options.appsOnly && options.chartTypesOnly) {
+        throw new ParameterError(
+            '--apps-only cannot be combined with --chart-types-only.',
+        );
+    }
+
+    // Bare --apps-only means "all apps": imply --include-apps.
+    if (
+        options.appsOnly &&
+        options.apps === undefined &&
+        options.includeApps !== true &&
+        options.includeAll !== true
+    ) {
+        options.includeApps = true;
+    }
+    // Bare --chart-types-only means "all chart types" likewise.
+    if (
+        options.chartTypesOnly &&
+        options.chartTypes === undefined &&
+        options.includeChartTypes !== true &&
+        options.includeAll !== true
+    ) {
+        options.includeChartTypes = true;
+    }
+
     const includeAll = options.includeAll === true;
     const includeApps =
-        !options.spacesOnly && (options.includeApps === true || includeAll);
+        !options.spacesOnly &&
+        !options.chartTypesOnly &&
+        (options.includeApps === true || includeAll);
+    const includeChartTypes =
+        !options.spacesOnly &&
+        !options.appsOnly &&
+        (options.includeChartTypes === true || includeAll);
     const includeAllOptionalContent =
-        includeAll && !options.appsOnly && !options.spacesOnly;
+        includeAll &&
+        !options.appsOnly &&
+        !options.chartTypesOnly &&
+        !options.spacesOnly;
     const { limit: appsLimit, noEffectWarning: appsLimitWarning } =
         resolveAppsLimit(options.appsLimit, includeApps);
     if (appsLimitWarning) {
         GlobalState.log(styles.warning(appsLimitWarning));
+    }
+    const { limit: chartTypesLimit, noEffectWarning: chartTypesLimitWarning } =
+        resolveAppsLimit(options.chartTypesLimit, includeChartTypes, {
+            limitFlag: '--chart-types-limit',
+            includeFlag: '--include-chart-types',
+            refsFlag: '--chart-types',
+        });
+    if (chartTypesLimitWarning) {
+        GlobalState.log(styles.warning(chartTypesLimitWarning));
     }
 
     if (options.appsOnly) {
@@ -1345,9 +1867,10 @@ export const downloadHandler = async (
         });
         if (appsOnlySelection.mode === 'none') {
             throw new ParameterError(
-                'Nothing to download: --apps-only requires --apps <appUuids...>, --include-apps, or --include-all.',
+                'Nothing to download: --apps-only requires --apps <appReferences...>, --include-apps, or --include-all.',
             );
         }
+        options.chartTypes = undefined;
         options.skipCharts = true;
         options.skipDashboards = true;
         options.skipSpaces = true;
@@ -1356,6 +1879,31 @@ export const downloadHandler = async (
         options.includeGoogleSheets = false;
         options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
+        options.includeExternalConnections = false;
+    }
+
+    if (options.chartTypesOnly) {
+        const chartTypesOnlySelection = selectAppsToDownload({
+            apps: Array.isArray(options.chartTypes)
+                ? options.chartTypes
+                : undefined,
+            includeApps: includeChartTypes,
+        });
+        if (chartTypesOnlySelection.mode === 'none') {
+            throw new ParameterError(
+                'Nothing to download: --chart-types-only requires --chart-types <chartTypeReferences...>, --include-chart-types, or --include-all.',
+            );
+        }
+        options.apps = undefined;
+        options.skipCharts = true;
+        options.skipDashboards = true;
+        options.skipSpaces = true;
+        options.includeAgents = false;
+        options.includeAlerts = false;
+        options.includeGoogleSheets = false;
+        options.includeScheduledDeliveries = false;
+        options.includeVirtualViews = false;
+        options.includeExternalConnections = false;
     }
 
     if (options.spacesOnly) {
@@ -1369,15 +1917,18 @@ export const downloadHandler = async (
         options.agents = [];
         options.alerts = [];
         options.apps = [];
+        options.chartTypes = [];
         options.googleSheets = [];
         options.scheduledDeliveries = [];
         options.virtualViews = [];
+        options.externalConnections = [];
         options.includeAgents = false;
         options.includeApps = false;
         options.includeAlerts = false;
         options.includeGoogleSheets = false;
         options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
+        options.includeExternalConnections = false;
     }
 
     if (options.rootSpaces && options.nested) {
@@ -1386,15 +1937,7 @@ export const downloadHandler = async (
         );
     }
 
-    const hasFilters =
-        !options.spacesOnly &&
-        (options.charts.length > 0 ||
-            options.dashboards.length > 0 ||
-            options.agents.length > 0 ||
-            options.alerts.length > 0 ||
-            options.googleSheets.length > 0 ||
-            options.scheduledDeliveries.length > 0 ||
-            options.virtualViews.length > 0);
+    const hasFilters = hasContentFilters(options);
     const shouldDownloadSpaces =
         !isOrganizationDownload && !options.skipSpaces && !hasFilters;
     let skipEmbeddedSpaces = !hasFilters || options.skipSpaces;
@@ -1447,9 +1990,10 @@ export const downloadHandler = async (
     });
     const projectName = generateSlug(project.name);
 
-    // For analytics
-    let chartTotal: number | undefined;
-    let dashboardTotal: number | undefined;
+    const counts: ProjectContentAsCodeCounts = {};
+    // Per-resource app/chart-type failures are reported inline and tallied
+    // here so the process can exit non-zero without aborting the download.
+    let downloadFailures = 0;
     const start = Date.now();
 
     await LightdashAnalytics.track({
@@ -1466,6 +2010,28 @@ export const downloadHandler = async (
     });
     try {
         let allMetadataEntries: MetadataEntry[] = [];
+        // Shared across both apps-download steps so two different apps whose
+        // names collide under the pre-slug fallback naming don't clobber each other.
+        const downloadedAppFolders = new Set<string>();
+        // Chart types live in their own folder, so they track their own names.
+        const downloadedChartTypeFolders = new Set<string>();
+        // App slugs referenced by downloaded dashboards' tiles, populated by
+        // the Dashboards step and consumed by the Linked data apps step.
+        let dashboardAppSlugs: string[] = [];
+        const explicitAppRefs = new Set(
+            (Array.isArray(options.apps) ? options.apps : []).map(
+                getDataAppReference,
+            ),
+        );
+        // Chart-type refs bound by downloaded charts, populated by the
+        // Charts and Linked charts steps and consumed by the Linked custom
+        // chart types step.
+        let downloadedChartVizRefs: string[] = [];
+        const explicitChartTypeRefs = new Set(
+            (Array.isArray(options.chartTypes) ? options.chartTypes : []).map(
+                getDataAppReference,
+            ),
+        );
 
         if (shouldDownloadSpaces) {
             output.startItem('Spaces');
@@ -1477,6 +2043,7 @@ export const downloadHandler = async (
                     options.nested,
                     options.rootSpaces,
                 );
+                counts.spacesNum = spaceTotal;
                 output.completeItem(`${spaceTotal} downloaded`);
             } catch (error) {
                 if (
@@ -1509,12 +2076,15 @@ export const downloadHandler = async (
         ) {
             await output.runItem({
                 label: 'Virtual views',
-                action: () =>
-                    downloadVirtualViews(
+                action: async () => {
+                    const total = await downloadVirtualViews(
                         projectId,
                         options.virtualViews,
                         options.path,
-                    ),
+                    );
+                    counts.virtualViewsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -1526,51 +2096,59 @@ export const downloadHandler = async (
                     styles.warning(`No charts filters provided, skipping`),
                 );
             } else {
-                const [regularChartTotal, , regularChartMeta] =
-                    await output.runItem({
-                        label: 'Charts',
-                        action: () =>
-                            downloadContent(
-                                options.charts,
-                                'charts',
-                                projectId,
-                                projectName,
-                                options.path,
-                                options.languageMap,
-                                options.nested,
-                                skipEmbeddedSpaces,
-                                options.stripPivotSeries,
-                                options.rootSpaces,
-                                output.updateActive,
-                            ),
-                        detail: ([total]) => `${total} downloaded`,
-                    });
-                allMetadataEntries = [
-                    ...allMetadataEntries,
-                    ...regularChartMeta,
-                ];
-
-                const [sqlChartTotal, , sqlChartMeta] = await output.runItem({
-                    label: 'SQL charts',
+                const {
+                    total: regularChartTotal,
+                    metadataEntries: regularChartMeta,
+                    chartTypeRefs: mainChartTypeRefs,
+                } = await output.runItem({
+                    label: 'Charts',
                     action: () =>
                         downloadContent(
                             options.charts,
-                            'sqlCharts',
+                            'charts',
                             projectId,
                             projectName,
                             options.path,
                             options.languageMap,
                             options.nested,
                             skipEmbeddedSpaces,
-                            false,
+                            options.stripPivotSeries,
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ([total]) => `${total} downloaded`,
+                    detail: ({ total }) => `${total} downloaded`,
                 });
+                allMetadataEntries = [
+                    ...allMetadataEntries,
+                    ...regularChartMeta,
+                ];
+                downloadedChartVizRefs = [
+                    ...downloadedChartVizRefs,
+                    ...mainChartTypeRefs,
+                ];
+
+                const { total: sqlChartTotal, metadataEntries: sqlChartMeta } =
+                    await output.runItem({
+                        label: 'SQL charts',
+                        action: () =>
+                            downloadContent(
+                                options.charts,
+                                'sqlCharts',
+                                projectId,
+                                projectName,
+                                options.path,
+                                options.languageMap,
+                                options.nested,
+                                skipEmbeddedSpaces,
+                                false,
+                                options.rootSpaces,
+                                output.updateActive,
+                            ),
+                        detail: ({ total }) => `${total} downloaded`,
+                    });
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
-                chartTotal = regularChartTotal + sqlChartTotal;
+                counts.chartsNum = regularChartTotal + sqlChartTotal;
             }
         }
 
@@ -1582,9 +2160,15 @@ export const downloadHandler = async (
                 );
             } else {
                 let chartSlugs: string[] = [];
+                let appSlugs: string[] = [];
 
                 let dashMeta: MetadataEntry[];
-                [dashboardTotal, chartSlugs, dashMeta] = await output.runItem({
+                ({
+                    total: counts.dashboardsNum,
+                    chartSlugs,
+                    appSlugs,
+                    metadataEntries: dashMeta,
+                } = await output.runItem({
                     label: 'Dashboards',
                     action: () =>
                         downloadContent(
@@ -1600,8 +2184,8 @@ export const downloadHandler = async (
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ([total]) => `${total} downloaded`,
-                });
+                    detail: ({ total }) => `${total} downloaded`,
+                }));
                 allMetadataEntries = [...allMetadataEntries, ...dashMeta];
 
                 if (
@@ -1613,38 +2197,47 @@ export const downloadHandler = async (
                     output.updateActive(
                         `${chartSlugs.length} dashboard dependencies`,
                     );
-                    const [regularCharts, , linkedChartMeta] =
-                        await downloadContent(
-                            chartSlugs,
-                            'charts',
-                            projectId,
-                            projectName,
-                            options.path,
-                            options.languageMap,
-                            options.nested,
-                            skipEmbeddedSpaces,
-                            options.stripPivotSeries,
-                            options.rootSpaces,
-                            output.updateActive,
-                        );
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedChartMeta,
-                    ];
-
-                    const [sqlCharts, , linkedSqlMeta] = await downloadContent(
+                    const {
+                        total: regularCharts,
+                        chartTableNames: linkedChartTableNames,
+                        metadataEntries: linkedChartMeta,
+                        chartTypeRefs: linkedChartVizRefs,
+                    } = await downloadContent(
                         chartSlugs,
-                        'sqlCharts',
+                        'charts',
                         projectId,
                         projectName,
                         options.path,
                         options.languageMap,
                         options.nested,
                         skipEmbeddedSpaces,
-                        false,
+                        options.stripPivotSeries,
                         options.rootSpaces,
                         output.updateActive,
                     );
+                    allMetadataEntries = [
+                        ...allMetadataEntries,
+                        ...linkedChartMeta,
+                    ];
+                    downloadedChartVizRefs = [
+                        ...downloadedChartVizRefs,
+                        ...linkedChartVizRefs,
+                    ];
+
+                    const { total: sqlCharts, metadataEntries: linkedSqlMeta } =
+                        await downloadContent(
+                            chartSlugs,
+                            'sqlCharts',
+                            projectId,
+                            projectName,
+                            options.path,
+                            options.languageMap,
+                            options.nested,
+                            skipEmbeddedSpaces,
+                            false,
+                            options.rootSpaces,
+                            output.updateActive,
+                        );
                     allMetadataEntries = [
                         ...allMetadataEntries,
                         ...linkedSqlMeta,
@@ -1653,15 +2246,59 @@ export const downloadHandler = async (
                     output.completeItem(
                         `${regularCharts + sqlCharts} downloaded`,
                     );
+
+                    // Virtual views the linked charts are built on. Skipped
+                    // when a broader step already downloaded every one.
+                    if (
+                        linkedChartTableNames.length > 0 &&
+                        !includeAllOptionalContent &&
+                        !options.includeVirtualViews
+                    ) {
+                        output.startItem('Linked virtual views');
+                        const linkedVirtualViews =
+                            await downloadLinkedVirtualViews(
+                                projectId,
+                                linkedChartTableNames,
+                                options.path,
+                            );
+                        if (linkedVirtualViews === null) {
+                            output.completeItem(
+                                'not available on this server',
+                                'warning',
+                            );
+                        } else {
+                            counts.virtualViewsNum =
+                                (counts.virtualViewsNum ?? 0) +
+                                linkedVirtualViews;
+                            output.completeItem(
+                                `${linkedVirtualViews} downloaded`,
+                            );
+                        }
+                    }
                 }
+
+                // Consumed after the explicit apps step (see cappedAppSlugs).
+                dashboardAppSlugs = appSlugs;
             }
         }
 
         if (!options.spacesOnly && shouldDownloadAiAgents(options)) {
+            const implicit =
+                includeAllOptionalContent &&
+                options.includeAgents !== true &&
+                options.agents.length === 0;
             await output.runItem({
                 label: 'AI agents',
-                action: () =>
-                    downloadAiAgents(projectId, options.agents, options.path),
+                action: async () => {
+                    const total = await downloadAiAgents(
+                        projectId,
+                        options.agents,
+                        implicit,
+                        options.path,
+                    );
+                    counts.agentsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -1673,13 +2310,16 @@ export const downloadHandler = async (
         ) {
             await output.runItem({
                 label: 'Alerts',
-                action: () =>
-                    downloadScheduledContent(
+                action: async () => {
+                    const total = await downloadScheduledContent(
                         projectId,
                         options.alerts,
                         ContentAsCodeTypeEnum.ALERT,
                         options.path,
-                    ),
+                    );
+                    counts.alertsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -1691,13 +2331,16 @@ export const downloadHandler = async (
         ) {
             await output.runItem({
                 label: 'Scheduled deliveries',
-                action: () =>
-                    downloadScheduledContent(
+                action: async () => {
+                    const total = await downloadScheduledContent(
                         projectId,
                         options.scheduledDeliveries,
                         ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
                         options.path,
-                    ),
+                    );
+                    counts.scheduledDeliveriesNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -1709,13 +2352,43 @@ export const downloadHandler = async (
         ) {
             await output.runItem({
                 label: 'Google Sheets syncs',
-                action: () =>
-                    downloadScheduledContent(
+                action: async () => {
+                    const total = await downloadScheduledContent(
                         projectId,
                         options.googleSheets,
                         ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
                         options.path,
-                    ),
+                    );
+                    counts.googleSheetsNum = total;
+                    return total;
+                },
+                detail: (total) => `${total} downloaded`,
+            });
+        }
+
+        if (
+            includeAllOptionalContent ||
+            options.includeExternalConnections ||
+            options.externalConnections.length > 0
+        ) {
+            // Only --include-all is implicit: unavailable (non-EE / no
+            // permission) then warns and skips instead of failing the download
+            const implicit =
+                includeAllOptionalContent &&
+                !options.includeExternalConnections &&
+                options.externalConnections.length === 0;
+            await output.runItem({
+                label: 'External connections',
+                action: async () => {
+                    const total = await downloadExternalConnections(
+                        projectId,
+                        options.externalConnections,
+                        implicit,
+                        options.path,
+                    );
+                    counts.externalConnectionsNum = total;
+                    return total;
+                },
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -1725,18 +2398,21 @@ export const downloadHandler = async (
             apps: Array.isArray(options.apps) ? options.apps : undefined,
             includeApps,
         });
+        // Slugs covered by a (possibly --apps-limit-truncated) --include-apps
+        // listing, so the Linked data apps step knows what fell outside the cap.
+        let cappedAppSlugs = new Set<string>();
 
         if (appsSelection.mode !== 'none') {
             output.startItem('Data apps');
-            let appUuidsToDownload: string[];
+            let appRefsToDownload: string[];
             let appListingError: string | null = null;
 
             if (appsSelection.mode === 'explicit') {
-                appUuidsToDownload = appsSelection.appUuids;
+                appRefsToDownload = appsSelection.appRefs;
             } else {
                 // List every app in the project (includes apps not in any space)
                 output.updateActive('listing project apps…');
-                let listedAppUuids: string[];
+                let listedApps: ListedApp[];
                 try {
                     const projectApps = await lightdashApi<
                         ApiEmbedProjectAppsResponse['results']
@@ -1745,43 +2421,55 @@ export const downloadHandler = async (
                         url: `/api/v1/ee/projects/${projectId}/apps`,
                         body: undefined,
                     });
-                    listedAppUuids = projectApps.map((app) => app.appUuid);
+                    listedApps = projectApps.map((app) => ({
+                        appUuid: app.appUuid,
+                        slug: app.slug,
+                    }));
                 } catch (listErr) {
                     if (!shouldFallBackToSpaceScopedListing(listErr)) {
                         if (!includeAllOptionalContent) {
                             throw listErr;
                         }
                         appListingError = getErrorMessage(listErr);
-                        listedAppUuids = [];
+                        listedApps = [];
                     } else {
                         GlobalState.log(
                             styles.warning(
                                 'This server does not support project-wide app listing; only apps that are in a space will be included.',
                             ),
                         );
-                        listedAppUuids =
-                            await listAppUuidsViaContentApi(projectId);
+                        listedApps = await listAppsViaContentApi(projectId);
                     }
                 }
 
                 const { appUuids: cappedAppUuids, truncatedCount } =
-                    capListedApps(listedAppUuids, appsLimit);
+                    capListedApps(
+                        listedApps.map((app) => app.appUuid),
+                        appsLimit,
+                    );
                 if (truncatedCount > 0) {
                     GlobalState.log(
                         styles.warning(
-                            `Found ${listedAppUuids.length} data apps, downloading the first ${appsLimit}. Pass --apps-limit <n> to raise the cap.`,
+                            `Found ${listedApps.length} data apps, downloading the first ${appsLimit}. Pass --apps-limit <n> to raise the cap.`,
                         ),
                     );
                 }
-                appUuidsToDownload = [
+                const cappedAppUuidSet = new Set(cappedAppUuids);
+                cappedAppSlugs = new Set(
+                    listedApps
+                        .filter((app) => cappedAppUuidSet.has(app.appUuid))
+                        .map((app) => app.slug),
+                );
+                appRefsToDownload = [
                     ...new Set([
                         ...cappedAppUuids,
-                        ...appsSelection.extraAppUuids,
+                        ...appsSelection.extraAppRefs,
                     ]),
                 ];
             }
 
-            if (appUuidsToDownload.length === 0) {
+            if (appRefsToDownload.length === 0) {
+                counts.appsNum = 0;
                 if (appListingError === null) {
                     output.completeItem('0 found');
                 } else {
@@ -1792,105 +2480,58 @@ export const downloadHandler = async (
                 }
             } else {
                 output.updateActive(
-                    `0 of ${appUuidsToDownload.length} downloaded`,
+                    `0 of ${appRefsToDownload.length} downloaded`,
                 );
                 const baseDir = getDownloadFolder(options.path);
                 const appsDir = path.join(baseDir, 'apps');
-                const takenFolders = new Set<string>();
-                let appSuccessCount = 0;
-                let appSkippedNotBuiltCount = 0;
-                const appFailures: AppDownloadFailure[] = [];
 
-                for (const appUuid of appUuidsToDownload) {
-                    try {
-                        // eslint-disable-next-line no-await-in-loop
-                        const code = ensureDownloadedAppContext(
-                            appUuid,
-                            await lightdashApi<DataAppCodeDownload>({
-                                method: 'GET',
-                                url: `/api/v1/ee/projects/${projectId}/apps/${appUuid}/download`,
-                                body: undefined,
-                            }),
-                        );
-
-                        const folder = appFolderName(
-                            code.manifest.name,
-                            appUuid,
-                            takenFolders,
-                        );
-                        takenFolders.add(folder);
-
-                        const appDir = path.join(appsDir, folder);
-                        const manifest = {
-                            ...code.manifest,
-                            scaffoldingVersion: CLI_VERSION,
-                        };
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeBundleToDir(appDir, { ...code, manifest });
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeFilesToDir(
-                            appDir,
-                            buildStaticAuthoringFiles({
-                                appName: code.manifest.name,
-                                sdkVersion: CLI_VERSION,
-                            }),
-                        );
-                        // Server-provided deps override the scaffold's
-                        // template package.json so re-uploads round-trip.
-                        if (code.dependencies) {
-                            // eslint-disable-next-line no-await-in-loop
-                            await writeDependenciesToDir(
-                                appDir,
-                                code.dependencies,
-                            );
-                        }
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeContextToDir(appDir, code.context);
-                        appSuccessCount += 1;
-                    } catch (appErr) {
-                        const outcome = classifyAppDownloadError(appErr);
-                        if (outcome.kind === 'skip-not-built') {
-                            appSkippedNotBuiltCount += 1;
-                            GlobalState.debug(
-                                `> Skipped app ${appUuid}: no built version to download`,
-                            );
-                        } else {
-                            appFailures.push({
-                                appUuid,
-                                message: outcome.message,
-                            });
-                            GlobalState.log(
-                                styles.error(
-                                    `Failed to download app ${appUuid}: ${outcome.message}`,
-                                ),
-                            );
-                        }
-                    }
-                    output.updateActive(
-                        `${
-                            appSuccessCount +
-                            appSkippedNotBuiltCount +
-                            appFailures.length
-                        } of ${appUuidsToDownload.length} processed`,
-                    );
-                }
+                const {
+                    successCount,
+                    skippedNotBuiltCount,
+                    skippedWrongKindCount,
+                    failures,
+                } = await downloadAppsToDir({
+                    appRefs: appRefsToDownload,
+                    projectId,
+                    appsDir,
+                    takenFolders: downloadedAppFolders,
+                    cliVersion: CLI_VERSION,
+                    fetchApp: (fetchProjectId, appRef) =>
+                        lightdashApi<DataAppCodeDownload>({
+                            method: 'GET',
+                            url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                                appRef,
+                            )}/download`,
+                            body: undefined,
+                        }),
+                    skipBundle: (manifest) =>
+                        manifest.template === DATA_APP_VIZ_TEMPLATE
+                            ? 'this is a custom chart type — download it with --chart-types or --include-chart-types'
+                            : null,
+                    onProgress: (processed, total) =>
+                        output.updateActive(
+                            `${processed} of ${total} processed`,
+                        ),
+                });
 
                 const summary = appsDownloadSummary(
-                    appSuccessCount,
-                    appUuidsToDownload.length,
-                    appFailures,
+                    successCount,
+                    appRefsToDownload.length,
+                    failures,
                     appsDir,
-                    appSkippedNotBuiltCount,
+                    skippedNotBuiltCount + skippedWrongKindCount,
                 );
+                counts.appsNum = successCount;
+                downloadFailures += failures.length;
                 output.completeItem(
-                    `${appSuccessCount} downloaded${
-                        appSkippedNotBuiltCount > 0
-                            ? `, ${appSkippedNotBuiltCount} skipped`
+                    `${successCount} downloaded${
+                        skippedNotBuiltCount + skippedWrongKindCount > 0
+                            ? `, ${
+                                  skippedNotBuiltCount + skippedWrongKindCount
+                              } skipped`
                             : ''
                     }${
-                        appFailures.length > 0
-                            ? `, ${appFailures.length} failed`
-                            : ''
+                        failures.length > 0 ? `, ${failures.length} failed` : ''
                     }`,
                     summary.ok ? undefined : 'warning',
                 );
@@ -1899,6 +2540,302 @@ export const downloadHandler = async (
                         GlobalState.log(styles.warning(line)),
                     );
                 }
+            }
+        }
+
+        // Download custom chart types (enterprise, opt-in via --chart-types /
+        // --include-chart-types / --include-all) into chart-types/, kept
+        // separate from data apps.
+        const chartTypesSelection = selectAppsToDownload({
+            apps: Array.isArray(options.chartTypes)
+                ? options.chartTypes
+                : undefined,
+            includeApps: includeChartTypes,
+        });
+        // Refs (slug AND uuid) covered by a possibly-truncated
+        // --include-chart-types listing, so the Linked custom chart types
+        // step knows what was already downloaded.
+        let cappedChartTypeRefs = new Set<string>();
+        if (chartTypesSelection.mode !== 'none') {
+            output.startItem('Custom chart types');
+            let chartTypeRefsToDownload: string[];
+            let chartTypeListingError: string | null = null;
+
+            if (chartTypesSelection.mode === 'explicit') {
+                chartTypeRefsToDownload = chartTypesSelection.appRefs;
+            } else {
+                output.updateActive('listing project chart types…');
+                let listedChartTypes: ListedApp[] = [];
+                try {
+                    const projectChartTypes = await lightdashApi<
+                        ApiEmbedProjectAppsResponse['results']
+                    >({
+                        method: 'GET',
+                        url: `/api/v1/ee/projects/${projectId}/apps/chart-types`,
+                        body: undefined,
+                    });
+                    listedChartTypes = projectChartTypes.map((chartType) => ({
+                        appUuid: chartType.appUuid,
+                        slug: chartType.slug,
+                    }));
+                } catch (listErr) {
+                    if (shouldFallBackToSpaceScopedListing(listErr)) {
+                        // 404: the server predates the chart-types listing
+                        // (or chart types entirely) — nothing to list.
+                        GlobalState.log(
+                            styles.warning(
+                                'This server does not support listing custom chart types; pass explicit --chart-types references or upgrade the server.',
+                            ),
+                        );
+                        listedChartTypes = [];
+                    } else if (includeAllOptionalContent) {
+                        chartTypeListingError = getErrorMessage(listErr);
+                        listedChartTypes = [];
+                    } else {
+                        throw listErr;
+                    }
+                }
+
+                const {
+                    appUuids: cappedChartTypeUuids,
+                    truncatedCount: chartTypesTruncated,
+                } = capListedApps(
+                    listedChartTypes.map((chartType) => chartType.appUuid),
+                    chartTypesLimit,
+                );
+                if (chartTypesTruncated > 0) {
+                    GlobalState.log(
+                        styles.warning(
+                            `Found ${listedChartTypes.length} custom chart types, downloading the first ${chartTypesLimit}. Pass --chart-types-limit <n> to raise the cap.`,
+                        ),
+                    );
+                }
+                const cappedChartTypeUuidSet = new Set(cappedChartTypeUuids);
+                cappedChartTypeRefs = new Set(
+                    listedChartTypes
+                        .filter((chartType) =>
+                            cappedChartTypeUuidSet.has(chartType.appUuid),
+                        )
+                        .flatMap((chartType) => [
+                            chartType.slug,
+                            chartType.appUuid,
+                        ]),
+                );
+                chartTypeRefsToDownload = [
+                    ...new Set([
+                        ...cappedChartTypeUuids,
+                        ...chartTypesSelection.extraAppRefs,
+                    ]),
+                ];
+            }
+
+            if (chartTypeRefsToDownload.length === 0) {
+                counts.chartTypesNum = 0;
+                if (chartTypeListingError === null) {
+                    output.completeItem('0 found');
+                } else {
+                    output.completeItem(
+                        `listing failed: ${chartTypeListingError}`,
+                        'warning',
+                    );
+                }
+            } else {
+                output.updateActive(
+                    `0 of ${chartTypeRefsToDownload.length} downloaded`,
+                );
+                const chartTypesDir = path.join(
+                    getDownloadFolder(options.path),
+                    'chart-types',
+                );
+
+                const chartTypesOutcome = await downloadAppsToDir({
+                    appRefs: chartTypeRefsToDownload,
+                    projectId,
+                    appsDir: chartTypesDir,
+                    takenFolders: downloadedChartTypeFolders,
+                    cliVersion: CLI_VERSION,
+                    fetchApp: (fetchProjectId, appRef) =>
+                        lightdashApi<DataAppCodeDownload>({
+                            method: 'GET',
+                            url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                                appRef,
+                            )}/download`,
+                            body: undefined,
+                        }),
+                    skipBundle: (manifest) =>
+                        manifest.template !== DATA_APP_VIZ_TEMPLATE
+                            ? 'this is a data app — download it with --apps or --include-apps'
+                            : null,
+                    onProgress: (processed, total) =>
+                        output.updateActive(
+                            `${processed} of ${total} processed`,
+                        ),
+                });
+
+                const chartTypesSummary = appsDownloadSummary(
+                    chartTypesOutcome.successCount,
+                    chartTypeRefsToDownload.length,
+                    chartTypesOutcome.failures,
+                    chartTypesDir,
+                    chartTypesOutcome.skippedNotBuiltCount +
+                        chartTypesOutcome.skippedWrongKindCount,
+                    'custom chart type',
+                );
+                counts.chartTypesNum = chartTypesOutcome.successCount;
+                downloadFailures += chartTypesOutcome.failures.length;
+                const chartTypesSkipped =
+                    chartTypesOutcome.skippedNotBuiltCount +
+                    chartTypesOutcome.skippedWrongKindCount;
+                output.completeItem(
+                    `${chartTypesOutcome.successCount} downloaded${
+                        chartTypesSkipped > 0
+                            ? `, ${chartTypesSkipped} skipped`
+                            : ''
+                    }${
+                        chartTypesOutcome.failures.length > 0
+                            ? `, ${chartTypesOutcome.failures.length} failed`
+                            : ''
+                    }`,
+                    chartTypesSummary.ok ? undefined : 'warning',
+                );
+                if (!chartTypesSummary.ok) {
+                    chartTypesSummary.failureLines.forEach((line) =>
+                        GlobalState.log(styles.warning(line)),
+                    );
+                }
+            }
+        }
+
+        // Dashboard-referenced apps not already covered above (explicit
+        // --apps ref, or a non-truncated slot in the --include-apps cap).
+        const linkedAppSlugs = computeLinkedAppSlugs({
+            appSlugs: dashboardAppSlugs,
+            explicitRefs: explicitAppRefs,
+            includeApps,
+            cappedAppSlugs,
+        });
+        if (linkedAppSlugs.length > 0) {
+            output.startItem('Linked data apps');
+            const appsDir = path.join(getDownloadFolder(options.path), 'apps');
+            const outcome = await downloadAppsToDir({
+                appRefs: linkedAppSlugs,
+                projectId,
+                appsDir,
+                takenFolders: downloadedAppFolders,
+                cliVersion: CLI_VERSION,
+                fetchApp: (fetchProjectId, appRef) =>
+                    lightdashApi<DataAppCodeDownload>({
+                        method: 'GET',
+                        url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                            appRef,
+                        )}/download`,
+                        body: undefined,
+                    }),
+                // Dashboard data-app tiles reference apps, never chart types.
+                skipBundle: (manifest) =>
+                    manifest.template === DATA_APP_VIZ_TEMPLATE
+                        ? 'this is a custom chart type — dashboard app tiles cannot reference it'
+                        : null,
+                onProgress: (processed, total) =>
+                    output.updateActive(`${processed} of ${total} processed`),
+            });
+            const linkedSkipped =
+                outcome.skippedNotBuiltCount + outcome.skippedWrongKindCount;
+            const linkedSummary = appsDownloadSummary(
+                outcome.successCount,
+                linkedAppSlugs.length,
+                outcome.failures,
+                appsDir,
+                linkedSkipped,
+            );
+            counts.appsNum = (counts.appsNum ?? 0) + outcome.successCount;
+            downloadFailures += outcome.failures.length;
+            output.completeItem(
+                `${outcome.successCount} downloaded${
+                    linkedSkipped > 0 ? `, ${linkedSkipped} skipped` : ''
+                }${
+                    outcome.failures.length > 0
+                        ? `, ${outcome.failures.length} failed`
+                        : ''
+                }`,
+                linkedSummary.ok ? undefined : 'warning',
+            );
+            if (!linkedSummary.ok) {
+                linkedSummary.failureLines.forEach((line) =>
+                    GlobalState.log(styles.warning(line)),
+                );
+            }
+        }
+
+        // Custom chart types the downloaded charts render with, not already
+        // covered by an explicit --chart-types ref or a (non-truncated)
+        // --include-chart-types listing — a chart file without its chart
+        // type cannot be uploaded elsewhere.
+        const linkedChartTypeRefs = computeLinkedAppSlugs({
+            appSlugs: [...new Set(downloadedChartVizRefs)],
+            explicitRefs: explicitChartTypeRefs,
+            includeApps: includeChartTypes,
+            cappedAppSlugs: cappedChartTypeRefs,
+        });
+        if (linkedChartTypeRefs.length > 0) {
+            output.startItem('Linked custom chart types');
+            const chartTypesDir = path.join(
+                getDownloadFolder(options.path),
+                'chart-types',
+            );
+            const linkedChartTypesOutcome = await downloadAppsToDir({
+                appRefs: linkedChartTypeRefs,
+                projectId,
+                appsDir: chartTypesDir,
+                takenFolders: downloadedChartTypeFolders,
+                cliVersion: CLI_VERSION,
+                fetchApp: (fetchProjectId, appRef) =>
+                    lightdashApi<DataAppCodeDownload>({
+                        method: 'GET',
+                        url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                            appRef,
+                        )}/download`,
+                        body: undefined,
+                    }),
+                // Chart configs reference chart types, never data apps.
+                skipBundle: (manifest) =>
+                    manifest.template !== DATA_APP_VIZ_TEMPLATE
+                        ? 'this is a data app — chart configs cannot reference it'
+                        : null,
+                onProgress: (processed, total) =>
+                    output.updateActive(`${processed} of ${total} processed`),
+            });
+            const linkedChartTypesSkipped =
+                linkedChartTypesOutcome.skippedNotBuiltCount +
+                linkedChartTypesOutcome.skippedWrongKindCount;
+            const linkedChartTypesSummary = appsDownloadSummary(
+                linkedChartTypesOutcome.successCount,
+                linkedChartTypeRefs.length,
+                linkedChartTypesOutcome.failures,
+                chartTypesDir,
+                linkedChartTypesSkipped,
+                'custom chart type',
+            );
+            counts.chartTypesNum =
+                (counts.chartTypesNum ?? 0) +
+                linkedChartTypesOutcome.successCount;
+            downloadFailures += linkedChartTypesOutcome.failures.length;
+            output.completeItem(
+                `${linkedChartTypesOutcome.successCount} downloaded${
+                    linkedChartTypesSkipped > 0
+                        ? `, ${linkedChartTypesSkipped} skipped`
+                        : ''
+                }${
+                    linkedChartTypesOutcome.failures.length > 0
+                        ? `, ${linkedChartTypesOutcome.failures.length} failed`
+                        : ''
+                }`,
+                linkedChartTypesSummary.ok ? undefined : 'warning',
+            );
+            if (!linkedChartTypesSummary.ok) {
+                linkedChartTypesSummary.failureLines.forEach((line) =>
+                    GlobalState.log(styles.warning(line)),
+                );
             }
         }
 
@@ -1936,6 +2873,14 @@ export const downloadHandler = async (
                 styles.success(`Downloaded content saved to ${downloadRoot}`),
             );
         }
+        if (downloadFailures > 0) {
+            GlobalState.log(
+                styles.error(
+                    `${downloadFailures} resource(s) failed to download — see errors above.`,
+                ),
+            );
+            process.exitCode = 1;
+        }
 
         await LightdashAnalytics.track({
             event: 'download.completed',
@@ -1943,8 +2888,7 @@ export const downloadHandler = async (
                 userId: config.user?.userUuid,
                 organizationId: config.user?.organizationUuid,
                 projectId,
-                chartsNum: chartTotal,
-                dashboardsNum: dashboardTotal,
+                ...counts,
                 timeToCompleted: (end - start) / 1000,
             },
         });
@@ -1959,44 +2903,25 @@ export const downloadHandler = async (
                 error: `${error}`,
             },
         });
-        if (isSpaceAsCodeDownloadError(error)) throw error;
+        throw error;
     }
 };
 
 const storeUploadChanges = (
     changes: Record<string, number>,
+    type: 'charts' | 'dashboards',
     promoteChanges: PromotionChanges,
 ): Record<string, number> => {
-    const getPromoteChanges = (
-        resource: 'spaces' | 'charts' | 'dashboards',
-    ) => {
-        const promotions: { action: PromotionAction }[] =
-            promoteChanges[resource];
-        return promotions.reduce<Record<string, number>>(
-            (acc, promoteChange) => {
-                const action = getPromoteAction(promoteChange.action);
-                const key = `${resource} ${action}`;
-                acc[key] = (acc[key] ?? 0) + 1;
-                return acc;
-            },
-            {},
-        );
-    };
-
-    const updatedChanges: Record<string, number> = {
-        ...changes,
-    };
-
-    ['spaces', 'charts', 'dashboards'].forEach((resource) => {
-        const resourceChanges = getPromoteChanges(
-            resource as 'spaces' | 'charts' | 'dashboards',
-        );
-        Object.entries(resourceChanges).forEach(([key, value]) => {
-            updatedChanges[key] = (updatedChanges[key] ?? 0) + value;
-        });
-    });
-
-    return updatedChanges;
+    // The API also echoes untouched spaces and chart tiles; only count the uploaded type
+    const promotions: { action: PromotionAction }[] = promoteChanges[type];
+    return promotions.reduce<Record<string, number>>(
+        (acc, promoteChange) => {
+            const key = `${type} ${getPromoteAction(promoteChange.action)}`;
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        },
+        { ...changes },
+    );
 };
 
 const UPLOAD_CHANGE_SUFFIXES = [
@@ -2009,6 +2934,15 @@ const UPLOAD_CHANGE_SUFFIXES = [
     'skipped',
     'failed',
 ] as const;
+
+const countChangeDelta = (
+    before: Record<string, number>,
+    after: Record<string, number>,
+): number =>
+    Object.entries(after).reduce((total, [key, value]) => {
+        const difference = value - (before[key] ?? 0);
+        return difference > 0 ? total + difference : total;
+    }, 0);
 
 const summarizeUploadChanges = (
     before: Record<string, number>,
@@ -2035,29 +2969,34 @@ const summarizeUploadChanges = (
     return { detail, variant: hasFailures ? 'warning' : undefined };
 };
 
+const hasUploadFailures = (changes: Record<string, number>): boolean =>
+    Object.entries(changes).some(
+        ([key, value]) =>
+            value > 0 &&
+            (key.endsWith('with errors') || key.endsWith('failed')),
+    );
+
 const runUploadChangesPhase = async ({
     output,
     label,
     changes,
     action,
+    onCount,
 }: {
     output: ContentAsCodeOutput;
     label: string;
     changes: Record<string, number>;
     action: () => Promise<Record<string, number>>;
+    onCount?: (count: number) => void;
 }): Promise<Record<string, number>> => {
     const before = { ...changes };
     output.startItem(label);
     const updatedChanges = await action();
     const summary = summarizeUploadChanges(before, updatedChanges);
     output.completeItem(summary.detail, summary.variant);
+    onCount?.(countChangeDelta(before, updatedChanges));
     return updatedChanges;
 };
-
-// SQL charts have 'sql' field instead of 'tableName'/'metricQuery'
-const isSqlChart = (
-    item: ChartAsCode | DashboardAsCode | SqlChartAsCode,
-): item is SqlChartAsCode => 'sql' in item && !('tableName' in item);
 
 const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
     item: T & { needsUpdating: boolean },
@@ -2070,25 +3009,26 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
     publicSpaceCreate?: boolean,
     validate?: boolean,
     spaceNames?: Record<string, string>,
-): Promise<void> => {
+): Promise<'upserted' | 'skipped' | 'failed'> => {
     try {
         if (!force && !item.needsUpdating) {
             GlobalState.debug(
                 `Skipping ${type} "${item.slug}" with no local changes`,
             );
             changes[`${type} skipped`] = (changes[`${type} skipped`] ?? 0) + 1;
-            return;
+            return 'skipped';
         }
         GlobalState.debug(`Upserting ${type} ${item.slug}`);
 
         // SQL charts use a different endpoint
-        const isSqlChartItem = type === 'charts' && isSqlChart(item);
+        const isSqlChartItem = type === 'charts' && isSqlChartContent(item);
         const endpoint = isSqlChartItem
             ? `/api/v1/projects/${projectId}/code/sqlCharts/${item.slug}`
             : `/api/v1/projects/${projectId}/code/${type}/${item.slug}`;
 
         const upsertData = await lightdashApi<
-            ApiChartAsCodeUpsertResponse['results']
+            ApiChartAsCodeUpsertResponse['results'] &
+                Pick<DashboardAsCodeUpsertResult, 'warnings'>
         >({
             method: 'POST',
             url: endpoint,
@@ -2105,9 +3045,12 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
         GlobalState.debug(
             `${type} "${item.name}": ${upsertData[type]?.[0].action}`,
         );
+        (upsertData.warnings ?? []).forEach((warning) =>
+            GlobalState.log(styles.warning(`  ⚠ ${item.slug}: ${warning}`)),
+        );
 
         // Merge storeUploadChanges result into changes in-place
-        const updatedChanges = storeUploadChanges(changes, upsertData);
+        const updatedChanges = storeUploadChanges(changes, type, upsertData);
         Object.keys(updatedChanges).forEach((key) => {
             changes[key] = updatedChanges[key];
         });
@@ -2181,10 +3124,15 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                 }
             }
         }
+        return 'upserted';
     } catch (error: unknown) {
         if (
             error instanceof LightdashError &&
             error.name === 'NotFoundError' &&
+            // Only the missing-space NotFoundError counts as a space skip;
+            // other NotFoundErrors (e.g. a missing custom chart type) are
+            // real failures even with --skip-space-create.
+            error.message.startsWith('Space ') &&
             skipSpaceCreate
         ) {
             GlobalState.log(
@@ -2193,28 +3141,29 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                 ),
             );
             changes[`${type} skipped`] = (changes[`${type} skipped`] ?? 0) + 1;
-        } else {
-            changes[`${type} with errors`] =
-                (changes[`${type} with errors`] ?? 0) + 1;
-            GlobalState.log(
-                styles.error(
-                    `Error upserting ${type}:\n\t"${item.name}" (slug: "${
-                        item.slug
-                    }")\n\t${getErrorMessage(error)}`,
-                ),
-            );
-
-            await LightdashAnalytics.track({
-                event: 'download.error',
-                properties: {
-                    userId: config.user?.userUuid,
-                    organizationId: config.user?.organizationUuid,
-                    projectId,
-                    type,
-                    error: getErrorMessage(error),
-                },
-            });
+            return 'skipped';
         }
+        changes[`${type} with errors`] =
+            (changes[`${type} with errors`] ?? 0) + 1;
+        GlobalState.log(
+            styles.error(
+                `Error upserting ${type}:\n\t"${item.name}" (slug: "${
+                    item.slug
+                }")\n\t${getErrorMessage(error)}`,
+            ),
+        );
+
+        await LightdashAnalytics.track({
+            event: 'download.error',
+            properties: {
+                userId: config.user?.userUuid,
+                organizationId: config.user?.organizationUuid,
+                projectId,
+                type,
+                error: getErrorMessage(error),
+            },
+        });
+        return 'failed';
     }
 };
 
@@ -2236,7 +3185,12 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     concurrency: number = 1,
     extraItems: (T & { needsUpdating: boolean })[] = [],
     spaceNames?: Record<string, string>,
-): Promise<{ changes: Record<string, number>; total: number }> => {
+    skipSlugs?: ReadonlySet<string>,
+): Promise<{
+    changes: Record<string, number>;
+    total: number;
+    failedSlugs: string[];
+}> => {
     const config = await getConfig();
 
     const folderItems = await readCodeFiles<T>(type, customPath);
@@ -2270,14 +3224,42 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 `Error uploading ${type}: the ${requiredPermission} permission is required`,
             ),
         );
-        return { changes, total: filteredItems.length };
+        return { changes, total: filteredItems.length, failedSlugs: [] };
     }
+
+    // Items whose dependencies failed earlier in the upload are held back so
+    // they are not created in a broken state (e.g. dashboards with null
+    // chart tiles).
+    const uploadableItems = skipSlugs
+        ? filteredItems.filter((item) => !skipSlugs.has(item.slug))
+        : filteredItems;
+    filteredItems
+        .filter((item) => !uploadableItems.includes(item))
+        .forEach((item) => {
+            changes[`${type} dependency skipped`] =
+                (changes[`${type} dependency skipped`] ?? 0) + 1;
+            GlobalState.log(
+                styles.warning(
+                    `Skipped ${type.slice(0, -1)} "${item.slug}" because a chart it references failed to upload`,
+                ),
+            );
+        });
+
+    const failedSlugs: string[] = [];
+    const trackOutcome = (
+        item: T & { needsUpdating: boolean },
+        outcome: 'upserted' | 'skipped' | 'failed',
+    ) => {
+        if (outcome === 'failed') {
+            failedSlugs.push(item.slug);
+        }
+    };
 
     if (concurrency <= 1) {
         // Sequential path — preserves original behavior exactly
-        for (const item of filteredItems) {
+        for (const item of uploadableItems) {
             // eslint-disable-next-line no-await-in-loop
-            await upsertSingleItem(
+            const outcome = await upsertSingleItem(
                 item,
                 type,
                 projectId,
@@ -2289,6 +3271,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 validate,
                 spaceNames,
             );
+            trackOutcome(item, outcome);
         }
     } else {
         // Two-phase parallel path
@@ -2297,7 +3280,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         // and in placeholder dashboard creation for charts within dashboards.
         type ItemWithUpdate = T & { needsUpdating: boolean };
         const grouped = groupBy(
-            filteredItems,
+            uploadableItems,
             (item: ItemWithUpdate) => item.spaceSlug,
         ) as Record<string, ItemWithUpdate[]>;
         const seedItems = new Set<T & { needsUpdating: boolean }>();
@@ -2359,7 +3342,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         // Phase 1: Sequential seeding (spaces + dashboard placeholders)
         for (const item of seedItems) {
             // eslint-disable-next-line no-await-in-loop
-            await upsertSingleItem(
+            const outcome = await upsertSingleItem(
                 item,
                 type,
                 projectId,
@@ -2371,6 +3354,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 validate,
                 spaceNames,
             );
+            trackOutcome(item, outcome);
         }
 
         // Phase 2: Parallel bulk upload of remaining items
@@ -2378,7 +3362,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         await Promise.all(
             remainingItems.map((item) =>
                 limit(async () => {
-                    await upsertSingleItem(
+                    const outcome = await upsertSingleItem(
                         item,
                         type,
                         projectId,
@@ -2390,75 +3374,276 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                         validate,
                         spaceNames,
                     );
+                    trackOutcome(item, outcome);
                 }),
             ),
         );
     }
 
-    return { changes, total: filteredItems.length };
+    return { changes, total: filteredItems.length, failedSlugs };
+};
+
+// readCodeFiles walks the whole download folder recursively, so callers that
+// need both chart and app slugs should read once and reuse the result.
+const readDashboardItems = async (
+    customPath?: string,
+    looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
+): Promise<DashboardAsCode[]> => {
+    const folderDashboards = await readCodeFiles<DashboardAsCode>(
+        'dashboards',
+        customPath,
+    );
+    return [...folderDashboards, ...looseDashboards];
+};
+
+const selectDashboards = (
+    dashboardItems: DashboardAsCode[],
+    dashboardSlugs: string[],
+): DashboardAsCode[] =>
+    dashboardSlugs.length > 0
+        ? dashboardItems.filter((dashboard) =>
+              dashboardSlugs.includes(dashboard.slug),
+          )
+        : dashboardItems;
+
+const selectDashboardChartSlugs = (
+    dashboardItems: DashboardAsCode[],
+    dashboardSlugs: string[],
+): string[] =>
+    selectDashboards(dashboardItems, dashboardSlugs).reduce<string[]>(
+        (acc, dashboard) => {
+            const dashboardChartSlugs = dashboard.tiles
+                .map((tile) =>
+                    'chartSlug' in tile.properties
+                        ? tile.properties.chartSlug
+                        : undefined,
+                )
+                .filter(
+                    (dashboardChartSlug): dashboardChartSlug is string =>
+                        !!dashboardChartSlug,
+                );
+
+            return [...acc, ...dashboardChartSlugs];
+        },
+        [],
+    );
+
+const selectDashboardAppSlugs = (
+    dashboardItems: DashboardAsCode[],
+    dashboardSlugs: string[],
+): string[] => [
+    ...new Set(
+        extractAppSlugsFromDashboards(
+            selectDashboards(dashboardItems, dashboardSlugs),
+        ),
+    ),
+];
+
+// Virtual views a filtered upload should carry: the table names of the local
+// charts selected explicitly (-c) or referenced by the selected dashboards'
+// tiles. Dashboards contribute only when some are selected — a filtered
+// upload without -d uploads no dashboards, so there is nothing to derive.
+const selectVirtualViewCandidates = ({
+    chartItems,
+    chartSlugs,
+    dashboardItems,
+    dashboardSlugs,
+}: {
+    chartItems: ChartAsCode[];
+    chartSlugs: string[];
+    dashboardItems: DashboardAsCode[];
+    dashboardSlugs: string[];
+}): string[] => {
+    const selectedChartSlugs = new Set([
+        ...chartSlugs,
+        ...(dashboardSlugs.length > 0
+            ? selectDashboardChartSlugs(dashboardItems, dashboardSlugs)
+            : []),
+    ]);
+    if (selectedChartSlugs.size === 0) return [];
+    return extractChartTableNames(
+        chartItems.filter((chart) => selectedChartSlugs.has(chart.slug)),
+    );
 };
 
 const getDashboardChartSlugs = async (
     dashboardSlugs: string[],
     customPath?: string,
     looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
-) => {
-    const folderDashboards = await readCodeFiles<DashboardAsCode>(
-        'dashboards',
-        customPath,
+): Promise<string[]> =>
+    selectDashboardChartSlugs(
+        await readDashboardItems(customPath, looseDashboards),
+        dashboardSlugs,
     );
-    const dashboardItems = [...folderDashboards, ...looseDashboards];
 
-    const filteredDashboardItems =
-        dashboardSlugs.length > 0
-            ? dashboardItems.filter((dashboard) =>
-                  dashboardSlugs.includes(dashboard.slug),
-              )
-            : dashboardItems;
+const getDashboardAppSlugs = async (
+    dashboardSlugs: string[],
+    customPath?: string,
+    looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
+): Promise<string[]> =>
+    selectDashboardAppSlugs(
+        await readDashboardItems(customPath, looseDashboards),
+        dashboardSlugs,
+    );
 
-    return filteredDashboardItems.reduce<string[]>((acc, dashboard) => {
-        const dashboardChartSlugs = dashboard.tiles
-            .map((tile) =>
-                'chartSlug' in tile.properties
-                    ? tile.properties.chartSlug
-                    : undefined,
-            )
-            .filter(
-                (dashboardChartSlug): dashboardChartSlug is string =>
-                    !!dashboardChartSlug,
+// Mirrors the Dashboards phase's own guard: a filtered upload with no
+// dashboard slugs uploads no dashboards, so there is nothing to derive from.
+const isFilteredWithNoDashboards = (
+    hasFilters: boolean,
+    dashboardSlugs: string[],
+): boolean => hasFilters && dashboardSlugs.length === 0;
+
+const reportOpenDraftsForUpload = async (
+    projectUuid: string,
+): Promise<void> => {
+    try {
+        const { openDraftCount } =
+            await lightdashApi<ContentAsCodeUploadAdvisory>({
+                method: 'GET',
+                url: `/api/v1/projects/${projectUuid}/code/upload-advisory`,
+                body: undefined,
+            });
+        if (openDraftCount > 0) {
+            GlobalState.log(
+                styles.warning(
+                    `⚠ ${openDraftCount} open content draft${
+                        openDraftCount === 1 ? '' : 's'
+                    }. Upload will continue; Git content remains authoritative.`,
+                ),
             );
+        }
+    } catch (error) {
+        GlobalState.log(
+            styles.warning(
+                '⚠ Could not check for open content drafts. Upload will continue.',
+            ),
+        );
+        GlobalState.debug(
+            `Could not load content-as-code upload advisory: ${getErrorMessage(
+                error,
+            )}`,
+        );
+    }
+};
 
-        return [...acc, ...dashboardChartSlugs];
-    }, []);
+// null when the project dir has no lightdash.config.yml
+const readUploadProjectConfig =
+    async (): Promise<LightdashProjectConfig | null> => {
+        const configExists = await fs
+            .access(path.join(process.cwd(), 'lightdash.config.yml'))
+            .then(() => true)
+            .catch(() => false);
+        if (!configExists) return null;
+        try {
+            return await readAndLoadLightdashProjectConfig(process.cwd());
+        } catch (error) {
+            throw new LightdashError({
+                message: `Upload aborted: lightdash.config.yml exists but could not be read, so the repo's content_as_code settings cannot be honoured. Fix the config and retry. ${getErrorMessage(error)}`,
+                name: 'ParseError',
+                statusCode: 400,
+                data: {},
+            });
+        }
+    };
+
+// The stamped path is the uploaded directory relative to the project dir;
+// a directory outside it has no repo path to stamp
+const getStampedContentPath = (uploadRoot: string): string | undefined => {
+    const relative = path.relative(process.cwd(), uploadRoot);
+    if (
+        path.isAbsolute(relative) ||
+        relative === '..' ||
+        relative.startsWith(`..${path.sep}`)
+    ) {
+        return undefined;
+    }
+    return normalizeContentAsCodePath(relative.split(path.sep).join('/'));
 };
 
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    const projectConfig = await readUploadProjectConfig();
+    // --path wins; otherwise content_as_code.path from lightdash.config.yml
+    const contentPathOption =
+        options.path ?? projectConfig?.content_as_code?.path;
 
     if (options.spacesOnly && options.skipSpaces) {
         throw new ParameterError(
             'Nothing to upload: --spaces-only cannot be combined with --skip-spaces.',
         );
     }
+    if (options.appsOnly && options.spacesOnly) {
+        throw new ParameterError(
+            '--apps-only cannot be combined with --spaces-only.',
+        );
+    }
+    if (options.appsOnly && options.chartTypesOnly) {
+        throw new ParameterError(
+            '--apps-only cannot be combined with --chart-types-only.',
+        );
+    }
+    if (options.chartTypesOnly && options.spacesOnly) {
+        throw new ParameterError(
+            '--chart-types-only cannot be combined with --spaces-only.',
+        );
+    }
+    if (
+        options.appsOnly &&
+        (options.charts.length > 0 || options.dashboards.length > 0)
+    ) {
+        throw new ParameterError(
+            '--apps-only cannot be combined with --charts or --dashboards.',
+        );
+    }
+    if (
+        options.chartTypesOnly &&
+        (options.charts.length > 0 || options.dashboards.length > 0)
+    ) {
+        throw new ParameterError(
+            '--chart-types-only cannot be combined with --charts or --dashboards.',
+        );
+    }
+    // Bare --apps-only means "all apps": imply --include-apps.
+    if (
+        options.appsOnly &&
+        options.apps === undefined &&
+        options.includeApps !== true
+    ) {
+        options.includeApps = true;
+    }
+    if (options.appsOnly) {
+        options.chartTypes = undefined;
+        options.includeChartTypes = false;
+    }
+    // Bare --chart-types-only means "all chart types" likewise.
+    if (
+        options.chartTypesOnly &&
+        options.chartTypes === undefined &&
+        options.includeChartTypes !== true
+    ) {
+        options.includeChartTypes = true;
+    }
+    if (options.chartTypesOnly) {
+        options.apps = undefined;
+        options.includeApps = false;
+    }
 
     const isOrganizationUpload = options.organization === true;
+    // --apps-only / --chart-types-only ride the existing filter machinery:
+    // every other phase skips exactly as it does when only those refs are
+    // passed.
     const hasFilters =
-        !options.spacesOnly &&
-        (options.charts.length > 0 ||
-            options.dashboards.length > 0 ||
-            options.agents.length > 0 ||
-            options.alerts.length > 0 ||
-            options.googleSheets.length > 0 ||
-            options.scheduledDeliveries.length > 0 ||
-            options.virtualViews.length > 0);
+        hasContentFilters(options) ||
+        options.appsOnly === true ||
+        options.chartTypesOnly === true;
     const shouldReconcileSpaces =
         !isOrganizationUpload && !options.skipSpaces && !hasFilters;
     let preflightSpaceFiles: SpaceCodeFile[] = [];
     if (shouldReconcileSpaces) {
         try {
-            preflightSpaceFiles = await readSpaceFiles(options.path);
+            preflightSpaceFiles = await readSpaceFiles(contentPathOption);
         } catch (error) {
             throw createSpaceAsCodeUploadError(getErrorMessage(error));
         }
@@ -2477,7 +3662,7 @@ export const uploadHandler = async (
 
     if (isOrganizationUpload) {
         await uploadOrganizationContent({
-            customPath: options.path,
+            customPath: contentPathOption,
             config,
             sendInvites: options.sendInvites,
         });
@@ -2498,10 +3683,32 @@ export const uploadHandler = async (
     // Log current project info
     logSelectedProject(projectSelection, config, 'Uploading to');
 
+    await reportOpenDraftsForUpload(projectId);
+
+    // Persist repo-owned sync settings for the review/write-back workflow.
+    if (projectConfig) {
+        const stamp: ContentAsCodeSettingsStamp = {
+            sync: projectConfig.content_as_code?.sync === true,
+            path: getStampedContentPath(getDownloadFolder(contentPathOption)),
+        };
+        try {
+            await lightdashApi({
+                method: 'POST',
+                url: `/api/v1/projects/${projectId}/code/sync-settings`,
+                body: JSON.stringify(stamp),
+            });
+        } catch (error) {
+            // Older servers don't have this endpoint; stamping is advisory.
+            GlobalState.debug(
+                `Could not stamp content-as-code settings: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+    }
+
     let changes: Record<string, number> = {};
-    // For analytics
-    let chartTotal: number | undefined;
-    let dashboardTotal: number | undefined;
+    const counts: ProjectContentAsCodeCounts = {};
     const start = Date.now();
 
     await LightdashAnalytics.track({
@@ -2516,7 +3723,7 @@ export const uploadHandler = async (
         operation: 'upload',
         scope: 'project',
     });
-    const uploadRoot = getDownloadFolder(options.path);
+    const uploadRoot = getDownloadFolder(contentPathOption);
     const completeUpload = () => {
         const renderedSummary = output.complete(
             uploadRoot,
@@ -2528,13 +3735,21 @@ export const uploadHandler = async (
                 styles.success(`Uploaded content from ${uploadRoot}`),
             );
         }
+        if (hasUploadFailures(changes)) {
+            GlobalState.log(
+                styles.error(
+                    'Upload completed with failures — see errors above.',
+                ),
+            );
+            process.exitCode = 1;
+        }
     };
 
     try {
         const spaceFiles = preflightSpaceFiles;
         const spaceNames = shouldReconcileSpaces
             ? getSpaceNames(spaceFiles)
-            : await readSpaceNames(options.path);
+            : await readSpaceNames(contentPathOption);
         if (spaceFiles.length > 0) {
             logContentAsCodeDiscovery(
                 `Found ${spaceFiles.length} space definition(s)`,
@@ -2553,7 +3768,11 @@ export const uploadHandler = async (
                         changes,
                         options.skipSpaceCreate,
                         options.public,
+                        options.skipSpaceAccess,
                     ),
+                onCount: (count) => {
+                    counts.spacesNum = count;
+                },
             });
         } else if (hasFilters) {
             GlobalState.debug(
@@ -2568,6 +3787,7 @@ export const uploadHandler = async (
                     userId: config.user?.userUuid,
                     organizationId: config.user?.organizationUuid,
                     projectId,
+                    ...counts,
                     timeToCompleted: (Date.now() - start) / 1000,
                 },
             });
@@ -2581,7 +3801,7 @@ export const uploadHandler = async (
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
         const looseFiles = await output.runItem({
             label: 'Content files',
-            action: () => readLooseCodeFiles(options.path),
+            action: () => readLooseCodeFiles(contentPathOption),
             detail: ({ charts, dashboards }) =>
                 `${charts.length + dashboards.length} discovered`,
         });
@@ -2609,11 +3829,53 @@ export const uploadHandler = async (
             );
         }
 
+        // The Virtual views, Data apps and Charts phases all derive slugs
+        // from the same dashboard YAML; read the download folder once and
+        // share it.
+        let dashboardItemsPromise: Promise<DashboardAsCode[]> | undefined;
+        const loadDashboardItems = () => {
+            dashboardItemsPromise =
+                dashboardItemsPromise ??
+                readDashboardItems(contentPathOption, looseFiles.dashboards);
+            return dashboardItemsPromise;
+        };
+
         if (!options.skipVirtualViews) {
-            if (hasFilters && options.virtualViews.length === 0) {
+            // --include-virtual-views on a filtered upload also pushes the
+            // virtual views backing the selected charts and dashboards. An
+            // unfiltered upload already pushes every local virtual view.
+            let virtualViewCandidates: string[] = [];
+            if (
+                options.includeVirtualViews === true &&
+                hasFilters &&
+                (options.charts.length > 0 || options.dashboards.length > 0)
+            ) {
+                virtualViewCandidates = selectVirtualViewCandidates({
+                    chartItems: [
+                        ...(await readCodeFiles<ChartAsCode>(
+                            'charts',
+                            contentPathOption,
+                        )),
+                        ...looseFiles.charts,
+                    ],
+                    chartSlugs: options.charts,
+                    dashboardItems:
+                        options.dashboards.length > 0
+                            ? await loadDashboardItems()
+                            : [],
+                    dashboardSlugs: options.dashboards,
+                });
+            }
+            if (
+                hasFilters &&
+                options.virtualViews.length === 0 &&
+                virtualViewCandidates.length === 0
+            ) {
                 GlobalState.log(
                     styles.warning(
-                        `No virtual view filters provided, skipping`,
+                        options.includeVirtualViews === true
+                            ? `No virtual views referenced by the selected content, skipping`
+                            : `No virtual view filters provided, skipping`,
                     ),
                 );
             } else {
@@ -2628,221 +3890,217 @@ export const uploadHandler = async (
                             changes,
                             options.force,
                             uploadPermissions.virtualViews,
-                            options.path,
+                            contentPathOption,
+                            virtualViewCandidates,
                         ),
+                    onCount: (count) => {
+                        counts.virtualViewsNum = count;
+                    },
                 });
             }
         }
 
-        changes = await runUploadChangesPhase({
-            output,
-            label: 'Charts',
-            changes,
-            action: async () => {
-                const chartSlugs = options.includeCharts
-                    ? Array.from(
-                          new Set([
-                              ...options.charts,
-                              ...(await getDashboardChartSlugs(
-                                  options.dashboards,
-                                  options.path,
-                                  looseFiles.dashboards,
-                              )),
-                          ]),
-                      )
-                    : options.charts;
-                if (hasFilters && chartSlugs.length === 0) {
-                    GlobalState.log(
-                        styles.warning(`No charts filters provided, skipping`),
-                    );
-                    return changes;
-                }
-                const result = await upsertResources<ChartAsCode>(
-                    'charts',
-                    projectId,
-                    changes,
-                    options.force,
-                    chartSlugs,
-                    uploadPermissions.charts,
-                    options.path,
-                    options.skipSpaceCreate,
-                    options.public,
-                    options.validate,
-                    concurrency,
-                    looseFiles.charts,
-                    spaceNames,
-                );
-                chartTotal = result.total;
-                return result.changes;
-            },
-        });
-
-        changes = await runUploadChangesPhase({
-            output,
-            label: 'Dashboards',
-            changes,
-            action: async () => {
-                if (hasFilters && options.dashboards.length === 0) {
-                    GlobalState.log(
-                        styles.warning(
-                            `No dashboard filters provided, skipping`,
-                        ),
-                    );
-                    return changes;
-                }
-                const result = await upsertResources<DashboardAsCode>(
-                    'dashboards',
-                    projectId,
-                    changes,
-                    options.force,
-                    options.dashboards,
-                    uploadPermissions.dashboards,
-                    options.path,
-                    options.skipSpaceCreate,
-                    options.public,
-                    options.validate,
-                    concurrency,
-                    looseFiles.dashboards,
-                    spaceNames,
-                );
-                dashboardTotal = result.total;
-                return result.changes;
-            },
-        });
-
-        if (!options.skipAgents) {
-            if (hasFilters && options.agents.length === 0) {
-                GlobalState.log(
-                    styles.warning(`No AI agent filters provided, skipping`),
-                );
-            } else {
-                try {
-                    changes = await runUploadChangesPhase({
-                        output,
-                        label: 'AI agents',
-                        changes,
-                        action: () =>
-                            upsertAiAgents(
-                                projectId,
-                                options.agents,
-                                changes,
-                                options.force,
-                                options.path,
-                            ),
-                    });
-                } catch (error) {
-                    throw new AiAgentAsCodeUploadError(error);
-                }
-            }
-        }
-
-        if (!options.skipAlerts) {
-            if (hasFilters && options.alerts.length === 0) {
-                GlobalState.log(
-                    styles.warning(`No alert filters provided, skipping`),
-                );
-            } else {
-                changes = await runUploadChangesPhase({
-                    output,
-                    label: 'Alerts',
-                    changes,
-                    action: () =>
-                        upsertScheduledContent(
-                            projectId,
-                            options.alerts,
-                            changes,
-                            options.force,
-                            ContentAsCodeTypeEnum.ALERT,
-                            uploadPermissions.alerts,
-                            options.path,
-                        ),
-                });
-            }
-        }
-
-        if (!options.skipScheduledDeliveries) {
-            if (hasFilters && options.scheduledDeliveries.length === 0) {
+        // Apps resolve their external connection links by slug in the target
+        // project, so connections must exist before any app is uploaded.
+        if (!options.skipExternalConnections) {
+            if (hasFilters && options.externalConnections.length === 0) {
                 GlobalState.log(
                     styles.warning(
-                        `No scheduled delivery filters provided, skipping`,
+                        `No external connection filters provided, skipping`,
                     ),
                 );
             } else {
                 changes = await runUploadChangesPhase({
                     output,
-                    label: 'Scheduled deliveries',
+                    label: 'External connections',
                     changes,
                     action: () =>
-                        upsertScheduledContent(
+                        upsertExternalConnections(
                             projectId,
-                            options.scheduledDeliveries,
+                            options.externalConnections,
                             changes,
                             options.force,
-                            ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
-                            uploadPermissions.scheduledDeliveries,
-                            options.path,
+                            uploadPermissions.externalConnections,
+                            contentPathOption,
                         ),
+                    onCount: (count) => {
+                        counts.externalConnectionsNum = count;
+                    },
                 });
             }
         }
 
-        if (!options.skipGoogleSheets) {
-            if (hasFilters && options.googleSheets.length === 0) {
-                GlobalState.log(
-                    styles.warning(
-                        `No Google Sheets sync filters provided, skipping`,
-                    ),
-                );
-            } else {
-                changes = await runUploadChangesPhase({
-                    output,
-                    label: 'Google Sheets syncs',
-                    changes,
-                    action: () =>
-                        upsertScheduledContent(
-                            projectId,
-                            options.googleSheets,
-                            changes,
-                            options.force,
-                            ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
-                            uploadPermissions.googleSheets,
-                            options.path,
-                        ),
-                });
-            }
-        }
-
-        // Upload data apps (enterprise, opt-in via --apps <uuids...> or
-        // --include-apps, fire-and-forget)
-        const explicitAppUuids = Array.isArray(options.apps)
+        // Upload data apps and custom chart types (enterprise). Data apps:
+        // explicit --apps/--include-apps, or auto-pushed for a dashboard's
+        // apps; must land before dashboards. Chart types: explicit
+        // --chart-types/--include-chart-types, from their own folder.
+        const explicitAppReferences = Array.isArray(options.apps)
             ? options.apps
             : [];
-        const shouldUploadApps =
-            options.includeApps === true || explicitAppUuids.length > 0;
+        const isExplicitAppSelection =
+            options.includeApps === true || explicitAppReferences.length > 0;
+        const autoPushAppSlugs = isFilteredWithNoDashboards(
+            hasFilters,
+            options.dashboards,
+        )
+            ? []
+            : selectDashboardAppSlugs(
+                  await loadDashboardItems(),
+                  options.dashboards,
+              );
+        const explicitChartTypeReferences = Array.isArray(options.chartTypes)
+            ? options.chartTypes
+            : [];
+        const isExplicitChartTypeSelection =
+            options.includeChartTypes === true ||
+            explicitChartTypeReferences.length > 0;
+        const appsPhaseActive =
+            isExplicitAppSelection || autoPushAppSlugs.length > 0;
 
-        let appsCreated = 0;
-        let appsUpdated = 0;
-        let appsFailed = 0;
-        let appsSkipped = 0;
-        const changesBeforeApps = { ...changes };
+        type BundleUploadPhase = {
+            label: string; // output phase label
+            noun: string; // singular, for messages
+            changesPrefix: string; // changes summary key prefix
+            dirName: string; // folder under the download root
+            explicitRefs: string[];
+            includeAllFolders: boolean;
+            isExplicitSelection: boolean;
+            autoPushSlugs: string[]; // dashboard-referenced apps; [] for chart types
+            useAppSpace: boolean; // --app-space applies (chart types are spaceless)
+            isChartTypes: boolean;
+        };
+        const bundleUploadPhases: BundleUploadPhase[] = [
+            {
+                label: 'Data apps',
+                noun: 'data app',
+                changesPrefix: 'data apps',
+                dirName: 'apps',
+                explicitRefs: explicitAppReferences,
+                includeAllFolders: options.includeApps === true,
+                isExplicitSelection: isExplicitAppSelection,
+                autoPushSlugs: autoPushAppSlugs,
+                useAppSpace: true,
+                isChartTypes: false,
+            },
+            {
+                label: 'Custom chart types',
+                noun: 'custom chart type',
+                changesPrefix: 'chart types',
+                dirName: 'chart-types',
+                explicitRefs: explicitChartTypeReferences,
+                includeAllFolders: options.includeChartTypes === true,
+                isExplicitSelection: isExplicitChartTypeSelection,
+                autoPushSlugs: [],
+                useAppSpace: false,
+                isChartTypes: true,
+            },
+        ];
 
-        if (shouldUploadApps && !uploadPermissions.dataApps) {
-            output.startItem('Data apps');
-            GlobalState.log(
-                styles.error(
-                    `Error uploading data apps: create:DataApp or manage:DataApp permission is required`,
-                ),
-            );
-            output.completeItem('permission denied', 'warning');
-        } else if (shouldUploadApps) {
-            output.startItem('Data apps');
-            // --include-apps uploads every folder on disk; explicit UUIDs
-            // filter folders by their manifest appUuid
-            const filterUuids: Set<string> | null =
-                options.includeApps === true ? null : new Set(explicitAppUuids);
+        for (const phase of bundleUploadPhases) {
+            const shouldUploadPhase =
+                phase.isExplicitSelection || phase.autoPushSlugs.length > 0;
+            if (!shouldUploadPhase) {
+                // eslint-disable-next-line no-continue
+                continue;
+            }
 
-            const baseDir = getDownloadFolder(options.path);
-            const appsDir = path.join(baseDir, 'apps');
+            let appsCreated = 0;
+            let appsUpdated = 0;
+            let appsUnchanged = 0;
+            let appsFailed = 0;
+            let appsSkipped = 0;
+            let eeAppRoutesUnavailable = false;
+            const changesBeforeApps = { ...changes };
+
+            if (!uploadPermissions.dataApps) {
+                if (phase.isChartTypes) {
+                    counts.chartTypesNum = 0;
+                } else {
+                    counts.appsNum = 0;
+                }
+                output.startItem(phase.label);
+                GlobalState.log(
+                    styles.warning(
+                        `Skipping ${phase.changesPrefix}: create:DataApp or manage:DataApp permission is required for this project (the create:DataApp@preview and manage:DataApp@preview scopes only cover preview projects you created). Dashboard tiles will resolve only if their apps already exist in this project.`,
+                    ),
+                );
+                output.completeItem('permission denied', 'warning');
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            output.startItem(phase.label);
+            // Explicit refs filter by slug/appUuid; include-all uploads every
+            // folder. A pure auto-push run applies no filter — gated per
+            // folder below.
+            let uploadFilter = phase.isExplicitSelection
+                ? getDataAppUploadFilter(
+                      phase.explicitRefs,
+                      phase.includeAllFolders,
+                  )
+                : null;
+
+            // uuid/URL --apps refs resolve to slugs against the target
+            // project's listing so they can match slug-identity local folders.
+            const filterHasUuidRefs =
+                uploadFilter !== null && [...uploadFilter].some(isUuid);
+            if (filterHasUuidRefs && uploadFilter !== null) {
+                try {
+                    const projectApps = await lightdashApi<
+                        ApiEmbedProjectAppsResponse['results']
+                    >({
+                        method: 'GET',
+                        // Each kind resolves against its own listing — the
+                        // apps listing never includes chart types.
+                        url: `/api/v1/ee/projects/${projectId}/apps${
+                            phase.isChartTypes ? '/chart-types' : ''
+                        }`,
+                        body: undefined,
+                    });
+                    uploadFilter = resolveUploadFilterUuids(
+                        uploadFilter,
+                        projectApps,
+                    );
+                } catch (listErr) {
+                    GlobalState.debug(
+                        `Could not list target project apps: ${getErrorMessage(listErr)}`,
+                    );
+                }
+            }
+
+            // The server applies the space on creates only; existing apps
+            // keep their space. Chart types are spaceless, so --app-space
+            // never applies to them.
+            let appSpaceUuid: string | undefined;
+            if (phase.useAppSpace && options.appSpace !== undefined) {
+                if (isUuid(options.appSpace)) {
+                    appSpaceUuid = options.appSpace;
+                } else {
+                    const spaces = await lightdashApi<
+                        ApiSpaceSummaryListResponse['results']
+                    >({
+                        method: 'GET',
+                        url: `/api/v1/projects/${projectId}/spaces`,
+                        body: undefined,
+                    });
+                    appSpaceUuid = resolveAppSpaceUuid(
+                        options.appSpace,
+                        spaces,
+                    );
+                }
+            } else if (
+                phase.isChartTypes &&
+                options.appSpace !== undefined &&
+                !appsPhaseActive
+            ) {
+                GlobalState.log(
+                    styles.warning(
+                        '--app-space does not apply to custom chart types — they are project-global and spaceless.',
+                    ),
+                );
+            }
+
+            const baseDir = getDownloadFolder(contentPathOption);
+            const appsDir = path.join(baseDir, phase.dirName);
 
             let appFolderEntries: import('fs').Dirent[];
             try {
@@ -2851,11 +4109,6 @@ export const uploadHandler = async (
                 });
             } catch (err) {
                 if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-                    GlobalState.log(
-                        styles.warning(
-                            `No apps directory found at ${appsDir}. Run 'lightdash download --include-apps' first.`,
-                        ),
-                    );
                     appFolderEntries = [];
                 } else {
                     throw err;
@@ -2865,66 +4118,86 @@ export const uploadHandler = async (
             const subDirs = appFolderEntries.filter((e) => e.isDirectory());
 
             if (subDirs.length === 0) {
-                GlobalState.log(
-                    styles.warning(`No app folders found in ${appsDir}.`),
-                );
+                if (phase.isChartTypes) {
+                    GlobalState.log(
+                        styles.warning(
+                            `No chart type folders found in ${appsDir}. Run 'lightdash download --include-chart-types' first.`,
+                        ),
+                    );
+                } else {
+                    GlobalState.log(
+                        styles.warning(
+                            phase.isExplicitSelection
+                                ? `No app folders found in ${appsDir}. Run 'lightdash download --include-apps' first.`
+                                : `No app folders found in ${appsDir} for the dashboard(s) being uploaded. Re-run 'lightdash download' to fetch their apps.`,
+                        ),
+                    );
+                }
             }
 
+            const matchedRefs = new Set<string>();
+            const buildWaitState = createBuildLimitWaitState();
             for (const subDir of subDirs) {
                 const folderPath = path.join(appsDir, subDir.name);
                 try {
                     // eslint-disable-next-line no-await-in-loop
                     const code = await readBundleFromDir(folderPath);
 
-                    if (
-                        filterUuids &&
-                        !filterUuids.has(code.manifest.appUuid)
-                    ) {
-                        GlobalState.debug(
-                            `Skipping app folder "${subDir.name}" (uuid ${code.manifest.appUuid} not in filter)`,
+                    if (!uploadFilterMatches(uploadFilter, code.manifest)) {
+                        const isAutoPushCandidate =
+                            code.manifest.slug !== undefined &&
+                            phase.autoPushSlugs.includes(code.manifest.slug);
+                        if (isAutoPushCandidate) {
+                            GlobalState.log(
+                                styles.warning(
+                                    `Skipping app "${subDir.name}" — excluded by --apps, but a dashboard being uploaded references it. Its tile may fail to resolve unless the app already exists in the target project.`,
+                                ),
+                            );
+                        } else {
+                            GlobalState.debug(
+                                `Skipping ${phase.noun} folder "${subDir.name}" (not in filter)`,
+                            );
+                        }
+                        // eslint-disable-next-line no-continue
+                        continue;
+                    }
+                    if (uploadFilter) {
+                        matchedUploadRefs(uploadFilter, code.manifest).forEach(
+                            (ref) => matchedRefs.add(ref),
                         );
+                    }
+
+                    // Folder-kind guard: the manifest governs what the server
+                    // creates, so a bundle filed under the wrong folder would
+                    // silently upload as the wrong kind. Skip and say where
+                    // it belongs instead.
+                    const isVizBundle =
+                        code.manifest.template === DATA_APP_VIZ_TEMPLATE;
+                    if (isVizBundle !== phase.isChartTypes) {
+                        GlobalState.log(
+                            styles.warning(
+                                isVizBundle
+                                    ? `Skipping "${subDir.name}": it is a custom chart type — move the folder to chart-types/ and upload with --chart-types or --include-chart-types.`
+                                    : `Skipping "${subDir.name}": it is a data app — move the folder to apps/ and upload with --apps or --include-apps.`,
+                            ),
+                        );
+                        appsSkipped += 1;
                         // eslint-disable-next-line no-continue
                         continue;
                     }
 
-                    // Guard: cross-project create
-                    const uploadDecision = classifyAppUpload(
-                        code.manifest.projectUuid,
-                        projectId,
-                        options.createNew === true,
-                    );
-
-                    if (uploadDecision === 'needs-confirmation') {
-                        if (process.stdin.isTTY && process.stdout.isTTY) {
-                            // eslint-disable-next-line no-await-in-loop
-                            const { confirmed } = await inquirer.prompt<{
-                                confirmed: boolean;
-                            }>([
-                                {
-                                    type: 'confirm',
-                                    name: 'confirmed',
-                                    message: `"${subDir.name}" was downloaded from project ${code.manifest.projectUuid}, but you are uploading to project ${projectId}. This will CREATE a new app. Continue?`,
-                                    default: false,
-                                },
-                            ]);
-                            if (!confirmed) {
-                                GlobalState.log(
-                                    `Skipped "${subDir.name}" (cross-project create declined). Pass --create-new to make this explicit. If this app was already moved to the target project, set appUuid and projectUuid in lightdash-app.yml to the moved app instead.`,
-                                );
-                                appsSkipped += 1;
-                                // eslint-disable-next-line no-continue
-                                continue;
-                            }
-                        } else {
-                            GlobalState.log(
-                                styles.error(
-                                    `Cannot upload "${subDir.name}": its manifest targets project ${code.manifest.projectUuid} but you are uploading to project ${projectId}. Pass --create-new to create a new app in the target project. If this app was already moved there, set appUuid and projectUuid in lightdash-app.yml to the moved app instead.`,
-                                ),
-                            );
-                            appsFailed += 1;
+                    if (!phase.isExplicitSelection) {
+                        const isAutoPushCandidate =
+                            code.manifest.slug !== undefined &&
+                            phase.autoPushSlugs.includes(code.manifest.slug);
+                        if (!isAutoPushCandidate) {
                             // eslint-disable-next-line no-continue
                             continue;
                         }
+                        // Auto-push candidates always POST: the server's
+                        // byte-compare skip is the single unchanged authority,
+                        // and it runs before the build cap, so identical apps
+                        // cost no build slots.
                     }
 
                     // Read declared dependencies from the app folder (optional).
@@ -2974,7 +4247,9 @@ export const uploadHandler = async (
                             if (rawDeps.lockfile === null) {
                                 GlobalState.log(
                                     styles.error(
-                                        `Skipping "${subDir.name}": it declares custom dependencies but has no pnpm-lock.yaml. Run 'pnpm install' in the app folder to generate one, then upload again.`,
+                                        rawDeps.hasNpmLockfile
+                                            ? `Skipping "${subDir.name}": custom dependencies require a pnpm lockfile — the server builds with pnpm, so package-lock.json is not used. Run 'pnpm install' in the app folder to generate pnpm-lock.yaml, then upload again.`
+                                            : `Skipping "${subDir.name}": it declares custom dependencies but has no pnpm-lock.yaml (the server builds with pnpm). Run 'pnpm install' in the app folder to generate one, then upload again.`,
                                     ),
                                 );
                                 appsFailed += 1;
@@ -2994,18 +4269,37 @@ export const uploadHandler = async (
                                 GlobalState.log(line),
                             );
 
-                            if (process.stdin.isTTY && process.stdout.isTTY) {
+                            if (options.allowCustomDependencies !== true) {
+                                const canPrompt =
+                                    process.stdin.isTTY === true &&
+                                    process.stdout.isTTY === true &&
+                                    !GlobalState.isNonInteractive();
+                                if (!canPrompt) {
+                                    // Fail closed: installing packages in the
+                                    // build sandbox needs explicit approval.
+                                    GlobalState.log(
+                                        styles.error(
+                                            `Skipping "${subDir.name}": it declares custom dependencies, which need approval. Pass --allow-custom-dependencies to approve in non-interactive runs.`,
+                                        ),
+                                    );
+                                    appsFailed += 1;
+                                    // eslint-disable-next-line no-continue
+                                    continue;
+                                }
                                 // eslint-disable-next-line no-await-in-loop
-                                const { proceed } = await inquirer.prompt<{
-                                    proceed: boolean;
-                                }>([
-                                    {
-                                        type: 'confirm',
-                                        name: 'proceed',
-                                        message: `Upload "${subDir.name}" with custom dependencies?`,
-                                        default: true,
-                                    },
-                                ]);
+                                const { proceed } =
+                                    await output.promptWhilePaused(() =>
+                                        inquirer.prompt<{
+                                            proceed: boolean;
+                                        }>([
+                                            {
+                                                type: 'confirm',
+                                                name: 'proceed',
+                                                message: `Upload "${subDir.name}" with custom dependencies?`,
+                                                default: false,
+                                            },
+                                        ]),
+                                    );
                                 if (!proceed) {
                                     GlobalState.log(
                                         `Skipped "${subDir.name}" (custom dependency upload declined).`,
@@ -3015,7 +4309,6 @@ export const uploadHandler = async (
                                     continue;
                                 }
                             }
-                            // Non-TTY: proceed without prompting (upload is deliberate).
 
                             codeToUpload = attachDependenciesToCode(
                                 code,
@@ -3030,93 +4323,118 @@ export const uploadHandler = async (
                     }
 
                     const body = buildImportBody(codeToUpload, projectId, {
+                        space: appSpaceUuid,
                         createNew: options.createNew === true,
+                        force: options.force,
                     });
 
                     // eslint-disable-next-line no-await-in-loop
-                    const { appUuid, version, action } = await lightdashApi<
-                        ApiImportAppCodeResponse['results']
-                    >({
-                        method: 'POST',
-                        url: `/api/v1/ee/projects/${projectId}/apps/upload`,
-                        body: JSON.stringify(body),
-                    });
+                    const { appUuid, version, action, slug, warnings } =
+                        await withBuildLimitRetry(
+                            () =>
+                                lightdashApi<
+                                    ApiImportAppCodeResponse['results']
+                                >({
+                                    method: 'POST',
+                                    url: `/api/v1/ee/projects/${projectId}/apps/upload`,
+                                    body: JSON.stringify(body),
+                                }),
+                            buildWaitState,
+                            {
+                                onWait: (attempt, delayMs) => {
+                                    if (attempt === 1) {
+                                        GlobalState.log(
+                                            styles.warning(
+                                                `Project build limit reached — waiting for builds to finish before uploading "${subDir.name}"…`,
+                                            ),
+                                        );
+                                    }
+                                    GlobalState.debug(
+                                        `> Build cap retry ${attempt} for "${subDir.name}" in ${delayMs}ms`,
+                                    );
+                                },
+                            },
+                        );
 
-                    if (action === 'create') {
-                        appsCreated += 1;
+                    // e.g. a manifest external-connection link whose slug is
+                    // missing in the target project was skipped
+                    (warnings ?? []).forEach((warning) =>
+                        GlobalState.log(styles.warning(warning)),
+                    );
+
+                    if (action === 'unchanged') {
+                        appsUnchanged += 1;
+                        GlobalState.log(
+                            styles.secondary(
+                                `"${code.manifest.name}" matches v${version} — skipped, no rebuild. Pass --force to rebuild anyway.`,
+                            ),
+                        );
                     } else {
-                        appsUpdated += 1;
+                        if (action === 'create') {
+                            appsCreated += 1;
+                        } else {
+                            appsUpdated += 1;
+                        }
+
+                        const actionLabel =
+                            action === 'create' ? 'created' : 'updated';
+                        GlobalState.log(
+                            styles.success(
+                                `Uploaded "${code.manifest.name}" — ${actionLabel} v${version} (${appUuid}). Building in the background; the app will show "building" until the server finishes.`,
+                            ),
+                        );
                     }
 
-                    const actionLabel =
-                        action === 'create' ? 'created' : 'updated';
-                    GlobalState.log(
-                        styles.success(
-                            `Uploaded "${code.manifest.name}" — ${actionLabel} v${version} (${appUuid}). Building in the background; the app will show "building" until the server finishes.`,
-                        ),
-                    );
+                    if (code.manifest.slug === undefined) {
+                        GlobalState.log(
+                            styles.warning(
+                                preSlugUploadHint({
+                                    folder: subDir.name,
+                                    slug,
+                                }),
+                            ),
+                        );
+                    } else if (slug === undefined) {
+                        // Bundle sent a slug but the response has none: the
+                        // server predates slug identity and matched by uuid
+                        // only (slug-only bundles may have just duplicated).
+                        GlobalState.log(
+                            styles.warning(preSlugServerHint(subDir.name)),
+                        );
+                    }
 
                     if (action === 'create') {
                         GlobalState.log(
-                            `New app: ${config.context.serverUrl}/projects/${projectId}/apps/${appUuid}`,
+                            phase.isChartTypes
+                                ? `New chart type: ${config.context.serverUrl}/projects/${projectId}/chart-types/${appUuid}`
+                                : `New app: ${config.context.serverUrl}/projects/${projectId}/apps/${appUuid}`,
                         );
-                        if (process.stdin.isTTY && process.stdout.isTTY) {
-                            // eslint-disable-next-line no-await-in-loop
-                            const { retarget } = await inquirer.prompt<{
-                                retarget: boolean;
-                            }>([
-                                {
-                                    type: 'confirm',
-                                    name: 'retarget',
-                                    message: `Update ${subDir.name}/lightdash-app.yml to target the new app? This sets appUuid ${appUuid}, projectUuid ${projectId}, version ${version} — future uploads will update this app.`,
-                                    default: true,
-                                },
-                            ]);
-                            if (retarget) {
-                                // eslint-disable-next-line no-await-in-loop
-                                await retargetManifest(folderPath, {
-                                    appUuid,
-                                    projectUuid: projectId,
-                                    version,
-                                });
-                                GlobalState.log(
-                                    styles.success(
-                                        `Updated ${subDir.name}/lightdash-app.yml → appUuid ${appUuid}, projectUuid ${projectId}, version ${version}.`,
-                                    ),
-                                );
-                            } else {
-                                GlobalState.log(
-                                    styles.warning(
-                                        manifestRetargetHint({
-                                            folder: subDir.name,
-                                            appUuid,
-                                            projectUuid: projectId,
-                                        }),
-                                    ),
-                                );
-                            }
-                        } else {
-                            GlobalState.log(
-                                styles.warning(
-                                    manifestRetargetHint({
-                                        folder: subDir.name,
-                                        appUuid,
-                                        projectUuid: projectId,
-                                    }),
-                                ),
-                            );
-                        }
                     }
                 } catch (appErr) {
-                    appsFailed += 1;
                     const status =
                         appErr instanceof LightdashError
                             ? appErr.statusCode
                             : undefined;
-                    const hint =
-                        status === 404
-                            ? ' — the enterprise "data apps" feature may not be enabled on this instance'
-                            : '';
+                    // Auto-push is flag-free, so a server without the EE app
+                    // routes must not fail an upload the user never asked for.
+                    if (!phase.isExplicitSelection && status === 404) {
+                        eeAppRoutesUnavailable = true;
+                        GlobalState.log(
+                            styles.warning(
+                                `Skipping data apps: the enterprise "data apps" feature is not available on this instance. Dashboard tiles will resolve only if their apps already exist in this project.`,
+                            ),
+                        );
+                        break;
+                    }
+                    appsFailed += 1;
+                    let hint = '';
+                    if (status === 404) {
+                        hint =
+                            ' — the enterprise "data apps" feature may not be enabled on this instance';
+                    } else if (status === 429) {
+                        hint =
+                            ' — gave up waiting for a free build slot; re-run the upload once builds finish (unchanged apps are skipped)';
+                    }
                     GlobalState.log(
                         styles.error(
                             `Failed to upload app folder "${subDir.name}"${
@@ -3127,15 +4445,275 @@ export const uploadHandler = async (
                 }
             }
 
-            if (appsCreated > 0) changes['data apps created'] = appsCreated;
-            if (appsUpdated > 0) changes['data apps updated'] = appsUpdated;
-            if (appsFailed > 0) changes['data apps failed'] = appsFailed;
-            if (appsSkipped > 0) changes['data apps skipped'] = appsSkipped;
+            if (uploadFilter) {
+                const unmatchedWarning = unmatchedUploadRefsWarning(
+                    [...uploadFilter].filter((ref) => !matchedRefs.has(ref)),
+                    phase.noun,
+                );
+                if (unmatchedWarning) {
+                    GlobalState.log(styles.warning(unmatchedWarning));
+                }
+            }
+
+            if (appsCreated > 0)
+                changes[`${phase.changesPrefix} created`] = appsCreated;
+            if (appsUpdated > 0)
+                changes[`${phase.changesPrefix} updated`] = appsUpdated;
+            if (appsUnchanged > 0)
+                changes[`${phase.changesPrefix} unchanged`] = appsUnchanged;
+            if (appsFailed > 0)
+                changes[`${phase.changesPrefix} failed`] = appsFailed;
+            if (appsSkipped > 0)
+                changes[`${phase.changesPrefix} skipped`] = appsSkipped;
+            const phaseBundleTotal =
+                appsCreated +
+                appsUpdated +
+                appsUnchanged +
+                appsFailed +
+                appsSkipped;
+            if (phase.isChartTypes) {
+                counts.chartTypesNum = phaseBundleTotal;
+            } else {
+                counts.appsNum = phaseBundleTotal;
+            }
             const appSummary = summarizeUploadChanges(
                 changesBeforeApps,
                 changes,
             );
-            output.completeItem(appSummary.detail, appSummary.variant);
+            if (eeAppRoutesUnavailable) {
+                output.completeItem('not available on this server', 'warning');
+            } else {
+                output.completeItem(appSummary.detail, appSummary.variant);
+            }
+
+            if (appsFailed > 0) {
+                // App uploads are fire-and-forget per folder, so failures are
+                // logged and tallied rather than thrown — but the process must
+                // still exit non-zero or CI pipelines read the run as green.
+                GlobalState.log(
+                    styles.error(
+                        `${appsFailed} ${phase.noun} upload(s) failed — see errors above.`,
+                    ),
+                );
+                process.exitCode = 1;
+            }
+        }
+
+        // Chart slugs that failed to upload in the Charts phase; dashboards
+        // referencing them are held back so they are not created with broken
+        // (null chart) tiles.
+        const failedChartSlugs = new Set<string>();
+
+        changes = await runUploadChangesPhase({
+            output,
+            label: 'Charts',
+            changes,
+            action: async () => {
+                const chartSlugs = options.includeCharts
+                    ? Array.from(
+                          new Set([
+                              ...options.charts,
+                              ...selectDashboardChartSlugs(
+                                  await loadDashboardItems(),
+                                  options.dashboards,
+                              ),
+                          ]),
+                      )
+                    : options.charts;
+                if (hasFilters && chartSlugs.length === 0) {
+                    GlobalState.log(
+                        styles.warning(`No charts filters provided, skipping`),
+                    );
+                    return changes;
+                }
+                const result = await upsertResources<ChartAsCode>(
+                    'charts',
+                    projectId,
+                    changes,
+                    options.force,
+                    chartSlugs,
+                    uploadPermissions.charts,
+                    contentPathOption,
+                    options.skipSpaceCreate,
+                    options.public,
+                    options.validate,
+                    concurrency,
+                    looseFiles.charts,
+                    spaceNames,
+                );
+                result.failedSlugs.forEach((slug) =>
+                    failedChartSlugs.add(slug),
+                );
+                counts.chartsNum = result.total;
+                return result.changes;
+            },
+        });
+
+        changes = await runUploadChangesPhase({
+            output,
+            label: 'Dashboards',
+            changes,
+            action: async () => {
+                if (hasFilters && options.dashboards.length === 0) {
+                    GlobalState.log(
+                        styles.warning(
+                            `No dashboard filters provided, skipping`,
+                        ),
+                    );
+                    return changes;
+                }
+                let dashboardsToSkip: Set<string> | undefined;
+                if (failedChartSlugs.size > 0) {
+                    dashboardsToSkip = new Set(
+                        (await loadDashboardItems())
+                            .filter((dashboard) =>
+                                dashboard.tiles.some(
+                                    (tile) =>
+                                        'chartSlug' in tile.properties &&
+                                        typeof tile.properties.chartSlug ===
+                                            'string' &&
+                                        failedChartSlugs.has(
+                                            tile.properties.chartSlug,
+                                        ),
+                                ),
+                            )
+                            .map((dashboard) => dashboard.slug),
+                    );
+                }
+                const result = await upsertResources<DashboardAsCode>(
+                    'dashboards',
+                    projectId,
+                    changes,
+                    options.force,
+                    options.dashboards,
+                    uploadPermissions.dashboards,
+                    contentPathOption,
+                    options.skipSpaceCreate,
+                    options.public,
+                    options.validate,
+                    concurrency,
+                    looseFiles.dashboards,
+                    spaceNames,
+                    dashboardsToSkip,
+                );
+                counts.dashboardsNum = result.total;
+                return result.changes;
+            },
+        });
+
+        if (!options.skipAgents) {
+            if (hasFilters && options.agents.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No AI agent filters provided, skipping`),
+                );
+            } else {
+                try {
+                    changes = await runUploadChangesPhase({
+                        output,
+                        label: 'AI agents',
+                        changes,
+                        action: () =>
+                            upsertAiAgents(
+                                projectId,
+                                options.agents,
+                                changes,
+                                options.force,
+                                contentPathOption,
+                                options.agents.length === 0,
+                            ),
+                        onCount: (count) => {
+                            counts.agentsNum = count;
+                        },
+                    });
+                } catch (error) {
+                    throw new AiAgentAsCodeUploadError(error);
+                }
+            }
+        }
+
+        if (!options.skipAlerts) {
+            if (hasFilters && options.alerts.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No alert filters provided, skipping`),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Alerts',
+                    changes,
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.alerts,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.ALERT,
+                            uploadPermissions.alerts,
+                            contentPathOption,
+                        ),
+                    onCount: (count) => {
+                        counts.alertsNum = count;
+                    },
+                });
+            }
+        }
+
+        if (!options.skipScheduledDeliveries) {
+            if (hasFilters && options.scheduledDeliveries.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No scheduled delivery filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Scheduled deliveries',
+                    changes,
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.scheduledDeliveries,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+                            uploadPermissions.scheduledDeliveries,
+                            contentPathOption,
+                        ),
+                    onCount: (count) => {
+                        counts.scheduledDeliveriesNum = count;
+                    },
+                });
+            }
+        }
+
+        if (!options.skipGoogleSheets) {
+            if (hasFilters && options.googleSheets.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No Google Sheets sync filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Google Sheets syncs',
+                    changes,
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.googleSheets,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+                            uploadPermissions.googleSheets,
+                            contentPathOption,
+                        ),
+                    onCount: (count) => {
+                        counts.googleSheetsNum = count;
+                    },
+                });
+            }
         }
 
         const end = Date.now();
@@ -3146,8 +4724,7 @@ export const uploadHandler = async (
                 userId: config.user?.userUuid,
                 organizationId: config.user?.organizationUuid,
                 projectId,
-                chartsNum: chartTotal,
-                dashboardsNum: dashboardTotal,
+                ...counts,
                 timeToCompleted: (end - start) / 1000, // in seconds
             },
         });
@@ -3164,25 +4741,44 @@ export const uploadHandler = async (
                 error: getErrorMessage(error),
             },
         });
-        if (isSpaceAsCodeUploadError(error)) throw error;
         if (error instanceof AiAgentAsCodeUploadError)
             throw error.originalError;
+        throw error;
     }
 };
 
 export const testHelpers = {
     assertUniqueSpacePaths,
+    countChangeDelta,
+    downloadLinkedVirtualViews,
     downloadSpaces,
+    extractAppSlugsFromDashboards,
+    extractChartTableNames,
+    extractChartTypeRefsFromCharts,
     getFlatSpaceFileNames,
+    getDashboardAppSlugs,
     getDashboardChartSlugs,
+    hasContentFilters,
+    parseContentFilters,
+    isAiAgentsUnavailableError,
+    isExternalConnectionsUnavailableError,
+    isVirtualViewsUnavailableError,
+    downloadAiAgents,
+    isFilteredWithNoDashboards,
     readAiAgentFiles,
+    readExternalConnectionFiles,
     readSpaceFiles,
     readSpaceNames,
+    reportOpenDraftsForUpload,
     sanitizeChartForDownload,
+    selectVirtualViewCandidates,
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
     sortSpaceFilesParentFirst,
     summarizeUploadChanges,
+    upsertAiAgents,
+    upsertExternalConnections,
+    upsertResources,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,

@@ -28,17 +28,16 @@ describe('Global search', () => {
         }
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
 
-        cy.contains('Search Jaffle shop').should('be.visible');
+        cy.findByRole('search')
+            .should('be.visible')
+            .and('contain.text', 'Search');
         // search and select space
         search('jaffle');
         cy.findByRole('dialog')
             .findByRole('menuitem', { name: 'Jaffle shop' })
             .scrollIntoView()
             .click();
-        cy.url().should(
-            'include',
-            `/projects/${SEED_PROJECT.project_uuid}/spaces/`,
-        );
+        cy.url().should('match', /\/projects\/[^/]+\/spaces\//);
         cy.contains('Spaces').should('be.visible');
 
         // search and select dashboard
@@ -48,10 +47,7 @@ describe('Global search', () => {
             .first()
             .scrollIntoView()
             .click();
-        cy.url().should(
-            'include',
-            `/projects/${SEED_PROJECT.project_uuid}/dashboards/`,
-        );
+        cy.url().should('match', /\/projects\/[^/]+\/dashboards\//);
         cy.contains('Jaffle dashboard').should('be.visible');
 
         // search and select saved chart
@@ -62,10 +58,7 @@ describe('Global search', () => {
             })
             .scrollIntoView()
             .click();
-        cy.url().should(
-            'include',
-            `/projects/${SEED_PROJECT.project_uuid}/saved/`,
-        );
+        cy.url().should('match', /\/projects\/[^/]+\/saved\//);
 
         //  wait for table to render
         cy.findAllByText('Customer id').should('have.length', 1);

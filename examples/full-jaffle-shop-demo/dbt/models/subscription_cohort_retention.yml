@@ -1,0 +1,90 @@
+version: 2
+
+models:
+  - name: subscription_cohort_retention
+    description: >
+      Deterministic 12-month subscription cohort grid for testing pivot-table
+      retention heatmaps. Every subscription contributes one row per month
+      offset. Build the heatmap with Cohort started at Month in Rows, Months
+      since start in Columns, and Retention rate in Metrics. Move Cohort size
+      into Rows to exercise metrics mixed with row dimensions, or create a
+      table calculation from Retention rate and move that into Rows.
+    config:
+      tags: ["core", "cohorts"]
+    meta:
+      group_label: subscriptions
+    columns:
+      - name: subscription_id
+        description: Subscription represented at each month offset.
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            cohort_size:
+              type: count_distinct
+              label: Cohort size
+              description: Initial subscriptions in the cohort; constant across month offsets.
+              spotlight:
+                categories: ["core"]
+
+      - name: customer_id
+        description: Customer that owns the subscription.
+        meta:
+          dimension:
+            type: number
+
+      - name: plan_name
+        description: Subscription plan used to filter or compare retention curves.
+        meta:
+          dimension:
+            type: string
+
+      - name: cohort_started_at
+        description: Subscription start timestamp used to form acquisition cohorts.
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: timestamp
+            time_intervals: ["MONTH", "QUARTER", "YEAR"]
+
+      - name: months_since_start
+        description: Zero-based month offset along the retention curve (0 through 11).
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: number
+            format: "0"
+
+      - name: is_retained
+        description: Whether the subscription lasts through this month offset.
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: boolean
+          metrics:
+            retention_rate:
+              type: average
+              label: Retention rate
+              description: Share of subscriptions retained at each month offset.
+              sql: case when ${TABLE}.is_retained then 1 else 0 end
+              format: percent
+              spotlight:
+                categories: ["core"]
+
+      - name: retained_subscription_id
+        description: Subscription identifier when retained, otherwise null.
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            retained_subscriptions:
+              type: count_distinct
+              label: Retained subscriptions
+              description: Number of subscriptions retained at each month offset.

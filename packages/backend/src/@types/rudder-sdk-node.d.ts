@@ -25,16 +25,20 @@ declare module '@rudderstack/rudder-sdk-node' {
     export interface Track {
         userId?: string;
         anonymousId?: string;
+        messageId?: string;
         event: string;
         properties?: Record<string, AnyType>;
         context?: Record<string, AnyType>;
     }
 
-    declare class Analytics {
+    class Analytics {
         constructor(writeKey: string, options?: AnalyticsOptions);
         identify(payload: Identify): void;
         track(payload: Track): void;
         group(payload: Group): void;
+        // Sends at most `flushAt` queued events per call, then resolves.
+        flush(callback?: () => void): Promise<void>;
+        protected queue: unknown[];
     }
 
     export default Analytics;

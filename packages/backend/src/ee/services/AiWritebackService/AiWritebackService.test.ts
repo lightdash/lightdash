@@ -3,6 +3,7 @@ import {
     AnyType,
     DbtProjectType,
     DbtVersionOptionLatest,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
     ForbiddenError,
     getLatestSupportDbtVersion,
@@ -11,6 +12,7 @@ import {
     RequestMethod,
     SupportedDbtVersions,
     WarehouseTypes,
+    type DbtBitBucketProjectConfig,
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
@@ -38,21 +40,27 @@ import {
     workstreamLockKey,
 } from './AiWritebackService';
 import {
+    ALLOWED_TOOLS,
     COMPILE_WRAPPER_PATH,
     GENERAL_ALLOWED_TOOLS,
     GENERAL_DISALLOWED_TOOLS,
     MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
+    PR_DESCRIPTION_PATH,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
+    PR_TITLE_PATH,
 } from './constants';
 import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
+    WritebackCredentialCleanupError,
     WritebackGitNotConnectedError,
+    WritebackRunAbortedError,
     WritebackThreadPrClosedError,
 } from './errors';
+import { BitbucketProvider } from './providers/BitbucketProvider';
 
 // Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
 // unit tests below never reach the real SDKs.
@@ -71,6 +79,15 @@ vi.mock('../SandboxRuntime', async () => ({
         '../SandboxRuntime',
     )),
     createSandboxManager: vi.fn(),
+}));
+vi.mock('../../../clients/bitbucket/Bitbucket', async () => ({
+    ...(await vi.importActual<
+        typeof import('../../../clients/bitbucket/Bitbucket')
+    >('../../../clients/bitbucket/Bitbucket')),
+    getRepository: vi.fn().mockResolvedValue({
+        full_name: 'acme/bitbucket-analytics',
+        mainbranch: { name: 'main' },
+    }),
 }));
 vi.mock('../../../clients/github/Github', () => ({
     createBranch: vi.fn().mockResolvedValue(undefined),
@@ -96,19 +113,36 @@ vi.mock('../../../clients/github/Github', () => ({
 }));
 
 const ORG = 'org-1';
+const PRIMARY_SOURCE_UUID = 'primary-source-uuid';
 const PR_3 = 'https://github.com/acme/analytics/pull/3';
 const PR_7 = 'https://github.com/acme/analytics/pull/7';
 const PR_9 = 'https://github.com/acme/analytics/pull/9';
+const bitbucketConnection: DbtBitBucketProjectConfig = {
+    type: DbtProjectType.BITBUCKET,
+    username: 'developer',
+    repository: 'acme/bitbucket-analytics',
+    branch: 'release/dbt',
+    project_sub_path: '/',
+    personal_access_token: 'project-bitbucket-token',
+};
 
 // The commit a provider lands this turn (SHA + line stat). open/update return
 // it so the card can pin CI and show the diff stat; no-change turns return nulls.
 const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 
-const buildService = (overrides: Record<string, AnyType> = {}) =>
-    new AiWritebackService({
+const buildService = (overrides: Record<string, AnyType> = {}) => {
+    const { projectModel: projectModelOverride, ...otherOverrides } = overrides;
+    return new AiWritebackService({
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
-        projectModel: { get: vi.fn() } as AnyType,
+        projectModel: {
+            get: vi.fn(),
+            getDbtSourceIdentity: vi.fn().mockResolvedValue({
+                dbtSourceUuid: PRIMARY_SOURCE_UUID,
+                dbtSourceName: DEFAULT_PROJECT_DBT_SOURCE_NAME,
+            }),
+            ...projectModelOverride,
+        } as AnyType,
         // Default: no additional dbt sources, so the single-source (primary)
         // path is taken unless a test overrides this.
         projectDbtSourcesModel: {
@@ -120,11 +154,16 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
             getValidUserToken: vi.fn().mockResolvedValue(undefined),
         } as AnyType,
         gitlabAppInstallationsModel: {} as AnyType,
-        aiWritebackThreadModel: { findByAiThreadUuid: vi.fn() } as AnyType,
+        aiWritebackThreadModel: {
+            findByAiThreadUuid: vi.fn(),
+            findByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
+        } as AnyType,
         aiWritebackRunModel: {
             create: vi.fn(),
             findByUuid: vi.fn(),
+            findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
             updateStageIfInProgress: vi.fn().mockResolvedValue(undefined),
+            claimForFinalize: vi.fn().mockResolvedValue(true),
             markReady: vi.fn().mockResolvedValue(true),
             markError: vi.fn().mockResolvedValue(true),
         } as AnyType,
@@ -140,8 +179,9 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         pullRequestsModel: {} as AnyType,
         ciService: { mergePullRequest: vi.fn() } as AnyType,
         projectService: { scheduleCompileProject: vi.fn() } as AnyType,
-        ...overrides,
+        ...otherOverrides,
     });
+};
 
 // A stand-in GitProvider so applyAgentChanges/run stay provider-agnostic in
 // tests — the host-specific behaviour is covered by the provider unit tests.
@@ -392,6 +432,37 @@ describe('AiWritebackService.prepareTurn', () => {
         });
         return prepared.kind === 'run' ? prepared.turn : prepared;
     };
+
+    it.each([undefined, '   '])(
+        'carries the selected project identity into a token-free Bitbucket turn connection with host %s',
+        async (host_domain) => {
+            const service = buildService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({
+                        ...githubProject(),
+                        dbtConnection: { ...bitbucketConnection, host_domain },
+                    }),
+                },
+            });
+            const turn = await prepareTurn(service, userWithOrg(true));
+            expect(turn.gitConnection).toMatchObject({
+                provider: PullRequestProvider.BITBUCKET,
+                projectUuid: 'p1',
+                projectDbtSourceUuid: null,
+                repo: 'bitbucket-analytics',
+                branch: 'release/dbt',
+            });
+            expect(JSON.stringify(turn.gitConnection)).not.toContain(
+                'project-bitbucket-token',
+            );
+            expect(turn.gitConnection).not.toHaveProperty(
+                'personal_access_token',
+            );
+        },
+    );
 
     it('rejects when the user cannot manage source code', async () => {
         const service = buildService({
@@ -817,13 +888,76 @@ describe('AiWritebackService dbt source targeting', () => {
             existingRow: args.existingRow ?? null,
         });
 
+    it.each([false, true])(
+        'selects an additional Cloud source, including a resumed binding (%s)',
+        async (resume) => {
+            const source = {
+                ...marketingSource(),
+                dbtConnection: bitbucketConnection,
+            };
+            const result = await resolve(serviceWithSources([source]), {
+                dbtSourceUuid: resume
+                    ? PRIMARY_SOURCE_UUID
+                    : source.projectDbtSourceUuid,
+                existingRow: resume
+                    ? { project_dbt_source_uuid: source.projectDbtSourceUuid }
+                    : null,
+            });
+            expect(result).toMatchObject({
+                kind: 'resolved',
+                candidate: {
+                    sourceUuid: 'src-marketing',
+                    connection: {
+                        type: DbtProjectType.BITBUCKET,
+                        branch: 'release/dbt',
+                    },
+                },
+            });
+        },
+    );
+
+    it('excludes Bitbucket Server sources from AI writeback choices', async () => {
+        const source = {
+            ...marketingSource(),
+            dbtConnection: {
+                ...bitbucketConnection,
+                host_domain: 'bitbucket.acme.com',
+            },
+        };
+        const result = await resolve(serviceWithSources([source]), {});
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null },
+        });
+    });
+
     it('targets the primary connection when the project has no additional sources', async () => {
         const result = await resolve(serviceWithSources([]), {
             prompt: 'add a revenue metric',
         });
         expect(result).toMatchObject({
             kind: 'resolved',
-            candidate: { sourceUuid: null, isPrimary: true, optionUuid: 'p1' },
+            candidate: {
+                sourceUuid: null,
+                isPrimary: true,
+                optionUuid: PRIMARY_SOURCE_UUID,
+                name: DEFAULT_PROJECT_DBT_SOURCE_NAME,
+            },
+        });
+    });
+
+    it('resolves the only source before validating an explicit dbtSourceUuid', async () => {
+        const result = await resolve(serviceWithSources([]), {
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: {
+                sourceUuid: null,
+                optionUuid: PRIMARY_SOURCE_UUID,
+                isPrimary: true,
+            },
         });
     });
 
@@ -841,9 +975,9 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
-    it('treats the project uuid as an explicit choice of the primary source', async () => {
+    it('treats the primary source identity uuid as an explicit choice', async () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
-            dbtSourceUuid: 'p1',
+            dbtSourceUuid: PRIMARY_SOURCE_UUID,
         });
         expect(result).toMatchObject({
             kind: 'resolved',
@@ -851,12 +985,35 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
-    it('rejects an explicit dbtSourceUuid that is not a target', async () => {
-        await expect(
-            resolve(serviceWithSources([marketingSource()]), {
-                dbtSourceUuid: 'does-not-exist',
-            }),
-        ).rejects.toThrow(ParameterError);
+    it('asks the caller to choose when an explicit dbtSourceUuid is not a target', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result.kind).toBe('select');
+        expect(result.options).toHaveLength(2);
+        expect(result.options).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    projectDbtSourceUuid: PRIMARY_SOURCE_UUID,
+                    isPrimary: true,
+                }),
+                expect.objectContaining({
+                    projectDbtSourceUuid: 'src-marketing',
+                    repository: 'acme/marketing',
+                }),
+            ]),
+        );
+    });
+
+    it('does not infer a prompt-named source when an explicit dbtSourceUuid is not a target', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: 'add a spend metric to the marketing models',
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result.kind).toBe('select');
+        expect(result.options).toHaveLength(2);
     });
 
     it('infers the source from the prompt when exactly one matches', async () => {
@@ -931,7 +1088,7 @@ describe('AiWritebackService dbt source targeting', () => {
         expect(result.options).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
-                    projectDbtSourceUuid: 'p1',
+                    projectDbtSourceUuid: PRIMARY_SOURCE_UUID,
                     isPrimary: true,
                 }),
                 expect.objectContaining({
@@ -942,11 +1099,20 @@ describe('AiWritebackService dbt source targeting', () => {
         );
     });
 
+    it('does not infer the primary from the unrenamed default source name', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: `update ${DEFAULT_PROJECT_DBT_SOURCE_NAME}`,
+        });
+
+        expect(result).toMatchObject({ kind: 'select' });
+    });
+
     it('keeps a resumed thread bound to its original source, ignoring the prompt', async () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
             // The prompt names the primary repo, but the thread is bound to the
             // additional source — binding wins so the resumed sandbox stays put.
             prompt: 'change something in analytics',
+            dbtSourceUuid: PRIMARY_SOURCE_UUID,
             existingRow: { project_dbt_source_uuid: 'src-marketing' },
         });
         expect(result).toMatchObject({
@@ -959,6 +1125,17 @@ describe('AiWritebackService dbt source targeting', () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
             existingRow: { project_dbt_source_uuid: 'deleted-source' },
         });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
+    it('keeps a resumed thread with a null source binding on the primary', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            existingRow: { project_dbt_source_uuid: null },
+        });
+
         expect(result).toMatchObject({
             kind: 'resolved',
             candidate: { sourceUuid: null, isPrimary: true },
@@ -1204,21 +1381,30 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         deleteSnapshot: vi.fn().mockResolvedValue(undefined),
     };
 
-    const runService = (sandbox: AnyType) => {
+    // Writeback runs on the data-apps Anthropic credentials (`ai.copilot`),
+    // not a writeback-specific key.
+    const configWithAnthropic = (anthropic: AnyType) =>
+        ({
+            siteUrl: 'https://app.example',
+            gitlab: {},
+            appRuntime: {
+                e2bApiKey: 'e2b-key',
+                e2bAiWritebackTemplateName: 'tpl',
+                e2bAiWritebackTemplateTag: '',
+                sandboxProvider: 'e2b',
+                sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
+            },
+            ai: { copilot: { providers: { anthropic } } },
+            aiWriteback: { legacyAnthropicApiKey: null },
+        }) as AnyType;
+
+    const runService = (
+        sandbox: AnyType,
+        extraRunArgs: Record<string, AnyType> = {},
+        serviceOverrides: Record<string, AnyType> = {},
+    ) => {
         const service = buildService({
-            lightdashConfig: {
-                siteUrl: 'https://app.example',
-                gitlab: {},
-                appRuntime: {
-                    e2bApiKey: 'e2b-key',
-                    e2bAiWritebackTemplateName: 'tpl',
-                    e2bAiWritebackTemplateTag: '',
-                    sandboxProvider: 'e2b',
-                    sandboxAiWritebackDockerImage:
-                        'lightdash-ai-writeback:local',
-                },
-                aiWriteback: { anthropicApiKey: 'anthropic-key' },
-            } as AnyType,
+            lightdashConfig: configWithAnthropic({ apiKey: 'anthropic-key' }),
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
@@ -1254,12 +1440,14 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     .fn()
                     .mockResolvedValue({ pullRequestUuid: 'pr-uuid' }),
             } as AnyType,
+            ...serviceOverrides,
         });
         return service.run({
             user: permittedUser(),
             projectUuid: 'p1',
             prompt: 'add a revenue metric',
             source: 'web',
+            ...extraRunArgs,
         });
     };
 
@@ -1300,6 +1488,186 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         });
     });
 
+    const bitbucketProjectModel = (connection = bitbucketConnection) => ({
+        get: vi.fn().mockResolvedValue({
+            organizationUuid: ORG,
+            name: 'Bitbucket analytics',
+            dbtConnection: {
+                ...connection,
+                personal_access_token: undefined,
+            },
+            warehouseConnection: { type: WarehouseTypes.POSTGRES },
+            dbtVersion: SupportedDbtVersions.V1_9,
+        }),
+        getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+        getWithSensitiveFields: vi
+            .fn()
+            .mockResolvedValue({ dbtConnection: connection }),
+    });
+
+    it('clones the configured Bitbucket branch with the project token and creates no PR without changes', async () => {
+        const sandbox = fakeSandbox(0, false);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const result = await runService(
+            sandbox,
+            {},
+            { projectModel: bitbucketProjectModel() },
+        );
+        expect(sandbox.git.clone).toHaveBeenCalledWith(
+            'https://bitbucket.org/acme/bitbucket-analytics.git',
+            expect.objectContaining({
+                branch: 'release/dbt',
+                username: 'x-bitbucket-api-token-auth',
+                password: 'project-bitbucket-token',
+            }),
+        );
+        expect(sandbox.commands.run).toHaveBeenCalledWith(
+            expect.stringContaining(
+                '--disallowedTools "Read(//home/user/repo/.git/**),Grep(//home/user/repo/.git/**),Edit(//home/user/repo/.git/**),Write(//home/user/repo/.git/**)"',
+            ),
+            expect.anything(),
+        );
+        expect(result).toMatchObject({
+            prAction: null,
+            prUrl: null,
+            repository: 'acme/bitbucket-analytics',
+        });
+        expect(createPullRequest).not.toHaveBeenCalled();
+        expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('clones an adopted Bitbucket PR branch instead of the configured base', async () => {
+        const sandbox = fakeSandbox(0, false);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const prUrl =
+            'https://bitbucket.org/acme/bitbucket-analytics/pull-requests/9';
+        const adopt = vi
+            .spyOn(BitbucketProvider.prototype, 'adoptPullRequest')
+            .mockResolvedValue({
+                prUrl,
+                owner: 'acme',
+                repo: 'bitbucket-analytics',
+                pullNumber: 9,
+                headRef: 'feature/existing-change',
+            });
+        try {
+            const result = await runService(
+                sandbox,
+                { prUrl },
+                { projectModel: bitbucketProjectModel() },
+            );
+            expect(sandbox.git.clone).toHaveBeenCalledWith(
+                'https://bitbucket.org/acme/bitbucket-analytics.git',
+                expect.objectContaining({ branch: 'feature/existing-change' }),
+            );
+            expect(result.prUrl).toBe(prUrl);
+            expect(createPullRequest).not.toHaveBeenCalled();
+        } finally {
+            adopt.mockRestore();
+        }
+    });
+
+    it('destroys a resumed sandbox and removes its workstream if push credentials cannot be cleared', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.connect.mockResolvedValue(sandbox);
+        const prUrl =
+            'https://bitbucket.org/acme/bitbucket-analytics/pull-requests/9';
+        const existingRow = {
+            ...threadRow(prUrl),
+            project_dbt_source_uuid: null,
+            target_repo: 'acme/bitbucket-analytics',
+        };
+        const deleteByUuid = vi.fn().mockResolvedValue(undefined);
+        const editState = vi
+            .spyOn(BitbucketProvider.prototype, 'getPullRequestEditState')
+            .mockResolvedValue({ editable: true, reason: null });
+        const update = vi
+            .spyOn(BitbucketProvider.prototype, 'updatePullRequest')
+            .mockRejectedValue(new WritebackCredentialCleanupError());
+        try {
+            await expect(
+                runService(
+                    sandbox,
+                    { aiThreadUuid: 'thread-1' },
+                    {
+                        projectModel: bitbucketProjectModel(),
+                        aiWritebackThreadModel: {
+                            findByAiThreadUuid: vi
+                                .fn()
+                                .mockResolvedValue(existingRow),
+                            findActiveWorkstreamByRepo: vi
+                                .fn()
+                                .mockResolvedValue(existingRow),
+                            acquireWorkstreamLock: vi.fn().mockResolvedValue({
+                                release: vi.fn().mockResolvedValue(undefined),
+                            }),
+                            deleteByUuid,
+                        },
+                        sandboxRegistryModel: {
+                            findBySandboxUuid: vi.fn().mockResolvedValue({
+                                providerSandboxId: 'sbx-1',
+                            }),
+                            markRunning: vi.fn().mockResolvedValue(undefined),
+                            deleteBySandboxUuid: vi
+                                .fn()
+                                .mockResolvedValue(undefined),
+                        },
+                    },
+                ),
+            ).rejects.toBeInstanceOf(WritebackCredentialCleanupError);
+            expect(update).toHaveBeenCalledTimes(1);
+            expect(deleteByUuid).toHaveBeenCalledWith('w-1');
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledWith('sbx-1');
+            expect(fakeSandboxProvider.persist).not.toHaveBeenCalled();
+            expect(sandbox.git.clone).not.toHaveBeenCalled();
+        } finally {
+            editState.mockRestore();
+            update.mockRestore();
+        }
+    });
+
+    it.each(['clone', 'cleanup'])(
+        'stops before running the agent and destroys the sandbox on Bitbucket %s failure',
+        async (failure) => {
+            const sandbox = fakeSandbox(0, false);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            if (failure === 'clone') {
+                sandbox.git.clone.mockRejectedValue(
+                    new Error('secret project-bitbucket-token'),
+                );
+            } else {
+                sandbox.commands.run.mockRejectedValue(
+                    new Error('secret project-bitbucket-token'),
+                );
+            }
+            const result = runService(
+                sandbox,
+                {},
+                {
+                    projectModel: bitbucketProjectModel(),
+                    sandboxRegistryModel: {
+                        create: vi.fn().mockResolvedValue('sbx-uuid'),
+                        findBySandboxUuid: vi
+                            .fn()
+                            .mockResolvedValue({ providerSandboxId: 'sbx-1' }),
+                        deleteBySandboxUuid: vi
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                },
+            );
+            await expect(result).rejects.toThrow(
+                failure === 'clone'
+                    ? 'Could not clone the Bitbucket repository'
+                    : 'Could not remove Bitbucket clone credentials',
+            );
+            await expect(result).rejects.not.toThrow('project-bitbucket-token');
+            expect(sandbox.files.write).not.toHaveBeenCalled();
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+            expect(createPullRequest).not.toHaveBeenCalled();
+        },
+    );
+
     it('opens a PR and kills the sandbox for a one-shot run with changes', async () => {
         const sandbox = fakeSandbox(0, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
@@ -1326,6 +1694,161 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(wrapperWrite[1]).toContain('PATH="/usr/local/dbt1.9/bin:$PATH"');
         expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
+
+    it.each([true, false])(
+        'validates native source before Git mutation (valid=%s)',
+        async (valid) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: AnyType) => {
+                    if (command.includes('.ld-native-snapshot.cjs'))
+                        return Promise.resolve({
+                            exitCode: 0,
+                            stdout: JSON.stringify({
+                                'lightdash/models/orders.yaml': `type: model\nname: orders\nsql_from: public.orders\ndimensions:\n  - name: amount\n    type: number\n    sql: ${valid ? '${TABLE}.amount' : '${orders.missing}'}\n`,
+                            }),
+                        });
+                    return runCommand(command, options);
+                },
+            );
+            const result = runService(
+                sandbox,
+                {},
+                {
+                    projectModel: {
+                        get: vi.fn().mockResolvedValue({
+                            organizationUuid: ORG,
+                            name: 'Native analytics',
+                            dbtConnection: {
+                                type: DbtProjectType.GITHUB,
+                                repository: 'acme/analytics',
+                                branch: 'release',
+                                project_sub_path: '/native',
+                                semanticLayer: 'lightdash',
+                            },
+                            warehouseConnection: {
+                                type: WarehouseTypes.POSTGRES,
+                            },
+                            dbtVersion: SupportedDbtVersions.V1_9,
+                        }),
+                    },
+                },
+            );
+            if (valid) {
+                await expect(result).resolves.toMatchObject({ prUrl: PR_7 });
+                expect(createPullRequest).toHaveBeenCalledTimes(1);
+            } else {
+                await expect(result).rejects.toThrow(/missing/);
+                expect(createPullRequest).not.toHaveBeenCalled();
+                expect(sandbox.git.createBranch).not.toHaveBeenCalled();
+            }
+            expect(
+                sandbox.commands.run.mock.calls
+                    .map(([command]: [string]) => command)
+                    .join('\n'),
+            ).not.toMatch(/dbt deps|profiles\.yml/);
+            expect(
+                sandbox.files.write.mock.calls.find(
+                    ([file]: [string]) => file === COMPILE_WRAPPER_PATH,
+                ),
+            ).toBeUndefined();
+            expect(sandbox.git.clone.mock.calls[0][1]).toMatchObject({
+                branch: 'release',
+            });
+        },
+    );
+
+    it.each([
+        { valid: true, existing: false },
+        { valid: true, existing: true },
+        { valid: false, existing: false },
+        { valid: false, existing: true },
+    ])(
+        'validates native Bitbucket YAML before opening or updating a PR (valid=$valid, existing=$existing)',
+        async ({ valid, existing }) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: unknown) => {
+                    if (command.includes('.ld-native-snapshot.cjs')) {
+                        return Promise.resolve({
+                            exitCode: 0,
+                            stdout: JSON.stringify({
+                                'models/nested/orders.yaml': `type: model\nname: orders\nsql_from: public.orders\ndimensions:\n  - name: amount\n    type: number\n    sql: ${valid ? '${TABLE}.amount' : '${orders.missing}'}\n`,
+                            }),
+                        });
+                    }
+                    return runCommand(command, options);
+                },
+            );
+            const prUrl =
+                'https://bitbucket.org/acme/bitbucket-analytics/pull-requests/9';
+            const adopt = vi
+                .spyOn(BitbucketProvider.prototype, 'adoptPullRequest')
+                .mockResolvedValue({
+                    prUrl,
+                    owner: 'acme',
+                    repo: 'bitbucket-analytics',
+                    pullNumber: 9,
+                    headRef: 'feature/native-edit',
+                });
+            const open = vi
+                .spyOn(BitbucketProvider.prototype, 'openPullRequest')
+                .mockResolvedValue({ prUrl, ...LANDED });
+            const update = vi
+                .spyOn(BitbucketProvider.prototype, 'updatePullRequest')
+                .mockResolvedValue(LANDED);
+            try {
+                const result = runService(sandbox, existing ? { prUrl } : {}, {
+                    projectModel: bitbucketProjectModel({
+                        ...bitbucketConnection,
+                        semanticLayer: 'lightdash',
+                        project_sub_path: '/native',
+                    }),
+                });
+                if (valid) {
+                    await expect(result).resolves.toMatchObject({
+                        prUrl,
+                        prAction: existing ? 'updated' : 'opened',
+                        repository: 'acme/bitbucket-analytics',
+                    });
+                    expect(open).toHaveBeenCalledTimes(existing ? 0 : 1);
+                    expect(update).toHaveBeenCalledTimes(existing ? 1 : 0);
+                } else {
+                    await expect(result).rejects.toThrow(/missing/);
+                    expect(open).not.toHaveBeenCalled();
+                    expect(update).not.toHaveBeenCalled();
+                    expect(sandbox.git.createBranch).not.toHaveBeenCalled();
+                    expect(sandbox.git.commit).not.toHaveBeenCalled();
+                }
+                const commands = sandbox.commands.run.mock.calls
+                    .map(([command]: [string]) => command)
+                    .join('\n');
+                expect(commands).not.toMatch(/dbt deps|profiles\.yml/);
+                expect(sandbox.files.write).not.toHaveBeenCalledWith(
+                    COMPILE_WRAPPER_PATH,
+                    expect.anything(),
+                );
+                expect(sandbox.git.clone).toHaveBeenCalledWith(
+                    'https://bitbucket.org/acme/bitbucket-analytics.git',
+                    expect.objectContaining({
+                        branch: existing
+                            ? 'feature/native-edit'
+                            : 'release/dbt',
+                    }),
+                );
+                expect(createPullRequest).not.toHaveBeenCalled();
+                expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+            } finally {
+                adopt.mockRestore();
+                open.mockRestore();
+                update.mockRestore();
+            }
+        },
+    );
 
     // R13: the sandbox network lockdown is a security invariant. The egress
     // allowlist passed to the provider must stay [anthropic,github,gitlab] —
@@ -1357,12 +1880,87 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(allow).toContain('api.anthropic.com');
     });
 
+    it('runs claude with the data-apps Anthropic key', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+        await runService(sandbox);
+
+        const claudeRun = (
+            sandbox.commands.run as import('vitest').Mock
+        ).mock.calls.find((call: AnyType[]) =>
+            String(call[0]).includes('claude'),
+        );
+        expect(claudeRun?.[1].envs).toEqual({
+            ANTHROPIC_API_KEY: 'anthropic-key',
+        });
+    });
+
+    // A gateway key is not a valid api.anthropic.com key, so the base URL has
+    // to travel with it — same as data apps.
+    it('routes claude through the Anthropic gateway when one is configured', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+        await runService(sandbox, {}, {
+            lightdashConfig: configWithAnthropic({
+                apiKey: 'gateway-token',
+                baseUrl: 'https://gateway.example/anthropic',
+            }),
+        } as AnyType);
+
+        const claudeRun = (
+            sandbox.commands.run as import('vitest').Mock
+        ).mock.calls.find((call: AnyType[]) =>
+            String(call[0]).includes('claude'),
+        );
+        expect(claudeRun?.[1].envs).toEqual({
+            ANTHROPIC_AUTH_TOKEN: 'gateway-token',
+            ANTHROPIC_BASE_URL: 'https://gateway.example/anthropic',
+        });
+        const [spec] = fakeSandboxProvider.create.mock.calls[0];
+        expect(spec.egress.allow).toContain('gateway.example');
+        expect(spec.egress.allow).not.toContain('api.anthropic.com');
+    });
+
     it('skips the PR and rejects when the agent exits non-zero', async () => {
         const sandbox = fakeSandbox(1, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
 
         await expect(runService(sandbox)).rejects.toThrow('exited with code 1');
         expect(createPullRequest).not.toHaveBeenCalled();
+        expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts before any commit, push, or PR when the finalize claim is lost', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const aiWritebackRunModel = {
+            create: vi.fn(),
+            // Cancel won the atomic arbitration: the guarded claim updates 0 rows
+            claimForFinalize: vi.fn().mockResolvedValue(false),
+            findByUuid: vi.fn().mockResolvedValue({ status: 'cancelled' }),
+            findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
+            updateStageIfInProgress: vi.fn().mockResolvedValue(undefined),
+            markReady: vi.fn().mockResolvedValue(true),
+            markError: vi.fn().mockResolvedValue(true),
+        } as AnyType;
+
+        await expect(
+            runService(
+                sandbox,
+                { aiWritebackRunUuid: 'run-1' },
+                { aiWritebackRunModel },
+            ),
+        ).rejects.toThrow(WritebackRunAbortedError);
+
+        expect(aiWritebackRunModel.claimForFinalize).toHaveBeenCalledWith(
+            'run-1',
+        );
+        expect(createPullRequest).not.toHaveBeenCalled();
+        expect(sandbox.git.commit).not.toHaveBeenCalled();
+        // A deliberate abort is not a failure: the error terminal write is skipped
+        expect(aiWritebackRunModel.markError).not.toHaveBeenCalled();
         expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
     });
 
@@ -1513,7 +2111,7 @@ describe('AiWritebackService repo read access', () => {
         });
     });
 
-    describe('getInstallationRepoReadAccess (any accessible repo)', () => {
+    describe('getInstallationRepoReadAccess (authorized repositories)', () => {
         it('rejects a user without view:SourceCode', async () => {
             const { service } = buildWithInstallation();
             await expect(
@@ -1530,10 +2128,10 @@ describe('AiWritebackService repo read access', () => {
                 listReposAccessibleToInstallation as import('vitest').Mock
             ).mockResolvedValue([
                 {
-                    owner: 'lightdash',
-                    repo: 'lightdash',
+                    owner: 'acme',
+                    repo: 'analytics',
                     defaultBranch: 'main',
-                    private: false,
+                    private: true,
                 },
             ]);
 
@@ -1548,10 +2146,10 @@ describe('AiWritebackService repo read access', () => {
             });
             expect(repos).toEqual([
                 {
-                    owner: 'lightdash',
-                    repo: 'lightdash',
+                    owner: 'acme',
+                    repo: 'analytics',
                     defaultBranch: 'main',
-                    private: false,
+                    private: true,
                 },
             ]);
             expect(access.installationToken).toBe('install-token');
@@ -1559,8 +2157,135 @@ describe('AiWritebackService repo read access', () => {
             expect(listReposAccessibleToUser).not.toHaveBeenCalled();
         });
 
+        it('does not expose an installation repository unrelated to the invoking project', async () => {
+            const { service } = buildWithInstallation();
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'secret-infrastructure',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+
+            const access = await service.getInstallationRepoReadAccess({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+            });
+
+            await expect(access.listRepos()).resolves.toEqual([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+        });
+
+        it('authorizes primary and configured additional source repositories without exposing unrelated installation repositories', async () => {
+            const sharedModelIdentity = {
+                modelName: 'orders',
+                ymlPath: 'models/orders.yml',
+            };
+            const project = {
+                ...githubProject(),
+                dbtSourceUuid: PRIMARY_SOURCE_UUID,
+                sourceFixture: {
+                    ...sharedModelIdentity,
+                    observableValue: 'primary orders',
+                },
+            };
+            const additionalSource = {
+                projectDbtSourceUuid: 'additional-source-uuid',
+                projectUuid: 'p1',
+                name: 'Additional source',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: {
+                    type: DbtProjectType.GITHUB,
+                    authorization_method: 'installation_id',
+                    repository: 'acme/additional-analytics',
+                    branch: 'additional-main',
+                    project_sub_path: 'transform/dbt',
+                },
+                sourceFixture: {
+                    ...sharedModelIdentity,
+                    observableValue: 'additional orders',
+                },
+                createdAt: new Date('2026-08-27T00:00:00.000Z'),
+                updatedAt: new Date('2026-08-27T00:00:00.000Z'),
+            };
+            const { service } = buildWithInstallation(project);
+            (service as AnyType).projectDbtSourcesModel = {
+                getSources: vi.fn().mockResolvedValue([additionalSource]),
+            };
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'additional-analytics',
+                    defaultBranch: 'additional-main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'secret-infrastructure',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+
+            const access = await service.getInstallationRepoReadAccess({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+            });
+
+            await expect(access.listRepos()).resolves.toEqual([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'additional-analytics',
+                    defaultBranch: 'additional-main',
+                    private: true,
+                },
+            ]);
+            await expect(
+                access.resolveRepoAccess('acme', 'additional-analytics'),
+            ).resolves.toEqual({
+                branch: 'additional-main',
+                token: 'install-token',
+            });
+            await expect(
+                access.resolveRepoAccess('acme', 'secret-infrastructure'),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         it('unions the linked user repos with the org repos (org wins on collision)', async () => {
-            const { service, githubAppService } = buildWithInstallation();
+            const project = githubProject();
+            project.dbtConnection.repository = 'acme/shared';
+            const { service, githubAppService } =
+                buildWithInstallation(project);
             (
                 githubAppService.getValidUserToken as import('vitest').Mock
             ).mockResolvedValue('user-token');
@@ -1605,7 +2330,6 @@ describe('AiWritebackService repo read access', () => {
 
             // union of both sources, deduped by owner/repo
             expect(repos.map((r) => `${r.owner}/${r.repo}`).sort()).toEqual([
-                'acme/data',
                 'acme/shared',
                 'me/personal',
             ]);
@@ -1621,33 +2345,21 @@ describe('AiWritebackService repo read access', () => {
             });
         });
 
-        it('resolveRepoAccess falls back to the installation token for a repo outside the union', async () => {
+        it('resolveRepoAccess rejects a repo outside the authorized set', async () => {
             const { service } = buildWithInstallation();
             (
                 listReposAccessibleToInstallation as import('vitest').Mock
             ).mockResolvedValue([]);
-            (getRepoDefaultBranch as import('vitest').Mock).mockResolvedValue(
-                'develop',
-            );
 
             const access = await service.getInstallationRepoReadAccess({
                 user: userWithOrg(true),
                 projectUuid: 'p1',
             });
-            const resolved = await access.resolveRepoAccess(
-                'lightdash',
-                'lightdash',
-            );
 
-            expect(getRepoDefaultBranch).toHaveBeenCalledWith({
-                owner: 'lightdash',
-                repo: 'lightdash',
-                installationId: 'inst-1',
-            });
-            expect(resolved).toEqual({
-                branch: 'develop',
-                token: 'install-token',
-            });
+            await expect(
+                access.resolveRepoAccess('acme', 'secret-infrastructure'),
+            ).rejects.toThrow(ForbiddenError);
+            expect(getRepoDefaultBranch).not.toHaveBeenCalled();
         });
     });
 });
@@ -1805,7 +2517,19 @@ describe('AiWritebackService.mergePullRequest', () => {
 
     it('tracks ai_writeback.merged with the parsed PR context on a successful git merge', async () => {
         const track = vi.fn();
-        const { service } = setup({ analytics: { track } as AnyType });
+        const { service } = setup({
+            analytics: { track } as AnyType,
+            aiWritebackThreadModel: {
+                findByProjectUuidAndPrUrl: vi
+                    .fn()
+                    .mockResolvedValue(threadRow(PR_7)),
+            } as AnyType,
+            aiWritebackRunModel: {
+                findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue({
+                    prompt_uuid: 'prompt-1',
+                }),
+            } as AnyType,
+        });
         await service.mergePullRequest({ ...mergeArgs, user: userWithOrg });
         expect(track).toHaveBeenCalledTimes(1);
         expect(track).toHaveBeenCalledWith({
@@ -1814,12 +2538,15 @@ describe('AiWritebackService.mergePullRequest', () => {
             properties: {
                 organizationId: ORG,
                 projectId: 'p1',
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
                 prUrl: PR_7,
                 owner: 'acme',
                 repo: 'analytics',
                 pullNumber: 7,
                 mergeCommitSha: 'sha-7',
                 compileScheduled: true,
+                workstream: 'dbt-writeback',
             },
         });
     });
@@ -1879,6 +2606,156 @@ describe('AiWritebackService.mergePullRequest', () => {
     });
 });
 
+describe('AiWritebackService.startTracking', () => {
+    it('assembles explicit thread and prompt properties for agent and API runs', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const startTracking = (service as AnyType).startTracking.bind(service);
+
+        startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'dbt-writeback',
+            aiThreadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+        });
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.started',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
+            }),
+        });
+
+        startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'dbt-writeback',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.started',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                threadId: null,
+                promptId: null,
+            }),
+        });
+    });
+
+    it('derives uncapped repository context analytics from a full listing', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const tracker = (service as AnyType).startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'dbt-writeback',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+        const listing = 'models/orders.sql\nREADME.md\n';
+
+        tracker.completed({
+            exitCode: 0,
+            hasChanges: true,
+            prCreated: true,
+            usage: null,
+            repoContext: { kind: 'full', listing },
+        });
+
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.completed',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                repoContextBytes: Buffer.byteLength(listing, 'utf8'),
+                repoContextCapped: false,
+                repoContextFileCount: 2,
+            }),
+        });
+    });
+
+    it('uses pre-cap measurements for summarised repository context', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const tracker = (service as AnyType).startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'general',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+
+        tracker.failed('agent', new Error('agent failed'), {
+            kind: 'summarised',
+            listing: 'models/ (600 files)',
+            bytes: 123456,
+            fileCount: 600,
+        });
+
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.failed',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                repoContextBytes: 123456,
+                repoContextCapped: true,
+                repoContextFileCount: 600,
+            }),
+        });
+    });
+
+    it('tracks unavailable repository context as explicit nulls', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const tracker = (service as AnyType).startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'general',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+
+        tracker.completed({
+            exitCode: 0,
+            hasChanges: false,
+            prCreated: false,
+            usage: null,
+            repoContext: null,
+        });
+
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.completed',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                repoContextBytes: null,
+                repoContextCapped: null,
+                repoContextFileCount: null,
+            }),
+        });
+
+        tracker.failed('agent', new Error('agent failed'), {
+            kind: 'full',
+            listing: '\n  \n',
+        });
+
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.failed',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                repoContextBytes: null,
+                repoContextCapped: null,
+                repoContextFileCount: null,
+            }),
+        });
+    });
+});
+
 describe('mergeSourceCodeRepoAccess', () => {
     const u = (owner: string, repo: string) => ({
         owner,
@@ -1887,31 +2764,49 @@ describe('mergeSourceCodeRepoAccess', () => {
         private: true,
     });
 
-    it('returns only the installation repos when there is no user token', () => {
+    it('returns only the project repository when there is no user token', () => {
         const map = mergeSourceCodeRepoAccess(
             [u('me', 'personal')],
             undefined,
-            [u('acme', 'data')],
+            [u('acme', 'analytics'), u('acme', 'secret-infrastructure')],
             'inst-token',
+            ['acme/analytics'],
         );
-        expect([...map.keys()]).toEqual(['acme/data']);
-        expect(map.get('acme/data')?.token).toBe('inst-token');
+        expect([...map.keys()]).toEqual(['acme/analytics']);
+        expect(map.get('acme/analytics')?.token).toBe('inst-token');
     });
 
-    it('unions both sources and lets the installation win a collision', () => {
+    it('unions user repos with the project repo and lets the installation win that collision', () => {
         const map = mergeSourceCodeRepoAccess(
             [u('me', 'personal'), u('acme', 'shared')],
             'user-token',
             [u('acme', 'shared'), u('acme', 'data')],
             'inst-token',
+            ['acme/shared'],
         );
-        expect([...map.keys()].sort()).toEqual([
-            'acme/data',
-            'acme/shared',
-            'me/personal',
-        ]);
+        expect([...map.keys()].sort()).toEqual(['acme/shared', 'me/personal']);
         expect(map.get('me/personal')?.token).toBe('user-token');
         expect(map.get('acme/shared')?.token).toBe('inst-token'); // org wins
+    });
+
+    it('deduplicates mixed-case repository identities and keeps installation metadata', () => {
+        const map = mergeSourceCodeRepoAccess(
+            [u('acme', 'analytics')],
+            'user-token',
+            [u('Acme', 'Analytics')],
+            'inst-token',
+            ['acme/analytics'],
+        );
+
+        expect([...map.values()]).toEqual([
+            {
+                owner: 'Acme',
+                repo: 'Analytics',
+                defaultBranch: 'main',
+                private: true,
+                token: 'inst-token',
+            },
+        ]);
     });
 });
 
@@ -1941,23 +2836,24 @@ describe('parseOwnerRepo', () => {
 describe('computeWritableRepoKeys', () => {
     const r = (owner: string, repo: string) => ({ owner, repo });
 
-    it('without user intersection, every installation repo is writable', () => {
+    it('without user intersection, only the project repository is writable', () => {
         const keys = computeWritableRepoKeys(
             [r('acme', 'a'), r('acme', 'b')],
             [],
             false,
+            ['acme/a'],
         );
-        expect([...keys].sort()).toEqual(['acme/a', 'acme/b']);
+        expect([...keys]).toEqual(['acme/a']);
     });
 
-    it('with user intersection, only repos in BOTH sets are writable', () => {
+    it('with user intersection, allows the project repo and repos in both sets', () => {
         const keys = computeWritableRepoKeys(
             [r('acme', 'a'), r('acme', 'b'), r('acme', 'c')],
             [r('acme', 'b'), r('acme', 'c'), r('me', 'x')],
             true,
+            ['acme/a'],
         );
-        // acme/a is install-only (excluded); me/x is user-only (not installable)
-        expect([...keys].sort()).toEqual(['acme/b', 'acme/c']);
+        expect([...keys].sort()).toEqual(['acme/a', 'acme/b', 'acme/c']);
     });
 
     it('never marks the denylisted lightdash/lightdash writable', () => {
@@ -1965,6 +2861,7 @@ describe('computeWritableRepoKeys', () => {
             [r('lightdash', 'lightdash'), r('acme', 'a')],
             [],
             false,
+            ['acme/a'],
         );
         expect(keys.has('lightdash/lightdash')).toBe(false);
         expect(keys.has('acme/a')).toBe(true);
@@ -1975,6 +2872,7 @@ describe('computeWritableRepoKeys', () => {
             [r('Lightdash', 'Lightdash')],
             [],
             false,
+            ['Lightdash/Lightdash'],
         );
         expect(keys.size).toBe(0);
     });
@@ -1984,6 +2882,7 @@ describe('computeWritableRepoKeys', () => {
             [r('Acme', 'Web-App')],
             [r('acme', 'web-app')],
             true,
+            [],
         );
         // The slug differs only by case across the two listings — it must still
         // intersect (L1), and the output keeps the installation's casing.
@@ -2037,6 +2936,22 @@ describe('auditReasonForError', () => {
 
     it('falls back to unknown for unrecognised errors', () => {
         expect(auditReasonForError(new Error('boom'))).toBe('unknown');
+    });
+});
+
+describe('ALLOWED_TOOLS', () => {
+    const tools = ALLOWED_TOOLS.split(',');
+
+    it('only grants explicit PR metadata writes directly under /tmp', () => {
+        expect(tools).toContain(`Write(/${PR_TITLE_PATH})`);
+        expect(tools).toContain(`Write(/${PR_DESCRIPTION_PATH})`);
+        expect(tools).not.toContain('Write(//tmp/**)');
+    });
+
+    it('only grants Bash access to the secret-stripping compile wrapper', () => {
+        expect(tools.filter((tool) => tool.startsWith('Bash('))).toEqual([
+            `Bash(${COMPILE_WRAPPER_PATH}:*)`,
+        ]);
     });
 });
 
@@ -2141,6 +3056,36 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
 
     beforeEach(() => vi.clearAllMocks());
 
+    it('rejects an installation repository unrelated to the invoking project when the user is not linked', async () => {
+        const service = buildService();
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        (
+            listReposAccessibleToInstallation as import('vitest').Mock
+        ).mockResolvedValue([
+            { owner: 'acme', repo: 'analytics' },
+            { owner: 'acme', repo: 'secret-infrastructure' },
+        ]);
+
+        await expect(
+            service.resolveWritableRepoTarget({
+                user: userWithManage(),
+                project: githubProject(),
+                repoTarget: 'acme/secret-infrastructure',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getRepoMetadata).not.toHaveBeenCalled();
+    });
+
     it('fails closed (does NOT widen to installation scope) when the user repo listing fails', async () => {
         const { service } = (() => {
             const svc = buildService({
@@ -2220,6 +3165,75 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
     });
 });
 
+describe('AiWritebackService.dbtWritebackConfig', () => {
+    it.each([PullRequestProvider.GITHUB, PullRequestProvider.BITBUCKET])(
+        'uses native instructions without shell or profiles for %s projects',
+        async (provider) => {
+            const service = buildService();
+            vi.spyOn(service as AnyType, 'gatherRepoContext').mockResolvedValue(
+                null,
+            );
+            const prepareProfiles = vi.spyOn(
+                service as AnyType,
+                'prepareProfiles',
+            );
+            const turn = turnContext();
+            const setup = await (service as AnyType)
+                .dbtWritebackConfig()
+                .buildAgentSetup({
+                    sandbox: {},
+                    turn: {
+                        ...turn,
+                        gitConnection: {
+                            ...turn.gitConnection,
+                            provider,
+                            semanticLayer: 'lightdash',
+                        },
+                    },
+                    repository: 'acme/analytics',
+                });
+            expect(prepareProfiles).not.toHaveBeenCalled();
+            expect(setup.systemPrompt).toContain('native Lightdash YAML');
+            expect(setup.systemPrompt).toContain(
+                'lightdash.project_context.yml',
+            );
+            expect(setup.allowedTools).not.toMatch(/Bash\(|ld-profiles/);
+            expect(setup.disallowedTools).toContain(GENERAL_DISALLOWED_TOOLS);
+            if (provider === PullRequestProvider.BITBUCKET) {
+                for (const tool of ['Read', 'Grep', 'Edit', 'Write']) {
+                    expect(setup.disallowedTools).toContain(
+                        `${tool}(//home/user/repo/.git/**)`,
+                    );
+                }
+            }
+        },
+    );
+
+    it('returns gathered repository context through the agent setup', async () => {
+        const service = buildService();
+        const repoContext = {
+            kind: 'full',
+            listing: 'models/orders.sql\nmodels/schema.yml\n',
+        };
+        vi.spyOn(service as AnyType, 'gatherRepoContext').mockResolvedValue(
+            repoContext,
+        );
+        vi.spyOn(service as AnyType, 'prepareProfiles').mockResolvedValue(
+            false,
+        );
+
+        const setup = await (service as AnyType)
+            .dbtWritebackConfig()
+            .buildAgentSetup({
+                sandbox: {},
+                turn: turnContext(),
+                repository: 'acme/analytics',
+            });
+
+        expect(setup.repoContext).toBe(repoContext);
+    });
+});
+
 describe('AiWritebackService.generalCodingAgentConfig (general-agent invariants, H3)', () => {
     const buildGeneralService = () =>
         buildService({
@@ -2260,6 +3274,10 @@ describe('AiWritebackService.generalCodingAgentConfig (general-agent invariants,
         });
         expect(setup.allowedTools).toBe(GENERAL_ALLOWED_TOOLS);
         expect(setup.disallowedTools).toBe(GENERAL_DISALLOWED_TOOLS);
+        expect(setup.repoContext).toEqual({
+            kind: 'full',
+            listing: 'models/a.sql\nREADME.md',
+        });
     });
 
     it('mints a scoped contents:read clone token and revokes it after clone (R2)', async () => {
@@ -2616,6 +3634,71 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
         expect(providerClose).not.toHaveBeenCalled();
     });
 
+    it('closes a Bitbucket PR using its additional source token and never routes to GitHub', async () => {
+        const prUrl =
+            'https://bitbucket.org/acme/bitbucket-analytics/pull-requests/7';
+        const source = {
+            projectUuid: 'p1',
+            projectDbtSourceUuid: 'bb-source',
+            name: 'Bitbucket',
+            isPrimary: false,
+            precedence: 1,
+            dbtConnection: bitbucketConnection,
+        };
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+                getSummary: vi
+                    .fn()
+                    .mockResolvedValue({ organizationUuid: ORG }),
+            },
+            projectDbtSourcesModel: {
+                getSources: vi.fn().mockResolvedValue([source]),
+                getSource: vi.fn().mockResolvedValue(source),
+            },
+            aiWritebackThreadModel: {
+                findByAiThreadUuidAndPrUrl: vi.fn().mockResolvedValue({
+                    project_dbt_source_uuid: 'bb-source',
+                }),
+            },
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue(
+                    recordedPr({
+                        provider: PullRequestProvider.BITBUCKET,
+                        repo: 'bitbucket-analytics',
+                        prUrl,
+                        prNumber: 7,
+                    }),
+                ),
+            },
+        });
+        const close = vi
+            .spyOn(service['bitbucketProvider'], 'closePullRequest')
+            .mockResolvedValue({ state: 'closed' });
+        const githubClose = vi.spyOn(
+            service['githubProvider'],
+            'closePullRequest',
+        );
+        const result = await service.closePullRequest({
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            prUrl,
+        });
+        expect(result).toEqual({ state: 'closed' });
+        expect(close).toHaveBeenCalledWith(
+            expect.objectContaining({
+                prUrl,
+                installation: expect.objectContaining({
+                    provider: PullRequestProvider.BITBUCKET,
+                    token: 'project-bitbucket-token',
+                    repo: 'bitbucket-analytics',
+                }),
+            }),
+        );
+        expect(githubClose).not.toHaveBeenCalled();
+    });
+
     it('routes a recorded GitLab MR to the GitLab provider', async () => {
         const service = buildService({
             projectModel: {
@@ -2681,7 +3764,11 @@ describe('AiWritebackService.enqueueWriteback', () => {
     } as AnyType;
 
     it('creates a pending run row and enqueues the pipeline job', async () => {
-        const runRow = { ai_writeback_run_uuid: 'run-1' };
+        const runRow = {
+            ai_writeback_run_uuid: 'run-1',
+            created_at: new Date('2026-07-01T10:00:00Z'),
+            updated_at: new Date('2026-07-01T10:00:00Z'),
+        };
         const aiWritebackRunModel = {
             create: vi.fn().mockResolvedValue(runRow),
         } as AnyType;
@@ -2702,7 +3789,11 @@ describe('AiWritebackService.enqueueWriteback', () => {
             aiThreadUuid: 'thread-1',
         });
 
-        expect(result).toEqual({ aiWritebackRunUuid: 'run-1' });
+        expect(result).toEqual({
+            aiWritebackRunUuid: 'run-1',
+            createdAt: runRow.created_at,
+            updatedAt: runRow.updated_at,
+        });
         expect(aiWritebackRunModel.create).toHaveBeenCalledWith({
             organizationUuid: ORG,
             projectUuid: 'proj-1',
@@ -2978,6 +4069,26 @@ describe('AiWritebackService.runPipeline', () => {
             }),
         );
     });
+
+    it('swallows a mid-run abort so the scheduler job does not retry a cancelled run', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue({
+                ai_writeback_run_uuid: 'run-1',
+                status: 'pending',
+            }),
+        } as AnyType;
+        const userModel = {
+            findSessionUserAndOrgByUuid: vi
+                .fn()
+                .mockResolvedValue({ userUuid: 'u1', organizationUuid: ORG }),
+        } as AnyType;
+        const service = buildService({ aiWritebackRunModel, userModel });
+        vi.spyOn(service, 'run').mockRejectedValue(
+            new WritebackRunAbortedError('cancelled'),
+        );
+
+        await expect(service.runPipeline(payload)).resolves.toBeUndefined();
+    });
 });
 
 describe('AiWritebackService.getRunStatus', () => {
@@ -3062,5 +4173,194 @@ describe('AiWritebackService.getRunStatus', () => {
         await expect(
             service.getRunStatus(userWithOrg(false), 'run-1'),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('getRunSnapshot also returns the run row timestamps', async () => {
+        const createdAt = new Date('2026-07-01T10:00:00Z');
+        const updatedAt = new Date('2026-07-01T10:05:00Z');
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(
+                runRow({
+                    status: 'agent',
+                    pr_url: null,
+                    created_at: createdAt,
+                    updated_at: updatedAt,
+                }),
+            ),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        const result = await service.getRunSnapshot(userWithOrg(true), 'run-1');
+
+        expect(result).toEqual({
+            status: 'agent',
+            prUrl: null,
+            errorMessage: null,
+            createdAt,
+            updatedAt,
+        });
+    });
+});
+
+describe('AiWritebackService.cancelRun', () => {
+    const userWithOrg = (canView: boolean): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canView) can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const viewOnlyUser = (): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('view', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'viewer',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const runRow = (overrides: Record<string, AnyType> = {}) => ({
+        ai_writeback_run_uuid: 'run-1',
+        organization_uuid: ORG,
+        project_uuid: 'proj-1',
+        status: 'agent',
+        source: 'mcp',
+        pr_url: null,
+        error_message: null,
+        ...overrides,
+    });
+
+    it('cancels a non-terminal run', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow()),
+            markCancelled: vi.fn().mockResolvedValue(true),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        const result = await service.cancelRun(userWithOrg(true), 'run-1');
+
+        expect(result).toEqual({ cancelled: true, status: 'cancelled' });
+        expect(aiWritebackRunModel.markCancelled).toHaveBeenCalledWith('run-1');
+    });
+
+    it('reports the settled status when the run is already terminal', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow({ status: 'ready' })),
+            markCancelled: vi.fn().mockResolvedValue(false),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        const result = await service.cancelRun(userWithOrg(true), 'run-1');
+
+        expect(result).toEqual({ cancelled: false, status: 'ready' });
+    });
+
+    it('throws NotFoundError when the run does not exist', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(undefined),
+            markCancelled: vi.fn(),
+        } as AnyType;
+        const service = buildService({ aiWritebackRunModel });
+
+        await expect(
+            service.cancelRun(userWithOrg(true), 'missing'),
+        ).rejects.toThrow('not found');
+        expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenError when the run belongs to another organization', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi
+                .fn()
+                .mockResolvedValue(runRow({ organization_uuid: 'org-2' })),
+            markCancelled: vi.fn(),
+        } as AnyType;
+        const service = buildService({ aiWritebackRunModel });
+
+        await expect(
+            service.cancelRun(userWithOrg(true), 'run-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenError for a view-only user — cancel requires manage:SourceCode', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow()),
+            markCancelled: vi.fn(),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        await expect(
+            service.cancelRun(viewOnlyUser(), 'run-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when the run vanishes between authorization and the cancel attempt', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi
+                .fn()
+                .mockResolvedValueOnce(runRow())
+                .mockResolvedValueOnce(undefined),
+            markCancelled: vi.fn().mockResolvedValue(false),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        await expect(
+            service.cancelRun(userWithOrg(true), 'run-1'),
+        ).rejects.toThrow('not found');
+    });
+
+    it('throws NotFoundError for a non-mcp-sourced run — only tasks-surface runs are cancellable', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow({ source: 'web' })),
+            markCancelled: vi.fn(),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        await expect(
+            service.cancelRun(userWithOrg(true), 'run-1'),
+        ).rejects.toThrow('not found');
+        expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
     });
 });

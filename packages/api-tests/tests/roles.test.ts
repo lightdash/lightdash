@@ -479,6 +479,155 @@ describe('Roles API Tests', () => {
         });
     });
 
+    describe('Role sets (multiple roles)', () => {
+        type RoleSet = { systemRole: string | null; customRoleUuids: string[] };
+        const editorUuid = SEED_ORG_1_EDITOR.user_uuid;
+        const orgSetUrl = `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${editorUuid}/set`;
+        const projectSetUrl = `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${editorUuid}/set`;
+
+        afterEach(async () => {
+            // Restore the seeded editor's single org role and drop project access
+            await admin.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${editorUuid}`,
+                { roleId: 'editor' },
+                { failOnStatusCode: false },
+            );
+            await admin.delete(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${editorUuid}`,
+                { failOnStatusCode: false },
+            );
+        });
+
+        const createOrgRole = async () => {
+            const resp = await admin.post<Body<RoleResult>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    name: `Extra org role ${Date.now()}`,
+                    level: 'organization',
+                    scopes: ['view:Organization'],
+                },
+            );
+            rolesToCleanup.push(resp.body.results.roleUuid);
+            return resp.body.results.roleUuid;
+        };
+
+        it('replaces and reads an organization role set, exposing hasMultipleRoles on legacy reads', async () => {
+            const roleUuid = await createOrgRole();
+
+            const before = await admin.get<Body<RoleSet>>(orgSetUrl);
+            expect(before.status).toBe(200);
+            expect(before.body.results).toEqual({
+                systemRole: 'editor',
+                customRoleUuids: [],
+            });
+
+            const put = await admin.put<Body<RoleSet>>(orgSetUrl, {
+                systemRole: 'editor',
+                customRoleUuids: [roleUuid, roleUuid],
+            });
+            expect(put.status).toBe(200);
+            expect(put.body.results).toEqual({
+                systemRole: 'editor',
+                customRoleUuids: [roleUuid],
+            });
+
+            const listing = await admin.get<
+                Body<(AssignmentResult & { hasMultipleRoles?: boolean })[]>
+            >(`${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`);
+            const editorRow = listing.body.results.find(
+                (a) => a.assigneeId === editorUuid,
+            );
+            expect(editorRow).toMatchObject({
+                roleId: 'editor',
+                hasMultipleRoles: true,
+            });
+
+            // Legacy singular write replaces the whole set
+            await admin.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${editorUuid}`,
+                { roleId: 'editor' },
+            );
+            const after = await admin.get<Body<RoleSet>>(orgSetUrl);
+            expect(after.body.results).toEqual({
+                systemRole: 'editor',
+                customRoleUuids: [],
+            });
+        });
+
+        it('rejects empty, wrong-level and cross-tenant sets', async () => {
+            const empty = await admin.put<ErrorBody>(
+                orgSetUrl,
+                { systemRole: null, customRoleUuids: [] },
+                { failOnStatusCode: false },
+            );
+            expect(empty.status).toBe(400);
+
+            const projectRole = await admin.post<Body<RoleResult>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    name: `Project-level role ${Date.now()}`,
+                    level: 'project',
+                    scopes: ['view:Dashboard'],
+                },
+            );
+            rolesToCleanup.push(projectRole.body.results.roleUuid);
+            const wrongLevel = await admin.put<ErrorBody>(
+                orgSetUrl,
+                {
+                    systemRole: null,
+                    customRoleUuids: [projectRole.body.results.roleUuid],
+                },
+                { failOnStatusCode: false },
+            );
+            expect(wrongLevel.status).toBe(400);
+
+            const unknown = await admin.put<ErrorBody>(
+                orgSetUrl,
+                {
+                    systemRole: null,
+                    customRoleUuids: ['00000000-0000-4000-8000-000000000000'],
+                },
+                { failOnStatusCode: false },
+            );
+            expect(unknown.status).toBe(404);
+        });
+
+        it('replaces and reads a project role set for a user', async () => {
+            const projectRole = await admin.post<Body<RoleResult>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    name: `Extra project role ${Date.now()}`,
+                    level: 'project',
+                    scopes: ['view:Dashboard'],
+                },
+            );
+            rolesToCleanup.push(projectRole.body.results.roleUuid);
+
+            const put = await admin.put<Body<RoleSet>>(projectSetUrl, {
+                systemRole: 'viewer',
+                customRoleUuids: [projectRole.body.results.roleUuid],
+            });
+            expect(put.status).toBe(200);
+            expect(put.body.results).toEqual({
+                systemRole: 'viewer',
+                customRoleUuids: [projectRole.body.results.roleUuid],
+            });
+
+            const get = await admin.get<Body<RoleSet>>(projectSetUrl);
+            expect(get.body.results).toEqual(put.body.results);
+        });
+
+        it('forbids non-admins from replacing role sets', async () => {
+            const { client: editor } = await loginWithPermissions('editor', []);
+            const resp = await editor.put<ErrorBody>(
+                orgSetUrl,
+                { systemRole: 'admin', customRoleUuids: [] },
+                { failOnStatusCode: false },
+            );
+            expect(resp.status).toBe(403);
+        });
+    });
+
     describe('Project Access Management', () => {
         afterEach(async () => {
             // Clean up project access to avoid polluting other tests

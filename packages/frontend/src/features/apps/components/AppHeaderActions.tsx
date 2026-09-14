@@ -1,37 +1,63 @@
+import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
+    DirectAccessResourceType,
     getAppDisplayName,
+    isApiError,
     type AppVersionStatus,
 } from '@lightdash/common';
-import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
+import {
+    ActionIcon,
+    Badge,
+    Divider,
+    Indicator,
+    Menu,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconArrowsUpDown,
     IconCamera,
+    IconCirclesRelation,
     IconCopy,
     IconDatabaseExport,
     IconDots,
     IconEdit,
     IconFolderPlus,
     IconFolderSymlink,
+    IconPencil,
+    IconPhotoX,
     IconRefresh,
     IconSend,
+    IconSparkles,
     IconTrash,
+    IconUsers,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppDeleteModal from '../../../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
+import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { Can } from '../../../providers/Ability';
+import useApp from '../../../providers/App/useApp';
+import {
+    DirectAccessModal,
+    useCanManageDirectAccess,
+    useDirectAccessAvailability,
+} from '../../directAccess';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
+import { AppSyncModal } from '../../sync/components';
+import {
+    useAppThumbnailDelete,
+    useAppThumbnailUrl,
+} from '../hooks/useAppThumbnail';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
-import {
-    DataAppFavoriteMenuItem,
-    FavoritePersonalDataAppModal,
-} from './DataAppFavoriteMenuItem';
+import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
+import AppUpgradeModal from './AppUpgradeModal';
 import { MoveAppToSpaceModal } from './MoveAppToSpaceModal';
 import { PromoteAppModal } from './PromoteAppModal';
 
@@ -51,10 +77,24 @@ type Props = {
     onViewNetwork: () => void;
     /** Called after a successful delete so the page can navigate away. */
     onDeleted: () => void;
-    /** The single cross-navigation menu item that differs per surface:
-     *  "Preview latest" in the builder, "Continue building" in the viewer.
-     *  Rendered at the top of the menu; pass null to omit it. */
+    /** Prominent edit affordance matching the dashboard header's pencil
+     *  button — "Continue building" in the viewer. Pass null on surfaces
+     *  that ARE the edit surface (the builder). */
+    onEdit: (() => void) | null;
+    /** URL for the copy-link button, matching the dashboard header. Pass
+     *  null on surfaces without a shareable URL (the builder). */
+    shareUrl: string | null;
+    /** Cross-navigation menu item that differs per surface (e.g. "Preview
+     *  latest" in the builder). Rendered at the top of the menu; pass null
+     *  to omit it. */
     navItem: ReactNode;
+    /** "Ask AI Agent" menu item, rendered right after `navItem`. Pass null
+     *  on surfaces that don't offer it. */
+    askAiItem: ReactNode;
+    /** Fullscreen/presentation toggle, rendered between the refresh button
+     *  and the overflow menu to match the dashboard header's ordering. Pass
+     *  null on surfaces without it (the builder). */
+    fullscreenToggle: ReactNode;
     /** Builder-only action that captures the live preview and saves it as the
      *  app thumbnail. Pass null on surfaces without a capture pipeline (the
      *  viewer). Disabled until the iframe announces screenshot capability. */
@@ -62,18 +102,50 @@ type Props = {
         onCapture: () => void;
         disabled: boolean;
     } | null;
+    /** Raw capture from this surface's live preview iframe, forwarded to the
+     *  move modal so its thumbnail checkbox screenshots what the user is
+     *  looking at. Null when the iframe hasn't announced screenshot
+     *  capability — the modal then falls back to a default-state render. */
+    capturePreviewScreenshot: (() => Promise<File>) | null;
+    /** Upgrade offer derived from the live preview's SDK manifest (see
+     *  `useSdkUpgradeStatus`). Null on surfaces without an upgrade flow (the
+     *  viewer). `disabled` while a build is already in flight. */
+    upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
+    /** Count of ready queries captured by the live preview, forwarded to the
+     *  scheduler modal so it can gate/caption csv/xlsx delivery formats. */
+    capturedQueryCount?: number;
 };
 
 /**
- * The shared right-hand side of a data app's header — a refresh button plus the
- * overflow menu and every action modal. Used by both the builder
- * (`AppGenerate`) and the viewer (`AppPreviewTest`) so the two surfaces expose
- * the same actions; the only per-surface difference is `navItem`.
+ * The shared right-hand side of a data app's header, following the dashboard
+ * header's ordering: edit pencil, refresh, fullscreen, share link, overflow
+ * menu (plus every action modal). Used by both the builder (`AppGenerate`) and
+ * the viewer (`AppPreviewTest`) so the two surfaces expose the same actions;
+ * per-surface differences come in via the `onEdit`/`shareUrl`/`navItem` slots.
  *
  * Edit-actions are gated by `useCanEditDataApp`, because the viewer can be
- * opened by users without manage rights. Duplicate is the exception — it forks
- * the app into a personal copy, so it only needs `useCanCreateDataApp`.
+ * opened by users without manage rights. Delivery actions use their dedicated
+ * permissions, while duplicate only needs `useCanCreateDataApp`.
  */
+
+/**
+ * Walkthrough action for manage:DataApp: duplicating the seeded app makes
+ * one of the learner's own; adding it to a space then shares it.
+ */
+const duplicateTourAction = {
+    'data-tour-scope': 'manage:DataApp',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/apps/:appUuid',
+    'data-tour-label': 'Click Duplicate',
+    'data-tour-title': 'Share a data app with your team',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="browse"] >> [data-tour-nav="all-apps"] >> [data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"] >> [data-tour-anchor="app-actions"]',
+    'data-tour-then':
+        '[data-tour-anchor="app-actions"] >> [data-tour-anchor="app-add-to-space"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="transfer-confirm"]',
+    'data-tour-docs': 'data-apps.mdx#duplicating-an-app:p2:1-2',
+};
+
 const AppHeaderActions: FC<Props> = ({
     projectUuid,
     appUuid,
@@ -87,8 +159,15 @@ const AppHeaderActions: FC<Props> = ({
     refreshDisabled,
     onViewNetwork,
     onDeleted,
+    onEdit,
+    shareUrl,
     navItem,
+    askAiItem,
+    fullscreenToggle,
     captureThumbnail,
+    capturePreviewScreenshot,
+    upgrade,
+    capturedQueryCount,
 }) => {
     const navigate = useNavigate();
 
@@ -101,9 +180,21 @@ const AppHeaderActions: FC<Props> = ({
     // needs `create:DataApp` — not manage rights on this app.
     const canDuplicate = useCanCreateDataApp(projectUuid);
 
-    const scheduledDeliveriesFlag = useServerFeatureFlag(
-        FeatureFlags.DataAppsScheduledDeliveries,
-    );
+    const { user, health } = useApp();
+    const canCreateScheduledDeliveries =
+        user.data?.ability.can(
+            'create',
+            subject('ScheduledDeliveries', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
+    // Same health check the chart/SQL chart Google Sheets Sync entries gate
+    // on — Drive picker credentials must be configured.
+    const hasGoogleDriveEnabled =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
 
     // Promotion is only offered from a preview project linked to an upstream.
     const { data: project } = useProject(projectUuid);
@@ -114,12 +205,63 @@ const AppHeaderActions: FC<Props> = ({
     const { mutate: duplicateMutate, isLoading: isDuplicating } =
         useDuplicateApp();
 
+    // "Remove thumbnail" is builder-only (same surfaces as captureThumbnail)
+    // and only enabled when a thumbnail actually exists. The existence check
+    // is deferred until the menu first opens; invalidations from captures
+    // keep it current afterwards. The error guard matters because
+    // react-query keeps stale data when a refetch fails.
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+    const [menuOpened, setMenuOpened] = useState(false);
+    const thumbnailQuery = useAppThumbnailUrl(
+        projectUuid,
+        appUuid,
+        menuOpened && canEdit && captureThumbnail !== null,
+    );
+    const hasThumbnail = !thumbnailQuery.isError && !!thumbnailQuery.data;
+    const { mutateAsync: deleteThumbnail, isLoading: isDeletingThumbnail } =
+        useAppThumbnailDelete();
+    const handleRemoveThumbnail = useCallback(async () => {
+        try {
+            await deleteThumbnail({ projectUuid, appUuid });
+            // Reset (not invalidate): the refetch 404s and react-query would
+            // keep the stale signed URL as data.
+            void queryClient.resetQueries({
+                queryKey: ['app-thumbnail', projectUuid, appUuid],
+            });
+            showToastSuccess({ title: 'Thumbnail removed' });
+        } catch (err) {
+            showToastError({
+                title: 'Failed to remove thumbnail',
+                subtitle: isApiError(err) ? err.error.message : 'Unknown error',
+            });
+        }
+    }, [
+        deleteThumbnail,
+        projectUuid,
+        appUuid,
+        queryClient,
+        showToastSuccess,
+        showToastError,
+    ]);
+
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
+    const [syncModalOpen, setSyncModalOpen] = useState(false);
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
     const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [favoriteSpaceModalOpen, setFavoriteSpaceModalOpen] = useState(false);
+    const [isDirectAccessModalOpen, setIsDirectAccessModalOpen] =
+        useState(false);
+    const directAccessAvailability = useDirectAccessAvailability();
+    const canManageAppAccess = useCanManageDirectAccess({
+        projectUuid,
+        spaceUuid: appSpaceUuid ?? null,
+        createdByUserUuid: appCreatedByUserUuid ?? null,
+        access: [],
+        grantRoles: [],
+    });
 
     const handleDuplicate = useCallback(() => {
         duplicateMutate(
@@ -134,52 +276,105 @@ const AppHeaderActions: FC<Props> = ({
         );
     }, [duplicateMutate, navigate, projectUuid, appUuid]);
 
+    const upgradeAvailable =
+        canEdit &&
+        upgrade !== null &&
+        (upgrade.status === 'stale' || upgrade.status === 'legacy');
     return (
         <>
+            {onEdit && (
+                <>
+                    <Tooltip
+                        label="Continue building"
+                        position="bottom"
+                        openDelay={200}
+                        transitionProps={{
+                            transition: 'fade',
+                            duration: 150,
+                        }}
+                    >
+                        <ActionIcon
+                            aria-label="Continue building"
+                            // Anchor for scope walkthroughs (data-tour-via):
+                            // from the running app into the builder.
+                            data-tour-anchor="app-continue-building"
+                            data-tour-hint="Click Continue building"
+                            onClick={onEdit}
+                            bg="foreground"
+                            c="background"
+                            size="md"
+                        >
+                            <MantineIcon
+                                icon={IconPencil}
+                                color="background"
+                                size="md"
+                            />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Divider orientation="vertical" />
+                </>
+            )}
             <Tooltip
                 label="Refresh to re-run queries"
-                withArrow
                 position="bottom"
+                openDelay={200}
+                transitionProps={{
+                    transition: 'fade',
+                    duration: 150,
+                }}
             >
                 <ActionIcon
-                    variant="subtle"
-                    size="sm"
-                    color="ldGray.6"
+                    variant="default"
+                    size="md"
                     disabled={refreshDisabled}
                     onClick={onRefresh}
                     aria-label="Refresh"
                 >
-                    <MantineIcon icon={IconRefresh} size={16} />
+                    <MantineIcon icon={IconRefresh} />
                 </ActionIcon>
             </Tooltip>
+            {fullscreenToggle}
+            {shareUrl && (
+                <ShareLinkButton url={shareUrl} label="Copy link to the app" />
+            )}
             <Menu
                 position="bottom-end"
-                shadow="md"
-                withinPortal
+                returnFocus={!isDirectAccessModalOpen}
                 withArrow
                 arrowPosition="center"
+                onOpen={() => setMenuOpened(true)}
             >
                 <Menu.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        size="sm"
-                        color="ldGray.6"
-                        aria-label="App actions"
+                    <Indicator
+                        disabled={!upgradeAvailable}
+                        color="blue"
+                        size={8}
+                        offset={2}
                     >
-                        <MantineIcon icon={IconDots} size={16} />
-                    </ActionIcon>
+                        <ActionIcon
+                            variant="default"
+                            size="md"
+                            aria-label="App actions"
+                            // Anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="app-actions"
+                            data-tour-hint="Open the app's actions"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Indicator>
                 </Menu.Target>
                 <Menu.Dropdown>
                     {navItem}
-                    <DataAppFavoriteMenuItem
-                        projectUuid={projectUuid}
-                        appUuid={appUuid}
-                        appSpaceUuid={appSpaceUuid}
-                        onAddPersonalAppToSpace={() =>
-                            setFavoriteSpaceModalOpen(true)
-                        }
-                    />
+                    {askAiItem}
                     <Menu.Item
+                        data-tour-scope="view:DataApp"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/apps/:appUuid/view"
+                        data-tour-label="Click View network"
+                        data-tour-title="Open and inspect a data app"
+                        data-tour-docs="data-apps.mdx#network-inspector:1-2"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-apps"] >> [data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"] >> [data-tour-anchor="app-actions"]'
                         leftSection={
                             <MantineIcon icon={IconArrowsUpDown} size={14} />
                         }
@@ -187,7 +382,7 @@ const AppHeaderActions: FC<Props> = ({
                     >
                         View network
                     </Menu.Item>
-                    {canEdit && scheduledDeliveriesFlag.data?.enabled && (
+                    {canCreateScheduledDeliveries && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconSend} size={14} />
@@ -197,7 +392,46 @@ const AppHeaderActions: FC<Props> = ({
                             Schedule delivery
                         </Menu.Item>
                     )}
+                    {canCreateScheduledDeliveries && hasGoogleDriveEnabled && (
+                        <Can
+                            I="manage"
+                            this={subject('GoogleSheets', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconCirclesRelation}
+                                        size={14}
+                                    />
+                                }
+                                onClick={() => setSyncModalOpen(true)}
+                            >
+                                Google Sheets Sync
+                            </Menu.Item>
+                        </Can>
+                    )}
                     {(canEdit || canDuplicate) && <Menu.Divider />}
+                    {canEdit && upgrade && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconSparkles} size={14} />
+                            }
+                            rightSection={
+                                upgradeAvailable ? (
+                                    <Badge size="xs" color="blue">
+                                        New
+                                    </Badge>
+                                ) : undefined
+                            }
+                            disabled={upgrade.disabled}
+                            onClick={() => setIsUpgradeModalOpen(true)}
+                        >
+                            Upgrade app
+                        </Menu.Item>
+                    )}
                     {canEdit && (
                         <Menu.Item
                             leftSection={
@@ -209,15 +443,26 @@ const AppHeaderActions: FC<Props> = ({
                         </Menu.Item>
                     )}
                     {canEdit && captureThumbnail && (
-                        <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconCamera} size={14} />
-                            }
-                            disabled={captureThumbnail.disabled}
-                            onClick={captureThumbnail.onCapture}
-                        >
-                            Capture thumbnail
-                        </Menu.Item>
+                        <>
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon icon={IconCamera} size={14} />
+                                }
+                                disabled={captureThumbnail.disabled}
+                                onClick={captureThumbnail.onCapture}
+                            >
+                                Capture thumbnail
+                            </Menu.Item>
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon icon={IconPhotoX} size={14} />
+                                }
+                                disabled={!hasThumbnail || isDeletingThumbnail}
+                                onClick={() => void handleRemoveThumbnail()}
+                            >
+                                Remove thumbnail
+                            </Menu.Item>
+                        </>
                     )}
                     {canDuplicate && (
                         <Menu.Item
@@ -226,6 +471,7 @@ const AppHeaderActions: FC<Props> = ({
                             }
                             disabled={isDuplicating}
                             onClick={handleDuplicate}
+                            {...duplicateTourAction}
                         >
                             Duplicate
                         </Menu.Item>
@@ -244,6 +490,9 @@ const AppHeaderActions: FC<Props> = ({
                                     />
                                 }
                                 onClick={() => setIsMoveToSpaceOpen(true)}
+                                // Anchor for scope walkthroughs (data-tour-via)
+                                data-tour-anchor="app-add-to-space"
+                                data-tour-hint="Choose Add to space"
                             >
                                 {appSpaceUuid
                                     ? 'Move to space'
@@ -262,6 +511,22 @@ const AppHeaderActions: FC<Props> = ({
                                     Promote
                                 </Menu.Item>
                             )}
+                            {directAccessAvailability.isAvailable &&
+                                canManageAppAccess && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconUsers}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            setIsDirectAccessModalOpen(true)
+                                        }
+                                    >
+                                        Share
+                                    </Menu.Item>
+                                )}
                             <Menu.Divider />
                             <Menu.Item
                                 color="red"
@@ -277,6 +542,16 @@ const AppHeaderActions: FC<Props> = ({
                 </Menu.Dropdown>
             </Menu>
 
+            {isUpgradeModalOpen && upgrade && (
+                <AppUpgradeModal
+                    opened
+                    onClose={() => setIsUpgradeModalOpen(false)}
+                    projectUuid={projectUuid}
+                    appUuid={appUuid}
+                    offer={upgrade}
+                    resource="dataApp"
+                />
+            )}
             {isUpdateModalOpen && (
                 <AppUpdateModal
                     opened
@@ -284,8 +559,21 @@ const AppHeaderActions: FC<Props> = ({
                     uuid={appUuid}
                     initialName={appName}
                     initialDescription={appDescription ?? ''}
+                    iconPicker={null}
                     onClose={() => setIsUpdateModalOpen(false)}
                     onConfirm={() => setIsUpdateModalOpen(false)}
+                />
+            )}
+            {isDirectAccessModalOpen && (
+                <DirectAccessModal
+                    opened={isDirectAccessModalOpen}
+                    onClose={() => setIsDirectAccessModalOpen(false)}
+                    projectUuid={projectUuid}
+                    resource={{
+                        resourceType: DirectAccessResourceType.APP,
+                        resourceUuid: appUuid,
+                        name: appName,
+                    }}
                 />
             )}
             {isMoveToSpaceOpen && (
@@ -293,6 +581,7 @@ const AppHeaderActions: FC<Props> = ({
                     projectUuid={projectUuid}
                     opened
                     onClose={() => setIsMoveToSpaceOpen(false)}
+                    capturePreviewScreenshot={capturePreviewScreenshot}
                     app={{
                         uuid: appUuid,
                         name: appName,
@@ -311,6 +600,15 @@ const AppHeaderActions: FC<Props> = ({
                     name={getAppDisplayName(appName, appUuid)}
                     isOpen
                     onClose={() => setSchedulerModalOpen(false)}
+                    capturedQueryCount={capturedQueryCount}
+                />
+            )}
+            {syncModalOpen && (
+                <AppSyncModal
+                    projectUuid={projectUuid}
+                    appUuid={appUuid}
+                    opened
+                    onClose={() => setSyncModalOpen(false)}
                 />
             )}
             {isPromoteModalOpen && (
@@ -331,22 +629,6 @@ const AppHeaderActions: FC<Props> = ({
                     onConfirm={() => {
                         setIsDeleteModalOpen(false);
                         onDeleted();
-                    }}
-                />
-            )}
-            {favoriteSpaceModalOpen && (
-                <FavoritePersonalDataAppModal
-                    projectUuid={projectUuid}
-                    opened
-                    onClose={() => setFavoriteSpaceModalOpen(false)}
-                    app={{
-                        uuid: appUuid,
-                        name: appName,
-                        description: appDescription || undefined,
-                        spaceUuid: appSpaceUuid,
-                        createdByUserUuid: appCreatedByUserUuid,
-                        latestVersionNumber,
-                        latestVersionStatus,
                     }}
                 />
             )}

@@ -1,0 +1,20 @@
+.table {
+    --table-border-color: var(--mantine-color-default-border);
+    --table-hover-color: var(--mantine-color-default-hover);
+    --table-striped-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-7)
+    );
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height-sm);
+}
+
+.th {
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+}
+
+.caption {
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+}

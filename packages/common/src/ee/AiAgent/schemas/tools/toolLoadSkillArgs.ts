@@ -12,7 +12,7 @@ export const toolLoadSkillArgsSchema = z.object({
     resourceName: z
         .string()
         .min(1)
-        .nullable()
+        .nullish()
         .describe(
             'Optional sub-resource file name to load from the skill. You can find names of sub-resources by first loading the skill without this parameter.',
         ),

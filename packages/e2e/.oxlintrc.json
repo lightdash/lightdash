@@ -1,0 +1,9 @@
+{
+    "$schema": "../../node_modules/oxlint/configuration_schema.json",
+    "extends": ["../../.oxlintrc.base.json"],
+    "rules": {
+        "import/prefer-default-export": "error",
+        "jest/no-standalone-expect": "off",
+        "vitest/valid-expect": "off"
+    }
+}

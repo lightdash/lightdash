@@ -5,7 +5,7 @@ import {
     type DropResult,
 } from '@hello-pangea/dnd';
 import { getGranularityMapFromItems } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';

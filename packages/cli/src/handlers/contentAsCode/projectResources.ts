@@ -3,6 +3,7 @@ import {
     parseVersionedContentAsCodeDocument,
     type AgentAsCode,
     type AlertAsCode,
+    type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
     type ScheduledDeliveryAsCode,
     type VirtualViewAsCode,
@@ -61,6 +62,32 @@ export const AI_AGENT_CODE_RESOURCE: CodeResourceDefinition<AgentAsCode> = {
     serialize: ({ updatedAt, downloadedAt, ...agent }) => agent,
     sort: (left, right) => left.slug.localeCompare(right.slug),
 };
+
+export const EXTERNAL_CONNECTION_CODE_RESOURCE: CodeResourceDefinition<ExternalConnectionAsCode> =
+    {
+        kind: ContentAsCodeType.EXTERNAL_CONNECTION,
+        displayLabel: 'external connection',
+        identityLabel: 'slug',
+        scope: 'project',
+        folderName: 'external-connections',
+        acceptedExtensions: ['.yml', '.yaml'],
+        fileName: {
+            strategy: 'identity',
+            fallbackPrefix: 'external-connection',
+            extension: '.yml',
+        },
+        dependencies: [],
+        identity: ({ slug }) => slug,
+        displayName: ({ name }) => name,
+        parse: (input, source) =>
+            parseVersionedContentAsCodeDocument<ExternalConnectionAsCode>({
+                input,
+                source,
+                resourceLabel: 'external connection',
+                contentType: ContentAsCodeType.EXTERNAL_CONNECTION,
+            }),
+        sort: (left, right) => left.slug.localeCompare(right.slug),
+    };
 
 const scheduledResource = <Document extends { slug: string; name: string }>({
     contentType,

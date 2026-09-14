@@ -1,8 +1,11 @@
-FROM node:22
+FROM node:24
 
 # Global tooling
-RUN npm install -g pnpm@10.33.0
-RUN npm install -g @anthropic-ai/claude-code@2.1.215
+RUN npm install -g pnpm@11.17.0
+RUN npm install -g sfw@2.0.6
+RUN sfw npm install -g \
+    @anthropic-ai/claude-code@2.1.220 \
+    @openai/codex@0.147.0
 
 WORKDIR /app
 
@@ -26,7 +29,9 @@ RUN sed -i 's|"workspace:[*]"|"file:lightdash-query-sdk.tgz"|' package.json && \
 # Copy starter source files (overwritten by Claude during generation)
 COPY template/src/ ./src/
 
-# Bootstrap shadcn/ui (generates src/components/ui/ and src/lib/)
+# Bootstrap shadcn/ui (generates src/components/ui/ and src/lib/).
+# Keep in sync with template/scripts/bootstrap.sh; every Radix package these
+# components import must be declared in template/package.json.
 RUN npx shadcn@2.3.0 init --defaults --force
 RUN npx shadcn@2.3.0 add --overwrite --yes \
     button badge card table dialog tabs select input label popover tooltip separator \
@@ -40,8 +45,9 @@ RUN npx shadcn@2.3.0 add --overwrite --yes \
 # raw `var(--x)` + complete oklch colors is the single convention.
 COPY template/tailwind.config.js ./tailwind.config.js
 
-# Vendored Claude Code skills (e.g. frontend-design @ Apache-2.0). Auto-discovered
-# from /app/.claude/skills/ when Claude Code starts in the sandbox.
+# Coding-agent skills — first-party plus vendored (frontend-design @ Apache-2.0).
+# Claude reads these directly. Codex mirrors them into its native project skill
+# directory at runtime, so both agents keep using this single source of truth.
 COPY template/.claude/ ./.claude/
 
 # E2B sandbox runs as 'user' — make /app writable

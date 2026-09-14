@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AnyType,
-    ApiSqlQueryResults,
+    assertRegisteredAccount,
     DashboardFilters,
     DateGranularity,
     DownloadFileType,
@@ -11,7 +11,6 @@ import {
     formatItemValue,
     formatRows,
     formatTemporalCellForSpreadsheet,
-    friendlyName,
     getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -22,6 +21,7 @@ import {
     MetricQuery,
     MissingConfigError,
     ParameterError,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
@@ -62,8 +62,6 @@ import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import {
     generateGenericFileId,
-    isRowValueDate,
-    isRowValueTimestamp,
     sanitizeGenericFileName,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
@@ -86,43 +84,6 @@ type CsvServiceArguments = {
     projectModel: ProjectModel;
     pivotTableService: PivotTableService;
     persistentDownloadFileService: PersistentDownloadFileService;
-};
-
-export const convertSqlToCsv = (
-    results: Pick<ApiSqlQueryResults, 'rows' | 'fields'>,
-    customLabels: Record<string, string> = {},
-): Promise<string> => {
-    const csvHeader = Object.keys(results.rows[0]).map(
-        (id) => customLabels[id] || friendlyName(id),
-    );
-    const csvBody = results?.rows.map((row) =>
-        Object.values(results?.fields).map((field, fieldIndex) => {
-            const rowValue = Object.values(row)[fieldIndex];
-
-            if (isRowValueTimestamp(rowValue, field)) {
-                return moment(rowValue).format('YYYY-MM-DD HH:mm:ss.SSS');
-            }
-            if (isRowValueDate(rowValue, field)) {
-                return moment(rowValue).format('YYYY-MM-DD');
-            }
-
-            return Object.values(row)[fieldIndex];
-        }),
-    );
-    return new Promise((resolve, reject) => {
-        stringify(
-            [csvHeader, ...csvBody],
-            {
-                delimiter: ',',
-            },
-            (err, output) => {
-                if (err) {
-                    reject(new Error(getErrorMessage(err)));
-                }
-                resolve(output);
-            },
-        );
-    });
 };
 
 export const getSchedulerCsvLimit = (
@@ -574,6 +535,9 @@ export class CsvService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                    source: 'analytics',
                 });
             return {
                 filename: fileName,
@@ -589,6 +553,7 @@ export class CsvService extends BaseService {
             downloadFileId,
             filePath,
             DownloadFileType.CSV,
+            projectUuid,
         );
 
         const localUrl = new URL(
@@ -614,6 +579,10 @@ export class CsvService extends BaseService {
         selectedTabs: string[] | null,
         dateZoomGranularity?: DateGranularity | string,
     ) {
+        // Registered-only: this legacy payload cannot carry an embed JWT, so a
+        // JWT-scheduled job would fail at the worker. Embeds use the v2
+        // dashboard exports endpoint instead.
+        assertRegisteredAccount(account);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const auditedAbility = this.createAuditedAbility(account);

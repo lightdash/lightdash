@@ -5,6 +5,7 @@ import {
     OrganizationMemberRole,
     ProjectMemberRole,
 } from '@lightdash/common';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -15,6 +16,7 @@ import { BaseService } from '../BaseService';
 
 type AdminNotificationServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     emailClient: EmailClient;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
@@ -24,6 +26,8 @@ type AdminNotificationServiceArguments = {
 
 export class AdminNotificationService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
+
+    private readonly analytics: LightdashAnalytics;
 
     private readonly emailClient: EmailClient;
 
@@ -37,6 +41,7 @@ export class AdminNotificationService extends BaseService {
 
     constructor({
         lightdashConfig,
+        analytics,
         emailClient,
         organizationMemberProfileModel,
         organizationModel,
@@ -45,6 +50,7 @@ export class AdminNotificationService extends BaseService {
     }: AdminNotificationServiceArguments) {
         super({ serviceName: 'AdminNotificationService' });
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.emailClient = emailClient;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.organizationModel = organizationModel;
@@ -192,6 +198,15 @@ export class AdminNotificationService extends BaseService {
                 recipientEmails,
                 payload,
             );
+            this.analytics.track({
+                event: 'admin_notification.sent',
+                userId: payload.changedBy.userUuid,
+                properties: {
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                    notificationType: payload.type,
+                },
+            });
 
             this.logger.info(
                 `Sent org admin ${
@@ -281,6 +296,15 @@ export class AdminNotificationService extends BaseService {
                 recipientEmails,
                 payload,
             );
+            this.analytics.track({
+                event: 'admin_notification.sent',
+                userId: payload.changedBy.userUuid,
+                properties: {
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                    notificationType: payload.type,
+                },
+            });
 
             this.logger.info(
                 `Sent project admin ${
@@ -355,6 +379,15 @@ export class AdminNotificationService extends BaseService {
                 recipients,
                 payload,
             );
+            this.analytics.track({
+                event: 'admin_notification.sent',
+                userId: payload.changedBy.userUuid,
+                properties: {
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                    notificationType: payload.type,
+                },
+            });
         } catch (error) {
             this.logger.error(
                 'Failed to send connection settings change notification',

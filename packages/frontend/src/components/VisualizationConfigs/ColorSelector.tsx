@@ -1,14 +1,15 @@
 import { isHexCodeColor } from '@lightdash/common';
 import {
+    Button,
     ColorSwatch,
     ColorPicker as MantineColorPicker,
     Popover,
     Stack,
     TextInput,
     type ColorSwatchProps,
-} from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+} from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import {
     useCallback,
     useState,
@@ -31,6 +32,11 @@ interface Props {
     secondaryColor?: string;
     swatches: string[];
     onColorChange?: (newColor: string) => void;
+    // Shows a reset action in the picker; provide only when there is a
+    // custom value to clear.
+    onColorReset?: () => void;
+    resetLabel?: string;
+    ariaLabel?: string;
     readOnly?: boolean;
     colorSwatchProps?: Omit<ColorSwatchProps, 'color'>;
     withAlpha?: boolean;
@@ -42,6 +48,9 @@ const ColorSelector: FC<Props> = ({
     secondaryColor,
     swatches,
     onColorChange,
+    onColorReset,
+    resetLabel = 'Reset color',
+    ariaLabel = 'Select color',
     readOnly = false,
     colorSwatchProps,
     withAlpha = false,
@@ -100,8 +109,6 @@ const ColorSelector: FC<Props> = ({
 
     return isInteractive ? (
         <Popover
-            withinPortal
-            shadow="md"
             withArrow
             opened={isOpen}
             onChange={(opened) => {
@@ -116,7 +123,7 @@ const ColorSelector: FC<Props> = ({
                     {...colorSwatchProps}
                     role="button"
                     tabIndex={0}
-                    aria-label="Select color"
+                    aria-label={ariaLabel}
                     onClick={handleSwatchClick}
                     onKeyDown={handleSwatchKeyDown}
                     className={clsx(
@@ -165,6 +172,20 @@ const ColorSelector: FC<Props> = ({
                             }
                         }}
                     />
+
+                    {onColorReset && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            onClick={() => {
+                                onColorReset();
+                                setDraftColor(undefined);
+                                setIsOpen(false);
+                            }}
+                        >
+                            {resetLabel}
+                        </Button>
+                    )}
                 </Stack>
             </Popover.Dropdown>
         </Popover>

@@ -1,0 +1,18 @@
+{
+  "name": "lightdash",
+  "owner": {
+    "name": "Lightdash",
+    "email": "support@lightdash.com"
+  },
+  "metadata": {
+    "description": "Lightdash plugins for Cursor",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "lightdash",
+      "source": "./plugins/lightdash",
+      "description": "Connect Cursor to Lightdash analytics and its governed semantic layer."
+    }
+  ]
+}

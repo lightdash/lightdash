@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    formatAiProjectContextObjectRef,
     type AiAgentReviewItemPrState,
 } from '@lightdash/common';
 import {
@@ -10,7 +11,7 @@ import {
     Group,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconChevronRight,
@@ -45,7 +46,9 @@ const Row: FC<{
             color="dimmed"
             style={{ marginTop: 2, flexShrink: 0 }}
         />
-        <Box style={{ flex: 1, minWidth: 0 }}>{children}</Box>
+        <Box flex={1} miw={0}>
+            {children}
+        </Box>
         {right}
     </Group>
 );
@@ -58,12 +61,7 @@ const PullRequestRow: FC<{
         <Row
             icon={IconGitPullRequest}
             right={
-                <Badge
-                    color={PR_STATE_COLORS[status]}
-                    variant="light"
-                    size="xs"
-                    radius="sm"
-                >
+                <Badge color={PR_STATE_COLORS[status]} size="xs">
                     {status}
                 </Badge>
             }
@@ -90,12 +88,21 @@ const ProposedChangeRow: FC<{
         payload.changeKind === 'project_context'
             ? payload.entry.content
             : payload.recommendation.title;
+    const objectRefs =
+        payload.changeKind === 'project_context'
+            ? payload.entry.objects.map(formatAiProjectContextObjectRef)
+            : [];
     return (
         <Row icon={IconPencil}>
             <Text className={styles.eyebrow}>Proposed change</Text>
             <Text fz="xs" c="ldGray.8">
                 {summary}
             </Text>
+            {objectRefs.length > 0 && (
+                <Text fz="xs" c="dimmed">
+                    {objectRefs.join(', ')}
+                </Text>
+            )}
         </Row>
     );
 };
@@ -110,7 +117,7 @@ const ReviewFindingRow: FC<{
             icon={IconSearch}
             right={
                 item.findingCount > 1 ? (
-                    <Text fz={10} fw={600} c="dimmed" style={{ flexShrink: 0 }}>
+                    <Text fz="xs" fw={600} c="dimmed" flex="0 0 auto">
                         {item.findingCount}×
                     </Text>
                 ) : undefined
@@ -125,7 +132,7 @@ const ReviewFindingRow: FC<{
                         component="button"
                         type="button"
                         onClick={toggleEvidence}
-                        fz={11}
+                        fz="xs"
                         c="dimmed"
                         underline="never"
                         mt={2}
@@ -141,7 +148,7 @@ const ReviewFindingRow: FC<{
                             Evidence ({item.evidenceExcerpts.length})
                         </Group>
                     </Anchor>
-                    <Collapse in={evidenceOpen}>
+                    <Collapse expanded={evidenceOpen}>
                         <Stack
                             gap={4}
                             mt={4}
@@ -151,7 +158,7 @@ const ReviewFindingRow: FC<{
                             {item.evidenceExcerpts.map((excerpt, idx) => (
                                 <Text
                                     key={idx}
-                                    fz={11}
+                                    fz="xs"
                                     c="dimmed"
                                     className={
                                         excerpt.redacted
@@ -183,7 +190,7 @@ const PreviewEnvironmentRow: FC<{
             icon={IconFlask}
             right={
                 item.status ? (
-                    <Badge color="cyan" variant="light" size="xs" radius="sm">
+                    <Badge color="cyan" size="xs">
                         {item.status}
                     </Badge>
                 ) : undefined

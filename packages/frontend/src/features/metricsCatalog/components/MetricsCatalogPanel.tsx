@@ -9,8 +9,9 @@ import {
     type ButtonProps,
     ActionIcon,
     Popover,
-} from '@mantine-8/core';
-import { useMantineTheme } from '@mantine/core';
+    useComputedColorScheme,
+    useMantineTheme,
+} from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -19,6 +20,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAccount } from '../../../hooks/user/useAccount';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -83,7 +85,6 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
             position="bottom-start"
             opened={opened}
             onClose={setLocalStorage}
-            shadow="sm"
         >
             <Popover.Target>
                 <Button
@@ -98,18 +99,17 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                 </Button>
             </Popover.Target>
             <Popover.Dropdown
-                bg="ldDark.6"
-                c="white"
+                bg="ldDark.9"
+                c="ldGray.0"
                 p={16}
                 className={classes.spotlightDropdown}
             >
                 <Stack gap="sm" w="100%" ref={ref}>
                     <Group justify="space-between">
-                        <Text fw={600} fz={14}>
+                        <Text fw={600} fz="sm">
                             ✨ Lightdash Spotlight is here!
                         </Text>
                         <ActionIcon
-                            color="gray"
                             variant="transparent"
                             size="xs"
                             onClick={handleClose}
@@ -118,7 +118,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </ActionIcon>
                     </Group>
                     <LearnMoreContent width="100%" height="100%" />
-                    <Text fz={13} c="ldGray.3">
+                    <Text fz="sm" c="ldGray.3">
                         Explore and curate your key Metrics in the{' '}
                         <Text span fw={600} inherit>
                             Catalog
@@ -132,7 +132,6 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                     <Group gap="xs">
                         <Button
                             variant="outline"
-                            radius="md"
                             bg="ldDark.4"
                             c="ldGray.0"
                             hidden={true}
@@ -147,9 +146,9 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </Button>
                         <Button
                             component="a"
+                            variant="default"
                             href="https://docs.lightdash.com/guides/metrics-catalog/"
                             target="_blank"
-                            radius="md"
                             style={{ border: 'none', flexGrow: 1 }}
                         >
                             Learn more
@@ -170,6 +169,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 }) => {
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+    const colorScheme = useComputedColorScheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -210,7 +210,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const timeAgo = useTimeAgo(
         lastDbtRefreshAt ?? fallbackLastDbtRefreshAtRef.current,
     );
-    const params = useParams<{ projectUuid: string }>();
+    const routeProjectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const { data: account } = useAccount();
     const { embedToken } = useEmbed();
@@ -242,12 +242,12 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 
     useEffect(() => {
         if (
-            params.projectUuid &&
-            (!projectUuid || projectUuid !== params.projectUuid)
+            routeProjectUuid &&
+            (!projectUuid || projectUuid !== routeProjectUuid)
         ) {
-            dispatch(setProjectUuid(params.projectUuid));
+            dispatch(setProjectUuid(routeProjectUuid));
         }
-    }, [params.projectUuid, dispatch, projectUuid]);
+    }, [routeProjectUuid, dispatch, projectUuid]);
 
     useEffect(() => {
         if (
@@ -454,11 +454,11 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const headerButtonStyles: ButtonProps['style'] = {
         borderRadius: theme.radius.md,
         border: `1px solid ${theme.colors.ldGray[2]}`,
-        padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
+        padding: `0.25rem 10px 0.25rem ${theme.spacing.xs}`,
         fontSize: theme.fontSizes.sm,
         fontWeight: 500,
         color:
-            theme.colorScheme === 'dark'
+            colorScheme === 'dark'
                 ? theme.colors.ldDark[9]
                 : theme.colors.ldGray[7],
     };
@@ -478,7 +478,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     <Text c="ldGray.8" fw={600} size="xl">
                         Metrics Catalog
                     </Text>
-                    <Text c="ldGray.6" size="sm" fw={400}>
+                    <Text c="dimmed" size="sm" fw={400}>
                         Browse all Metrics & KPIs across this project
                     </Text>
                 </Box>
@@ -501,6 +501,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                         </Button>
                     ) : (
                         <RefreshDbtButton
+                            allowContentSync={false}
                             leftIcon={
                                 <MantineIcon
                                     size="sm"

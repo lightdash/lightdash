@@ -20,8 +20,8 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine-8/core';
+} from '@mantine/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconEye, IconLink, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
@@ -140,7 +140,7 @@ const EmbedPreviewAppForm: FC<{
         // Open data.url in a new tab, matching the current app color scheme
         const previewUrl = new URL(data.url);
         previewUrl.searchParams.set('theme', colorScheme);
-        window.open(previewUrl.toString(), '_blank');
+        window.open(previewUrl.toString(), '_blank', 'noopener,noreferrer');
     }, [
         formValues,
         form,
@@ -196,7 +196,6 @@ const EmbedPreviewAppForm: FC<{
                         onChange={(value) =>
                             form.setFieldValue('expiresIn', value)
                         }
-                        radius="md"
                         data={[
                             { label: '1 hour', value: '1 hour' },
                             { label: '1 day', value: '1 day' },
@@ -208,7 +207,7 @@ const EmbedPreviewAppForm: FC<{
                     />
                 </Stack>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="md">
                         <Title order={6}>Identification & Security</Title>
                         <Stack gap="xs">

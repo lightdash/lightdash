@@ -18,11 +18,12 @@ import {
     type SortField,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Text } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Menu, Text } from '@mantine/core';
 import {
     IconCopy,
     IconDots,
     IconFilter,
+    IconMinus,
     IconPencil,
     IconTimelineEvent,
     IconTrash,
@@ -190,7 +191,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             }}
                         >
                             Filter by{' '}
-                            <Text span fz="inherit" lh="inherit">
+                            <Text span>
                                 "{getItemLabelWithoutTableName(item)}"
                             </Text>
                         </Menu.Item>
@@ -254,15 +255,44 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </Menu.Item>
                 ) : null}
 
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    color="red"
-                    onClick={() => {
-                        dispatch(explorerActions.removeField(itemFieldId));
-                    }}
-                >
-                    Remove
-                </Menu.Item>
+                {isItemAdditionalMetric && !isPopAdditionalMetric ? (
+                    <>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconMinus} />}
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.toggleMetric(itemFieldId),
+                                );
+                            }}
+                        >
+                            Remove
+                        </Menu.Item>
+
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.removeAdditionalMetric(
+                                        itemFieldId,
+                                    ),
+                                );
+                            }}
+                        >
+                            Delete custom metric
+                        </Menu.Item>
+                    </>
+                ) : (
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        color="red"
+                        onClick={() => {
+                            dispatch(explorerActions.removeField(itemFieldId));
+                        }}
+                    >
+                        Remove
+                    </Menu.Item>
+                )}
             </>
         );
     } else if (meta?.isInvalidItem) {
@@ -295,7 +325,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             }}
                         >
                             Filter by{' '}
-                            <Text span fz="inherit" lh="inherit" fw={500}>
+                            <Text span fw={500}>
                                 {getItemLabelWithoutTableName(item)}
                             </Text>
                         </Menu.Item>
@@ -334,17 +364,30 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         <Menu.Divider />
 
                         <Menu.Item
-                            leftSection={<MantineIcon icon={IconTrash} />}
-                            color="red"
+                            leftSection={<MantineIcon icon={IconMinus} />}
                             onClick={() => {
                                 dispatch(
-                                    explorerActions.removeField(
+                                    explorerActions.toggleDimension(
                                         getItemId(item),
                                     ),
                                 );
                             }}
                         >
                             Remove
+                        </Menu.Item>
+
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.removeCustomDimension(
+                                        getItemId(item),
+                                    ),
+                                );
+                            }}
+                        >
+                            Delete custom dimension
                         </Menu.Item>
                     </>
                 )}
@@ -361,7 +404,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     }}
                 >
                     Filter by{' '}
-                    <Text span fz="inherit" lh="inherit" fw="semibold">
+                    <Text span fw="semibold">
                         {getItemLabelWithoutTableName(item)}
                     </Text>
                 </Menu.Item>
@@ -428,13 +471,12 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                 }}
             >
                 <Group gap="two" wrap="nowrap">
-                    <Menu withinPortal withArrow shadow="md">
+                    <Menu withArrow>
                         <Menu.Target>
                             <ActionIcon
                                 size="xs"
                                 variant="light"
                                 bg="transparent"
-                                color="ldGray.6"
                                 aria-label="Context menu"
                             >
                                 <MantineIcon icon={IconDots} />

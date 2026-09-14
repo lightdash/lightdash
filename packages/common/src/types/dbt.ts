@@ -27,11 +27,14 @@ import {
     type MetricType,
     type NumberSeparator,
     type Source,
+    type TimestampDomain,
 } from './field';
 import { parseFilters, type RequiredFilter } from './filterGrammar';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
+import { type PreAggregateSort } from './preAggregate';
 import { type OrderFieldsByStrategy, type TableBase } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
+import { type WarehouseNestedColumnShape } from './warehouse';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -54,6 +57,8 @@ export type DbtNode = {
     unique_id: string;
     resource_type: string;
     config?: DbtNodeConfig;
+    lightdash_source_name?: string;
+    lightdash_source_uuid?: string;
 };
 export type DbtRawModelNode = Omit<
     CompiledModelNode,
@@ -65,6 +70,8 @@ export type DbtRawModelNode = Omit<
     columns: { [name: string]: DbtModelColumn };
     config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
+    lightdash_source_name?: string;
+    lightdash_source_uuid?: string;
 };
 export type DbtModelNode = DbtRawModelNode & {
     database: string;
@@ -77,6 +84,13 @@ export type DbtModelNode = DbtRawModelNode & {
 export type DbtModelColumn = ColumnInfo & {
     meta?: DbtColumnMetadata;
     data_type?: DimensionType;
+    /** Catalog-derived timestamp domain; sibling of data_type because
+     *  attachTypesToModels overwrites data_type wholesale. */
+    timestamp_domain?: TimestampDomain;
+    /** Catalog-derived shape when the column is a struct or an array. */
+    nested_shape?: WarehouseNestedColumnShape;
+    /** Dotted prefixes of the column path that are arrays, outermost first. */
+    repeated_ancestors?: string[];
     config?: {
         meta?: DbtColumnMetadata;
     };
@@ -132,7 +146,10 @@ export type DbtPreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
-    filters?: Record<string, AnyType>[];
+    // Qualified warehouse table identifier. Marks the pre-aggregate as external.
+    table?: string;
+    sorts?: false | PreAggregateSort[];
+    filters?: Record<string, unknown>[];
     time_dimension?: string;
     granularity?: string;
     max_rows?: number;
@@ -140,9 +157,8 @@ export type DbtPreAggregateDef = {
         cron?: string;
     };
     materialization_role?: {
-        email?: string;
-        attributes?: Record<string, string | string[]>;
-        [key: string]: unknown;
+        email: string;
+        attributes: Record<string, string | string[]>;
     };
 };
 
@@ -183,14 +199,54 @@ export type DbtModelLightdashConfig = ExploreConfig &
         };
         explores?: Record<
             string,
-            ExploreConfig & SharedDbtModelLightdashConfig
+            ExploreConfig &
+                SharedDbtModelLightdashConfig &
+                DbtLightdashFieldTags
         >;
+        /**
+         * When true, no explore is generated for the model itself. The model is
+         * still compiled as a table, so it remains available as a join target
+         * and as the base table for explores defined under `explores`.
+         */
+        hidden?: boolean;
         ai_hint?: string | string[];
         parameters?: LightdashProjectConfig['parameters'];
         primary_key?: string | string[];
         owner?: string; // model owner email
         pre_aggregates?: DbtPreAggregateDef[];
     };
+
+// Recognised config keys are excluded from explore customMeta.
+export const RESERVED_MODEL_META_KEYS = [
+    'label',
+    'description',
+    'group_label',
+    'groups',
+    'joins',
+    'case_sensitive',
+    'sql_filter',
+    'sql_where',
+    'additional_dimensions',
+    'default_filters',
+    'required_filters',
+    'metrics',
+    'sets',
+    'order_fields_by',
+    'sql_from',
+    'required_attributes',
+    'any_attributes',
+    'group_details',
+    'default_time_dimension',
+    'default_show_underlying_values',
+    'spotlight',
+    'explores',
+    'hidden',
+    'ai_hint',
+    'parameters',
+    'primary_key',
+    'owner',
+    'pre_aggregates',
+] as const satisfies readonly (keyof DbtModelLightdashConfig)[];
 
 export type DbtModelGroup = {
     label: string;
@@ -225,6 +281,11 @@ export type DbtFilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetch_from_warehouse?: boolean;
     label_dimension?: string;
+    options_from_dimension?: {
+        model: string;
+        dimension: string;
+        label_dimension?: string;
+    };
 };
 
 export type DbtColumnLightdashDimension = {
@@ -236,6 +297,9 @@ export type DbtColumnLightdashDimension = {
     time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];
     /** Set to false to opt this dim out of display-tz conversion. Defaults to true. */
     convert_timezone?: boolean;
+    /** Declares whether the column stores an instant ('aware') or a bare wall
+     *  clock ('naive'); overrides the warehouse catalog. */
+    timestamp_domain?: TimestampDomain;
     hidden?: boolean;
     // @deprecated Use format expression instead
     round?: number;
@@ -561,17 +625,22 @@ export const convertToGroups = (
     return groups;
 };
 
-export const convertToAiHints = (
-    aiHint: string | string[] | undefined,
-): string[] | undefined => {
-    if (!aiHint) {
+export const convertToAiHints = (aiHint: unknown): string[] | undefined => {
+    if (typeof aiHint === 'string') {
+        return aiHint ? [aiHint] : undefined;
+    }
+    if (!Array.isArray(aiHint)) {
         return undefined;
     }
-    if (typeof aiHint === 'string') {
-        return [aiHint];
-    }
-    return aiHint;
+
+    const hints = aiHint.filter(
+        (hint): hint is string => typeof hint === 'string',
+    );
+    return hints.length > 0 ? hints : undefined;
 };
+
+export const flattenAiHints = (aiHint: unknown): string =>
+    convertToAiHints(aiHint)?.join(' ') ?? '';
 
 export const getEffectiveFieldAiHints = (
     field: Pick<Dimension | Metric, 'aiHint' | 'groups'>,

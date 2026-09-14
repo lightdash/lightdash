@@ -25,7 +25,7 @@ export type ParsedFilter = {
     date_interval?: string;
 };
 
-export const parseOperator = (
+const parseOperator = (
     operator: string,
     isTrue: boolean,
     fieldName: string,
@@ -51,6 +51,10 @@ export const parseOperator = (
             return FilterOperator.IN_THE_PAST;
         case FilterOperator.IN_THE_NEXT:
             return FilterOperator.IN_THE_NEXT;
+        case FilterOperator.IN_THE_CURRENT:
+            return FilterOperator.IN_THE_CURRENT;
+        case FilterOperator.NOT_IN_THE_CURRENT:
+            return FilterOperator.NOT_IN_THE_CURRENT;
         case FilterOperator.IN_BETWEEN:
             return isTrue
                 ? FilterOperator.IN_BETWEEN

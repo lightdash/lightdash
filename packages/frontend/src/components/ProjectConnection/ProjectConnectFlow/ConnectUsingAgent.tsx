@@ -1,24 +1,17 @@
 import {
-    assertUnreachable,
     DbtProjectType,
-    DuckdbConnectionType,
     ProjectType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type Project,
-    type WarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Code, CopyButton, Stack, Text, Title } from '@mantine-8/core';
-import { IconCheck, IconChevronLeft, IconCopy } from '@tabler/icons-react';
-import { useMemo, useRef, useState, type FC } from 'react';
+import { Button, Stack, Text, Title } from '@mantine/core';
+import { IconChevronLeft } from '@tabler/icons-react';
+import { useRef, useState, type FC } from 'react';
+import { AgentOnboardingLaunchPanel } from '../../../ee/features/agentOnboarding/AgentOnboardingLaunchPanel';
 import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProject';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import {
-    SettingsCard,
-    SettingsGridCard,
-} from '../../common/Settings/SettingsCard';
+import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { dbtDefaults } from '../DbtForms/defaultValues';
 import { FormProvider, useForm } from '../formContext';
 import { ProjectFormProvider } from '../ProjectFormProvider';
@@ -32,65 +25,23 @@ import { getWarehouseIcon, getWarehouseLabel } from './utils';
 
 type PreparedProject = Pick<Project, 'projectUuid' | 'warehouseConnection'>;
 
-type ConnectionDefaults = {
-    database: string | undefined; // undefined when the warehouse has no database concept
-    schema: string | undefined;
+const getSchemaField = (
+    warehouseType: WarehouseTypes,
+): 'dataset' | 'database' | 'schema' => {
+    if (warehouseType === WarehouseTypes.BIGQUERY) return 'dataset';
+    if (warehouseType === WarehouseTypes.DATABRICKS) return 'database';
+    return 'schema';
 };
 
-// Treats empty strings as "not configured"
-const nonEmpty = (value: string | undefined): string | undefined =>
-    value || undefined;
-
-const getConnectionDefaults = (
-    credentials: WarehouseCredentials,
-): ConnectionDefaults => {
-    switch (credentials.type) {
-        case WarehouseTypes.POSTGRES:
-        case WarehouseTypes.REDSHIFT:
-        case WarehouseTypes.TRINO:
-            return {
-                database: nonEmpty(credentials.dbname),
-                schema: nonEmpty(credentials.schema),
-            };
-        case WarehouseTypes.SNOWFLAKE:
-        case WarehouseTypes.ATHENA:
-            return {
-                database: nonEmpty(credentials.database),
-                schema: nonEmpty(credentials.schema),
-            };
-        case WarehouseTypes.BIGQUERY:
-            return {
-                database: nonEmpty(credentials.project),
-                schema: nonEmpty(credentials.dataset),
-            };
-        case WarehouseTypes.DATABRICKS:
-            // `database` is semantically the schema for Databricks
-            return {
-                database: nonEmpty(credentials.catalog),
-                schema: nonEmpty(credentials.database),
-            };
-        case WarehouseTypes.CLICKHOUSE:
-            return {
-                database: undefined,
-                schema: nonEmpty(credentials.schema),
-            };
-        case WarehouseTypes.DUCKDB:
-            if (credentials.connectionType === DuckdbConnectionType.DUCKLAKE) {
-                return {
-                    database: nonEmpty(credentials.catalogAlias) ?? 'ducklake',
-                    schema: nonEmpty(credentials.schema),
-                };
-            }
-            return {
-                database: nonEmpty(credentials.database),
-                schema: nonEmpty(credentials.schema),
-            };
-        default:
-            return assertUnreachable(
-                credentials,
-                'Unknown warehouse type when getting connection defaults',
-            );
-    }
+const getAgentWarehouseValidators = (warehouseType: WarehouseTypes) => {
+    const validators = {
+        ...createWarehouseValueValidators[warehouseType],
+    } as Record<
+        string,
+        (value: string, values: ProjectConnectionForm) => string | undefined
+    >;
+    delete validators[getSchemaField(warehouseType)];
+    return validators;
 };
 
 interface ConnectUsingAgentProps {
@@ -108,7 +59,6 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
     const isCreatingProjectRef = useRef(false);
     const createProjectMutation = useCreateProjectWithoutCompileMutation();
     const onProjectError = useOnProjectError();
-    const { track } = useTracking();
 
     const form = useForm({
         initialValues: {
@@ -119,7 +69,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
             organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
-            warehouse: createWarehouseValueValidators[selectedWarehouse],
+            warehouse: getAgentWarehouseValidators(selectedWarehouse),
         },
         validateInputOnBlur: true,
     });
@@ -129,6 +79,11 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
 
         isCreatingProjectRef.current = true;
         try {
+            const warehouseConnection = {
+                ...formValues.warehouse,
+                type: selectedWarehouse,
+                [getSchemaField(selectedWarehouse)]: '',
+            } as CreateWarehouseCredentials;
             const result = await createProjectMutation.mutateAsync({
                 name: `Coding agent onboarding ${new Date().toISOString()}`,
                 type: ProjectType.DEFAULT,
@@ -136,10 +91,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                 dbtVersion: dbtDefaults.dbtVersion,
                 organizationWarehouseCredentialsUuid:
                     formValues.organizationWarehouseCredentialsUuid,
-                warehouseConnection: {
-                    ...formValues.warehouse,
-                    type: selectedWarehouse,
-                } as CreateWarehouseCredentials,
+                warehouseConnection,
             });
 
             const project = {
@@ -155,84 +107,13 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
         }
     };
 
-    const agentSetupPrompt = useMemo(() => {
-        if (!preparedProject) return undefined;
-
-        const normalizedSiteUrl = siteUrl.replace(/\/+$/, '');
-        const instructionsUrl = `${normalizedSiteUrl}/api/v1/prompts/project-onboarding`;
-
-        const connectionDefaults = preparedProject.warehouseConnection
-            ? getConnectionDefaults(preparedProject.warehouseConnection)
-            : undefined;
-
-        return [
-            '# Complete Lightdash project setup',
-            '',
-            '## Prepared setup',
-            '',
-            `- Warehouse type: ${selectedWarehouse}`,
-            `- Prepared project UUID: ${preparedProject.projectUuid}`,
-            ...(connectionDefaults?.database
-                ? [`- Configured database: ${connectionDefaults.database}`]
-                : []),
-            ...(connectionDefaults?.schema
-                ? [`- Configured schema: ${connectionDefaults.schema}`]
-                : []),
-            '',
-            '## Next step',
-            '',
-            `Fetch and follow the remaining instructions from: ${instructionsUrl}`,
-            'Use the prepared setup values above whenever those instructions refer to a setup value.',
-        ].join('\n');
-    }, [preparedProject, selectedWarehouse, siteUrl]);
-
     if (preparedProject) {
         return (
-            <Stack w="100%" maw={960} mx="auto" mt="xl">
-                <SettingsCard p="xl">
-                    <Stack gap="lg" className="sentry-block ph-no-capture">
-                        <div>
-                            <Title order={3}>Complete your project setup</Title>
-                            <Text c="dimmed" mt="xs">
-                                Copy the prompt below and run it with your
-                                coding agent to finish setting up your Lightdash
-                                project.
-                            </Text>
-                        </div>
-
-                        <Code
-                            block
-                            className="sentry-block ph-no-capture"
-                            style={{
-                                whiteSpace: 'pre-wrap',
-                                overflowWrap: 'anywhere',
-                            }}
-                        >
-                            {agentSetupPrompt}
-                        </Code>
-
-                        <CopyButton value={agentSetupPrompt ?? ''}>
-                            {({ copied, copy }) => (
-                                <Button
-                                    onClick={() => {
-                                        copy();
-                                        track({
-                                            name: EventName.AGENT_SETUP_PROMPT_COPIED,
-                                        });
-                                    }}
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    }
-                                >
-                                    {copied ? 'Prompt copied' : 'Copy prompt'}
-                                </Button>
-                            )}
-                        </CopyButton>
-                    </Stack>
-                </SettingsCard>
-            </Stack>
+            <AgentOnboardingLaunchPanel
+                project={preparedProject}
+                warehouseType={selectedWarehouse}
+                siteUrl={siteUrl}
+            />
         );
     }
 

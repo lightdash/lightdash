@@ -5,6 +5,7 @@ import {
     getErrorMessage,
     ItemsMap,
     MetricQuery,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     pivotResultsAsCsv,
     UnexpectedServerError,
@@ -110,8 +111,10 @@ export class PivotTableService extends BaseService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         organizationUuid,
         createdByUserUuid,
+        accessMode,
         expirationSecondsOverride,
         timezone,
     }: {
@@ -123,6 +126,7 @@ export class PivotTableService extends BaseService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -134,6 +138,10 @@ export class PivotTableService extends BaseService {
         };
         organizationUuid: string;
         createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
         timezone?: string;
     }): Promise<{ fileUrl: string; s3FileUrl?: string; truncated: boolean }> {
@@ -193,8 +201,10 @@ export class PivotTableService extends BaseService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
             organizationUuid,
             createdByUserUuid,
+            accessMode,
             expirationSecondsOverride,
             timezone,
         });
@@ -223,8 +233,10 @@ export class PivotTableService extends BaseService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         organizationUuid,
         createdByUserUuid,
+        accessMode,
         expirationSecondsOverride,
         timezone,
     }: {
@@ -236,6 +248,7 @@ export class PivotTableService extends BaseService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         exploreId: string;
         onlyRaw: boolean;
         truncated: boolean;
@@ -243,6 +256,10 @@ export class PivotTableService extends BaseService {
         metricsAsRows?: boolean;
         organizationUuid: string;
         createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
         timezone?: string;
     }): Promise<AttachmentUrl> {
@@ -281,6 +298,7 @@ export class PivotTableService extends BaseService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
             timezone,
             formatTemporalsForSpreadsheet: true,
         });
@@ -308,6 +326,7 @@ export class PivotTableService extends BaseService {
             truncated,
             organizationUuid,
             createdByUserUuid,
+            accessMode,
             expirationSecondsOverride,
         });
     }
@@ -322,6 +341,7 @@ export class PivotTableService extends BaseService {
         truncated = false,
         organizationUuid,
         createdByUserUuid,
+        accessMode,
         expirationSecondsOverride,
     }: {
         csvContent: string;
@@ -330,6 +350,10 @@ export class PivotTableService extends BaseService {
         truncated?: boolean;
         organizationUuid: string;
         createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
     }): Promise<AttachmentUrl> {
         const fileId = PivotTableService.generateFileId(fileName, truncated);
@@ -367,7 +391,9 @@ export class PivotTableService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid,
+                    accessMode,
                     expirationSeconds: expirationSecondsOverride,
+                    source: 'pivot',
                 });
             return {
                 filename: fileName,
@@ -383,6 +409,7 @@ export class PivotTableService extends BaseService {
             downloadFileId,
             filePath,
             DownloadFileType.CSV,
+            projectUuid,
         );
 
         const localUrl = new URL(

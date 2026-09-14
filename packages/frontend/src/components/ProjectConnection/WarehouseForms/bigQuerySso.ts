@@ -1,4 +1,14 @@
-import { type BigqueryDataset } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    type BigqueryDataset,
+} from '@lightdash/common';
+
+export const getBigqueryDefaultAuthenticationType = (
+    isGoogleSsoAvailable: boolean,
+): BigqueryAuthenticationType =>
+    isGoogleSsoAvailable
+        ? BigqueryAuthenticationType.SSO
+        : BigqueryAuthenticationType.PRIVATE_KEY;
 
 export const largestDatasetName = (
     datasets: BigqueryDataset[],

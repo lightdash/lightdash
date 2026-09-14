@@ -1,4 +1,4 @@
-import { Box, type BoxProps } from '@mantine-8/core';
+import { Box, type BoxProps } from '@mantine/core';
 import React, { type ComponentType, type FC, type SVGProps } from 'react';
 import classes from './BackgroundSvg.module.css';
 

@@ -1,6 +1,8 @@
-import { Box, Image, Popover, Stack } from '@mantine-8/core';
+import { Box, Image, Popover, Stack } from '@mantine/core';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { useAppThumbnailUrl } from '../hooks/useAppThumbnail';
+
+const THUMBNAIL_HOVER_DELAY_MS = 300;
 
 type AppThumbnailHoverCardState = {
     hasThumbnailPreview: boolean;
@@ -37,20 +39,44 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
     );
     const [isTargetHovered, setIsTargetHovered] = useState(false);
     const [isClosestRowHovered, setIsClosestRowHovered] = useState(false);
-    const isActive = active ?? (isClosestRowHovered || isTargetHovered);
+    const isHovered = isClosestRowHovered || isTargetHovered;
+    const [isHoverIntentActive, setIsHoverIntentActive] = useState(false);
+    const isActive = active ?? isHoverIntentActive;
     const thumbnail = useAppThumbnailUrl(
         projectUuid,
         appUuid,
         isActive && hasReadyVersion,
     );
     const isLoadingThumbnail = thumbnail.isLoading || thumbnail.isFetching;
-    const thumbnailUrl = thumbnail.data?.thumbnailUrl;
-    const hasThumbnailPreview = !!thumbnailUrl;
+    // react-query keeps stale data when a refetch errors (e.g. the thumbnail
+    // was deleted → 404), so an error means "no thumbnail" even with data.
+    const thumbnailUrl = thumbnail.isError
+        ? undefined
+        : thumbnail.data?.thumbnailUrl;
+    // A signed URL can also die under us (object deleted, 15-min expiry) —
+    // if the image fails to load, drop the preview instead of showing a
+    // broken image. A later hover refetches a fresh URL.
+    const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
+    const hasThumbnailPreview = !!thumbnailUrl && thumbnailUrl !== brokenUrl;
     const showPreview = hasThumbnailPreview;
     const renderedChildren =
         typeof children === 'function'
             ? children({ hasThumbnailPreview, isLoadingThumbnail })
             : children;
+
+    useEffect(() => {
+        if (active !== undefined || !isHovered) {
+            setIsHoverIntentActive(false);
+            return;
+        }
+
+        const timeout = window.setTimeout(
+            () => setIsHoverIntentActive(true),
+            THUMBNAIL_HOVER_DELAY_MS,
+        );
+
+        return () => window.clearTimeout(timeout);
+    }, [active, isHovered]);
 
     useEffect(() => {
         if (!activateOnClosestRow || !targetElement) return;
@@ -74,13 +100,7 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
     }, [activateOnClosestRow, targetElement]);
 
     return (
-        <Popover
-            opened={isActive && showPreview}
-            position={position}
-            withArrow
-            shadow="md"
-            withinPortal
-        >
+        <Popover opened={isActive && showPreview} position={position} withArrow>
             <Popover.Target>
                 <Box
                     ref={setTargetElement}
@@ -108,6 +128,9 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
                                 w={320}
                                 mah={220}
                                 fit="contain"
+                                onError={() =>
+                                    setBrokenUrl(thumbnailUrl ?? null)
+                                }
                             />
                         </Stack>
                     ) : null}

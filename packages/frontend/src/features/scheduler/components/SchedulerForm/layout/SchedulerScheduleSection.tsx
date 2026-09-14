@@ -1,5 +1,5 @@
 import { formatMinutesOffset, getTzMinutesOffset } from '@lightdash/common';
-import { Box, Input, Stack, TextInput } from '@mantine-8/core';
+import { Box, Input, Stack, TextInput } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import TimeZonePicker from '../../../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../../../components/CronInput';

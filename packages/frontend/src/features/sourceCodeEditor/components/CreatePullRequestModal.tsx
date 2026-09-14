@@ -4,7 +4,7 @@ import {
     Textarea,
     TextInput,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconGitPullRequest } from '@tabler/icons-react';
 import { type FC } from 'react';

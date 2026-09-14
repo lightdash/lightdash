@@ -3,9 +3,15 @@ import type { QueryExecutionContext } from '../analytics';
 import type { ConditionalFormattingConfig } from '../conditionalFormatting';
 import type { DownloadFileType } from '../downloadFile';
 import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
+import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
+import type {
+    ExternalSourceTableReference,
+    QuerySourceTableName,
+} from '../querySources';
 import type { DateGranularity } from '../timeFrames';
+import type { UUID } from './uuid';
 
 type CommonExecuteQueryRequestParams = {
     context?: QueryExecutionContext;
@@ -54,6 +60,29 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dateZoom?: DateZoom;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+        // Run the caller's own unpublished chart draft instead of the
+        // published chart, so a tile matches what the author sees
+        includeUnpublishedDraft?: boolean;
+    };
+
+/** A merge run: the spec that produced it, recorded verbatim. */
+export type ExecuteAsyncMergeQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        /**
+         * Warehouse-side merges are metric-sourced by construction, so this
+         * member keeps the strict shape it always had; merges that reference
+         * existing results record as ExecuteAsyncComposeMergeQueryRequestParams
+         * instead (expand-only: the echo in query history only gains branches).
+         */
+        mergeQuery: MetricSourcedMergeQuery;
+        pivotConfiguration?: PivotConfiguration;
+    };
+
+/** A compose-engine merge run, which may reference existing results. */
+export type ExecuteAsyncComposeMergeQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        mergeQuery: MergeQuery;
+        pivotConfiguration?: PivotConfiguration;
     };
 
 export type ExecuteAsyncSqlQueryRequestParams =
@@ -61,6 +90,33 @@ export type ExecuteAsyncSqlQueryRequestParams =
         sql: string;
         limit?: number;
         pivotConfiguration?: PivotConfiguration;
+    };
+
+export type ExecuteAsyncComposeSqlQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        sql: string;
+        limit?: number;
+        /**
+         * Results of other async queries exposed to the SQL as tables,
+         * keyed by table name: {"orders": "<queryUuid>"} lets the SQL run
+         * SELECT * FROM orders. Each referenced query is authorized with the
+         * same access checks as fetching its results by uuid; references to
+         * still-running queries are waited on before this query executes.
+         *
+         * Typed Record<string, UUID> (not Record<string, string>) on purpose:
+         * TSOA compiles a string-valued record to an empty object literal and
+         * validation then strips every key; a ref-aliased value type keeps
+         * additionalProperties intact (and validates the uuid format).
+         */
+        references?: Record<string, UUID>;
+    };
+
+export type ExecuteAsyncExternalSqlQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        sql: string;
+        limit?: number;
+        /** Table alias to external table SQL name or UUID. */
+        tables: Record<QuerySourceTableName, ExternalSourceTableReference>;
     };
 
 export type ExecuteAsyncUnderlyingDataRequestParams =
@@ -134,6 +190,7 @@ export type DownloadAsyncQueryResultsRequestParams = {
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
 };
 
 export type ExecuteAsyncFieldValueSearchRequestParams =
@@ -148,7 +205,10 @@ export type ExecuteAsyncFieldValueSearchRequestParams =
 
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
+    | ExecuteAsyncMergeQueryRequestParams
+    | ExecuteAsyncComposeMergeQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
+    | ExecuteAsyncComposeSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
@@ -162,17 +222,19 @@ export const getDateZoomFromRequestParameters = (
     params && 'dateZoom' in params ? params.dateZoom : undefined;
 
 /**
- * Kinds of totals derivable from an executed pivot query. Follow-up PRs
- * will widen the union to enable the commented-out variants below.
+ * Kinds of totals derivable from an executed pivot query.
  */
-export type CalculateTotalKind = 'columnTotal' | 'rowTotal' | 'columnSubtotal';
-// | 'rowSubtotal'
-// | 'grandTotal';
+export type CalculateTotalKind =
+    | 'grandTotal'
+    | 'columnTotal'
+    | 'rowTotal'
+    | 'columnSubtotal'
+    | 'rowSubtotal';
 
 export type ExecuteAsyncCalculateTotalRequestParams = {
     kind: CalculateTotalKind;
-    // Required for `columnSubtotal`: the dimensions this subtotal level groups
-    // by (the pivot groupBy columns are added from the source query).
+    // Required for subtotal kinds: the dimensions this subtotal level groups
+    // by. Column subtotals also add the pivot groupBy columns.
     subtotalDimensions?: string[];
     invalidateCache?: boolean;
 };

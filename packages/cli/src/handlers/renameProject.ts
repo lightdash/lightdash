@@ -9,7 +9,7 @@ type RenameProjectOptions = {
     verbose: boolean;
 };
 
-export const renameProjectCommand = async (name: string) => {
+const renameProjectCommand = async (name: string) => {
     const trimmedName = name.trim();
     if (trimmedName.length === 0) {
         throw new ParameterError('Project name cannot be empty');

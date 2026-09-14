@@ -7,21 +7,37 @@ import {
 
 export const BaseResponse: HealthState = {
     healthy: true,
+    requiresMigration: false,
+    migrationWarnings: undefined,
+    license: {
+        hasLicenseKey: false,
+        valid: false,
+    },
     version: '0.1.0',
     mode: LightdashMode.DEFAULT,
+    mobile: {
+        minimumSupportedVersion: {
+            android: null,
+            ios: null,
+        },
+    },
     isAuthenticated: false,
     requiresOrgRegistration: false,
     localDbtEnabled: true,
+    defaultProject: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     staticIp: '',
     signupUrl: undefined,
     helpMenuUrl: undefined,
     hasEmailClient: false,
+    hasPlaygroundProjects: false,
     hasEmailWhitelabel: false,
     hasExtendedUsageAnalytics: false,
     hasMicrosoftTeams: false,
     hasGithub: false,
     hasGitlab: false,
+    hasJira: true,
+    hasLinear: true,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {
@@ -57,6 +73,10 @@ export const BaseResponse: HealthState = {
         },
         databricks: {
             enabled: false,
+        },
+        mobileLogin: {
+            loginExperienceVersion: 1,
+            available: true,
         },
     },
     intercom: {
@@ -119,6 +139,7 @@ export const BaseResponse: HealthState = {
         analyticsProjectUuid: undefined,
         analyticsDashboardUuid: undefined,
         isAmbientAiEnabled: false,
+        threadDumpEnabled: false,
     },
     echarts6: {
         enabled: false,
@@ -138,6 +159,7 @@ export const BaseResponse: HealthState = {
     },
     dataApps: {
         previewOrigin: null,
+        sampleDataEnabled: true,
     },
 };
 

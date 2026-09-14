@@ -3,11 +3,12 @@ import {
     type AiAgentMessageAssistant,
     type AiArtifact,
     type ApiError,
+    type MergeQuery,
+    type ParametersValuesMap,
     type SavedChart,
 } from '@lightdash/common';
-import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
-import { Prism } from '@mantine/prism';
+import { ActionIcon, Button, Menu, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconChartBar,
     IconCircleCheck,
@@ -18,18 +19,29 @@ import {
     IconEye,
     IconLayoutDashboard,
     IconSend,
+    IconTableExport,
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
+import { useChartVersionPreview } from '../../../../../features/apps/ChartVersionPreview/useChartVersionPreview';
+import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
+import {
+    MERGE_URL_PARAM,
+    serializeMergeState,
+} from '../../../../../features/mergeQuery/context/mergeUrlState';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { readDataAppVizUuid } from '../../../../../hooks/useDataAppVizVisualizationConfig';
+import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
+import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -47,11 +59,26 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import {
+    buildAiSavedChartData,
+    getCustomChartTypeConfig,
+} from '../../utils/aiSavedChartData';
+import {
+    canonicalizeAiMerge,
+    remapFieldIdsDeep,
+} from '../../utils/canonicalizeAiMerge';
+import { AiChartDownloadModal } from './AiChartDownloadModal';
+import {
+    AiChartImageExportMenuItem,
+    AiChartImageExportModal,
+} from './AiChartImageExport';
 import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
+import { AiSqlModal } from './AiSqlModal';
 
 type Props = {
     projectUuid: string;
     agentUuid: string;
+    showDownloadResults: boolean;
     saveChartOptions?: {
         name: string | null;
         description: string | null;
@@ -60,19 +87,27 @@ type Props = {
     message: AiAgentMessageAssistant;
     compiledSql?: string;
     artifactData?: AiArtifact;
+    /** Set for merge artifacts; `query` is null until the viz query loads. */
+    merge: {
+        query: MergeQuery | null;
+        parameters: ParametersValuesMap | undefined;
+    } | null;
 };
 
 export const AiChartQuickOptions = ({
     projectUuid,
     agentUuid,
+    showDownloadResults,
     saveChartOptions = { name: '', description: '', linkToMessage: true },
     message,
     compiledSql,
     artifactData,
+    merge,
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
-    const { content, writeActions } = useEmbed();
+    const ability = useAbilityContext();
+    const { content, writeActions, embedToken } = useEmbed();
     const isEmbed = isEmbedAiAgentRoute();
     const location = useLocation();
     const navigate = useNavigate();
@@ -92,6 +127,16 @@ export const AiChartQuickOptions = ({
         verifyModalOpened,
         { open: openVerifyModal, close: closeVerifyModal },
     ] = useDisclosure(false);
+    const [sqlModalOpened, { open: openSqlModal, close: closeSqlModal }] =
+        useDisclosure(false);
+    const [
+        exportImageModalOpened,
+        { open: openExportImageModal, close: closeExportImageModal },
+    ] = useDisclosure(false);
+    const [
+        downloadModalOpened,
+        { open: openDownloadModal, close: closeDownloadModal },
+    ] = useDisclosure(false);
 
     const canCreateScheduledDeliveries = user.data?.ability?.can(
         'create',
@@ -100,12 +145,32 @@ export const AiChartQuickOptions = ({
             projectUuid,
         }),
     );
+    // The save modal only lists spaces the user can write to, so without one
+    // the option opens an empty space picker.
+    const canSaveChart = useCreateInAnySpaceAccess(projectUuid, 'SavedChart');
+    const canUseSqlRunner = user.data?.ability?.can(
+        'manage',
+        subject('SqlRunner', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const canExportData = user.data?.ability?.can(
+        'manage',
+        subject('ExportCsv', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const canDownloadResults = showDownloadResults && !isEmbed && canExportData;
     const {
         visualizationConfig,
         columnOrder,
         resultsData,
         chartConfig,
         pivotDimensions,
+        chartRef,
+        savedChartUuid,
     } = useVisualizationContext();
     const { mutate: savePromptQuery } = useSavePromptQuery(
         projectUuid,
@@ -127,19 +192,55 @@ export const AiChartQuickOptions = ({
     const isVerified = artifactData?.verifiedByUserUuid !== null;
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
+    const canExportImage =
+        artifactData?.artifactType === 'chart' &&
+        !isEmbed &&
+        !!type &&
+        !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(type) &&
+        canExportData;
 
-    const savedData = useMemo(() => {
-        if (!metricQuery) return undefined;
-        return {
+    // Renamed to the merge editor's conventions so the saved chart and the
+    // explore link are indistinguishable from a merge built by hand.
+    const canonicalMerge = useMemo(
+        () => (merge?.query ? canonicalizeAiMerge(merge.query) : null),
+        [merge],
+    );
+
+    // Custom-chart-type answers derive their saved pivot from the type's
+    // schema, fetched with the same query key as the thread renderer.
+    const customChartTypeConfig = getCustomChartTypeConfig(chartConfig);
+    const chartVersionUuid = useChartVersionPreview();
+    const customChartTypeRenderTarget = useMemo(
+        () => ({ isEmbedded: !!embedToken, savedChartUuid, chartVersionUuid }),
+        [embedToken, savedChartUuid, chartVersionUuid],
+    );
+    const { data: customChartTypeMetadata } = useDataAppVizRenderMetadata(
+        projectUuid,
+        readDataAppVizUuid(customChartTypeConfig),
+        customChartTypeRenderTarget,
+    );
+
+    const savedData = useMemo(
+        () =>
+            buildAiSavedChartData({
+                metricQuery,
+                chartConfig,
+                columnOrder,
+                pivotDimensions,
+                merge,
+                canonicalMerge,
+                customChartTypeMetadata,
+            }),
+        [
             metricQuery,
-            tableName: metricQuery.exploreName,
             chartConfig,
-            tableConfig: { columnOrder },
-            pivotConfig: pivotDimensions?.length
-                ? { columns: pivotDimensions }
-                : undefined,
-        };
-    }, [metricQuery, chartConfig, columnOrder, pivotDimensions]);
+            columnOrder,
+            pivotDimensions,
+            merge,
+            canonicalMerge,
+            customChartTypeMetadata,
+        ],
+    );
 
     const trackChartCreated = useCallback(() => {
         if (
@@ -234,20 +335,73 @@ export const AiChartQuickOptions = ({
 
     const openInExploreUrl = useMemo(() => {
         if (isDisabled) return undefined;
+        // A merge opens on its primary source with the whole merge carried in
+        // the merge search param, landing in the merge editor fully set up.
+        if (merge) {
+            if (!canonicalMerge || !projectUuid) return undefined;
+            const { fieldIdByAiFieldId } = canonicalMerge;
+            const [primary, additional] = canonicalMerge.mergeQuery.sources;
+            const url = getOpenInExploreUrl({
+                metricQuery: primary.metricQuery,
+                projectUuid,
+                columnOrder: remapFieldIdsDeep(columnOrder, fieldIdByAiFieldId),
+                chartConfig: remapFieldIdsDeep(chartConfig, fieldIdByAiFieldId),
+                pivotColumns: pivotDimensions?.length
+                    ? remapFieldIdsDeep(pivotDimensions, fieldIdByAiFieldId)
+                    : undefined,
+            });
+            const search = new URLSearchParams(url.search);
+            search.set(
+                MERGE_URL_PARAM,
+                serializeMergeState({
+                    focus: { kind: 'source', sourceId: primary.id },
+                    additionalSources: [
+                        {
+                            id: additional.id,
+                            exploreName: additional.metricQuery.exploreName,
+                            dimensions: additional.metricQuery.dimensions,
+                            metrics: additional.metricQuery.metrics,
+                            filters: additional.metricQuery.filters,
+                            additionalMetrics:
+                                additional.metricQuery.additionalMetrics,
+                            customDimensions:
+                                additional.metricQuery.customDimensions,
+                        },
+                    ],
+                    joinParts: canonicalMerge.mergeQuery.joinKey.map(
+                        (part) => ({
+                            fieldIdBySourceId: part.fieldIdBySourceId,
+                        }),
+                    ),
+                    joinType: canonicalMerge.mergeQuery.joinType,
+                }),
+            );
+            return { pathname: url.pathname, search: search.toString() };
+        }
+        // Custom-chart-type answers carry the schema-derived pivot so the
+        // explorer opens pivoted exactly like the thread render; until the
+        // schema loads there is no pivot to carry, so no URL.
+        if (customChartTypeConfig && !savedData) return undefined;
         return getOpenInExploreUrl({
             metricQuery,
             projectUuid,
             columnOrder,
             chartConfig,
-            pivotColumns: pivotDimensions,
+            pivotColumns: customChartTypeConfig
+                ? savedData?.pivotConfig?.columns
+                : pivotDimensions,
         });
     }, [
         isDisabled,
+        merge,
+        canonicalMerge,
         metricQuery,
         projectUuid,
         columnOrder,
         chartConfig,
         pivotDimensions,
+        customChartTypeConfig,
+        savedData,
     ]);
 
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -342,16 +496,24 @@ export const AiChartQuickOptions = ({
 
     const canVerify = !!artifactData && canManageAgent;
     const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
-    const hasSaveActions = !message.savedQueryUuid;
+    const hasSaveActions =
+        !message.savedQueryUuid && (!merge || !!canonicalMerge);
     const canExploreFromEmbed =
-        content?.type === 'aiAgent' && content.canExplore === true;
-    const hasExploreAction = !isEmbed || canExploreFromEmbed;
+        content?.type === 'aiAgent' &&
+        (content.canExplore === true || ability.can('view', 'EmbedExplore'));
+    // The embedded explorer has not been exercised with merge state, so merge
+    // artifacts only offer the explore action in the full app.
+    const hasExploreAction = merge
+        ? !isEmbed && !!canonicalMerge
+        : !isEmbed || canExploreFromEmbed;
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
+        canDownloadResults ||
         hasSavedChartAction ||
         hasSaveActions ||
         hasExploreAction ||
-        hasSqlActions;
+        hasSqlActions ||
+        canExportImage;
 
     return (
         <Fragment>
@@ -366,7 +528,6 @@ export const AiChartQuickOptions = ({
                 >
                     <ActionIcon
                         size="sm"
-                        variant="subtle"
                         color={isVerified ? 'green' : 'ldGray.6'}
                         onClick={handleVerifyToggle}
                     >
@@ -384,12 +545,27 @@ export const AiChartQuickOptions = ({
             {hasQuickActions && (
                 <Menu withArrow position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon size="sm" variant="subtle" color="ldGray.9">
+                        <ActionIcon size="sm" color="ldGray.9">
                             <MantineIcon icon={IconDots} size="lg" />
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Label>Quick actions</Menu.Label>
+                        {canExportImage && (
+                            <AiChartImageExportMenuItem
+                                onClick={openExportImageModal}
+                            />
+                        )}
+                        {canDownloadResults && (
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon icon={IconTableExport} />
+                                }
+                                onClick={openDownloadModal}
+                            >
+                                Download results
+                            </Menu.Item>
+                        )}
                         {message.savedQueryUuid ? (
                             !isEmbed && (
                                 <>
@@ -417,7 +593,7 @@ export const AiChartQuickOptions = ({
                                     )}
                                 </>
                             )
-                        ) : (
+                        ) : hasSaveActions ? (
                             <>
                                 {quickSaveDashboard && (
                                     <Menu.Item
@@ -425,7 +601,9 @@ export const AiChartQuickOptions = ({
                                             void handleSaveToCurrentDashboard()
                                         }
                                         disabled={
-                                            isDisabled || isSavingToDashboard
+                                            isDisabled ||
+                                            !savedData ||
+                                            isSavingToDashboard
                                         }
                                         leftSection={
                                             <MantineIcon
@@ -436,23 +614,30 @@ export const AiChartQuickOptions = ({
                                         Save to current dashboard
                                     </Menu.Item>
                                 )}
-                                <Menu.Item
-                                    onClick={() => open()}
-                                    leftSection={
-                                        <MantineIcon icon={IconDeviceFloppy} />
-                                    }
-                                >
-                                    {quickSaveDashboard ? 'Save to…' : 'Save'}
-                                </Menu.Item>
+                                {canSaveChart && (
+                                    <Menu.Item
+                                        onClick={() => open()}
+                                        disabled={isDisabled || !savedData}
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconDeviceFloppy}
+                                            />
+                                        }
+                                    >
+                                        {quickSaveDashboard
+                                            ? 'Save to…'
+                                            : 'Save'}
+                                    </Menu.Item>
+                                )}
                             </>
-                        )}
+                        ) : null}
 
                         {hasExploreAction && (
                             <Menu.Item
                                 leftSection={
                                     <MantineIcon icon={IconExternalLink} />
                                 }
-                                disabled={isDisabled}
+                                disabled={isDisabled || !openInExploreUrl}
                                 onClick={handleExploreFromHere}
                             >
                                 Explore from here
@@ -460,41 +645,15 @@ export const AiChartQuickOptions = ({
                         )}
 
                         {!!compiledSql && (
-                            <HoverCard
-                                shadow="subtle"
-                                radius="md"
-                                position="left-start"
-                                withinPortal
-                                openDelay={120}
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconEye} />}
+                                onClick={openSqlModal}
                             >
-                                <HoverCard.Target>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconEye} />
-                                        }
-                                        closeMenuOnClick={false}
-                                    >
-                                        View SQL
-                                    </Menu.Item>
-                                </HoverCard.Target>
-                                <HoverCard.Dropdown p={0} maw={500}>
-                                    <Prism
-                                        language="sql"
-                                        withLineNumbers
-                                        noCopy
-                                        styles={{
-                                            lineContent: {
-                                                fontSize: 10,
-                                            },
-                                        }}
-                                    >
-                                        {compiledSql}
-                                    </Prism>
-                                </HoverCard.Dropdown>
-                            </HoverCard>
+                                View SQL
+                            </Menu.Item>
                         )}
 
-                        {!!compiledSql && !isEmbed ? (
+                        {!!compiledSql && !isEmbed && canUseSqlRunner ? (
                             <Menu.Item
                                 component={Link}
                                 to={{
@@ -525,29 +684,45 @@ export const AiChartQuickOptions = ({
                     closeOnClickOutside: false,
                 }}
             >
-                <SaveToSpaceOrDashboard
-                    projectUuid={projectUuid}
-                    savedData={{
-                        metricQuery: metricQuery,
-                        tableName: metricQuery.exploreName,
-                        chartConfig,
-                        tableConfig: { columnOrder },
-                        pivotConfig: pivotDimensions?.length
-                            ? { columns: pivotDimensions }
-                            : undefined,
-                    }}
-                    onConfirm={onSaveChart}
-                    onClose={close}
-                    chartMetadata={{
-                        name: saveChartOptions.name ?? '',
-                        description: saveChartOptions.description ?? '',
-                    }}
-                    forcedSpaceUuid={
-                        isEmbed ? writeActions?.spaceUuid : undefined
-                    }
-                    redirectOnSuccess={false}
-                />
+                {savedData && (
+                    <SaveToSpaceOrDashboard
+                        projectUuid={projectUuid}
+                        savedData={savedData}
+                        onConfirm={onSaveChart}
+                        onClose={close}
+                        chartMetadata={{
+                            name: saveChartOptions.name ?? '',
+                            description: saveChartOptions.description ?? '',
+                        }}
+                        forcedSpaceUuid={
+                            isEmbed ? writeActions?.spaceUuid : undefined
+                        }
+                        redirectOnSuccess={false}
+                    />
+                )}
             </MantineModal>
+            {canDownloadResults && (
+                <AiChartDownloadModal
+                    opened={downloadModalOpened}
+                    onClose={closeDownloadModal}
+                    projectUuid={projectUuid}
+                    chartName={saveChartOptions.name}
+                    mergeQuery={merge?.query ?? null}
+                />
+            )}
+            <AiChartImageExportModal
+                chartRef={chartRef}
+                chartName={saveChartOptions.name ?? 'Untitled chart'}
+                opened={exportImageModalOpened}
+                onClose={closeExportImageModal}
+            />
+            {!!compiledSql && (
+                <AiSqlModal
+                    opened={sqlModalOpened}
+                    onClose={closeSqlModal}
+                    sql={compiledSql}
+                />
+            )}
             <MantineModal
                 opened={verifyModalOpened}
                 onClose={closeVerifyModal}

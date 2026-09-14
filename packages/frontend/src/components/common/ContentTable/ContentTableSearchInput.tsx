@@ -3,7 +3,7 @@ import {
     TextInput,
     Tooltip,
     type TextInputProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, type CSSProperties } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -58,7 +58,7 @@ const ContentTableSearchInputComponent = ({
                     : classes.searchInput,
             }}
             leftSection={
-                <MantineIcon size="md" color="ldGray.6" icon={IconSearch} />
+                <MantineIcon size="md" color="dimmed" icon={IconSearch} />
             }
             rightSection={
                 hasValue ? (
@@ -89,11 +89,7 @@ const ContentTableSearchInputComponent = ({
         return input;
     }
 
-    return (
-        <Tooltip withinPortal variant="xs" label={tooltipLabel}>
-            {input}
-        </Tooltip>
-    );
+    return <Tooltip label={tooltipLabel}>{input}</Tooltip>;
 };
 
 export const ContentTableSearchInput = memo(ContentTableSearchInputComponent);

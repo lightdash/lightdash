@@ -3,28 +3,27 @@ import {
     isOpenIdIdentityIssuerType,
     LightdashMode,
     LocalIssuerTypes,
-    LOGIN_PAGE_ID,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     type LightdashUser,
+    type LoginOptions,
+    type MobileLoginIntent,
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 import {
     TextInput,
-    Box,
     Divider,
     Stack,
     Text,
-    Title,
     Button,
     ActionIcon,
     Anchor,
     PasswordInput,
-    Card,
-} from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import {
     useCallback,
     useEffect,
@@ -33,32 +32,312 @@ import {
     useState,
     type FC,
 } from 'react';
-import { Navigate, useLocation } from 'react-router';
+import { Link, Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
+import { useAuthLayoutVariant } from '../../../components/common/AuthLayout/useAuthLayoutVariant';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ThirdPartySignInButton } from '../../../components/common/ThirdPartySignInButton';
-import LightdashLogo from '../../../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { sanitizeRedirectUrl } from '../../../utils/redirectUrl';
+import { resolveInternalPath } from '../../../utils/url';
 import {
     useFetchLoginOptions,
     useLoginWithEmailMutation,
     type LoginParams,
 } from '../hooks/useLogin';
 import {
+    clearPendingSsoLoginMethod,
     readLastLoginMethod,
     writeLastLoginMethod,
+    writePendingSsoLoginMethod,
 } from '../utils/lastLoginMethod';
+import {
+    getMobileLoginIntentFromRedirect,
+    setMobileLoginIntentOnRedirect,
+} from '../utils/mobileLoginIntent';
 import LoginWithEmailOtp from './LoginWithEmailOtp';
+
+const getVisibleSsoOptions = ({
+    loginOptions,
+    mobileLoginIntent,
+    preCheckEmail,
+    lastUsedSsoProvider,
+}: {
+    loginOptions: LoginOptions | undefined;
+    mobileLoginIntent: MobileLoginIntent | undefined;
+    preCheckEmail: string | undefined;
+    lastUsedSsoProvider: OpenIdIdentityIssuerType | undefined;
+}): OpenIdIdentityIssuerType[] => {
+    const shouldResolveSsoByEmail =
+        mobileLoginIntent === 'sso' &&
+        loginOptions?.ssoPresentation?.kind !== 'branded' &&
+        !preCheckEmail;
+    const ssoOptions =
+        loginOptions &&
+        mobileLoginIntent !== 'local' &&
+        !shouldResolveSsoByEmail
+            ? (loginOptions.showOptions.filter(
+                  isOpenIdIdentityIssuerType,
+              ) as OpenIdIdentityIssuerType[])
+            : [];
+
+    return mobileLoginIntent
+        ? ssoOptions
+        : lastUsedSsoProvider
+          ? [
+                lastUsedSsoProvider,
+                ...ssoOptions.filter(
+                    (provider) => provider !== lastUsedSsoProvider,
+                ),
+            ]
+          : ssoOptions;
+};
+
+const getAlternativeLoginIntent = ({
+    formStage,
+    mobileLoginIntent,
+    isEmailLoginAvailable,
+    isEmailOtpLoginAvailable,
+    ssoOptions,
+    loginOptions,
+}: {
+    formStage: 'precheck' | 'login';
+    mobileLoginIntent: MobileLoginIntent | undefined;
+    isEmailLoginAvailable: boolean;
+    isEmailOtpLoginAvailable: boolean;
+    ssoOptions: OpenIdIdentityIssuerType[];
+    loginOptions: LoginOptions | undefined;
+}): MobileLoginIntent | undefined => {
+    if (
+        formStage === 'login' &&
+        mobileLoginIntent === 'local' &&
+        !isEmailLoginAvailable &&
+        !isEmailOtpLoginAvailable &&
+        loginOptions?.ssoPresentation?.kind !== 'none'
+    ) {
+        return 'sso';
+    }
+    if (
+        formStage === 'login' &&
+        mobileLoginIntent === 'sso' &&
+        ssoOptions.length === 0 &&
+        loginOptions?.localEmailAvailable
+    ) {
+        return 'local';
+    }
+    return undefined;
+};
+
+export const LoginForm: FC<{
+    alternativeLoginIntent: MobileLoginIntent | undefined;
+    availability: { email: boolean; emailOtp: boolean };
+    form: UseFormReturnType<LoginParams>;
+    formStatus: 'idle' | 'loading';
+    formStage: 'precheck' | 'login';
+    lastUsedSsoProvider: OpenIdIdentityIssuerType | undefined;
+    layout: 'new' | 'legacy';
+    loginHint: string | undefined;
+    mobileLoginIntent: MobileLoginIntent | undefined;
+    onClearEmail: () => void;
+    onEmailOtpSuccess: (data: LightdashUser) => void;
+    onSubmit: () => void;
+    preCheckEmail: string | undefined;
+    redirectUrl: string;
+    signupPath: string | null;
+    signupUrl: string;
+    ssoOptions: OpenIdIdentityIssuerType[];
+}> = ({
+    alternativeLoginIntent,
+    availability,
+    form,
+    formStatus,
+    formStage,
+    lastUsedSsoProvider,
+    layout,
+    loginHint,
+    mobileLoginIntent,
+    onClearEmail,
+    onEmailOtpSuccess,
+    onSubmit,
+    preCheckEmail,
+    redirectUrl,
+    signupPath,
+    signupUrl,
+    ssoOptions,
+}) => {
+    const isNewLayout = layout === 'new';
+    const isFormLoading = formStatus === 'loading';
+    const ssoButtons = ssoOptions.length > 0 && (
+        <Stack>
+            {ssoOptions.map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                    intent={isNewLayout ? 'continue' : 'signin'}
+                    redirect={redirectUrl}
+                    loginHint={loginHint}
+                    disabled={isFormLoading}
+                    forceShow
+                    lastUsed={providerName === lastUsedSsoProvider}
+                    onClick={() => writePendingSsoLoginMethod(providerName)}
+                />
+            ))}
+        </Stack>
+    );
+    const ssoDivider = (
+        <Divider
+            my="sm"
+            labelPosition="center"
+            label={
+                <Text c="ldGray.5" size="sm" fw={500}>
+                    {isNewLayout ? 'or' : 'OR'}
+                </Text>
+            }
+        />
+    );
+
+    return (
+        <form name="login" onSubmit={form.onSubmit(onSubmit)}>
+            <Stack gap="lg">
+                {isNewLayout && ssoButtons ? (
+                    <>
+                        {ssoButtons}
+                        {ssoDivider}
+                    </>
+                ) : null}
+                <TextInput
+                    label={isNewLayout ? 'Work email' : 'Email address'}
+                    name="email"
+                    type="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder={
+                        isNewLayout ? 'maya@acme.com' : 'Your email address'
+                    }
+                    required
+                    {...form.getInputProps('email')}
+                    disabled={isFormLoading}
+                    rightSectionPointerEvents="all"
+                    rightSection={
+                        preCheckEmail ? (
+                            <ActionIcon
+                                aria-label="Clear email address"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={onClearEmail}
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                />
+                {availability.email && formStage === 'login' ? (
+                    <>
+                        <PasswordInput
+                            label="Password"
+                            name="password"
+                            placeholder="Your password"
+                            autoComplete="current-password"
+                            required
+                            autoFocus
+                            {...form.getInputProps('password')}
+                            disabled={isFormLoading}
+                        />
+                        <Anchor
+                            inherit
+                            component={Link}
+                            to="/recover-password"
+                            mx="auto"
+                        >
+                            Forgot your password?
+                        </Anchor>
+                        <Button
+                            type="submit"
+                            loading={isFormLoading}
+                            disabled={isFormLoading}
+                            fullWidth={isNewLayout}
+                            data-cy="signin-button"
+                        >
+                            Sign in
+                        </Button>
+                    </>
+                ) : null}
+                {availability.emailOtp && formStage === 'login' ? (
+                    <LoginWithEmailOtp
+                        email={preCheckEmail ?? form.values.email}
+                        disabled={isFormLoading}
+                        onSuccess={onEmailOtpSuccess}
+                    />
+                ) : null}
+                {formStage === 'precheck' ? (
+                    <Button
+                        type="submit"
+                        loading={isFormLoading}
+                        disabled={isFormLoading}
+                        fullWidth={isNewLayout}
+                        data-cy="signin-button"
+                    >
+                        Continue
+                    </Button>
+                ) : null}
+                {alternativeLoginIntent ? (
+                    <Button
+                        component="a"
+                        variant="default"
+                        href={setMobileLoginIntentOnRedirect(
+                            redirectUrl,
+                            window.location.origin,
+                            alternativeLoginIntent,
+                        )}
+                    >
+                        Continue with{' '}
+                        {alternativeLoginIntent === 'sso'
+                            ? 'SSO'
+                            : 'work email'}
+                    </Button>
+                ) : null}
+                {!isNewLayout && ssoButtons ? (
+                    <>
+                        {availability.email ||
+                        availability.emailOtp ||
+                        formStage === 'precheck'
+                            ? ssoDivider
+                            : null}
+                        {ssoButtons}
+                    </>
+                ) : null}
+                {!mobileLoginIntent ? (
+                    <Text mx="auto" mt="md" fz="sm">
+                        {isNewLayout
+                            ? 'New to Lightdash?'
+                            : "Don't have an account?"}{' '}
+                        {signupPath ? (
+                            <Anchor component={Link} to={signupPath} fz="sm">
+                                {isNewLayout ? 'Create an account' : 'Sign up'}
+                            </Anchor>
+                        ) : (
+                            <Anchor href={signupUrl} fz="sm">
+                                {isNewLayout ? 'Create an account' : 'Sign up'}
+                            </Anchor>
+                        )}
+                    </Text>
+                ) : null}
+            </Stack>
+        </form>
+    );
+};
 
 const Login: FC<{}> = () => {
     const { health } = useApp();
     const { identify, track } = useTracking();
     const location = useLocation();
+    const { isNewLayout } = useAuthLayoutVariant();
 
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
@@ -70,6 +349,13 @@ const Login: FC<{}> = () => {
             });
         }
     }, [flashMessages.data, showToastError]);
+
+    // Reaching the login page means any SSO attempt from this tab failed or was
+    // abandoned, so it must never become the recorded last-used method.
+    useEffect(() => {
+        clearPendingSsoLoginMethod();
+    }, []);
+
     const queryParams = new URLSearchParams(location.search);
     const redirectParam = queryParams.get('redirect');
 
@@ -88,11 +374,15 @@ const Login: FC<{}> = () => {
             ? lastLoginMethod.issuerType
             : undefined;
 
-    const redirectUrl = location.state?.from
-        ? `${location.state.from.pathname}${location.state.from.search}`
-        : redirectParam
-          ? redirectParam
-          : '/';
+    const redirectUrl = sanitizeRedirectUrl(
+        location.state?.from
+            ? `${location.state.from.pathname}${location.state.from.search}`
+            : redirectParam,
+    );
+    const mobileLoginIntent = getMobileLoginIntentFromRedirect(
+        redirectUrl,
+        window.location.origin,
+    );
 
     const form = useForm<LoginParams>({
         initialValues: {
@@ -113,6 +403,7 @@ const Login: FC<{}> = () => {
         isSuccess: loginOptionsSuccess,
     } = useFetchLoginOptions({
         email: preCheckEmail,
+        mobileLoginIntent,
         useQueryOptions: {
             keepPreviousData: true,
         },
@@ -172,24 +463,12 @@ const Login: FC<{}> = () => {
         track,
     ]);
 
-    const ssoOptions = loginOptions
-        ? (loginOptions.showOptions.filter(
-              isOpenIdIdentityIssuerType,
-          ) as OpenIdIdentityIssuerType[])
-        : [];
-
-    // Pin the last-used SSO provider to the top of the list, and include it even
-    // when it's a private per-org method not in the default options — it reuses
-    // the same public login path/button we'd show after the email precheck step,
-    // so it can surface on the first page.
-    const ssoOptionsLastUsedFirst = lastUsedSsoProvider
-        ? [
-              lastUsedSsoProvider,
-              ...ssoOptions.filter(
-                  (provider) => provider !== lastUsedSsoProvider,
-              ),
-          ]
-        : ssoOptions;
+    const ssoOptions = getVisibleSsoOptions({
+        loginOptions,
+        mobileLoginIntent,
+        preCheckEmail,
+        lastUsedSsoProvider,
+    });
 
     // Delayed loading state - only show loading if request takes longer than 400ms
     const { start: startDelayedState, clear: clearDelayedState } = useTimeout(
@@ -245,13 +524,15 @@ const Login: FC<{}> = () => {
         }
     }, [isDemo, mutate, isIdle]);
 
-    const isEmailLoginAvailable =
-        loginOptions?.showOptions &&
-        loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL);
+    const isEmailLoginAvailable = Boolean(
+        mobileLoginIntent !== 'sso' &&
+        loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL),
+    );
 
-    const isEmailOtpLoginAvailable =
-        loginOptions?.showOptions &&
-        loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL_OTP);
+    const isEmailOtpLoginAvailable = Boolean(
+        mobileLoginIntent !== 'sso' &&
+        loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL_OTP),
+    );
 
     const formStage =
         preCheckEmail &&
@@ -280,6 +561,15 @@ const Login: FC<{}> = () => {
         isLoading ||
         isSuccess;
 
+    const alternativeLoginIntent = getAlternativeLoginIntent({
+        formStage,
+        mobileLoginIntent,
+        isEmailLoginAvailable,
+        isEmailOtpLoginAvailable,
+        ssoOptions,
+        loginOptions,
+    });
+
     if (health.isInitialLoading || isDemo || isInitialLoadingLoginOptions) {
         return <PageSpinner />;
     }
@@ -297,167 +587,37 @@ const Login: FC<{}> = () => {
         return <Navigate to={redirectUrl} />;
     }
 
+    const signupUrl = health.data?.signupUrl || '/register';
+    const signupPath = resolveInternalPath(signupUrl);
+
     return (
-        <>
-            <Box mx="auto" my="lg">
-                <LightdashLogo />
-            </Box>
-            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
-                <Title order={3} ta="center" mb="md">
-                    Sign in
-                </Title>
-                <form
-                    name="login"
-                    onSubmit={form.onSubmit(() => handleFormSubmit())}
-                >
-                    <Stack gap="lg">
-                        <TextInput
-                            label="Email address"
-                            name="email"
-                            placeholder="Your email address"
-                            required
-                            {...form.getInputProps('email')}
-                            disabled={isFormLoading}
-                            rightSectionPointerEvents="all"
-                            rightSection={
-                                preCheckEmail ? (
-                                    <ActionIcon
-                                        aria-label="Clear email address"
-                                        onMouseDown={(event) =>
-                                            event.preventDefault()
-                                        }
-                                        variant="subtle"
-                                        color="gray"
-                                        onClick={() => {
-                                            setPreCheckEmail(undefined);
-                                            form.setValues({
-                                                email: '',
-                                                password: '',
-                                            });
-                                        }}
-                                    >
-                                        <MantineIcon icon={IconX} />
-                                    </ActionIcon>
-                                ) : null
-                            }
-                        />
-                        {isEmailLoginAvailable && formStage === 'login' && (
-                            <>
-                                <PasswordInput
-                                    label="Password"
-                                    name="password"
-                                    placeholder="Your password"
-                                    autoComplete="current-password"
-                                    required
-                                    autoFocus
-                                    {...form.getInputProps('password')}
-                                    disabled={isFormLoading}
-                                />
-                                <Anchor
-                                    inherit
-                                    href="/recover-password"
-                                    mx="auto"
-                                >
-                                    Forgot your password?
-                                </Anchor>
-                                <Button
-                                    type="submit"
-                                    loading={isFormLoading}
-                                    disabled={isFormLoading}
-                                    data-cy="signin-button"
-                                >
-                                    Sign in
-                                </Button>
-                            </>
-                        )}
-                        {isEmailOtpLoginAvailable && formStage === 'login' && (
-                            <LoginWithEmailOtp
-                                email={preCheckEmail ?? form.values.email}
-                                disabled={isFormLoading}
-                                onSuccess={(data) =>
-                                    handleLoginSuccess(
-                                        data,
-                                        LocalIssuerTypes.EMAIL_OTP,
-                                    )
-                                }
-                            />
-                        )}
-                        {formStage === 'precheck' && (
-                            <Button
-                                type="submit"
-                                loading={isFormLoading}
-                                disabled={isFormLoading}
-                                data-cy="signin-button"
-                            >
-                                Continue
-                            </Button>
-                        )}
-                        {ssoOptionsLastUsedFirst.length > 0 && (
-                            <>
-                                {(isEmailLoginAvailable ||
-                                    isEmailOtpLoginAvailable ||
-                                    formStage === 'precheck') && (
-                                    <Divider
-                                        my="sm"
-                                        labelPosition="center"
-                                        label={
-                                            <Text
-                                                c="ldGray.5"
-                                                size="sm"
-                                                fw={500}
-                                            >
-                                                OR
-                                            </Text>
-                                        }
-                                    />
-                                )}
-                                <Stack>
-                                    {ssoOptionsLastUsedFirst.map(
-                                        (providerName) => (
-                                            <ThirdPartySignInButton
-                                                key={providerName}
-                                                providerName={providerName}
-                                                redirect={redirectUrl}
-                                                loginHint={
-                                                    preCheckEmail ??
-                                                    lastLoginMethod?.email
-                                                }
-                                                disabled={isFormLoading}
-                                                forceShow
-                                                lastUsed={
-                                                    providerName ===
-                                                    lastUsedSsoProvider
-                                                }
-                                                onClick={() =>
-                                                    writeLastLoginMethod({
-                                                        issuerType:
-                                                            providerName,
-                                                        email:
-                                                            form.values.email ||
-                                                            preCheckEmail ||
-                                                            lastLoginMethod?.email ||
-                                                            '',
-                                                    })
-                                                }
-                                            />
-                                        ),
-                                    )}
-                                </Stack>
-                            </>
-                        )}
-                        <Text mx="auto" mt="md" fz="sm">
-                            Don't have an account?{' '}
-                            <Anchor
-                                href={health.data?.signupUrl || '/register'}
-                                fz="sm"
-                            >
-                                Sign up
-                            </Anchor>
-                        </Text>
-                    </Stack>
-                </form>
-            </Card>
-        </>
+        <LoginForm
+            alternativeLoginIntent={alternativeLoginIntent}
+            availability={{
+                email: isEmailLoginAvailable,
+                emailOtp: isEmailOtpLoginAvailable,
+            }}
+            form={form}
+            formStatus={isFormLoading ? 'loading' : 'idle'}
+            formStage={formStage}
+            lastUsedSsoProvider={lastUsedSsoProvider}
+            layout={isNewLayout ? 'new' : 'legacy'}
+            loginHint={preCheckEmail ?? lastLoginMethod?.email}
+            mobileLoginIntent={mobileLoginIntent}
+            onClearEmail={() => {
+                setPreCheckEmail(undefined);
+                form.setValues({ email: '', password: '' });
+            }}
+            onEmailOtpSuccess={(data) =>
+                handleLoginSuccess(data, LocalIssuerTypes.EMAIL_OTP)
+            }
+            onSubmit={handleFormSubmit}
+            preCheckEmail={preCheckEmail}
+            redirectUrl={redirectUrl}
+            signupPath={signupPath}
+            signupUrl={signupUrl}
+            ssoOptions={ssoOptions}
+        />
     );
 };
 

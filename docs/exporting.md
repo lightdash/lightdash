@@ -44,7 +44,7 @@ without knowing the env defaults.
 > org-only and falls back straight to the base (then env base).
 
 The UI only shows a per-channel override for delivery methods the org can actually use — Slack (installed),
-Email (`hasEmailClient`), Microsoft Teams (`hasMicrosoftTeams`), Google Chat (`GoogleChatEnabled` flag). A
+Email (`hasEmailClient`), Microsoft Teams (`hasMicrosoftTeams`), Google Chat (always available). A
 stored override on a method that later becomes unavailable is preserved, just not shown.
 
 ---

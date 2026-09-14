@@ -5,7 +5,9 @@ import {
 } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
-import applyOrganizationMemberAbilities from './organizationMemberAbility';
+import applyOrganizationMemberAbilities, {
+    getOrganizationMemberRolePermissions,
+} from './organizationMemberAbility';
 import {
     ORGANIZATION_ADMIN,
     ORGANIZATION_DEVELOPER,
@@ -48,6 +50,84 @@ const defineAbilityForOrganizationMember = (
 };
 
 describe('Organization member permissions', () => {
+    it.each(Object.values(OrganizationMemberRole))(
+        'derives the %s delegation footprint from its static ability',
+        (role) => {
+            const permissions = getOrganizationMemberRolePermissions(role);
+            const expected = [
+                ...new Set(
+                    defineAbilityForOrganizationMember({
+                        ...ORGANIZATION_MEMBER,
+                        role,
+                    }).rules.flatMap((rule) => {
+                        const actions = Array.isArray(rule.action)
+                            ? rule.action
+                            : [rule.action];
+                        const subjects = Array.isArray(rule.subject)
+                            ? rule.subject
+                            : [rule.subject];
+                        return actions.flatMap((action) =>
+                            subjects.map(
+                                (ruleSubject) => `${action}:${ruleSubject}`,
+                            ),
+                        );
+                    }),
+                ),
+            ].filter(
+                (permission) => permission !== 'manage:PersonalAccessToken',
+            );
+
+            expect(permissions).toEqual(expected);
+        },
+    );
+
+    it('includes the baseline permissions granted to Member', () => {
+        expect(
+            getOrganizationMemberRolePermissions(OrganizationMemberRole.MEMBER),
+        ).toEqual(
+            expect.arrayContaining([
+                'view:OrganizationMemberProfile',
+                'view:JobStatus',
+                'view:PinnedItems',
+            ]),
+        );
+    });
+
+    it.each(['view', 'manage'] as const)(
+        'allows only admins to %s their organization roadmap',
+        (action) => {
+            const adminAbility =
+                defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
+            const memberAbility =
+                defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
+
+            expect(
+                adminAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                adminAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: 'another-organization',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                memberAbility.can(
+                    action,
+                    subject('Roadmap', {
+                        organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
+                    }),
+                ),
+            ).toBe(false);
+        },
+    );
+
     describe('Member permissions', () => {
         let ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
         describe('when user is an organization admin', () => {
@@ -602,6 +682,19 @@ describe('Organization member permissions', () => {
                 expect(ability.can('manage', 'Organization')).toEqual(false);
             });
 
+            it('cannot manage verified content', () => {
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('VerifiedContent', {
+                            organizationUuid:
+                                ORGANIZATION_EDITOR.organizationUuid,
+                            projectUuid: 'any-project',
+                        }),
+                    ),
+                ).toEqual(false);
+            });
+
             it('can view and manage public & accessable dashboards', () => {
                 expect(
                     ability.can(
@@ -1120,6 +1213,33 @@ describe('Organization member permissions', () => {
 
             it('can use the SemanticViewer', () => {
                 expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
+            });
+
+            describe('VerifiedContent', () => {
+                it('can manage verified content', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('VerifiedContent', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                                projectUuid: 'any-project',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage verified content from another organization', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('VerifiedContent', {
+                                organizationUuid: '5678',
+                                projectUuid: 'any-project',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
             });
 
             describe('JobStatus', () => {

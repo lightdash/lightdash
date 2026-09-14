@@ -1,0 +1,117 @@
+import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
+import { type FC, type PropsWithChildren, type ReactNode } from 'react';
+import { BetaBadge } from '../BetaBadge';
+import MantineIcon from '../MantineIcon';
+import PageBreadcrumbs, { type PageBreadcrumbsProps } from '../PageBreadcrumbs';
+import classes from './SettingsPage.module.css';
+
+type SettingsPageProps = {
+    title: string;
+    fillHeight?: boolean;
+    breadcrumbs?: PageBreadcrumbsProps['items'];
+    isBeta?: boolean;
+    description?: ReactNode;
+    actions?: ReactNode;
+};
+
+const SettingsPageContainer: FC<PropsWithChildren> = ({ children }) => (
+    <Box className={classes.container}>{children}</Box>
+);
+
+const SettingsPageActions: FC<PropsWithChildren> = ({ children }) => (
+    <Group gap="xs" wrap="nowrap">
+        {children}
+    </Group>
+);
+
+const SettingsPageDocumentationLink: FC<{
+    href: string;
+    label?: string;
+}> = ({ href, label = 'Documentation' }) => (
+    <Button
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        variant="default"
+        size="xs"
+        rightSection={<MantineIcon icon={IconExternalLink} size="sm" />}
+    >
+        {label}
+    </Button>
+);
+
+const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
+    title,
+    fillHeight = false,
+    breadcrumbs,
+    isBeta,
+    description,
+    actions,
+    children,
+}) => (
+    <Stack gap="lg" className={classes.page} data-fill-height={fillHeight}>
+        <SettingsPageContainer>
+            <Group
+                justify="space-between"
+                align="flex-start"
+                wrap="nowrap"
+                gap="lg"
+                className={classes.header}
+            >
+                <Stack gap={4} className={classes.heading}>
+                    <Group gap="xs" wrap="nowrap">
+                        {breadcrumbs ? (
+                            <PageBreadcrumbs
+                                items={[
+                                    ...breadcrumbs,
+                                    {
+                                        title: (
+                                            <Title
+                                                display="inline"
+                                                order={4}
+                                                className={classes.title}
+                                            >
+                                                {title}
+                                            </Title>
+                                        ),
+                                        active: true,
+                                    },
+                                ]}
+                            />
+                        ) : (
+                            <Title order={4} className={classes.title}>
+                                {title}
+                            </Title>
+                        )}
+                        {isBeta ? <BetaBadge /> : null}
+                    </Group>
+                    {description ? (
+                        <Text
+                            fz="sm"
+                            c="dimmed"
+                            className={classes.description}
+                        >
+                            {description}
+                        </Text>
+                    ) : null}
+                </Stack>
+                {actions ? (
+                    <Box className={classes.actions}>{actions}</Box>
+                ) : null}
+            </Group>
+        </SettingsPageContainer>
+
+        <Stack gap="lg" className={classes.content}>
+            {children}
+        </Stack>
+    </Stack>
+);
+
+export {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageContainer,
+    SettingsPageDocumentationLink,
+};

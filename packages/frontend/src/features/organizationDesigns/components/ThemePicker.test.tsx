@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { ThemePicker } from './ThemePicker';
@@ -12,17 +12,17 @@ const renderPicker = (
 ) =>
     render(
         <MemoryRouter>
-            <MantineProvider>
+            <MantineProvider env="test">
                 <ThemePicker value={null} onChange={vi.fn()} {...props} />
             </MantineProvider>
         </MemoryRouter>,
     );
 
 describe('ThemePicker compact', () => {
-    it('renders the no-theme label as a single-line pill trigger', () => {
+    it('collapses to an "Apply theme" call to action when none is selected', () => {
         renderPicker({ compact: true });
         const trigger = screen.getByRole('button', {
-            name: /Theme: No theme/i,
+            name: /Apply theme/i,
         });
         expect(trigger).toBeInTheDocument();
         // Description line is suppressed in compact mode.

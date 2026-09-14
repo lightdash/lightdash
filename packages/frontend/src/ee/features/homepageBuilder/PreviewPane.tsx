@@ -2,49 +2,26 @@ import {
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     type HomepageConfig,
-    type HomepageViewAsReason,
     type HomepageViewAsTarget,
 } from '@lightdash/common';
 import {
-    Anchor,
     Badge,
-    Card,
     Group,
     Loader,
     SegmentedControl,
     Select,
     Stack,
     Text,
-} from '@mantine-8/core';
-import { IconExternalLink } from '@tabler/icons-react';
+} from '@mantine/core';
 import { type FC } from 'react';
-import { Link } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import classes from './HomepageEditor.module.css';
 import { useHomepageViewAs } from './hooks/useProjectHomepage';
 import { PublishedHomepage } from './PublishedHomepage';
+import { reasonLabel } from './resolution';
 
 export type HomepageViewType = 'everyone' | 'user' | 'group' | 'role';
-
-const reasonLabel = (
-    reason: HomepageViewAsReason,
-    groupNames: Map<string, string>,
-): string => {
-    switch (reason.type) {
-        case 'personal':
-            return 'their personal pick';
-        case 'group':
-            return `via group ${groupNames.get(reason.groupUuid) ?? 'unknown'} (priority ${reason.priority})`;
-        case 'role':
-            return `via role ${ProjectMemberRoleLabels[reason.role]}`;
-        case 'default':
-            return 'org default';
-        default:
-            return '';
-    }
-};
 
 // The "Viewing as" switcher — lives in the builder toolbar during preview so
 // the canvas below stays the real rendered homepage.
@@ -153,11 +130,7 @@ export const ViewAsControl: FC<{
                 />
             )}
             {target && result.data?.resolved?.type === 'homepage' && (
-                <Badge
-                    variant="light"
-                    tt="none"
-                    className={classes.viewAsBadge}
-                >
+                <Badge className={classes.viewAsBadge}>
                     {result.data.resolved.homepage.name}
                     {result.data.reason
                         ? ` · ${reasonLabel(result.data.reason, groupNames)}`
@@ -194,29 +167,6 @@ export const PreviewPane: FC<{
                     day-one default.
                 </Text>
             </Stack>
-        );
-    }
-    if (result.data.resolved.type === 'dashboard') {
-        const { dashboardUuid } = result.data.resolved;
-        return (
-            <Card withBorder p="md" maw={640} mx="auto" mt="xl">
-                <Group gap="xs">
-                    <Text size="sm">
-                        This viewer lands directly on a dashboard.
-                    </Text>
-                    <Anchor
-                        component={Link}
-                        to={`/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
-                        target="_blank"
-                        size="sm"
-                    >
-                        <Group gap={4} wrap="nowrap">
-                            Open dashboard
-                            <MantineIcon icon={IconExternalLink} size="sm" />
-                        </Group>
-                    </Anchor>
-                </Group>
-            </Card>
         );
     }
     return (

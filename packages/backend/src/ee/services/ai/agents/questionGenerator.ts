@@ -34,6 +34,7 @@ export async function generateArtifactQuestion(
         functionId: 'generateArtifactQuestion',
         feature: 'artifact-question',
         ...getLanguageModelAttribution(modelOptions.model),
+        keyManagement: modelOptions.keyManagement,
         ...(modelOptions.telemetry ?? {}),
         extra: metadata,
     });

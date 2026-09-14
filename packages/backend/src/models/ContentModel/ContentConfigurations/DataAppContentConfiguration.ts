@@ -1,4 +1,8 @@
-import { ContentType, DataAppContent } from '@lightdash/common';
+import {
+    ContentType,
+    DATA_APP_VIZ_TEMPLATE,
+    DataAppContent,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AppsTableName,
@@ -19,9 +23,11 @@ import { applyContentNameSearch } from '../ContentSearchUtils';
 
 export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow> =
     {
+        // Only dashboards have owners, so the owner filter excludes data apps
         shouldQueryBeIncluded: (filters: ContentFilters) =>
-            !filters.contentTypes ||
-            filters.contentTypes?.includes(ContentType.DATA_APP),
+            !filters.ownerUserUuids &&
+            (!filters.contentTypes ||
+                filters.contentTypes?.includes(ContentType.DATA_APP)),
         getSummaryQuery: (
             knex: Knex,
             filters: ContentFilters,
@@ -49,11 +55,33 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                 // from space-based content listings unless the caller opts
                 // into personal apps (the "All data apps" browse, where
                 // `filters.dataApps` is set), and they surface in the
-                // recently-deleted view so admins can restore them.
+                // recently-deleted view so admins can restore them. Vizs are
+                // spaceless by design (project-global chart content), so the
+                // "only" listing must never hide them behind the personal opt-in.
                 .where((personalFilter) => {
-                    if (!filters.deleted && !filters.dataApps) {
+                    if (
+                        !filters.deleted &&
+                        !filters.dataApps &&
+                        !filters.sharedWithMe &&
+                        filters.dataAppVizsFilter !== 'only'
+                    ) {
                         void personalFilter.whereNotNull(
                             `${AppsTableName}.space_uuid`,
+                        );
+                    }
+                })
+                .where((templateFilter) => {
+                    if (filters.dataAppVizsFilter === 'exclude') {
+                        void templateFilter
+                            .whereNot(
+                                `${AppsTableName}.template`,
+                                DATA_APP_VIZ_TEMPLATE,
+                            )
+                            .orWhereNull(`${AppsTableName}.template`);
+                    } else if (filters.dataAppVizsFilter === 'only') {
+                        void templateFilter.where(
+                            `${AppsTableName}.template`,
+                            DATA_APP_VIZ_TEMPLATE,
                         );
                     }
                 })
@@ -142,11 +170,24 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     knex.raw(`null::uuid as verified_by_user_uuid`),
                     knex.raw(`null as verified_by_user_first_name`),
                     knex.raw(`null as verified_by_user_last_name`),
+                    knex.raw(`null::uuid as owner_user_uuid`),
+                    knex.raw(`null as owner_user_first_name`),
+                    knex.raw(`null as owner_user_last_name`),
+                    knex.raw(`null as owner_user_email`),
                     knex.raw(
                         `json_build_object(
                             'latestVersionNumber', latest_version.version,
                             'latestVersionStatus', latest_version.status,
-                            'pinnedListOrder', ${PinnedAppTableName}.order
+                            'latestReadyVersionNumber', (
+                                select ready_version.version
+                                from ${AppVersionsTableName} as ready_version
+                                where ready_version.app_id = ${AppsTableName}.app_id
+                                    and ready_version.status = 'ready'
+                                order by ready_version.version desc
+                                limit 1
+                            ),
+                            'pinnedListOrder', ${PinnedAppTableName}.order,
+                            'template', ${AppsTableName}.template
                         ) as metadata`,
                     ),
                 ])
@@ -165,44 +206,51 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                         );
                     }
 
-                    const personal = filters.dataApps;
-                    if (personal) {
-                        // Surface space apps the caller can access OR personal
-                        // apps they may see (their own, plus everyone's in
-                        // projects where they're an admin).
-                        void builder.where((visibility) => {
-                            if (filters.spaceUuids) {
-                                void visibility.whereIn(
-                                    `${SpaceTableName}.space_uuid`,
-                                    filters.spaceUuids,
-                                );
-                            }
-                            void visibility.orWhere((personalApps) => {
-                                void personalApps.whereNull(
-                                    `${AppsTableName}.space_uuid`,
-                                );
-                                void personalApps.where((owner) => {
-                                    void owner.where(
-                                        `${AppsTableName}.created_by_user_uuid`,
-                                        personal.personalForUserUuid,
+                    // Vizs are project-global chart content, not scoped to a
+                    // space — `space_uuid` is null for every row, so this
+                    // whole visibility block (space-uuid whereIn / personal
+                    // opt-in) would wrongly exclude them. Skip it entirely;
+                    // `filters.projectUuids` above already scopes the query.
+                    if (filters.dataAppVizsFilter !== 'only') {
+                        const personal = filters.dataApps;
+                        if (personal) {
+                            // Surface space apps the caller can access OR personal
+                            // apps they may see (their own, plus everyone's in
+                            // projects where they're an admin).
+                            void builder.where((visibility) => {
+                                if (filters.spaceUuids) {
+                                    void visibility.whereIn(
+                                        `${SpaceTableName}.space_uuid`,
+                                        filters.spaceUuids,
                                     );
-                                    if (
-                                        personal.personalAdminProjectUuids
-                                            .length > 0
-                                    ) {
-                                        void owner.orWhereIn(
-                                            `${ProjectTableName}.project_uuid`,
-                                            personal.personalAdminProjectUuids,
+                                }
+                                void visibility.orWhere((personalApps) => {
+                                    void personalApps.whereNull(
+                                        `${AppsTableName}.space_uuid`,
+                                    );
+                                    void personalApps.where((owner) => {
+                                        void owner.where(
+                                            `${AppsTableName}.created_by_user_uuid`,
+                                            personal.personalForUserUuid,
                                         );
-                                    }
+                                        if (
+                                            personal.personalAdminProjectUuids
+                                                .length > 0
+                                        ) {
+                                            void owner.orWhereIn(
+                                                `${ProjectTableName}.project_uuid`,
+                                                personal.personalAdminProjectUuids,
+                                            );
+                                        }
+                                    });
                                 });
                             });
-                        });
-                    } else if (filters.spaceUuids) {
-                        void builder.whereIn(
-                            `${SpaceTableName}.space_uuid`,
-                            filters.spaceUuids,
-                        );
+                        } else if (filters.spaceUuids) {
+                            void builder.whereIn(
+                                `${SpaceTableName}.space_uuid`,
+                                filters.spaceUuids,
+                            );
+                        }
                     }
 
                     // Pick the latest version per app — every app has at
@@ -237,6 +285,8 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
             }
             return {
                 contentType: ContentType.DATA_APP,
+                // Filled in by ContentService for the requesting user.
+                directAccessRoles: [],
                 uuid: value.uuid,
                 slug: value.slug,
                 name: value.name,
@@ -290,6 +340,14 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                 latestVersionStatus:
                     (value.metadata.latestVersionStatus as
                         | DataAppContent['latestVersionStatus']
+                        | null) ?? null,
+                latestReadyVersionNumber:
+                    (value.metadata.latestReadyVersionNumber as
+                        | number
+                        | null) ?? null,
+                template:
+                    (value.metadata.template as
+                        | DataAppContent['template']
                         | null) ?? null,
             };
         },

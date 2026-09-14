@@ -1,64 +1,76 @@
 import {
-    type ApiKeyLocation,
     type CreateExternalConnection,
     type ExternalConnectionAuthType,
-    type ExternalConnectionMethod,
+    type ExternalConnectionConfigProposal,
     type ExternalConnectionSampleRequest,
     type ExternalFetchResponse,
 } from '@lightdash/common';
 import {
+    Anchor,
     JsonInput,
     PasswordInput,
     SegmentedControl,
     Select,
     Stack,
     Stepper,
+    Switch,
     TagsInput,
     Text,
+    Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconPlugConnected } from '@tabler/icons-react';
+import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC, useState } from 'react';
+import { BuilderLinkingField } from '../../../features/externalConnections/components/BuilderLinkingField';
+import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
 import {
+    isValidGoogleOAuthScope,
     isValidOAuthScope,
     SUGGESTED_GOOGLE_SCOPES,
+    validateOAuthTokenUrl,
 } from '../../../features/externalConnections/constants';
 import { useCreateExternalConnection } from '../../../features/externalConnections/hooks/useCreateExternalConnection';
+import { useProposeConnectionConfig } from '../../../features/externalConnections/hooks/useProposeConnectionConfig';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import {
-    resolvePathPrefixes,
-    type PathMode,
-    type PathPrefix,
-} from '../../../features/externalConnections/utils/pathRules';
+    customHeaderRowsToRecord,
+    validateCustomHeaderRows,
+} from '../../../features/externalConnections/utils/customHeaders';
+import { resolvePathPrefixes } from '../../../features/externalConnections/utils/pathRules';
+import Callout from '../../common/Callout';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
+import { AutomaticSetupStep } from './AutomaticSetupStep';
+import {
+    ConnectionModeChooser,
+    type ConnectionWizardMode,
+} from './ConnectionModeChooser';
 import { WizardTestStep } from './WizardTestStep';
+import {
+    applyProposalToWizardValues,
+    getSuggestedTestPath,
+    type WizardValues,
+} from './wizardValues';
 
 // Content types stay hidden in the onboarding wizard and the optional numeric
 // limits fall back to server defaults. Power users tune them in the Edit form.
 const DEFAULT_ALLOWED_CONTENT_TYPES = ['application/json'];
+const BROWSER_IMAGE_CONTENT_TYPES = [
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
+];
 
 // RFC 7230 token chars — must match the backend's apiKeyName validator.
 const HTTP_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
 
 const TEST_STEP = 3;
-
-type WizardValues = {
-    name: string;
-    origin: string;
-    type: ExternalConnectionAuthType;
-    secret: string;
-    apiKeyName: string;
-    apiKeyLocation: ApiKeyLocation;
-    oauthScopes: string[];
-    allowedMethods: ExternalConnectionMethod[];
-    pathMode: PathMode;
-    allowedPathPrefixes: PathPrefix[];
-};
 
 export type ConnectionTestResult = {
     request: ExternalConnectionSampleRequest;
@@ -85,24 +97,45 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
     name: values.name.trim(),
     origin: values.origin,
     type: values.type,
+    allowBrowserImages: values.allowBrowserImages,
+    allowDataAppBuilderLinking: values.allowDataAppBuilderLinking,
     secret: values.type !== 'none' ? values.secret : null,
     apiKeyName: values.type === 'api_key' ? values.apiKeyName.trim() : null,
     apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
     oauthScopes:
-        values.type === 'google_service_account' ? values.oauthScopes : null,
+        values.type === 'google_service_account' ||
+        values.type === 'oauth_client_credentials'
+            ? values.oauthScopes
+            : null,
+    oauthTokenUrl:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthTokenUrl.trim()
+            : null,
+    oauthClientId:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthClientId.trim()
+            : null,
+    oauthClientAuthMethod:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthClientAuthMethod
+            : null,
+    customHeaders: customHeaderRowsToRecord(values.customHeaders),
     allowedMethods: values.allowedMethods,
     allowedPathPrefixes: resolvePathPrefixes(
         values.pathMode,
         values.allowedPathPrefixes,
     ),
-    allowedContentTypes: DEFAULT_ALLOWED_CONTENT_TYPES,
+    allowedContentTypes: values.allowBrowserImages
+        ? [...DEFAULT_ALLOWED_CONTENT_TYPES, ...BROWSER_IMAGE_CONTENT_TYPES]
+        : DEFAULT_ALLOWED_CONTENT_TYPES,
+    instructions: values.instructions.trim() || null,
 });
 
 const ConnectStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
     form,
 }) => (
     <Stack gap="sm" mt="xl">
-        <Text c="ldGray.6" fz="sm">
+        <Text c="dimmed" fz="sm">
             Give your connection a name and the base URL of the API your data
             apps should be able to call.
         </Text>
@@ -123,7 +156,10 @@ const ConnectStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
     </Stack>
 );
 
-const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
+const AuthStep: FC<{
+    form: UseFormReturnType<WizardValues>;
+    proposal: ExternalConnectionConfigProposal | null;
+}> = ({ form, proposal }) => {
     const { type } = form.values;
     return (
         <Stack gap="sm" mt="xl">
@@ -138,6 +174,10 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                         { value: 'api_key', label: 'API key' },
                         { value: 'bearer_token', label: 'Bearer token' },
                         { value: 'google_service_account', label: 'Google' },
+                        {
+                            value: 'oauth_client_credentials',
+                            label: 'OAuth 2',
+                        },
                     ]}
                     value={type}
                     onChange={(value) =>
@@ -149,7 +189,38 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                 />
             </Stack>
 
-            {type !== 'none' && type !== 'google_service_account' && (
+            {proposal?.credentialGuide && (
+                <Callout variant="info" title="How to get your credential">
+                    <Stack gap="xs" align="flex-start">
+                        <MarkdownPreview
+                            source={proposal.credentialGuide}
+                            style={{
+                                backgroundColor: 'transparent',
+                                color: 'inherit',
+                                fontSize: 'var(--mantine-font-size-sm)',
+                            }}
+                        />
+                        {proposal.docsUrl && (
+                            <Anchor
+                                href={proposal.docsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                fz="sm"
+                            >
+                                Open the provider's docs
+                            </Anchor>
+                        )}
+                    </Stack>
+                </Callout>
+            )}
+
+            {proposal?.notes && (
+                <Callout variant="warning" title="Double-check">
+                    {proposal.notes}
+                </Callout>
+            )}
+
+            {(type === 'api_key' || type === 'bearer_token') && (
                 <PasswordInput
                     required
                     label={type === 'api_key' ? 'API key' : 'Bearer token'}
@@ -160,6 +231,46 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                     }
                     {...form.getInputProps('secret')}
                 />
+            )}
+
+            {type === 'oauth_client_credentials' && (
+                <>
+                    <TextInput
+                        required
+                        label="Token URL"
+                        description="The OAuth server endpoint used to obtain access tokens"
+                        placeholder="https://api.example.com/oauth/token"
+                        {...form.getInputProps('oauthTokenUrl')}
+                    />
+                    <TextInput
+                        required
+                        label="Client ID"
+                        placeholder="Your OAuth client ID"
+                        {...form.getInputProps('oauthClientId')}
+                    />
+                    <PasswordInput
+                        required
+                        label="Client secret"
+                        placeholder="Your OAuth client secret"
+                        {...form.getInputProps('secret')}
+                    />
+                    <Select
+                        required
+                        allowDeselect={false}
+                        label="Send client credentials as"
+                        data={[
+                            { value: 'basic', label: 'Authorization header' },
+                            { value: 'body', label: 'Request body' },
+                        ]}
+                        {...form.getInputProps('oauthClientAuthMethod')}
+                    />
+                    <TagsInput
+                        label="OAuth scopes (optional)"
+                        description="Sent as a space-separated token request parameter"
+                        placeholder="Add a scope"
+                        {...form.getInputProps('oauthScopes')}
+                    />
+                </>
             )}
 
             {type === 'google_service_account' && (
@@ -205,6 +316,13 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                     />
                 </>
             )}
+
+            <CustomHeadersField
+                label="Custom headers (optional)"
+                value={form.values.customHeaders}
+                onChange={(value) => form.setFieldValue('customHeaders', value)}
+                error={form.errors.customHeaders}
+            />
         </Stack>
     );
 };
@@ -229,6 +347,28 @@ const AccessStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
             }
             error={form.errors.allowedPathPrefixes}
         />
+        <BuilderLinkingField
+            value={form.values.allowDataAppBuilderLinking}
+            onChange={(value) =>
+                form.setFieldValue('allowDataAppBuilderLinking', value)
+            }
+        />
+        <Switch
+            label="Allow public images in linked apps"
+            description="Linked apps and chart types can load public images from this origin. Enable only for trusted public image or tile hosts."
+            disabled={
+                form.values.type !== 'none' && !form.values.allowBrowserImages
+            }
+            {...form.getInputProps('allowBrowserImages', { type: 'checkbox' })}
+        />
+        <Textarea
+            label="Usage notes for app generation (optional)"
+            description="Helps the AI use this API correctly when building apps: key endpoints, pagination, quirks"
+            autosize
+            minRows={2}
+            maxRows={6}
+            {...form.getInputProps('instructions')}
+        />
     </Stack>
 );
 
@@ -241,6 +381,10 @@ export const AddConnectionWizard: FC<Props> = ({
     onClose,
     projectUuid,
 }) => {
+    const [mode, setMode] = useState<'choose' | ConnectionWizardMode>('choose');
+    const [description, setDescription] = useState('');
+    const [proposal, setProposal] =
+        useState<ExternalConnectionConfigProposal | null>(null);
     const [active, setActive] = useState(0);
     // The last successful test on the current visit to the test step. Captured
     // verbatim so it can be saved as a sample after the connection is created.
@@ -253,19 +397,27 @@ export const AddConnectionWizard: FC<Props> = ({
         useCreateExternalConnection();
     const { mutateAsync: saveConnectionSample, isLoading: isSavingSample } =
         useSaveConnectionSample();
+    const proposeMutation = useProposeConnectionConfig();
 
     const form = useForm<WizardValues>({
         initialValues: {
             name: '',
             origin: '',
             type: 'none',
+            allowBrowserImages: false,
+            allowDataAppBuilderLinking: false,
             secret: '',
             apiKeyName: '',
             apiKeyLocation: 'header',
             oauthScopes: [],
+            oauthTokenUrl: '',
+            oauthClientId: '',
+            oauthClientAuthMethod: 'basic',
+            customHeaders: [],
             allowedMethods: ['GET'],
             pathMode: 'all',
             allowedPathPrefixes: [],
+            instructions: '',
         },
         validate: {
             name: (value) =>
@@ -285,13 +437,32 @@ export const AddConnectionWizard: FC<Props> = ({
                 return null;
             },
             oauthScopes: (value, values) => {
-                if (values.type !== 'google_service_account') return null;
-                if (value.length === 0) return 'Add at least one OAuth scope';
-                const invalid = value.find((s) => !isValidOAuthScope(s));
-                return invalid
-                    ? `Invalid OAuth scope: ${invalid} (use an https:// scope)`
-                    : null;
+                if (
+                    values.type !== 'google_service_account' &&
+                    values.type !== 'oauth_client_credentials'
+                )
+                    return null;
+                if (
+                    values.type === 'google_service_account' &&
+                    value.length === 0
+                )
+                    return 'Add at least one OAuth scope';
+                const isValid =
+                    values.type === 'google_service_account'
+                        ? isValidGoogleOAuthScope
+                        : isValidOAuthScope;
+                const invalid = value.find((s) => !isValid(s));
+                return invalid ? `Invalid OAuth scope: ${invalid}` : null;
             },
+            oauthTokenUrl: (value, values) =>
+                values.type === 'oauth_client_credentials'
+                    ? validateOAuthTokenUrl(value)
+                    : null,
+            oauthClientId: (value, values) =>
+                values.type === 'oauth_client_credentials' &&
+                value.trim().length === 0
+                    ? 'Client ID is required'
+                    : null,
             apiKeyName: (value, values) => {
                 if (values.type !== 'api_key') return null;
                 if (value.trim().length === 0)
@@ -300,8 +471,17 @@ export const AddConnectionWizard: FC<Props> = ({
                     ? null
                     : 'Use a valid header or query parameter name';
             },
-            allowedMethods: (value) =>
-                value.length === 0 ? 'Select at least one method' : null,
+            customHeaders: validateCustomHeaderRows,
+            allowedMethods: (value, values) =>
+                value.length === 0 && !values.allowBrowserImages
+                    ? 'Select at least one method or allow public images'
+                    : null,
+            allowBrowserImages: (value, values) => {
+                if (value && values.type !== 'none') {
+                    return 'Public browser images require no authentication';
+                }
+                return null;
+            },
             allowedPathPrefixes: (value, values) => {
                 if (values.pathMode !== 'restricted') return null;
                 const nonEmpty = value
@@ -315,6 +495,10 @@ export const AddConnectionWizard: FC<Props> = ({
     });
 
     const config = toCreatePayload(form.values);
+    const initialTestPath =
+        proposal && form.values.allowedMethods.includes('GET')
+            ? getSuggestedTestPath(description, form.values.origin)
+            : '';
 
     // Going back may change the config, so a captured test result no longer
     // describes what would be created — drop it until the user re-tests.
@@ -324,6 +508,29 @@ export const AddConnectionWizard: FC<Props> = ({
             setTestResult(null);
         }
     };
+
+    const handleGenerate = () => {
+        const trimmed = description.trim();
+        if (trimmed.length === 0 || proposeMutation.isLoading) return;
+        proposeMutation.mutate(
+            { projectUuid, description: trimmed },
+            {
+                onSuccess: (result) => {
+                    form.setValues(applyProposalToWizardValues(result));
+                    form.clearErrors();
+                    setProposal(result);
+                    setTestResult(null);
+                    setMode('manual');
+                    // Land on Auth so the user pastes the credential first;
+                    // Basics and Rules stay reviewable by stepping back.
+                    setActive(1);
+                },
+            },
+        );
+    };
+
+    const aiUnavailable =
+        proposeMutation.error?.error.name === 'MissingConfigError';
 
     const goToAuth = () => {
         const name = form.validateField('name');
@@ -337,7 +544,17 @@ export const AddConnectionWizard: FC<Props> = ({
         const secret = form.validateField('secret');
         const apiKeyName = form.validateField('apiKeyName');
         const oauthScopes = form.validateField('oauthScopes');
-        if (!secret.hasError && !apiKeyName.hasError && !oauthScopes.hasError) {
+        const oauthTokenUrl = form.validateField('oauthTokenUrl');
+        const oauthClientId = form.validateField('oauthClientId');
+        const customHeaders = form.validateField('customHeaders');
+        if (
+            !secret.hasError &&
+            !apiKeyName.hasError &&
+            !oauthScopes.hasError &&
+            !oauthTokenUrl.hasError &&
+            !oauthClientId.hasError &&
+            !customHeaders.hasError
+        ) {
             setActive(2);
         }
     };
@@ -391,12 +608,28 @@ export const AddConnectionWizard: FC<Props> = ({
         | 'cancelDisabled'
         | 'onCancel'
     > = (() => {
+        if (mode === 'choose') {
+            return { cancelLabel: 'Cancel' };
+        }
+        if (mode === 'automatic') {
+            return {
+                onConfirm: handleGenerate,
+                confirmLabel: proposeMutation.isLoading
+                    ? 'Generating…'
+                    : 'Generate',
+                confirmLoading: proposeMutation.isLoading,
+                cancelLabel: 'Back',
+                cancelDisabled: proposeMutation.isLoading,
+                onCancel: () => setMode('choose'),
+            };
+        }
         switch (active) {
             case 0:
                 return {
                     onConfirm: goToAuth,
                     confirmLabel: 'Next',
-                    cancelLabel: 'Cancel',
+                    cancelLabel: 'Back',
+                    onCancel: () => setMode('choose'),
                 };
             case 1:
                 return {
@@ -434,33 +667,52 @@ export const AddConnectionWizard: FC<Props> = ({
             modalRootProps={{ closeOnClickOutside: false }}
             {...footerProps}
         >
-            <Stepper
-                active={active}
-                onStepClick={handleStepClick}
-                allowNextStepsSelect={false}
-                wrap={false}
-                size="sm"
-            >
-                <Stepper.Step label="Basics">
-                    <ConnectStep form={form} />
-                </Stepper.Step>
-                <Stepper.Step label="Auth">
-                    <AuthStep form={form} />
-                </Stepper.Step>
-                <Stepper.Step label="Rules">
-                    <AccessStep form={form} />
-                </Stepper.Step>
-                <Stepper.Step label="Test">
-                    <WizardTestStep
-                        projectUuid={projectUuid}
-                        config={config}
-                        allowedMethods={config.allowedMethods}
-                        onTestResult={setTestResult}
-                        saveSample={saveSample}
-                        onSaveSampleChange={setSaveSample}
-                    />
-                </Stepper.Step>
-            </Stepper>
+            {mode === 'choose' && (
+                <ConnectionModeChooser
+                    onChoose={setMode}
+                    aiUnavailable={aiUnavailable}
+                />
+            )}
+            {mode === 'automatic' && (
+                <AutomaticSetupStep
+                    description={description}
+                    onDescriptionChange={setDescription}
+                    onSubmit={handleGenerate}
+                    isLoading={proposeMutation.isLoading}
+                    error={proposeMutation.error}
+                    onSwitchToManual={() => setMode('manual')}
+                />
+            )}
+            {mode === 'manual' && (
+                <Stepper
+                    active={active}
+                    onStepClick={handleStepClick}
+                    allowNextStepsSelect={false}
+                    wrap={false}
+                    size="sm"
+                >
+                    <Stepper.Step label="Basics">
+                        <ConnectStep form={form} />
+                    </Stepper.Step>
+                    <Stepper.Step label="Auth">
+                        <AuthStep form={form} proposal={proposal} />
+                    </Stepper.Step>
+                    <Stepper.Step label="Rules">
+                        <AccessStep form={form} />
+                    </Stepper.Step>
+                    <Stepper.Step label="Test">
+                        <WizardTestStep
+                            projectUuid={projectUuid}
+                            config={config}
+                            allowedMethods={config.allowedMethods}
+                            initialPath={initialTestPath}
+                            onTestResult={setTestResult}
+                            saveSample={saveSample}
+                            onSaveSampleChange={setSaveSample}
+                        />
+                    </Stepper.Step>
+                </Stepper>
+            )}
         </MantineModal>
     );
 };

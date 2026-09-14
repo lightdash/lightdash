@@ -1,4 +1,9 @@
-import { ChartType, type ChartConfig, type Series } from '@lightdash/common';
+import {
+    ChartType,
+    type ChartConfig,
+    type SavedChart,
+    type Series,
+} from '@lightdash/common';
 import omit from 'lodash/omit';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type ConfigCacheMap } from './types';
@@ -6,8 +11,21 @@ import { type ConfigCacheMap } from './types';
 const DEFAULTS = {
     [ChartType.CARTESIAN]: () => ({ ...EMPTY_CARTESIAN_CHART_CONFIG }), // factory to avoid shared refs
     [ChartType.BIG_NUMBER]: () => ({ showTableNamesInLabel: false }),
+    // Must mirror useTableConfig's normalization defaults: cleanConfig merges
+    // these into both diff sides so a chart saved before a flag existed does
+    // not read as dirty once the table viz materializes the flag in the draft
     [ChartType.TABLE]: () => ({
+        showColumnCalculation: false,
+        showRowCalculation: false,
         showTableNames: false,
+        showResultsTotal: false,
+        showSubtotals: false,
+        showSubtotalsExpanded: false,
+        showRowGrouping: false,
+        hideRowNumbers: false,
+        metricsAsRows: false,
+        conditionalFormattings: [],
+        columns: {},
     }),
     [ChartType.PIE]: () => ({ showLegend: false, valueLabel: 'outside' }),
     [ChartType.FUNNEL]: () => ({}),
@@ -16,33 +34,35 @@ const DEFAULTS = {
     [ChartType.MAP]: () => ({}),
     [ChartType.CUSTOM]: () => ({}),
     [ChartType.SANKEY]: () => ({}),
-    [ChartType.DATA_APP_VIZ]: () => ({}),
+    [ChartType.DATA_APP_VIZ]: () => undefined, // no viz until one is picked
 };
 
 // simple clone; reducer guarantees we’re not handing in drafts
 const clone = <T>(v: T): T => structuredClone(v as unknown as object) as T;
 
+// A config given for the requested type is taken as it is, absent included:
+// that is how a data app viz chart says it points at no viz yet.
 export const getValidChartConfig = (
     chartType: ChartType,
     cachedConfigs?: Partial<ConfigCacheMap>,
     chartConfig?: ChartConfig,
 ): ChartConfig => {
-    const fromAction =
-        chartConfig?.type === chartType ? chartConfig.config : undefined;
-
-    const fromCache = cachedConfigs?.[chartType]?.chartConfig;
-    const fromDefault = DEFAULTS[chartType]();
-
-    const source = fromAction ?? fromCache ?? fromDefault;
-    const config = clone(source);
-
-    return { type: chartType, config } as ChartConfig;
+    const source =
+        chartConfig?.type === chartType
+            ? chartConfig.config
+            : (cachedConfigs?.[chartType]?.chartConfig ??
+              DEFAULTS[chartType]());
+    return (
+        source === undefined
+            ? { type: chartType }
+            : { type: chartType, config: clone(source) }
+    ) as ChartConfig;
 };
 
 export const getCachedPivotConfig = (
     chartType: ChartType,
     cachedConfigs?: Partial<ConfigCacheMap>,
-): { columns: string[] } | undefined => {
+): SavedChart['pivotConfig'] => {
     return cachedConfigs?.[chartType]?.pivotConfig;
 };
 

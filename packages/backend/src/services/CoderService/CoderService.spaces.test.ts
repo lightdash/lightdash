@@ -180,7 +180,7 @@ const buildService = ({
         getAccessibleSpaceUuids: vi.fn(async () => accessibleSpaceUuids),
         getRawDirectAccess: vi.fn(async () => rawAccess),
         can: vi.fn(async () => canResults?.shift() ?? canManage),
-        getSpaceAccessContext: vi.fn(async () => ({
+        resolveAccess: vi.fn(async () => ({
             organizationUuid: ORGANIZATION_UUID,
             projectUuid: PROJECT_UUID,
             inheritsFromOrgOrProject: false,
@@ -192,11 +192,13 @@ const buildService = ({
         findSessionUserAndOrgByUuid: vi.fn(async () => refreshedUser),
     };
     const service = new CoderService({
+        directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: projectModel as AnyType,
         savedChartModel: {} as AnyType,
         savedSqlModel: {} as AnyType,
+        appModel: {} as AnyType,
         dashboardModel: {} as AnyType,
         spaceModel: spaceModel as AnyType,
         schedulerModel: {} as AnyType,
@@ -206,6 +208,8 @@ const buildService = ({
         schedulerClient: {} as AnyType,
         promoteService: {} as AnyType,
         spacePermissionService: spacePermissionService as AnyType,
+        contentAsCodeSnapshotModel: { upsert: vi.fn() } as AnyType,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as AnyType,
         contentVerificationModel: {} as AnyType,
         groupsModel: {
             find: vi.fn(async ({ name }) => ({

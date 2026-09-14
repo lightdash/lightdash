@@ -1,4 +1,4 @@
-import { Group, Stack, Switch, Text } from '@mantine-8/core';
+import { Group, Stack, Switch, Text } from '@mantine/core';
 import { type FC } from 'react';
 import {
     useOrganizationSettings,
@@ -23,7 +23,7 @@ const SupportImpersonationPanel: FC = () => {
                 <Text fw={500} fz="sm">
                     Allow Lightdash support to impersonate users
                 </Text>
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     When enabled, the Lightdash support team can impersonate
                     users in your organization while helping with a support
                     request, so they can reproduce issues from your perspective

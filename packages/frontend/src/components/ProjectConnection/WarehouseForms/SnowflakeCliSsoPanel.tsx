@@ -19,9 +19,10 @@ import {
     Text,
     Tooltip,
     type ComboboxItem,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import {
     useMintWarehouseConnectCode,
     useWarehouseConnectCodeClaim,
@@ -84,9 +85,8 @@ const CopyableCommand: FC<{ command: string; onCopy?: () => void }> = ({
         </Code>
         <CopyButton value={command}>
             {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow>
+                <Tooltip label={copied ? 'Copied' : 'Copy'}>
                     <ActionIcon
-                        variant="subtle"
                         color={copied ? 'green' : 'gray'}
                         onClick={() => {
                             copy();
@@ -133,7 +133,7 @@ const twoLineOption = (
 );
 
 const defaultBadge = (
-    <Badge size="xs" color="blue" variant="light" radius="sm">
+    <Badge size="xs" color="blue">
         Your Snowflake default
     </Badge>
 );
@@ -146,6 +146,10 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const { track } = useTracking();
+    const { pathname } = useLocation();
+    const onboardingFlow = pathname.startsWith('/onboarding/')
+        ? 'new'
+        : 'legacy';
     const form = useFormContext();
     const siteUrl = health.data?.siteUrl ?? '';
     const mint = useMintWarehouseConnectCode();
@@ -171,6 +175,10 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
             setClaimed(true);
             setInventory(claim.data.inventory);
             onDeposited(claim.data.credentials);
+            track({
+                name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED,
+                properties: { success: true, onboardingFlow },
+            });
             const depositedInventory = claim.data.inventory;
             const selectedDatabase =
                 claim.data.credentials.database ??
@@ -198,15 +206,19 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 }
             }
         }
-    }, [claimed, claim.data, onDeposited, form]);
+    }, [claimed, claim.data, onDeposited, form, track, onboardingFlow]);
 
     useEffect(() => {
         if (claim.error) {
             sessionStorage.removeItem(STORED_CODE_KEY);
             setCode(null);
             setSecondsRemaining(null);
+            track({
+                name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED,
+                properties: { success: false, onboardingFlow },
+            });
         }
-    }, [claim.error]);
+    }, [claim.error, track, onboardingFlow]);
 
     useEffect(() => {
         if (secondsRemaining === null || secondsRemaining <= 0)
@@ -285,7 +297,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 option.value === connectedCredentials.database ? (
                     defaultBadge
                 ) : option.value === recommendedDatabase ? (
-                    <Badge size="xs" color="green" variant="light" radius="sm">
+                    <Badge size="xs" color="green">
                         Recommended · largest
                     </Badge>
                 ) : null,
@@ -300,7 +312,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 option.value === connectedCredentials.warehouse ? (
                     defaultBadge
                 ) : option.value === recommendedWarehouse ? (
-                    <Badge size="xs" color="green" variant="light" radius="sm">
+                    <Badge size="xs" color="green">
                         Recommended · cheapest
                     </Badge>
                 ) : null;
@@ -343,10 +355,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                     {...form.getInputProps('warehouse.database')}
                     onChange={(value) => {
                         if (value === warehouseValues?.database) return;
-                        form.setFieldValue(
-                            'warehouse.database',
-                            value ?? undefined,
-                        );
+                        form.setFieldValue('warehouse.database', value ?? '');
                         form.setFieldValue('warehouse.schema', '');
                     }}
                 />
@@ -444,6 +453,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                             onCopy={() =>
                                 track({
                                     name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED,
+                                    properties: { onboardingFlow },
                                 })
                             }
                         />

@@ -27,7 +27,7 @@ type RequestHeader = {
  *
  * See {@link AuthTokenPrefix} for the available token prefixes
  */
-function getAuthHeader(token: string) {
+export function getAuthHeader(token: string) {
     const authType = token?.startsWith(AuthTokenPrefix.SERVICE_ACCOUNT)
         ? TokenType.Bearer
         : TokenType.ApiKey;

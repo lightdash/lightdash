@@ -1,13 +1,4 @@
-import { type AiDeepResearchChartDataMap } from '@lightdash/common';
-
-export const DEEP_RESEARCH_DEPTHS = [
-    'quick',
-    'standard',
-    'deep',
-    'exhaustive',
-] as const;
-
-export type DeepResearchDepth = (typeof DEEP_RESEARCH_DEPTHS)[number];
+import { type AiDeepResearchTerminalReason } from '@lightdash/common';
 
 export type DeepResearchRunStatus =
     | 'queued'
@@ -28,13 +19,15 @@ export type DeepResearchSource = {
 export type DeepResearchRunView = {
     uuid: string;
     projectUuid: string;
+    agentUuid: string;
     threadUuid: string;
     question: string;
-    depth: DeepResearchDepth;
     status: DeepResearchRunStatus;
+    terminalReason: AiDeepResearchTerminalReason | null;
     phase: string | null;
     startedAt: string | null;
     completedAt: string | null;
+    updatedAt: string;
     elapsedMs: number;
     sourceCount: number | null;
     queryCount: number;
@@ -50,20 +43,37 @@ export type DeepResearchRunView = {
         label: string;
         createdAt: string;
     }>;
-    /** The report narrative with [title](#chart-<key>) chart references. */
+    /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
     /** Render data for each referenced chart, keyed by chart key. */
-    resultChartData: AiDeepResearchChartDataMap | null;
+    reportExpiresAt: string | null;
+    reportExpiredAt: string | null;
+    isReportExpired: boolean;
     errorMessage: string | null;
 };
+
+export type DeepResearchReportView = Pick<
+    DeepResearchRunView,
+    | 'uuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'threadUuid'
+    | 'question'
+    | 'completedAt'
+    | 'sourceCount'
+    | 'resultMarkdown'
+    | 'isReportExpired'
+>;
 
 export type DeepResearchRunRegistration = {
     runUuid: string;
     projectUuid: string;
+    agentUuid: string;
     threadUuid: string;
+    promptUuid: string;
+    resumeFromRunUuid?: string;
     userUuid: string;
     question: string;
-    depth: DeepResearchDepth;
     createdAt: string;
     state: 'starting' | 'started' | 'start_failed';
     errorMessage?: string;
@@ -71,5 +81,5 @@ export type DeepResearchRunRegistration = {
 
 export type StartDeepResearchArgs = {
     question: string;
-    depth: DeepResearchDepth;
+    resumeFromRunUuid?: string;
 };

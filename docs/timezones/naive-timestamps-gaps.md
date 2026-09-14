@@ -2,6 +2,8 @@
 
 The gaps in how Lightdash handles naive (timezone-less) timestamp columns, discovered while fixing the raw-time-frame display bug ([#25614](https://github.com/lightdash/lightdash/issues/25614), fixed by [#25649](https://github.com/lightdash/lightdash/pull/25649)). Each gap shows a concrete example with the actual result and, where it explains the failure, the compiled SQL — all reproduced against live warehouses, not derived from reading code. The closing section states the constraints any fix should respect.
 
+The fix for these gaps is designed — see [`timestamp-domains-design.md`](./timestamp-domains-design.md) for the chosen solution, which gaps it closes, and why.
+
 Companion to [`timezone-handling.md`](./timezone-handling.md) (how timezones work today) and [`timezones-v2-design.md`](./timezones-v2-design.md) (design principles). Each gap has a slug (`gap-...`, same convention as the v2 design doc) for cross-referencing from tickets:
 
 | Slug | Gap |
@@ -117,6 +119,8 @@ Filtering the same column to a one-hour window around that visible value returns
 **ClickHouse hits the same symptom from the opposite side** — no naive column required. Its values are instants and the SELECT pins them to UTC (`toTimeZone(x, 'UTC')`), but its bare filter literals are parsed by `session_timezone` (= `dataTimezone`). Verified live with `dataTimezone: Asia/Tokyo`, display UTC, on `timezone_test`: the displayed raw value is `2024-01-15T02:00Z`, filtering `inBetween [01:30Z, 02:30Z]` returns **0 rows**, and the window that matches is `[10:30Z, 11:30Z]` — the literal `'2024-01-15 10:30:00'` read as a Tokyo wall clock is `01:30Z`. Display never moves, filters silently shift: setting a data timezone on ClickHouse only breaks things. The literal-side fix (`gap-naive-filter-domain`'s typed-literal strategy, here `toDateTime64('...', 3, 'UTC')`) makes the setting fully inert on ClickHouse.
 
 **(c) Even when bucketed filters are correct, they full-scan partitioned tables.** Filter parity is achieved by reusing the timezone-wrapped expression as the WHERE LHS — visible in (a)'s compiled SQL — so the partition column is hidden inside a function call and the warehouse cannot prune. Measured on a partitioned BigQuery table: a bare-column predicate processes 176 bytes; the same predicate with the wrapped column processes 32,080 bytes (the full table). This half affects aware and naive columns alike — it is a cost of the wrap-the-column strategy itself, and the same literal-side rewrite that fixes (a) and (b) removes it (half-open ranges on the bare column, see constraint 2).
+
+*Status:* closed for bare-column filters and for day-or-coarser grains on known-aware BigQuery columns, which now compile to `DATE(col, tz)` / `DATE_TRUNC(DATE(col, tz), grain)`; see [Prunable calendar grains on BigQuery](./timestamp-domains-design.md#prunable-calendar-grains-on-bigquery). Sub-day bucketed filters and naive columns still wrap.
 
 **Files:** `packages/common/src/compiler/filtersCompiler.ts` (the TIMESTAMP branch does not thread timezone arguments today), `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts`
 

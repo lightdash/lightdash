@@ -110,17 +110,26 @@ export async function seed(knex: Knex): Promise<void> {
             role: seedUserRole,
         });
 
-        await knex(OnboardingTableName).insert({
-            organization_id: organizationId,
-            ranQuery_at: new Date(),
-            shownSuccess_at: new Date(),
-        });
+        await knex(OnboardingTableName)
+            .insert({
+                organization_id: organizationId,
+                ranQuery_at: new Date(),
+                shownSuccess_at: new Date(),
+            })
+            .onConflict('organization_id')
+            .ignore();
 
         return { organizationId, user, organizationUuid };
     };
 
     const { organizationId, organizationUuid } =
         await addOrganization(SEED_ORG_1);
+
+    await knex('organization_homepage_settings').insert({
+        organization_uuid: organizationUuid,
+        enabled: true,
+        opening: null,
+    });
 
     // Add user attribute
     await new UserAttributesModel({ database: knex }).create(
@@ -188,9 +197,10 @@ export async function seed(knex: Knex): Promise<void> {
     )
         .insert({
             ...SEED_PROJECT,
+            slug: generateSlug(SEED_PROJECT.name),
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
-            dbt_version: SupportedDbtVersions.V1_7,
+            dbt_version: SupportedDbtVersions.V1_12,
             created_by_user_uuid: user.user_uuid,
         })
         .returning(['project_id', 'project_uuid']);
@@ -263,7 +273,8 @@ export async function seed(knex: Knex): Promise<void> {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
             },
-            SupportedDbtVersions.V1_7,
+            SupportedDbtVersions.V1_12,
+            lightdashConfig.dbt.environmentVariableAllowlist,
         );
         const explores = await adapter.compileAllExplores({
             userUuid: user.user_uuid,
@@ -280,6 +291,7 @@ export async function seed(knex: Knex): Promise<void> {
         await projectModel.saveExploresToCache(
             SEED_PROJECT.project_uuid,
             explores,
+            true,
         );
 
         // Index catalog after saving explores to cache

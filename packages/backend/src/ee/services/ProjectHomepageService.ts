@@ -1,15 +1,20 @@
 import { subject } from '@casl/ability';
 import {
+    ANNOUNCEMENT_BODY_MAX_LENGTH,
+    ANNOUNCEMENT_CATEGORY_META,
     assertUnreachable,
     CommercialFeatureFlags,
+    convertOrganizationRoleToProjectRole,
     defaultHomepageConfig,
     ForbiddenError,
-    HOMEPAGE_MAX_BLOCKS_PER_ROW,
+    getErrorMessage,
+    getHighestProjectRole,
+    isSystemRole,
     NotFoundError,
     ParameterError,
-    type AnnouncementCategory,
+    parseHomepageConfig,
+    PersistentDownloadFileAccessMode,
     type AnnouncementsPage,
-    type CreateAnnouncementCategoryRequest,
     type CreateAnnouncementRequest,
     type CreateProjectHomepageRequest,
     type HomepageAssignment,
@@ -19,25 +24,55 @@ import {
     type HomepageRecentlyViewedItem,
     type HomepageViewAsResult,
     type HomepageViewAsTarget,
+    type OrganizationHomepageSettings,
     type ProjectAnnouncement,
     type ProjectHomepage,
     type ProjectMemberRole,
+    type PublishAnnouncementPayload,
     type ResolvedHomepage,
     type SessionUser,
     type UpdateAnnouncementRequest,
+    type UpdateOrganizationHomepageSettings,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
+import { type KnownBlock } from '@slack/web-api';
+import { createCanvas, loadImage } from 'canvas';
+import { randomUUID } from 'crypto';
+import { type Readable } from 'stream';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import { type SlackClient } from '../../clients/Slack/SlackClient';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
+import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import type { RecentContentService } from '../../services/RecentContentService/RecentContentService';
 import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
+import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
     classifyResourceUrl,
     parseOpenGraph,
     parseYoutubeOembed,
 } from './homepageLinkMetadata';
+
+const ANNOUNCEMENT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+// The byte cap doesn't bound decoded size: a few KB of PNG can declare
+// 30000x30000 and allocate gigabytes once decoded.
+const ANNOUNCEMENT_IMAGE_MAX_PIXELS = 25_000_000;
+const ANNOUNCEMENT_IMAGE_MAX_DIMENSION_PX = 2000;
+const ANNOUNCEMENT_IMAGE_PERSISTENT_URL_EXPIRY_SECONDS =
+    10 * 365 * 24 * 60 * 60;
+const ALLOWED_ANNOUNCEMENT_IMAGE_MIME_TYPES = new Set([
+    'image/png',
+    'image/jpeg',
+    'image/gif',
+    'image/webp',
+]);
 
 const LINK_METADATA_TIMEOUT_MS = 5_000;
 const LINK_METADATA_MAX_BYTES = 256 * 1024;
@@ -47,17 +82,103 @@ const LINK_METADATA_MAX_BYTES = 256 * 1024;
 const LINK_PREVIEW_USER_AGENT =
     'Lightdash-LinkPreview/1.0 (+https://www.lightdash.com; like Slackbot-LinkExpanding)';
 
+// Slack's `markdown` block renders standard markdown natively. Not yet in the
+// pinned @slack/types, but it structurally satisfies the SDK's base Block type.
+type SlackMarkdownBlock = { type: 'markdown'; text: string };
+
+type ImageDimensions = { width: number; height: number };
+
+const readPngDimensions = (buffer: Buffer): ImageDimensions | null => {
+    if (buffer.length < 24) return null;
+    if (buffer.readUInt32BE(0) !== 0x89504e47) return null;
+    if (buffer.toString('ascii', 12, 16) !== 'IHDR') return null;
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+};
+
+const readGifDimensions = (buffer: Buffer): ImageDimensions | null => {
+    if (buffer.length < 10) return null;
+    if (buffer.toString('ascii', 0, 4) !== 'GIF8') return null;
+    return { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
+};
+
+/* eslint-disable no-bitwise -- WebP packs dimensions into header bit fields */
+const readWebpDimensions = (buffer: Buffer): ImageDimensions | null => {
+    if (buffer.length < 30) return null;
+    if (
+        buffer.toString('ascii', 0, 4) !== 'RIFF' ||
+        buffer.toString('ascii', 8, 12) !== 'WEBP'
+    ) {
+        return null;
+    }
+    switch (buffer.toString('ascii', 12, 16)) {
+        case 'VP8X':
+            return {
+                width: buffer.readUIntLE(24, 3) + 1,
+                height: buffer.readUIntLE(27, 3) + 1,
+            };
+        case 'VP8 ':
+            return {
+                width: buffer.readUInt16LE(26) & 0x3fff,
+                height: buffer.readUInt16LE(28) & 0x3fff,
+            };
+        case 'VP8L': {
+            const bits = buffer.readUInt32LE(21);
+            return {
+                width: (bits & 0x3fff) + 1,
+                height: ((bits >> 14) & 0x3fff) + 1,
+            };
+        }
+        default:
+            return null;
+    }
+};
+/* eslint-enable no-bitwise */
+
+const readJpegDimensions = (buffer: Buffer): ImageDimensions | null => {
+    if (buffer.length < 4 || buffer.readUInt16BE(0) !== 0xffd8) return null;
+    let offset = 2;
+    while (offset + 9 < buffer.length) {
+        if (buffer[offset] !== 0xff) return null;
+        const marker = buffer[offset + 1];
+        // Standalone markers carry no length field
+        if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd9)) {
+            offset += 2;
+        } else {
+            const isStartOfFrame =
+                marker >= 0xc0 &&
+                marker <= 0xcf &&
+                marker !== 0xc4 &&
+                marker !== 0xc8 &&
+                marker !== 0xcc;
+            if (isStartOfFrame) {
+                return {
+                    height: buffer.readUInt16BE(offset + 5),
+                    width: buffer.readUInt16BE(offset + 7),
+                };
+            }
+            offset += 2 + buffer.readUInt16BE(offset + 2);
+        }
+    }
+    return null;
+};
+
+const announcementImageS3Prefix = (projectUuid: string) =>
+    `announcements/${projectUuid}/`;
+
+const readImageDimensions = (buffer: Buffer): ImageDimensions | null =>
+    readPngDimensions(buffer) ??
+    readGifDimensions(buffer) ??
+    readWebpDimensions(buffer) ??
+    readJpegDimensions(buffer);
+
 export type ProjectHomepageServiceArguments = {
+    recentContentService: Pick<RecentContentService, 'getRecentlyViewed'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
         | 'getDefault'
         | 'getByUuid'
         | 'getPublishedDefault'
-        | 'getRecentlyViewed'
         | 'getAssignments'
-        | 'getPersonalOverride'
-        | 'setPersonalOverride'
-        | 'deletePersonalOverride'
         | 'updateGroupPriorities'
         | 'resolvePublished'
         | 'list'
@@ -71,17 +192,39 @@ export type ProjectHomepageServiceArguments = {
         | 'createAnnouncement'
         | 'updateAnnouncement'
         | 'deleteAnnouncement'
-        | 'listCategories'
-        | 'getCategory'
-        | 'createCategory'
+        | 'publishProjectDraftAnnouncements'
+        | 'publishPendingAnnouncements'
+        | 'findOrgHomepageSettings'
+        | 'upsertOrgHomepageSettings'
+        | 'swapHeroBlocks'
     >;
+    analytics: Pick<LightdashAnalytics, 'track'>;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
-    projectModel: Pick<ProjectModel, 'getProjectMemberAccess'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getProjectMemberAccess' | 'getProjectGroupAccesses' | 'getSummary'
+    >;
+    userModel: Pick<UserModel, 'getUserDetailsByUuid'>;
+    fileStorageClient: FileStorageClient;
+    persistentDownloadFileService: PersistentDownloadFileService;
+    slackClient: Pick<SlackClient, 'postMessage'>;
+    slackAuthenticationModel: Pick<
+        SlackAuthenticationModel,
+        'getInstallationFromOrganizationUuid'
+    >;
+    lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
+    schedulerClient: Pick<
+        CommercialSchedulerClient,
+        'schedulePublishAnnouncement' | 'cancelPublishAnnouncement'
+    >;
 };
 
 export class ProjectHomepageService extends BaseService {
+    private readonly recentContentService: ProjectHomepageServiceArguments['recentContentService'];
     private readonly projectHomepageModel: ProjectHomepageServiceArguments['projectHomepageModel'];
+
+    private readonly analytics: ProjectHomepageServiceArguments['analytics'];
 
     private readonly featureFlagService: ProjectHomepageServiceArguments['featureFlagService'];
 
@@ -89,34 +232,146 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
 
+    private readonly userModel: ProjectHomepageServiceArguments['userModel'];
+
+    private readonly fileStorageClient: ProjectHomepageServiceArguments['fileStorageClient'];
+
+    private readonly persistentDownloadFileService: ProjectHomepageServiceArguments['persistentDownloadFileService'];
+
+    private readonly slackClient: ProjectHomepageServiceArguments['slackClient'];
+
+    private readonly slackAuthenticationModel: ProjectHomepageServiceArguments['slackAuthenticationModel'];
+
+    private readonly lightdashConfig: ProjectHomepageServiceArguments['lightdashConfig'];
+
+    private readonly schedulerClient: ProjectHomepageServiceArguments['schedulerClient'];
+
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
+        this.recentContentService = args.recentContentService;
+        this.analytics = args.analytics;
         this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
+        this.userModel = args.userModel;
+        this.fileStorageClient = args.fileStorageClient;
+        this.persistentDownloadFileService = args.persistentDownloadFileService;
+        this.slackClient = args.slackClient;
+        this.slackAuthenticationModel = args.slackAuthenticationModel;
+        this.lightdashConfig = args.lightdashConfig;
+        this.schedulerClient = args.schedulerClient;
     }
 
-    private async assertFlagEnabled(user: SessionUser): Promise<void> {
+    // Homepage v2 is on when the org opted in via settings OR the commercial
+    // flag is set — the flag remains as the legacy enablement path and
+    // kill-switch while the opt-in flow rolls out.
+    private async isHomepageEnabled(user: SessionUser): Promise<boolean> {
+        if (user.organizationUuid) {
+            const settings =
+                await this.projectHomepageModel.findOrgHomepageSettings(
+                    user.organizationUuid,
+                );
+            if (settings?.enabled) return true;
+        }
         const flag = await this.featureFlagService.get({
             user,
             featureFlagId: CommercialFeatureFlags.HomepageBuilder,
         });
-        if (!flag.enabled) {
+        return flag.enabled;
+    }
+
+    private async assertFlagEnabled(user: SessionUser): Promise<void> {
+        if (!(await this.isHomepageEnabled(user))) {
             throw new ForbiddenError('Homepage builder is not enabled');
         }
     }
 
-    private assertCanView(user: SessionUser, projectUuid: string): void {
+    async getOrgHomepageSettings(
+        user: SessionUser,
+    ): Promise<OrganizationHomepageSettings> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const settings =
+            await this.projectHomepageModel.findOrgHomepageSettings(
+                user.organizationUuid,
+            );
+        return (
+            settings ?? {
+                organizationUuid: user.organizationUuid,
+                enabled: false,
+                opening: null,
+            }
+        );
+    }
+
+    async updateOrgHomepageSettings(
+        user: SessionUser,
+        update: UpdateOrganizationHomepageSettings,
+    ): Promise<OrganizationHomepageSettings> {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
         const ability = this.createAuditedAbility(user);
         if (
             ability.cannot(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only organization admins can change homepage settings',
+            );
+        }
+        const previous =
+            await this.projectHomepageModel.findOrgHomepageSettings(
+                user.organizationUuid,
+            );
+        const settings =
+            await this.projectHomepageModel.upsertOrgHomepageSettings(
+                user.organizationUuid,
+                update,
+            );
+        // Choosing an opening is an explicit layout decision: rewrite stored
+        // hero blocks in both directions so the builder, drafts, and
+        // published pages all agree with it (block ids and density survive).
+        if (update.opening !== null) {
+            await this.projectHomepageModel.swapHeroBlocks(
+                user.organizationUuid,
+                update.opening,
+            );
+        }
+        this.analytics.track({
+            event: 'organization_homepage_settings.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                enabled: settings.enabled,
+                opening: settings.opening,
+                previouslyEnabled: previous?.enabled ?? false,
+            },
+        });
+        return settings;
+    }
+
+    private async assertCanView(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.cannot(
                 'view',
                 subject('Project', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid,
                     projectUuid,
                 }),
             )
@@ -125,16 +380,21 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
-    private assertCanManage(user: SessionUser, projectUuid: string): void {
+    private async assertCanManage(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(user);
         if (
             ability.cannot(
                 'manage',
                 subject('ProjectHomepage', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid,
                     projectUuid,
                 }),
             )
@@ -145,16 +405,14 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
-    private static validateConfig(config: HomepageConfig): void {
-        if (config.version !== 1) {
-            throw new ParameterError('Unsupported homepage config version');
-        }
-        const oversizedRow = config.rows.find(
-            (row) => row.blocks.length > HOMEPAGE_MAX_BLOCKS_PER_ROW,
-        );
-        if (oversizedRow) {
+    /** Strict schema parse: validates the block union, strips unknown
+     * properties before they reach storage, enforces the row block cap. */
+    private static validateConfig(config: HomepageConfig): HomepageConfig {
+        try {
+            return parseHomepageConfig(config);
+        } catch (e) {
             throw new ParameterError(
-                `Rows support at most ${HOMEPAGE_MAX_BLOCKS_PER_ROW} blocks`,
+                e instanceof Error ? e.message : 'Invalid homepage config',
             );
         }
     }
@@ -171,35 +429,18 @@ export class ProjectHomepageService extends BaseService {
         return homepage;
     }
 
-    // Resolution: personal → group priority → role → project default
+    // Resolution: group priority → role → project default
     private async resolveForViewer(
         projectUuid: string,
         viewer: {
             groupUuids: string[];
             role: ProjectMemberRole | undefined;
-            personalOverride: string | undefined;
         },
     ): Promise<HomepageViewAsResult> {
         const published = await this.projectHomepageModel.resolvePublished(
             projectUuid,
             { groupUuids: viewer.groupUuids, role: viewer.role },
         );
-        // Personal choice wins unless the audience homepage disallows it
-        if (
-            viewer.personalOverride &&
-            (published?.homepage.allowPersonal ?? true)
-        ) {
-            return {
-                resolved: {
-                    type: 'dashboard',
-                    dashboardUuid: viewer.personalOverride,
-                },
-                reason: {
-                    type: 'personal',
-                    dashboardUuid: viewer.personalOverride,
-                },
-            };
-        }
         if (published) {
             return {
                 resolved: { type: 'homepage', homepage: published.homepage },
@@ -216,13 +457,8 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<{
         groupUuids: string[];
         role: ProjectMemberRole | undefined;
-        personalOverride: string | undefined;
     }> {
-        const [override, groups, membership] = await Promise.all([
-            this.projectHomepageModel.getPersonalOverride(
-                userUuid,
-                projectUuid,
-            ),
+        const [groups, membership, groupAccesses, user] = await Promise.all([
             organizationUuid
                 ? this.groupsModel.findUserGroups({
                       userUuid,
@@ -230,12 +466,27 @@ export class ProjectHomepageService extends BaseService {
                   })
                 : Promise.resolve([]),
             this.projectModel.getProjectMemberAccess(projectUuid, userUuid),
+            this.projectModel.getProjectGroupAccesses(projectUuid),
+            this.userModel.getUserDetailsByUuid(userUuid),
         ]);
-        return {
-            groupUuids: groups.map((group) => group.uuid),
-            role: membership?.role,
-            personalOverride: override,
-        };
+        const groupUuids = groups.map((group) => group.uuid);
+        // Custom roles resolve to their stored placeholder, not a scope-derived tier.
+        const highestRole = getHighestProjectRole([
+            {
+                type: 'organization',
+                role: user.role
+                    ? convertOrganizationRoleToProjectRole(user.role)
+                    : undefined,
+            },
+            { type: 'project', role: membership?.role },
+            ...groupAccesses
+                .filter((access) => groupUuids.includes(access.groupUuid))
+                .map((access) => ({
+                    type: 'group' as const,
+                    role: isSystemRole(access.role) ? access.role : undefined,
+                })),
+        ]);
+        return { groupUuids, role: highestRole?.role };
     }
 
     async getResolvedHomepage(
@@ -243,7 +494,7 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
     ): Promise<ResolvedHomepage | null> {
         await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
+        await this.assertCanView(user, projectUuid);
         const viewer = await this.getViewerContext(
             user.organizationUuid,
             projectUuid,
@@ -259,7 +510,7 @@ export class ProjectHomepageService extends BaseService {
         target: HomepageViewAsTarget,
     ): Promise<HomepageViewAsResult> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         switch (target.type) {
             case 'user': {
                 const viewer = await this.getViewerContext(
@@ -273,56 +524,15 @@ export class ProjectHomepageService extends BaseService {
                 return this.resolveForViewer(projectUuid, {
                     groupUuids: [target.groupUuid],
                     role: undefined,
-                    personalOverride: undefined,
                 });
             case 'role':
                 return this.resolveForViewer(projectUuid, {
                     groupUuids: [],
                     role: target.role,
-                    personalOverride: undefined,
                 });
             default:
                 return assertUnreachable(target, 'Unknown view-as target type');
         }
-    }
-
-    async setPersonalHomepage(
-        user: SessionUser,
-        projectUuid: string,
-        dashboardUuid: string,
-    ): Promise<void> {
-        await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        await this.projectHomepageModel.setPersonalOverride(
-            user.userUuid,
-            projectUuid,
-            dashboardUuid,
-        );
-    }
-
-    async clearPersonalHomepage(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<void> {
-        await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        await this.projectHomepageModel.deletePersonalOverride(
-            user.userUuid,
-            projectUuid,
-        );
-    }
-
-    async getPersonalHomepage(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<string | null> {
-        await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        const override = await this.projectHomepageModel.getPersonalOverride(
-            user.userUuid,
-            projectUuid,
-        );
-        return override ?? null;
     }
 
     async getAssignments(
@@ -330,7 +540,7 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
     ): Promise<HomepageAssignment[]> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         return this.projectHomepageModel.getAssignments(projectUuid);
     }
 
@@ -340,7 +550,7 @@ export class ProjectHomepageService extends BaseService {
         groupUuids: string[],
     ): Promise<void> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         await this.projectHomepageModel.updateGroupPriorities(
             projectUuid,
             groupUuids,
@@ -352,11 +562,16 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
     ): Promise<HomepageRecentlyViewedItem[]> {
         await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        return this.projectHomepageModel.getRecentlyViewed(
+        await this.assertCanView(user, projectUuid);
+        const entries = await this.recentContentService.getRecentlyViewed(
+            user,
             projectUuid,
-            user.userUuid,
         );
+        return entries.map(({ contentType, uuid, viewedAt }) => ({
+            contentType,
+            uuid,
+            viewedAt,
+        }));
     }
 
     async getHomepageForBuilder(
@@ -365,7 +580,7 @@ export class ProjectHomepageService extends BaseService {
         homepageUuid?: string,
     ): Promise<ProjectHomepage | null> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         if (homepageUuid) {
             return this.getOwnedHomepage(projectUuid, homepageUuid);
         }
@@ -381,7 +596,7 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
     ): Promise<ProjectHomepage[]> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         return this.projectHomepageModel.list(projectUuid);
     }
 
@@ -391,7 +606,7 @@ export class ProjectHomepageService extends BaseService {
         data: CreateProjectHomepageRequest,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         const draftConfig = data.duplicateFrom
             ? (await this.getOwnedHomepage(projectUuid, data.duplicateFrom))
                   .draftConfig
@@ -410,7 +625,7 @@ export class ProjectHomepageService extends BaseService {
         homepageUuid: string,
     ): Promise<void> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         await this.projectHomepageModel.delete(homepageUuid);
     }
@@ -422,12 +637,14 @@ export class ProjectHomepageService extends BaseService {
         data: UpdateProjectHomepageDraftRequest,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
-        ProjectHomepageService.validateConfig(data.draftConfig);
+        await this.assertCanManage(user, projectUuid);
+        const draftConfig = ProjectHomepageService.validateConfig(
+            data.draftConfig,
+        );
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         return this.projectHomepageModel.updateDraft(homepageUuid, {
             name: data.name,
-            draftConfig: data.draftConfig,
+            draftConfig,
             baseUpdatedAt: data.baseUpdatedAt,
         });
     }
@@ -438,7 +655,7 @@ export class ProjectHomepageService extends BaseService {
         homepageUuid: string,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         return this.projectHomepageModel.discardDraft(homepageUuid);
     }
@@ -448,16 +665,58 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
         homepageUuid: string,
         audience: HomepageAudience,
-        allowPersonal: boolean,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
-        return this.projectHomepageModel.publish(
+        const published = await this.projectHomepageModel.publish(
             homepageUuid,
             audience,
-            allowPersonal,
         );
+        const publishedBlocks = (published.publishedConfig?.rows ?? []).flatMap(
+            (row) => row.blocks,
+        );
+        this.analytics.track({
+            event: 'homepage.published',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid ?? '',
+                projectId: projectUuid,
+                homepageUuid,
+                audienceType: audience.type,
+                blockTypeCounts: publishedBlocks.reduce<Record<string, number>>(
+                    (counts, block) => ({
+                        ...counts,
+                        [block.type]: (counts[block.type] ?? 0) + 1,
+                    }),
+                    {},
+                ),
+                openingBlockType:
+                    publishedBlocks.find(
+                        (block) =>
+                            block.type === 'ask-ai-hero' ||
+                            block.type === 'greeting',
+                    )?.type ?? null,
+            },
+        });
+        const { organizationUuid } = user;
+        if (organizationUuid) {
+            const publishedDrafts =
+                await this.projectHomepageModel.publishProjectDraftAnnouncements(
+                    projectUuid,
+                );
+            await Promise.all(
+                publishedDrafts.map(({ announcement, slackChannelId }) =>
+                    this.notifyAnnouncementToSlack(
+                        organizationUuid,
+                        projectUuid,
+                        announcement,
+                        slackChannelId,
+                    ),
+                ),
+            );
+        }
+        return published;
     }
 
     /**
@@ -474,7 +733,7 @@ export class ProjectHomepageService extends BaseService {
         url: string,
     ): Promise<HomepageLinkMetadata> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
 
         const provider = classifyResourceUrl(url);
         try {
@@ -526,31 +785,43 @@ export class ProjectHomepageService extends BaseService {
         return announcement;
     }
 
-    private async assertOwnedCategory(
-        projectUuid: string,
-        categoryUuid: string | null | undefined,
-    ): Promise<void> {
-        if (categoryUuid === null || categoryUuid === undefined) return;
-        const category =
-            await this.projectHomepageModel.getCategory(categoryUuid);
-        if (!category || category.projectUuid !== projectUuid) {
-            throw new NotFoundError('Category not found');
-        }
-    }
-
     private static validateAnnouncementTitle(title: string): void {
         if (title.trim().length === 0) {
             throw new ParameterError('Announcement title cannot be empty');
         }
     }
 
+    private static validateAnnouncementBody(body: string | null): void {
+        if (body !== null && body.length > ANNOUNCEMENT_BODY_MAX_LENGTH) {
+            throw new ParameterError(
+                `Announcement body is too long: ${body.length} characters. Maximum: ${ANNOUNCEMENT_BODY_MAX_LENGTH}`,
+            );
+        }
+    }
+
+    private async assertSlackInstalled(organizationUuid: string) {
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+        if (!installation) {
+            throw new ParameterError(
+                'Slack is not connected for this organization',
+            );
+        }
+    }
+
     async listAnnouncements(
         user: SessionUser,
         projectUuid: string,
-        options: { page: number; pageSize: number; categoryUuid?: string },
+        options: {
+            page: number;
+            pageSize: number;
+            includeUnpublished?: boolean;
+        },
     ): Promise<AnnouncementsPage> {
         await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
+        await this.assertCanView(user, projectUuid);
         if (
             options.page < 1 ||
             options.pageSize < 1 ||
@@ -558,10 +829,187 @@ export class ProjectHomepageService extends BaseService {
         ) {
             throw new ParameterError('Invalid pagination');
         }
+        // Drafts are only ever visible to someone who can manage the homepage.
+        if (options.includeUnpublished) {
+            await this.assertCanManage(user, projectUuid);
+        }
         return this.projectHomepageModel.listAnnouncements(
             projectUuid,
             options,
         );
+    }
+
+    // The first inline image, absolute-ized, for a Slack `image` block — the
+    // `markdown` block can't render inline images, so the image is appended as
+    // its own block instead of being lost.
+    private announcementSlackImage(
+        body: string,
+    ): { imageUrl: string; altText: string } | null {
+        const match = body.match(/!\[([^\]]*)\]\(([^)\s]+)\)/);
+        if (!match) return null;
+        const [, alt, url] = match;
+        const absolute = url.startsWith('/')
+            ? `${this.lightdashConfig.siteUrl}${url}`
+            : url;
+        if (!/^https?:\/\//.test(absolute)) return null;
+        return { imageUrl: absolute, altText: alt || 'Announcement image' };
+    }
+
+    // The stored body is standard markdown; Slack's `markdown` block renders it
+    // natively (links, bold, lists), so we only need to make relative URLs
+    // absolute and drop inline images (the first one is re-attached as a
+    // dedicated image block, see `announcementSlackImage`).
+    private announcementSlackMarkdown(body: string): string {
+        const { siteUrl } = this.lightdashConfig;
+        return body
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // drop inline images
+            .replace(
+                /\]\((\/[^)\s]*)\)/g,
+                (_match, path) => `](${siteUrl}${path})`,
+            )
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    private static announcementCategoryLabel(
+        announcement: ProjectAnnouncement,
+    ): string | null {
+        if (announcement.category == null) {
+            return null;
+        }
+        return ANNOUNCEMENT_CATEGORY_META[announcement.category]?.label ?? null;
+    }
+
+    // Context-line attribution only — omit missing parts so Slack never
+    // shows an empty "Posted by" or a dangling separator.
+    private static announcementSlackAttribution(
+        announcement: ProjectAnnouncement,
+    ): string | null {
+        const parts: string[] = [];
+        const categoryLabel =
+            ProjectHomepageService.announcementCategoryLabel(announcement);
+        if (categoryLabel) {
+            parts.push(categoryLabel);
+        }
+        if (announcement.authorName) {
+            parts.push(`Posted by ${announcement.authorName}`);
+        }
+        return parts.length > 0 ? parts.join(' · ') : null;
+    }
+
+    private static announcementSlackFallbackText(
+        announcement: ProjectAnnouncement,
+    ): string {
+        const categoryLabel =
+            ProjectHomepageService.announcementCategoryLabel(announcement);
+        const author = announcement.authorName;
+        if (categoryLabel && author) {
+            return `📢 ${categoryLabel} from ${author}: ${announcement.title}`;
+        }
+        if (categoryLabel) {
+            return `📢 ${categoryLabel}: ${announcement.title}`;
+        }
+        if (author) {
+            return `📢 New announcement from ${author}: ${announcement.title}`;
+        }
+        return `📢 New announcement: ${announcement.title}`;
+    }
+
+    private async notifyAnnouncementToSlack(
+        organizationUuid: string,
+        projectUuid: string,
+        announcement: ProjectAnnouncement,
+        channelId: string,
+    ): Promise<void> {
+        const link = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/home`;
+        const markdown = announcement.body
+            ? this.announcementSlackMarkdown(announcement.body)
+            : '';
+        const image = announcement.body
+            ? this.announcementSlackImage(announcement.body)
+            : null;
+        const attribution =
+            ProjectHomepageService.announcementSlackAttribution(announcement);
+        const blocks: (KnownBlock | SlackMarkdownBlock)[] = [
+            {
+                type: 'header',
+                text: {
+                    type: 'plain_text',
+                    text: announcement.title.slice(0, 150),
+                    emoji: true,
+                },
+            },
+            ...(attribution
+                ? [
+                      {
+                          type: 'context' as const,
+                          elements: [
+                              {
+                                  type: 'mrkdwn' as const,
+                                  text: attribution,
+                              },
+                          ],
+                      },
+                  ]
+                : []),
+            ...(markdown
+                ? [{ type: 'markdown' as const, text: markdown }]
+                : []),
+            ...(image
+                ? [
+                      {
+                          type: 'image' as const,
+                          image_url: image.imageUrl,
+                          alt_text: image.altText,
+                      },
+                  ]
+                : []),
+            {
+                type: 'context',
+                elements: [
+                    {
+                        type: 'mrkdwn',
+                        text: `<${link}|View on the homepage>`,
+                    },
+                ],
+            },
+        ];
+        const text =
+            ProjectHomepageService.announcementSlackFallbackText(announcement);
+        try {
+            await this.slackClient.postMessage({
+                organizationUuid,
+                channel: channelId,
+                text,
+                blocks,
+            });
+        } catch (error) {
+            // Slack rejects the whole message when it can't fetch the image
+            // URL (common when the instance isn't reachable from Slack), so
+            // retry without it rather than losing the announcement.
+            if (!image) {
+                this.logger.error(
+                    `Failed to post announcement to Slack channel ${channelId}: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                return;
+            }
+            try {
+                await this.slackClient.postMessage({
+                    organizationUuid,
+                    channel: channelId,
+                    text,
+                    blocks: blocks.filter((block) => block.type !== 'image'),
+                });
+            } catch (retryError) {
+                this.logger.error(
+                    `Failed to post announcement to Slack channel ${channelId}: ${getErrorMessage(
+                        retryError,
+                    )}`,
+                );
+            }
+        }
     }
 
     async createAnnouncement(
@@ -570,16 +1018,63 @@ export class ProjectHomepageService extends BaseService {
         data: CreateAnnouncementRequest,
     ): Promise<ProjectAnnouncement> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         ProjectHomepageService.validateAnnouncementTitle(data.title);
-        await this.assertOwnedCategory(projectUuid, data.categoryUuid);
-        return this.projectHomepageModel.createAnnouncement({
-            projectUuid,
-            title: data.title.trim(),
-            body: data.body,
-            categoryUuid: data.categoryUuid,
-            createdByUserUuid: user.userUuid,
-        });
+        ProjectHomepageService.validateAnnouncementBody(data.body);
+        if (data.publishNow && data.scheduledPublishAt) {
+            throw new ParameterError(
+                'An announcement cannot both publish now and be scheduled',
+            );
+        }
+        if (data.scheduledPublishAt) {
+            ProjectHomepageService.validateScheduledPublishAt(
+                data.scheduledPublishAt,
+            );
+        }
+        if (data.slackChannelId) {
+            if (!user.organizationUuid) throw new ForbiddenError();
+            await this.assertSlackInstalled(user.organizationUuid);
+        }
+        // Default path creates a draft — invisible on the live homepage, its
+        // Slack notification (if any) deferred until the homepage is
+        // published, see `publishHomepage`. With `publishNow` (posting from
+        // the published homepage) it goes live and notifies immediately; with
+        // `scheduledPublishAt` it goes live at that instant.
+        const announcement = await this.projectHomepageModel.createAnnouncement(
+            {
+                projectUuid,
+                title: data.title.trim(),
+                body: data.body,
+                category: data.category,
+                createdByUserUuid: user.userUuid,
+                pendingSlackChannelId: data.slackChannelId ?? null,
+                published: data.publishNow === true,
+                scheduledPublishAt: data.scheduledPublishAt ?? null,
+            },
+        );
+        if (data.publishNow && data.slackChannelId && user.organizationUuid) {
+            await this.notifyAnnouncementToSlack(
+                user.organizationUuid,
+                projectUuid,
+                announcement,
+                data.slackChannelId,
+            );
+        }
+        if (announcement.scheduledPublishAt) {
+            // assertCanManage guarantees an org; throw rather than silently
+            // leaving the row to the sweep if that invariant ever breaks.
+            if (!user.organizationUuid) throw new ForbiddenError();
+            await this.schedulerClient.schedulePublishAnnouncement(
+                {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    announcementUuid: announcement.announcementUuid,
+                },
+                announcement.scheduledPublishAt,
+            );
+        }
+        return announcement;
     }
 
     async updateAnnouncement(
@@ -589,16 +1084,129 @@ export class ProjectHomepageService extends BaseService {
         update: UpdateAnnouncementRequest,
     ): Promise<ProjectAnnouncement> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
-        await this.getOwnedAnnouncement(projectUuid, announcementUuid);
+        await this.assertCanManage(user, projectUuid);
+        const announcement = await this.getOwnedAnnouncement(
+            projectUuid,
+            announcementUuid,
+        );
         if (update.title !== undefined) {
             ProjectHomepageService.validateAnnouncementTitle(update.title);
         }
-        await this.assertOwnedCategory(projectUuid, update.categoryUuid);
-        return this.projectHomepageModel.updateAnnouncement(announcementUuid, {
-            ...update,
-            ...(update.title !== undefined && { title: update.title.trim() }),
-        });
+        if (update.body !== undefined) {
+            ProjectHomepageService.validateAnnouncementBody(update.body);
+        }
+        if (update.slackChannelId !== undefined) {
+            // The notification fires on publish, so a published announcement
+            // has nothing left to retarget.
+            if (announcement.published) {
+                throw new ParameterError(
+                    'Cannot change the Slack channel of a published announcement',
+                );
+            }
+            if (update.slackChannelId !== null) {
+                if (!user.organizationUuid) throw new ForbiddenError();
+                await this.assertSlackInstalled(user.organizationUuid);
+            }
+        }
+        const { publishNow, scheduledPublishAt, ...contentUpdate } = update;
+        if (publishNow && scheduledPublishAt) {
+            throw new ParameterError(
+                'An announcement cannot both publish now and be scheduled',
+            );
+        }
+        if (
+            announcement.published &&
+            (publishNow || scheduledPublishAt !== undefined)
+        ) {
+            throw new ParameterError('Announcement is already published');
+        }
+        if (scheduledPublishAt) {
+            ProjectHomepageService.validateScheduledPublishAt(
+                scheduledPublishAt,
+            );
+        }
+
+        // Content edits (and any schedule change) land first so a publish-now
+        // publishes what the admin just wrote, with the current Slack target.
+        const hasModelUpdate =
+            Object.keys(contentUpdate).length > 0 ||
+            scheduledPublishAt !== undefined;
+        const updated = hasModelUpdate
+            ? await this.projectHomepageModel.updateAnnouncement(
+                  announcementUuid,
+                  {
+                      ...contentUpdate,
+                      ...(update.title !== undefined && {
+                          title: update.title.trim(),
+                      }),
+                      ...(scheduledPublishAt !== undefined && {
+                          scheduledPublishAt,
+                      }),
+                  },
+              )
+            : announcement;
+
+        if (publishNow) {
+            const published =
+                await this.projectHomepageModel.publishPendingAnnouncements({
+                    announcementUuid,
+                    onlyDue: false,
+                });
+            await this.schedulerClient.cancelPublishAnnouncement(
+                announcementUuid,
+            );
+            await this.notifyPublishedAnnouncements(published);
+            return published[0]?.announcement ?? updated;
+        }
+        if (scheduledPublishAt) {
+            // assertCanManage guarantees an org; throw rather than silently
+            // leaving the row to the sweep if that invariant ever breaks.
+            if (!user.organizationUuid) throw new ForbiddenError();
+            await this.schedulerClient.schedulePublishAnnouncement(
+                {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    announcementUuid,
+                },
+                scheduledPublishAt,
+            );
+        } else if (scheduledPublishAt === null) {
+            await this.schedulerClient.cancelPublishAnnouncement(
+                announcementUuid,
+            );
+        }
+        return updated;
+    }
+
+    // Best-effort: uploaded images are only reachable through the body, so
+    // they become orphans once the announcement is gone. Only files stored
+    // under this project's announcement prefix are touched.
+    private async deleteAnnouncementImages(
+        projectUuid: string,
+        body: string | null,
+    ): Promise<void> {
+        if (!body) return;
+        const fileNanoids = Array.from(
+            body.matchAll(/\/api\/v1\/file\/([A-Za-z0-9_-]+)/g),
+            (match) => match[1],
+        );
+        await Promise.all(
+            fileNanoids.map(async (fileNanoid) => {
+                try {
+                    await this.persistentDownloadFileService.deleteFileWithKeyPrefix(
+                        fileNanoid,
+                        announcementImageS3Prefix(projectUuid),
+                    );
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to delete announcement image ${fileNanoid}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+            }),
+        );
     }
 
     async deleteAnnouncement(
@@ -607,40 +1215,213 @@ export class ProjectHomepageService extends BaseService {
         announcementUuid: string,
     ): Promise<void> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
-        await this.getOwnedAnnouncement(projectUuid, announcementUuid);
+        await this.assertCanManage(user, projectUuid);
+        const announcement = await this.getOwnedAnnouncement(
+            projectUuid,
+            announcementUuid,
+        );
         await this.projectHomepageModel.deleteAnnouncement(announcementUuid);
+        await this.schedulerClient.cancelPublishAnnouncement(announcementUuid);
+        await this.deleteAnnouncementImages(projectUuid, announcement.body);
     }
 
-    async listAnnouncementCategories(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<AnnouncementCategory[]> {
-        await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        return this.projectHomepageModel.listCategories(projectUuid);
-    }
-
-    async createAnnouncementCategory(
-        user: SessionUser,
-        projectUuid: string,
-        data: CreateAnnouncementCategoryRequest,
-    ): Promise<AnnouncementCategory> {
-        await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
-        const name = data.name.trim();
-        if (name.length === 0 || name.length > 40) {
+    private static validateScheduledPublishAt(scheduledPublishAt: Date): void {
+        if (
+            Number.isNaN(scheduledPublishAt.getTime()) ||
+            scheduledPublishAt.getTime() <= Date.now()
+        ) {
             throw new ParameterError(
-                'Category name must be 1-40 characters long',
+                'Scheduled publish time must be in the future',
             );
         }
-        if (!/^#[0-9a-fA-F]{6}$/.test(data.color)) {
-            throw new ParameterError('Category color must be #rrggbb');
+    }
+
+    /** Slack for announcements published by the worker: org resolved from the
+     * project row at publish time, never from a stale job payload. */
+    private async notifyPublishedAnnouncements(
+        published: Array<{
+            announcement: ProjectAnnouncement;
+            slackChannelId: string | null;
+        }>,
+    ): Promise<void> {
+        await Promise.all(
+            published.map(async ({ announcement, slackChannelId }) => {
+                if (!slackChannelId) return;
+                try {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(
+                            announcement.projectUuid,
+                        );
+                    await this.notifyAnnouncementToSlack(
+                        organizationUuid,
+                        announcement.projectUuid,
+                        announcement,
+                        slackChannelId,
+                    );
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to notify Slack for announcement ${
+                            announcement.announcementUuid
+                        }: ${getErrorMessage(error)}`,
+                    );
+                }
+            }),
+        );
+    }
+
+    /** Worker entrypoint for the one-shot publish job. */
+    async publishScheduledAnnouncement(
+        payload: PublishAnnouncementPayload,
+    ): Promise<void> {
+        const announcement = await this.projectHomepageModel.getAnnouncement(
+            payload.announcementUuid,
+        );
+        // Stale or forged payloads publish nothing: the row must still exist,
+        // belong to the payload's project, and actually be due.
+        if (!announcement || announcement.projectUuid !== payload.projectUuid) {
+            return;
         }
-        return this.projectHomepageModel.createCategory({
+        const published =
+            await this.projectHomepageModel.publishPendingAnnouncements({
+                announcementUuid: payload.announcementUuid,
+                onlyDue: true,
+            });
+        await this.notifyPublishedAnnouncements(published);
+    }
+
+    /** Worker entrypoint for the backstop sweep: publishes anything due whose
+     * job was lost (deploy, crash). Returns how many were published. */
+    async sweepDueAnnouncements(): Promise<number> {
+        const published =
+            await this.projectHomepageModel.publishPendingAnnouncements({
+                onlyDue: true,
+            });
+        await this.notifyPublishedAnnouncements(published);
+        return published.length;
+    }
+
+    private static async bufferAnnouncementImageUpload(
+        body: Readable,
+        contentLength: number,
+    ): Promise<Buffer> {
+        if (contentLength > ANNOUNCEMENT_IMAGE_MAX_BYTES) {
+            throw new ParameterError(
+                `Image too large: ${contentLength} bytes. Maximum: ${ANNOUNCEMENT_IMAGE_MAX_BYTES} bytes`,
+            );
+        }
+        const chunks: Buffer[] = [];
+        let totalBytes = 0;
+        for await (const chunk of body) {
+            const chunkBuffer = Buffer.isBuffer(chunk)
+                ? chunk
+                : Buffer.from(chunk);
+            totalBytes += chunkBuffer.length;
+            if (totalBytes > ANNOUNCEMENT_IMAGE_MAX_BYTES) {
+                throw new ParameterError(
+                    `Image too large: ${totalBytes} bytes. Maximum: ${ANNOUNCEMENT_IMAGE_MAX_BYTES} bytes`,
+                );
+            }
+            chunks.push(chunkBuffer);
+        }
+        if (totalBytes === 0) {
+            throw new ParameterError('Upload body is empty');
+        }
+        return Buffer.concat(chunks);
+    }
+
+    private static async normalizeAnnouncementImage(
+        upload: Buffer,
+    ): Promise<Buffer> {
+        const dimensions = readImageDimensions(upload);
+        if (!dimensions) {
+            throw new ParameterError('Invalid image: unreadable header');
+        }
+        if (
+            dimensions.width * dimensions.height >
+            ANNOUNCEMENT_IMAGE_MAX_PIXELS
+        ) {
+            throw new ParameterError(
+                `Image too large: ${dimensions.width}x${dimensions.height} pixels. Maximum: ${ANNOUNCEMENT_IMAGE_MAX_PIXELS} pixels`,
+            );
+        }
+        let image;
+        try {
+            image = await loadImage(upload);
+        } catch (error) {
+            throw new ParameterError(
+                `Invalid image: ${getErrorMessage(error)}`,
+            );
+        }
+        const scale = Math.min(
+            1,
+            ANNOUNCEMENT_IMAGE_MAX_DIMENSION_PX /
+                Math.max(image.width, image.height),
+        );
+        const width = Math.round(image.width * scale);
+        const height = Math.round(image.height * scale);
+        const canvas = createCanvas(width, height);
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0, width, height);
+        return canvas.toBuffer('image/png');
+    }
+
+    async uploadAnnouncementImage(
+        user: SessionUser,
+        projectUuid: string,
+        mimeType: string,
+        body: Readable,
+        contentLength: number,
+    ): Promise<{ url: string }> {
+        await this.assertFlagEnabled(user);
+        await this.assertCanManage(user, projectUuid);
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const normalizedMimeType = mimeType.toLowerCase().split(';', 1)[0];
+        if (!ALLOWED_ANNOUNCEMENT_IMAGE_MIME_TYPES.has(normalizedMimeType)) {
+            throw new ParameterError(
+                `Invalid image type: ${mimeType}. Allowed: ${Array.from(
+                    ALLOWED_ANNOUNCEMENT_IMAGE_MIME_TYPES,
+                ).join(', ')}`,
+            );
+        }
+
+        const bufferedUpload =
+            await ProjectHomepageService.bufferAnnouncementImageUpload(
+                body,
+                contentLength,
+            );
+        const normalizedImage =
+            await ProjectHomepageService.normalizeAnnouncementImage(
+                bufferedUpload,
+            );
+
+        const storageId = `${announcementImageS3Prefix(
             projectUuid,
-            name,
-            color: data.color.toLowerCase(),
-        });
+        )}${randomUUID()}`;
+        const s3Key = `${storageId}.png`;
+
+        await this.fileStorageClient.uploadImage(normalizedImage, storageId);
+
+        const persistentUrl =
+            await this.persistentDownloadFileService.createPersistentUrl({
+                s3Key,
+                fileType: 'image',
+                organizationUuid: user.organizationUuid,
+                projectUuid,
+                createdByUserUuid: user.userUuid,
+                accessMode:
+                    PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
+                expirationSeconds:
+                    ANNOUNCEMENT_IMAGE_PERSISTENT_URL_EXPIRY_SECONDS,
+            });
+
+        // Store a site-relative URL so the image renders against whatever
+        // origin the browser is on, independent of the configured site host.
+        const url = persistentUrl.startsWith('http')
+            ? new URL(persistentUrl).pathname
+            : persistentUrl;
+        return { url };
     }
 }

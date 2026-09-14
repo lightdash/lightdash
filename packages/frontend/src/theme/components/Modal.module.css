@@ -1,0 +1,21 @@
+/* Shared by Modal and Drawer. */
+.content {
+    box-shadow: var(--mantine-shadow-lg);
+    border: 1px solid var(--mantine-color-default-border);
+    background-color: var(--mantine-color-body);
+}
+
+.header {
+    background-color: var(--mantine-color-body);
+}
+
+.title {
+    font-size: var(--mantine-font-size-md);
+    font-weight: 600;
+    line-height: var(--mantine-line-height-md);
+    letter-spacing: -0.005em;
+}
+
+.body {
+    font-size: var(--mantine-font-size-sm);
+}

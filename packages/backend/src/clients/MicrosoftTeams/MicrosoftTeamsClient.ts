@@ -2,18 +2,31 @@ import {
     AnyType,
     assertUnreachable,
     friendlyName,
+    MAX_DELIVERY_QUERIES,
     MissingConfigError,
     MsTeamsError,
     operatorActionValue,
     PartialFailureType,
     sanitizeHtml,
     ThresholdOptions,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
+import { postSchedulerWebhook } from '../../utils/schedulerWebhookValidation';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
+
+// Adaptive Card TextBlocks render a markdown subset (links, emphasis, code) and
+// ignore HTML, and app delivery labels/errors are authored by app code — strip
+// tags, then escape the metacharacters that could still form live markup.
+const stripMarkup = (text: string): string =>
+    sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} }).replace(
+        /[\\`*_[\]~]/g,
+        (character) => `\\${character}`,
+    );
 
 export const redactWebhookIdentity = (webhookUrl: string) => {
     try {
@@ -61,24 +74,17 @@ export class MicrosoftTeamsClient {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
         const webhookIdentity = redactWebhookIdentity(webhookUrl);
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+        const response = await postSchedulerWebhook(webhookUrl, payload);
 
         const classification = classifyHttpStatus(response.status);
 
         // Accept any 2xx status: legacy webhooks return 200, Power Automate Workflows return 202
-        if (!response.ok) {
-            const responseText = await response.text();
+        if (response.status < 200 || response.status >= 300) {
             Logger.error('msteams.webhook_failed', {
                 webhookIdentity,
                 httpStatus: response.status,
                 classification,
-                responseBody: responseText.slice(0, 500),
+                responseBody: response.bodyText.slice(0, 500),
             });
             Logger.info(
                 `Microsoft teams webhook payload ${JSON.stringify(
@@ -319,6 +325,7 @@ export class MicrosoftTeamsClient {
         csvUrls,
         footer,
         failures,
+        notices,
     }: {
         webhookUrl: string;
         title: string;
@@ -328,6 +335,7 @@ export class MicrosoftTeamsClient {
         csvUrls: AttachmentUrl[];
         footer: string;
         failures?: PartialFailure[];
+        notices?: DeliveryNotice[];
     }): Promise<void> {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
@@ -394,6 +402,31 @@ export class MicrosoftTeamsClient {
                                             wrap: true,
                                             spacing: 'None',
                                         };
+                                    case PartialFailureType.APP_QUERY:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${stripMarkup(
+                                                f.label,
+                                            )}:** ${stripMarkup(f.error)}`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
+                                    case PartialFailureType.APP_QUERY_MISSING:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${stripMarkup(
+                                                f.label,
+                                            )}:** did not run in this delivery`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
+                                    case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})**`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
                                     default:
                                         return assertUnreachable(
                                             f,
@@ -413,7 +446,9 @@ export class MicrosoftTeamsClient {
                     items: [
                         {
                             type: 'TextBlock',
-                            text: `⚠️ **Warning:** ${failures.length} chart(s) failed to export`,
+                            text: `⚠️ **Warning:** ${buildFailureCountPhrase(
+                                failures,
+                            )} failed to export`,
                             weight: 'Bolder',
                             color: 'Warning',
                             wrap: true,
@@ -442,6 +477,31 @@ export class MicrosoftTeamsClient {
                                         wrap: true,
                                         spacing: 'None',
                                     };
+                                case PartialFailureType.APP_QUERY:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${stripMarkup(
+                                            f.label,
+                                        )}:** ${stripMarkup(f.error)}`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.APP_QUERY_MISSING:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${stripMarkup(
+                                            f.label,
+                                        )}:** did not run in this delivery`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})**`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
                                 default:
                                     return assertUnreachable(
                                         f,
@@ -453,6 +513,21 @@ export class MicrosoftTeamsClient {
                 },
             ];
         };
+
+        const getNoticeBlocks = (): {
+            type: string;
+            text: string;
+            wrap: boolean;
+        }[] =>
+            (notices ?? []).map((notice) => ({
+                type: 'TextBlock',
+                text: `ℹ️ ${stripMarkup(
+                    notice.label,
+                )} reached its query limit; additional rows may exist (${
+                    notice.rowCount
+                } rows delivered)`,
+                wrap: true,
+            }));
 
         // https://adaptivecards.io/explorer/
         const payload = {
@@ -504,6 +579,7 @@ export class MicrosoftTeamsClient {
                                   ]
                                 : []),
                             ...getFailureBlocks(),
+                            ...getNoticeBlocks(),
                             {
                                 type: 'TextBlock',
                                 text: footer,

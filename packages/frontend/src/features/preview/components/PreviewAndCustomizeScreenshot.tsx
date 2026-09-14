@@ -10,7 +10,7 @@ import {
     Radio,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconArrowsDiagonal,
     IconEye,
@@ -19,6 +19,7 @@ import {
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { CUSTOM_WIDTH_OPTIONS } from '../../scheduler/constants';
+import classes from './PreviewAndCustomizeScreenshot.module.css';
 
 type PreviewAndCustomizeScreenshotProps = {
     containerWidth?: number | undefined;
@@ -82,7 +83,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                     </Radio.Group>
 
                     <Stack>
-                        <Card withBorder p={0}>
+                        <Card p={0}>
                             <Box pos="relative">
                                 {currentPreview ? (
                                     <Image
@@ -163,7 +164,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                     onClick={() => setIsImageModalOpen(false)}
                     w="100%"
                     h="100%"
-                    style={{ cursor: 'pointer' }}
+                    className={classes.previewImage}
                 />
             </Modal>
         </Box>

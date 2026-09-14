@@ -1,25 +1,45 @@
 import {
     getManagedAgentScheduleCron,
     getManagedAgentScheduleOption,
+    ManagedAgentActionType,
+    ManagedAgentProtectedEntityType,
     ManagedAgentRunStatus,
+    resolveManagedAgentPolicy,
     type CreateManagedAgentAction,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentProtection,
+    type ManagedAgentProtectionLevel,
     type ManagedAgentRun,
     type ManagedAgentRunTriggeredBy,
     type ManagedAgentSettings,
     type UpdateManagedAgentSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { usersInProjectSql } from '../../models/AnalyticsModelSql';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
+    ManagedAgentProtectionsTableName,
     ManagedAgentRunsTableName,
     ManagedAgentSettingsTableName,
     type DbManagedAgentActionWithReverser,
+    type DbManagedAgentProtection,
     type DbManagedAgentRun,
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
+import {
+    inactiveUsersSql,
+    orphanedContentSql,
+    preAggCandidateExploresSql,
+    preAggMissStatsSql,
+    preAggQueryShapesSql,
+    unusedAgentsSql,
+    type InactiveUserActivitySource,
+    type OrphanedContentOwnerStatus,
+    type UnusedAgentReason,
+    type UnusedAgentRoutingSignal,
+} from './ManagedAgentModelSql';
 
 export class ManagedAgentModel {
     private readonly database: Knex;
@@ -39,7 +59,10 @@ export class ManagedAgentModel {
 
     // --- Settings ---
 
-    static mapDbSettings(row: DbManagedAgentSettings): ManagedAgentSettings {
+    static mapDbSettings(
+        row: DbManagedAgentSettings,
+        scopedSpaceUuids: string[],
+    ): ManagedAgentSettings {
         return {
             projectUuid: row.project_uuid,
             enabled: row.enabled,
@@ -47,9 +70,50 @@ export class ManagedAgentModel {
             enabledByUserUuid: row.enabled_by_user_uuid,
             slackChannelId: row.slack_channel_id,
             toolSettings: row.tool_settings ?? {},
+            policy: resolveManagedAgentPolicy(row.policy),
+            scopedSpaceUuids,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
+    }
+
+    async getScopedSpaceUuids(projectUuid: string): Promise<string[]> {
+        const rows = await this.database(ManagedAgentProtectionsTableName)
+            .where({
+                project_uuid: projectUuid,
+                entity_type: ManagedAgentProtectedEntityType.SPACE,
+            })
+            .select('entity_uuid')
+            .orderBy('created_at', 'asc');
+        return rows.map((row) => row.entity_uuid);
+    }
+
+    // Replaces the whole space selection: mode and rows always change together
+    async replaceSpaceScope(
+        projectUuid: string,
+        mode: 'all-except' | 'only',
+        spaceUuids: string[],
+        userUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(ManagedAgentProtectionsTableName)
+                .where({
+                    project_uuid: projectUuid,
+                    entity_type: ManagedAgentProtectedEntityType.SPACE,
+                })
+                .delete();
+            if (spaceUuids.length > 0) {
+                await trx(ManagedAgentProtectionsTableName).insert(
+                    spaceUuids.map((spaceUuid) => ({
+                        project_uuid: projectUuid,
+                        entity_type: ManagedAgentProtectedEntityType.SPACE,
+                        entity_uuid: spaceUuid,
+                        level: mode === 'all-except' ? 'excluded' : 'monitored',
+                        created_by_user_uuid: userUuid,
+                    })),
+                );
+            }
+        });
     }
 
     async getServiceAccountToken(projectUuid: string): Promise<string | null> {
@@ -79,6 +143,7 @@ export class ManagedAgentModel {
         agentVersion: number | null;
         environmentId: string | null;
         vaultId: string | null;
+        vaultConfigHash: string | null;
     }> {
         const row = await this.database(ManagedAgentSettingsTableName)
             .where({ project_uuid: projectUuid })
@@ -88,6 +153,7 @@ export class ManagedAgentModel {
                 'anthropic_agent_version',
                 'anthropic_environment_id',
                 'anthropic_vault_id',
+                'anthropic_vault_config_hash',
             )
             .first();
         return {
@@ -96,6 +162,7 @@ export class ManagedAgentModel {
             agentVersion: row?.anthropic_agent_version ?? null,
             environmentId: row?.anthropic_environment_id ?? null,
             vaultId: row?.anthropic_vault_id ?? null,
+            vaultConfigHash: row?.anthropic_vault_config_hash ?? null,
         };
     }
 
@@ -118,12 +185,14 @@ export class ManagedAgentModel {
         projectUuid: string,
         environmentId: string,
         vaultId: string,
+        vaultConfigHash: string,
     ): Promise<void> {
         await this.database(ManagedAgentSettingsTableName)
             .where({ project_uuid: projectUuid })
             .update({
                 anthropic_environment_id: environmentId,
                 anthropic_vault_id: vaultId,
+                anthropic_vault_config_hash: vaultConfigHash,
             });
     }
 
@@ -133,7 +202,11 @@ export class ManagedAgentModel {
         const row = await this.database(ManagedAgentSettingsTableName)
             .where({ project_uuid: projectUuid })
             .first();
-        return row ? ManagedAgentModel.mapDbSettings(row) : null;
+        if (!row) {
+            return null;
+        }
+        const scopedSpaceUuids = await this.getScopedSpaceUuids(projectUuid);
+        return ManagedAgentModel.mapDbSettings(row, scopedSpaceUuids);
     }
 
     async upsertSettings(
@@ -141,6 +214,16 @@ export class ManagedAgentModel {
         userUuid: string,
         update: UpdateManagedAgentSettings,
     ): Promise<ManagedAgentSettings> {
+        // Policy is stored as sparse overrides; merge the partial update into
+        // the stored overrides so unset fields keep tracking defaults.
+        let mergedPolicy: Record<string, unknown> | undefined;
+        if (update.policy !== undefined) {
+            const existing = await this.database(ManagedAgentSettingsTableName)
+                .where({ project_uuid: projectUuid })
+                .select('policy')
+                .first();
+            mergedPolicy = { ...(existing?.policy ?? {}), ...update.policy };
+        }
         const [row] = await this.database(ManagedAgentSettingsTableName)
             .insert({
                 project_uuid: projectUuid,
@@ -149,6 +232,7 @@ export class ManagedAgentModel {
                 enabled_by_user_uuid: update.enabled ? userUuid : null,
                 slack_channel_id: update.slackChannelId ?? null,
                 tool_settings: update.toolSettings ?? {},
+                policy: mergedPolicy ?? {},
                 updated_at: new Date(),
             })
             .onConflict('project_uuid')
@@ -163,21 +247,139 @@ export class ManagedAgentModel {
                 ...(update.toolSettings !== undefined && {
                     tool_settings: update.toolSettings,
                 }),
+                ...(mergedPolicy !== undefined && {
+                    policy: mergedPolicy,
+                }),
                 enabled_by_user_uuid: update.enabled ? userUuid : undefined,
                 updated_at: new Date(),
             })
             .returning('*');
-        return ManagedAgentModel.mapDbSettings(row);
+        const scopedSpaceUuids = await this.getScopedSpaceUuids(projectUuid);
+        return ManagedAgentModel.mapDbSettings(row, scopedSpaceUuids);
     }
 
     async getEnabledProjects(): Promise<ManagedAgentSettings[]> {
         const rows = await this.database(ManagedAgentSettingsTableName).where({
             enabled: true,
         });
-        return rows.map(ManagedAgentModel.mapDbSettings);
+        return Promise.all(
+            rows.map(async (row) =>
+                ManagedAgentModel.mapDbSettings(
+                    row,
+                    await this.getScopedSpaceUuids(row.project_uuid),
+                ),
+            ),
+        );
+    }
+
+    // --- Protections ---
+
+    static mapDbProtection(
+        row: DbManagedAgentProtection,
+    ): ManagedAgentProtection {
+        return {
+            projectUuid: row.project_uuid,
+            entityType: row.entity_type as ManagedAgentProtectedEntityType,
+            entityUuid: row.entity_uuid,
+            level: row.level as ManagedAgentProtectionLevel,
+            createdByUserUuid: row.created_by_user_uuid,
+            createdAt: row.created_at,
+        };
+    }
+
+    async listProtections(
+        projectUuid: string,
+    ): Promise<ManagedAgentProtection[]> {
+        const rows = await this.database(ManagedAgentProtectionsTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy('created_at', 'asc');
+        return rows.map(ManagedAgentModel.mapDbProtection);
+    }
+
+    async findProtectionLevel(
+        projectUuid: string,
+        entityType: ManagedAgentProtectedEntityType,
+        entityUuid: string,
+    ): Promise<ManagedAgentProtectionLevel | null> {
+        const row = await this.database(ManagedAgentProtectionsTableName)
+            .where({
+                project_uuid: projectUuid,
+                entity_type: entityType,
+                entity_uuid: entityUuid,
+            })
+            .select('level')
+            .first();
+        return row ? (row.level as ManagedAgentProtectionLevel) : null;
+    }
+
+    async upsertProtection(
+        protection: Omit<ManagedAgentProtection, 'createdAt'>,
+    ): Promise<void> {
+        await this.database(ManagedAgentProtectionsTableName)
+            .insert({
+                project_uuid: protection.projectUuid,
+                entity_type: protection.entityType,
+                entity_uuid: protection.entityUuid,
+                level: protection.level,
+                created_by_user_uuid: protection.createdByUserUuid,
+            })
+            .onConflict(['project_uuid', 'entity_type', 'entity_uuid'])
+            .merge({
+                level: protection.level,
+                created_by_user_uuid: protection.createdByUserUuid,
+            });
+    }
+
+    async deleteProtection(
+        projectUuid: string,
+        entityType: ManagedAgentProtectedEntityType,
+        entityUuid: string,
+    ): Promise<void> {
+        await this.database(ManagedAgentProtectionsTableName)
+            .where({
+                project_uuid: projectUuid,
+                entity_type: entityType,
+                entity_uuid: entityUuid,
+            })
+            .delete();
     }
 
     // --- Actions ---
+
+    // Dedup for blocked-attempt visibility: one live blocked action per target
+    async hasActiveBlockedActionForTarget(
+        projectUuid: string,
+        targetUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(ManagedAgentActionsTableName)
+            .where({
+                project_uuid: projectUuid,
+                target_uuid: targetUuid,
+                action_type: ManagedAgentActionType.BLOCKED,
+            })
+            .whereNull('reversed_at')
+            .select('action_uuid')
+            .first();
+        return row !== undefined;
+    }
+
+    async findLatestActiveFlagCreatedAt(
+        projectUuid: string,
+        targetUuid: string,
+    ): Promise<Date | null> {
+        const row = await this.database(ManagedAgentActionsTableName)
+            .where({ project_uuid: projectUuid, target_uuid: targetUuid })
+            .whereIn('action_type', [
+                ManagedAgentActionType.FLAGGED_STALE,
+                ManagedAgentActionType.FLAGGED_BROKEN,
+                ManagedAgentActionType.FLAGGED_SLOW,
+            ])
+            .whereNull('reversed_at')
+            .orderBy('created_at', 'desc')
+            .select('created_at')
+            .first();
+        return row?.created_at ?? null;
+    }
 
     private actionsQuery() {
         return this.database(ManagedAgentActionsTableName)
@@ -260,11 +462,54 @@ export class ManagedAgentModel {
                 [filters.date],
             );
         }
-        if (filters.actionType) {
-            query = query.where(
-                `${ManagedAgentActionsTableName}.action_type`,
-                filters.actionType,
+        if (filters.dateFrom) {
+            query = query.whereRaw(
+                `${ManagedAgentActionsTableName}.created_at::date >= ?`,
+                [filters.dateFrom],
             );
+        }
+        if (filters.dateTo) {
+            query = query.whereRaw(
+                `${ManagedAgentActionsTableName}.created_at::date <= ?`,
+                [filters.dateTo],
+            );
+        }
+        // Legacy single actionType is still part of the filters contract
+        const actionTypes = [
+            ...(filters.actionTypes ?? []),
+            ...(filters.actionType ? [filters.actionType] : []),
+        ];
+        if (actionTypes.length > 0) {
+            query = query.whereIn(
+                `${ManagedAgentActionsTableName}.action_type`,
+                actionTypes,
+            );
+        }
+        if (filters.targetTypes && filters.targetTypes.length > 0) {
+            query = query.whereIn(
+                `${ManagedAgentActionsTableName}.target_type`,
+                filters.targetTypes,
+            );
+        }
+        if (filters.search) {
+            const pattern = `%${filters.search.replace(
+                /[\\%_]/g,
+                (match) => `\\${match}`,
+            )}%`;
+            query = query.andWhere((builder) => {
+                void builder
+                    .whereILike(
+                        `${ManagedAgentActionsTableName}.description`,
+                        pattern,
+                    )
+                    .orWhereILike(
+                        `${ManagedAgentActionsTableName}.target_name`,
+                        pattern,
+                    );
+            });
+        }
+        if (filters.limit) {
+            query = query.limit(filters.limit);
         }
         if (filters.sessionId) {
             query = query.where(
@@ -364,20 +609,382 @@ export class ManagedAgentModel {
         );
     }
 
-    async getChartCreatedAt(chartUuid: string): Promise<Date | null> {
-        const row = await this.database('saved_queries')
-            .where({ saved_query_uuid: chartUuid })
-            .select('created_at')
+    async isContentVerified(
+        contentType: 'chart' | 'dashboard',
+        contentUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database('content_verification')
+            .where({ content_type: contentType, content_uuid: contentUuid })
+            .select('content_verification_uuid')
             .first();
-        return row?.created_at ?? null;
+        return row !== undefined;
     }
 
-    async getDashboardCreatedAt(dashboardUuid: string): Promise<Date | null> {
-        const row = await this.database('dashboards')
-            .where({ dashboard_uuid: dashboardUuid })
-            .select('created_at')
+    async getChartSpaceUuid(chartUuid: string): Promise<string | null> {
+        const row = await this.database('saved_queries as sq')
+            .leftJoin('spaces as s', 's.space_id', 'sq.space_id')
+            .where('sq.saved_query_uuid', chartUuid)
+            .select('s.space_uuid')
             .first();
-        return row?.created_at ?? null;
+        return row?.space_uuid ?? null;
+    }
+
+    async getDashboardSpaceUuid(dashboardUuid: string): Promise<string | null> {
+        const row = await this.database('dashboards as d')
+            .leftJoin('spaces as s', 's.space_id', 'd.space_id')
+            .where('d.dashboard_uuid', dashboardUuid)
+            .select('s.space_uuid')
+            .first();
+        return row?.space_uuid ?? null;
+    }
+
+    // Latest of creation and last edit; a chart being actively edited is not
+    // eligible for cleanup even if it has never been viewed.
+    async getChartLastModifiedAt(chartUuid: string): Promise<Date | null> {
+        const row = await this.database('saved_queries as sq')
+            .leftJoin(
+                'saved_queries_versions as v',
+                'v.saved_query_id',
+                'sq.saved_query_id',
+            )
+            .where('sq.saved_query_uuid', chartUuid)
+            .groupBy('sq.saved_query_id', 'sq.created_at')
+            .select(
+                this.database.raw(
+                    'GREATEST(sq.created_at, MAX(v.created_at)) as last_modified_at',
+                ),
+            )
+            .first();
+        return row?.last_modified_at ?? null;
+    }
+
+    async getDashboardLastModifiedAt(
+        dashboardUuid: string,
+    ): Promise<Date | null> {
+        const row = await this.database('dashboards as d')
+            .leftJoin(
+                'dashboard_versions as dv',
+                'dv.dashboard_id',
+                'd.dashboard_id',
+            )
+            .where('d.dashboard_uuid', dashboardUuid)
+            .groupBy('d.dashboard_id', 'd.created_at')
+            .select(
+                this.database.raw(
+                    'GREATEST(d.created_at, MAX(dv.created_at)) as last_modified_at',
+                ),
+            )
+            .first();
+        return row?.last_modified_at ?? null;
+    }
+
+    // Last-seen is the newest of the three project-scoped signals we record for
+    // a human: viewing a chart, viewing a dashboard, running a query.
+    async getInactiveUsers(
+        projectUuid: string,
+        organizationUuid: string,
+        inactiveDays: number,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            userUuid: string;
+            userName: string;
+            email: string | null;
+            role: string;
+            lastActiveAt: Date | null;
+            lastActiveSource: InactiveUserActivitySource | null;
+        }>
+    > {
+        const membership = await this.database.raw<{
+            rows: Array<{ user_uuid: string; role: string }>;
+        }>(usersInProjectSql(), { projectUuid, organizationUuid });
+        const memberUuids = membership.rows.map((row) => row.user_uuid);
+        if (memberUuids.length === 0) return [];
+
+        const roleByUserUuid = new Map(
+            membership.rows.map((row) => [row.user_uuid, row.role]),
+        );
+        const memberUuidList = memberUuids.join(',');
+
+        const rows = await this.database.raw<{
+            rows: Array<{
+                user_uuid: string;
+                user_name: string;
+                email: string | null;
+                last_active_at: Date | null;
+                last_active_source: InactiveUserActivitySource | null;
+            }>;
+        }>(inactiveUsersSql(), [
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            inactiveDays,
+            inactiveDays,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            userUuid: r.user_uuid,
+            userName: r.user_name,
+            email: r.email,
+            role: roleByUserUuid.get(r.user_uuid) ?? 'unknown',
+            lastActiveAt: r.last_active_at,
+            lastActiveSource: r.last_active_source,
+        }));
+    }
+
+    // Owner follows the same convention the stale-content queries use: a chart's
+    // last version author, a dashboard's first version author.
+    async getOrphanedContent(
+        projectUuid: string,
+        organizationUuid: string,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            contentType: 'chart' | 'dashboard';
+            contentUuid: string;
+            contentName: string;
+            spaceUuid: string | null;
+            ownerUserUuid: string;
+            ownerName: string;
+            ownerStatus: OrphanedContentOwnerStatus;
+            lastViewedAt: Date | null;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                content_type: 'chart' | 'dashboard';
+                content_uuid: string;
+                content_name: string;
+                space_uuid: string | null;
+                owner_user_uuid: string;
+                owner_name: string;
+                owner_status: OrphanedContentOwnerStatus;
+                last_viewed_at: Date | null;
+            }>;
+        }>(orphanedContentSql(), [
+            organizationUuid,
+            projectUuid,
+            projectUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            contentType: r.content_type,
+            contentUuid: r.content_uuid,
+            contentName: r.content_name,
+            spaceUuid: r.space_uuid,
+            ownerUserUuid: r.owner_user_uuid,
+            ownerName: r.owner_name,
+            ownerStatus: r.owner_status,
+            lastViewedAt: r.last_viewed_at,
+        }));
+    }
+
+    // Traffic is counted in prompts rather than threads, so an agent someone
+    // opened and never spoke to does not read as used.
+    async getUnusedAgents(
+        projectUuid: string,
+        organizationUuid: string,
+        windowDays: number,
+        minPrompts: number,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            agentUuid: string;
+            agentName: string;
+            createdAt: Date;
+            adminOnly: boolean;
+            totalThreads: number;
+            recentThreads: number;
+            totalPrompts: number;
+            recentPrompts: number;
+            recentAnswered: number;
+            recentAskers: number;
+            lastUsedAt: Date | null;
+            reason: UnusedAgentReason;
+            routingSignal: UnusedAgentRoutingSignal;
+            routedCandidateCount: number;
+            routedSuggestedCount: number;
+            routedChosenCount: number;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                agent_uuid: string;
+                agent_name: string;
+                created_at: Date;
+                admin_only: boolean;
+                total_threads: string;
+                recent_threads: string;
+                total_prompts: string;
+                recent_prompts: string;
+                recent_answered: string;
+                recent_askers: string;
+                last_used_at: Date | null;
+                reason: UnusedAgentReason;
+                routing_signal: UnusedAgentRoutingSignal;
+                routed_candidate_count: string;
+                routed_suggested_count: string;
+                routed_chosen_count: string;
+            }>;
+        }>(unusedAgentsSql(), [
+            windowDays,
+            minPrompts,
+            projectUuid,
+            organizationUuid,
+            projectUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            agentUuid: r.agent_uuid,
+            agentName: r.agent_name,
+            createdAt: r.created_at,
+            adminOnly: r.admin_only,
+            totalThreads: Number(r.total_threads),
+            recentThreads: Number(r.recent_threads),
+            totalPrompts: Number(r.total_prompts),
+            recentPrompts: Number(r.recent_prompts),
+            recentAnswered: Number(r.recent_answered),
+            recentAskers: Number(r.recent_askers),
+            lastUsedAt: r.last_used_at,
+            reason: r.reason,
+            routingSignal: r.routing_signal,
+            routedCandidateCount: Number(r.routed_candidate_count),
+            routedSuggestedCount: Number(r.routed_suggested_count),
+            routedChosenCount: Number(r.routed_chosen_count),
+        }));
+    }
+
+    async getPreAggCandidateExplores(
+        projectUuid: string,
+        windowDays: number,
+        minQueries: number,
+        limit: number = 10,
+    ): Promise<
+        Array<{
+            exploreName: string;
+            queryCount: number;
+            distinctUsers: number;
+            totalExecutionMs: number;
+            avgExecutionMs: number;
+            p95ExecutionMs: number;
+            preAggHitCount: number;
+            contextCounts: Record<string, number>;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                explore_name: string;
+                query_count: string;
+                distinct_users: string;
+                total_execution_ms: string;
+                avg_execution_ms: string;
+                p95_execution_ms: string;
+                preagg_hit_count: string;
+                context_counts: Record<string, number> | null;
+            }>;
+        }>(preAggCandidateExploresSql(), [
+            windowDays,
+            minQueries,
+            projectUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            exploreName: r.explore_name,
+            queryCount: Number(r.query_count),
+            distinctUsers: Number(r.distinct_users),
+            totalExecutionMs: Number(r.total_execution_ms),
+            avgExecutionMs: Number(r.avg_execution_ms),
+            p95ExecutionMs: Number(r.p95_execution_ms),
+            preAggHitCount: Number(r.preagg_hit_count),
+            contextCounts: r.context_counts ?? {},
+        }));
+    }
+
+    async getPreAggQueryShapes(
+        projectUuid: string,
+        exploreNames: string[],
+        windowDays: number,
+        shapesPerExplore: number,
+    ): Promise<
+        Array<{
+            exploreName: string;
+            dimensionFieldIds: string[];
+            metricFieldIds: string[];
+            filterFieldIds: string[];
+            hasCustomFields: boolean;
+            queryCount: number;
+            avgExecutionMs: number;
+            totalExecutionMs: number;
+        }>
+    > {
+        if (exploreNames.length === 0) {
+            return [];
+        }
+
+        const rows = await this.database.raw<{
+            rows: Array<{
+                explore_name: string;
+                dimension_field_ids: string[];
+                metric_field_ids: string[];
+                filter_field_id_sets: string[][];
+                has_custom_fields: boolean;
+                query_count: string;
+                avg_execution_ms: string;
+                total_execution_ms: string;
+            }>;
+        }>(preAggQueryShapesSql(), [
+            windowDays,
+            projectUuid,
+            exploreNames.join(','),
+            shapesPerExplore,
+        ]);
+
+        return rows.rows.map((r) => ({
+            exploreName: r.explore_name,
+            dimensionFieldIds: r.dimension_field_ids,
+            metricFieldIds: r.metric_field_ids,
+            filterFieldIds: Array.from(new Set(r.filter_field_id_sets.flat())),
+            hasCustomFields: r.has_custom_fields,
+            queryCount: Number(r.query_count),
+            avgExecutionMs: Number(r.avg_execution_ms),
+            totalExecutionMs: Number(r.total_execution_ms),
+        }));
+    }
+
+    async getPreAggMissStats(
+        projectUuid: string,
+        windowDays: number,
+    ): Promise<
+        Array<{
+            exploreName: string;
+            missReason: string | null;
+            hitCount: number;
+            missCount: number;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                explore_name: string;
+                miss_reason: string | null;
+                hit_count: string;
+                miss_count: string;
+            }>;
+        }>(preAggMissStatsSql(), [windowDays, projectUuid]);
+
+        return rows.rows.map((r) => ({
+            exploreName: r.explore_name,
+            missReason: r.miss_reason,
+            hitCount: Number(r.hit_count),
+            missCount: Number(r.miss_count),
+        }));
     }
 
     async getSlowQueries(
@@ -504,7 +1111,7 @@ export class ManagedAgentModel {
                 {},
             summary: row.summary,
             error: isStale
-                ? (cleanError ?? 'Run timed out — worker may have crashed')
+                ? (cleanError ?? 'Run timed out. The worker may have crashed')
                 : cleanError,
             currentActivity: row.current_activity,
         };
@@ -568,6 +1175,19 @@ export class ManagedAgentModel {
             .count<{ count: string }[]>('* as count')
             .first();
         return result ? Number(result.count) : 0;
+    }
+
+    // Bulk deletions (metadata.bulk = true) have their own per-call cap, so
+    // they are excluded from the individual soft-delete run cap
+    async countNonBulkSoftDeletesForRun(runUuid: string): Promise<number> {
+        const [row] = await this.database(ManagedAgentActionsTableName)
+            .where({
+                managed_agent_run_uuid: runUuid,
+                action_type: ManagedAgentActionType.SOFT_DELETED,
+            })
+            .whereRaw(`COALESCE(metadata->>'bulk', '') <> 'true'`)
+            .count<{ count: string }[]>('* as count');
+        return Number(row?.count ?? 0);
     }
 
     async getActionCountsByTypeForRun(

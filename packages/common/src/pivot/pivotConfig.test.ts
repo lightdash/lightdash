@@ -65,6 +65,31 @@ describe('getPivotConfig', () => {
     });
 
     describe('hidden field splitting for table charts', () => {
+        it('passes ordered pivot row fields through for rendering and exports', () => {
+            const result = getPivotConfig({
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {},
+                },
+                pivotConfig: {
+                    columns: ['orders_months_since_start'],
+                    rows: ['orders_cohort_month', 'orders_subscriptions'],
+                },
+                tableConfig: { columnOrder: [] },
+                metricQuery: {
+                    dimensions: [
+                        'orders_cohort_month',
+                        'orders_months_since_start',
+                    ],
+                },
+            });
+
+            expect(result?.rowFieldIds).toEqual([
+                'orders_cohort_month',
+                'orders_subscriptions',
+            ]);
+        });
+
         it('splits hidden fields into hiddenDimensionFieldIds and hiddenMetricFieldIds when metricQuery is provided', () => {
             // Chart config has both a hidden dim (orders_status) and a hidden metric (payments_total_revenue)
             const result = getPivotConfig({

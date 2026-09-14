@@ -1,4 +1,4 @@
-import { Menu } from '@mantine-8/core';
+import { Menu } from '@mantine/core';
 import { ThemeToggleIcon } from './ThemeToggleIcon';
 import { useThemeToggle } from './useThemeToggle';
 

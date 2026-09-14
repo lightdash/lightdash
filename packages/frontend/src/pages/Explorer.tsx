@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
+import { useChartGalleryRightSidebar } from '../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
@@ -15,12 +16,15 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
+import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { useExplore } from '../hooks/useExplore';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
 
@@ -32,13 +36,18 @@ const ExplorerContent = memo(() => {
     useExplorerQueryEffects();
 
     const dispatch = useExplorerDispatch();
+    const rightSidebarProps = useChartGalleryRightSidebar({ enabled: true });
     const navigate = useNavigate();
+    const merge = useMergeSafe();
 
     // Get table name from Redux
     const tableId = useExplorerSelector(selectTableName);
     const { data } = useExplore(tableId);
 
     const handleClearQuery = useCallback(() => {
+        merge?.additionalSources.forEach((source) =>
+            merge.removeSource(source.id),
+        );
         dispatch(
             explorerActions.clearQuery({
                 defaultState,
@@ -47,7 +56,7 @@ const ExplorerContent = memo(() => {
         );
         // Clear state in URL params
         void navigate({ search: '' }, { replace: true });
-    }, [dispatch, tableId, navigate]);
+    }, [merge, dispatch, tableId, navigate]);
 
     useHotkeys([['mod + alt + k', handleClearQuery]]);
 
@@ -55,6 +64,7 @@ const ExplorerContent = memo(() => {
         <Page
             title={data ? data?.label : 'Tables'}
             sidebar={<ExploreSideBar />}
+            {...rightSidebarProps}
             withFullHeight
             withPaddedContent
         >
@@ -62,6 +72,12 @@ const ExplorerContent = memo(() => {
         </Page>
     );
 });
+
+const ExplorerWithMerge = memo(() => (
+    <MergeProvider>
+        <ExplorerContent />
+    </MergeProvider>
+));
 
 const ExplorerWithUrlParams = memo(() => {
     const { health } = useApp();
@@ -84,16 +100,16 @@ const ExplorerWithUrlParams = memo(() => {
 
     return (
         <Provider store={store}>
-            <ExplorerContent />
+            <ExplorerWithMerge />
         </Provider>
     );
 });
 
 const ExplorerPage = memo(() => {
-    const { projectUuid, tableId } = useParams<{
-        projectUuid: string;
+    const { tableId } = useParams<{
         tableId?: string;
     }>();
+    const projectUuid = useProjectUuid();
 
     const { user } = useApp();
 

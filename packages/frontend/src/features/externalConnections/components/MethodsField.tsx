@@ -2,7 +2,7 @@ import {
     EXTERNAL_CONNECTION_METHODS,
     type ExternalConnectionMethod,
 } from '@lightdash/common';
-import { Chip, Group, Stack, Text } from '@mantine-8/core';
+import { Chip, Group, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 
 const METHOD_OPTIONS: readonly ExternalConnectionMethod[] =
@@ -36,7 +36,12 @@ export const MethodsField: FC<Props> = ({
         >
             <Group gap="xs" mt={4}>
                 {METHOD_OPTIONS.map((method) => (
-                    <Chip key={method} value={method} disabled={disabled}>
+                    <Chip
+                        key={method}
+                        value={method}
+                        variant="filled"
+                        disabled={disabled}
+                    >
                         {method}
                     </Chip>
                 ))}

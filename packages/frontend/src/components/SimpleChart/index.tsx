@@ -4,8 +4,20 @@ import {
     type PivotReference,
 } from '@lightdash/common';
 import { IconChartBarOff } from '@tabler/icons-react';
-import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    type EChartsInstance,
+    type EChartsReactProps,
+    type Opts,
+} from 'echarts-for-react/lib/types';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import {
     getDisabledLegendEntries,
@@ -57,6 +69,10 @@ export type EchartsSeriesClickEvent = EchartsBaseClickEvent & {
     // encode maps x/y axes to indices in dimensionNames (e.g., {x: [0], y: [1]})
     encode?: { x?: number[]; y?: number[] };
     pivotReference?: PivotReference;
+    // Full dataset row for the clicked item, resolved via dataIndex before the
+    // event is forwarded. Stacked bar series carry sparse [x, y] tuples, so
+    // this is the only way consumers can see the row's remaining columns.
+    datasetRow?: Record<string, unknown>;
 };
 
 type EchartsClickEvent = EchartsSeriesClickEvent | EchartsBaseClickEvent;
@@ -135,6 +151,55 @@ const resolveCssVariablesInOptions = <T,>(obj: T): T => {
     return obj;
 };
 
+// How far past the plot area a pointer still counts as hovering the axis
+const AXIS_LABEL_HOVER_BAND_PX = 40;
+
+type GridRect = { x: number; y: number; width: number; height: number };
+
+const isDimensionAxis = (axis: { type?: string } | undefined): boolean =>
+    axis?.type === 'category' || axis?.type === 'time';
+
+// Point inside the plot area that a pointer over the dimension axis labels maps
+// to, or null when the pointer isn't over them
+const getPlotPointForAxisHover = (
+    eCharts: EChartsInstance,
+    x: number,
+    y: number,
+): { x: number; y: number } | null => {
+    const grid: GridRect | undefined = eCharts
+        .getModel?.()
+        ?.getComponent?.('grid', 0)
+        ?.coordinateSystem?.getRect?.();
+    if (!grid) return null;
+
+    const isUnderXAxis =
+        x >= grid.x &&
+        x <= grid.x + grid.width &&
+        y > grid.y + grid.height &&
+        y <= grid.y + grid.height + AXIS_LABEL_HOVER_BAND_PX;
+    const isBesideYAxis =
+        y >= grid.y &&
+        y <= grid.y + grid.height &&
+        x < grid.x &&
+        x >= grid.x - AXIS_LABEL_HOVER_BAND_PX;
+    // getOption() clones the whole option, so only read it when it matters
+    if (!isUnderXAxis && !isBesideYAxis) return null;
+
+    const { xAxis, yAxis } = eCharts.getOption() as {
+        xAxis?: { type?: string }[];
+        yAxis?: { type?: string }[];
+    };
+
+    if (isUnderXAxis && isDimensionAxis(xAxis?.[0])) {
+        return { x, y: grid.y + grid.height / 2 };
+    }
+    if (isBesideYAxis && isDimensionAxis(yAxis?.[0])) {
+        return { x: grid.x + grid.width / 2, y };
+    }
+
+    return null;
+};
+
 const SimpleChart: FC<SimpleChartProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
         const {
@@ -175,9 +240,12 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 cartesianChartConfig?.dirtyEchartsConfig?.legend?.selected,
                 persistLegendSelection,
             );
+        // Measured canvas width so outside legends can size their labels
+        const [chartWidth, setChartWidth] = useState<number | null>(null);
         const eChartsOptions = useEchartsCartesianConfig(
             selectedLegends,
             props.isInDashboard,
+            chartWidth,
         );
 
         const hasSignaledScreenshotReady = useRef(false);
@@ -237,7 +305,11 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             };
 
             // Observe container size changes (e.g., collapsible card expand/collapse)
-            const observer = new ResizeObserver(resizeChart);
+            const observer = new ResizeObserver((entries) => {
+                const width = entries[0]?.contentRect.width;
+                if (width !== undefined) setChartWidth(Math.round(width));
+                resizeChart();
+            });
             observer.observe(dom);
 
             // Also listen for window resize events
@@ -262,8 +334,13 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                             e.seriesIndex
                         ];
                         if (series && series.encode) {
+                            // Stacked bar series carry sparse [x, y] tuples,
+                            // so resolve the full dataset row via dataIndex
+                            // for consumers that need the remaining columns
+                            const datasetRow =
+                                eChartsOptions?.dataset?.source?.[e.dataIndex];
                             onSeriesContextMenu(
-                                e,
+                                { ...e, datasetRow },
                                 eChartsOptions?.series || [],
                             );
                         }
@@ -274,10 +351,10 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         );
 
         const opts = useMemo<Opts>(() => {
-            const baseOpts: Opts & { useCoarsePointer?: boolean } = {
+            // `useCoarsePointer` is left at its default: its 44px hit-test halo
+            // makes white space near a bar register as a hover on that segment
+            const baseOpts: Opts = {
                 renderer: 'svg',
-                // Reduce mouseover hit-testing overhead on dashboard tiles
-                ...(props.isInDashboard && { useCoarsePointer: true }),
             };
 
             if (!eChartsOptions) {
@@ -291,7 +368,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 return { ...baseOpts, renderer: 'canvas' };
             }
             return baseOpts;
-        }, [eChartsOptions, props.isInDashboard]);
+        }, [eChartsOptions]);
 
         // When using canvas renderer, resolve CSS variables to computed values
         // since canvas doesn't have DOM access to resolve var(--...) strings.
@@ -322,10 +399,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                     // Tooltip trigger 'item' does not work when symbol is not shown; reference: https://github.com/apache/echarts/issues/14563
                     const series = eCharts.getOption().series;
 
-                    const isGrouped = (series as any[]).some(
-                        (serie) => serie.pivotReference !== undefined,
-                    );
-                    if (Array.isArray(series) && !isGrouped) return null;
+                    // With a single series there is nothing to narrow down, so
+                    // leave the axis tooltip in place
+                    if (Array.isArray(series) && series.length < 2) return null;
 
                     if (
                         Array.isArray(series) &&
@@ -503,6 +579,61 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             eChartsOptions?.tooltip,
             resolvedEChartsOptions?.tooltip,
         ]);
+
+        // ECharts only triggers the axis tooltip inside the plot area, so
+        // hovering the axis labels shows that category's whole column
+        useEffect(() => {
+            const eCharts = chartRef.current?.getEchartsInstance();
+            if (!eCharts) return;
+
+            const zRender = eCharts.getZr();
+            let isAxisTooltipShown = false;
+
+            const showTooltipOnAxisHover = ({
+                offsetX,
+                offsetY,
+            }: {
+                offsetX: number;
+                offsetY: number;
+            }) => {
+                // The hovered series owns the tooltip while in item mode
+                if (isItemTooltipActive.current) return;
+
+                const plotPoint = getPlotPointForAxisHover(
+                    eCharts,
+                    offsetX,
+                    offsetY,
+                );
+
+                if (plotPoint) {
+                    isAxisTooltipShown = true;
+                    // Trigger the tooltip as if hovering the plot area at the
+                    // same category, so ECharts builds it from the axis
+                    eCharts.dispatchAction({
+                        type: 'showTip',
+                        x: plotPoint.x,
+                        y: plotPoint.y,
+                    });
+                } else if (isAxisTooltipShown) {
+                    isAxisTooltipShown = false;
+                    // Inside the plot area ECharts drives the tooltip itself
+                    const isOverPlotArea = eCharts.containPixel(
+                        { gridIndex: 0 },
+                        [offsetX, offsetY],
+                    );
+                    if (!isOverPlotArea) {
+                        eCharts.dispatchAction({ type: 'hideTip' });
+                    }
+                }
+            };
+
+            zRender.on('mousemove', showTooltipOnAxisHover);
+            return () => {
+                if (!eCharts.isDisposed()) {
+                    zRender.off('mousemove', showTooltipOnAxisHover);
+                }
+            };
+        }, [chartRef, eChartsOptions]);
 
         // Memoize onEvents to prevent echarts-for-react from disposing and
         // re-creating the entire ECharts instance on every render. The library

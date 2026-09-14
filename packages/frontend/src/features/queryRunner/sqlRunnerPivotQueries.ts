@@ -29,7 +29,8 @@ const convertSqlRunnerQueryToSqlRunnerPivotQuery = (
     SqlRunnerPivotQueryBody,
     'indexColumn' | 'groupByColumns' | 'valuesColumns'
 > => {
-    const index = fields.find((field) => field.name === query.pivot?.index[0]);
+    const indexReference = query.pivot?.index[0];
+    const index = fields.find((field) => field.name === indexReference);
     const values = query.pivot?.values.map((value) => {
         const customMetric = query.customMetrics?.find(
             (metric) => metric.name === value,
@@ -56,11 +57,18 @@ const convertSqlRunnerQueryToSqlRunnerPivotQuery = (
         return f;
     });
 
-    if (index === undefined || values === undefined || values.length === 0) {
+    // An index is optional: charts that aggregate every row into a single
+    // value (big number) pivot on values alone.
+    if (indexReference !== undefined && index === undefined) {
+        throw new Error(
+            'Unexpected error: incorrect pivot configuration, invalid index',
+        );
+    }
+    if (values === undefined || values.length === 0) {
         throw new Error('Unexpected error: incorrect pivot configuration');
     }
     return {
-        indexColumn: {
+        indexColumn: index && {
             reference: index.name,
             type: getVizIndexTypeFromSqlRunnerFieldType(index.type),
         },
@@ -90,9 +98,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
     parameters: ParametersValuesMap;
 }): RunPivotQuery => {
     return async (query: SqlRunnerQuery) => {
-        const index = query.pivot?.index[0];
-
-        if (index === undefined) {
+        if (!query.pivot?.values.length) {
             return {
                 queryUuid: undefined,
                 results: [],

@@ -1,5 +1,9 @@
 import { ParameterError, type SessionUser } from '@lightdash/common';
-import { AiAgentService } from './AiAgentService';
+import {
+    AiAgentService,
+    assertDeepResearchBedrockProfile,
+    assertDeepResearchFinalizerKeyManagement,
+} from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
     AiAgentMcpRuntimeClient: vi
@@ -36,10 +40,59 @@ const bearerServer = {
     updatedAt: new Date(),
 };
 
+describe('assertDeepResearchFinalizerKeyManagement', () => {
+    it('fails closed when a self-managed run would fall back to a managed key', () => {
+        expect(() =>
+            assertDeepResearchFinalizerKeyManagement(
+                'self-managed',
+                'lightdash-managed',
+            ),
+        ).toThrow('key management changed during the run');
+    });
+});
+
+describe('assertDeepResearchBedrockProfile', () => {
+    it('accepts a matching inference profile and rejects profile drift', () => {
+        expect(() =>
+            assertDeepResearchBedrockProfile(
+                'eu.anthropic.claude-opus-5',
+                'eu',
+            ),
+        ).not.toThrow();
+        expect(() =>
+            assertDeepResearchBedrockProfile(
+                'eu.anthropic.claude-opus-5',
+                'us',
+            ),
+        ).toThrow('inference profile changed during the run');
+        expect(() =>
+            assertDeepResearchBedrockProfile('eu.retired-model', 'us'),
+        ).toThrow('Bedrock model is unavailable');
+    });
+});
+
+const agent = {
+    uuid: 'agent-1',
+    projectUuid: PROJECT_UUID,
+    organizationUuid: ORGANIZATION_UUID,
+    name: 'Research agent',
+    version: 2,
+    updatedAt: new Date('2026-07-24T10:00:00.000Z'),
+    instruction: 'Investigate carefully',
+    tags: ['analytics'],
+    spaceAccess: [],
+    enableDataAccess: true,
+    enableSelfImprovement: false,
+    enableContentTools: true,
+    enableUserContext: false,
+};
+
 const buildService = (overrides?: {
     discoverImpl?: () => Promise<unknown>;
     testConnectionImpl?: () => Promise<{ iconUrl: string | null }>;
     getMcpServer?: unknown;
+    rawSqlEnabled?: boolean;
+    canRunSql?: boolean;
 }) => {
     const aiAgentModel = {
         getMcpServer: vi
@@ -56,14 +109,31 @@ const buildService = (overrides?: {
             overrides?.testConnectionImpl ??
             vi.fn().mockResolvedValue({ iconUrl: null }),
         listTools: vi.fn().mockResolvedValue([]),
+        attachRuntimeProviders: vi.fn(),
+        resolveTools: vi.fn(),
     };
     const featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
+    const projectModel = {
+        getSummary: vi.fn().mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+            name: 'Project',
+        }),
+    };
     const service = new AiAgentService({
         aiAgentModel,
+        projectModel,
         featureFlagService,
         analytics: { track: vi.fn() },
+        aiAgentDocumentModel: {
+            findAllForAgent: vi.fn().mockResolvedValue([]),
+        },
+        aiOrganizationSettingsService: {
+            isDeepResearchRawSqlEnabled: vi
+                .fn()
+                .mockResolvedValue(overrides?.rawSqlEnabled ?? false),
+        },
         lightdashConfig: { ai: { copilot: {} } },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
@@ -74,7 +144,10 @@ const buildService = (overrides?: {
     // Match the EE test-suite pattern for bypassing the ability layer.
     (
         service as unknown as { createAuditedAbility: () => unknown }
-    ).createAuditedAbility = () => ({ cannot: () => false, can: () => true });
+    ).createAuditedAbility = () => ({
+        cannot: () => false,
+        can: () => overrides?.canRunSql ?? true,
+    });
     // discoverMcpServerTools is private; override it for these unit tests.
     (
         service as unknown as { discoverMcpServerTools: () => Promise<unknown> }
@@ -82,6 +155,244 @@ const buildService = (overrides?: {
         overrides?.discoverImpl ?? vi.fn().mockResolvedValue([]);
     return { service, aiAgentModel, aiAgentMcpRuntimeClient };
 };
+
+describe('resolveDeepResearchRawSqlExecutionAccess', () => {
+    it.each([
+        {
+            preflightCanUseRawSql: false,
+            rawSqlEnabled: true,
+            canRunSql: true,
+            expected: false,
+        },
+        {
+            preflightCanUseRawSql: true,
+            rawSqlEnabled: false,
+            canRunSql: true,
+            expected: false,
+        },
+        {
+            preflightCanUseRawSql: true,
+            rawSqlEnabled: true,
+            canRunSql: false,
+            expected: false,
+        },
+        {
+            preflightCanUseRawSql: true,
+            rawSqlEnabled: true,
+            canRunSql: true,
+            expected: true,
+        },
+    ])(
+        'resolves preflight=$preflightCanUseRawSql setting=$rawSqlEnabled permission=$canRunSql to $expected',
+        async ({
+            preflightCanUseRawSql,
+            rawSqlEnabled,
+            canRunSql,
+            expected,
+        }) => {
+            const { service } = buildService({ rawSqlEnabled, canRunSql });
+
+            await expect(
+                service.resolveDeepResearchRawSqlExecutionAccess(user, {
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuid: PROJECT_UUID,
+                    agentUuid: agent.uuid,
+                    threadUuid: 'thread-uuid',
+                    preflightCanUseRawSql,
+                }),
+            ).resolves.toBe(expected);
+        },
+    );
+});
+
+const buildPreflightService = ({
+    attachedServers = [bearerServer],
+    unavailableMcpServers = [],
+}: {
+    attachedServers?: (typeof bearerServer)[];
+    unavailableMcpServers?: Array<{
+        serverUuid: string;
+        serverName: string;
+        message: string;
+        status: 'error' | 'not_connected';
+    }>;
+} = {}) => {
+    const { service, aiAgentModel, aiAgentMcpRuntimeClient } = buildService();
+    const closeMcpClients = vi.fn().mockResolvedValue(undefined);
+
+    Object.assign(aiAgentModel, {
+        getAgentMcpServersWithSensitiveData: vi
+            .fn()
+            .mockResolvedValue(attachedServers),
+        getEnabledMcpServerToolNames: vi
+            .fn()
+            .mockResolvedValue(['search_issues']),
+    });
+    Object.assign(aiAgentMcpRuntimeClient, {
+        attachRuntimeProviders: vi.fn(
+            ({ mcpServers }: { mcpServers: unknown[] }) => mcpServers,
+        ),
+        resolveTools: vi.fn(
+            ({ mcpServers }: { mcpServers: Array<{ uuid: string }> }) =>
+                Promise.resolve({
+                    tools: {
+                        mcp_github__search_issues: {},
+                    },
+                    mcpToolNameToServerUuid: {
+                        mcp_github__search_issues:
+                            mcpServers[0]?.uuid ?? SERVER_UUID,
+                    },
+                    unavailableMcpServers,
+                    closeMcpClients,
+                }),
+        ),
+    });
+    service.getAgent = vi.fn().mockResolvedValue(agent);
+    (
+        service as unknown as {
+            refreshGithubMcpCredentials: (
+                organizationUuid: string,
+                servers: unknown[],
+            ) => Promise<unknown[]>;
+        }
+    ).refreshGithubMcpCredentials = vi
+        .fn()
+        .mockImplementation(async (_organizationUuid, servers) => servers);
+
+    return {
+        service,
+        aiAgentModel,
+        aiAgentMcpRuntimeClient,
+        closeMcpClients,
+    };
+};
+
+describe('resolveDeepResearchExecutionContext', () => {
+    it('resolves all attached servers with their enabled tools', async () => {
+        const secondServer = { ...bearerServer, uuid: 'server-2' };
+        const { service, aiAgentMcpRuntimeClient, closeMcpClients } =
+            buildPreflightService({
+                attachedServers: [bearerServer, secondServer],
+            });
+
+        const snapshot = await service.resolveDeepResearchExecutionContext(
+            user,
+            {
+                projectUuid: PROJECT_UUID,
+                agentUuid: 'agent-1',
+                modelConfig: null,
+                rawSqlEnabled: false,
+            },
+        );
+
+        expect(
+            aiAgentMcpRuntimeClient.attachRuntimeProviders,
+        ).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            userUuid: USER_UUID,
+            mcpServers: expect.arrayContaining([
+                expect.objectContaining({ uuid: bearerServer.uuid }),
+                expect.objectContaining({ uuid: secondServer.uuid }),
+            ]),
+        });
+        expect(snapshot).toMatchObject({
+            schemaVersion: 1,
+            resolutionStage: 'preflight',
+            tools: {
+                availableToolNames: ['mcp_github__search_issues'],
+                attachedMcpServers: expect.arrayContaining([
+                    expect.objectContaining({ uuid: bearerServer.uuid }),
+                    expect.objectContaining({ uuid: secondServer.uuid }),
+                ]),
+            },
+        });
+        expect(closeMcpClients).toHaveBeenCalledOnce();
+    });
+
+    it('keeps healthy MCP tools when another server is unavailable', async () => {
+        const unavailableServer = {
+            ...bearerServer,
+            uuid: 'unavailable-server-uuid',
+            name: 'Unavailable MCP',
+        };
+        const { service, closeMcpClients } = buildPreflightService({
+            attachedServers: [bearerServer, unavailableServer],
+            unavailableMcpServers: [
+                {
+                    serverUuid: unavailableServer.uuid,
+                    serverName: unavailableServer.name,
+                    message: 'authentication required',
+                    status: 'not_connected',
+                },
+            ],
+        });
+
+        await expect(
+            service.resolveDeepResearchExecutionContext(user, {
+                projectUuid: PROJECT_UUID,
+                agentUuid: 'agent-1',
+                modelConfig: null,
+                rawSqlEnabled: false,
+            }),
+        ).resolves.toMatchObject({
+            tools: {
+                availableToolNames: ['mcp_github__search_issues'],
+                attachedMcpServers: expect.arrayContaining([
+                    expect.objectContaining({
+                        uuid: bearerServer.uuid,
+                        enabledToolNames: ['mcp_github__search_issues'],
+                    }),
+                    expect.objectContaining({
+                        uuid: unavailableServer.uuid,
+                        enabledToolNames: [],
+                    }),
+                ]),
+            },
+        });
+        expect(closeMcpClients).toHaveBeenCalledOnce();
+    });
+
+    it('omits MCP raw SQL unless the organization enables it', async () => {
+        const { service, aiAgentMcpRuntimeClient } = buildPreflightService();
+        aiAgentMcpRuntimeClient.resolveTools.mockResolvedValue({
+            tools: {
+                mcp_lightdash__run_metric_query: {},
+                mcp_lightdash__run_sql: {},
+            },
+            mcpToolNameToServerUuid: {
+                mcp_lightdash__run_metric_query: SERVER_UUID,
+                mcp_lightdash__run_sql: SERVER_UUID,
+            },
+            unavailableMcpServers: [],
+            closeMcpClients: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const disabledSnapshot =
+            await service.resolveDeepResearchExecutionContext(user, {
+                projectUuid: PROJECT_UUID,
+                agentUuid: 'agent-1',
+                modelConfig: null,
+                rawSqlEnabled: false,
+            });
+        const enabledSnapshot =
+            await service.resolveDeepResearchExecutionContext(user, {
+                projectUuid: PROJECT_UUID,
+                agentUuid: 'agent-1',
+                modelConfig: null,
+                rawSqlEnabled: true,
+            });
+
+        expect(disabledSnapshot.tools.availableToolNames).toEqual([
+            'mcp_lightdash__run_metric_query',
+        ]);
+        expect(disabledSnapshot.effectivePermissions.canRunSql).toBe(false);
+        expect(enabledSnapshot.tools.availableToolNames).toEqual([
+            'mcp_lightdash__run_metric_query',
+            'mcp_lightdash__run_sql',
+        ]);
+        expect(enabledSnapshot.effectivePermissions.canRunSql).toBe(true);
+    });
+});
 
 describe('refreshMcpServerTools status persistence', () => {
     it('marks the server connected when discovery succeeds', async () => {
@@ -172,7 +483,9 @@ describe('updateMcpServerBearerCredential', () => {
                 user,
                 PROJECT_UUID,
                 SERVER_UUID,
-                { bearerToken: 'bad-token' },
+                {
+                    bearerToken: 'bad-token',
+                },
             ),
         ).rejects.toBeInstanceOf(ParameterError);
 
@@ -187,7 +500,9 @@ describe('updateMcpServerBearerCredential', () => {
                 user,
                 PROJECT_UUID,
                 SERVER_UUID,
-                { bearerToken: '   ' },
+                {
+                    bearerToken: '   ',
+                },
             ),
         ).rejects.toBeInstanceOf(ParameterError);
 
@@ -202,7 +517,9 @@ describe('updateMcpServerBearerCredential', () => {
                 user,
                 PROJECT_UUID,
                 SERVER_UUID,
-                { bearerToken: 'a'.repeat(8193) },
+                {
+                    bearerToken: 'a'.repeat(8193),
+                },
             ),
         ).rejects.toBeInstanceOf(ParameterError);
 
@@ -219,7 +536,9 @@ describe('updateMcpServerBearerCredential', () => {
                 user,
                 PROJECT_UUID,
                 SERVER_UUID,
-                { bearerToken: 'x' },
+                {
+                    bearerToken: 'x',
+                },
             ),
         ).rejects.toBeInstanceOf(ParameterError);
 

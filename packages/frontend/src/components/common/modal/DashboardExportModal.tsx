@@ -13,7 +13,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCsv,
     IconFileExport,
@@ -58,6 +58,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
 
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
@@ -92,11 +93,15 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         );
     }, [allTabsSelected, dashboard.tiles, selectedTabs]);
 
+    // Filters and parameters are part of the key so a cached preview is not
+    // reused after the user changes the dashboard view.
     const getPreviewKey = useCallback(
         (width: string) => {
-            return `${width}-${selectedTabs.join('-')}`;
+            return `${width}-${selectedTabs.join('-')}-${JSON.stringify(
+                dashboardFilters,
+            )}-${JSON.stringify(parameterValues)}`;
         },
-        [selectedTabs],
+        [selectedTabs, dashboardFilters, parameterValues],
     );
 
     const currentPreview = previewChoice
@@ -132,6 +137,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                 exportType === SchedulerFormat.IMAGE ? {} : getCsvOptions(),
             dashboardFilters,
             dateZoomGranularity,
+            parameters: parameterValues,
             customViewportWidth:
                 exportType === SchedulerFormat.IMAGE && previewChoice
                     ? parseInt(previewChoice)
@@ -148,12 +154,17 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportType,
         getCsvOptions,
         onClose,
+        parameterValues,
         previewChoice,
     ]);
 
     const handleImageExport = useCallback(() => {
         if (previewChoice && previews[getPreviewKey(previewChoice)]) {
-            window.open(previews[getPreviewKey(previewChoice)], '_blank');
+            window.open(
+                previews[getPreviewKey(previewChoice)],
+                '_blank',
+                'noopener,noreferrer',
+            );
             return;
         }
 
@@ -168,6 +179,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                 : undefined,
             dashboardFilters,
             dateZoomGranularity,
+            parameters: parameterValues,
             selectedTabs: exportSelectedTabs,
         });
 
@@ -185,6 +197,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportPreviewMutation,
         exportSelectedTabs,
         getPreviewKey,
+        parameterValues,
         previewChoice,
     ]);
 
@@ -250,7 +263,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             { label: '.xlsx', value: SchedulerFormat.XLSX },
                         ]}
                         w="min-content"
-                        radius="md"
                         value={exportType}
                         onChange={(value) =>
                             setExportType(
@@ -306,10 +318,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             <Group gap="xs">
                                 Tabs
                                 <Tooltip
-                                    withinPortal
                                     maw={400}
-                                    variant="xs"
-                                    multiline
                                     label="When unchecked, choose specific tabs to include in the export."
                                 >
                                     <MantineIcon

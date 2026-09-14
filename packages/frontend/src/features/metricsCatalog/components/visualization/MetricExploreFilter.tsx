@@ -4,15 +4,12 @@ import {
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
-import { Group, Stack, Text, Button, Select } from '@mantine-8/core';
+import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
-import {
-    useFilterSelectStyles,
-    useOperatorSelectStyles,
-} from '../../styles/useFilterStyles';
+import filterStyles from '../../styles/filterStyles.module.css';
 import {
     createFilterRule,
     doesDimensionRequireValues,
@@ -47,9 +44,6 @@ export const MetricExploreFilter: FC<Props> = ({
     onFilterApply,
     initialFilterRule,
 }) => {
-    const { classes: filterSelectClasses, theme } = useFilterSelectStyles();
-    const { classes: operatorSelectClasses } = useOperatorSelectStyles();
-
     // Seed from the metric's default filter on mount. The parent remounts this
     // component (via key) per metric, so this initializer re-runs on switch.
     const [filterState, setFilterState] = useState<FilterState>(() =>
@@ -201,8 +195,6 @@ export const MetricExploreFilter: FC<Props> = ({
                     <Button
                         variant="subtle"
                         size="compact-xs"
-                        color="dark"
-                        radius="md"
                         rightSection={
                             <MantineIcon
                                 icon={IconX}
@@ -226,13 +218,7 @@ export const MetricExploreFilter: FC<Props> = ({
                 </Group>
             </Group>
 
-            <Stack
-                gap={0}
-                style={{
-                    boxShadow: theme.shadows.subtle,
-                    borderRadius: theme.radius.md,
-                }}
-            >
+            <Stack gap={0} className={filterStyles.filterContainer}>
                 <Group gap={0} wrap="nowrap">
                     <Select
                         allowDeselect={false}
@@ -240,7 +226,6 @@ export const MetricExploreFilter: FC<Props> = ({
                         leftSection={<MantineIcon icon={IconFilter} />}
                         searchable
                         comboboxProps={{ withinPortal: true }}
-                        radius="md"
                         size="xs"
                         data={groupComboboxItems(
                             dimensions?.map((dimension) => ({
@@ -261,7 +246,14 @@ export const MetricExploreFilter: FC<Props> = ({
                         onChange={handleDimensionChange}
                         data-selected={!!filterState.fieldId}
                         data-no-values={!showValuesSection ? 'true' : 'false'}
-                        classNames={filterSelectClasses}
+                        classNames={{
+                            root: filterStyles.filterRoot,
+                            wrapper: filterStyles.filterWrapper,
+                            input: filterStyles.filterInput,
+                            option: filterStyles.baseItem,
+                            dropdown: filterStyles.filterDropdown,
+                            section: filterStyles.rightSection,
+                        }}
                     />
 
                     {filterState.fieldId && (
@@ -277,8 +269,14 @@ export const MetricExploreFilter: FC<Props> = ({
                                 )
                             }
                             size="xs"
-                            radius="md"
-                            classNames={operatorSelectClasses}
+                            classNames={{
+                                root: filterStyles.operatorRoot,
+                                wrapper: filterStyles.operatorWrapper,
+                                input: filterStyles.operatorInput,
+                                option: filterStyles.baseItem,
+                                dropdown: filterStyles.operatorDropdown,
+                                section: filterStyles.rightSection,
+                            }}
                             data-no-values={
                                 !showValuesSection ? 'true' : 'false'
                             }
@@ -303,13 +301,9 @@ export const MetricExploreFilter: FC<Props> = ({
             </Stack>
             {filterState.fieldId && dimensionMetadata?.requiresValues && (
                 <Button
-                    color={theme.colorScheme === 'dark' ? 'ldGray.2' : 'dark'}
                     size="compact-xs"
                     disabled={!canApplyFilter}
-                    style={{
-                        boxShadow: theme.shadows.subtle,
-                        alignSelf: 'flex-end',
-                    }}
+                    className={filterStyles.applyButton}
                     onClick={handleApplyFilter}
                 >
                     Apply

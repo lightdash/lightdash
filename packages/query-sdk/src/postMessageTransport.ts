@@ -10,6 +10,8 @@
  */
 
 import { createApiTransport, type FetchAdapter } from './apiTransport';
+import { mountDeliveryRender } from './deliveryRender';
+import { announceSdkManifest } from './manifest';
 import type {
     ExternalFetchMethod,
     ExternalFetchOptions,
@@ -40,6 +42,10 @@ export type SdkFetchResponse = {
 
 export type SdkReadyMessage = {
     type: 'lightdash:sdk:ready';
+    /** True when the host is capturing this render for a scheduled delivery
+     *  or its preview. Absent (never `false`) on ordinary interactive loads —
+     *  see `deliveryRender.ts`'s `useDeliveryRender()`. */
+    deliveryRender?: boolean;
 };
 
 export type SdkScreenshotRequest = {
@@ -142,6 +148,15 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const READY_TIMEOUT_MS = 10_000;
 
 /**
+ * `crypto.randomUUID` is secure-context only, so it's missing when the app is
+ * served over plain http. Ids only need to be unique within one page session.
+ */
+export const createRequestId = (): string =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+/**
  * Creates a FetchAdapter that sends HTTP requests to the parent window
  * via postMessage and waits for responses.
  */
@@ -200,7 +215,7 @@ function createPostMessageFetchAdapter(config: {
     ): Promise<T> => {
         await readyPromise;
 
-        const id = crypto.randomUUID();
+        const id = createRequestId();
 
         return new Promise<T>((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -308,7 +323,7 @@ function createPostMessageExternalFetch(config: {
     ): Promise<ExternalFetchResult> => {
         await readyPromise;
 
-        const id = crypto.randomUUID();
+        const id = createRequestId();
 
         return new Promise<ExternalFetchResult>((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -356,6 +371,11 @@ type PostMessageTransportConfig = {
 export function createPostMessageTransport(
     config: PostMessageTransportConfig,
 ): Transport {
+    // Report this bundle's SDK capabilities so the host can offer upgrades.
+    announceSdkManifest(config.targetWindow);
+    // Listen for the delivery/preview capture flag riding on the same
+    // `lightdash:sdk:ready` handshake — see `useDeliveryRender()`.
+    mountDeliveryRender(config.targetWindow);
     const adapter = createPostMessageFetchAdapter({
         targetWindow: config.targetWindow,
         timeoutMs: config.timeoutMs,

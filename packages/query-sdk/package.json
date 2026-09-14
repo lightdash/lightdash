@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/query-sdk",
-    "version": "0.3437.0",
+    "version": "2.207.1",
     "private": false,
     "type": "module",
     "description": "SDK for building custom data apps against the Lightdash semantic layer",
@@ -19,14 +19,18 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./features": {
+            "types": "./dist/features.d.ts",
+            "import": "./dist/features.js"
         }
     },
     "scripts": {
-        "build": "tsc6 --project tsconfig.build.json",
-        "build:fast": "tsc --project tsconfig.build.fast.json",
-        "typecheck": "tsc6 --noEmit",
-        "typecheck:fast": "tsc --project tsconfig.fast.json --noEmit",
+        "prebuild": "node ./scripts/generateSdkVersion.mjs",
+        "build": "tsc --project tsconfig.build.json",
+        "typecheck": "tsc --noEmit",
         "lint": "eslint src/",
+        "pretest": "node ./scripts/generateSdkVersion.mjs",
         "test": "vitest run",
         "format": "oxfmt ./src --check",
         "fix-format": "oxfmt ./src",
@@ -36,10 +40,11 @@
         "react": "^18.x || ^19.x"
     },
     "devDependencies": {
-        "@types/react": "19.2.2",
+        "@lightdash/common": "workspace:*",
+        "@types/node": "22.13.1",
+        "@types/react": "19.3.0",
         "jsdom": "26.1.0",
-        "typescript": "npm:@typescript/typescript6@6.0.1",
-        "typescript-7": "npm:typescript@7.0.1-rc",
-        "vitest": "4.1.6"
+        "typescript": "7.0.2",
+        "vitest": "4.1.11"
     }
 }

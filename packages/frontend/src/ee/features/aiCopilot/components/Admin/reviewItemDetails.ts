@@ -1,4 +1,7 @@
 import {
+    formatAiProjectContextObjectRef,
+    getReviewItemProjectContextEntry,
+    getVisibleAiAgentReviewRootCauses,
     type AiAgentRecommendationAction,
     type AiAgentReviewItemPriority,
     type AiAgentReviewItemSummary,
@@ -18,14 +21,22 @@ export const reviewRootCauseLabels: Record<AiAgentRootCause, string> = {
     ambiguous: 'Ambiguous',
 };
 
+// Every root cause a user can ever see or pick. Root causes the judge keeps
+// assigning but the API never returns (product capability gaps) are dropped
+// here, so no filter, legend or picker offers a category with nothing behind it.
+export const SURFACED_ROOT_CAUSES = getVisibleAiAgentReviewRootCauses(
+    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[],
+);
+
+// Of the surfaced ones, which start selected in the board filter.
 const DEFAULT_HIDDEN_ROOT_CAUSES: AiAgentRootCause[] = [
     'agent_configuration',
     'runtime_reliability',
 ];
 
-export const DEFAULT_VISIBLE_ROOT_CAUSES = (
-    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[]
-).filter((rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause));
+export const DEFAULT_VISIBLE_ROOT_CAUSES = SURFACED_ROOT_CAUSES.filter(
+    (rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause),
+);
 
 export const reviewRootCauseColors: Record<AiAgentRootCause, string> = {
     semantic_layer: 'indigo',
@@ -64,7 +75,11 @@ export const writebackBlockedReasonLabels: Record<
     missing_agent: 'No agent is linked to this issue',
     missing_project_context_entry: 'No project context entry was generated',
     project_context_disabled: 'Project context is not enabled',
-    unsupported_source_control: 'Project is not connected to GitHub or GitLab',
+    insufficient_source_code_access:
+        'You do not have permission to modify source code',
+    unsupported_source_control:
+        'Project is not connected to GitHub, GitLab or Bitbucket Cloud',
+    bitbucket_token_missing: 'Configure the project Bitbucket API token',
     git_app_not_installed: 'Git app is not installed',
     missing_writeback_config: 'Writeback runtime is not configured',
     pull_request_open: 'A pull request is already open',
@@ -83,13 +98,16 @@ export const writebackBlockedReasonDescriptions: Partial<
     Record<AiAgentReviewItemWritebackBlockedReason, string>
 > = {
     unsupported_source_control:
-        'Connect this project to GitHub or GitLab so Lightdash can open a pull request that fixes issues like this for you.',
+        'Connect this project to GitHub, GitLab or Bitbucket Cloud so Lightdash can open a pull request that fixes issues like this for you.',
     reviews_disabled:
         'Turn on Issues for your organization to let agents file and fix issues automatically.',
+    bitbucket_token_missing: 'Configure the project Bitbucket API token',
     git_app_not_installed:
         'Install the Lightdash app on your repository so it can open pull requests.',
     project_context_disabled:
         'Enable project context so Lightdash can propose updates to your project knowledge.',
+    insufficient_source_code_access:
+        'Ask a project admin for permission to manage source code before creating a pull request.',
     missing_writeback_config:
         'Ask an admin to configure the writeback runtime to enable automatic fixes.',
 };
@@ -183,6 +201,16 @@ const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
     }
 };
 
+export const getReviewItemAgentUuid = (
+    reviewItem: AiAgentReviewItemSummary,
+): string | null =>
+    reviewItem.latestFinding?.agentUuid ?? reviewItem.agentUuid ?? null;
+
+export const getReviewItemProjectUuid = (
+    reviewItem: AiAgentReviewItemSummary,
+): string | null =>
+    reviewItem.latestFinding?.projectUuid ?? reviewItem.projectUuid ?? null;
+
 const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
     reviewItem.source !== 'manual' &&
     (reviewItem.primaryRootCause === 'ambiguous' ||
@@ -225,6 +253,10 @@ export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
         return reviewItem.description || 'Manually filed issue.';
     }
 
+    if (reviewItem.source === 'memory') {
+        return reviewItem.nominationReason ?? reviewItem.description;
+    }
+
     return (
         reviewItem.latestFinding?.recommendation?.rationale ??
         `Review agent judged this as ${reviewRootCauseLabels[reviewItem.primaryRootCause].toLowerCase()}.`
@@ -234,12 +266,17 @@ export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
 export const getReviewReasoningText = (
     reviewItem: AiAgentReviewItemSummary,
 ): string => {
-    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
+    const contextEntry = getReviewItemProjectContextEntry(reviewItem);
 
     if (contextEntry) {
+        const objectRefs = contextEntry.objects
+            .map(formatAiProjectContextObjectRef)
+            .join(', ');
         return `${
             contextEntry.op === 'update' ? 'Updates' : 'Adds'
-        } project context: ${contextEntry.content}`;
+        } project context: ${contextEntry.content}${
+            objectRefs ? ` Objects: ${objectRefs}.` : ''
+        }`;
     }
 
     return getWhyText(reviewItem);
@@ -280,7 +317,7 @@ export const getSuggestedNextStep = (
 export const getReviewSecondaryDetail = (
     reviewItem: AiAgentReviewItemSummary,
 ): string | null => {
-    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
+    const contextEntry = getReviewItemProjectContextEntry(reviewItem);
     if (contextEntry) {
         return contextEntry.kind;
     }

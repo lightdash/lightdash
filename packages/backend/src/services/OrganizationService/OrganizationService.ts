@@ -32,6 +32,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    ProjectType,
     SaveOrganizationBrandRequest,
     SessionUser,
     TooManyRequestsError,
@@ -42,6 +43,7 @@ import {
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
 import fetch from 'node-fetch';
 import {
@@ -49,6 +51,7 @@ import {
     OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logging/logger';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -56,9 +59,15 @@ import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationA
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import { wrapSentryTransaction } from '../../utils';
+import {
+    getOrganizationSystemRoleScopes,
+    validateOrganizationScopesCanBeGranted,
+} from '../../utils/organizationRolePermissions';
 import { BaseService } from '../BaseService';
+import { isAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/analyticsProjectClient';
 
 const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
 
@@ -87,7 +96,7 @@ type BrandfetchBrandResponse = {
     }> | null;
 };
 
-type OrganizationServiceArguments = {
+export type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     organizationModel: OrganizationModel;
@@ -98,6 +107,11 @@ type OrganizationServiceArguments = {
     groupsModel: GroupsModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     featureFlagModel: FeatureFlagModel;
+    rolesModel: RolesModel;
+    onOrganizationCreated?: (args: {
+        user: SessionUser;
+        organizationUuid: string;
+    }) => Promise<void>;
 };
 
 export class OrganizationService extends BaseService {
@@ -121,6 +135,10 @@ export class OrganizationService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly rolesModel: RolesModel;
+
+    private readonly onOrganizationCreated: OrganizationServiceArguments['onOrganizationCreated'];
+
     constructor({
         lightdashConfig,
         analytics,
@@ -132,6 +150,8 @@ export class OrganizationService extends BaseService {
         groupsModel,
         organizationAllowedEmailDomainsModel,
         featureFlagModel,
+        rolesModel,
+        onOrganizationCreated,
     }: OrganizationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -145,6 +165,8 @@ export class OrganizationService extends BaseService {
             organizationAllowedEmailDomainsModel;
         this.groupsModel = groupsModel;
         this.featureFlagModel = featureFlagModel;
+        this.rolesModel = rolesModel;
+        this.onOrganizationCreated = onOrganizationCreated;
     }
 
     async get(account: Account): Promise<Organization> {
@@ -485,6 +507,9 @@ export class OrganizationService extends BaseService {
 
         const userUuids = orgUsers.map((orgUser) => orgUser.userUuid);
 
+        const isTrackingAnonymizedByUserUuid =
+            await this.userModel.getIsTrackingAnonymizedByUserUuids(userUuids);
+
         await this.organizationModel.deleteOrgAndUsers(
             organizationUuid,
             userUuids,
@@ -501,6 +526,9 @@ export class OrganizationService extends BaseService {
                     email: orgUser.email,
                     organizationId: organizationUuid,
                     deletedUserId: orgUser.userUuid,
+                    isTrackingAnonymized:
+                        isTrackingAnonymizedByUserUuid[orgUser.userUuid] ??
+                        false,
                 },
             });
         });
@@ -557,14 +585,17 @@ export class OrganizationService extends BaseService {
                   googleOidcOnly,
               });
 
-        let members = organizationMembers.filter((member) =>
-            auditedAbility.can(
-                'view',
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            organizationMembers.map((member) =>
                 subject('OrganizationMemberProfile', {
                     ...member,
                     metadata: { userUuid: member.userUuid },
                 }),
             ),
+        );
+        let members = organizationMembers.filter(
+            (_, index) => accessResults[index],
         );
 
         // If projectUuid is set, then we can check what's the user role in that project
@@ -621,14 +652,38 @@ export class OrganizationService extends BaseService {
                 this.projectModel.getAllByOrganizationUuid(organizationUuid),
         );
 
-        return projects.filter((project) =>
-            auditedAbility.can(
-                'view',
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            projects.map((project) =>
                 subject('Project', {
                     organizationUuid,
                     projectUuid: project.projectUuid,
+                    metadata: {
+                        projectUuid: project.projectUuid,
+                        projectName: project.name,
+                    },
                 }),
             ),
+        );
+
+        const analyticsEnabled =
+            projects.some(
+                (project) => project.provisioningSource === 'analytics',
+            ) &&
+            auditedAbility.can(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            ) &&
+            (await isAnalyticsProjectEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            ));
+
+        return projects.filter(
+            (project, index) =>
+                accessResults[index] &&
+                (project.provisioningSource !== 'analytics' ||
+                    analyticsEnabled),
         );
     }
 
@@ -740,17 +795,19 @@ export class OrganizationService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        // Race condition between check and delete
-        const [admin, ...remainingAdmins] =
-            await this.organizationMemberProfileModel.getOrganizationAdmins(
-                organizationUuid,
-            );
-        if (remainingAdmins.length === 0 && admin.userUuid === memberUserUuid) {
-            throw new ForbiddenError(
-                'Organization must have at least one admin',
-            );
-        }
         if (data.role !== undefined) {
+            await validateOrganizationScopesCanBeGranted({
+                user: authenticatedUser,
+                organizationUuid,
+                grantedScopes: getOrganizationSystemRoleScopes(data.role, {
+                    includePersonalAccessToken:
+                        this.lightdashConfig.auth?.pat?.enabled === true &&
+                        this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
+                            data.role,
+                        ),
+                }),
+                rolesModel: this.rolesModel,
+            });
             const organization =
                 await this.organizationModel.get(organizationUuid);
             this.analytics.track({
@@ -770,6 +827,7 @@ export class OrganizationService extends BaseService {
             });
         }
 
+        // The model refuses to demote the organization's last active admin.
         return this.organizationMemberProfileModel.updateOrganizationMember(
             organizationUuid,
             memberUserUuid,
@@ -900,6 +958,29 @@ export class OrganizationService extends BaseService {
             OrganizationMemberRole.ADMIN,
             undefined,
         );
+        if (this.onOrganizationCreated) {
+            try {
+                const organizationUser =
+                    await this.userModel.findSessionUserAndOrgByUuid(
+                        user.userUuid,
+                        org.organizationUuid,
+                    );
+                // Await before returning so the frontend's feature-flag refetch sees the overrides.
+                await this.onOrganizationCreated({
+                    user: organizationUser,
+                    organizationUuid: org.organizationUuid,
+                });
+            } catch (error) {
+                Sentry.captureException(error);
+                Logger.error(
+                    `Failed to run organization creation hook for organization ${
+                        org.organizationUuid
+                    }: ${
+                        error instanceof Error ? error.message : String(error)
+                    }`,
+                );
+            }
+        }
         await this.analytics.track({
             userId: user.userUuid,
             event: 'user.joined_organization',
@@ -970,9 +1051,9 @@ export class OrganizationService extends BaseService {
         );
 
         const auditedAbility = this.createAuditedAbility(user);
-        const allowedGroups = groups.filter((group) =>
-            auditedAbility.can(
-                'view',
+        const accessResults = auditedAbility.canBulk(
+            'view',
+            groups.map((group) =>
                 subject('Group', {
                     ...group,
                     metadata: {
@@ -982,6 +1063,7 @@ export class OrganizationService extends BaseService {
                 }),
             ),
         );
+        const allowedGroups = groups.filter((_, index) => accessResults[index]);
 
         if (includeMembers === undefined) {
             return {
@@ -1017,8 +1099,8 @@ export class OrganizationService extends BaseService {
         if (
             !user.organizationUuid ||
             auditedAbility.cannot(
-                'update',
-                subject('Organization', {
+                'manage',
+                subject('OrganizationColorPalette', {
                     organizationUuid: user.organizationUuid,
                 }),
             )
@@ -1060,8 +1142,8 @@ export class OrganizationService extends BaseService {
         if (
             !user.organizationUuid ||
             auditedAbility.cannot(
-                'update',
-                subject('Organization', {
+                'manage',
+                subject('OrganizationColorPalette', {
                     organizationUuid: user.organizationUuid,
                     metadata: { colorPaletteUuid },
                 }),
@@ -1091,8 +1173,8 @@ export class OrganizationService extends BaseService {
         if (
             !user.organizationUuid ||
             auditedAbility.cannot(
-                'update',
-                subject('Organization', {
+                'manage',
+                subject('OrganizationColorPalette', {
                     organizationUuid: user.organizationUuid,
                     metadata: { colorPaletteUuid },
                 }),
@@ -1115,8 +1197,8 @@ export class OrganizationService extends BaseService {
         if (
             !user.organizationUuid ||
             auditedAbility.cannot(
-                'update',
-                subject('Organization', {
+                'manage',
+                subject('OrganizationColorPalette', {
                     organizationUuid: user.organizationUuid,
                     metadata: { colorPaletteUuid },
                 }),
@@ -1138,13 +1220,18 @@ export class OrganizationService extends BaseService {
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
         }
+        // Impersonators need to read the setting to know the action is available
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
+        const canReadSetting =
+            auditedAbility.can(
                 'update',
                 subject('Organization', { organizationUuid }),
-            )
-        ) {
+            ) ||
+            auditedAbility.can(
+                'impersonate',
+                subject('User', { organizationUuid, isActive: true }),
+            );
+        if (!canReadSetting) {
             throw new ForbiddenError();
         }
         const flag = await this.featureFlagModel.get({

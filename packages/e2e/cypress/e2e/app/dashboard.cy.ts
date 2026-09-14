@@ -55,8 +55,7 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.findByTestId('FilterConfiguration/FieldSelect').click();
-        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
+        cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('payment');
         cy.wait(200);
@@ -163,7 +162,7 @@ describe('Dashboard', () => {
         cy.findByRole('option', {
             name: 'How much revenue do we have per payment method?',
         }).click();
-        cy.findByRole('dialog').get('.mantine-MultiSelect-input').click(); // Close dropdown
+        cy.findByRole('dialog').findByRole('textbox').type('{esc}');
         cy.findByText('Add').click();
         cy.findByText('How much revenue do we have per payment method?').should(
             'exist',
@@ -181,9 +180,9 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Unique payment count').click();
         cy.findByText('Save chart').click();
-        cy.findByTestId('ChartCreateModal/NameInput').type(
-            `What's the number of unique payments per payment method?`,
-        );
+        cy.findByTestId('ChartCreateModal/NameInput')
+            .clear()
+            .type(`What's the number of unique payments per payment method?`);
         cy.findByText('Save').click();
         cy.findByText(
             `Success! What's the number of unique payments per payment method? was added to Title`,
@@ -194,8 +193,7 @@ describe('Dashboard', () => {
 
         // Add filter Payment method is credit_card and apply
         cy.contains('Add filter').click();
-        cy.findByTestId('FilterConfiguration/FieldSelect').click();
-        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
+        cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('payment');
         cy.wait(200);
@@ -233,9 +231,9 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Total revenue').click();
         cy.findByText('Save chart').click();
-        cy.findByTestId('ChartCreateModal/NameInput').type(
-            `What's the total revenue per payment method?`,
-        );
+        cy.findByTestId('ChartCreateModal/NameInput')
+            .clear()
+            .type(`What's the total revenue per payment method?`);
         cy.findByText('Save').click();
         cy.findByText(
             `Success! What's the total revenue per payment method? was added to Title`,
@@ -261,7 +259,11 @@ describe('Dashboard', () => {
         cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
             .findAllByRole('checkbox')
             .eq(1)
-            .uncheck({ force: true });
+            .click({ force: true });
+        cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
+            .findAllByRole('checkbox')
+            .eq(1)
+            .should('not.be.checked');
         cy.contains('button', 'Apply').click({ force: true });
 
         // Saved chart should have no filter applied
@@ -288,9 +290,9 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Amount').click();
         cy.findByText('Save chart').click();
-        cy.findByTestId('ChartCreateModal/NameInput').type(
-            `Stg Payments (payment method x amount)?`,
-        );
+        cy.findByTestId('ChartCreateModal/NameInput')
+            .clear()
+            .type(`Stg Payments (payment method x amount)?`);
         cy.findByText('Save').click();
         cy.findByText(
             `Success! Stg Payments (payment method x amount)? was added to Title`,
@@ -367,9 +369,9 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Unique payment count').click();
         cy.findByText('Save chart').click();
-        cy.findByTestId('ChartCreateModal/NameInput').type(
-            `What's the number of unique payments per payment method?`,
-        );
+        cy.findByTestId('ChartCreateModal/NameInput')
+            .clear()
+            .type(`What's the number of unique payments per payment method?`);
         cy.findByText('Save').click();
 
         cy.findByText('Save changes').click();
@@ -421,8 +423,7 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.findByTestId('FilterConfiguration/FieldSelect').click();
-        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
+        cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('payment');
         cy.wait(200);

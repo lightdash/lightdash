@@ -11,10 +11,10 @@ import {
     Select,
     Switch,
     PasswordInput,
-} from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
+} from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
@@ -373,6 +373,8 @@ const DuckdbForm: FC<{
         warehouse?.type === WarehouseTypes.DUCKDB
             ? (warehouse.connectionType ?? DuckdbConnectionType.MOTHERDUCK)
             : DuckdbConnectionType.MOTHERDUCK;
+
+    if (connectionType === DuckdbConnectionType.EMBEDDED) return null;
 
     return (
         <Stack mt="sm">

@@ -1,31 +1,86 @@
 import {
+    AnnouncementCategory,
     ConflictError,
+    HOMEPAGE_DEFAULT_GREETING_SUBTITLE,
     NotFoundError,
     ParameterError,
-    type AnnouncementCategory,
+    sanitizeHomepageConfig,
     type AnnouncementsPage,
     type HomepageAssignment,
     type HomepageAudience,
+    type HomepageBlock,
     type HomepageConfig,
-    type HomepageRecentlyViewedItem,
+    type HomepageOpening,
+    type OrganizationHomepageSettings,
     type ProjectAnnouncement,
     type ProjectHomepage,
     type ProjectMemberRole,
     type PublishedProjectHomepage,
     type ResolvedPublishedHomepage,
     type UpdateAnnouncementRequest,
+    type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { UserTableName } from '../../database/entities/users';
+import { OrganizationHomepageSettingsTableName } from '../database/entities/organizationHomepageSettings';
 import {
-    AnnouncementCategoriesTableName,
     AnnouncementsTableName,
     HomepageAssignmentsTableName,
-    HomepagePersonalOverridesTableName,
     HomepagesTableName,
     type DbAnnouncement,
-    type DbAnnouncementCategory,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
+
+type RankableGroupAssignment = {
+    groupUuid: string;
+    priority: number;
+    createdAt: Date;
+    assignmentUuid: string;
+};
+
+const compareGroupAssignmentPriority = (
+    left: RankableGroupAssignment,
+    right: RankableGroupAssignment,
+): number => {
+    if (left.priority !== right.priority) {
+        return left.priority - right.priority;
+    }
+    const createdDelta = left.createdAt.getTime() - right.createdAt.getTime();
+    if (createdDelta !== 0) {
+        return createdDelta;
+    }
+    return left.assignmentUuid.localeCompare(right.assignmentUuid);
+};
+
+// Always rewrite every group in the project so a partial reorder cannot
+// leave two groups sharing a priority.
+export const rankGroupPriorities = (
+    existing: RankableGroupAssignment[],
+    requestedOrder: string[],
+): { groupUuid: string; priority: number }[] => {
+    const existingByUuid = new Map(
+        existing.map((assignment) => [assignment.groupUuid, assignment]),
+    );
+    const ranked: string[] = [];
+    const seen = new Set<string>();
+
+    for (const groupUuid of requestedOrder) {
+        if (existingByUuid.has(groupUuid) && !seen.has(groupUuid)) {
+            ranked.push(groupUuid);
+            seen.add(groupUuid);
+        }
+    }
+
+    const remaining = existing
+        .filter((assignment) => !seen.has(assignment.groupUuid))
+        .sort(compareGroupAssignmentPriority)
+        .map((assignment) => assignment.groupUuid);
+
+    return [...ranked, ...remaining].map((groupUuid, priority) => ({
+        groupUuid,
+        priority,
+    }));
+};
 
 export class ProjectHomepageModel {
     private readonly database: Knex;
@@ -39,14 +94,144 @@ export class ProjectHomepageModel {
             homepageUuid: row.homepage_uuid,
             projectUuid: row.project_uuid,
             name: row.name,
-            draftConfig: row.draft_config,
-            publishedConfig: row.published_config,
+            // Stored configs are raw jsonb: migrate legacy shapes and drop
+            // blocks that no longer validate, so every consumer gets a
+            // guaranteed HomepageConfig rather than a cast.
+            draftConfig: sanitizeHomepageConfig(row.draft_config),
+            publishedConfig:
+                row.published_config === null
+                    ? null
+                    : sanitizeHomepageConfig(row.published_config),
             isDefault: row.is_default,
-            allowPersonal: row.allow_personal,
             createdByUserUuid: row.created_by_user_uuid,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
+    }
+
+    async findOrgHomepageSettings(
+        organizationUuid: string,
+    ): Promise<OrganizationHomepageSettings | null> {
+        const row = await this.database(OrganizationHomepageSettingsTableName)
+            .where('organization_uuid', organizationUuid)
+            .first();
+        if (!row) return null;
+        return {
+            organizationUuid: row.organization_uuid,
+            enabled: row.enabled,
+            opening: row.opening,
+        };
+    }
+
+    async upsertOrgHomepageSettings(
+        organizationUuid: string,
+        update: UpdateOrganizationHomepageSettings,
+    ): Promise<OrganizationHomepageSettings> {
+        const [row] = await this.database(OrganizationHomepageSettingsTableName)
+            .insert({
+                organization_uuid: organizationUuid,
+                enabled: update.enabled,
+                opening: update.opening,
+            })
+            .onConflict('organization_uuid')
+            .merge({
+                enabled: update.enabled,
+                opening: update.opening,
+                updated_at: new Date(),
+            })
+            .returning('*');
+        return {
+            organizationUuid: row.organization_uuid,
+            enabled: row.enabled,
+            opening: row.opening,
+        };
+    }
+
+    /**
+     * Rewrites stored hero blocks across every homepage in the organization
+     * (drafts and published) to match the opening the admin just chose:
+     * content-first turns ask heroes into greetings, ask-first turns greetings
+     * into ask heroes. Block ids and density survive; a page-level exception
+     * is one swap away in the builder.
+     */
+    async swapHeroBlocks(
+        organizationUuid: string,
+        opening: HomepageOpening,
+    ): Promise<void> {
+        const rows: DbProjectHomepage[] = await this.database(
+            HomepagesTableName,
+        )
+            .join(
+                'projects',
+                'projects.project_uuid',
+                `${HomepagesTableName}.project_uuid`,
+            )
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('organizations.organization_uuid', organizationUuid)
+            .select<DbProjectHomepage[]>(`${HomepagesTableName}.*`);
+
+        const sourceType =
+            opening === 'content-first' ? 'ask-ai-hero' : 'greeting';
+        const swapBlock = (block: HomepageBlock): HomepageBlock => {
+            if (opening === 'content-first' && block.type === 'ask-ai-hero') {
+                return {
+                    id: block.id,
+                    type: 'greeting',
+                    config: {
+                        subtitle: HOMEPAGE_DEFAULT_GREETING_SUBTITLE,
+                        density: block.config.density,
+                    },
+                };
+            }
+            if (opening === 'ask-first' && block.type === 'greeting') {
+                return {
+                    id: block.id,
+                    type: 'ask-ai-hero',
+                    config: {
+                        showGreeting: true,
+                        density: block.config.density,
+                    },
+                };
+            }
+            return block;
+        };
+
+        const swapConfig = (config: HomepageConfig): HomepageConfig => ({
+            ...config,
+            rows: config.rows.map((row) => ({
+                ...row,
+                blocks: row.blocks.map(swapBlock),
+            })),
+        });
+
+        const hasSourceHero = (config: HomepageConfig | null): boolean =>
+            config?.rows.some((row) =>
+                row.blocks.some((block) => block.type === sourceType),
+            ) ?? false;
+
+        const affected = rows.filter(
+            (row) =>
+                hasSourceHero(row.draft_config) ||
+                hasSourceHero(row.published_config),
+        );
+        await Promise.all(
+            affected.map((row) =>
+                this.database(HomepagesTableName)
+                    .where('homepage_uuid', row.homepage_uuid)
+                    .update({
+                        draft_config: swapConfig(row.draft_config),
+                        published_config:
+                            row.published_config === null
+                                ? null
+                                : swapConfig(row.published_config),
+                        updated_at: new Date(),
+                    }),
+            ),
+        );
     }
 
     async getDefault(
@@ -94,8 +279,7 @@ export class ProjectHomepageModel {
         return {
             homepageUuid: row.homepage_uuid,
             name: row.name,
-            config: row.published_config,
-            allowPersonal: row.allow_personal,
+            config: sanitizeHomepageConfig(row.published_config),
         };
     }
 
@@ -179,119 +363,10 @@ export class ProjectHomepageModel {
         return ProjectHomepageModel.mapDbHomepage(row);
     }
 
-    // Derived from the existing analytics view events — no separate tracking
-    async getRecentlyViewed(
-        projectUuid: string,
-        userUuid: string,
-        limit: number = 8,
-    ): Promise<HomepageRecentlyViewedItem[]> {
-        const { rows } = await this.database.raw<{
-            rows: Array<{
-                content_type: 'chart' | 'dashboard';
-                content_uuid: string;
-                viewed_at: Date;
-            }>;
-        }>(
-            `
-            SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
-            FROM (
-                SELECT 'chart' AS content_type,
-                       acv.chart_uuid AS content_uuid,
-                       acv.timestamp AS viewed_at
-                FROM analytics_chart_views acv
-                JOIN saved_queries sq ON sq.saved_query_uuid = acv.chart_uuid
-                JOIN spaces s ON s.space_id = sq.space_id
-                JOIN projects p ON p.project_id = s.project_id
-                WHERE acv.user_uuid = :userUuid
-                  AND p.project_uuid = :projectUuid
-                  AND sq.deleted_at IS NULL
-                  AND s.deleted_at IS NULL
-                UNION ALL
-                SELECT 'dashboard' AS content_type,
-                       adv.dashboard_uuid AS content_uuid,
-                       adv.timestamp AS viewed_at
-                FROM analytics_dashboard_views adv
-                JOIN dashboards d ON d.dashboard_uuid = adv.dashboard_uuid
-                JOIN spaces s ON s.space_id = d.space_id
-                JOIN projects p ON p.project_id = s.project_id
-                WHERE adv.user_uuid = :userUuid
-                  AND p.project_uuid = :projectUuid
-                  AND d.deleted_at IS NULL
-                  AND s.deleted_at IS NULL
-            ) views
-            GROUP BY content_type, content_uuid
-            ORDER BY viewed_at DESC
-            LIMIT :limit
-            `,
-            { userUuid, projectUuid, limit },
-        );
-        return rows.map((row) => ({
-            contentType: row.content_type,
-            uuid: row.content_uuid,
-            viewedAt: row.viewed_at,
-        }));
-    }
-
-    async getPersonalOverride(
-        userUuid: string,
-        projectUuid: string,
-    ): Promise<string | undefined> {
-        const row = await this.database(HomepagePersonalOverridesTableName)
-            .join(
-                'dashboards',
-                'dashboards.dashboard_uuid',
-                `${HomepagePersonalOverridesTableName}.dashboard_uuid`,
-            )
-            .where(`${HomepagePersonalOverridesTableName}.user_uuid`, userUuid)
-            .andWhere(
-                `${HomepagePersonalOverridesTableName}.project_uuid`,
-                projectUuid,
-            )
-            .whereNull('dashboards.deleted_at')
-            .select(`${HomepagePersonalOverridesTableName}.dashboard_uuid`)
-            .first();
-        return row?.dashboard_uuid;
-    }
-
-    async setPersonalOverride(
-        userUuid: string,
-        projectUuid: string,
-        dashboardUuid: string,
-    ): Promise<void> {
-        const dashboardInProject = await this.database('dashboards')
-            .join('spaces', 'spaces.space_id', 'dashboards.space_id')
-            .join('projects', 'projects.project_id', 'spaces.project_id')
-            .where('dashboards.dashboard_uuid', dashboardUuid)
-            .where('projects.project_uuid', projectUuid)
-            .whereNull('dashboards.deleted_at')
-            .first();
-        if (!dashboardInProject) {
-            throw new NotFoundError('Dashboard not found in this project');
-        }
-        await this.database(HomepagePersonalOverridesTableName)
-            .insert({
-                user_uuid: userUuid,
-                project_uuid: projectUuid,
-                dashboard_uuid: dashboardUuid,
-            })
-            .onConflict(['user_uuid', 'project_uuid'])
-            .merge({ dashboard_uuid: dashboardUuid });
-    }
-
-    async deletePersonalOverride(
-        userUuid: string,
-        projectUuid: string,
-    ): Promise<void> {
-        await this.database(HomepagePersonalOverridesTableName)
-            .where({ user_uuid: userUuid, project_uuid: projectUuid })
-            .delete();
-    }
-
     // Publishing to "everyone" promotes the homepage to the project default
     async publish(
         homepageUuid: string,
         audience: HomepageAudience,
-        allowPersonal: boolean,
     ): Promise<ProjectHomepage> {
         return this.database.transaction(async (trx) => {
             const existing = await trx(HomepagesTableName)
@@ -314,7 +389,6 @@ export class ProjectHomepageModel {
                 .where({ homepage_uuid: homepageUuid })
                 .update({
                     published_config: existing.draft_config,
-                    allow_personal: allowPersonal,
                     ...(makeDefault ? { is_default: true } : {}),
                     updated_at: new Date(),
                 })
@@ -395,7 +469,20 @@ export class ProjectHomepageModel {
                 `${HomepageAssignmentsTableName}.group_uuid`,
             )
             .where(`${HomepageAssignmentsTableName}.project_uuid`, projectUuid)
-            .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
+            .orderBy([
+                {
+                    column: `${HomepageAssignmentsTableName}.priority`,
+                    order: 'asc',
+                },
+                {
+                    column: `${HomepageAssignmentsTableName}.created_at`,
+                    order: 'asc',
+                },
+                {
+                    column: `${HomepageAssignmentsTableName}.assignment_uuid`,
+                    order: 'asc',
+                },
+            ])
             .select(
                 `${HomepageAssignmentsTableName}.assignment_uuid`,
                 `${HomepageAssignmentsTableName}.homepage_uuid`,
@@ -423,15 +510,43 @@ export class ProjectHomepageModel {
         groupUuids: string[],
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            const existing = await trx(HomepageAssignmentsTableName)
+                .where({
+                    project_uuid: projectUuid,
+                    target_type: 'group',
+                })
+                .select(
+                    'group_uuid',
+                    'priority',
+                    'created_at',
+                    'assignment_uuid',
+                );
+
+            const ranked = rankGroupPriorities(
+                existing.flatMap((row) =>
+                    row.group_uuid
+                        ? [
+                              {
+                                  groupUuid: row.group_uuid,
+                                  priority: row.priority,
+                                  createdAt: row.created_at,
+                                  assignmentUuid: row.assignment_uuid,
+                              },
+                          ]
+                        : [],
+                ),
+                groupUuids,
+            );
+
             await Promise.all(
-                groupUuids.map((groupUuid, index) =>
+                ranked.map(({ groupUuid, priority }) =>
                     trx(HomepageAssignmentsTableName)
                         .where({
                             project_uuid: projectUuid,
                             target_type: 'group',
                             group_uuid: groupUuid,
                         })
-                        .update({ priority: index }),
+                        .update({ priority }),
                 ),
             );
         });
@@ -456,7 +571,20 @@ export class ProjectHomepageModel {
                     projectUuid,
                 )
                 .whereNotNull(`${HomepagesTableName}.published_config`)
-                .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
+                .orderBy([
+                    {
+                        column: `${HomepageAssignmentsTableName}.priority`,
+                        order: 'asc',
+                    },
+                    {
+                        column: `${HomepageAssignmentsTableName}.created_at`,
+                        order: 'asc',
+                    },
+                    {
+                        column: `${HomepageAssignmentsTableName}.assignment_uuid`,
+                        order: 'asc',
+                    },
+                ])
                 .select(
                     `${HomepagesTableName}.*`,
                     `${HomepageAssignmentsTableName}.group_uuid as assignment_group_uuid`,
@@ -478,8 +606,9 @@ export class ProjectHomepageModel {
                     homepage: {
                         homepageUuid: byGroup.homepage_uuid,
                         name: byGroup.name,
-                        config: byGroup.published_config,
-                        allowPersonal: byGroup.allow_personal,
+                        config: sanitizeHomepageConfig(
+                            byGroup.published_config,
+                        ),
                     },
                     source: {
                         type: 'group',
@@ -500,8 +629,7 @@ export class ProjectHomepageModel {
                     homepage: {
                         homepageUuid: byRole.homepage_uuid,
                         name: byRole.name,
-                        config: byRole.published_config,
-                        allowPersonal: byRole.allow_personal,
+                        config: sanitizeHomepageConfig(byRole.published_config),
                     },
                     source: { type: 'role', role: viewer.role },
                 };
@@ -523,8 +651,12 @@ export class ProjectHomepageModel {
             projectUuid: row.project_uuid,
             title: row.title,
             body: row.body,
-            categoryUuid: row.category_uuid,
+            category: (row.category as AnnouncementCategory | null) ?? null,
             pinned: row.pinned,
+            published:
+                row.published_at !== null && row.published_at !== undefined,
+            pendingSlackChannelId: row.pending_slack_channel_id ?? null,
+            scheduledPublishAt: row.scheduled_publish_at ?? null,
             createdByUserUuid: row.created_by_user_uuid,
             authorName: row.author_name?.trim() || null,
             createdAt: row.created_at,
@@ -532,8 +664,48 @@ export class ProjectHomepageModel {
         };
     }
 
-    private announcementsQuery(projectUuid: string, categoryUuid?: string) {
-        const query = this.database(AnnouncementsTableName)
+    private static authorNameSql(db: Knex) {
+        return db.raw(
+            `TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)) as author_name`,
+        );
+    }
+
+    // `returning('*')` on the announcements table has no author join, so
+    // publish/create paths would otherwise notify Slack with a null author.
+    private async hydrateAuthorNames(
+        announcements: ProjectAnnouncement[],
+        db: Knex = this.database,
+    ): Promise<ProjectAnnouncement[]> {
+        const userUuids = [
+            ...new Set(
+                announcements
+                    .map((announcement) => announcement.createdByUserUuid)
+                    .filter((uuid): uuid is string => uuid != null),
+            ),
+        ];
+        if (userUuids.length === 0) {
+            return announcements;
+        }
+        const users = await db(UserTableName)
+            .whereIn('user_uuid', userUuids)
+            .select('user_uuid', 'first_name', 'last_name');
+        const authorNameByUserUuid = new Map(
+            users.map((user) => [
+                user.user_uuid,
+                `${user.first_name} ${user.last_name}`.trim() || null,
+            ]),
+        );
+        return announcements.map((announcement) => ({
+            ...announcement,
+            authorName: announcement.createdByUserUuid
+                ? (authorNameByUserUuid.get(announcement.createdByUserUuid) ??
+                  null)
+                : null,
+        }));
+    }
+
+    private announcementsQuery(projectUuid: string) {
+        return this.database(AnnouncementsTableName)
             .where(`${AnnouncementsTableName}.project_uuid`, projectUuid)
             .orderBy([
                 { column: 'pinned', order: 'desc' },
@@ -542,50 +714,40 @@ export class ProjectHomepageModel {
                     order: 'desc',
                 },
             ]);
-        if (categoryUuid) {
-            // Knex builders are thenables; void marks the in-place mutation
-            // as intentionally not awaited.
-            void query.where(
-                `${AnnouncementsTableName}.category_uuid`,
-                categoryUuid,
-            );
-        }
-        return query;
     }
 
     async listAnnouncements(
         projectUuid: string,
-        options: { page: number; pageSize: number; categoryUuid?: string },
+        options: {
+            page: number;
+            pageSize: number;
+            includeUnpublished?: boolean;
+        },
     ): Promise<AnnouncementsPage> {
         const offset = (options.page - 1) * options.pageSize;
-        const [rows, countRow] = await Promise.all([
-            this.announcementsQuery(projectUuid, options.categoryUuid)
-                .leftJoin(
-                    'users',
-                    'users.user_uuid',
-                    `${AnnouncementsTableName}.created_by_user_uuid`,
-                )
-                .select(
-                    `${AnnouncementsTableName}.*`,
-                    this.database.raw(
-                        `TRIM(CONCAT(users.first_name, ' ', users.last_name)) as author_name`,
-                    ),
-                )
-                .offset(offset)
-                .limit(options.pageSize),
-            this.database(AnnouncementsTableName)
-                .where('project_uuid', projectUuid)
-                .modify((builder) => {
-                    if (options.categoryUuid) {
-                        void builder.where(
-                            'category_uuid',
-                            options.categoryUuid,
-                        );
-                    }
-                })
-                .count<{ count: string }>('* as count')
-                .first(),
-        ]);
+        const itemsQuery = this.announcementsQuery(projectUuid)
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AnnouncementsTableName}.created_by_user_uuid`,
+            )
+            .select(
+                `${AnnouncementsTableName}.*`,
+                ProjectHomepageModel.authorNameSql(this.database),
+            )
+            .offset(offset)
+            .limit(options.pageSize);
+        const countQuery = this.database(AnnouncementsTableName)
+            .where('project_uuid', projectUuid)
+            .count<{ count: string }>('* as count')
+            .first();
+        if (!options.includeUnpublished) {
+            void itemsQuery.whereNotNull(
+                `${AnnouncementsTableName}.published_at`,
+            );
+            void countQuery.whereNotNull('published_at');
+        }
+        const [rows, countRow] = await Promise.all([itemsQuery, countQuery]);
         return {
             items: rows.map(ProjectHomepageModel.mapDbAnnouncement),
             totalCount: Number(countRow?.count ?? 0),
@@ -605,19 +767,176 @@ export class ProjectHomepageModel {
         projectUuid: string;
         title: string;
         body: string | null;
-        categoryUuid: string | null;
+        category: AnnouncementCategory | null;
         createdByUserUuid: string;
+        pendingSlackChannelId: string | null;
+        published: boolean;
+        scheduledPublishAt: Date | null;
     }): Promise<ProjectAnnouncement> {
         const [row] = await this.database(AnnouncementsTableName)
             .insert({
                 project_uuid: data.projectUuid,
                 title: data.title,
                 body: data.body,
-                category_uuid: data.categoryUuid,
+                category: data.category,
                 created_by_user_uuid: data.createdByUserUuid,
+                published_at: data.published ? new Date() : null,
+                // A published announcement has no deferred notification —
+                // the caller fires Slack immediately instead.
+                pending_slack_channel_id: data.published
+                    ? null
+                    : data.pendingSlackChannelId,
+                scheduled_publish_at: data.published
+                    ? null
+                    : data.scheduledPublishAt,
             })
             .returning('*');
-        return ProjectHomepageModel.mapDbAnnouncement(row);
+        const mapped = ProjectHomepageModel.mapDbAnnouncement(row);
+        const [announcement] = await this.hydrateAuthorNames([mapped]);
+        return announcement ?? mapped;
+    }
+
+    /**
+     * Publishes all of a project's draft announcements (called when the
+     * homepage itself is published) and returns the ones with a pending
+     * Slack notification so the caller can fire it.
+     */
+    async publishProjectDraftAnnouncements(
+        projectUuid: string,
+    ): Promise<
+        Array<{ announcement: ProjectAnnouncement; slackChannelId: string }>
+    > {
+        return this.database.transaction(async (trx) => {
+            // Lock the drafts (skipping any a concurrent publisher already
+            // holds) so the same draft can't be published — and Slack-notified
+            // — twice.
+            const drafts = await trx(AnnouncementsTableName)
+                .where({ project_uuid: projectUuid })
+                .whereNull('published_at')
+                // Scheduled announcements are embargoed until their own
+                // instant — a homepage republish must not fire them early.
+                .whereNull('scheduled_publish_at')
+                .forUpdate()
+                .skipLocked()
+                .select('announcement_uuid', 'pending_slack_channel_id');
+            if (drafts.length === 0) return [];
+
+            const announcementUuids = drafts.map(
+                (draft) => draft.announcement_uuid,
+            );
+            const rows = await trx(AnnouncementsTableName)
+                .whereIn('announcement_uuid', announcementUuids)
+                .whereNull('published_at')
+                .update({
+                    published_at: new Date(),
+                    pending_slack_channel_id: null,
+                })
+                .returning('*');
+
+            const pendingSlackChannelByUuid = new Map(
+                drafts.map((draft) => [
+                    draft.announcement_uuid,
+                    draft.pending_slack_channel_id,
+                ]),
+            );
+            const pending = rows.reduce<
+                Array<{
+                    announcement: ProjectAnnouncement;
+                    slackChannelId: string;
+                }>
+            >((acc, row) => {
+                const slackChannelId = pendingSlackChannelByUuid.get(
+                    row.announcement_uuid,
+                );
+                if (slackChannelId) {
+                    acc.push({
+                        announcement:
+                            ProjectHomepageModel.mapDbAnnouncement(row),
+                        slackChannelId,
+                    });
+                }
+                return acc;
+            }, []);
+            const announcements = await this.hydrateAuthorNames(
+                pending.map(({ announcement }) => announcement),
+                trx,
+            );
+            return pending.map((item, index) => ({
+                ...item,
+                announcement: announcements[index] ?? item.announcement,
+            }));
+        });
+    }
+
+    /**
+     * Publishes a single unpublished announcement (publish-now / scheduled)
+     * job) or every due scheduled announcement across projects (sweep).
+     * Idempotent by construction: rows are locked with skipLocked and the
+     * update re-checks `published_at IS NULL`, so a job+sweep race publishes
+     * — and returns the Slack channel to notify — exactly once.
+     */
+    async publishPendingAnnouncements(options: {
+        announcementUuid?: string;
+        onlyDue: boolean;
+    }): Promise<
+        Array<{
+            announcement: ProjectAnnouncement;
+            slackChannelId: string | null;
+        }>
+    > {
+        return this.database.transaction(async (trx) => {
+            let query = trx(AnnouncementsTableName)
+                .whereNull('published_at')
+                .forUpdate()
+                .skipLocked()
+                .select('announcement_uuid', 'pending_slack_channel_id');
+            if (options.announcementUuid) {
+                query = query.where(
+                    'announcement_uuid',
+                    options.announcementUuid,
+                );
+            }
+            if (options.onlyDue) {
+                query = query
+                    .whereNotNull('scheduled_publish_at')
+                    .where('scheduled_publish_at', '<=', new Date());
+            }
+            const pending = await query;
+            if (pending.length === 0) return [];
+
+            const rows = await trx(AnnouncementsTableName)
+                .whereIn(
+                    'announcement_uuid',
+                    pending.map((row) => row.announcement_uuid),
+                )
+                .whereNull('published_at')
+                .update({
+                    published_at: new Date(),
+                    pending_slack_channel_id: null,
+                    scheduled_publish_at: null,
+                })
+                .returning('*');
+
+            const slackChannelByUuid = new Map(
+                pending.map((row) => [
+                    row.announcement_uuid,
+                    row.pending_slack_channel_id,
+                ]),
+            );
+            const published = rows.map((row) => ({
+                announcement: ProjectHomepageModel.mapDbAnnouncement(row),
+                slackChannelId:
+                    slackChannelByUuid.get(row.announcement_uuid) ?? null,
+            }));
+            const announcements = await this.hydrateAuthorNames(
+                published.map(({ announcement }) => announcement),
+                trx,
+            );
+            return published.map((item, index) => ({
+                ...item,
+                announcement: announcements[index] ?? item.announcement,
+            }));
+        });
     }
 
     async updateAnnouncement(
@@ -636,18 +955,24 @@ export class ProjectHomepageModel {
                         project_uuid: existing.project_uuid,
                         pinned: true,
                     })
-                    .update({ pinned: false });
+                    .update({ pinned: false, updated_at: new Date() });
             }
             const [row] = await trx(AnnouncementsTableName)
                 .where({ announcement_uuid: announcementUuid })
                 .update({
                     ...(update.title !== undefined && { title: update.title }),
                     ...(update.body !== undefined && { body: update.body }),
-                    ...(update.categoryUuid !== undefined && {
-                        category_uuid: update.categoryUuid,
+                    ...(update.category !== undefined && {
+                        category: update.category,
                     }),
                     ...(update.pinned !== undefined && {
                         pinned: update.pinned,
+                    }),
+                    ...(update.slackChannelId !== undefined && {
+                        pending_slack_channel_id: update.slackChannelId,
+                    }),
+                    ...(update.scheduledPublishAt !== undefined && {
+                        scheduled_publish_at: update.scheduledPublishAt,
                     }),
                     updated_at: new Date(),
                 })
@@ -661,85 +986,5 @@ export class ProjectHomepageModel {
             .where({ announcement_uuid: announcementUuid })
             .delete();
         if (deleted === 0) throw new NotFoundError('Announcement not found');
-    }
-
-    private static readonly STARTER_CATEGORIES: Array<
-        Pick<AnnouncementCategory, 'name' | 'color'>
-    > = [
-        { name: 'Release', color: '#3b5bdb' },
-        { name: 'Incident', color: '#c92a2a' },
-        { name: 'Data change', color: '#2b8a3e' },
-    ];
-
-    private static mapDbCategory(
-        row: DbAnnouncementCategory,
-    ): AnnouncementCategory {
-        return {
-            categoryUuid: row.category_uuid,
-            projectUuid: row.project_uuid,
-            name: row.name,
-            color: row.color,
-        };
-    }
-
-    async listCategories(projectUuid: string): Promise<AnnouncementCategory[]> {
-        const existing = await this.database(AnnouncementCategoriesTableName)
-            .where({ project_uuid: projectUuid })
-            .orderBy('created_at', 'asc');
-        if (existing.length > 0) {
-            return existing.map(ProjectHomepageModel.mapDbCategory);
-        }
-        // Lazy starter set; tolerate a concurrent seeder via onConflict.
-        await this.database(AnnouncementCategoriesTableName)
-            .insert(
-                ProjectHomepageModel.STARTER_CATEGORIES.map((category) => ({
-                    project_uuid: projectUuid,
-                    name: category.name,
-                    color: category.color,
-                })),
-            )
-            .onConflict(['project_uuid', 'name'])
-            .ignore();
-        const seeded = await this.database(AnnouncementCategoriesTableName)
-            .where({ project_uuid: projectUuid })
-            .orderBy('created_at', 'asc');
-        return seeded.map(ProjectHomepageModel.mapDbCategory);
-    }
-
-    async getCategory(
-        categoryUuid: string,
-    ): Promise<AnnouncementCategory | undefined> {
-        const row = await this.database(AnnouncementCategoriesTableName)
-            .where({ category_uuid: categoryUuid })
-            .first();
-        return row ? ProjectHomepageModel.mapDbCategory(row) : undefined;
-    }
-
-    async createCategory(data: {
-        projectUuid: string;
-        name: string;
-        color: string;
-    }): Promise<AnnouncementCategory> {
-        try {
-            const [row] = await this.database(AnnouncementCategoriesTableName)
-                .insert({
-                    project_uuid: data.projectUuid,
-                    name: data.name,
-                    color: data.color,
-                })
-                .returning('*');
-            return ProjectHomepageModel.mapDbCategory(row);
-        } catch (error) {
-            if (
-                error instanceof Error &&
-                'code' in error &&
-                error.code === '23505'
-            ) {
-                throw new ConflictError(
-                    'A category with this name already exists',
-                );
-            }
-            throw error;
-        }
     }
 }

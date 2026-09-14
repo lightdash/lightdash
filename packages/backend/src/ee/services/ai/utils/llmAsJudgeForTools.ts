@@ -21,6 +21,7 @@ import {
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
+    findCustomChartTypes: 'find_custom_chart_types',
     findFields: 'find_fields',
     searchSemanticLayer: 'search_semantic_layer',
     analyzeFieldImpact: 'analyze_field_impact',
@@ -39,27 +40,27 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     createContent: 'create_content',
     createScheduledDelivery: 'create_scheduled_delivery',
     updateUserName: 'update_user_name',
-    generateTableVizConfig: 'table',
-    generateTimeSeriesVizConfig: 'time_series_chart',
-    generateBarVizConfig: 'vertical_bar_chart',
     loadSkill: 'load_skill',
     generateHashes: 'generate_hashes',
     loadProjectContext: 'load_project_context',
+    loadMcpTools: 'load_mcp_tools',
     generateUuids: 'generate_uuids',
     generateVisualization: 'query_result',
     runQuery: 'query_result',
     runContentQuery: 'run_content_query',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
+    runComposerQueries: 'run_composer_queries',
     listWarehouseTables: 'list_warehouse_tables',
     describeWarehouseTable: 'describe_warehouse_table',
     listKnowledgeDocuments: 'list_knowledge_documents',
     getKnowledgeDocumentContent: 'get_knowledge_document_content',
     readPinnedThread: 'read_pinned_thread',
     generateDashboard: 'generate_dashboard',
-    improveContext: 'improve_context',
     listProjects: 'list_projects',
     getProjectInfo: 'get_project_info',
+    generateDataApp: 'generate_data_app',
+    iterateDataApp: 'iterate_data_app',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
     editRepo: 'edit_repo',
@@ -70,6 +71,9 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     closePullRequest: 'close_pull_request',
     getPullRequestDiff: 'get_pull_request_diff',
     setupPreviewDeploy: 'setup_preview_deploy',
+    submitResearchReport: 'submit_research_report',
+    delegateResearchTask: 'delegate_research_task',
+    submitWorkerFindings: 'submit_worker_findings',
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {
@@ -298,6 +302,9 @@ export const evaluateToolCallSequence = async (
         functionId: 'evaluateToolCallSequence',
         feature: 'llm-judge',
         ...getLanguageModelAttribution(judge),
+        // This is an instance-only evaluation path. It does not record the
+        // key origin.
+        keyManagement: null,
     });
     const result = await generateObject({
         model: judge,

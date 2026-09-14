@@ -1,4 +1,4 @@
-import { type RoleLevel } from '@lightdash/common';
+import { getOrganizationOnlyScopes, type RoleLevel } from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -15,7 +15,7 @@ import {
     TextInput,
     Title,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -81,12 +81,7 @@ const GroupListItem: FC<{
             <Text fw={isActive ? 600 : 500} fz="sm">
                 {group.groupName}
             </Text>
-            <Badge
-                variant="light"
-                size="sm"
-                radius="sm"
-                color={selectedCount === 0 ? 'gray' : 'blue'}
-            >
+            <Badge size="sm" color={selectedCount === 0 ? 'gray' : 'blue'}>
                 {selectedCount} / {totalCount}
             </Badge>
         </PolymorphicGroupButton>
@@ -175,7 +170,7 @@ const ScopePanel: FC<{
 
     return (
         <Stack gap="md" h="100%" w="100%">
-            <Group justify="space-between" style={{ flexShrink: 0 }}>
+            <Group justify="space-between" flex="0 0 auto">
                 <Title order={5}>{group.groupName}</Title>
                 <Group gap="xs">
                     <Text size="xs" fw={500}>
@@ -228,7 +223,7 @@ const ScopePanel: FC<{
                                         className={styles.scopeContent}
                                         gap="two"
                                     >
-                                        <Text fw={500} fz={13}>
+                                        <Text fw={500} fz="sm">
                                             {formatScopeName(scope.name)}
                                         </Text>
                                         <Text
@@ -262,7 +257,7 @@ const ScopePanel: FC<{
                                                                 }
                                                             />
                                                             <Text
-                                                                fz={11}
+                                                                fz="xs"
                                                                 c="dimmed"
                                                                 fw={500}
                                                             >
@@ -290,7 +285,9 @@ const ScopePanel: FC<{
                                                     </UnstyledButton>
                                                 </Group>
                                                 <Collapse
-                                                    in={isDependencyListOpen}
+                                                    expanded={
+                                                        isDependencyListOpen
+                                                    }
                                                 >
                                                     <Stack gap="xs">
                                                         {dependencies.map(
@@ -429,6 +426,11 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
         );
     }, [selectedGroupKey, filteredScopes]);
 
+    const organizationOnlyScopeCount = useMemo(
+        () => getOrganizationOnlyScopes().length,
+        [],
+    );
+
     const totalScopes = allGroupedScopes.reduce(
         (acc, group) => acc + group.scopes.length,
         0,
@@ -492,7 +494,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
 
     return (
         <Stack gap="sm" h="100%">
-            <Stack gap="sm" style={{ flexShrink: 0 }}>
+            <Stack gap="sm" flex="0 0 auto">
                 <Group justify="space-between">
                     <Stack gap="two">
                         <Title order={5}>Permissions</Title>
@@ -515,13 +517,23 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                     />
                 </Group>
                 <Group justify="space-between">
-                    <Text fz="sm" c="dimmed">
-                        {selectedCount} of {totalScopes}{' '}
-                        <Text span fw={600} inherit>
-                            {level}
-                        </Text>{' '}
-                        permissions selected
-                    </Text>
+                    <Stack gap="xs">
+                        <Text fz="sm" c="dimmed">
+                            {selectedCount} of {totalScopes}{' '}
+                            <Text span fw={600} inherit>
+                                {level}
+                            </Text>{' '}
+                            permissions selected
+                        </Text>
+                        {level === 'project' ? (
+                            <Text fz="xs" c="dimmed">
+                                {organizationOnlyScopeCount} organization-level
+                                permissions are hidden here. They only take
+                                effect on an organization-level role assigned at
+                                the organization level.
+                            </Text>
+                        ) : null}
+                    </Stack>
                     <Group gap="xs">
                         <Button
                             variant="subtle"
@@ -544,7 +556,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
             </Stack>
 
             {filteredScopes.length === 0 ? (
-                <Paper p="xl" style={{ flexShrink: 0 }}>
+                <Paper p="xl" flex="0 0 auto">
                     <Text ta="center" fz="sm">
                         No permissions found matching your search.
                     </Text>

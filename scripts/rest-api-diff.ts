@@ -3,17 +3,23 @@
  *
  * Populates the release-safety marker's `api.rest` block by diffing the
  * generated OpenAPI spec (`packages/backend/src/generated/swagger.json`) between
- * the PREVIOUS release tag and HEAD with `oasdiff breaking`. A non-empty
- * breaking list means a consumer of the REST API may break across this upgrade.
+ * the PREVIOUS release tag and HEAD with `oasdiff breaking`. That command returns
+ * both WARN-level (2) and ERR-level (3) items. Only ERR items are consumer-
+ * breaking contract violations; WARN items — such as response enum widening,
+ * which recurs whenever a chart or scheduler type is added — are surfaced as
+ * advisories without affecting the verdict.
  *
- * This is the DETERMINISTIC sibling of the P6 AI migration review: oasdiff parses
- * both specs into a semantic OpenAPI model and compares them, so JSON key ordering
- * is irrelevant and the result is reproducible. Because it's deterministic and
- * cheap it needs no opt-in flag — the generator runs it automatically whenever
- * `oasdiff` is on PATH (or `OASDIFF_BIN` points at it) and a previous tag exists.
+ * This is a deterministic detector whose flagged breaking changes are handed
+ * downstream to the AI rolling-update review for validation. oasdiff parses both
+ * specs into a semantic OpenAPI model and compares them, so JSON key ordering is
+ * irrelevant and the result is reproducible. It runs whenever `oasdiff` is
+ * available (on PATH or via `OASDIFF_BIN`) and the caller named both sides of the
+ * comparison — which specs to diff is never inferred, see the generator.
  *
- * The old spec is read from git. The new spec normally comes from another git
- * ref, but release preparation can explicitly use the freshly generated file.
+ * Each side comes from either a git ref or an explicit file. Release preparation
+ * reads the old side from the previous tag and the new side from the freshly
+ * generated working-tree file; the PR preview passes two freshly generated files
+ * (the committed spec is a release-time artifact and is stale on every PR).
  *
  * FAIL-SAFE (soft): any failure (oasdiff missing, spec absent at a ref, oasdiff
  * error, unparseable output) degrades to `checked: false` — the honest "not
@@ -23,6 +29,7 @@
  * Importable: `diffRestApi(opts)` returns an `ApiSurface`.
  *
  * CLI:  npx tsx scripts/rest-api-diff.ts --last-tag 0.3260.2 [--new-ref HEAD]
+ *       npx tsx scripts/rest-api-diff.ts --base-spec base.json --new-spec pr.json
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
@@ -35,6 +42,9 @@ export interface ApiSurface {
     checked: boolean;
     breaking: TriState;
     changes: string[];
+    breakingCount: number;
+    advisories: string[];
+    advisoryCount: number;
 }
 
 export const SPEC_PATH = 'packages/backend/src/generated/swagger.json';
@@ -44,13 +54,13 @@ const MAX_CHANGES = 50;
 
 /**
  * One item from `oasdiff breaking -f json`. oasdiff's `breaking` subcommand
- * already filters to breaking-only changes (WARN=2 / ERR=3); INFO=1 additive
- * changes never appear here.
+ * returns both WARN=2 and ERR=3 items; missing levels are possible when output
+ * changes and are handled conservatively as errors.
  */
 export interface OasdiffItem {
     id: string;
     text: string;
-    level: number;
+    level?: number;
     operation?: string;
     operationId?: string;
     path?: string;
@@ -58,27 +68,49 @@ export interface OasdiffItem {
 
 /**
  * PURE. Reduce the oasdiff `breaking` JSON array into the marker's `api.rest`
- * shape. A non-empty list ⇒ `breaking: true`; each item renders as
- * "METHOD /path — text". The list is capped with an explicit overflow line so
- * the count is never silently truncated.
+ * shape. ERR-level and unlevelled items are breaking; WARN/other items are
+ * advisories. Each item renders as "METHOD /path — text". Both lists are capped
+ * independently with explicit overflow lines while their counts remain uncapped.
  */
 export function summarizeBreaking(items: OasdiffItem[]): {
     breaking: boolean;
     changes: string[];
+    breakingCount: number;
+    advisories: string[];
+    advisoryCount: number;
 } {
-    const rendered = items.map((it) => {
+    const render = (it: OasdiffItem): string => {
         const op = it.operation ? `${it.operation} ` : '';
         const p = it.path ? `${it.path} — ` : '';
         return `${op}${p}${it.text}`.trim();
-    });
-    const changes = rendered.slice(0, MAX_CHANGES);
-    if (rendered.length > MAX_CHANGES) {
-        changes.push(`… and ${rendered.length - MAX_CHANGES} more breaking change(s)`);
+    };
+    const errItems = items.filter((item) => item.level === undefined || item.level >= 3);
+    const advisoryItems = items.filter((item) => item.level !== undefined && item.level < 3);
+    const changes = errItems.slice(0, MAX_CHANGES).map(render);
+    if (errItems.length > MAX_CHANGES) {
+        changes.push(`… and ${errItems.length - MAX_CHANGES} more breaking change(s)`);
     }
-    return { breaking: items.length > 0, changes };
+    const advisories = advisoryItems.slice(0, MAX_CHANGES).map(render);
+    if (advisoryItems.length > MAX_CHANGES) {
+        advisories.push(`… and ${advisoryItems.length - MAX_CHANGES} more advisory note(s)`);
+    }
+    return {
+        breaking: errItems.length > 0,
+        changes,
+        breakingCount: errItems.length,
+        advisories,
+        advisoryCount: advisoryItems.length,
+    };
 }
 
-const UNCHECKED: ApiSurface = { checked: false, breaking: false, changes: [] };
+const UNCHECKED: ApiSurface = {
+    checked: false,
+    breaking: false,
+    changes: [],
+    breakingCount: 0,
+    advisories: [],
+    advisoryCount: 0,
+};
 
 /** Locate the oasdiff binary: explicit OASDIFF_BIN, else PATH. null if absent. */
 export function findOasdiff(): string | null {
@@ -122,7 +154,9 @@ function readSpecFile(specPath: string): string | null {
 
 export interface DiffRestApiOpts {
     /** Previous release tag/ref — the old spec side. */
-    lastTag: string;
+    lastTag?: string;
+    /** Generated spec to use as the old side instead of lastTag. */
+    baseSpecPath?: string;
     /** New spec side; defaults to HEAD (the release commit). */
     newRef?: string;
     /** Generated working-tree spec to use instead of newRef. */
@@ -145,15 +179,21 @@ export function diffRestApi(opts: DiffRestApiOpts): ApiSurface {
     if (opts.newRef !== undefined && opts.newSpecPath !== undefined) {
         throw new Error('Provide either newRef or newSpecPath, not both');
     }
+    if ((opts.lastTag === undefined) === (opts.baseSpecPath === undefined)) {
+        throw new Error('Provide exactly one of lastTag or baseSpecPath');
+    }
 
     if (!bin) {
         log('oasdiff not found (OASDIFF_BIN unset, not on PATH); api.rest stays unchecked');
         return UNCHECKED;
     }
 
-    const oldSpec = showAtRef(opts.lastTag, SPEC_PATH);
+    const oldSpec = opts.baseSpecPath
+        ? readSpecFile(opts.baseSpecPath)
+        : showAtRef(opts.lastTag as string, SPEC_PATH);
     if (oldSpec === null) {
-        log(`spec not found at ${opts.lastTag}:${SPEC_PATH}; api.rest stays unchecked`);
+        const source = opts.baseSpecPath ?? `${opts.lastTag}:${SPEC_PATH}`;
+        log(`spec not found at ${source}; api.rest stays unchecked`);
         return UNCHECKED;
     }
     const newSpec = opts.newSpecPath
@@ -196,9 +236,11 @@ export function diffRestApi(opts: DiffRestApiOpts): ApiSurface {
             return UNCHECKED;
         }
 
-        const { breaking, changes } = summarizeBreaking(items);
-        log(`api.rest checked: ${breaking ? `BREAKING (${items.length})` : 'no breaking changes'}`);
-        return { checked: true, breaking, changes };
+        const summary = summarizeBreaking(items);
+        log(
+            `api.rest checked: ${summary.breakingCount} breaking, ${summary.advisoryCount} advisory`,
+        );
+        return { checked: true, ...summary };
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -212,11 +254,17 @@ function arg(name: string): string | undefined {
 }
 
 function main(): void {
-    const lastTag = arg('last-tag') ?? arg('previous-version');
-    if (!lastTag) throw new Error('--last-tag (or --previous-version) is required');
+    const baseSpecPath = arg('base-spec');
+    const lastTag = baseSpecPath ? undefined : arg('last-tag') ?? arg('previous-version');
+    if (!lastTag && !baseSpecPath) {
+        throw new Error('--last-tag (or --previous-version) or --base-spec is required');
+    }
+    const newSpecPath = arg('new-spec');
     const result = diffRestApi({
         lastTag,
-        newRef: arg('new-ref'),
+        baseSpecPath,
+        newRef: newSpecPath ? undefined : arg('new-ref'),
+        newSpecPath,
         log: (m) => console.log(`[rest-api-diff] ${m}`),
     });
     console.log(JSON.stringify(result, null, 2));

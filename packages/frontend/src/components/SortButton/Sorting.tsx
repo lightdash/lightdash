@@ -18,7 +18,7 @@ import {
     Select,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconGripVertical, IconMinus, IconPlus } from '@tabler/icons-react';
 import { forwardRef, useCallback, useState } from 'react';
 import { type Props } from '.';
@@ -257,12 +257,7 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                 comboboxProps={{ withinPortal: false }}
                             />
                             <Tooltip label="Cancel">
-                                <ActionIcon
-                                    size="xs"
-                                    variant="subtle"
-                                    color="ldGray.6"
-                                    onClick={resetAddState}
-                                >
+                                <ActionIcon size="xs" onClick={resetAddState}>
                                     <MantineIcon icon={IconMinus} />
                                 </ActionIcon>
                             </Tooltip>

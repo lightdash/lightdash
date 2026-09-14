@@ -146,6 +146,7 @@ const makeService = () =>
             getSummary: vi.fn(),
             findExploresFromCache: vi.fn(),
         } as never,
+        projectContextModel: { getDocument: vi.fn().mockResolvedValue([]) },
         lightdashConfig: {
             ai: { copilot: { providers: {}, defaultProvider: 'openai' } },
         } as never,
@@ -189,5 +190,32 @@ describe('single-tier judge', () => {
 
         expect(generateObjectMock).toHaveBeenCalledTimes(1);
         expect(result.judgeOutput).toEqual(output);
+    });
+
+    it('routes project-context findings through the authoring call', async () => {
+        const output = judgeOutput({ primaryRootCause: 'project_context' });
+        const projectContextEntry = {
+            op: 'create' as const,
+            id: null,
+            kind: 'context' as const,
+            content: 'Use the payments explore for transaction questions.',
+            terms: ['transaction'],
+            objects: [{ type: 'explore' as const, name: 'payments' }],
+        };
+        generateObjectMock
+            .mockResolvedValueOnce({ object: output } as never)
+            .mockResolvedValueOnce({
+                object: { projectContextEntry },
+            } as never);
+
+        const result = await makeService().replayJudge(replayInput);
+
+        expect(generateObjectMock).toHaveBeenCalledTimes(2);
+        expect(generateObjectMock).toHaveBeenLastCalledWith(
+            expect.objectContaining({ model: JUDGE_MODEL.model }),
+        );
+        expect(result.judgeOutput?.projectContextEntry).toEqual(
+            projectContextEntry,
+        );
     });
 });

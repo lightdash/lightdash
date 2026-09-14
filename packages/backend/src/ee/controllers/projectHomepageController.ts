@@ -10,13 +10,11 @@ import {
     type ApiProjectHomepagesResponse,
     type ApiRecentlyViewedResponse,
     type ApiResolvedHomepageResponse,
-    type ApiSuccess,
     type ApiSuccessEmpty,
     type CreateProjectHomepageRequest,
     type HomepageViewAsTarget,
     type ProjectMemberRole,
     type PublishProjectHomepageRequest,
-    type SetPersonalHomepageRequest,
     type UpdateHomepageGroupPrioritiesRequest,
     type UpdateProjectHomepageDraftRequest,
     type UUID,
@@ -72,69 +70,6 @@ export class ProjectHomepageController extends BaseController {
                 projectUuid,
             ),
         };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/personal-override')
-    @OperationId('getPersonalHomepage')
-    async getPersonalOverride(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-    ): Promise<ApiSuccess<string | null>> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getHomepageService().getPersonalHomepage(
-                toSessionUser(req.account),
-                projectUuid,
-            ),
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Patch('/personal-override')
-    @OperationId('setPersonalHomepage')
-    async setPersonalOverride(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-        @Body() body: SetPersonalHomepageRequest,
-    ): Promise<ApiSuccessEmpty> {
-        assertRegisteredAccount(req.account);
-        await this.getHomepageService().setPersonalHomepage(
-            toSessionUser(req.account),
-            projectUuid,
-            body.dashboardUuid,
-        );
-        this.setStatus(200);
-        return { status: 'ok', results: undefined };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/personal-override')
-    @OperationId('clearPersonalHomepage')
-    async clearPersonalOverride(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-    ): Promise<ApiSuccessEmpty> {
-        assertRegisteredAccount(req.account);
-        await this.getHomepageService().clearPersonalHomepage(
-            toSessionUser(req.account),
-            projectUuid,
-        );
-        this.setStatus(200);
-        return { status: 'ok', results: undefined };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -425,7 +360,6 @@ export class ProjectHomepageController extends BaseController {
                 projectUuid,
                 homepageUuid,
                 body.audience,
-                body.allowPersonal,
             ),
         };
     }

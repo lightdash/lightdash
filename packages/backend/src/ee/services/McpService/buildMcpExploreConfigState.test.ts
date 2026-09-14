@@ -28,7 +28,6 @@ describe('buildMcpExploreConfigState', () => {
                 xAxisType: 'category',
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'Campus',
                 yAxisLabel: 'Enrollments',
                 secondaryYAxisMetric: null,

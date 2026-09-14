@@ -1,4 +1,4 @@
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { IconLinkOff } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -12,7 +12,7 @@ const ShareRedirect: FC = () => {
 
     useEffect(() => {
         if (data && data.url) {
-            void navigate(data.url);
+            void navigate(data.url, { replace: true });
         }
     }, [data, navigate]);
 

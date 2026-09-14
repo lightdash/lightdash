@@ -15,7 +15,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -24,6 +24,10 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { AgentChatDisplay } from '../ee/features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentSuggestionChips } from '../ee/features/aiCopilot/components/ChatElements/AgentSuggestionChips';
+import {
+    DataAppBuildCard,
+    type DataAppBuildCardState,
+} from '../ee/features/aiCopilot/components/ChatElements/DataAppBuildCard/DataAppBuildCard';
 import { DotsLoader } from '../ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
 import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { LiveActivityCard } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
@@ -68,6 +72,16 @@ const contextItems: AiPromptContextItem[] = [
     {
         type: 'file',
         path: 'analytics/revenue_definitions.md',
+    },
+    {
+        type: 'data_app_element',
+        appUuid: 'app-revenue-explorer',
+        appSlug: 'revenue-explorer',
+        displayName: 'Revenue explorer',
+        version: 3,
+        tag: 'button',
+        text: 'Send',
+        loc: 'src/App.jsx:42',
     },
     {
         type: 'repository',
@@ -772,6 +786,39 @@ const StorySurface = ({ children }: { children: ReactNode }) => (
     </Box>
 );
 
+const buildCardStates: DataAppBuildCardState[] = [
+    { kind: 'queued' },
+    {
+        kind: 'building',
+        statusMessage: 'Building your app',
+        narration: {
+            reasoning: ['Totals should reconcile against the revenue metric.'],
+            activity: ['Ran 5 queries · 26 weeks · 4 regions'],
+        },
+    },
+    {
+        kind: 'ready',
+        name: 'Weekly revenue by region',
+        version: 1,
+        durationMs: 372_000,
+        restoredFromVersion: null,
+        completionMessage:
+            'Your app is ready. Five regional pages, weekly revenue over the last 26 weeks.',
+    },
+    {
+        kind: 'failed',
+        message:
+            'The build failed while generating your app. Nothing was published.',
+    },
+    { kind: 'cancelled' },
+    { kind: 'unavailable' },
+];
+
+const buildCardActions = {
+    onOpenBuilder: () => undefined,
+    onView: () => undefined,
+};
+
 const Section = ({
     title,
     description,
@@ -886,6 +933,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
                 reasoning: true,
             },
             tokenUsage: null,
+            responseTiming: null,
         };
     });
 
@@ -896,6 +944,8 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
         createdFrom: 'web_app',
         title: scenario.title,
         titleGeneratedAt: createdAt,
+        pinnedAt: null,
+        liveStatus: null,
         firstMessage: {
             uuid: 'prompt-0',
             message: scenario.turns[0]?.text ?? '',
@@ -952,6 +1002,7 @@ const ComponentInventory = () => (
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}
                         projectUuid={projectUuid}
+                        previewScope={null}
                     />
                 ))}
             </Group>
@@ -997,6 +1048,36 @@ const ComponentInventory = () => (
             </Section>
         </SimpleGrid>
 
+        <Section
+            title="DataAppBuildCard"
+            description="Real build card under an agent reply: the six states, then the compact ready / failed rows used on earlier turns."
+        >
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                {buildCardStates.map((state) => (
+                    <Box key={state.kind}>
+                        <DataAppBuildCard
+                            state={state}
+                            compact={false}
+                            isActive={state.kind === 'ready'}
+                            {...buildCardActions}
+                        />
+                    </Box>
+                ))}
+                {buildCardStates
+                    .filter((s) => s.kind === 'ready' || s.kind === 'failed')
+                    .map((state) => (
+                        <Box key={`compact-${state.kind}`}>
+                            <DataAppBuildCard
+                                state={state}
+                                compact
+                                isActive={false}
+                                {...buildCardActions}
+                            />
+                        </Box>
+                    ))}
+            </SimpleGrid>
+        </Section>
+
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Section
                 title="Streaming states"
@@ -1037,11 +1118,12 @@ const PinnedContextScenario = () => (
             description="What the user sees before sending a context-aware prompt."
         >
             <Group gap="xs" wrap="wrap">
-                {contextItems.slice(0, 4).map((item) => (
+                {contextItems.slice(0, 5).map((item) => (
                     <PinnedContextCard
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}
                         projectUuid={projectUuid}
+                        previewScope={null}
                     />
                 ))}
             </Group>

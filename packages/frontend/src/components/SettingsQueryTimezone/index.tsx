@@ -5,7 +5,6 @@ import {
     type Project,
 } from '@lightdash/common';
 import {
-    Anchor,
     Button,
     Flex,
     LoadingOverlay,
@@ -13,8 +12,9 @@ import {
     Switch,
     Text,
     Title,
-} from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -145,8 +145,8 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
             <LoadingOverlay visible={isLoadingProject} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Project time zone</Title>
-                    <Text c="ldGray.6" fz="sm">
+                    <Title order={5}>Time zone behavior</Title>
+                    <Text c="dimmed" fz="sm">
                         {timezoneSupportEnabled ? (
                             <>
                                 The time zone used for date filters, time
@@ -165,17 +165,6 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                                 session time zone.
                             </>
                         )}
-                    </Text>
-                    <Text c="ldGray.6" fz="xs">
-                        Learn more in our{' '}
-                        <Anchor
-                            href="https://docs.lightdash.com/guides/developer/timezones"
-                            target="_blank"
-                            fz="xs"
-                        >
-                            docs guide
-                        </Anchor>
-                        .
                     </Text>
                 </Stack>
                 <div>

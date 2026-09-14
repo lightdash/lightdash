@@ -1,5 +1,5 @@
 import { isField, type FieldUrl, type ResultValue } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
+import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';

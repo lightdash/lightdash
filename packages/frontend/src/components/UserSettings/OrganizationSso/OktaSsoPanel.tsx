@@ -11,7 +11,7 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconChevronDown,
@@ -198,7 +198,7 @@ const OktaSsoPanel: FC = () => {
                                 }
                             />
                         ) : (
-                            <Badge color="gray" variant="outline" size="lg">
+                            <Badge variant="outline" size="lg">
                                 Not configured
                             </Badge>
                         )}

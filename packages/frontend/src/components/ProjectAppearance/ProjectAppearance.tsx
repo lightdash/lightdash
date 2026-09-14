@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     Anchor,
     Button,
@@ -5,7 +6,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -20,6 +21,7 @@ import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import { PalettePicker } from '../common/PalettePicker/PalettePicker';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import classes from './ProjectAppearance.module.css';
 
 type Props = { projectUuid: string };
 
@@ -38,20 +40,27 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
 
     const isLoading = isProjectLoading || isPalettesLoading || isHealthLoading;
     const canManageOrgPalettes =
-        user.data?.ability?.can('update', 'Organization') ?? false;
+        (user.data?.ability?.can('update', 'Organization') ||
+            user.data?.ability?.can(
+                'manage',
+                subject('OrganizationColorPalette', {
+                    organizationUuid: user.data?.organizationUuid,
+                }),
+            )) ??
+        false;
 
     return (
         <Stack gap="sm" pos="relative">
             <LoadingOverlay visible={isLoading} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Appearance</Title>
-                    <Text c="ldGray.6" fz="sm">
+                    <Title order={5}>Color palette</Title>
+                    <Text c="dimmed" fz="sm">
                         Choose which organization color palette charts in this
                         project should use, or inherit the organization's active
                         palette.
                     </Text>
-                    <Text c="ldGray.6" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Palettes are managed at the{' '}
                         <Anchor
                             component={Link}
@@ -92,7 +101,7 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
                             leftSection={
                                 <MantineIcon icon={IconExternalLink} />
                             }
-                            style={{ alignSelf: 'flex-end' }}
+                            className={classes.managePalettesLink}
                         >
                             Manage organization palettes
                         </Button>

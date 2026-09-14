@@ -1,5 +1,5 @@
 import { type WarehouseTypes } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { CreateProjectConnection } from '../..';
@@ -13,6 +13,7 @@ interface ConnectManuallyStep2Props {
     warehouseOnly?: boolean;
     onBack: () => void;
     successRedirect?: (projectUuid: string) => string;
+    celebrateOnSuccess?: boolean;
 }
 
 const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
@@ -21,6 +22,7 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
     warehouseOnly = false,
     onBack,
     successRedirect,
+    celebrateOnSuccess = false,
 }) => {
     return (
         <>
@@ -43,6 +45,7 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                     selectedWarehouse={selectedWarehouse}
                     warehouseOnly={warehouseOnly}
                     successRedirect={successRedirect}
+                    celebrateOnSuccess={celebrateOnSuccess}
                 />
             </Stack>
         </>

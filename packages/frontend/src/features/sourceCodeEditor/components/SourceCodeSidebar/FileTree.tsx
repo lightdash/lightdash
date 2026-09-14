@@ -1,5 +1,5 @@
 import { type GitFileEntry } from '@lightdash/common';
-import { Loader, NavLink, ScrollArea, Stack, Text } from '@mantine-8/core';
+import { Loader, NavLink, ScrollArea, Stack, Text } from '@mantine/core';
 import { IconChevronRight, IconFile, IconFolder } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

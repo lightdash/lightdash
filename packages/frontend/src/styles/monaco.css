@@ -16,7 +16,7 @@
 }
 
 .monaco-editor .core-guide-indent {
-    box-shadow: inset 1px 0 0 #e9ecef !important;
+    box-shadow: inset 1px 0 0 var(--mantine-color-default-border) !important;
     /* Vertical indent lines , gray.2 */
 }
 .monaco-editor .decorationsOverviewRuler {
@@ -114,7 +114,6 @@
     }
 
     @mixin dark {
-        border-top: 1px solid var(--mantine-color-ldDark-4);
         background-color: var(--mantine-color-ldDark-6);
         border-radius: 0 0 8px 8px;
     }

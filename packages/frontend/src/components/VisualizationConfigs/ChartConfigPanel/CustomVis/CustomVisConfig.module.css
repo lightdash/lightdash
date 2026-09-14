@@ -1,0 +1,17 @@
+.editorPane {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Sits exactly on Monaco's first line, so the metrics match the editor's own
+   text rather than the config panel's type scale. The offset is the gutter
+   width at `lineNumbersMinChars: 1`: get it wrong and the text shifts as the
+   placeholder gives way to what you type. */
+.editorPlaceholder {
+    pointer-events: none;
+    z-index: 100;
+    font-family: monospace;
+    margin-left: 33px;
+    font-size: 12px;
+    line-height: 19px;
+    letter-spacing: 0;
+}

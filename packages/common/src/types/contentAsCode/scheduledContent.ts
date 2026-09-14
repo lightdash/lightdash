@@ -45,6 +45,8 @@ type ScheduledDeliveryAsCodeBase = {
     timezone: string | null;
     enabled: boolean;
     includeLinks: boolean;
+    /** Optional so files written before plain-text mode still upload. */
+    plainTextEmail?: boolean;
     targets: ScheduledDeliveryTargetAsCode[];
     downloadedAt?: Date;
 };
@@ -111,6 +113,8 @@ export type AlertAsCode = {
     timezone: string | null;
     enabled: boolean;
     includeLinks: boolean;
+    /** Optional so files written before plain-text mode still upload. */
+    plainTextEmail?: boolean;
     targets: ScheduledDeliveryTargetAsCode[];
     resource: {
         type: 'chart';
@@ -151,6 +155,8 @@ type GoogleSheetsSyncAsCodeBase = {
     timezone: string | null;
     enabled: boolean;
     includeLinks: boolean;
+    /** Optional so files written before plain-text mode still upload. */
+    plainTextEmail?: boolean;
     destination: {
         spreadsheetId: string;
         spreadsheetName: string;

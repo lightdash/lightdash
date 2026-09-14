@@ -4,7 +4,7 @@ import {
     type DashboardTab,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { memo, type FC } from 'react';
 import ChartTile from '../../components/DashboardTiles/DashboardChartTile';
 import DataAppTile from '../../components/DashboardTiles/DashboardDataAppTile';
@@ -14,7 +14,6 @@ import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile'
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../components/DashboardTiles/UnmetRequirementsPlaceholder';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 
 type GridTileProps = Pick<
@@ -33,12 +32,6 @@ type GridTileProps = Pick<
 
 const GridTileInner: FC<GridTileProps> = memo((props) => {
     const { tile } = props;
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
-    const isFilterRequirementsFlagResolved = useDashboardContext(
-        (c) => c.isFilterRequirementsFlagResolved,
-    );
 
     if (props.locked) {
         // Allow non-filterable tiles to show even when locked.
@@ -55,19 +48,10 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
             return <DataAppTile {...props} tile={tile} />;
         }
 
-        // While the flag query is unresolved neither locked experience has
-        // been chosen yet, so show the tile loading skeleton instead of an
-        // empty tile base
         return (
             <Box h="100%">
-                <TileBase
-                    isLoading={!isFilterRequirementsFlagResolved}
-                    title={''}
-                    {...props}
-                >
-                    {isFilterRequirementsEnabled ? (
-                        <UnmetRequirementsPlaceholder />
-                    ) : undefined}
+                <TileBase isLoading={false} title={''} {...props}>
+                    <UnmetRequirementsPlaceholder />
                 </TileBase>
             </Box>
         );

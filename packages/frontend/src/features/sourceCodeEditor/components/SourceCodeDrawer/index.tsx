@@ -1,5 +1,5 @@
 import { ProjectType } from '@lightdash/common';
-import { Drawer } from '@mantine-8/core';
+import { Drawer } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import { lazy, Suspense, type FC } from 'react';
 import {

@@ -3,9 +3,10 @@ import {
     FieldType,
     type FilterableItem,
 } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useFieldValues } from '../../../../hooks/useFieldValues';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
 
@@ -51,9 +52,74 @@ const mockField: FilterableItem = {
 const createValues = (count: number) =>
     Array.from({ length: count }, (_, i) => `value-${i}`);
 
+const createFieldValuesMock = (isInitialLoading = false) =>
+    ({
+        isInitialLoading,
+        results: [],
+        refreshedAt: new Date(),
+        refetch: vi.fn(),
+        reset: vi.fn(),
+        error: null,
+        isError: false,
+    }) as unknown as ReturnType<typeof useFieldValues>;
+
 describe('FilterStringAutoComplete', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useFieldValues).mockReturnValue(createFieldValuesMock());
+    });
+
+    describe('manual entry when there is nothing to autocomplete', () => {
+        // No warehouse fetch and no curated values → nothing to suggest
+        const fieldWithDisabledAutocomplete: FilterableItem = {
+            ...mockField,
+            filterAutocomplete: {
+                fetchFromWarehouse: false,
+            },
+        };
+
+        it('shows no dropdown when autocomplete is disabled', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={fieldWithDisabledAutocomplete}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            await user.type(input, 'some value');
+
+            expect(screen.queryByRole('option')).not.toBeInTheDocument();
+            expect(screen.queryByText('(null)')).not.toBeInTheDocument();
+        });
+
+        it('adds the typed value on Enter when autocomplete is disabled', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={fieldWithDisabledAutocomplete}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={onChange}
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            await user.type(input, 'credit_card{Enter}');
+
+            expect(onChange).toHaveBeenCalledWith(['credit_card']);
+        });
     });
 
     describe('truncation behavior', () => {
@@ -61,7 +127,7 @@ describe('FilterStringAutoComplete', () => {
             const values = createValues(100);
             const onChange = vi.fn();
 
-            renderWithProviders(
+            const { container } = renderWithProviders(
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
@@ -72,7 +138,11 @@ describe('FilterStringAutoComplete', () => {
             );
 
             // Should show the "+50 more" pill
-            expect(screen.getByText('+50 more')).toBeInTheDocument();
+            expect(
+                within(container).getByRole('button', {
+                    name: 'Manage 50 more filter values',
+                }),
+            ).toBeInTheDocument();
         });
 
         it('shows all values when below inline limit', async () => {
@@ -90,11 +160,17 @@ describe('FilterStringAutoComplete', () => {
             );
 
             // Should not show "+N more" pill
-            expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', {
+                    name: /Manage .* more filter values/,
+                }),
+            ).not.toBeInTheDocument();
 
             // All values should be visible
             values.forEach((value) => {
-                expect(screen.getByText(value)).toBeInTheDocument();
+                expect(
+                    screen.getByRole('button', { name: `Remove ${value}` }),
+                ).toBeInTheDocument();
             });
         });
     });
@@ -115,17 +191,9 @@ describe('FilterStringAutoComplete', () => {
                 />,
             );
 
-            // Find the remove button on the first value pill (it's aria-hidden, so we query by class)
-            const firstValuePill = screen.getByText('value-0');
-            // eslint-disable-next-line testing-library/no-node-access
-            const pillContainer = firstValuePill.closest(
-                '.mantine-MultiSelect-value',
+            await user.click(
+                screen.getByRole('button', { name: 'Remove value-0' }),
             );
-            // eslint-disable-next-line testing-library/no-node-access
-            const removeButton = pillContainer?.querySelector('button');
-
-            expect(removeButton).toBeTruthy();
-            await user.click(removeButton!);
 
             // onChange should be called with 99 values (all except value-0)
             await waitFor(() => {
@@ -156,7 +224,7 @@ describe('FilterStringAutoComplete', () => {
             );
 
             // Focus on the input using fireEvent (bypasses pointer-events check)
-            const input = screen.getByRole('searchbox');
+            const input = screen.getByRole('textbox');
             fireEvent.focus(input);
 
             // Type a new value and press Enter
@@ -173,6 +241,202 @@ describe('FilterStringAutoComplete', () => {
             // Hidden values should be preserved
             expect(calledWith).toContain('value-50');
             expect(calledWith).toContain('value-59');
+        });
+
+        it('removes a selected hidden value from the dropdown without dropping other values', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const values = createValues(100);
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={values}
+                    suggestions={[]}
+                    onChange={onChange}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+            await user.click(
+                screen.getByRole('option', {
+                    name: 'value-75',
+                    hidden: true,
+                }),
+            );
+
+            expect(onChange).toHaveBeenCalledWith(
+                values.filter((value) => value !== 'value-75'),
+            );
+        });
+    });
+
+    describe('selection behavior', () => {
+        it('replaces a single value once without recommitting it on blur', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={['old-value']}
+                    suggestions={[]}
+                    onChange={onChange}
+                    singleValue
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            fireEvent.focus(input);
+            await user.type(input, 'new-value{Enter}');
+
+            expect(onChange).toHaveBeenCalledTimes(1);
+            expect(onChange).toHaveBeenCalledWith(['new-value']);
+        });
+
+        it('toggles the null option without changing real values', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onChange = vi.fn();
+            const onIncludeNullChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={['value-1']}
+                    suggestions={[]}
+                    onChange={onChange}
+                    showNullOption
+                    includeNull={false}
+                    onIncludeNullChange={onIncludeNullChange}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+            await user.click(
+                screen.getByRole('option', {
+                    name: '(null)',
+                    hidden: true,
+                }),
+            );
+
+            expect(onIncludeNullChange).toHaveBeenCalledWith(true);
+            expect(onChange).not.toHaveBeenCalled();
+        });
+
+        it('hides the unselected null option while field values are initially loading', async () => {
+            vi.mocked(useFieldValues).mockReturnValue(
+                createFieldValuesMock(true),
+            );
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                    includeNull={false}
+                    onIncludeNullChange={vi.fn()}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+
+            expect(screen.getByText('Loading...')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('option', {
+                    name: '(null)',
+                    hidden: true,
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('preserves a selected null value while field values are initially loading', () => {
+            vi.mocked(useFieldValues).mockReturnValue(
+                createFieldValuesMock(true),
+            );
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                    includeNull
+                    onIncludeNullChange={vi.fn()}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: 'Remove (null)' }),
+            ).toBeInTheDocument();
+        });
+
+        it('shows the null option after the initial field value request settles with an error', async () => {
+            vi.mocked(useFieldValues).mockReturnValue({
+                ...createFieldValuesMock(),
+                isError: true,
+                error: {
+                    error: { message: 'Unable to load field values' },
+                },
+            } as ReturnType<typeof useFieldValues>);
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    showNullOption
+                    includeNull={false}
+                    onIncludeNullChange={vi.fn()}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+
+            expect(
+                screen.getByRole('option', {
+                    name: '(null)',
+                    hidden: true,
+                }),
+            ).toBeInTheDocument();
+        });
+
+        it('preserves dropdown lifecycle callbacks', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onDropdownOpen = vi.fn();
+            const onDropdownClose = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    onDropdownOpen={onDropdownOpen}
+                    onDropdownClose={onDropdownClose}
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            fireEvent.blur(input);
+
+            expect(onDropdownOpen).toHaveBeenCalled();
+            expect(onDropdownClose).toHaveBeenCalled();
         });
     });
 
@@ -192,7 +456,7 @@ describe('FilterStringAutoComplete', () => {
                 />,
             );
 
-            const input = screen.getByRole('searchbox');
+            const input = screen.getByRole('textbox');
             fireEvent.focus(input);
             await user.type(input, 'typed-but-not-entered');
             fireEvent.blur(input);
@@ -238,7 +502,7 @@ describe('FilterStringAutoComplete', () => {
             const values = createValues(100);
             const onChange = vi.fn();
 
-            renderWithProviders(
+            const { container } = renderWithProviders(
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
@@ -249,7 +513,9 @@ describe('FilterStringAutoComplete', () => {
             );
 
             // Click the "+50 more" pill - use fireEvent to bypass pointer-events check
-            const morePill = screen.getByText('+50 more');
+            const morePill = within(container).getByRole('button', {
+                name: 'Manage 50 more filter values',
+            });
             fireEvent.mouseDown(morePill);
 
             // Modal should open

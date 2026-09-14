@@ -1,4 +1,4 @@
-import { type PivotData } from '@lightdash/common';
+import { FieldType, type PivotData } from '@lightdash/common';
 
 export type RowSpanMerge = {
     isBlockStart: boolean;
@@ -17,7 +17,9 @@ export const getGroupedDimColumnIds = (
     columnOrder: string[],
 ): string[] => {
     const indexDimIds = new Set(
-        indexValueTypes.map((valueType) => valueType.fieldId),
+        indexValueTypes
+            .filter((valueType) => valueType.type === FieldType.DIMENSION)
+            .map((valueType) => valueType.fieldId),
     );
     return columnOrder
         .filter((columnId) => indexDimIds.has(columnId))

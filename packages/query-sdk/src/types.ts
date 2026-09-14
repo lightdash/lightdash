@@ -124,7 +124,10 @@ export type QueryDefinition = {
     exploreName: string;
     dimensions: string[];
     metrics: string[];
+    /** Dimension (WHERE) filters added with `.filters()`. */
     filters: InternalFilterDefinition[];
+    /** Metric (HAVING) filters added with `.metricFilters()`. Optional for definitions built by older SDK versions. */
+    metricFilters?: InternalFilterDefinition[];
     sorts: { fieldId: string; descending: boolean }[];
     tableCalculations: TableCalculation[];
     additionalMetrics: AdditionalMetric[];
@@ -233,6 +236,54 @@ export type UnderlyingDataResult = {
     queryUuid: string;
 };
 
+// --- Viz underlying data ---
+
+/**
+ * Bridge-only virtual route for viz underlying-data click intents. Duplicated
+ * from `@lightdash/common` (`APP_SDK_VIZ_UNDERLYING_DATA_PATH`) — this package
+ * must not depend on common. The path only resolves behind the host's
+ * postMessage bridge, which rewrites it into the real underlying-data request;
+ * on a direct-API transport it fails with a plain HTTP error.
+ */
+export const VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
+
+/**
+ * Semantic click intent a viz sends to the host: the untransformed source row
+ * (as received from `useVizContext().rows`) and the declared field NAME bound
+ * to the clicked metric slot. The host resolves everything else.
+ */
+export type VizUnderlyingDataIntent = {
+    row: Record<
+        string,
+        { value?: { raw?: unknown; formatted?: string } } | undefined
+    >;
+    metric: string;
+    limit?: number | null;
+};
+
+/**
+ * Bridge-only virtual route for viz drill-down click intents. Duplicated from
+ * `@lightdash/common` (`APP_SDK_VIZ_DRILL_DOWN_PATH`) — this package must not
+ * depend on common. The host answers it directly (opens its drill dialog);
+ * nothing is forwarded to the API. On a direct-API transport it fails with a
+ * plain HTTP error.
+ */
+export const VIZ_DRILL_DOWN_PATH = '/__sdk/viz/drill-down';
+
+/**
+ * Drill click intent a viz sends to the host: the untransformed source row
+ * (as received from `useVizContext().rows`) and the declared field NAME bound
+ * to the clicked metric slot. The host resolves everything else and owns all
+ * subsequent UI.
+ */
+export type VizDrillDownIntent = {
+    row: Record<
+        string,
+        { value?: { raw?: unknown; formatted?: string } } | undefined
+    >;
+    metric: string;
+};
+
 // --- Client config ---
 
 export type LightdashClientConfig = {
@@ -270,6 +321,8 @@ export type ExternalFetchResult = {
     status: number;
     /** Upstream `Content-Type` (e.g. `application/json`). */
     contentType: string;
+    /** Safe upstream response headers, with lowercase names. */
+    headers: Record<string, string>;
     /** Parsed JSON body when JSON, otherwise the raw text. */
     body: unknown;
     /** True when Lightdash truncated an oversized response body. */
@@ -310,4 +363,24 @@ export type Transport = {
         alias: string,
         opts: ExternalFetchOptions,
     ) => Promise<ExternalFetchResult>;
+    /**
+     * Fetch the raw rows behind a viz data point via the host bridge.
+     * Optional so custom transports predating the capability stay valid —
+     * `useVizContext().underlyingData.enabled` is false when absent.
+     */
+    getVizUnderlyingData?: (
+        intent: VizUnderlyingDataIntent,
+    ) => Promise<UnderlyingDataResult>;
+    /** Schedule a CSV/XLSX export of the rows behind a viz data point. */
+    downloadVizUnderlyingData?: (
+        intent: Omit<VizUnderlyingDataIntent, 'limit'>,
+        options?: DownloadResultsOptions,
+    ) => Promise<DownloadResultsResult>;
+    /**
+     * Fire the drill-down intent for a viz data point via the host bridge.
+     * One-way: the host opens its drill dialog; the resolved promise is only
+     * an ack. Optional so custom transports predating the capability stay
+     * valid — `useVizContext().drillDown.enabled` is false when absent.
+     */
+    openVizDrillDown?: (intent: VizDrillDownIntent) => Promise<void>;
 };

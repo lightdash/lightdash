@@ -243,13 +243,12 @@ describe('CLI', () => {
 
     it('Should throw error on lightdash compile', () => {
         cy.exec(
-            `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir} -m orders`,
+            `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir} -m orders --no-partial-compilation`,
             {
                 failOnNonZeroExit: false,
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
-                    PARTIAL_COMPILATION_ENABLED: 'false',
                     ...databaseEnvVars,
                 },
                 log: true,

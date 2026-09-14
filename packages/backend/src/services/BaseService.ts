@@ -7,7 +7,7 @@ import {
     createActorFromUser,
 } from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
-import { logAuditEvent } from '../logging/winston';
+import { logAuditEvent, winstonLogger } from '../logging/winston';
 
 const SKIP_METHODS = new Set(['createAuditedAbility', 'constructor']);
 
@@ -88,7 +88,8 @@ export abstract class BaseService {
     protected createAuditedAbility(
         accountOrUser: Account | SessionUser,
     ): CaslAuditWrapper<Ability> {
-        const callStack = captureCallStack();
+        const auditEnabled = winstonLogger.isLevelEnabled('audit');
+        const callStack = auditEnabled ? captureCallStack() : undefined;
 
         if (isAccount(accountOrUser)) {
             this.logger.debug('Creating audited ability', {
@@ -101,6 +102,7 @@ export abstract class BaseService {
                 {
                     callStack,
                     auditLogger: logAuditEvent,
+                    auditEnabled,
                     ip: requestContext?.ip,
                     userAgent: requestContext?.userAgent,
                     requestId: requestContext?.requestId,
@@ -116,6 +118,7 @@ export abstract class BaseService {
         return new CaslAuditWrapper(accountOrUser.ability, accountOrUser, {
             callStack,
             auditLogger: logAuditEvent,
+            auditEnabled,
             ip: requestContext?.ip,
             userAgent: requestContext?.userAgent,
             requestId: requestContext?.requestId,
@@ -131,6 +134,8 @@ export abstract class BaseService {
         action: string,
         resource: AuditResource,
     ): void {
+        if (!winstonLogger.isLevelEnabled('audit')) return;
+
         try {
             const actor = isAccount(accountOrUser)
                 ? createActorFromAccount(accountOrUser)

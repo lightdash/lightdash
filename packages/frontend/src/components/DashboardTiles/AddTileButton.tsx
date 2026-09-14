@@ -10,7 +10,7 @@ import {
     Text,
     Tooltip,
     type ButtonProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAppWindow,
     IconChartBar,
@@ -22,8 +22,10 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -43,6 +45,9 @@ type Props = {
     allowedTileTypes?: DashboardTileTypes[];
     spaceUuid?: string;
     maxSelectedValues?: number;
+    // Overrides the default "New chart" navigation (which leaves for the
+    // project's table picker). Embeds use this to build the chart in place.
+    onNewChart?: () => void;
 } & Pick<ButtonProps, 'disabled' | 'radius'>;
 
 const AddTileButton: FC<Props> = ({
@@ -55,6 +60,7 @@ const AddTileButton: FC<Props> = ({
     allowedTileTypes,
     spaceUuid,
     maxSelectedValues,
+    onNewChart,
 }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
@@ -67,6 +73,7 @@ const AddTileButton: FC<Props> = ({
 
     const { storeDashboard } = useDashboardStorage();
     const navigate = useNavigate();
+    const projectRoute = useOptionalProjectRoute();
     const { health } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
@@ -76,7 +83,7 @@ const AddTileButton: FC<Props> = ({
         [allowedTileTypes],
     );
     const showSavedCharts = isTileTypeAllowed(DashboardTileTypes.SAVED_CHART);
-    const showNewChart = !allowedTileTypes;
+    const showNewChart = onNewChart !== undefined || !allowedTileTypes;
     const showDataApps =
         dataAppsEnabled && isTileTypeAllowed(DashboardTileTypes.DATA_APP);
     const showMarkdown = isTileTypeAllowed(DashboardTileTypes.MARKDOWN);
@@ -118,20 +125,14 @@ const AddTileButton: FC<Props> = ({
         },
         [onAddTiles],
     );
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
 
     return (
         <>
             {canAddTile ? (
-                <Menu
-                    position="bottom"
-                    withArrow
-                    withinPortal
-                    shadow="md"
-                    width={200}
-                >
+                <Menu position="bottom" withArrow width={200}>
                     <Menu.Target>
                         <Button
                             size="xs"
@@ -139,6 +140,8 @@ const AddTileButton: FC<Props> = ({
                             radius={radius}
                             disabled={disabled}
                             leftSection={<MantineIcon icon={IconPlus} />}
+                            data-tour-anchor="add-tile"
+                            data-tour-hint="Click Add tile"
                         >
                             Add tile
                         </Button>
@@ -153,6 +156,8 @@ const AddTileButton: FC<Props> = ({
                                 leftSection={
                                     <MantineIcon icon={IconChartBar} />
                                 }
+                                data-tour-anchor="add-saved-chart"
+                                data-tour-hint="Choose Saved chart"
                             >
                                 Saved chart
                             </Menu.Item>
@@ -161,6 +166,13 @@ const AddTileButton: FC<Props> = ({
                         {showNewChart && (
                             <Menu.Item
                                 onClick={() => {
+                                    if (onNewChart) {
+                                        // Modal supplies the dashboard via
+                                        // context; sessionStorage would also
+                                        // show the navbar's edit banner.
+                                        onNewChart();
+                                        return;
+                                    }
                                     storeDashboard(
                                         dashboardTiles,
                                         dashboardFilters,
@@ -170,19 +182,26 @@ const AddTileButton: FC<Props> = ({
                                         dashboard?.name,
                                         activeTabUuid,
                                         dashboardTabs,
+                                        dashboard?.slug,
                                     );
                                     void navigate(
-                                        `/projects/${projectUuid}/tables`,
+                                        `/projects/${projectUrlIdentifier}/tables`,
                                     );
                                 }}
                                 leftSection={<MantineIcon icon={IconPlus} />}
                             >
                                 <Group gap="xxs">
                                     <Text fz="sm">New chart</Text>
-                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                    <Tooltip
+                                        label={
+                                            onNewChart
+                                                ? 'Build a new chart and add it to this dashboard'
+                                                : 'Charts generated from here are exclusive to this dashboard'
+                                        }
+                                    >
                                         <MantineIcon
                                             icon={IconInfoCircle}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
                                     </Tooltip>
                                 </Group>

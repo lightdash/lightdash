@@ -12,7 +12,7 @@ import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 
 const DBT_CORE_VERSION_REGEX = /installed:.*/;
-export const DBT_CLOUD_CLI_REGEX = /dbt Cloud CLI.*/;
+const DBT_CLOUD_CLI_REGEX = /dbt Cloud CLI.*/;
 const DBT_FUSION_VERSION_REGEX = /dbt-fusion.*/;
 
 const getDbtCLIVersion = async () => {

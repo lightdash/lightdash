@@ -43,7 +43,7 @@ function delay(ms: number) {
     });
 }
 
-export const getRunningStepsMessage = (steps: JobStep[]): string => {
+const getRunningStepsMessage = (steps: JobStep[]): string => {
     const runningStep = steps.find(
         (step) => step.stepStatus === JobStepStatusType.RUNNING,
     );
@@ -55,7 +55,7 @@ export const getRunningStepsMessage = (steps: JobStep[]): string => {
     }: ${runningStep?.stepLabel || ''}`;
 };
 
-export const getErrorStepsMessage = (steps: JobStep[]): string => {
+const getErrorStepsMessage = (steps: JobStep[]): string => {
     const errorStep = steps.find(
         (step) => step.stepStatus === JobStepStatusType.ERROR,
     );

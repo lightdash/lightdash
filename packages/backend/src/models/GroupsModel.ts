@@ -40,6 +40,7 @@ import {
 } from '../database/entities/projectGroupAccess';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
+import { clearGroupExtraRoles } from './roleSetUtils';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 
 export class GroupsModel {
@@ -845,13 +846,16 @@ export class GroupsModel {
                 : {}),
         };
 
-        const query = this.database(ProjectGroupAccessTableName)
-            .update(updateFields)
-            .where('project_uuid', projectUuid)
-            .andWhere('group_uuid', groupUuid)
-            .returning('*');
-
-        const rows = await query;
+        const rows = await this.database.transaction(async (trx) => {
+            const updated = await trx(ProjectGroupAccessTableName)
+                .update(updateFields)
+                .where('project_uuid', projectUuid)
+                .andWhere('group_uuid', groupUuid)
+                .returning('*');
+            // A singular write replaces the whole role set, so extras go too.
+            await clearGroupExtraRoles(trx, projectUuid, groupUuid);
+            return updated;
+        });
 
         if (rows.length === 0) {
             throw new UnexpectedDatabaseError(

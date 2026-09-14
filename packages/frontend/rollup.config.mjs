@@ -11,6 +11,7 @@ import esbuild from 'rollup-plugin-esbuild';
 import nodePolyfills from 'rollup-plugin-polyfill-node';
 import postcss from 'rollup-plugin-postcss';
 import { fileURLToPath } from 'url';
+import { scopeDocumentRules } from './sdk/styles/postcss.cjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -116,7 +117,6 @@ const mainBuild = {
                 'import.meta.env.VITEST': JSON.stringify('false'),
                 'import.meta.env.BASE_URL': JSON.stringify('/'),
                 'import.meta.env.DEV': 'false',
-                'import.meta.env.VITE_SENTRY_SPOTLIGHT': 'undefined',
             },
         }),
         stripSvgrQuery(),
@@ -130,6 +130,9 @@ const mainBuild = {
         postcss({
             extract: false,
             inject: true,
+            // The SDK ships the app's stylesheets into customer pages; rewrite
+            // html/body/`*`/element selectors onto the SDK's own containers.
+            plugins: [scopeDocumentRules],
             // `modules: true` would hash classNames in every CSS file, which
             // breaks Mantine's global styles (its components expect literal
             // class names like .mantine-Button-root). Use autoModules so
@@ -172,6 +175,19 @@ const mainBuild = {
 // Proper long-term fix (switching to api-extractor/tsdown, or adding
 // @lightdash/common as a peerDep so TS consumers can resolve it through
 // their own install) is tracked as a follow-up.
+// Side-effect CSS imports (e.g. ../src/styles/global.css in sdk/index.tsx)
+// carry no types, but relative ones are inlined by the dts walk and fail to
+// parse. Resolve any .css id to an empty module during the dts pass.
+const stubCssForDts = () => ({
+    name: 'stub-css-for-dts',
+    resolveId(source) {
+        return source.endsWith('.css') ? '\0stub-css' : null;
+    },
+    load(id) {
+        return id === '\0stub-css' ? 'export {};' : null;
+    },
+});
+
 const dtsBuild = {
     input: sdkInput,
     external: (id) => !id.startsWith('.') && !id.startsWith('/'),
@@ -180,6 +196,7 @@ const dtsBuild = {
         format: 'es',
     },
     plugins: [
+        stubCssForDts(),
         dts({
             respectExternal: true,
             tsconfig: resolve(__dirname, 'tsconfig.json'),

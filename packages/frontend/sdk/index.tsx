@@ -1,38 +1,52 @@
-import '@mantine-8/core/styles.css';
+import '@mantine/core/styles.css';
+import '@mantine/code-highlight/styles.css';
+import '@mantine/dates/styles.css';
+import '@mantine/tiptap/styles.css';
+import '../src/styles/global.css';
+import './styles/sdk.css';
 import {
     FilterOperator,
     getErrorMessage,
     type EmbedDashboard as EmbedDashboardType,
     type LanguageMap,
     type SavedChart,
+    type SdkUiOverrides,
+    type UiStringKey,
 } from '@lightdash/common';
+import { Portal, type MantineThemeOverride } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import {
+    useCallback,
     useEffect,
+    useId,
+    useMemo,
     useRef,
     useState,
     type FC,
     type PropsWithChildren,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import { embedContractClass } from '../src/ee/features/embed/styles/embedClassContract';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import { type EmbedExploreChart } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
-import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
-import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
+import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
+import { useAccount } from '../src/hooks/user/useAccount';
 import MetricsCatalogPage from '../src/pages/MetricsCatalog';
 import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
 import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
-import Mantine8Provider from '../src/providers/Mantine8Provider';
 import MantineProvider from '../src/providers/MantineProvider';
+import { PortalTargetContext } from '../src/providers/PortalTarget/PortalTargetContext';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
@@ -49,6 +63,7 @@ import {
     type ListContentOptions,
 } from './api';
 import { useLightdashAiAgentThreads, useLightdashContent } from './hooks';
+import { SDK_SCOPE_CLASS } from './styles/scope.json';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -63,6 +78,7 @@ type BaseProps = {
     };
     filters?: SdkFilter[];
     contentOverrides?: LanguageMap;
+    uiOverrides?: SdkUiOverrides;
     onExplore?: (options: { chart: SavedChart }) => void;
 };
 
@@ -76,9 +92,14 @@ type DashboardBuilderProps = DashboardProps & {
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
 };
 
+type ChartProps = Omit<BaseProps, 'filters' | 'onExplore'> & {
+    id: string;
+    isEditMode?: boolean;
+};
+
 type AiAgentProps = Omit<
     BaseProps,
-    'contentOverrides' | 'filters' | 'onExplore'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
 > & {
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
@@ -87,7 +108,7 @@ type AiAgentProps = Omit<
 
 type MetricsCatalogProps = Omit<
     BaseProps,
-    'contentOverrides' | 'filters' | 'onExplore'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
 >;
 
 const decodeJWT = (token: string) => {
@@ -136,17 +157,18 @@ const useEmbedTokenContext = (
     } | null>(null);
 
     useEffect(() => {
-        let isMounted = true;
+        // Flipped by cleanup on unmount and whenever the token prop changes,
+        // so an older token promise resolving late cannot overwrite a newer one.
+        let isCurrent = true;
 
         persistInstanceUrl(instanceUrl);
 
-        const resolveToken = async () =>
-            typeof tokenOrTokenPromise === 'string'
-                ? tokenOrTokenPromise
-                : tokenOrTokenPromise;
-
-        resolveToken()
+        Promise.resolve(tokenOrTokenPromise)
             .then((tokenToDecode) => {
+                if (!isCurrent) {
+                    return;
+                }
+
                 const { payload } = decodeJWT(tokenToDecode);
 
                 if (
@@ -154,12 +176,10 @@ const useEmbedTokenContext = (
                     'content' in payload &&
                     'projectUuid' in payload.content
                 ) {
-                    if (isMounted) {
-                        setTokenContext({
-                            token: tokenToDecode,
-                            projectUuid: payload.content.projectUuid,
-                        });
-                    }
+                    setTokenContext({
+                        token: tokenToDecode,
+                        projectUuid: payload.content.projectUuid,
+                    });
                 } else {
                     throw new Error('Error decoding token');
                 }
@@ -170,7 +190,7 @@ const useEmbedTokenContext = (
             });
 
         return () => {
-            isMounted = false;
+            isCurrent = false;
         };
     }, [instanceUrl, tokenOrTokenPromise]);
 
@@ -198,6 +218,28 @@ const getSavedChartExploreHandler = (onExplore: BaseProps['onExplore']) =>
               }
           }
         : undefined;
+
+const useDashboardExploreNavigation = (onExplore: BaseProps['onExplore']) => {
+    const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
+
+    const handleExplore = useCallback(
+        ({ chart }: { chart: EmbedExploreChart }) => {
+            if ('uuid' in chart) {
+                onExplore?.({ chart });
+            } else {
+                setExploreChart(chart);
+            }
+        },
+        [onExplore],
+    );
+
+    const handleBackToDashboard = useCallback(
+        () => setExploreChart(undefined),
+        [],
+    );
+
+    return { exploreChart, handleExplore, handleBackToDashboard };
+};
 
 const getAiAgentEmbedUrl = ({
     agentUuid,
@@ -263,6 +305,10 @@ const isAiAgentThreadChangedMessage = (
     'threadUuid' in data.payload &&
     typeof data.payload.threadUuid === 'string';
 
+// Distinguishes this copy of the bundle from another one on the same page, so
+// instance ids never collide.
+const SDK_BUNDLE_ID = Math.random().toString(36).slice(2, 8);
+
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
@@ -270,13 +316,40 @@ const SdkProviders: FC<
         projectUuid?: string;
     }>
 > = ({ children, styles, theme, projectUuid }) => {
-    const themeOverride = {
-        fontFamily: styles?.fontFamily,
-        other: {
-            tableFont: styles?.fontFamily,
-            chartFont: styles?.fontFamily,
-        },
-    };
+    const colorScheme = theme ?? 'light';
+    const rootRef = useRef<HTMLDivElement>(null);
+    const getRootElement = useCallback(() => rootRef.current ?? undefined, []);
+    // Each mounted component gets its own class for Mantine's CSS variables,
+    // so two embeds with different fonts or themes on one page don't fight
+    // over shared variables. The scope class stays shared: the build-time
+    // scoped stylesheets key on it.
+    const instanceId = `${SDK_BUNDLE_ID}-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const instanceClass = `lightdash-sdk-instance-${instanceId}`;
+    // Body-level container for everything that portals out of the inline root
+    // (dropdowns, modals, drag overlays), so it escapes the host's overflow and
+    // stacking contexts while keeping the SDK's variables and colour scheme.
+    // Mantine resolves a selector target in its layout effect, by which time
+    // the container below is in the DOM, so no render round-trip.
+    const portalId = `lightdash-sdk-portal-${instanceId}`;
+    const fontFamily = styles?.fontFamily;
+    // Only override the font when the consumer sets one: Mantine 8's CSS-vars
+    // generator stringifies an explicit undefined into `font-family: undefined`.
+    const themeOverride = useMemo<MantineThemeOverride>(
+        () => ({
+            ...(fontFamily
+                ? {
+                      fontFamily,
+                      other: { tableFont: fontFamily, chartFont: fontFamily },
+                  }
+                : {}),
+            components: {
+                Portal: Portal.extend({
+                    defaultProps: { target: `#${portalId}` },
+                }),
+            },
+        }),
+        [fontFamily, portalId],
+    );
     const route = projectUuid ? `/projects/${projectUuid}` : '/';
     const routedChildren = projectUuid ? (
         <Routes>
@@ -287,43 +360,73 @@ const SdkProviders: FC<
     );
 
     return (
-        <ReactQueryProvider>
-            <MantineProvider
-                withGlobalStyles
-                withNormalizeCSS
-                withCSSVariables
-                themeOverride={themeOverride}
-                notificationsLimit={0}
-                forceColorScheme={theme}
-            >
-                <Mantine8Provider
+        <>
+            {createPortal(
+                <div
+                    id={portalId}
+                    className={embedContractClass(
+                        'ld-sdk-portal',
+                        SDK_SCOPE_CLASS,
+                        instanceClass,
+                    )}
+                    data-mantine-color-scheme={colorScheme}
+                />,
+                document.body,
+            )}
+            <ReactQueryProvider>
+                <MantineProvider
                     themeOverride={themeOverride}
-                    forceColorScheme={theme}
+                    notificationsLimit={0}
+                    forceColorScheme={colorScheme}
+                    cssVariablesSelector={`.${instanceClass}`}
+                    getRootElement={getRootElement}
+                    syncBodyColorMode={false}
                 >
-                    <ModalsProvider>
-                        <AppProvider>
-                            <FullscreenProvider enabled={false}>
-                                <ThirdPartyServicesProvider enabled={false}>
-                                    <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                        <MemoryRouter initialEntries={[route]}>
-                                            <TrackingProvider enabled={true}>
-                                                <AbilityProvider>
-                                                    <ChartColorMappingContextProvider>
-                                                        <ActiveJobProvider>
-                                                            {routedChildren}
-                                                        </ActiveJobProvider>
-                                                    </ChartColorMappingContextProvider>
-                                                </AbilityProvider>
-                                            </TrackingProvider>
-                                        </MemoryRouter>
-                                    </ErrorBoundary>
-                                </ThirdPartyServicesProvider>
-                            </FullscreenProvider>
-                        </AppProvider>
-                    </ModalsProvider>
-                </Mantine8Provider>
-            </MantineProvider>
-        </ReactQueryProvider>
+                    <div
+                        ref={rootRef}
+                        className={embedContractClass(
+                            'ld-sdk-root',
+                            SDK_SCOPE_CLASS,
+                            instanceClass,
+                        )}
+                    >
+                        <PortalTargetContext.Provider value={`#${portalId}`}>
+                            <ModalsProvider>
+                                <AppProvider>
+                                    <FullscreenProvider enabled={false}>
+                                        <ThirdPartyServicesProvider
+                                            enabled={false}
+                                        >
+                                            <ErrorBoundary
+                                                wrapper={{ mt: '4xl' }}
+                                            >
+                                                <MemoryRouter
+                                                    initialEntries={[route]}
+                                                >
+                                                    <TrackingProvider
+                                                        enabled={true}
+                                                    >
+                                                        <AbilityProvider>
+                                                            <ChartColorMappingContextProvider>
+                                                                <ActiveJobProvider>
+                                                                    {
+                                                                        routedChildren
+                                                                    }
+                                                                </ActiveJobProvider>
+                                                            </ChartColorMappingContextProvider>
+                                                        </AbilityProvider>
+                                                    </TrackingProvider>
+                                                </MemoryRouter>
+                                            </ErrorBoundary>
+                                        </ThirdPartyServicesProvider>
+                                    </FullscreenProvider>
+                                </AppProvider>
+                            </ModalsProvider>
+                        </PortalTargetContext.Provider>
+                    </div>
+                </MantineProvider>
+            </ReactQueryProvider>
+        </>
     );
 };
 
@@ -334,12 +437,15 @@ const Dashboard: FC<DashboardProps> = ({
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     paletteUuid,
     isEditMode,
     onEditModeChange,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const { exploreChart, handleExplore, handleBackToDashboard } =
+        useDashboardExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -357,13 +463,29 @@ const Dashboard: FC<DashboardProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={getSavedChartExploreHandler(onExplore)}
+                uiOverrides={uiOverrides}
+                onExplore={handleExplore}
+                onBackToDashboard={handleBackToDashboard}
             >
-                <EmbedDashboard
-                    containerStyles={getDashboardContainerStyles(styles, theme)}
-                    isEditMode={isEditMode}
-                    onEditModeChange={onEditModeChange}
-                />
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                    />
+                ) : (
+                    <EmbedDashboard
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                        isEditMode={isEditMode}
+                        onEditModeChange={onEditModeChange}
+                    />
+                )}
             </EmbedProvider>
         </SdkProviders>
     );
@@ -418,7 +540,9 @@ const DashboardBuilderContent: FC<{
                 spaceUuid: writeActions.spaceUuid,
                 tiles: [],
                 tabs: [],
-            }).then((createdDashboard) => createdDashboard as EmbedDashboardType);
+            }).then(
+                (createdDashboard) => createdDashboard as EmbedDashboardType,
+            );
 
         dashboardBuilderCreatePromises.set(createKey, createPromise);
 
@@ -477,6 +601,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     paletteUuid,
     isEditMode,
@@ -484,6 +609,8 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     onDashboardReady,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const { exploreChart, handleExplore, handleBackToDashboard } =
+        useDashboardExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -501,76 +628,67 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={getSavedChartExploreHandler(onExplore)}
+                uiOverrides={uiOverrides}
+                onExplore={handleExplore}
+                onBackToDashboard={handleBackToDashboard}
             >
-                <DashboardBuilderContent
-                    containerStyles={getDashboardContainerStyles(styles, theme)}
-                    isEditMode={isEditMode}
-                    onEditModeChange={onEditModeChange}
-                    onDashboardReady={onDashboardReady}
-                />
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                    />
+                ) : (
+                    <DashboardBuilderContent
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                        isEditMode={isEditMode}
+                        onEditModeChange={onEditModeChange}
+                        onDashboardReady={onDashboardReady}
+                    />
+                )}
             </EmbedProvider>
         </SdkProviders>
     );
 };
 
-const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = ({
+const Explore: FC<
+    BaseProps & { exploreId: string; savedChart: SavedChart }
+> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     exploreId,
     savedChart,
 }) => {
-    const [token, setToken] = useState<string | null>(null);
-    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
 
-    const handleDecodeToken = (tokenToDecode: string) => {
-        const { payload } = decodeJWT(tokenToDecode);
-
-        if (
-            payload &&
-            'content' in payload &&
-            'projectUuid' in payload.content
-        ) {
-            setToken(tokenToDecode);
-            setProjectUuid(payload.content.projectUuid);
-        } else {
-            throw new Error('Error decoding token');
-        }
-    };
-
-    useEffect(() => {
-        persistInstanceUrl(instanceUrl);
-
-        if (typeof tokenOrTokenPromise === 'string') {
-            handleDecodeToken(tokenOrTokenPromise);
-        } else {
-            tokenOrTokenPromise
-                .then((tokenToDecode) => {
-                    handleDecodeToken(tokenToDecode);
-                })
-                .catch((error) => {
-                    console.error(error);
-                    throw new Error('Error retrieving token');
-                });
-        }
-    }, [instanceUrl, tokenOrTokenPromise]);
-
-    if (!token || !projectUuid) {
+    if (!tokenContext) {
         return null;
     }
 
     return (
-        <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
             <EmbedProvider
-                embedToken={token}
-                projectUuid={projectUuid}
+                embedToken={tokenContext.token}
+                projectUuid={tokenContext.projectUuid}
                 filters={filters}
                 contentOverrides={contentOverrides}
+                uiOverrides={uiOverrides}
                 onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <EmbedExplore
@@ -583,9 +701,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                         overflow: 'auto',
                         backgroundColor:
                             styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
+                            (theme ? 'var(--mantine-color-body)' : undefined),
                     }}
                 />
             </EmbedProvider>
@@ -593,73 +709,100 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
     );
 };
 
-const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
+const EditableChartContent: FC<{
+    containerStyles: React.CSSProperties;
+    isEditMode: boolean;
+}> = ({ containerStyles, isEditMode }) => {
+    const { embedWriteContext } = useEmbed();
+    const account = useAccount();
+
+    if (account.isLoading) {
+        return null;
+    }
+
+    if (embedWriteContext?.canUpdateSavedChart === true) {
+        return (
+            <EmbedExplore
+                containerStyles={containerStyles}
+                allowChartUpdate
+                isEditMode={isEditMode}
+                chartView
+            />
+        );
+    }
+
+    if (isEditMode) {
+        return (
+            <SuboptimalState
+                title="Unable to edit chart"
+                description="The embed write actor does not have permission to update this chart in the configured write space."
+            />
+        );
+    }
+
+    return <EmbedChart containerStyles={containerStyles} />;
+};
+
+const ChartContent: FC<{
+    containerStyles: React.CSSProperties;
+    isEditMode?: boolean;
+}> = ({ containerStyles, isEditMode }) => {
+    // Omitting isEditMode preserves the legacy Chart renderer exactly. Passing
+    // an explicit boolean opts into the mounted view/edit explorer surface.
+    if (isEditMode === undefined) {
+        return <EmbedChart containerStyles={containerStyles} />;
+    }
+
+    return (
+        <EditableChartContent
+            containerStyles={containerStyles}
+            isEditMode={isEditMode}
+        />
+    );
+};
+
+const Chart: FC<ChartProps> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
     theme,
     contentOverrides,
+    uiOverrides,
     id,
+    isEditMode,
 }) => {
-    const [token, setToken] = useState<string | null>(null);
-    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
 
-    const handleDecodeToken = (tokenToDecode: string) => {
-        const { payload } = decodeJWT(tokenToDecode);
-
-        if (
-            payload &&
-            'content' in payload &&
-            'projectUuid' in payload.content
-        ) {
-            setToken(tokenToDecode);
-            setProjectUuid(payload.content.projectUuid);
-        } else {
-            throw new Error('Error decoding token');
-        }
-    };
-
-    useEffect(() => {
-        persistInstanceUrl(instanceUrl);
-
-        if (typeof tokenOrTokenPromise === 'string') {
-            handleDecodeToken(tokenOrTokenPromise);
-        } else {
-            tokenOrTokenPromise
-                .then((tokenToDecode) => {
-                    handleDecodeToken(tokenToDecode);
-                })
-                .catch((error) => {
-                    console.error(error);
-                    throw new Error('Error retrieving token');
-                });
-        }
-    }, [instanceUrl, tokenOrTokenPromise]);
-
-    if (!token || !projectUuid) {
+    if (!tokenContext) {
         return null;
     }
 
+    const containerStyles = {
+        width: '100%',
+        height: '100%',
+        position: 'relative' as const,
+        overflow: 'auto',
+        backgroundColor:
+            styles?.backgroundColor ??
+            (theme ? 'var(--mantine-color-body)' : undefined),
+    };
+
     return (
-        <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
             <EmbedProvider
-                embedToken={token}
-                projectUuid={projectUuid}
+                embedToken={tokenContext.token}
+                projectUuid={tokenContext.projectUuid}
                 contentOverrides={contentOverrides}
+                uiOverrides={uiOverrides}
                 savedQueryUuid={id}
             >
-                <EmbedChart
-                    containerStyles={{
-                        width: '100%',
-                        height: '100%',
-                        position: 'relative',
-                        overflow: 'auto',
-                        backgroundColor:
-                            styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
-                    }}
+                <ChartContent
+                    containerStyles={containerStyles}
+                    isEditMode={isEditMode}
                 />
             </EmbedProvider>
         </SdkProviders>
@@ -812,6 +955,8 @@ export {
     useLightdashContent,
 };
 export type {
+    SdkUiOverrides,
+    UiStringKey,
     LightdashAiAgentThread,
     LightdashAiAgentThreadResults,
     LightdashApiClientConfig,

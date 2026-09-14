@@ -7,7 +7,7 @@ import {
     TextInput,
     Tooltip,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconSearch, IconUserMinus, IconUserPlus } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
@@ -24,6 +24,8 @@ type Props = {
     className?: string;
     /** Compact avatar + name row (e.g. the issue rail) instead of avatar only. */
     withName?: boolean;
+    /** Avatar size for the avatar-only trigger. */
+    avatarSize?: number;
 };
 
 export const ReviewAssigneeMenu: FC<Props> = ({
@@ -32,6 +34,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
     assignedToUserUuid,
     className,
     withName = false,
+    avatarSize = 26,
 }) => {
     // Source the candidate list from the same hook the project users & groups
     // table uses, so anyone who can access the project is assignable — not just
@@ -69,8 +72,6 @@ export const ReviewAssigneeMenu: FC<Props> = ({
             <Menu
                 width={210}
                 position="bottom-end"
-                shadow="sm"
-                withinPortal
                 onClose={() => setSearch('')}
             >
                 <Menu.Target>
@@ -84,12 +85,12 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                     >
-                        <Tooltip label={assigneeName ?? 'Assign'} withinPortal>
+                        <Tooltip label={assigneeName ?? 'Assign'}>
                             <Group gap={6} wrap="nowrap">
                                 {assignee ? (
                                     <LightdashUserAvatar
                                         name={assigneeName ?? undefined}
-                                        size={withName ? 18 : 'sm'}
+                                        size={withName ? 18 : avatarSize}
                                         radius="xl"
                                         userUuid={assignee.userUuid}
                                         avatarUrl={assignee.avatarUrl}
@@ -97,7 +98,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                     />
                                 ) : (
                                     <LightdashUserAvatar
-                                        size={withName ? 18 : 'sm'}
+                                        size={withName ? 18 : avatarSize}
                                         radius="xl"
                                         variant="light"
                                         color="gray"
@@ -113,9 +114,8 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                     // ff needed: the UnstyledButton ancestor
                                     // reintroduces the UA's button font.
                                     <Text
-                                        fz={12}
+                                        fz="xs"
                                         fw={500}
-                                        c="ldGray.9"
                                         ff="var(--mantine-font-family)"
                                     >
                                         {assigneeName ?? 'Assign'}

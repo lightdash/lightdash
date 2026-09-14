@@ -1,5 +1,5 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { useEffect, useMemo, type FC } from 'react';
 import {
     openPanel,
@@ -44,6 +44,9 @@ export const LauncherDock: FC<Props> = ({
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );
+    const currentDataApp = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDataApp,
+    );
 
     const agentsByUuid = useMemo(
         () => new Map(agents.map((a) => [a.uuid, a])),
@@ -86,10 +89,10 @@ export const LauncherDock: FC<Props> = ({
         if (!agentUuid) return;
         const pendingContext =
             currentDashboard?.projectUuid === projectUuid
-                ? {
-                      dashboardUuid: currentDashboard.uuid,
-                  }
-                : null;
+                ? { dashboardUuid: currentDashboard.uuid }
+                : currentDataApp?.projectUuid === projectUuid
+                  ? { dataAppUuid: currentDataApp.uuid }
+                  : null;
         dispatch(
             openPanel({
                 threadId: null,

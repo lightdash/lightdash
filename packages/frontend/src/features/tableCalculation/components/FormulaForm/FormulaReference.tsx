@@ -7,11 +7,13 @@ import {
     Button,
     Divider,
     Group,
+    HoverCard,
     ScrollArea,
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+    UnstyledButton,
+} from '@mantine/core';
 import {
     IconArrowUpRight,
     IconChevronDown,
@@ -21,7 +23,9 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { type FieldSuggestionItem } from '../../../../components/common/SuggestionList';
 import TruncatedText from '../../../../components/common/TruncatedText';
 import classes from './FormulaReference.module.css';
 import {
@@ -127,16 +131,9 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
                     autoFocus={opened}
                     flex={1}
                 />
-                <Tooltip
-                    label="Close (Esc)"
-                    withArrow
-                    position="top"
-                    openDelay={300}
-                >
+                <Tooltip label="Close (Esc)" position="top" openDelay={300}>
                     <ActionIcon
-                        variant="subtle"
                         size="sm"
-                        color="gray"
                         onClick={() => onToggle(false)}
                         aria-label="Close function reference"
                     >
@@ -232,12 +229,97 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
     );
 };
 
+type AvailableFieldsHintProps = {
+    fields: FieldSuggestionItem[];
+    onInsertField: (field: FieldSuggestionItem) => void;
+};
+
+/**
+ * Hoverable `N fields available` hint: surfaces every field the formula can
+ * reference (selected dimensions, metrics, and other table calculations)
+ * without having to type `@` first. Clicking a row inserts it. The list is
+ * sorted dimensions → metrics → table calculations and each row's icon
+ * carries the field type, so no group headers are needed — keeps the list
+ * dense when many fields are selected.
+ */
+const AvailableFieldsHint: FC<AvailableFieldsHintProps> = ({
+    fields,
+    onInsertField,
+}) => {
+    return (
+        <HoverCard
+            width={280}
+            position="top-start"
+            openDelay={100}
+            closeDelay={200}
+        >
+            <HoverCard.Target>
+                <UnstyledButton
+                    className={classes.availableFieldsTarget}
+                    aria-label="Show available fields"
+                >
+                    <Text fz="xs" fw={500} ff="inherit">
+                        {fields.length === 1
+                            ? '1 field available'
+                            : `${fields.length} fields available`}
+                    </Text>
+                </UnstyledButton>
+            </HoverCard.Target>
+            <HoverCard.Dropdown p={0}>
+                <Box className={classes.availableFieldsHeader}>
+                    <Text size="xs" fw={600}>
+                        Available fields
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        Click to insert, or type{' '}
+                        <kbd className={classes.kbd}>@</kbd> in the formula.
+                    </Text>
+                </Box>
+                <ScrollArea.Autosize
+                    mah={280}
+                    type="auto"
+                    offsetScrollbars
+                    scrollbars="y"
+                    className={classes.availableFieldsList}
+                >
+                    {fields.length === 0 ? (
+                        <Text size="xs" c="dimmed" p="xs">
+                            No fields selected yet — add dimensions or metrics
+                            to your query first.
+                        </Text>
+                    ) : (
+                        fields.map((field) => (
+                            <UnstyledButton
+                                key={field.id}
+                                className={classes.fieldRow}
+                                onClick={() => onInsertField(field)}
+                            >
+                                <FieldIcon item={field.item} size="sm" />
+                                <Text size="xs" truncate>
+                                    {field.label}
+                                </Text>
+                            </UnstyledButton>
+                        ))
+                    )}
+                </ScrollArea.Autosize>
+            </HoverCard.Dropdown>
+        </HoverCard>
+    );
+};
+
 type BarProps = {
     opened: boolean;
     onToggle: (next: boolean) => void;
+    fields: FieldSuggestionItem[];
+    onInsertField: (field: FieldSuggestionItem) => void;
 };
 
-export const FormulaReferenceBar: FC<BarProps> = ({ opened, onToggle }) => {
+export const FormulaReferenceBar: FC<BarProps> = ({
+    opened,
+    onToggle,
+    fields,
+    onInsertField,
+}) => {
     const toggle = () => onToggle(!opened);
 
     const kbdHints = (
@@ -257,6 +339,10 @@ export const FormulaReferenceBar: FC<BarProps> = ({ opened, onToggle }) => {
         </Group>
     );
 
+    const fieldsHint = (
+        <AvailableFieldsHint fields={fields} onInsertField={onInsertField} />
+    );
+
     return (
         <Group
             className={classes.bar}
@@ -265,21 +351,27 @@ export const FormulaReferenceBar: FC<BarProps> = ({ opened, onToggle }) => {
             justify="space-between"
         >
             {opened ? (
-                kbdHints
+                <Group gap="sm" wrap="nowrap">
+                    {kbdHints}
+                    {fieldsHint}
+                </Group>
             ) : (
-                <Button
-                    variant="subtle"
-                    color="gray"
-                    size="compact-xs"
-                    onClick={toggle}
-                    leftSection={
-                        <MantineIcon icon={IconMathFunction} size="sm" />
-                    }
-                    className={classes.helperButton}
-                    aria-expanded={opened}
-                >
-                    Need help?
-                </Button>
+                <Group gap="sm" wrap="nowrap">
+                    <Button
+                        variant="subtle"
+                        color="gray"
+                        size="compact-xs"
+                        onClick={toggle}
+                        leftSection={
+                            <MantineIcon icon={IconMathFunction} size="sm" />
+                        }
+                        className={classes.helperButton}
+                        aria-expanded={opened}
+                    >
+                        Need help?
+                    </Button>
+                    {fieldsHint}
+                </Group>
             )}
 
             {opened ? (

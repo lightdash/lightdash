@@ -2,10 +2,14 @@ import { getItemLabelWithoutTableName, type ItemsMap } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 
-export const convertQueryResultsToCsv = (queryResults: {
-    rows: Record<string, unknown>[];
-    fields: ItemsMap;
-}): string => {
+export const convertQueryResultsToCsv = (
+    queryResults: {
+        rows: Record<string, unknown>[];
+        fields: ItemsMap;
+    },
+    /** Caps the rows written into model context; the query keeps the rest. */
+    maxRows?: number,
+): string => {
     const fieldIds = queryResults.rows[0]
         ? Object.keys(queryResults.rows[0])
         : [];
@@ -18,7 +22,11 @@ export const convertQueryResultsToCsv = (queryResults: {
         return getItemLabelWithoutTableName(item);
     });
 
-    const rows = queryResults.rows.map((row) =>
+    const rows = (
+        maxRows === undefined
+            ? queryResults.rows
+            : queryResults.rows.slice(0, maxRows)
+    ).map((row) =>
         CsvService.convertRowToCsv(row, queryResults.fields, true, fieldIds),
     );
 

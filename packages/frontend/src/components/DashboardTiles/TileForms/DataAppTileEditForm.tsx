@@ -1,5 +1,5 @@
 import { type DashboardDataAppTileProperties } from '@lightdash/common';
-import { ActionIcon, Flex, Stack, TextInput } from '@mantine-8/core';
+import { ActionIcon, Flex, Stack, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
@@ -23,7 +23,6 @@ const DataAppTileEditForm = ({ form }: DataAppTileEditFormProps) => (
                 {...form.getInputProps('title')}
             />
             <ActionIcon
-                variant="subtle"
                 size="lg"
                 onClick={() => {
                     form.setFieldValue('hideTitle', !form.values.hideTitle);

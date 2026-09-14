@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { AppModel } from '../../models/AppModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -74,11 +76,13 @@ vi.spyOn(analyticsMock, 'track');
 
 const buildService = () =>
     new CoderService({
+        directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as unknown as ProjectModel,
         savedChartModel: {} as unknown as SavedChartModel,
         savedSqlModel: {} as unknown as SavedSqlModel,
+        appModel: {} as unknown as AppModel,
         dashboardModel: {} as unknown as DashboardModel,
         spaceModel: {} as unknown as SpaceModel,
         schedulerModel: {} as unknown as SchedulerModel,
@@ -88,6 +92,10 @@ const buildService = () =>
         schedulerClient: {} as unknown as SchedulerClient,
         promoteService: {} as unknown as PromoteService,
         spacePermissionService: {} as unknown as SpacePermissionService,
+        contentAsCodeSnapshotModel: {
+            upsert: vi.fn(),
+        } as unknown as ContentAsCodeSnapshotModel,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as never,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         groupsModel: {} as never,

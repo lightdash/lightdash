@@ -1,7 +1,10 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_READ_PINNED_THREAD_DESCRIPTION = `Tool: read_pinned_thread
+export const TOOL_READ_PINNED_THREAD_DESCRIPTION = ({
+    toolName,
+}: ToolDescriptionContext): string => `Tool: ${toolName}
 
 Purpose:
 Read the transcript of a previous conversation that was attached to this thread as context. Use it to understand what the user was trying to achieve in that conversation before answering.

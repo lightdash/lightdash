@@ -20,7 +20,7 @@ EMPTY_STRING = '' {
   }
 
 EXPRESSION
-= BETWEEN_DATE / BETWEEN_NUMERICAL / NUMERICAL / DATE_RESTRICTION / LIST / TERM
+= BETWEEN_DATE / BETWEEN_NUMERICAL / NUMERICAL / CURRENT_DATE_RESTRICTION / DATE_RESTRICTION / LIST / TERM
 
 BETWEEN_DATE = SPACE_SYMBOL* ("between"i / "BETWEEN") SPACE_SYMBOL+ min:DATE_STRING SPACE_SYMBOL+ ("and"i / "AND") SPACE_SYMBOL+ max:DATE_STRING {
     return {
@@ -71,6 +71,19 @@ DATE_RESTRICTION = SPACE_SYMBOL* operator:DATE_OPERATOR SPACE_SYMBOL* value:NUMB
 
 DATE_OPERATOR = 'inThePast' / 'inTheNext'
 DATE_INTERVAL = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'years'
+
+CURRENT_DATE_RESTRICTION = SPACE_SYMBOL* operator:CURRENT_DATE_OPERATOR SPACE_SYMBOL+ interval:CURRENT_DATE_INTERVAL {
+    return {
+        type: operator,
+        values: [1],
+        date_interval: interval
+    }
+   }
+
+CURRENT_DATE_OPERATOR = '${FilterOperator.NOT_IN_THE_CURRENT}' / '${FilterOperator.IN_THE_CURRENT}'
+CURRENT_DATE_INTERVAL
+  = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'quarters' / 'years'
+  / singular:('millisecond' / 'second' / 'minute' / 'hour' / 'day' / 'week' / 'month' / 'quarter' / 'year') { return singular + 's' }
 
 NUMBER
   = '-'? FLOAT ([Ee] [+-]? INTEGER)?

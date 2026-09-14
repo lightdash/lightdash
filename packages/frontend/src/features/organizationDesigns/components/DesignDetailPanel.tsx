@@ -9,6 +9,7 @@ import {
     ActionIcon,
     Badge,
     Box,
+    Button,
     Center,
     Divider,
     Group,
@@ -20,14 +21,16 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCheck, IconDownload, IconTrash } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import {
     useClearDefaultOrganizationDesign,
+    useDeleteAllDesignFiles,
     useDeleteDesignFile,
     useOrganizationDesign,
     useSetDefaultOrganizationDesign,
@@ -63,19 +66,18 @@ const FileRow: FC<{
     const downloadUrl = `/api/v1/org/designs/${designUuid}/files/${file.fileUuid}`;
     return (
         <Group justify="space-between" wrap="nowrap" gap="sm">
-            <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+            <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
                 <Badge
                     color={KIND_COLORS[file.kind] ?? 'gray'}
-                    variant="light"
                     size="sm"
-                    style={{ flexShrink: 0 }}
+                    flex="0 0 auto"
                 >
                     {file.kind}
                 </Badge>
                 <Text size="sm" truncate>
                     {file.filename}
                 </Text>
-                <Text size="xs" c="ldGray.6" style={{ flexShrink: 0 }}>
+                <Text size="xs" c="dimmed" flex="0 0 auto">
                     {formatBytes(file.sizeBytes)}
                 </Text>
             </Group>
@@ -86,8 +88,6 @@ const FileRow: FC<{
                         href={downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        variant="subtle"
-                        color="gray"
                         aria-label={`Download ${file.filename}`}
                     >
                         <MantineIcon icon={IconDownload} />
@@ -95,7 +95,6 @@ const FileRow: FC<{
                 </Tooltip>
                 <Tooltip label="Delete" position="top">
                     <ActionIcon
-                        variant="subtle"
                         color="red"
                         onClick={onDelete}
                         loading={deleting}
@@ -117,6 +116,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
     const setDefault = useSetDefaultOrganizationDesign();
     const clearDefault = useClearDefaultOrganizationDesign();
     const deleteFile = useDeleteDesignFile();
+    const deleteAllFiles = useDeleteAllDesignFiles();
 
     const form = useForm({
         initialValues: {
@@ -128,6 +128,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
     const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(
         null,
     );
+    const [clearFilesOpen, setClearFilesOpen] = useState(false);
 
     // Theme size guardrail: files are streamed into the sandbox on each build,
     // so an oversized theme times out when applied. Surface the budget as it fills.
@@ -221,7 +222,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
             return (
                 <>
                     <Loader size={12} />
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         Saving…
                     </Text>
                 </>
@@ -229,7 +230,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
         }
         if (hasUnsavedChanges) {
             return (
-                <Text size="xs" c="ldGray.6">
+                <Text size="xs" c="dimmed">
                     Unsaved changes
                 </Text>
             );
@@ -238,7 +239,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
             return (
                 <>
                     <MantineIcon icon={IconCheck} size={14} color="green.6" />
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         Saved
                     </Text>
                 </>
@@ -282,7 +283,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
 
                 <Box>
                     <Title order={6}>Default</Title>
-                    <Text size="sm" c="ldGray.6" mt={4}>
+                    <Text size="sm" c="dimmed" mt={4}>
                         The default theme is automatically applied to new
                         content. Individual items can override it.
                     </Text>
@@ -311,16 +312,34 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 <Box>
                     <Group justify="space-between" align="baseline">
                         <Title order={6}>Files</Title>
-                        <Text
-                            size="xs"
-                            c={limitViolation ? 'red.6' : 'ldGray.6'}
-                        >
-                            {design.files.length} files ·{' '}
-                            {formatBytes(totalBytes)} /{' '}
-                            {formatBytes(MAX_THEME_TOTAL_BYTES)}
-                        </Text>
+                        <Group gap="xs" align="baseline">
+                            <Text
+                                size="xs"
+                                c={limitViolation ? 'red.6' : 'ldGray.6'}
+                            >
+                                {design.files.length} files ·{' '}
+                                {formatBytes(totalBytes)} /{' '}
+                                {formatBytes(MAX_THEME_TOTAL_BYTES)}
+                            </Text>
+                            {design.files.length > 0 && (
+                                <Button
+                                    variant="subtle"
+                                    color="red"
+                                    size="compact-xs"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={() => setClearFilesOpen(true)}
+                                >
+                                    Delete all
+                                </Button>
+                            )}
+                        </Group>
                     </Group>
-                    <Text size="sm" c="ldGray.6" mt={4}>
+                    <Text size="sm" c="dimmed" mt={4}>
                         Drag &amp; drop CSS, font, image, or markdown
                         instruction files. They&apos;ll be picked up
                         automatically wherever this theme is applied.
@@ -350,7 +369,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 />
 
                 {design.files.length === 0 ? (
-                    <Text size="sm" c="ldGray.6" ta="center" py="md">
+                    <Text size="sm" c="dimmed" ta="center" py="md">
                         No files yet.
                     </Text>
                 ) : (
@@ -382,6 +401,26 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                     </Stack>
                 )}
             </Stack>
+
+            <MantineModal
+                opened={clearFilesOpen}
+                onClose={() => setClearFilesOpen(false)}
+                variant="delete"
+                title="Delete all files"
+                description={`Are you sure you want to delete all ${design.files.length} files from "${design.name}"?`}
+                size="md"
+                confirmLoading={deleteAllFiles.isLoading}
+                onConfirm={() =>
+                    deleteAllFiles.mutate(design.designUuid, {
+                        onSuccess: () => setClearFilesOpen(false),
+                    })
+                }
+            >
+                <span>
+                    The theme itself is kept, along with its description, extra
+                    instructions, and anything already using it.
+                </span>
+            </MantineModal>
         </Group>
     );
 };
@@ -399,7 +438,7 @@ export const DesignDetailPanel: FC<Props> = ({ designUuid }) => {
     }
 
     if (!design) {
-        return <Text c="ldGray.6">Theme not found.</Text>;
+        return <Text c="dimmed">Theme not found.</Text>;
     }
 
     return <DesignForm key={design.designUuid} design={design} />;

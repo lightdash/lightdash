@@ -21,20 +21,20 @@ import {
     Flex,
     Group,
     Menu,
-    NumberInput,
     Radio,
     Select,
     Stack,
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+} from '@mantine/core';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import {
     IconArrowsTransferDown,
     IconLayoutDashboard,
     IconX,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
 import {
@@ -46,6 +46,7 @@ import {
 import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { NumberInput } from '../../common/NumberInput';
 import classes from './CustomBinDimensionModal.module.css';
 
 // TODO: preview custom dimension results
@@ -180,10 +181,9 @@ const GroupValueRow: FC<{
                 }}
             />
             {groups.length > 1 && (
-                <Menu position="bottom-end" withinPortal>
+                <Menu position="bottom-end">
                     <Menu.Target>
                         <ActionIcon
-                            variant="subtle"
                             color="ldDark.4"
                             size="sm"
                             title="Move to group"
@@ -238,7 +238,6 @@ const GroupValueRow: FC<{
                 </Menu>
             )}
             <ActionIcon
-                variant="subtle"
                 color="ldDark.6"
                 size="sm"
                 onClick={() => {
@@ -290,7 +289,6 @@ const CustomGroupCard: FC<{
                 />
                 {groups.length > 1 && (
                     <ActionIcon
-                        variant="subtle"
                         color="ldDark.6"
                         mt="xl"
                         onClick={() => {
@@ -352,122 +350,130 @@ export const CustomBinDimensionModal: FC<{
     const toggleModal = () =>
         dispatch(explorerActions.toggleCustomDimensionModal());
 
-    const formSchema = z
-        .object({
-            customDimensionLabel: z.string().refine(
-                (label) => {
-                    if (!label) return true;
-                    if (!item) return true;
-                    if (isEditing && label === item.name) return true;
+    const formSchema = useMemo(
+        () =>
+            z
+                .object({
+                    customDimensionLabel: z.string().refine(
+                        (label) => {
+                            if (!label) return true;
+                            if (!item) return true;
+                            if (isEditing && label === item.name) return true;
 
-                    const dimensionName = sanitizeId(
-                        label,
-                        isEditing && isCustomDimension(item)
-                            ? item.dimensionId
-                            : item.name,
-                    );
+                            const dimensionName = sanitizeId(
+                                label,
+                                isEditing && isCustomDimension(item)
+                                    ? item.dimensionId
+                                    : item.name,
+                            );
 
-                    if (
-                        isEditing &&
-                        isCustomDimension(item) &&
-                        dimensionName === item.id
-                    ) {
-                        return true;
-                    }
+                            if (
+                                isEditing &&
+                                isCustomDimension(item) &&
+                                dimensionName === item.id
+                            ) {
+                                return true;
+                            }
 
-                    return !customDimensions?.some(
-                        (customDimension) =>
-                            customDimension.id === dimensionName,
-                    );
-                },
-                { message: 'Dimension with this label already exists' },
-            ),
-            binType: z.nativeEnum(BinType),
-            binConfig: z.object({
-                fixedNumber: z.object({
-                    binNumber: z.number().positive(),
-                }),
-                fixedWidth: z.object({
-                    binWidth: z.number().positive(),
-                }),
-                customRange: z.array(
-                    z
-                        .object({
-                            from: z.number({ coerce: true }).optional(),
-                            to: z.number({ coerce: true }).optional(),
-                        })
-                        .transform((o) => ({ from: o.from, to: o.to })),
-                ),
-                customGroups: z.array(
-                    z.object({
-                        _id: z.string(),
-                        name: z.string(),
-                        values: z.array(
+                            return !customDimensions?.some(
+                                (customDimension) =>
+                                    customDimension.id === dimensionName,
+                            );
+                        },
+                        { message: 'Dimension with this label already exists' },
+                    ),
+                    binType: z.enum(BinType),
+                    binConfig: z.object({
+                        fixedNumber: z.object({
+                            binNumber: z.number().positive(),
+                        }),
+                        fixedWidth: z.object({
+                            binWidth: z.number().positive(),
+                        }),
+                        customRange: z.array(
+                            z
+                                .object({
+                                    from: z.coerce.number().optional(),
+                                    to: z.coerce.number().optional(),
+                                })
+                                .transform((o) => ({ from: o.from, to: o.to })),
+                        ),
+                        customGroups: z.array(
                             z.object({
                                 _id: z.string(),
-                                matchType: z.nativeEnum(GroupValueMatchType),
-                                value: z.string(),
+                                name: z.string(),
+                                values: z.array(
+                                    z.object({
+                                        _id: z.string(),
+                                        matchType: z.enum(GroupValueMatchType),
+                                        value: z.string(),
+                                    }),
+                                ),
                             }),
                         ),
                     }),
-                ),
-            }),
-        })
-        .superRefine((data, ctx) => {
-            if (data.binType === BinType.CUSTOM_GROUP) {
-                data.binConfig.customGroups.forEach((group, groupIndex) => {
-                    if (group.name.trim().length === 0) {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.too_small,
-                            minimum: 1,
-                            type: 'string',
-                            inclusive: true,
-                            message: 'Group name is required',
-                            path: [
-                                'binConfig',
-                                'customGroups',
-                                groupIndex,
-                                'name',
-                            ],
-                        });
+                })
+                .superRefine((data, ctx) => {
+                    if (data.binType === BinType.CUSTOM_GROUP) {
+                        data.binConfig.customGroups.forEach(
+                            (group, groupIndex) => {
+                                if (group.name.trim().length === 0) {
+                                    ctx.addIssue({
+                                        code: 'too_small',
+                                        minimum: 1,
+                                        origin: 'string',
+                                        inclusive: true,
+                                        message: 'Group name is required',
+                                        path: [
+                                            'binConfig',
+                                            'customGroups',
+                                            groupIndex,
+                                            'name',
+                                        ],
+                                    });
+                                }
+                                if (group.values.length === 0) {
+                                    ctx.addIssue({
+                                        code: 'too_small',
+                                        minimum: 1,
+                                        origin: 'array',
+                                        inclusive: true,
+                                        message:
+                                            'Each group must have at least one value',
+                                        path: [
+                                            'binConfig',
+                                            'customGroups',
+                                            groupIndex,
+                                            'values',
+                                        ],
+                                    });
+                                }
+                                group.values.forEach((value, valueIndex) => {
+                                    if (value.value.trim().length === 0) {
+                                        ctx.addIssue({
+                                            code: 'too_small',
+                                            minimum: 1,
+                                            origin: 'string',
+                                            inclusive: true,
+                                            message: 'Value is required',
+                                            path: [
+                                                'binConfig',
+                                                'customGroups',
+                                                groupIndex,
+                                                'values',
+                                                valueIndex,
+                                                'value',
+                                            ],
+                                        });
+                                    }
+                                });
+                            },
+                        );
                     }
-                    if (group.values.length === 0) {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.too_small,
-                            minimum: 1,
-                            type: 'array',
-                            inclusive: true,
-                            message: 'Each group must have at least one value',
-                            path: [
-                                'binConfig',
-                                'customGroups',
-                                groupIndex,
-                                'values',
-                            ],
-                        });
-                    }
-                    group.values.forEach((value, valueIndex) => {
-                        if (value.value.trim().length === 0) {
-                            ctx.addIssue({
-                                code: z.ZodIssueCode.too_small,
-                                minimum: 1,
-                                type: 'string',
-                                inclusive: true,
-                                message: 'Value is required',
-                                path: [
-                                    'binConfig',
-                                    'customGroups',
-                                    groupIndex,
-                                    'values',
-                                    valueIndex,
-                                    'value',
-                                ],
-                            });
-                        }
-                    });
-                });
-            }
-        });
+                }),
+        [customDimensions, isEditing, item],
+    );
+    const validate = useMemo(() => zodResolver(formSchema), [formSchema]);
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -486,7 +492,7 @@ export const CustomBinDimensionModal: FC<{
                 customGroups: createDefaultCustomGroups(),
             },
         },
-        validate: zodResolver(formSchema),
+        validate,
     });
 
     const { setFieldValue } = form;
@@ -725,6 +731,7 @@ export const CustomBinDimensionModal: FC<{
 
                     {form.values.binType === BinType.FIXED_WIDTH && (
                         <NumberInput
+                            decimalScale="unlimited"
                             w={100}
                             label="Bin width"
                             required
@@ -850,7 +857,6 @@ export const CustomBinDimensionModal: FC<{
                                                 />
 
                                                 <ActionIcon
-                                                    variant="subtle"
                                                     color="ldDark.6"
                                                     onClick={() => {
                                                         const newRange = [

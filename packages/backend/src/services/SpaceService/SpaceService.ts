@@ -1,14 +1,15 @@
 import { subject } from '@casl/ability';
 import {
     AbilityAction,
+    ApiSpaceServiceAccountCandidatesResponse,
     BulkActionable,
     CreateSpace,
     ForbiddenError,
     getHighestSpaceRole,
     NotFoundError,
-    OrganizationMemberRole,
     ParameterError,
-    ProjectMemberRole,
+    PersonalSpaceSummary,
+    RegisteredAccount,
     SessionUser,
     Space,
     SpaceDeleteImpact,
@@ -16,12 +17,19 @@ import {
     SpaceShare,
     SpaceSummary,
     UpdateSpace,
+    UUID,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type SpaceAccess,
+    type SpaceAccessListFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import type { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -41,6 +49,7 @@ type SpaceServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     organizationModel: OrganizationModel;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
     pinnedListModel: PinnedListModel;
     spacePermissionService: SpacePermissionService;
     savedChartService: SavedChartService;
@@ -48,6 +57,7 @@ type SpaceServiceArguments = {
     // EE-only. When the license isn't active the repository leaves this
     // undefined and the cascade skips data apps (there are none to delete).
     appGenerateService: AppGenerateService | undefined;
+    serviceAccountModel?: ServiceAccountModel;
 };
 
 export const hasDirectAccessToSpace = (
@@ -90,6 +100,8 @@ export class SpaceService
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
+
     private readonly pinnedListModel: PinnedListModel;
 
     private readonly spacePermissionService: SpacePermissionService;
@@ -100,6 +112,8 @@ export class SpaceService
 
     private readonly appGenerateService: AppGenerateService | undefined;
 
+    private readonly serviceAccountModel: ServiceAccountModel | undefined;
+
     constructor(args: SpaceServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -107,11 +121,14 @@ export class SpaceService
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.organizationModel = args.organizationModel;
+        this.organizationMemberProfileModel =
+            args.organizationMemberProfileModel;
         this.pinnedListModel = args.pinnedListModel;
         this.spacePermissionService = args.spacePermissionService;
         this.savedChartService = args.savedChartService;
         this.dashboardService = args.dashboardService;
         this.appGenerateService = args.appGenerateService;
+        this.serviceAccountModel = args.serviceAccountModel;
     }
 
     /** @internal For unit testing only */
@@ -121,12 +138,11 @@ export class SpaceService
         space: Pick<SpaceSummary, 'uuid'>,
         action: AbilityAction,
     ): Promise<boolean> {
-        const spaceCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                space.uuid,
-            );
-        // eslint-disable-next-line no-direct-ability-check -- test-only method exercises raw CASL abilities
+        const spaceCtx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: space.uuid },
+        );
+        // eslint-disable-next-line lightdash/no-direct-ability-check -- test-only method exercises raw CASL abilities
         return user.ability.can(action, subject(contentType, spaceCtx));
     }
 
@@ -140,7 +156,10 @@ export class SpaceService
     ): Promise<Space> {
         const space = await this.spaceModel.get(spaceUuid);
         const [ctx, groupsAccess, rawBreadcrumbs] = await Promise.all([
-            this.spacePermissionService.getAllSpaceAccessContext(spaceUuid),
+            this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
+                spaceUuid,
+            }),
             this.spacePermissionService.getGroupAccess(spaceUuid),
             this.spaceModel.getSpaceBreadcrumbs(spaceUuid, space.projectUuid),
         ]);
@@ -159,25 +178,7 @@ export class SpaceService
             hasAccess: accessibleUuids.has(b.uuid),
         }));
 
-        // `resolveSpaceAccess` drops admins from restricted spaces; re-add
-        // them for audit display. A user already in `ctx.access` keeps the
-        // role they were granted directly — admin powers come via CASL.
-        const existingAccessUuids = new Set(ctx.access.map((a) => a.userUuid));
-        const adminAccess: SpaceAccess[] = ctx.admins
-            .filter((admin) => !existingAccessUuids.has(admin.userUuid))
-            .map((admin) => ({
-                userUuid: admin.userUuid,
-                role: SpaceMemberRole.ADMIN,
-                hasDirectAccess: false,
-                projectRole: ProjectMemberRole.ADMIN,
-                inheritedRole:
-                    admin.source === 'organization'
-                        ? OrganizationMemberRole.ADMIN
-                        : ProjectMemberRole.ADMIN,
-                inheritedFrom: admin.source,
-            }));
-
-        const allAccess: SpaceAccess[] = [...ctx.access, ...adminAccess];
+        const allAccess = this.spacePermissionService.mergeAdminAccess(ctx);
 
         const userInfoMap =
             await this.spacePermissionService.getUserMetadataByUuids(
@@ -229,6 +230,112 @@ export class SpaceService
         return this.assembleFullSpace(spaceUuid, user);
     }
 
+    async getPersonalSpace(
+        projectUuid: string,
+        user: SessionUser,
+    ): Promise<PersonalSpaceSummary | null> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.spaceModel.findPersonalSpace(projectUuid, user.userId);
+    }
+
+    async getSpaceAccessList(
+        projectUuid: string,
+        user: SessionUser,
+        spaceUuid: string,
+        {
+            paginateArgs,
+            filters,
+        }: {
+            paginateArgs?: KnexPaginateArgs;
+            filters?: SpaceAccessListFilters;
+        },
+    ): Promise<KnexPaginatedData<SpaceShare[]>> {
+        const space = await this.spaceModel.get(spaceUuid);
+        if (space.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Space with uuid ${spaceUuid} not found`);
+        }
+
+        if (!(await this.spacePermissionService.can('view', user, spaceUuid))) {
+            throw new ForbiddenError();
+        }
+
+        if (filters?.userUuids && filters.userUuids.length > 100) {
+            throw new ParameterError('userUuids accepts at most 100 values');
+        }
+
+        if (filters?.userUuids?.length === 0) {
+            return {
+                data: [],
+                ...(paginateArgs
+                    ? {
+                          pagination: {
+                              ...paginateArgs,
+                              totalPageCount: 0,
+                              totalResults: 0,
+                          },
+                      }
+                    : {}),
+            };
+        }
+
+        return this.spacePermissionService.getPaginatedSpaceAccess(spaceUuid, {
+            paginateArgs,
+            filters,
+            currentUserUuid: user.userUuid,
+        });
+    }
+
+    /**
+     * Space access rows for users outside the space's organization never grant
+     * access (no CASL rule matches them) but would linger as dangling state and
+     * show up in access lists — reject them at the boundary instead.
+     */
+    private async validateSpaceShareTargetUsers(
+        organizationUuid: string,
+        userUuids: string[],
+        includeServiceAccounts = false,
+    ): Promise<void> {
+        const uniqueUserUuids = [...new Set(userUuids)];
+        const memberUuids = new Set(
+            await this.organizationMemberProfileModel.findOrganizationMemberUuids(
+                organizationUuid,
+                uniqueUserUuids,
+            ),
+        );
+        const missingUserUuids = uniqueUserUuids.filter(
+            (userUuid) => !memberUuids.has(userUuid),
+        );
+        const serviceAccounts =
+            includeServiceAccounts && missingUserUuids.length > 0
+                ? await this.serviceAccountModel?.getSpaceShareCandidates(
+                      organizationUuid,
+                      missingUserUuids,
+                  )
+                : [];
+        const serviceAccountUserUuids = new Set(
+            serviceAccounts?.map(({ userUuid }) => userUuid),
+        );
+        if (
+            missingUserUuids.some(
+                (userUuid) => !serviceAccountUserUuids.has(userUuid),
+            )
+        ) {
+            throw new NotFoundError(
+                'Cannot share space: user is not a member of this organization',
+            );
+        }
+    }
+
     async createSpace(
         projectUuid: string,
         user: SessionUser,
@@ -259,6 +366,13 @@ export class SpaceService
             if (parentSpace.projectUuid !== projectUuid) {
                 throw new NotFoundError('Parent space not found');
             }
+        }
+
+        if (space.access && space.access.length > 0) {
+            await this.validateSpaceShareTargetUsers(
+                organizationUuid,
+                space.access.map((access) => access.userUuid),
+            );
         }
 
         let inheritParentPermissions: boolean;
@@ -347,9 +461,9 @@ export class SpaceService
             inheritParentPermissions === false;
 
         if (turnInheritOff) {
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            const ctx = await this.spacePermissionService.resolveAccess(
                 user.userUuid,
-                spaceUuid,
+                { type: 'space', spaceUuid },
             );
             const userAccess = ctx.access.find(
                 (a) => a.userUuid === user.userUuid,
@@ -394,9 +508,12 @@ export class SpaceService
         }
 
         const updatedSpace = await this.assembleFullSpace(spaceUuid, user);
-        const directAccessCount = updatedSpace.access.filter(
-            (a) => a.hasDirectAccess,
-        ).length;
+        const rawDirectAccess =
+            await this.spacePermissionService.getRawDirectAccess([spaceUuid]);
+        const directAccessCount = new Set(
+            rawDirectAccess[spaceUuid]?.users.map(({ userUuid }) => userUuid) ??
+                [],
+        ).size;
 
         const isNested = !!space.parentSpaceUuid;
 
@@ -868,6 +985,30 @@ export class SpaceService
         await this.spaceModel.permanentDelete(spaceUuid);
     }
 
+    async getSpaceServiceAccountCandidates(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        spaceUuid: UUID,
+    ): Promise<ApiSpaceServiceAccountCandidatesResponse['results']> {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+            projectUuid,
+        });
+        if (
+            !(await this.spacePermissionService.can(
+                'manage',
+                toSessionUser(account),
+                space.uuid,
+            ))
+        ) {
+            throw new ForbiddenError();
+        }
+        return (
+            this.serviceAccountModel?.getSpaceShareCandidates(
+                space.organizationUuid,
+            ) ?? []
+        );
+    }
+
     async addSpaceUserAccess(
         user: SessionUser,
         spaceUuid: string,
@@ -879,6 +1020,13 @@ export class SpaceService
         ) {
             throw new ForbiddenError();
         }
+
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        await this.validateSpaceShareTargetUsers(
+            space.organizationUuid,
+            [shareWithUserUuid],
+            true,
+        );
 
         await this.spaceModel.addSpaceAccess(
             spaceUuid,

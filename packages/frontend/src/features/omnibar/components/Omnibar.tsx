@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     getSearchResultId,
     SearchItemType,
@@ -5,20 +6,30 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
+    Button,
+    Group,
+    Kbd,
     Loader,
     Modal,
     rem,
     Stack,
+    Text,
     TextInput,
     Transition,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     useDebouncedValue,
     useDisclosure,
     useHotkeys,
     useScrollIntoView,
 } from '@mantine/hooks';
-import { IconCircleXFilled, IconSearch } from '@tabler/icons-react';
+import {
+    IconSearch,
+    IconSettings,
+    IconTable,
+    IconX,
+} from '@tabler/icons-react';
 import {
     useEffect,
     useMemo,
@@ -28,23 +39,32 @@ import {
 } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/constants';
+import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
+import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProject } from '../../../hooks/useProject';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
+import { useRecentContent } from '../../../hooks/useRecentContent';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
+import useApp from '../../../providers/App/useApp';
+import MantineBaseProvider from '../../../providers/MantineBaseProvider';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useOmnibarSettingsItems } from '../hooks/useOmnibarSettingsItems';
 import useSearch, { hasMinQueryLength } from '../hooks/useSearch';
 import {
-    allSearchItemTypes,
     type FocusedItemIndex,
+    type OmnibarGroup,
     type SearchItem,
 } from '../types/searchItem';
+import { getRecentContentSearchItems } from '../utils/getRecentContentSearchItems';
+import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import classes from './Omnibar.module.css';
 import OmnibarEmptyState from './OmnibarEmptyState';
 import OmnibarFilters from './OmnibarFilters';
 import OmnibarItemGroups from './OmnibarItemGroups';
 import { OmnibarKeyboardNav } from './OmnibarKeyboardNav';
+import OmnibarPreview from './OmnibarPreview';
 import OmnibarTarget from './OmnibarTarget';
 import { getSearchResultsGroupsSorted } from './utils';
 
@@ -56,20 +76,36 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { data: projectData } = useProject(projectUuid);
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { track } = useTracking();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
     const [query, setQuery] = useState<string>();
+    const hasEnteredQuery = query !== undefined && query !== '';
+    const hasEnteredMinQueryLength =
+        hasEnteredQuery && hasMinQueryLength(query);
+    const hasActiveFilters = Boolean(
+        searchFilters?.type ||
+        searchFilters?.verifiedOnly ||
+        searchFilters?.fromDate ||
+        searchFilters?.toDate ||
+        searchFilters?.createdByUuid,
+    );
+
     const [debouncedValue] = useDebouncedValue(query, 300);
     const { targetRef: scrollRef } = useScrollIntoView<HTMLDivElement>(); // couldn't get scroll to work with mantine's function
-    const [openPanels, setOpenPanels] =
-        useState<SearchItemType[]>(allSearchItemTypes);
 
-    const [focusedItemIndex, setFocusedItemIndex] =
-        useState<FocusedItemIndex>();
+    // undefined = default (top hit highlighted); 'input' = the user arrowed
+    // back up to the search input, so no row is highlighted.
+    const [focusedItemIndex, setFocusedItemIndex] = useState<
+        FocusedItemIndex | 'input'
+    >();
 
     const { data: searchResults, isFetching } = useSearch({
         projectUuid,
+        projectUrlIdentifier: projectRoute?.projectUrlIdentifier,
         query: debouncedValue,
         filters: searchFilters,
         source: 'omnibar',
@@ -79,6 +115,50 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =
         useDisclosure(false);
+
+    const { data: recentContent, isInitialLoading: isLoadingRecentContent } =
+        useRecentContent(
+            projectUuid,
+            isOmnibarOpen && !hasEnteredQuery && !hasActiveFilters,
+        );
+    const recentItems = useMemo(
+        () =>
+            getRecentContentSearchItems(
+                recentContent ?? [],
+                projectUrlIdentifier,
+            ),
+        [recentContent, projectUrlIdentifier],
+    );
+
+    const { data: spaceSummaries } = useSpaceSummaries(projectUuid, true, {
+        enabled: isOmnibarOpen,
+    });
+    const spaceNamesByUuid = useMemo(
+        () =>
+            new Map(
+                (spaceSummaries ?? []).map((space) => [space.uuid, space.name]),
+            ),
+        [spaceSummaries],
+    );
+
+    const { user } = useApp();
+    const isAiAgentsEnabled = useAiAgentButtonVisibility();
+    const canManageExplore =
+        user.data?.ability?.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
+    const canManageProject =
+        user.data?.ability?.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
 
     const handleOmnibarOpenInputClick: MouseEventHandler<HTMLInputElement> = (
         e,
@@ -106,15 +186,24 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         openOmnibar();
     };
 
-    useHotkeys([
-        ['mod + k', handleOmnibarOpenHotkey, { preventDefault: true }],
-    ]);
+    useHotkeys(
+        [['mod + k', handleOmnibarOpenHotkey, { preventDefault: true }]],
+        [],
+        true,
+    );
+
+    const handleQuickAction = (pathname: string) => {
+        closeOmnibar();
+        setQuery(undefined);
+        void navigate(pathname);
+    };
 
     const handleOmnibarClose = () => {
         track({
             name: EventName.GLOBAL_SEARCH_CLOSED,
             properties: {
                 action: 'default',
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
         setFocusedItemIndex(undefined);
@@ -128,7 +217,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             name: EventName.SEARCH_RESULT_CLICKED,
             properties: {
                 type: item.type,
-                id: getSearchResultId(item.item),
+                id: item.recentContent?.uuid ?? getSearchResultId(item.item),
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
         // Settings pages always navigate in place, never a new tab.
@@ -136,6 +226,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             window.open(
                 item.location.pathname + (item.location.search || ''),
                 '_blank',
+                'noopener,noreferrer',
             );
             return;
         }
@@ -146,6 +237,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             name: EventName.GLOBAL_SEARCH_CLOSED,
             properties: {
                 action: 'result_click',
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
 
@@ -161,21 +253,20 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         setQuery(undefined);
     };
 
-    const hasEnteredQuery = query !== undefined && query !== '';
-    const hasEnteredMinQueryLength =
-        hasEnteredQuery && hasMinQueryLength(query);
-
-    const sortedGroupEntries = useMemo(() => {
+    const searchGroups = useMemo<OmnibarGroup[]>(() => {
         const contentGroups = searchResults
             ? getSearchResultsGroupsSorted(searchResults)
             : [];
 
+        // Settings are client-side; hide them when a content type is selected
+        // or when Verified is on (settings aren't verifiable content).
         const showSettings =
             settingsItems.length > 0 &&
+            !searchFilters?.verifiedOnly &&
             (!searchFilters?.type ||
                 searchFilters.type === SearchItemType.SETTINGS);
 
-        return showSettings
+        const entries = showSettings
             ? [
                   ...contentGroups,
                   [SearchItemType.SETTINGS, settingsItems] as [
@@ -184,19 +275,105 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                   ],
               ]
             : contentGroups;
-    }, [searchResults, settingsItems, searchFilters?.type]);
 
-    const hasSearchResults = sortedGroupEntries.length > 0;
+        return entries.map(([type, items]) => ({
+            key: type,
+            label: getSearchItemLabel(type),
+            items,
+            totalCount: items.length,
+            collapsed: false,
+        }));
+    }, [
+        searchResults,
+        settingsItems,
+        searchFilters?.type,
+        searchFilters?.verifiedOnly,
+    ]);
+
+    const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<string[]>([]);
+
+    const handleToggleGroup = (key: string) => {
+        setCollapsedGroupKeys((keys) =>
+            keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key],
+        );
+    };
+
+    const displayGroups = useMemo<OmnibarGroup[]>(() => {
+        const groups: OmnibarGroup[] = !hasEnteredQuery
+            ? !hasActiveFilters && recentItems.length > 0
+                ? [
+                      {
+                          key: 'recently-viewed',
+                          label: 'Recently viewed',
+                          items: recentItems,
+                          totalCount: recentItems.length,
+                          collapsed: false,
+                      },
+                  ]
+                : []
+            : !hasEnteredMinQueryLength || !searchResults
+              ? []
+              : searchGroups;
+
+        return groups.map((group) =>
+            collapsedGroupKeys.includes(group.key)
+                ? { ...group, items: [], collapsed: true }
+                : group,
+        );
+    }, [
+        hasEnteredQuery,
+        hasEnteredMinQueryLength,
+        hasActiveFilters,
+        recentItems,
+        searchResults,
+        searchGroups,
+        collapsedGroupKeys,
+    ]);
+
     useEffect(() => {
         setFocusedItemIndex(undefined);
     }, [query, searchFilters]);
 
+    // Default to the first row so Enter works immediately and the preview
+    // panel always has content; clamp stale indices after the groups change.
+    // 'input' means the user arrowed back to the search field — no highlight.
+    const firstNavigableGroupIndex = displayGroups.findIndex(
+        (group) => group.items.length > 0,
+    );
+
+    const highlightedIndex = useMemo<FocusedItemIndex | undefined>(() => {
+        if (firstNavigableGroupIndex === -1) return undefined;
+        if (focusedItemIndex === 'input') return undefined;
+        if (
+            focusedItemIndex &&
+            displayGroups[focusedItemIndex.groupIndex]?.items[
+                focusedItemIndex.itemIndex
+            ]
+        ) {
+            return focusedItemIndex;
+        }
+        return { groupIndex: firstNavigableGroupIndex, itemIndex: 0 };
+    }, [focusedItemIndex, displayGroups, firstNavigableGroupIndex]);
+
+    // The preview keeps showing the top hit even when nothing is highlighted,
+    // and Enter opens it — the pane never goes dead.
+    const focusedItem = highlightedIndex
+        ? displayGroups[highlightedIndex.groupIndex]?.items[
+              highlightedIndex.itemIndex
+          ]
+        : firstNavigableGroupIndex !== -1
+          ? displayGroups[firstNavigableGroupIndex]?.items[0]
+          : undefined;
+
     return (
         <OmnibarKeyboardNav
-            groupedItems={sortedGroupEntries}
+            groupedItems={displayGroups}
             onEnterPressed={handleItemClick}
-            onFocusedItemChange={setFocusedItemIndex}
-            currentFocusedItemIndex={focusedItemIndex}
+            onFocusedItemChange={(index) =>
+                setFocusedItemIndex(index ?? 'input')
+            }
+            currentFocusedItemIndex={highlightedIndex}
+            fallbackEnterItem={focusedItem}
         >
             <Transition
                 mounted={!isOmnibarOpen}
@@ -206,103 +383,246 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             >
                 {(style) => (
                     <OmnibarTarget
-                        placeholder={`Search ${
-                            projectData?.name ?? 'your project'
-                        }`}
+                        placeholder="Search"
                         style={style}
                         onOpen={handleOmnibarOpenInputClick}
                     />
                 )}
             </Transition>
 
-            <Modal
-                withCloseButton={false}
-                size={`calc(${rem(PAGE_CONTENT_WIDTH)} - var(--mantine-spacing-lg) * 2)`}
-                closeOnClickOutside
-                closeOnEscape
-                radius="md"
-                opened={isOmnibarOpen}
-                onClose={handleOmnibarClose}
-                yOffset={100}
-                classNames={{
-                    body: classes.modalBody,
-                }}
-            >
-                <Stack gap={0}>
-                    <TextInput
-                        size="xl"
-                        leftSection={
-                            isFetching ? (
+            {/* The navbar renders inside a forced-dark provider, but this
+                modal portals onto the page — re-anchor the subtree to the
+                app's real color scheme so JS-resolved component colors match
+                the page instead of the navbar. */}
+            <MantineBaseProvider withCssVariables={false}>
+                <Modal
+                    withCloseButton={false}
+                    size={rem(960)}
+                    closeOnClickOutside
+                    closeOnEscape
+                    opened={isOmnibarOpen}
+                    onClose={handleOmnibarClose}
+                    yOffset={100}
+                    classNames={{
+                        content: classes.modalContent,
+                        body: classes.modalBody,
+                    }}
+                >
+                    <Stack gap={0} className={classes.stack}>
+                        <Group
+                            gap="sm"
+                            wrap="nowrap"
+                            className={classes.inputRow}
+                        >
+                            {isFetching || isLoadingRecentContent ? (
                                 <Loader size="xs" color="ldGray.5" />
                             ) : (
-                                <MantineIcon icon={IconSearch} size="lg" />
-                            )
-                        }
-                        rightSection={
-                            query ? (
-                                <ActionIcon
-                                    variant="transparent"
+                                <MantineIcon
+                                    icon={IconSearch}
                                     size="lg"
-                                    color="gray"
+                                    color="dimmed"
+                                />
+                            )}
+                            <TextInput
+                                variant="unstyled"
+                                size="md"
+                                data-autofocus
+                                flex={1}
+                                placeholder={`Search ${
+                                    projectData?.name ?? 'in your project'
+                                }...`}
+                                classNames={{
+                                    input: classes.input,
+                                }}
+                                value={query ?? ''}
+                                onChange={(
+                                    e: React.ChangeEvent<HTMLInputElement>,
+                                ) => setQuery(e.currentTarget.value)}
+                            />
+                            {query ? (
+                                <ActionIcon
+                                    size="sm"
                                     onClick={() => setQuery('')}
                                 >
-                                    <MantineIcon
-                                        icon={IconCircleXFilled}
-                                        size="lg"
-                                    />
+                                    <MantineIcon icon={IconX} size="md" />
                                 </ActionIcon>
-                            ) : null
-                        }
-                        placeholder={`Search ${
-                            projectData?.name ?? 'in your project'
-                        }...`}
-                        classNames={{
-                            wrapper: classes.inputWrapper,
-                            input: classes.input,
-                        }}
-                        value={query ?? ''}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setQuery(e.currentTarget.value)
-                        }
-                    />
+                            ) : null}
+                        </Group>
 
-                    <OmnibarFilters
-                        filters={searchFilters}
-                        onSearchFilterChange={(filters) => {
-                            setSearchFilters(filters);
-                        }}
-                    />
+                        <OmnibarFilters
+                            filters={searchFilters}
+                            onSearchFilterChange={(filters) => {
+                                setSearchFilters(filters);
+                            }}
+                        />
 
-                    {!hasEnteredQuery ? (
-                        <OmnibarEmptyState
-                            message={`Start typing to search for everything in ${
-                                projectData?.name ?? 'your project'
-                            }.`}
-                        />
-                    ) : !hasEnteredMinQueryLength ? (
-                        <OmnibarEmptyState
-                            message={`Keep typing to search for everything in ${
-                                projectData?.name ?? 'your project'
-                            }.`}
-                        />
-                    ) : !searchResults ? (
-                        <OmnibarEmptyState message="Searching..." />
-                    ) : !hasSearchResults ? (
-                        <OmnibarEmptyState message="No results found." />
-                    ) : (
-                        <OmnibarItemGroups
-                            projectUuid={projectUuid}
-                            canUserManageValidation={canUserManageValidation}
-                            openPanels={openPanels}
-                            onOpenPanelsChange={setOpenPanels}
-                            onClick={handleItemClick}
-                            focusedItemIndex={focusedItemIndex}
-                            groupedItems={sortedGroupEntries}
-                            scrollRef={scrollRef}
-                        />
-                    )}
-                </Stack>
-            </Modal>
+                        <Box className={classes.resultsArea}>
+                            {displayGroups.length === 0 ? (
+                                !hasEnteredQuery &&
+                                !hasActiveFilters &&
+                                isLoadingRecentContent ? (
+                                    <OmnibarEmptyState
+                                        variant="loading"
+                                        title="Loading recently viewed..."
+                                    />
+                                ) : !hasEnteredQuery && hasActiveFilters ? (
+                                    <OmnibarEmptyState
+                                        title="Search with these filters"
+                                        hint="Start typing to apply them."
+                                    />
+                                ) : !hasEnteredQuery ? (
+                                    <OmnibarEmptyState
+                                        title={`Search ${
+                                            projectData?.name ?? 'your project'
+                                        }`}
+                                        hint="Find dashboards, charts, spaces, tables, fields and more."
+                                    />
+                                ) : !hasEnteredMinQueryLength ? (
+                                    <OmnibarEmptyState
+                                        title="Keep typing..."
+                                        hint="Search kicks in at 3 characters."
+                                    />
+                                ) : !searchResults ? (
+                                    <OmnibarEmptyState
+                                        variant="loading"
+                                        title="Searching..."
+                                    />
+                                ) : (
+                                    <OmnibarEmptyState
+                                        variant="no-results"
+                                        title={`No results for "${query}"`}
+                                        hint="Try a different term, or adjust the filters."
+                                    />
+                                )
+                            ) : (
+                                <Group
+                                    gap={0}
+                                    wrap="nowrap"
+                                    align="stretch"
+                                    className={classes.resultsRow}
+                                >
+                                    <Box className={classes.listCol}>
+                                        <OmnibarItemGroups
+                                            projectUuid={projectUuid}
+                                            canUserManageValidation={
+                                                canUserManageValidation
+                                            }
+                                            onClick={handleItemClick}
+                                            focusedItemIndex={highlightedIndex}
+                                            onFocusedItemChange={
+                                                setFocusedItemIndex
+                                            }
+                                            onToggleGroup={handleToggleGroup}
+                                            groups={displayGroups}
+                                            scrollRef={scrollRef}
+                                        />
+                                    </Box>
+                                    <OmnibarPreview
+                                        item={focusedItem}
+                                        spaceName={
+                                            focusedItem?.item &&
+                                            'spaceUuid' in focusedItem.item &&
+                                            focusedItem.item.spaceUuid
+                                                ? spaceNamesByUuid.get(
+                                                      focusedItem.item
+                                                          .spaceUuid,
+                                                  )
+                                                : undefined
+                                        }
+                                    />
+                                </Group>
+                            )}
+                        </Box>
+
+                        <Group
+                            className={classes.footer}
+                            gap="lg"
+                            justify="space-between"
+                            wrap="nowrap"
+                        >
+                            <Group gap="lg" wrap="nowrap">
+                                <Group gap="xxs">
+                                    <Kbd size="xs">↑</Kbd>
+                                    <Kbd size="xs">↓</Kbd>
+                                    <Text size="xs" c="dimmed">
+                                        Navigate
+                                    </Text>
+                                </Group>
+                                <Group gap="xxs">
+                                    <Kbd size="xs">↵</Kbd>
+                                    <Text size="xs" c="dimmed">
+                                        Open
+                                    </Text>
+                                </Group>
+                                <Group gap="xxs">
+                                    <Kbd size="xs">esc</Kbd>
+                                    <Text size="xs" c="dimmed">
+                                        Close
+                                    </Text>
+                                </Group>
+                            </Group>
+
+                            <Group gap="two" wrap="nowrap">
+                                {isAiAgentsEnabled && (
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        color="gray"
+                                        leftSection={<AiAgentIcon size={14} />}
+                                        onClick={() =>
+                                            handleQuickAction(
+                                                `/projects/${projectUuid}/ai-agents`,
+                                            )
+                                        }
+                                    >
+                                        Ask AI
+                                    </Button>
+                                )}
+                                {canManageExplore && (
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        color="gray"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconTable}
+                                                strokeWidth={1.5}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            handleQuickAction(
+                                                `/projects/${projectUrlIdentifier}/tables`,
+                                            )
+                                        }
+                                    >
+                                        Run query
+                                    </Button>
+                                )}
+                                {canManageProject && (
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        color="gray"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconSettings}
+                                                strokeWidth={1.5}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            handleQuickAction(
+                                                `/generalSettings/projectManagement/${projectUuid}/settings`,
+                                            )
+                                        }
+                                    >
+                                        Settings
+                                    </Button>
+                                )}
+                            </Group>
+                        </Group>
+                    </Stack>
+                </Modal>
+            </MantineBaseProvider>
         </OmnibarKeyboardNav>
     );
 };

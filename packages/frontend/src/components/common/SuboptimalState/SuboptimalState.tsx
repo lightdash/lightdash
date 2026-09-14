@@ -1,4 +1,4 @@
-import { Box, Loader, Stack, Text, type StackProps } from '@mantine-8/core';
+import { Box, Loader, Stack, Text, type StackProps } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 import classes from './SuboptimalState.module.css';

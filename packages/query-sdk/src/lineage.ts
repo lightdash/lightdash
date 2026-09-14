@@ -26,6 +26,10 @@ export type LineageSelectedMessage = {
 
 export type LineageAvailableMessage = {
     type: 'lightdash:lineage:available';
+    /** Number of stamped elements at announce time. Always ≥ 1 — the parent
+     *  treats announces without it as legacy SDKs that announced with zero
+     *  stamps, and keeps the Inspect-data toggle disabled. */
+    stampCount: number;
 };
 
 const HIGHLIGHT_OUTLINE = '2px solid #7c3aed';
@@ -72,11 +76,13 @@ let stampObserver: MutationObserver | null = null;
 // app never spread `{...lineage}`, leaving a toggle that does nothing.
 function announceIfStamped(): boolean {
     if (availabilityAnnounced) return true;
-    if (!document.querySelector('[data-ld-query]')) return false;
+    const stampCount = document.querySelectorAll('[data-ld-query]').length;
+    if (stampCount === 0) return false;
     availabilityAnnounced = true;
     parentWindow?.postMessage(
         {
             type: 'lightdash:lineage:available',
+            stampCount,
         } satisfies LineageAvailableMessage,
         '*',
     );

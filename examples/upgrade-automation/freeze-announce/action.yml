@@ -1,0 +1,51 @@
+name: Announce upgrade freeze transitions
+description: Announce when a freeze-labelled issue pauses or resumes automated Lightdash upgrades
+inputs:
+  event_action:
+    description: GitHub issues event action
+    required: true
+  issue_url:
+    description: URL of the issue that triggered the event
+    required: true
+  issue_title:
+    description: Title of the issue that triggered the event
+    required: true
+  issue_state:
+    description: Current state of the issue that triggered the event
+    required: true
+  issue_body:
+    description: Body of the issue that triggered the event
+    required: true
+  actor_login:
+    description: Login of the actor that triggered the event
+    required: true
+  label_name:
+    description: Freeze label associated with the triggering event
+    required: true
+  freeze_label:
+    description: Open-issue label that disarms upgrade planning
+    required: true
+  escalation:
+    description: Optional Slack incoming webhook from a repository secret; never commit the URL in plaintext
+    required: false
+    default: ''
+  github_token:
+    description: GitHub token used to inspect open freeze issues
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Announce the upgrade freeze transition
+      shell: bash
+      env:
+        EVENT_ACTION: ${{ inputs.event_action }}
+        ISSUE_URL: ${{ inputs.issue_url }}
+        ISSUE_TITLE: ${{ inputs.issue_title }}
+        ISSUE_STATE: ${{ inputs.issue_state }}
+        ISSUE_BODY: ${{ inputs.issue_body }}
+        ACTOR_LOGIN: ${{ inputs.actor_login }}
+        LABEL_NAME: ${{ inputs.label_name }}
+        FREEZE_LABEL: ${{ inputs.freeze_label }}
+        ESCALATION: ${{ inputs.escalation }}
+        GH_TOKEN: ${{ inputs.github_token }}
+      run: "$GITHUB_ACTION_PATH/../scripts/freeze-announce.sh"

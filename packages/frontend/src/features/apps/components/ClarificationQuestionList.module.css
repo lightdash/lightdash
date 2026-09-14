@@ -1,0 +1,51 @@
+/* Carries its own elevation: it sits on two differently tinted containers. */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    transition:
+        background-color var(--mantine-other-transitionDuration)
+            var(--mantine-other-transitionTimingFunction),
+        border-color var(--mantine-other-transitionDuration)
+            var(--mantine-other-transitionTimingFunction);
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+    }
+}
+
+.field:focus-within {
+    border-color: var(--mantine-color-ldGray-4);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-5);
+    }
+}
+
+/* Answered questions recede so the eye lands on what is still open. */
+.field[data-answered]:not(:focus-within) {
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+    }
+}
+
+/* The sizing `variant="unstyled"` leaves behind, so the answer reads as
+   flowing text rather than an embedded form field. */
+.input {
+    padding: 0;
+    min-height: 0;
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+}

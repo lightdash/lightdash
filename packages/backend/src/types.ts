@@ -12,6 +12,12 @@ export type TrackingParams = {
     userUuid: string;
     organizationUuid: string;
     projectUuid: string;
+    jobUuid?: string;
+};
+
+/** Feature-flag driven compile behaviour, resolved by the caller per user. */
+export type ExploreCompileOptions = {
+    unnestRepeatedColumns: boolean;
 };
 
 export interface ProjectAdapter {
@@ -19,14 +25,22 @@ export interface ProjectAdapter {
      * Compile all explores
      * @param trackingParams - Optional tracking parameters to track the compilation and lightdash project config (lightdash.config.yml) overrides
      * @param loadSources - Whether to load source information for each explore
-     * @param allowPartialCompilation - When true, fields that fail to compile will be marked with errors instead of failing the entire explore
+     * @param allowPartialCompilation - When false, a field compilation failure fails the entire explore. Defaults to true.
      * @returns A promise that resolves to an array of explores or explore errors
      */
     compileAllExplores(
         trackingParams: TrackingParams | undefined,
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
+        compileOptions?: ExploreCompileOptions,
     ): Promise<(Explore | ExploreError)[]>;
+
+    prepareExploreStream(
+        trackingParams: TrackingParams | undefined,
+        loadSources?: boolean,
+        allowPartialCompilation?: boolean,
+        compileOptions?: ExploreCompileOptions,
+    ): Promise<AsyncIterable<Explore | ExploreError>>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;
 
@@ -67,6 +81,8 @@ export interface DbtClient {
     getSelector(): string | undefined;
 
     test(): Promise<void>;
+
+    cleanup?(): Promise<void>;
 }
 
 export type CachedWarehouse = {

@@ -34,7 +34,14 @@ type SpaceContentRow = SummaryContentRow<{
 export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) => {
+            // Only dashboards have owners
+            if (filters.ownerUserUuids) return false;
             if (filters.contentTypes?.includes(ContentType.SPACE)) {
+                return true;
+            }
+            // Spaces are opt-in for browse queries, but a uuid-targeted lookup
+            // names its exact items, so silently excluding a type is never right
+            if (filters.uuids?.length && !filters.contentTypes) {
                 return true;
             }
             // Include spaces in deleted content "all" view
@@ -112,6 +119,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     knex.raw(`null::uuid as verified_by_user_uuid`),
                     knex.raw(`null as verified_by_user_first_name`),
                     knex.raw(`null as verified_by_user_last_name`),
+                    knex.raw(`null::uuid as owner_user_uuid`),
+                    knex.raw(`null as owner_user_first_name`),
+                    knex.raw(`null as owner_user_last_name`),
+                    knex.raw(`null as owner_user_email`),
                     knex.raw(`json_build_object(
                         'dashboardCount', (${
                             filters.includeDescendantCounts
@@ -248,10 +259,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                 `${SpaceTableName}.space_uuid`,
                                 filters.spaceUuids ?? [],
                             );
-                            // When searching, match spaces at any nesting level
-                            // to stay consistent with global search. The
-                            // space_uuid filter above already enforces access.
-                            if (!filters.search) {
+                            // When searching or resolving explicit uuids, match
+                            // spaces at any nesting level. The space_uuid filter
+                            // above already enforces access.
+                            if (!filters.search && !filters.uuids?.length) {
                                 void builder.andWhereRaw('nlevel(path) = 1');
                             }
                         } else {

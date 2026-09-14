@@ -14,6 +14,29 @@ export const resolveExportTabs = (
 };
 
 /**
+ * Orders tiles the way the dashboard reads: tabs left to right (by `order`),
+ * then top-to-bottom / left-to-right within each tab. Orphan (no-tab) tiles
+ * sort with the first tab, matching where per-tab exports render them.
+ */
+export const sortTilesByDashboardOrder = <
+    T extends { tabUuid?: string | null; x: number; y: number },
+>(
+    tiles: T[],
+    tabs: DashboardTab[],
+): T[] => {
+    const tabPositions = new Map(
+        [...tabs]
+            .sort((a, b) => a.order - b.order)
+            .map((t, index) => [t.uuid, index]),
+    );
+    const position = (tile: T): number =>
+        (tile.tabUuid ? tabPositions.get(tile.tabUuid) : undefined) ?? 0;
+    return [...tiles].sort(
+        (a, b) => position(a) - position(b) || a.y - b.y || a.x - b.x,
+    );
+};
+
+/**
  * The tab that hosts orphan (legacy, no-tab) tiles in a per-tab export: the
  * first tab in resolved render order. Orphans render on this tab's page.
  * Null when nothing renders. Keying on the first RESOLVED tab (not the literal

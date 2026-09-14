@@ -1,6 +1,32 @@
-import { getHumanReadableCronExpression, isValidFrequency } from './scheduler';
+import {
+    getCronCadence,
+    getHumanReadableCronExpression,
+    isValidFrequency,
+} from './scheduler';
 
 describe('Scheduler utils', () => {
+    describe('getCronCadence', () => {
+        test('Should name the cadence of the expressions the delivery form builds', () => {
+            expect(getCronCadence('0 * * * *')).toEqual('hourly');
+            expect(getCronCadence('30 * * * *')).toEqual('hourly');
+            expect(getCronCadence('0 9 * * *')).toEqual('daily');
+            expect(getCronCadence('0 9 * * 1')).toEqual('weekly');
+            expect(getCronCadence('0 9 1 * *')).toEqual('monthly');
+            expect(getCronCadence('0 9 22 6 *')).toEqual('yearly');
+        });
+
+        test('Should return undefined when no single word describes the expression', () => {
+            expect(getCronCadence('0 9 * * 1,4')).toBeUndefined();
+            expect(getCronCadence('0 9 * * 1-5')).toBeUndefined();
+            expect(getCronCadence('*/15 * * * *')).toBeUndefined();
+            expect(getCronCadence('* * * * *')).toBeUndefined();
+            expect(getCronCadence('0 9 1 * 1')).toBeUndefined();
+            expect(getCronCadence('0 9 * 6 1')).toBeUndefined();
+            expect(getCronCadence('not a cron')).toBeUndefined();
+            expect(getCronCadence('0 9 * *')).toBeUndefined();
+        });
+    });
+
     describe('getHumanReadableCronExpression', () => {
         test('Should convert human readable cron expression with UTC', async () => {
             expect(getHumanReadableCronExpression('* * * * *', 'UTC')).toEqual(

@@ -1,4 +1,8 @@
-import { PromotionAction, type CustomRoleAsCode } from '@lightdash/common';
+import {
+    LightdashError,
+    PromotionAction,
+    type CustomRoleAsCode,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as os from 'os';
@@ -229,5 +233,28 @@ describe('custom roles as code', () => {
             'Unknown custom role scopes: delete:VirtualViewsss',
         );
         expect(lightdashApi).toHaveBeenCalledTimes(2);
+    });
+
+    it('skips custom roles when the target has no Enterprise license', async () => {
+        await writeCustomRole('role.yml', customRole('Enterprise role'));
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new LightdashError({
+                message: 'Custom roles require a Lightdash Enterprise license',
+                name: 'ForbiddenError',
+                statusCode: 403,
+                data: {},
+            }),
+        );
+
+        const summary = await uploadCustomRoles('organization-uuid', tmpDir);
+
+        expect(summary).toMatchObject({
+            created: 0,
+            updated: 0,
+            unchanged: 0,
+            skipped: 1,
+            failed: 0,
+            failures: [],
+        });
     });
 });

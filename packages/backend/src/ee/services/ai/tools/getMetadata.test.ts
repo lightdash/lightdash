@@ -71,7 +71,10 @@ const execute = async (
         NonNullable<ReturnType<typeof getGetMetadata>['execute']>
     >[0]['requests'],
 ): Promise<ExecuteResult> => {
-    const tool = getGetMetadata({ availableExplores: [explore] });
+    const tool = getGetMetadata({
+        availableExplores: [explore],
+        projectParameterDefinitions: {},
+    });
     const result = await tool.execute!(
         { requests },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,6 +140,38 @@ describe('getMetadata group AI hints', () => {
             'hint: Use for zephyr settlement questions.',
         );
     });
+
+    it('ignores malformed explore, field, and group hints', async () => {
+        const explore = makeExplore({});
+        explore.aiHint = { invalid: true } as unknown as string[];
+        explore.tables.orders.dimensions.status.aiHint = [
+            'Valid field hint.',
+            { Formula: 'clicks + keys' },
+        ] as unknown as string[];
+        explore.tables.orders.dimensions.status.groups = ['settlements'];
+        explore.tables.orders.groupDetails = {
+            settlements: {
+                label: 'Settlements',
+                aiHint: { invalid: true } as unknown as string[],
+            },
+        };
+
+        const exploreResult = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+        const fieldResult = await execute(explore, [
+            {
+                type: 'field',
+                fields: [{ exploreId: 'sales', fieldId: 'orders_status' }],
+            },
+        ]);
+
+        expect(exploreResult.metadata).toEqual({ status: 'success' });
+        expect(exploreResult.result).not.toContain('[object Object]');
+        expect(fieldResult.metadata).toEqual({ status: 'success' });
+        expect(fieldResult.result).toContain('hint: Valid field hint.');
+        expect(fieldResult.result).not.toContain('[object Object]');
+    });
 });
 
 describe('getMetadata explore field listing', () => {
@@ -189,6 +224,49 @@ describe('getMetadata explore field listing', () => {
         expect(result.result).toBe(
             'Field "orders_secret" not found in explore "sales".',
         );
+    });
+
+    it('redirects to explores where a missing field is actually reachable', async () => {
+        // The agent frequently pairs a real fieldId (surfaced by grepFields
+        // across the whole catalog) with the wrong explore. A bare "not found"
+        // is a dead end that sends it back to grep in a loop; the error must
+        // say where the field IS reachable.
+        const sales = makeExplore({});
+        const billing: Explore = {
+            ...sales,
+            name: 'billing',
+            label: 'Billing',
+            tables: {
+                orders: {
+                    ...sales.tables.orders,
+                    dimensions: {},
+                },
+            },
+        };
+
+        const tool = getGetMetadata({
+            availableExplores: [billing, sales],
+            projectParameterDefinitions: {},
+        });
+        const result = (await tool.execute!(
+            {
+                requests: [
+                    {
+                        type: 'field',
+                        fields: [
+                            { exploreId: 'billing', fieldId: 'orders_status' },
+                        ],
+                    },
+                ],
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {} as any,
+        )) as ExecuteResult;
+
+        expect(result.result).toContain(
+            'Field "orders_status" not found in explore "billing"',
+        );
+        expect(result.result).toContain('It IS available in: sales');
     });
 
     it('truncates very wide base tables with a "+N more" marker', async () => {
@@ -288,12 +366,129 @@ describe('getMetadata default time dimensions', () => {
                     },
                 ],
             },
-            { availableExplores: [explore] },
+            { availableExplores: [explore], projectParameterDefinitions: {} },
         );
         expect(structured.structuredContent.fields[0]).toMatchObject({
             status: 'found',
             defaultTimeDimension: 'orders_created_at',
             defaultTimeDimensionGranularity: 'orders_created_at_month',
+        });
+    });
+});
+
+describe('getMetadata parameters', () => {
+    const makeParameterizedExplore = (): Explore => {
+        const explore = makeExplore({});
+        explore.tables.orders.parameters = {
+            metric: {
+                label: 'Metric',
+                description: 'Switches what Selected Metric returns',
+                options: ['revenue', 'active_users'],
+                default: 'revenue',
+            },
+        };
+        explore.tables.orders.dimensions.selected_metric = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.NUMBER,
+            name: 'selected_metric',
+            label: 'Selected Metric',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: "${ld.parameters.orders.metric} = 'revenue'",
+            hidden: false,
+            source: undefined,
+            compiledSql: "'revenue' = 'revenue'",
+            tablesReferences: ['orders'],
+            parameterReferences: ['orders.metric'],
+        };
+        return explore;
+    };
+
+    it('renders referenced parameter definitions on the explore', async () => {
+        const result = await execute(makeParameterizedExplore(), [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(result.result).toContain('⚠ parameters');
+        expect(result.result).toContain('orders.metric');
+        expect(result.result).toContain('default: "revenue"');
+        expect(result.result).toContain('options: revenue, active_users');
+    });
+
+    it('omits the parameters block when nothing references one', async () => {
+        const result = await execute(makeExplore({}), [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(result.result).not.toContain('⚠ parameters');
+    });
+
+    it('includes referenced project-level parameter definitions', () => {
+        const explore = makeExplore({});
+        explore.tables.orders.dimensions.status.parameterReferences = [
+            'region',
+        ];
+
+        const structured = executeGetMetadata(
+            { requests: [{ type: 'explore', exploreIds: ['sales'] }] },
+            {
+                availableExplores: [explore],
+                projectParameterDefinitions: {
+                    region: {
+                        label: 'Region',
+                        type: 'string',
+                        default: 'emea',
+                    },
+                },
+            },
+        );
+
+        expect(structured.structuredContent.explores[0]).toMatchObject({
+            status: 'found',
+            parameters: [
+                {
+                    name: 'region',
+                    label: 'Region',
+                    type: 'string',
+                    default: 'emea',
+                    options: null,
+                },
+            ],
+        });
+    });
+
+    it('marks parameter-driven fields with their required parameters', async () => {
+        const explore = makeParameterizedExplore();
+        const result = await execute(explore, [
+            {
+                type: 'field',
+                fields: [
+                    { exploreId: 'sales', fieldId: 'orders_selected_metric' },
+                ],
+            },
+        ]);
+
+        expect(result.result).toContain('⚠ requires parameters: orders.metric');
+
+        const structured = executeGetMetadata(
+            {
+                requests: [
+                    {
+                        type: 'field',
+                        fields: [
+                            {
+                                exploreId: 'sales',
+                                fieldId: 'orders_selected_metric',
+                            },
+                        ],
+                    },
+                ],
+            },
+            { availableExplores: [explore], projectParameterDefinitions: {} },
+        );
+        expect(structured.structuredContent.fields[0]).toMatchObject({
+            status: 'found',
+            requiredParameters: ['orders.metric'],
         });
     });
 });

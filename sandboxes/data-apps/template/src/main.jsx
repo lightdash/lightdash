@@ -10,9 +10,14 @@ import {
 } from '@lightdash/query-sdk';
 import { FilterProvider } from '@/lib/filters';
 import { ErrorBoundary } from '@/lib/ErrorBoundary';
-import App from './App';
+// Base tokens must be imported before ./App: any stylesheet the app imports
+// from a component lands after these in the bundle, and `:root` and `.dark`
+// have equal specificity — so whichever comes last wins. Import App first and
+// the template's light `:root` overrides the app's own `.dark`, pinning it to
+// light no matter what the host sends.
 import './index.css';
 import './chart-overrides.css';
+import App from './App';
 import initScreenshotHandler from './screenshotHandler';
 
 const queryClient = new QueryClient({

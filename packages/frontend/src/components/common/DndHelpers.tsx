@@ -1,5 +1,5 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { Box, useMantineTheme } from '@mantine-8/core';
+import { Box, useMantineTheme } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 
 export const DraggableItem: FC<{

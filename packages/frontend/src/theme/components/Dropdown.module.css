@@ -1,0 +1,37 @@
+/* Dropdowns grow out of their anchor: the transform origin follows the
+   resolved placement so the pop transition reads as opening from the target. */
+.dropdown {
+    transform-origin: var(--ld-dropdown-origin, center);
+}
+
+.dropdown[data-position^='bottom'] {
+    --ld-dropdown-origin: top center;
+}
+
+.dropdown[data-position='bottom-start'] {
+    --ld-dropdown-origin: top left;
+}
+
+.dropdown[data-position='bottom-end'] {
+    --ld-dropdown-origin: top right;
+}
+
+.dropdown[data-position^='top'] {
+    --ld-dropdown-origin: bottom center;
+}
+
+.dropdown[data-position='top-start'] {
+    --ld-dropdown-origin: bottom left;
+}
+
+.dropdown[data-position='top-end'] {
+    --ld-dropdown-origin: bottom right;
+}
+
+.dropdown[data-position^='left'] {
+    --ld-dropdown-origin: right center;
+}
+
+.dropdown[data-position^='right'] {
+    --ld-dropdown-origin: left center;
+}

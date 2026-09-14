@@ -16,8 +16,7 @@ import {
     type Header,
     type Table,
 } from '@tanstack/react-table';
-import { type FC } from 'react';
-import { type CSSProperties } from 'styled-components';
+import { type CSSProperties, type FC } from 'react';
 import { type JsonCellValue } from '../JsonViewer/utils';
 
 export type HeaderProps = { header: Header<ResultRow, any> };
@@ -42,6 +41,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         draggable?: boolean;
         item?: Field | TableCalculation | CustomDimension;
         labelOverride?: string;
+        headerContext?: string;
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;

@@ -1,4 +1,4 @@
-Manage Docker dev environment. Args: (none) = show status & help, `start` = auto-detect and setup, `stop` = stop this instance, `stop-all` = stop everything, `reset` = reset db from snapshot, `rebuild` = full db rebuild, `snapshot [name]` = save db snapshot, `list-snapshots` = list snapshots, `restore <name>` = restore named snapshot, `list-instances` = show all instances.
+Manage Docker dev environment. Args: (none) = show status & help, `start` = auto-detect and setup, `stop` = stop this instance, `destroy` = permanently remove this instance, `stop-all` = stop everything, `reset` = reset db from snapshot, `rebuild` = full db rebuild, `snapshot [name]` = save db snapshot, `list-snapshots` = list snapshots, `restore <name>` = restore named snapshot, `list-instances` = show all instances.
 
 **NEVER use `scripts/reset-db.sh`** — it requires a local `psql` client which is not available. Instead, use `docker exec` to run psql inside the container, then run migrate/seed via pnpm.
 
@@ -6,9 +6,10 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 
 - **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
 - **`start`**: Bring this instance up. First runs **Step P: Instance profile selection** (capability multi-select → write secrets/flags), then the deterministic `scripts/dev-fast-start.sh` (idempotent, non-interactive); only falls back to agentic setup + **self-repair** if the script fails. Bootstraps new instances fast from a shared base snapshot.
-- **`start <profiles>`**: Provision for named capabilities, comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
+- **`start <profiles>`**: Provision selected profiles (`github`, `ee`, `slack`, `newux`), comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
 - **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): The EE profile — provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`), runs the EE migration/seed pass, and **bundles all AI features** (Copilot/agents, AI writeback, reviews classifier) plus the GitHub integration so writeback is turnkey. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`. EE instances bootstrap from a dedicated EE base snapshot (`ld-shared_postgres_base_ee`) so they skip the slow EE migrate pass.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
+- **`destroy`**: Permanently remove this instance's PM2 processes, PostgreSQL containers, volumes, and port slot. Use when removing a worktree.
 - **`stop-all`**: Stop ALL instances — all PM2 processes, all per-instance PostgreSQL containers, shared services, and release all port slots. Use when shutting down for the day.
 - **`reset`**: Restore database from this instance's volume snapshot (fast, ~3 seconds). Fails if no snapshot exists.
 - **`rebuild`**: Full database reset from scratch (drop schema, migrate, seed, dbt). Takes a new snapshot when done.
@@ -33,7 +34,7 @@ This gives you:
 - `$LD_COMPOSE_PROJECT` — docker compose project name
 - `$LD_VOLUME_PREFIX` / `$LD_CONTAINER_PREFIX` — prefixes for volumes and containers
 - `$LD_PG_PORT` — per-instance PostgreSQL port
-- `$PORT`, `$FE_PORT`, `$SCHEDULER_PORT`, `$DEBUG_PORT`, `$SDK_TEST_PORT`, `$SPOTLIGHT_PORT`, `$LIGHTDASH_PROMETHEUS_PORT` — per-instance app ports
+- `$PORT`, `$FE_PORT`, `$SCHEDULER_PORT`, `$DEBUG_PORT`, `$SDK_TEST_PORT`, `$MAPLE_PORT`, `$LIGHTDASH_PROMETHEUS_PORT` — per-instance app ports
 - `$PGPORT`, `$SITE_URL`, `$S3_ENDPOINT`, `$HEADLESS_BROWSER_PORT`, `$EMAIL_SMTP_PORT` — app config (shared ports hardcoded: S3=9000, browser=3001, SMTP=1025)
 
 **Shared services** (minio, headless-browser, mailpit, nats) run once on fixed ports via `docker-compose.dev.shared.yml`. Only PostgreSQL is per-instance via `docker-compose.dev.instance.yml`.
@@ -54,6 +55,7 @@ Then run the **State Detection** checks below and present the results as a statu
 Available commands:
   /docker-dev start          Auto-detect and start what's needed
   /docker-dev stop           Stop this instance (preserves data)
+  /docker-dev destroy        Permanently remove this instance
   /docker-dev stop-all       Stop ALL instances and shared services
   /docker-dev reset          Restore db from snapshot (~3s)
   /docker-dev rebuild        Full db rebuild from scratch
@@ -159,13 +161,16 @@ fi
 PM2_PROC=$(pm2 jlist 2>/dev/null | python3 -c "
 import sys, json
 procs = json.load(sys.stdin)
-instance_procs = [p for p in procs if p['name'].startswith('${LD_INSTANCE_ID}-')]
+service_names = ['api', 'api-routes-watch', 'scheduler', 'frontend', 'common-watch', 'formula-watch', 'warehouses-watch', 'sdk-test', 'maple']
+# Exact names avoid prefix-named sibling instances.
+expected = {'${LD_INSTANCE_ID}-' + service for service in service_names}
+instance_procs = [p for p in procs if p['name'] in expected]
 if instance_procs:
     cwd = instance_procs[0]['pm2_env']['pm_cwd']
     root = cwd.rsplit('/packages/', 1)[0] if '/packages/' in cwd else cwd
     print(f'RUNNING:{root}')
 else:
-    other = [p for p in procs if not p['name'].startswith('${LD_INSTANCE_ID}-')]
+    other = [p for p in procs if p['name'] not in expected]
     if other:
         print('OTHER')
     else:
@@ -290,17 +295,22 @@ template, so Docker is the working local path anyway. Public docs:
 
 ### Setup (one-time per machine)
 
-1. **Build the two local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
-   `lightdash-ai-writeback:local` ~5GB for writeback; rebuild only when the toolchain changes):
+1. **Build the three local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
+   `lightdash-ai-writeback:local` ~5GB for writeback, `lightdash-agent-onboarding:local`
+   ~2.2GB for managed onboarding runs; rebuild only when the toolchain changes).
+   `dev-fast-start.sh` builds any that are missing whenever the env file has
+   `SANDBOX_PROVIDER=docker`, so normally there is nothing to do by hand:
    ```bash
    ./sandboxes/data-apps/build-local-image.sh        # -> lightdash-sandbox:local
    ./sandboxes/ai-writeback/build-local-image.sh     # -> lightdash-ai-writeback:local
+   ./sandboxes/agent-onboarding/build-local-image.sh # -> lightdash-agent-onboarding:local
    ```
 2. **Env** (the `ee` profile writes `SANDBOX_PROVIDER=docker`; the image vars default, set only to override):
    ```bash
    SANDBOX_PROVIDER=docker
    # SANDBOX_DOCKER_IMAGE=lightdash-sandbox:local
    # SANDBOX_AI_WRITEBACK_DOCKER_IMAGE=lightdash-ai-writeback:local
+   # SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE=lightdash-agent-onboarding:local
    ```
    Requires `ANTHROPIC_API_KEY` (agent) and MinIO up (snapshots tar to object storage).
 
@@ -313,6 +323,12 @@ template, so Docker is the working local path anyway. Public docs:
   show `SANDBOX_PROVIDER=docker`.
 - **After an OrbStack/Docker restart**, MinIO + NATS may not come back (gen needs MinIO) and
   the graphile worker can zombie — re-run shared compose up and restart the scheduler.
+- **A sandbox feature failing with `(HTTP code 404) ... No such image: lightdash-<name>:local`**
+  means that local image was never built on this machine (each new sandbox type ships its own
+  image — agent-onboarding arrived with #25902). Run the matching
+  `./sandboxes/<dir>/build-local-image.sh`, or re-run `./scripts/dev-fast-start.sh`, which
+  builds missing sandbox images automatically. No PM2 restart needed — the image is resolved
+  at container launch.
 
 ### Verify
 
@@ -336,7 +352,9 @@ To switch a local instance to E2B instead, add `E2B_API_KEY` and set `SANDBOX_PR
 
 ### Step P: Instance profile selection (run BEFORE the fast path)
 
-`start` provisions an instance for a set of *capabilities* (EE, AI agents, AI writeback, GitHub, reviews classifier, Slack). Each capability declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`. Resolve the selection, pull secrets from 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
+`start` provisions an instance from the `github`, `ee`, `slack`, and `newux` profiles. Each profile declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`; AI features are bundled into `ee`. Resolve the selection, pull secrets from 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
+
+`newux` is the new-onboarding profile and is required when testing the new onboarding or ask-AI flows.
 
 **1. Determine requested profiles.**
 - If the user named them (e.g. `/docker-dev start ee`, `start ee,slack`, `start github`), use those. The AI tier is Core vs EE — `ee` bundles all AI features.
@@ -420,7 +438,7 @@ Then the reconcile steps:
 
 Interpreting the result:
 
-- **Exit 0, ends with `READY: ...`** → done. Report the printed frontend/API/Spotlight URLs and start the **Monitor watchers** (see "Monitor Logs with Monitor Tool"). **Do not run any of the agentic steps below** — the environment is up.
+- **Exit 0, ends with `READY: ...`** → done. Report the printed frontend/API/Maple URLs and start the **Monitor watchers** (see "Monitor Logs with Monitor Tool"). **Do not run any of the agentic steps below** — the environment is up.
 - **Non-zero exit with a `FAIL: <step> -- <reason>` line** → enter **self-repair** (next section). Do NOT blindly re-run the script; diagnose first.
 
 The script prints `STEP:`/`OK:`/`SKIP:` markers so you can see exactly how far it got. Steady-state runs (everything cached) finish in well under a minute; a fresh worktree pays for `pnpm install` + builds once.
@@ -494,6 +512,8 @@ fi
 
 ### Create Environment File
 
+The authoritative key list is `reconcile_env` in `scripts/dev-fast-start.sh`. This template is the first-boot fallback before that script reconciles the environment file.
+
 ```bash
 cat > .env.development.local << EOF
 # Local development overrides (instance: ${LD_INSTANCE_ID})
@@ -505,7 +525,8 @@ FE_PORT=${FE_PORT}
 SCHEDULER_PORT=${SCHEDULER_PORT}
 DEBUG_PORT=${DEBUG_PORT}
 SDK_TEST_PORT=${SDK_TEST_PORT}
-SPOTLIGHT_PORT=${SPOTLIGHT_PORT}
+MAPLE_PORT=${MAPLE_PORT}
+MAPLE_LOCAL_URL=http://127.0.0.1:${MAPLE_PORT}
 LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
 SITE_URL=http://localhost:${FE_PORT}
 S3_ENDPOINT=http://localhost:9000
@@ -529,6 +550,11 @@ LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
 # Allow registering fresh users/orgs (signup flow testing). Always on by default
 # in dev — without it, POST /api/v1/user 403s once the seed org exists.
 ALLOW_MULTIPLE_ORGS=true
+
+# tsc watchers run with a soft Go memory cap (GOMEMLIMIT, default 1500MiB;
+# override with LD_WATCHER_GOMEMLIMIT). Optional hard backstop below — keep it
+# well above the soft cap or it kill-loops mid-rebuild. See ecosystem.config.js:
+# LD_WATCHER_MEMORY_CAP=4G
 EOF
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
@@ -591,9 +617,9 @@ Symptom if you forget: you change a flag, restart, and nothing changes. \`pm2 jl
 
 ## Debugging
 
-Use the \`/debug-local\` skill for comprehensive debugging combining PM2 logs, Spotlight traces, and browser automation.
+Use the \`/debug-local\` skill for comprehensive debugging combining PM2 logs, Maple traces, and browser automation.
 
-Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
+Maple trace UI: http://localhost:${MAPLE_PORT}
 
 ## Database Snapshots
 
@@ -610,7 +636,7 @@ Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
 - **Backend API**: http://localhost:${PORT}
 - **Demo login**: \`demo@lightdash.com\` / \`demo_password!\`
 - **Mailpit** (email inbox): http://localhost:8025
-- **Spotlight** (traces): http://localhost:${SPOTLIGHT_PORT}
+- **Maple** (traces): http://localhost:${MAPLE_PORT}
 
 ## Service Ports (this instance)
 
@@ -623,7 +649,7 @@ Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
 | MinIO             | 9000/9001 |                                    |
 | Headless Browser  | 3001      |                                    |
 | Mailpit           | 8025/1025 | http://localhost:8025         |
-| Spotlight         | ${SPOTLIGHT_PORT}      | http://localhost:${SPOTLIGHT_PORT}             |
+| Maple (traces)    | ${MAPLE_PORT}      | http://localhost:${MAPLE_PORT}             |
 EOF
 ````
 
@@ -768,7 +794,12 @@ fi
 If PM2 shows `MISMATCH`, delete this instance's processes first:
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+# One name per call — `pm2 delete a b c` aborts at the first name it cannot
+# find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
+# every later name running.
+for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
+  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
+done
 ```
 
 Then start:
@@ -810,7 +841,7 @@ pm2 logs "${LD_INSTANCE_ID}-frontend" --raw 2>/dev/null | grep --line-buffered -
 **Launch both monitors in parallel** (two Monitor tool calls in a single message). They filter for actionable signals only — not raw log streams — so you won't be overwhelmed.
 
 If a monitor fires, investigate the error. Common responses:
-- **EADDRINUSE**: Port conflict — run `./scripts/dev-ports.sh gc` then restart the process
+- **EADDRINUSE**: Port conflict — run `./scripts/dev-ports.sh gc` (or `gc --dry-run` to preview; both sweep orphaned instance volumes) then restart the process
 - **Cannot find module**: Missing build — run `pnpm -F common build`
 - **ECONNREFUSED on 5432**: PostgreSQL container down — restart with `docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml up -d`
 - **TypeErrors/build failures**: Code issue — read the full log with `pm2 logs ${LD_INSTANCE_ID}-api --lines 50 --nostream`
@@ -901,45 +932,39 @@ Restart Claude Code to load the new `statusLine` command. If there's no command-
 
 ## `stop`: Stop This Instance
 
-Stop this instance's services. Shared services and other instances are not affected.
+Stop this instance and release its port slot. Shared services and other instances are not affected.
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
-
-docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
-
-./scripts/dev-ports.sh release
+./scripts/dev-stop.sh stop
 ```
+
+Volumes are kept — sweep orphans with `./scripts/dev-ports.sh gc`.
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps.</details>
+
+---
+
+## `destroy`: Permanently Remove This Instance
+
+Permanently remove this instance's services, PostgreSQL volumes, named snapshots, and port slot.
+
+```bash
+./scripts/dev-stop.sh destroy
+```
+
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps and volume guards.</details>
 
 ---
 
 ## `stop-all`: Stop Everything
 
-Stop ALL instances, shared services, and release all port slots.
+Stop all registered instances and shared services, then release all port slots.
 
 ```bash
-# Delete only Lightdash instance PM2 processes (not unrelated PM2 apps)
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
-  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-formula-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
-done
-
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  PROJECT=$(python3 -c "import json; print(json.load(open('$f'))['composeProject'])")
-  docker compose -p "$PROJECT" -f docker/docker-compose.dev.instance.yml down 2>/dev/null || true
-done
-
-docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml down
-
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  rm "$f"
-done
-
-echo "All instances and shared services stopped."
+./scripts/dev-stop.sh stop-all
 ```
+
+Volumes are kept — sweep orphans with `./scripts/dev-ports.sh gc`.
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps.</details>
 
 ---
 
@@ -1101,6 +1126,8 @@ docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml --env-file .
 ```
 
 ### Port Conflicts
+
+`gc` also sweeps orphaned per-instance PostgreSQL data and snapshot volumes; use `gc --dry-run` to preview its changes.
 
 ```bash
 ./scripts/dev-ports.sh list

@@ -109,6 +109,13 @@ const deleteDesignFileApi = async (args: {
         body: undefined,
     });
 
+const deleteAllDesignFilesApi = async (designUuid: string) =>
+    lightdashApi<null>({
+        url: `/org/designs/${designUuid}/files`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
 export const useOrganizationDesigns = ({
     enabled = true,
 }: { enabled?: boolean } = {}) =>
@@ -299,4 +306,29 @@ export const useDeleteDesignFile = () => {
             });
         },
     });
+};
+
+export const useDeleteAllDesignFiles = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<null, ApiError, string>(
+        (designUuid) => deleteAllDesignFilesApi(designUuid),
+        {
+            mutationKey: ['delete_all_org_design_files'],
+            onSuccess: async (_result, designUuid) => {
+                await queryClient.invalidateQueries([ORG_DESIGNS_QUERY_KEY]);
+                await queryClient.invalidateQueries([
+                    ORG_DESIGN_QUERY_KEY,
+                    designUuid,
+                ]);
+                showToastSuccess({ title: 'All files deleted' });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to delete files',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };

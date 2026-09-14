@@ -24,21 +24,24 @@ export type ConditionalFormattingTextStyle = {
     underline?: boolean;
 };
 
-export type ConditionalFormattingWithValues<T = number | string> =
+export type ConditionalFormattingWithValues<T = number | string | boolean> =
     BaseFilterRule<FilterOperator, T> & {
         /** Values to compare against */
         values: T[];
     };
 
-export type ConditionalFormattingWithCompareTarget<T = number | string> =
-    BaseFilterRule<FilterOperator, T> & {
-        /** Target field to compare against */
-        compareTarget: FieldTarget | null;
-        /** Values to compare against */
-        values?: T[];
-    };
+export type ConditionalFormattingWithCompareTarget<
+    T = number | string | boolean,
+> = BaseFilterRule<FilterOperator, T> & {
+    /** Target field to compare against */
+    compareTarget: FieldTarget | null;
+    /** Values to compare against */
+    values?: T[];
+};
 
-export type ConditionalFormattingWithFilterOperator<T = number | string> =
+export type ConditionalFormattingWithFilterOperator<
+    T = number | string | boolean,
+> =
     | ConditionalFormattingWithValues<T>
     | ConditionalFormattingWithCompareTarget<T>;
 
@@ -57,8 +60,16 @@ export type ConditionalFormattingConfigWithSingleColor = {
     color: string;
     /** Color for dark mode */
     darkColor?: string;
-    /** Rules for single-color conditional formatting */
-    rules: ConditionalFormattingWithFilterOperator[];
+    /** Rules for single-color conditional formatting.
+     * The number|string members are redundant for TypeScript (absorbed by the
+     * boolean-capable defaults) but keep the pre-boolean schema components in
+     * the generated OpenAPI anyOf, so the API change stays expand-only. */
+    rules: Array<
+        | ConditionalFormattingWithValues<number | string>
+        | ConditionalFormattingWithCompareTarget<number | string>
+        | ConditionalFormattingWithValues
+        | ConditionalFormattingWithCompareTarget
+    >;
     /** Apply formatting to cell background or text */
     applyTo?: ConditionalFormattingColorApplyTo;
     /** Text styling (bold/italic/underline) applied to matching cell text */

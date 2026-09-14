@@ -1,6 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { Button, Tooltip } from '@mantine/core';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
@@ -56,8 +55,6 @@ export const ExploreMetricButton = ({ row }: Props) => {
 
     return (
         <Tooltip
-            withinPortal
-            variant="xs"
             label="Click to view this in the Metrics Explorer"
             openDelay={200}
             maw={250}
@@ -65,13 +62,11 @@ export const ExploreMetricButton = ({ row }: Props) => {
         >
             <Button
                 size="compact-sm"
-                variant="dark"
                 onClick={handleExploreClick}
                 py="xxs"
                 px={10}
                 h={32}
                 fz="sm"
-                fw={500}
             >
                 Explore
             </Button>

@@ -6,7 +6,9 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    canUseEmbeddedChartBuilder,
     convertSdkFilterToDashboardFilter,
+    haveSdkFiltersChanged,
     shouldDeferSdkFilters,
 } from './utils';
 
@@ -32,6 +34,41 @@ const baseFilter = {
     operator: `${FilterOperator.EQUALS}` as const,
     value: 'bank_transfer',
 };
+
+describe('canUseEmbeddedChartBuilder', () => {
+    it('allows the chart builder when the write actor can update the dashboard and create charts', () => {
+        expect(
+            canUseEmbeddedChartBuilder({
+                canWriteDashboard: true,
+                canCreateSavedChart: true,
+                canExplore: true,
+            }),
+        ).toBe(true);
+    });
+
+    it.each([
+        {
+            canWriteDashboard: false,
+            canCreateSavedChart: true,
+            canExplore: true,
+        },
+        {
+            canWriteDashboard: true,
+            canCreateSavedChart: false,
+            canExplore: true,
+        },
+        {
+            canWriteDashboard: true,
+            canCreateSavedChart: true,
+            canExplore: false,
+        },
+    ])(
+        'denies the chart builder when a required ability is missing',
+        (args) => {
+            expect(canUseEmbeddedChartBuilder(args)).toBe(false);
+        },
+    );
+});
 
 describe('convertSdkFilterToDashboardFilter', () => {
     it('returns empty tileTargets when filterableFieldsByTileUuid is not provided', () => {
@@ -125,6 +162,31 @@ describe('convertSdkFilterToDashboardFilter', () => {
                 tableName: 'payments',
             },
         });
+    });
+});
+
+describe('haveSdkFiltersChanged', () => {
+    it('detects when a filter value changes', () => {
+        expect(
+            haveSdkFiltersChanged(
+                [baseFilter],
+                [{ ...baseFilter, value: 'credit_card' }],
+            ),
+        ).toBe(true);
+    });
+
+    it('ignores a new array containing equivalent filters', () => {
+        expect(haveSdkFiltersChanged([baseFilter], [{ ...baseFilter }])).toBe(
+            false,
+        );
+    });
+
+    it('detects when all filters are removed', () => {
+        expect(haveSdkFiltersChanged([baseFilter], [])).toBe(true);
+    });
+
+    it('detects the initial empty SDK filter set', () => {
+        expect(haveSdkFiltersChanged(undefined, [])).toBe(true);
     });
 });
 

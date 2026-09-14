@@ -1,9 +1,15 @@
 // Stub the e2b/ai SDKs so the tests never reach a real sandbox or model client.
 import {
+    ChartType,
     DATA_APP_VIZ_TEMPLATE,
+    ForbiddenError,
+    getUserAbilityBuilder,
     NotFoundError,
+    OrganizationMemberRole,
+    ParameterError,
     type DataAppVizSchema,
 } from '@lightdash/common';
+import { verifyPreviewToken } from '../../../routers/appPreviewToken';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -28,16 +34,19 @@ const vizSchema: DataAppVizSchema = {
         { name: 'value', label: 'Value', type: 'metric', required: true },
     ],
     configOptions: [],
+    colorPalette: null,
 };
 
 const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     app_id: 'data-app-viz-1',
+    slug: 'radial-gauge',
     name: 'Radial gauge',
     description: 'A radial gauge renderer',
     project_uuid: 'project-1',
     space_uuid: null,
     sandbox_id: null,
     template: DATA_APP_VIZ_TEMPLATE,
+    icon: null,
     viz_schema: vizSchema,
     design_uuid: null,
     upstream_app_uuid: null,
@@ -51,12 +60,31 @@ const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     ...overrides,
 });
 
-function buildService(appModel: unknown) {
+const testLightdashSecrets = {
+    active: 'test-secret',
+    fallbacks: [],
+    all: ['test-secret'],
+};
+
+function buildService(
+    appModel: unknown,
+    overrides: {
+        savedChartModel?: unknown;
+        savedChartService?: unknown;
+    } = {},
+) {
     const service = new AppGenerateService({
-        lightdashConfig: {} as never,
+        lightdashConfig: {
+            lightdashSecret: 'test-secret',
+            lightdashSecrets: testLightdashSecrets,
+            // No app-runtime storage configured, so the bundle-existence
+            // check fails open and metadata comes from the DB alone.
+            appRuntime: { s3: null },
+        } as never,
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -70,15 +98,27 @@ function buildService(appModel: unknown) {
         } as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
+        savedChartModel: (overrides.savedChartModel ?? {}) as never,
         schedulerClient: {} as never,
-        savedChartService: {} as never,
-        spacePermissionService: {} as never,
+        savedChartService: (overrides.savedChartService ?? {}) as never,
+        spacePermissionService: {
+            resolveAccess: vi.fn().mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [],
+            }),
+        } as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
-        externalConnectionModel: {} as never,
+        externalConnectionModel: {
+            getBrowserImageOrigins: vi.fn().mockResolvedValue([]),
+        } as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
@@ -88,6 +128,71 @@ function buildService(appModel: unknown) {
         cannot: () => false,
     });
     return service;
+}
+
+/**
+ * A service whose ability is the real thing, so the rules under test are the
+ * ones that ship.
+ */
+function buildServiceWithRealAbility(
+    appModel: unknown,
+    role: OrganizationMemberRole,
+    userUuid: string,
+    overrides: { savedChartModel?: unknown; savedChartService?: unknown } = {},
+) {
+    const service = buildService(appModel, overrides);
+    const { builder } = getUserAbilityBuilder({
+        user: {
+            role,
+            organizationUuid: 'org-1',
+            userUuid,
+            roleUuid: undefined,
+        },
+        projectProfiles: [],
+        permissionsConfig: { pat: { enabled: false, allowedOrgRoles: [] } },
+    });
+    // Drop buildService's allow-everything stub so the real rules apply.
+    delete (service as unknown as { createAuditedAbility?: unknown })
+        .createAuditedAbility;
+    return {
+        service,
+        user: {
+            userUuid,
+            organizationUuid: 'org-1',
+            ability: builder.build(),
+        } as never,
+    };
+}
+
+function buildServiceWithCustomSavedChartRole(
+    appModel: unknown,
+    userUuid: string,
+    overrides: { savedChartModel?: unknown; savedChartService?: unknown } = {},
+) {
+    const service = buildService(appModel, overrides);
+    const customRoleUuid = 'custom-saved-chart-viewer';
+    const { builder } = getUserAbilityBuilder({
+        user: {
+            role: OrganizationMemberRole.MEMBER,
+            organizationUuid: 'org-1',
+            userUuid,
+            roleUuid: customRoleUuid,
+        },
+        projectProfiles: [],
+        permissionsConfig: { pat: { enabled: false, allowedOrgRoles: [] } },
+        customRoleScopes: { [customRoleUuid]: ['view:SavedChart'] },
+        customRolesEnabled: true,
+    });
+    delete (service as unknown as { createAuditedAbility?: unknown })
+        .createAuditedAbility;
+    return {
+        service,
+        user: {
+            userUuid,
+            organizationUuid: 'org-1',
+            ability: builder.build(),
+        } as never,
+    };
 }
 
 describe('AppGenerateService data app vizs', () => {
@@ -120,6 +225,7 @@ describe('AppGenerateService data app vizs', () => {
             data: [
                 {
                     dataAppVizUuid: 'data-app-viz-1',
+                    slug: 'radial-gauge',
                     name: 'Radial gauge',
                     description: 'A radial gauge renderer',
                     projectUuid: 'project-1',
@@ -127,9 +233,73 @@ describe('AppGenerateService data app vizs', () => {
                     schema: vizSchema,
                     createdAt: new Date('2026-06-30'),
                     createdByUserUuid: 'user-1',
+                    icon: null,
                 },
             ],
             pagination,
+        });
+    });
+
+    describe('who the library is offered to', () => {
+        const listPagination = {
+            page: 1,
+            pageSize: 25,
+            totalPageCount: 1,
+            totalResults: 3,
+        };
+        const rows = [
+            makeDataAppVizRow({
+                app_id: 'mine-unfiled',
+                space_uuid: null,
+                created_by_user_uuid: 'editor-1',
+            }),
+            makeDataAppVizRow({
+                app_id: 'someone-elses-unfiled',
+                space_uuid: null,
+                created_by_user_uuid: 'someone-else',
+            }),
+            makeDataAppVizRow({
+                app_id: 'in-someone-elses-space',
+                space_uuid: 'space-1',
+                created_by_user_uuid: 'someone-else',
+            }),
+        ];
+        const wholeLibrary = rows.map((row) => row.app_id);
+        const listed = async (role: OrganizationMemberRole) => {
+            const appModel = {
+                listDataAppVisualizations: vi.fn().mockResolvedValue({
+                    data: rows,
+                    pagination: listPagination,
+                }),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                role,
+                'editor-1',
+            );
+            const result = await service.listDataAppVisualizations(
+                user,
+                'project-1',
+                { page: 1, pageSize: 25 },
+            );
+            return result.data.map((viz) => viz.dataAppVizUuid);
+        };
+
+        // The library follows the explore: whoever can build a chart is offered
+        // every renderer in the project, whether or not they authored it.
+        it.each([
+            OrganizationMemberRole.INTERACTIVE_VIEWER,
+            OrganizationMemberRole.EDITOR,
+            OrganizationMemberRole.DEVELOPER,
+            OrganizationMemberRole.ADMIN,
+        ])('offers the whole project library to a %s', async (role) => {
+            expect(await listed(role)).toEqual(wholeLibrary);
+        });
+
+        it('refuses a viewer, who has no explore to render one in', async () => {
+            await expect(listed(OrganizationMemberRole.VIEWER)).rejects.toThrow(
+                ForbiddenError,
+            );
         });
     });
 
@@ -176,6 +346,671 @@ describe('AppGenerateService data app vizs', () => {
         ).rejects.toThrow(NotFoundError);
     });
 
+    describe('reading a schema at a version', () => {
+        // The options a version declares live on that version's row, so an
+        // older one describes a different chart than the latest ready.
+        const olderSchema: DataAppVizSchema = {
+            fields: [
+                {
+                    name: 'category',
+                    label: 'Category',
+                    type: 'dimension',
+                    required: true,
+                },
+            ],
+            configOptions: [
+                {
+                    name: 'showLegend',
+                    label: 'Show legend',
+                    type: 'boolean',
+                    default: true,
+                },
+            ],
+            colorPalette: null,
+        };
+
+        const olderVersionRow = (overrides: Record<string, unknown> = {}) => ({
+            app_version_id: 'app-version-2',
+            app_id: 'data-app-viz-1',
+            version: 2,
+            prompt: 'add a legend toggle',
+            status: 'ready',
+            error: null,
+            status_message: null,
+            status_history: [],
+            status_updated_at: new Date('2026-06-30'),
+            resources: null,
+            dependencies: null,
+            viz_schema: olderSchema,
+            generation_usage: null,
+            created_at: new Date('2026-06-30'),
+            created_by_user_uuid: 'user-1',
+            ...overrides,
+        });
+
+        it('answers with the asked-for version schema, not the latest ready one', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn().mockResolvedValue(olderVersionRow()),
+            };
+            const service = buildService(appModel);
+
+            const result = await service.getDataAppVisualization(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+                2,
+            );
+
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(result.schema).toEqual(olderSchema);
+        });
+
+        it('answers with the latest ready schema when no version is asked for', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const service = buildService(appModel);
+
+            const result = await service.getDataAppVisualization(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+            );
+
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+            expect(result.schema).toEqual(vizSchema);
+        });
+
+        it('404s a version that never became renderable', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(
+                        olderVersionRow({ status: 'error', viz_schema: null }),
+                    ),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVisualization(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).rejects.toThrow(NotFoundError);
+        });
+    });
+
+    describe('viz-only render metadata', () => {
+        const makeVersion = (overrides: Record<string, unknown> = {}) => ({
+            app_version_id: 'app-version-1',
+            app_id: 'data-app-viz-1',
+            version: 1,
+            prompt: 'build a chart',
+            status: 'ready',
+            error: null,
+            status_message: null,
+            status_history: [],
+            status_updated_at: new Date('2026-06-30'),
+            resources: null,
+            dependencies: null,
+            viz_schema: vizSchema,
+            generation_usage: null,
+            created_at: new Date('2026-06-30'),
+            created_by_user_uuid: 'user-1',
+            ...overrides,
+        });
+
+        const chartDeps = (
+            dataAppVizUuid: string | undefined = 'data-app-viz-1',
+            hasAccess = vi.fn().mockResolvedValue([]),
+        ) => ({
+            savedChartService: { hasAccess },
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue({
+                    uuid: 'chart-1',
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: { dataAppVizUuid },
+                    },
+                }),
+            },
+        });
+
+        it('lets an interactive viewer preview a viz while authoring', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestVersion: vi.fn().mockResolvedValue(makeVersion()),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion()),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                OrganizationMemberRole.INTERACTIVE_VIEWER,
+                'interactive-1',
+            );
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toMatchObject({ state: 'ready', version: 1 });
+        });
+
+        it('forbids a plain viewer from the chart-less authoring preview', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                OrganizationMemberRole.VIEWER,
+                'viewer-1',
+            );
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.getDataAppVizPreviewToken(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                    1,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        it('forbids a view:SavedChart-only custom role from the authoring preview', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const { service, user } = buildServiceWithCustomSavedChartRole(
+                appModel,
+                'custom-viewer-1',
+            );
+
+            await expect(
+                service.getDataAppVizPreviewToken(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                    1,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        it('authorizes the saved chart when rendering it, ignoring the viz row space', async () => {
+            const appModel = {
+                findVisualizationApp: vi.fn().mockResolvedValue(
+                    makeDataAppVizRow({
+                        created_by_user_uuid: 'author-1',
+                        space_uuid: 'private-space-1',
+                    }),
+                ),
+                getLatestVersion: vi.fn().mockResolvedValue(makeVersion()),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion()),
+            };
+            const hasAccess = vi.fn().mockResolvedValue([]);
+            const service = buildService(
+                appModel,
+                chartDeps('data-app-viz-1', hasAccess),
+            );
+
+            await expect(
+                service.getChartDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toMatchObject({ state: 'ready', version: 1 });
+            expect(hasAccess).toHaveBeenCalledWith(
+                'view',
+                { user: USER, projectUuid: 'project-1' },
+                { savedChartUuid: 'chart-1' },
+            );
+        });
+
+        it('renders the project chart type version pinned by the saved chart', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            };
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: 'data-app-viz-1',
+                                dataAppVizVersion: 2,
+                            },
+                        },
+                    }),
+                },
+            });
+
+            await expect(
+                service.getChartDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toMatchObject({ state: 'ready', version: 2 });
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+        });
+
+        it('rejects a preview token for a version other than the saved chart pin', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            };
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: 'data-app-viz-1',
+                                dataAppVizVersion: 2,
+                            },
+                        },
+                    }),
+                },
+            });
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    4,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        it('rejects a historical preview token for an unpinned legacy chart', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel, chartDeps('data-app-viz-1'));
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('propagates the chart denial and mints no token', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const hasAccess = vi
+                .fn()
+                .mockRejectedValue(new ForbiddenError('no chart access'));
+            const service = buildService(
+                appModel,
+                chartDeps('data-app-viz-1', hasAccess),
+            );
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    1,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        it('authorizes against the requested chart version, not the latest', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const get = vi.fn().mockResolvedValue({
+                uuid: 'chart-1',
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'data-app-viz-1',
+                        dataAppVizVersion: 2,
+                    },
+                },
+            });
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: { get },
+            });
+
+            await expect(
+                service.getChartDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    'chart-version-7',
+                ),
+            ).resolves.toMatchObject({ state: 'ready', version: 2 });
+            expect(get).toHaveBeenCalledWith('chart-1', 'chart-version-7', {
+                projectUuid: 'project-1',
+            });
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+        });
+
+        it('rejects a chart that does not reference the requested viz', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const service = buildService(appModel, chartDeps('another-viz'));
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    1,
+                ),
+            ).rejects.toThrow('Not authorized to access this visualization');
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        it('resolves the template-filtered viz before checking the feature flag', async () => {
+            const appModel = {
+                findVisualizationApp: vi.fn().mockResolvedValue(undefined),
+            };
+            const service = buildService(appModel);
+            const dataAppsEnabledFor = vi.spyOn(service, 'dataAppsEnabledFor');
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'non-visualization-data-app',
+                ),
+            ).rejects.toMatchObject({
+                message: 'Data app visualization not found',
+            });
+
+            expect(dataAppsEnabledFor).not.toHaveBeenCalled();
+        });
+
+        it('resolves the template-filtered viz before validating a token version', async () => {
+            const appModel = {
+                findVisualizationApp: vi.fn().mockResolvedValue(undefined),
+            };
+            const service = buildService(appModel);
+            const dataAppsEnabledFor = vi.spyOn(service, 'dataAppsEnabledFor');
+
+            await expect(
+                service.getDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'non-visualization-data-app',
+                    0,
+                ),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(dataAppsEnabledFor).not.toHaveBeenCalled();
+        });
+
+        it('rejects a real viz when data apps are disabled', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            };
+            const service = buildService(appModel);
+            vi.spyOn(service, 'dataAppsEnabledFor').mockResolvedValue(false);
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('serves the last renderable version while the latest build is in progress', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeVersion({ version: 3, status: 'building' }),
+                    ),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toEqual({
+                state: 'ready',
+                version: 2,
+                schema: vizSchema,
+                latestBuildInProgress: true,
+            });
+        });
+
+        it('returns building when no renderable version exists and the latest build is in progress', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ status: 'generating' })),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(null),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toEqual({
+                state: 'building',
+                latestBuildInProgress: true,
+            });
+        });
+
+        it.each([
+            makeVersion({ status: 'error', viz_schema: null }),
+            makeVersion({ status: 'ready', viz_schema: null }),
+            null,
+        ])(
+            'returns failed when no renderable version or active build exists',
+            async (latestVersion) => {
+                const appModel = {
+                    findVisualizationApp: vi
+                        .fn()
+                        .mockResolvedValue(makeDataAppVizRow()),
+                    getLatestVersion: vi.fn().mockResolvedValue(latestVersion),
+                    getLatestRenderableDataAppVizVersion: vi
+                        .fn()
+                        .mockResolvedValue(null),
+                };
+                const service = buildService(appModel);
+
+                await expect(
+                    service.getDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'data-app-viz-1',
+                    ),
+                ).resolves.toEqual({
+                    state: 'failed',
+                    latestBuildInProgress: false,
+                });
+            },
+        );
+
+        it('mints a token for the exact requested renderable version', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel);
+
+            const token = await service.getDataAppVizPreviewToken(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+                2,
+            );
+
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(
+                verifyPreviewToken(
+                    token,
+                    testLightdashSecrets,
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).toMatchObject({
+                ok: true,
+                payload: {
+                    appUuid: 'data-app-viz-1',
+                    version: 2,
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                },
+            });
+        });
+
+        it.each([
+            null,
+            makeVersion({ status: 'building' }),
+            makeVersion({ viz_schema: null }),
+        ])('rejects a non-renderable requested version', async (appVersion) => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn().mockResolvedValue(appVersion),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).rejects.toMatchObject({
+                message: 'Renderable data app visualization version not found',
+            });
+        });
+    });
+
     it('surfaces viz_schema per version as resources.vizSchema', async () => {
         const makeVersion = (overrides: Record<string, unknown> = {}) => ({
             app_version_id: 'app-version-1',
@@ -194,6 +1029,7 @@ describe('AppGenerateService data app vizs', () => {
             ...overrides,
         });
         const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({ app_id: 'app-1' }),
             getAppWithVersions: vi.fn().mockResolvedValue({
                 name: 'a',
                 description: '',
@@ -223,5 +1059,163 @@ describe('AppGenerateService data app vizs', () => {
 
         expect(res.versions[0].resources?.vizSchema).toEqual(vizSchema);
         expect(res.versions[1].resources?.vizSchema ?? null).toBeNull();
+    });
+});
+
+describe('moving a viz into a space', () => {
+    it('rejects moveToSpace for viz-template apps before any access checks', async () => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(makeDataAppVizRow()),
+            moveToSpace: vi.fn(),
+        };
+        const service = buildService(appModel);
+
+        await expect(
+            service.moveToSpace(USER, {
+                projectUuid: 'project-1',
+                itemUuid: 'data-app-viz-1',
+                targetSpaceUuid: 'space-1',
+            }),
+        ).rejects.toThrow('Custom chart types cannot be moved into spaces');
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('still moves standalone apps', async () => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(
+                makeDataAppVizRow({
+                    template: null,
+                    space_uuid: 'space-0',
+                }),
+            ),
+            moveToSpace: vi.fn().mockResolvedValue(undefined),
+        };
+        const service = buildService(appModel);
+
+        await service.moveToSpace(
+            USER,
+            {
+                projectUuid: 'project-1',
+                itemUuid: 'data-app-viz-1',
+                targetSpaceUuid: 'space-1',
+            },
+            { trackEvent: false },
+        );
+        expect(appModel.moveToSpace).toHaveBeenCalledWith(
+            {
+                appId: 'data-app-viz-1',
+                projectUuid: 'project-1',
+                targetSpaceUuid: 'space-1',
+            },
+            { tx: undefined },
+        );
+    });
+});
+
+describe('choosing a chart type icon', () => {
+    const buildIconService = (app: Record<string, unknown>) => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(app),
+            updateApp: vi
+                .fn()
+                .mockImplementation(async (_appId, _projectUuid, update) => ({
+                    ...app,
+                    ...update,
+                })),
+        };
+        return { service: buildService(appModel), appModel };
+    };
+
+    it('rejects an icon on an app that is not a chart type', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ template: null, registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {
+                icon: 'chart-pie',
+            }),
+        ).rejects.toThrow('Only custom chart types can have an icon');
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('rejects an icon that is not in the curated set', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {
+                icon: 'skull' as never,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('sets a curated icon', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { icon: 'gauge' },
+        );
+
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+            { icon: 'gauge' },
+        );
+        expect(result.icon).toBe('gauge');
+    });
+
+    it('clears the icon with null', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null, icon: 'gauge' }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { icon: null },
+        );
+
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+            { icon: null },
+        );
+        expect(result.icon).toBeNull();
+    });
+
+    it('reads an icon retired from the curated set back as none', async () => {
+        const { service } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null, icon: 'retired-icon' }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { name: 'Renamed' },
+        );
+
+        expect(result.icon).toBeNull();
+    });
+
+    it('requires at least one of name, description or icon', async () => {
+        const { service } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {}),
+        ).rejects.toThrow(
+            'At least one of name, description or icon must be provided',
+        );
     });
 });

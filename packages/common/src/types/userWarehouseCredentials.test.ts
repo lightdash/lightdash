@@ -1,4 +1,57 @@
-import { bigquerySsoUserCredentialsSchema } from './userWarehouseCredentials';
+import {
+    bigquerySsoUserCredentialsSchema,
+    snowflakeUserCredentialsSchema,
+} from './userWarehouseCredentials';
+
+describe('snowflakeUserCredentialsSchema', () => {
+    it.each([
+        {
+            type: 'snowflake',
+            user: 'snowflake-user',
+            authenticationType: 'password',
+            password: 'password',
+        },
+        {
+            type: 'snowflake',
+            user: 'snowflake-user',
+            authenticationType: 'private_key',
+            privateKey: 'private-key',
+        },
+        {
+            type: 'snowflake',
+            authenticationType: 'sso',
+            refreshToken: 'refresh-token',
+        },
+    ])('accepts supported credentials: $authenticationType', (credentials) => {
+        expect(
+            snowflakeUserCredentialsSchema.safeParse(credentials).success,
+        ).toBe(true);
+    });
+
+    it.each([
+        {
+            type: 'snowflake',
+            user: 'snowflake-user',
+            authenticationType: 'password',
+            password: '',
+        },
+        {
+            type: 'snowflake',
+            user: 'snowflake-user',
+            authenticationType: 'private_key',
+            privateKey: '',
+        },
+        {
+            type: 'snowflake',
+            authenticationType: 'sso',
+            refreshToken: '',
+        },
+    ])('rejects empty secrets: $authenticationType', (credentials) => {
+        expect(
+            snowflakeUserCredentialsSchema.safeParse(credentials).success,
+        ).toBe(false);
+    });
+});
 
 describe('bigquerySsoUserCredentialsSchema', () => {
     it('rejects an empty keyfile (the reported bug value)', () => {

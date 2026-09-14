@@ -55,6 +55,7 @@ export type CodeResourceUploadSummary = {
     created: number;
     updated: number;
     unchanged: number;
+    skipped?: number;
     failed: number;
     failures: CodeFileFailure[];
 };
@@ -161,10 +162,12 @@ export const writeCodeResourceDocuments = async <Document>({
     definition,
     basePath,
     documents,
+    pruneOtherDocuments,
 }: {
     definition: CodeResourceDefinition<Document>;
     basePath: string;
     documents: Document[];
+    pruneOtherDocuments: boolean;
 }): Promise<void> => {
     const sortedDocuments = definition.sort
         ? [...documents].sort(definition.sort)
@@ -218,24 +221,26 @@ export const writeCodeResourceDocuments = async <Document>({
         ),
     );
 
-    const downloadedIdentities = new Set(
-        sortedDocuments.map((document) =>
-            normalizeIdentity(definition, definition.identity(document)),
-        ),
-    );
-    await Promise.all(
-        current.files
-            .filter(
-                ({ document }) =>
-                    !downloadedIdentities.has(
-                        normalizeIdentity(
-                            definition,
-                            definition.identity(document),
+    if (pruneOtherDocuments) {
+        const downloadedIdentities = new Set(
+            sortedDocuments.map((document) =>
+                normalizeIdentity(definition, definition.identity(document)),
+            ),
+        );
+        await Promise.all(
+            current.files
+                .filter(
+                    ({ document }) =>
+                        !downloadedIdentities.has(
+                            normalizeIdentity(
+                                definition,
+                                definition.identity(document),
+                            ),
                         ),
-                    ),
-            )
-            .map(({ filePath }) => fs.unlink(filePath)),
-    );
+                )
+                .map(({ filePath }) => fs.unlink(filePath)),
+        );
+    }
 };
 
 export const downloadCodeResource = async <Document>({
@@ -248,7 +253,12 @@ export const downloadCodeResource = async <Document>({
     list: () => Promise<Document[]>;
 }): Promise<number> => {
     const documents = await list();
-    await writeCodeResourceDocuments({ definition, basePath, documents });
+    await writeCodeResourceDocuments({
+        definition,
+        basePath,
+        documents,
+        pruneOtherDocuments: true,
+    });
     return documents.length;
 };
 
@@ -274,10 +284,12 @@ export const uploadCodeResource = async <Document>({
     definition,
     basePath,
     upsert,
+    skipError,
 }: {
     definition: CodeResourceDefinition<Document>;
     basePath: string;
     upsert: (document: Document) => Promise<ContentAsCodeUpsertAction>;
+    skipError?: (error: unknown) => boolean;
 }): Promise<CodeResourceUploadSummary> => {
     const { files, failures } = await readCodeResourceFiles({
         definition,
@@ -294,9 +306,13 @@ export const uploadCodeResource = async <Document>({
         try {
             summary[getActionCountKey(await upsert(document))] += 1;
         } catch (error) {
-            summary.failures.push({
-                message: `Invalid ${definition.displayLabel} file "${filePath}": ${getErrorMessage(error)}`,
-            });
+            if (skipError?.(error)) {
+                summary.skipped = (summary.skipped ?? 0) + 1;
+            } else {
+                summary.failures.push({
+                    message: `Invalid ${definition.displayLabel} file "${filePath}": ${getErrorMessage(error)}`,
+                });
+            }
         }
     }
     summary.failed = summary.failures.length;

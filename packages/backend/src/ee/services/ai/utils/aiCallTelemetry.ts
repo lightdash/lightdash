@@ -1,5 +1,8 @@
 import type { LanguageModel } from 'ai';
-import type { AiCallFeature } from '../../../../analytics/aiUsage';
+import type {
+    AiCallFeature,
+    AiKeyManagement,
+} from '../../../../analytics/aiUsage';
 
 export type { AiCallFeature };
 
@@ -18,11 +21,14 @@ export type AiCallAttribution = {
     userUuid?: string | null;
     model?: string | null;
     provider?: string | null;
+    // Whether the call ran on a Lightdash-managed key or the org's own key.
+    keyManagement?: AiKeyManagement | null;
 };
 
 /**
  * The AI SDK provider id (e.g. `amazon-bedrock`) doesn't always match our
- * configured provider vocabulary (`openai/azure/anthropic/bedrock/openrouter`)
+ * configured provider vocabulary
+ * (`openai/azure/anthropic/google/bedrock/openrouter`)
  * that cost accounting joins on. Normalize the mismatches here so the same
  * provider gets one label across LLM and embedding rows.
  */
@@ -33,7 +39,8 @@ const normalizeProvider = (provider: string): string =>
  * Model name + provider attribution derived from an AI SDK model object.
  * The SDK provider id is dot-namespaced (e.g. `azure.chat`,
  * `amazon-bedrock`); the first segment (after normalization) matches our
- * configured provider names (openai/azure/anthropic/bedrock/openrouter), which
+ * configured provider names
+ * (openai/azure/anthropic/google/bedrock/openrouter), which
  * is what cost accounting joins on — the same model name bills differently per
  * provider. Bare string models carry no provider information.
  */
@@ -56,6 +63,13 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
     functionId: string;
     feature: AiCallFeature;
     /**
+     * The key origin for the call. This field is necessary, unlike the optional
+     * `keyManagement` on AiCallAttribution. Use a Lightdash-managed key, a
+     * self-managed (BYO) key, or null. Use null only for a path that does not
+     * record the key origin, for example embeddings or internal evaluations.
+     */
+    keyManagement: AiKeyManagement | null;
+    /**
      * Record the prompt/response content on the span. Gated separately from span
      * emission because content can contain user data — emission (token usage +
      * attribution) is always on, content capture is opt-in.
@@ -74,6 +88,7 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
     'userUuid',
     'model',
     'provider',
+    'keyManagement',
 ];
 
 /**
@@ -125,7 +140,14 @@ export const getAiCallTelemetry = ({
  * avoid an import cycle with the models package.
  */
 export const getGeneratorTelemetry = (
-    modelOptions: { model?: LanguageModel; telemetry?: AiCallAttribution },
+    modelOptions: {
+        model?: LanguageModel;
+        telemetry?: AiCallAttribution;
+        // Stamped by the model builder (getModel/getFastModelForAccessibleKey)
+        // so generator calls report managed-vs-BYO without threading it through
+        // every call site's telemetry attribution.
+        keyManagement?: AiKeyManagement | null;
+    },
     functionId: string,
     feature: AiCallFeature,
 ) =>
@@ -136,4 +158,8 @@ export const getGeneratorTelemetry = (
             ? getLanguageModelAttribution(modelOptions.model)
             : {}),
         ...(modelOptions.telemetry ?? {}),
+        // Always set this field. Set it last so that it is the final value.
+        // The model builder is the correct source for the key origin. This
+        // necessary field must be present.
+        keyManagement: modelOptions.keyManagement ?? null,
     });

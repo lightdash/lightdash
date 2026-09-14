@@ -1,5 +1,7 @@
 ---
 name: agent-harness
+metadata:
+  internal: true
 description: Guide for AI agents running in the isolated agent-harness environment. Use when you need to discover your agent ID, find your ports, manage your stack with agent-cli.sh, run verification, or understand the multi-agent development setup.
 ---
 
@@ -145,11 +147,11 @@ Password: demo_password!
 # View recent API logs
 ./agent-harness/agent-cli.sh <ID> logs api
 
-# Check for errors using Spotlight MCP
-mcp__spotlight__search_errors with filters: {"timeWindow": 300}
+# Check for errors in Maple (local tracing)
+maple errors --since 5m
 
-# Get trace details
-mcp__spotlight__get_traces with traceId: "<8-char-prefix-from-logs>"
+# Get trace details (full 32-char trace ID from the logs)
+maple trace <trace-id>
 ```
 
 ### Debugging frontend issues

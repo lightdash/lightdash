@@ -690,17 +690,16 @@ describe('Service Account content attribution', () => {
         const spaceUuid = createResp.body.results.uuid;
         createdSpaceUuids.push(spaceUuid);
 
-        const detailResp = await admin.get<
+        const accessResp = await admin.get<
             Body<{
-                uuid: string;
-                access?: Array<{
+                data: Array<{
                     userUuid: string;
                     hasDirectAccess: boolean;
                 }>;
             }>
-        >(`${apiUrl}/projects/${projectUuid}/spaces/${spaceUuid}`);
-        expect(detailResp.status).toBe(200);
-        const access = detailResp.body.results.access ?? [];
+        >(`${apiUrl}/projects/${projectUuid}/spaces/${spaceUuid}/access`);
+        expect(accessResp.status).toBe(200);
+        const access = accessResp.body.results.data;
 
         // The SA is the sole direct-access entry — they are the creator.
         // The seeded admin may surface as an auto-merged org admin

@@ -5,7 +5,8 @@ export const oauthPageStyles = `
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Open Sans', 'Helvetica Neue', sans-serif;
         background-color: #f8fafc;
         margin: 0;
-        padding: 0;
+        padding: 20px;
+        box-sizing: border-box;
         min-height: 100vh;
         display: flex;
         align-items: center;
@@ -19,8 +20,10 @@ export const oauthPageStyles = `
         border: 1px solid #e9ecef;
         box-shadow: 0px 1px 2px 0px rgba(10, 13, 18, 0.05);
         padding: 24px;
-        max-width: 400px;
-        width: 90%;
+        margin: 0;
+        box-sizing: border-box;
+        max-width: 450px;
+        width: 100%;
         text-align: center;
     }
     .logo {
@@ -59,6 +62,38 @@ export const oauthPageStyles = `
         flex-direction: column;
         gap: 16px;
     }
+    .oauth-btn,
+    .button {
+        display: inline-block;
+        padding: 8px 24px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .oauth-btn.approve,
+    .button {
+        background: #111418;
+        color: #fff;
+        border-color: #111418;
+    }
+    .oauth-btn.approve:hover,
+    .button:hover {
+        background: #2c2e33;
+        border-color: #2c2e33;
+    }
+    .oauth-btn.deny {
+        background: transparent;
+        color: #111418;
+        border-color: #e9ecef;
+    }
+    .oauth-btn.deny:hover {
+        background: #f8fafc;
+        border-color: #dee2e6;
+    }
 `;
 
 // Lightdash logo SVG
@@ -82,6 +117,7 @@ const LIGHTDASH_LOGO_SVG = `
 const OAUTH_RESPONSE_TEMPLATE = `
 <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>{{{styles}}}</style>
     </head>
     <body>
@@ -101,13 +137,42 @@ const OAUTH_RESPONSE_TEMPLATE = `
 </html>
 `;
 
+// OAuth redirect page template. This intentionally uses a meta refresh instead
+// of an HTTP redirect: Chromium applies the authorize page's form-action CSP to
+// HTTP redirects after the consent form POST, which blocks OAuth loopback URIs.
+// Handlebars escapes redirectUrl in the refresh attribute context.
+const OAUTH_REDIRECT_TEMPLATE = `
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="refresh" content="0;url={{redirectUrl}}" />
+        <title>Redirecting...</title>
+        <style>{{{styles}}}</style>
+    </head>
+    <body>
+        <div class="stack">
+            <div class="container">
+                {{{logo}}}
+                <h1>Redirecting...</h1>
+                <p>{{message}}</p>
+                <a class="button" href="{{redirectUrl}}">Continue</a>
+            </div>
+        </div>
+    </body>
+</html>
+`;
+
 // OAuth authorization page template
 const OAUTH_AUTHORIZE_TEMPLATE = `
 <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Authorize Application</title>
         <style>
             {{{styles}}}
+            body {
+                padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px) + 60px);
+            }
             .container { text-align: left; }
             .oauth-header {
                 text-align: center;
@@ -115,23 +180,115 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
             }
             .oauth-message {
                 text-align: center;
-                margin-bottom: 24px;
+                margin-bottom: 16px;
                 font-size: 14px;
                 color: #111418;
             }
             .oauth-message strong {
                 font-weight: 600;
             }
-            .oauth-scopes {
+            .oauth-account {
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
+                overflow: hidden;
+                margin-bottom: 20px;
+            }
+            .oauth-account-user {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 14px;
+            }
+            .oauth-avatar {
+                flex-shrink: 0;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: #111418;
+                color: #f8fafc;
+                font-size: 13px;
+                font-weight: 600;
+                letter-spacing: 0.02em;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-transform: uppercase;
+            }
+            .oauth-account-id {
+                flex: 1;
+                min-width: 0;
+            }
+            .oauth-account-name {
+                font-weight: 600;
+                color: #111418;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .oauth-account-email {
+                font-size: 12px;
+                color: #6c757d;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .oauth-switch-link {
+                flex-shrink: 0;
+                font-size: 12px;
+                font-weight: 500;
+                color: #6c757d;
+                text-decoration: none;
+            }
+            .oauth-switch-link:hover {
+                color: #111418;
+                text-decoration: underline;
+            }
+            .oauth-account-org {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 14px;
                 border-top: 1px solid #e9ecef;
-                padding-top: 16px;
+                background: #f8fafc;
+            }
+            .oauth-org-icon {
+                flex-shrink: 0;
+                width: 15px;
+                height: 15px;
+                color: #6c757d;
+            }
+            .oauth-account-org-name {
+                flex: 1;
+                min-width: 0;
+                font-size: 13px;
+                font-weight: 500;
+                color: #111418;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .oauth-account-org-label {
+                flex-shrink: 0;
+                font-size: 11px;
+                color: #6c757d;
+            }
+            .oauth-scopes {
                 margin-bottom: 16px;
+            }
+            .oauth-scopes-title {
+                font-size: 13px;
+                font-weight: 600;
+                color: #111418;
+                margin: 0 0 4px 0;
             }
             .oauth-scope-item {
                 display: flex;
                 gap: 12px;
                 padding: 12px 0;
                 border-bottom: 1px solid #f8fafc;
+            }
+            .oauth-scope-item:last-child {
+                border-bottom: none;
             }
             .oauth-scope-icon {
                 flex-shrink: 0;
@@ -153,39 +310,14 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 line-height: 1.4;
             }
             .oauth-btn-row {
+                /* row-reverse keeps Authorize as the first submit button (Enter approves) while showing Cancel on the left */
                 display: flex;
+                flex-direction: row-reverse;
                 justify-content: center;
                 gap: 12px;
                 margin-top: 24px;
                 padding-top: 16px;
                 border-top: 1px solid #e9ecef;
-            }
-            .oauth-btn {
-                padding: 8px 24px;
-                border: 1px solid #e9ecef;
-                border-radius: 8px;
-                font-weight: 500;
-                font-size: 14px;
-                cursor: pointer;
-                transition: background 0.15s, border-color 0.15s;
-            }
-            .oauth-btn.approve {
-                background: #111418;
-                color: #fff;
-                border-color: #111418;
-            }
-            .oauth-btn.approve:hover {
-                background: #2c2e33;
-                border-color: #2c2e33;
-            }
-            .oauth-btn.deny {
-                background: transparent;
-                color: #111418;
-                border-color: #e9ecef;
-            }
-            .oauth-btn.deny:hover {
-                background: #f8fafc;
-                border-color: #dee2e6;
             }
         </style>
     </head>
@@ -198,10 +330,35 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 </div>
 
                 <p class="oauth-message">
-                    <strong>{{client_name}}</strong> wants to access your Lightdash account <strong>{{user.firstName}} {{user.lastName}}</strong>
+                    <strong>{{client_name}}</strong> wants to access your Lightdash account
                 </p>
 
+                <div class="oauth-account">
+                    <div class="oauth-account-user">
+                        <div class="oauth-avatar" aria-hidden="true">{{user.initials}}</div>
+                        <div class="oauth-account-id">
+                            <div class="oauth-account-name">{{user.firstName}} {{user.lastName}}</div>
+                            {{#if user.email}}
+                            <div class="oauth-account-email">{{user.email}}</div>
+                            {{/if}}
+                        </div>
+                        <a class="oauth-switch-link" id="oauth-switch-account" href="{{loginUrl}}">Switch account</a>
+                    </div>
+                    {{#if user.organizationName}}
+                    <div class="oauth-account-org">
+                        <svg class="oauth-org-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 21h18" />
+                            <path d="M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1" />
+                            <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+                        </svg>
+                        <span class="oauth-account-org-name">{{user.organizationName}}</span>
+                        <span class="oauth-account-org-label">Organization</span>
+                    </div>
+                    {{/if}}
+                </div>
+
                 <div class="oauth-scopes">
+                    <p class="oauth-scopes-title">{{client_name}} will be able to:</p>
                     {{#each scopes}}
                     <div class="oauth-scope-item">
                         <svg class="oauth-scope-icon" viewBox="0 0 16 16" fill="currentColor">
@@ -226,6 +383,23 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 </div>
             </form>
         </div>
+        <script>
+            (function () {
+                var switchLink = document.getElementById('oauth-switch-account');
+                switchLink.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    var loginUrl = switchLink.href;
+                    // Log out first so the login page doesn't bounce straight back with the same session
+                    fetch('/api/v1/logout', { credentials: 'same-origin' })
+                        .catch(function () {
+                            // Navigate anyway; the login page still lets the user switch accounts
+                        })
+                        .then(function () {
+                            window.location.href = loginUrl;
+                        });
+                });
+            })();
+        </script>
     </body>
 </html>
 `;
@@ -239,59 +413,10 @@ const OAUTH_ICONS = {
         '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
 } as const;
 
-// OAuth redirect page template
-const OAUTH_REDIRECT_TEMPLATE = `
-<html>
-    <head>
-        <title>Redirecting...</title>
-        <style>
-            {{{styles}}}
-            .spinner {
-                width: 32px;
-                height: 32px;
-                margin: 0 auto 16px auto;
-                border: 3px solid #e9ecef;
-                border-top: 3px solid #111418;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            .redirect-link {
-                color: #111418;
-                text-decoration: none;
-                font-weight: 500;
-            }
-            .redirect-link:hover {
-                text-decoration: underline;
-            }
-        </style>
-        <script>
-            setTimeout(function() {
-                window.location.href = "{{{redirectUrl}}}";
-            }, 2000);
-        </script>
-    </head>
-    <body>
-        <div class="stack">
-            <div class="container">
-                {{{logo}}}
-                <div class="spinner"></div>
-                <h1>Redirecting...</h1>
-                <p>{{message}}</p>
-                <p>If you are not redirected automatically, <a href="{{{redirectUrl}}}" class="redirect-link">click here</a>.</p>
-            </div>
-        </div>
-    </body>
-</html>
-`;
-
 // Compile the templates once with proper type safety
 const compiledResponseTemplate = compile(OAUTH_RESPONSE_TEMPLATE);
-const compiledAuthorizeTemplate = compile(OAUTH_AUTHORIZE_TEMPLATE);
 const compiledRedirectTemplate = compile(OAUTH_REDIRECT_TEMPLATE);
+const compiledAuthorizeTemplate = compile(OAUTH_AUTHORIZE_TEMPLATE);
 
 export type OAuthResponseStatus = 'success' | 'error';
 export type OAuthIconType = keyof typeof OAUTH_ICONS;
@@ -305,6 +430,7 @@ export interface OAuthHiddenInput {
 export interface OAuthUser {
     firstName: string;
     lastName: string;
+    email: string | null;
     organizationName: string;
 }
 
@@ -320,6 +446,8 @@ export interface OAuthAuthorizeParams {
     scope: string;
     scopes: OAuthScopeDescription[];
     user: OAuthUser;
+    /** Where "Switch account" sends the user after logging out */
+    loginUrl: string;
     hiddenInputs: OAuthHiddenInput[];
 }
 
@@ -327,6 +455,21 @@ export interface OAuthRedirectParams {
     redirectUrl: string;
     message: string;
 }
+
+const UNSAFE_REDIRECT_PROTOCOLS = new Set(
+    ['javascript', 'data', 'vbscript', 'file', 'blob'].map(
+        (scheme) => `${scheme}:`,
+    ),
+);
+
+export const isSafeRedirectScheme = (uri: string): boolean => {
+    try {
+        const { protocol } = new URL(uri);
+        return !UNSAFE_REDIRECT_PROTOCOLS.has(protocol.toLowerCase());
+    } catch {
+        return false;
+    }
+};
 
 // Scope descriptions mapping
 const SCOPE_DESCRIPTIONS: Record<string, OAuthScopeDescription> = {
@@ -422,6 +565,31 @@ export const generateOAuthErrorResponse = (
     );
 
 /**
+ * Generates a script-free redirect page for a previously validated OAuth URI.
+ */
+export const generateOAuthRedirectPage = (
+    params: OAuthRedirectParams,
+): string => {
+    if (!isSafeRedirectScheme(params.redirectUrl)) {
+        return generateOAuthErrorResponse('Unsupported redirect', [
+            'This application uses an unsupported redirect and cannot continue.',
+        ]);
+    }
+
+    return compiledRedirectTemplate({
+        styles: oauthPageStyles,
+        logo: LIGHTDASH_LOGO_SVG,
+        ...params,
+    });
+};
+
+const getUserInitials = (user: OAuthUser): string => {
+    const initials =
+        `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.trim();
+    return initials || user.email?.charAt(0) || '?';
+};
+
+/**
  * Generates an OAuth authorization page HTML using Handlebars templating
  * This prevents XSS issues by auto-escaping all user content
  */
@@ -432,17 +600,8 @@ export const generateOAuthAuthorizePage = (
         styles: oauthPageStyles,
         logo: LIGHTDASH_LOGO_SVG,
         ...params,
-    });
-
-/**
- * Generates an OAuth redirect page HTML using JavaScript redirect
- * This prevents CSP errors by using JavaScript-based redirection instead of HTTP redirects
- */
-export const generateOAuthRedirectPage = (
-    params: OAuthRedirectParams,
-): string =>
-    compiledRedirectTemplate({
-        styles: oauthPageStyles,
-        logo: LIGHTDASH_LOGO_SVG,
-        ...params,
+        user: {
+            ...params.user,
+            initials: getUserInitials(params.user),
+        },
     });

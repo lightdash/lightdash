@@ -6,6 +6,7 @@
  */
 
 import { createApiTransport } from './apiTransport';
+import { applyColorSchemeSeed, mountColorScheme } from './colorScheme';
 import { mountInspector } from './inspector';
 import { mountLineage } from './lineage';
 import { createPostMessageTransport } from './postMessageTransport';
@@ -41,7 +42,8 @@ export class LightdashClient {
      *
      * Supply only the connection `alias` and a relative request — Lightdash
      * resolves the alias to a stored connection, attaches its credentials,
-     * and proxies the call. The app never sees the URL, headers, or secrets.
+     * and proxies the call. The app never sees the request URL, request
+     * headers, or secrets. Safe response headers are available on `res.headers`.
      *
      *   const res = await lightdash.externalFetch('stripe', {
      *       path: '/v1/charges',
@@ -103,19 +105,27 @@ function configFromEnv(): LightdashClientConfig | null {
 export function createClient(): LightdashClient {
     // 1. postMessage transport (iframe hosted by Lightdash parent)
     if (typeof window !== 'undefined' && window.location.hash) {
-        const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        const params = new URLSearchParams(
+            window.location.hash.replace(/^#/, ''),
+        );
         if (params.get('transport') === 'postMessage') {
             const projectUuid = params.get('projectUuid') ?? '';
             mountInspector(window.parent);
             mountLineage(window.parent);
+            mountColorScheme(window.parent);
             return new LightdashClient(
                 { apiKey: '', baseUrl: '', projectUuid },
-                createPostMessageTransport({ targetWindow: window.parent, projectUuid }),
+                createPostMessageTransport({
+                    targetWindow: window.parent,
+                    projectUuid,
+                }),
             );
         }
     }
 
-    // 2. Env vars → API transport
+    // 2. Env vars → API transport. No host to follow, but honour a `?theme=`
+    // seed so an author running the app top-level can see both modes.
+    applyColorSchemeSeed();
     const config = configFromEnv();
     if (!config) {
         throw new Error(

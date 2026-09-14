@@ -1,4 +1,4 @@
-import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine-8/core';
+import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
 import { AiAgentIcon } from '../AiAgentIcon';
@@ -8,6 +8,7 @@ type Props = {
     projectUuid: string | undefined;
     chartUuid?: string;
     dashboardUuid?: string;
+    dataAppUuid?: string;
     clickedFrom: AiAgentAskClickedSource;
     variant?: ActionIconProps['variant'];
     size?: ActionIconProps['size'];
@@ -24,6 +25,7 @@ export const AskAiAgentButton: FC<Props> = ({
     projectUuid,
     chartUuid,
     dashboardUuid,
+    dataAppUuid,
     clickedFrom,
     variant = 'subtle',
     size = 'sm',
@@ -34,13 +36,14 @@ export const AskAiAgentButton: FC<Props> = ({
         projectUuid,
         chartUuid,
         dashboardUuid,
+        dataAppUuid,
         clickedFrom,
     });
 
     if (!canAsk) return null;
 
     return (
-        <Tooltip label="Ask AI Agent" variant="xs" withinPortal>
+        <Tooltip label="Ask AI Agent">
             <ActionIcon
                 variant={variant}
                 size={size}

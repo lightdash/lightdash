@@ -7,7 +7,7 @@ The utils module provides various utility classes and functions. Import specific
 
 ```typescript
 import { EncryptionUtil } from './utils/EncryptionUtil/EncryptionUtil';
-import { generateUniqueSlug } from './utils/SlugUtils';
+import { generateUniqueSlugScopedToProject } from './utils/SlugUtils';
 import { getAdjustedCronByOffset } from './utils/cronUtils';
 import { QueryBuilder } from './utils/QueryBuilder/queryBuilder';
 
@@ -17,8 +17,9 @@ const encrypted = encryption.encrypt('sensitive data');
 const decrypted = encryption.decrypt(encrypted);
 
 // Generate unique slugs
-const slug = await generateUniqueSlug(
+const slug = await generateUniqueSlugScopedToProject(
     trx,
+    projectUuid,
     SavedChartsTableName,
     'My Chart Name',
 );
@@ -66,7 +67,7 @@ const localizedCron = getAdjustedCronByOffset(utcCron, userOffsetMinutes);
 - Slug generation ensures uniqueness within database constraints and handles collisions
 - QueryBuilder supports parameter replacement and user attribute filtering
 - Cron utility only handles single-value adjustments (not ranges) to avoid complex edge cases
-- SlugUtils provides both global and project-scoped uniqueness checking
+- SlugUtils provides project-scoped exact-candidate allocation backed by database uniqueness constraints
 - SubtotalsCalculator handles pivot table calculations for dashboard tiles
 - FileDownloadUtils manages streaming downloads with proper headers and error handling
 - All utilities include comprehensive error handling and input validation

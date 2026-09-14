@@ -37,6 +37,13 @@ export type BlockLayoutTrait = {
 // arrangement an admin builds, so any permutation renders balanced without
 // per-combination hardcoding.
 const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
+    greeting: {
+        widthTier: 'reading',
+        columnWeight: 2,
+        rhythm: 'section',
+        fullRowOnly: true,
+        itemSpan: null,
+    },
     'ask-ai-hero': {
         widthTier: 'composer',
         columnWeight: 2,
@@ -49,6 +56,15 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         columnWeight: 1,
         rhythm: 'grouped',
         fullRowOnly: false,
+        itemSpan: null,
+    },
+    cta: {
+        // A banner is the page's one loud moment: it owns its row and joins
+        // the card-grid axis so its edges align with content around it.
+        widthTier: 'full',
+        columnWeight: 1,
+        rhythm: 'section',
+        fullRowOnly: true,
         itemSpan: null,
     },
     metrics: {
@@ -73,10 +89,10 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         itemSpan: { full: 4, content: 4, narrow: 6 },
     },
     announcements: {
-        widthTier: 'reading',
+        widthTier: 'content',
         columnWeight: 1,
         rhythm: 'section',
-        fullRowOnly: false,
+        fullRowOnly: true,
         itemSpan: null,
     },
     favorites: {
@@ -94,7 +110,9 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         itemSpan: null,
     },
     markdown: {
-        widthTier: 'reading',
+        // Full width even alone: a text banner joins the page's card-grid
+        // axis instead of floating as a narrow reading column.
+        widthTier: 'full',
         columnWeight: 1,
         rhythm: 'grouped',
         fullRowOnly: false,

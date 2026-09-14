@@ -60,7 +60,10 @@ function buildService() {
             lightdashConfig: {} as never,
             analytics: {} as never,
             analyticsModel: {} as never,
-            catalogModel: {} as never,
+            catalogModel: {
+                getChartUsageByTable: async () => new Map<string, number>(),
+            } as never,
+            userModel: {} as never,
             appModel: {} as never,
             featureFlagModel: featureFlagModel as never,
             organizationDesignModel: {} as never,
@@ -68,15 +71,20 @@ function buildService() {
             projectModel: {} as never,
             projectParametersModel: {} as never,
             spaceModel: {} as never,
+            savedChartModel: {} as never,
             schedulerClient: {} as never,
             savedChartService: {} as never,
             spacePermissionService: {} as never,
+            coderService: {} as never,
             dashboardService: {} as never,
             projectService: {} as never,
             promoteService: {} as never,
             externalConnectionModel: {} as never,
             sandboxRegistryModel: {} as never,
             orgAiCopilotConfigResolver: {} as never,
+            sandboxManager: null,
+            appRuntimeS3: null,
+            chartRegistryClient: {} as never,
         }) as unknown as PrivateWithSamples,
         featureFlagModel,
     };
@@ -328,11 +336,16 @@ describe('AppGenerateService.linkExternalConnections', () => {
         projectUuid: 'proj-1',
         organizationUuid: 'org-1',
         name: 'Weather API',
+        allowDataAppBuilderLinking: true,
     };
     const ref = [{ externalConnectionUuid: 'c1', alias: 'weather' }];
     const user = { userUuid: 'u1', organizationUuid: 'org-1' };
 
-    function setup(opts: { connection?: unknown; canManage: boolean }) {
+    function setup(opts: {
+        connection?: unknown;
+        canManage: boolean;
+        canViewEnabled?: boolean;
+    }) {
         const { service } = buildService();
         const linkToApp = vi.fn().mockResolvedValue(undefined);
         (
@@ -343,22 +356,43 @@ describe('AppGenerateService.linkExternalConnections', () => {
                 .mockResolvedValue(opts.connection ?? sameProjectConn),
             linkToApp,
         };
+        const can = (action: string, value: unknown) => {
+            if (opts.canManage) return true;
+            if (action !== 'view' || opts.canViewEnabled === false)
+                return false;
+            return (
+                (value as { allowDataAppBuilderLinking?: boolean })
+                    .allowDataAppBuilderLinking === true
+            );
+        };
         vi.spyOn(
             service as unknown as { createAuditedAbility: () => unknown },
             'createAuditedAbility',
         ).mockReturnValue({
-            can: () => opts.canManage,
-            cannot: () => !opts.canManage,
+            can,
+            cannot: (action: string, value: unknown) => !can(action, value),
         });
         return { service: service as unknown as PrivateWithLink, linkToApp };
     }
 
-    it('throws ForbiddenError and does not link when the user cannot manage the connection', async () => {
-        const { service, linkToApp } = setup({ canManage: false });
+    it('throws ForbiddenError and does not link an admin-only connection for a builder', async () => {
+        const { service, linkToApp } = setup({
+            canManage: false,
+            connection: {
+                ...sameProjectConn,
+                allowDataAppBuilderLinking: false,
+            },
+        });
         await expect(
             service.linkExternalConnections(user, 'proj-1', 'app-1', ref),
         ).rejects.toThrow(ForbiddenError);
         expect(linkToApp).not.toHaveBeenCalled();
+    });
+
+    it('links an admin-enabled connection for a builder', async () => {
+        const { service, linkToApp } = setup({ canManage: false });
+        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        expect(linkToApp).toHaveBeenCalledWith('app-1', 'c1', 'weather');
     });
 
     it('rejects an alias outside the safe charset before persisting', async () => {
@@ -371,8 +405,14 @@ describe('AppGenerateService.linkExternalConnections', () => {
         expect(linkToApp).not.toHaveBeenCalled();
     });
 
-    it('links when the user can manage and the alias is valid', async () => {
-        const { service, linkToApp } = setup({ canManage: true });
+    it('links an admin-only connection when the user can manage connections', async () => {
+        const { service, linkToApp } = setup({
+            canManage: true,
+            connection: {
+                ...sameProjectConn,
+                allowDataAppBuilderLinking: false,
+            },
+        });
         await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
         expect(linkToApp).toHaveBeenCalledWith('app-1', 'c1', 'weather');
     });

@@ -1,4 +1,4 @@
-import { Avatar, type MantineColor } from '@mantine-8/core';
+import { Avatar, type MantineColor } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

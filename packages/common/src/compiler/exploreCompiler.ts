@@ -10,7 +10,9 @@ import {
     type Table,
 } from '../types/explore';
 import {
+    DimensionType,
     friendlyName,
+    isCompiledDimension,
     isCustomBinDimension,
     isNonAggregateMetric,
     isPostCalculationMetric,
@@ -20,6 +22,7 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type CompiledMetricRelativeDateFilter,
+    type CompiledMetricTimestampFilter,
     type CustomDimension,
     type CustomSqlDimension,
     type Dimension,
@@ -43,7 +46,10 @@ import {
 import { type WarehouseSqlBuilder } from '../types/warehouse';
 import { getItemId } from '../utils/item';
 import { timeFrameConfigs } from '../utils/timeFrames';
-import { expandFieldsWithSets } from './fieldSetExpander';
+import {
+    expandFieldsWithSets,
+    expandFieldsWithSetsLenient,
+} from './fieldSetExpander';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
     getCategoriesFromResource,
@@ -67,6 +73,8 @@ import {
 export const lightdashVariablePattern =
     /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.-]+)\}/g;
 
+const lightdashTableColumnReferenceSearchPattern = /\$\{TABLE\}\.(\w+)/g;
+
 type Reference = {
     refTable: string;
     refName: string;
@@ -80,6 +88,13 @@ type Reference = {
  * Matches: sum(, count(, avg(, etc. with word boundary to avoid false positives
  * like "summary" matching "sum".
  */
+// Diamond metric references repeat the same recorded filter predicate
+const uniqByFilterId = <T extends { id: string }>(filters: T[]): T[] =>
+    filters.filter(
+        (filter, index) =>
+            filters.findIndex((other) => other.id === filter.id) === index,
+    );
+
 const SQL_AGGREGATION_FUNCTIONS_PATTERN =
     /\b(sum|count_if|countif|count|avg|average|max_by|min_by|min|max|median|stddev|stddev_pop|stddev_samp|variance|var_pop|var_samp|percentile|percentile_cont|percentile_disc|count_distinct|approx_count_distinct|any_value|array_agg|string_agg|group_concat|listagg|corr|covar_pop|covar_samp|mode|approx_percentile)\s*\(/i;
 
@@ -180,18 +195,14 @@ export const getParsedReference = (
     ref: string,
     currentTable: string,
 ): Reference => {
-    // Reference to another dimension
-    const split = ref.split('.');
-    if (split.length > 2) {
-        throw new CompileError(
-            `Model "${currentTable}" cannot resolve dimension reference: \${${ref}}`,
-            {},
-        );
+    // Reference to another dimension. The first segment is always the table
+    // when there is more than one, so a nested field on the current table is
+    // written with its table prefix: ${orders.customer.city}.
+    const [head, ...rest] = ref.split('.');
+    if (rest.length === 0) {
+        return { refTable: currentTable, refName: head };
     }
-    const refTable = split.length === 1 ? currentTable : split[0];
-    const refName = split.length === 1 ? split[0] : split[1];
-
-    return { refTable, refName };
+    return { refTable: head, refName: rest.join('.') };
 };
 
 /**
@@ -316,6 +327,15 @@ export const getAllReferences = (raw: string): string[] =>
         (value) => value.slice(2, value.length - 1), // value without brackets
     );
 
+export const getTableColumnReferences = (raw: string): string[] =>
+    Array.from(
+        new Set(
+            [
+                ...raw.matchAll(lightdashTableColumnReferenceSearchPattern),
+            ].flatMap((match) => (match[1] === undefined ? [] : [match[1]])),
+        ),
+    );
+
 export const parseAllReferences = (
     raw: string,
     currentTable: string,
@@ -340,6 +360,7 @@ export type UncompiledExplore = {
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
     aiHint?: string | string[];
+    customMeta?: Explore['customMeta'];
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
     projectParameters?: LightdashProjectConfig['parameters'];
@@ -359,6 +380,14 @@ export type ExploreCompilerOptions = {
      */
     allowPartialCompilation?: boolean;
 };
+
+export const showUnderlyingValuesWarning = (
+    context: string,
+    problem: string,
+): InlineError => ({
+    type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+    message: `${context}: ${problem} The reference will be ignored.`,
+});
 
 export class ExploreCompiler {
     private readonly warehouseClient: WarehouseSqlBuilder;
@@ -390,6 +419,7 @@ export class ExploreCompiler {
         meta,
         databricksCompute,
         aiHint,
+        customMeta,
         projectParameters,
         preAggregates,
         caseSensitive,
@@ -432,7 +462,7 @@ export class ExploreCompiler {
                   if (tables[join.table] === undefined) {
                       exploreWarnings.push({
                           type: InlineErrorType.MISSING_TABLE,
-                          message: `Join to table "${join.table}" was skipped because the table does not exist`,
+                          message: `Join "${join.alias || join.table}" to table "${join.table}" was skipped because the model is not available in this Lightdash project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.`,
                       });
                       return false;
                   }
@@ -501,116 +531,116 @@ export class ExploreCompiler {
             });
         }
 
-        const includedTables = validJoinedTables.reduce<Record<string, Table>>(
-            (prev, join) => {
-                const joinTableName = join.alias || tables[join.table].name;
-                const joinTableLabel =
-                    join.label ||
-                    (join.alias && friendlyName(join.alias)) ||
-                    tables[join.table].label;
-                const joinDescription =
-                    join.description !== undefined
-                        ? join.description
-                        : tables[join.table].description;
+        const includedTables: Record<string, Table> = {
+            [baseTable]: tables[baseTable],
+        };
+        validJoinedTables.forEach((join) => {
+            const joinTableName = join.alias || tables[join.table].name;
+            const joinTableLabel =
+                join.label ||
+                (join.alias && friendlyName(join.alias)) ||
+                tables[join.table].label;
+            const joinDescription =
+                join.description !== undefined
+                    ? join.description
+                    : tables[join.table].description;
 
-                // Expand field sets if join.fields contains set references
-                let expandedFields: string[] | undefined;
-                if (join.fields) {
-                    expandedFields = expandFieldsWithSets(
-                        join.fields,
-                        tables[join.table],
-                    );
+            // Expand field sets if join.fields contains set references
+            let expandedFields: string[] | undefined;
+            if (join.fields) {
+                expandedFields = expandFieldsWithSets(
+                    join.fields,
+                    tables[join.table],
+                );
+            }
+
+            const requiredDimensionsForJoin = parseAllReferences(
+                join.sqlOn,
+                join.table,
+            ).reduce<string[]>((acc, reference) => {
+                if (reference.refTable === joinTableName) {
+                    acc.push(reference.refName);
                 }
+                return acc;
+            }, []);
 
-                const requiredDimensionsForJoin = parseAllReferences(
-                    join.sqlOn,
-                    join.table,
-                ).reduce<string[]>((acc, reference) => {
-                    if (reference.refTable === joinTableName) {
-                        acc.push(reference.refName);
+            const tableDimensions = tables[join.table].dimensions;
+            includedTables[join.alias || join.table] = {
+                ...tables[join.table],
+                originalName:
+                    tables[join.table].originalName ?? tables[join.table].name,
+                ...(tables[join.table].originalName !== undefined ||
+                tables[join.table].canonicalName !== undefined
+                    ? {
+                          canonicalName:
+                              tables[join.table].canonicalName ??
+                              tables[join.table].name,
+                      }
+                    : {}),
+                name: joinTableName,
+                label: joinTableLabel,
+                ...(joinDescription !== undefined && {
+                    description: joinDescription,
+                }),
+                hidden: join.hidden,
+                dimensions: Object.keys(tableDimensions).reduce<
+                    Record<string, Dimension>
+                >((acc, dimensionKey) => {
+                    const dimension = tableDimensions[dimensionKey];
+                    const isRequired =
+                        requiredDimensionsForJoin.includes(dimensionKey);
+
+                    const isTimeIntervalBaseDimensionVisible =
+                        (dimension.timeInterval ||
+                            dimension.customTimeInterval) &&
+                        dimension.timeIntervalBaseDimensionName &&
+                        expandedFields
+                            ? expandedFields.includes(
+                                  dimension.timeIntervalBaseDimensionName,
+                              )
+                            : false;
+
+                    const isVisible =
+                        expandedFields === undefined ||
+                        expandedFields.includes(dimensionKey) ||
+                        (dimension.group !== undefined &&
+                            expandedFields.includes(dimension.group)) ||
+                        isTimeIntervalBaseDimensionVisible;
+
+                    if (isRequired || isVisible) {
+                        acc[dimensionKey] = {
+                            ...dimension,
+                            hidden:
+                                join.hidden || dimension.hidden || !isVisible,
+                            table: joinTableName,
+                            tableLabel: joinTableLabel,
+                        };
                     }
                     return acc;
-                }, []);
-
-                const tableDimensions = tables[join.table].dimensions;
-                return {
-                    ...prev,
-                    [join.alias || join.table]: {
-                        ...tables[join.table],
-                        originalName: tables[join.table].name,
-                        name: joinTableName,
-                        label: joinTableLabel,
-                        ...(joinDescription !== undefined && {
-                            description: joinDescription,
-                        }),
-                        hidden: join.hidden,
-                        dimensions: Object.keys(tableDimensions).reduce<
-                            Record<string, Dimension>
-                        >((acc, dimensionKey) => {
-                            const dimension = tableDimensions[dimensionKey];
-                            const isRequired =
-                                requiredDimensionsForJoin.includes(
-                                    dimensionKey,
-                                );
-
-                            const isTimeIntervalBaseDimensionVisible =
-                                (dimension.timeInterval ||
-                                    dimension.customTimeInterval) &&
-                                dimension.timeIntervalBaseDimensionName &&
-                                expandedFields
-                                    ? expandedFields.includes(
-                                          dimension.timeIntervalBaseDimensionName,
-                                      )
-                                    : false;
-
-                            const isVisible =
+                }, {}),
+                metrics: Object.fromEntries(
+                    Object.keys(tables[join.table].metrics)
+                        .filter(
+                            (d) =>
                                 expandedFields === undefined ||
-                                expandedFields.includes(dimensionKey) ||
-                                (dimension.group !== undefined &&
-                                    expandedFields.includes(dimension.group)) ||
-                                isTimeIntervalBaseDimensionVisible;
-
-                            if (isRequired || isVisible) {
-                                acc[dimensionKey] = {
-                                    ...dimension,
-                                    hidden:
-                                        join.hidden ||
-                                        dimension.hidden ||
-                                        !isVisible,
+                                expandedFields.includes(d),
+                        )
+                        .map((metricKey): [string, Metric] => {
+                            const metric =
+                                tables[join.table].metrics[metricKey];
+                            return [
+                                metricKey,
+                                {
+                                    ...metric,
+                                    hidden: !!join.hidden || metric.hidden,
                                     table: joinTableName,
                                     tableLabel: joinTableLabel,
-                                };
-                            }
-                            return acc;
-                        }, {}),
-                        metrics: Object.keys(tables[join.table].metrics)
-                            .filter(
-                                (d) =>
-                                    expandedFields === undefined ||
-                                    expandedFields.includes(d),
-                            )
-                            .reduce<Record<string, Metric>>(
-                                (prevMetrics, metricKey) => {
-                                    const metric =
-                                        tables[join.table].metrics[metricKey];
-                                    return {
-                                        ...prevMetrics,
-                                        [metricKey]: {
-                                            ...metric,
-                                            hidden:
-                                                !!join.hidden || metric.hidden,
-                                            table: joinTableName,
-                                            tableLabel: joinTableLabel,
-                                        },
-                                    };
                                 },
-                                {},
-                            ),
-                    },
-                };
-            },
-            { [baseTable]: tables[baseTable] },
-        );
+                            ];
+                        }),
+                ),
+            };
+        });
 
         // get all available parameters from the included tables
         const exploreAvailableParameters = getAvailableParametersFromTables(
@@ -634,6 +664,20 @@ export class ExploreCompiler {
             const tableName = j.alias || j.table;
             if (this.options.allowPartialCompilation) {
                 try {
+                    const references = parseAllReferences(j.sqlOn, tableName);
+                    const missingJoin = joinedTables.find(
+                        (join) =>
+                            !tables[join.table] &&
+                            references.some(
+                                ({ refTable }) =>
+                                    refTable === (join.alias || join.table),
+                            ),
+                    );
+                    if (missingJoin) {
+                        throw new CompileError(
+                            `Join "${tableName}" was skipped because it depends on skipped join "${missingJoin.alias || missingJoin.table}" (table "${missingJoin.table}"). Resolve the missing-table warning for that join, then refresh the project.`,
+                        );
+                    }
                     return {
                         join: j,
                         compiled: this.compileJoin(
@@ -680,18 +724,23 @@ export class ExploreCompiler {
                 .map((r) => r.tableName),
         ]);
 
-        const compiledTables: Record<string, CompiledTable> = aliases
+        const tableResults = aliases
             .filter((tableName) => successfulTableNames.has(tableName))
-            .reduce(
-                (prev, tableName) => ({
-                    ...prev,
-                    [tableName]: this.compileTable(
-                        includedTables[tableName],
-                        includedTables,
-                        availableParametersNames,
-                    ),
-                }),
-                {},
+            .map((tableName) => ({
+                tableName,
+                ...this.compileTable(
+                    includedTables[tableName],
+                    includedTables,
+                    availableParametersNames,
+                    tables,
+                ),
+            }));
+        exploreWarnings.push(
+            ...tableResults.flatMap(({ warnings }) => warnings),
+        );
+        const compiledTables: Record<string, CompiledTable> =
+            Object.fromEntries(
+                tableResults.map(({ tableName, table }) => [tableName, table]),
             );
 
         // Collect field-level compilation errors
@@ -749,6 +798,9 @@ export class ExploreCompiler {
                   }
                 : {}),
             ...(aiHint ? { aiHint } : {}),
+            ...(customMeta && Object.keys(customMeta).length > 0
+                ? { customMeta }
+                : {}),
             ...getSpotlightConfigurationForResource({
                 visibility: spotlightVisibility,
                 categories: spotlightCategories,
@@ -802,85 +854,86 @@ export class ExploreCompiler {
         table: Table,
         tables: Record<string, Table>,
         availableParameters: string[],
-    ): CompiledTable {
-        const dimensions: Record<string, CompiledDimension> = Object.keys(
-            table.dimensions,
-        ).reduce((prev, dimensionKey) => {
+        allTables: Record<string, Table>,
+    ): { table: CompiledTable; warnings: InlineError[] } {
+        const dimensions: Record<string, CompiledDimension> = {};
+        Object.keys(table.dimensions).forEach((dimensionKey) => {
             const dimension = table.dimensions[dimensionKey];
             if (this.options.allowPartialCompilation) {
                 try {
-                    return {
-                        ...prev,
-                        [dimensionKey]: this.compileDimension(
-                            dimension,
-                            tables,
-                            availableParameters,
-                        ),
-                    };
+                    dimensions[dimensionKey] = this.compileDimension(
+                        dimension,
+                        tables,
+                        availableParameters,
+                    );
                 } catch (e) {
                     const baseMessage =
                         e instanceof Error
                             ? e.message
                             : 'unknown compile error';
                     const errorMessage = `Dimension "${dimensionKey}" failed to compile: ${baseMessage}`;
-                    return {
-                        ...prev,
-                        [dimensionKey]:
-                            ExploreCompiler.createDimensionWithError(
-                                dimension,
-                                { message: errorMessage },
-                            ),
-                    };
+                    dimensions[dimensionKey] =
+                        ExploreCompiler.createDimensionWithError(dimension, {
+                            message: errorMessage,
+                        });
                 }
+                return;
             }
-            return {
-                ...prev,
-                [dimensionKey]: this.compileDimension(
-                    dimension,
-                    tables,
-                    availableParameters,
-                ),
-            };
-        }, {});
+            dimensions[dimensionKey] = this.compileDimension(
+                dimension,
+                tables,
+                availableParameters,
+            );
+        });
 
-        const metrics: Record<string, CompiledMetric> = Object.keys(
-            table.metrics,
-        ).reduce((prev, metricKey) => {
-            const metric = table.metrics[metricKey];
-            if (this.options.allowPartialCompilation) {
+        const metricResults = Object.entries(table.metrics).map(
+            ([metricKey, metric]) => {
+                const { showUnderlyingValues, warnings } =
+                    ExploreCompiler.compileShowUnderlyingValues(
+                        metric,
+                        tables,
+                        allTables,
+                    );
+                const metricToCompile =
+                    showUnderlyingValues === undefined
+                        ? metric
+                        : { ...metric, showUnderlyingValues };
                 try {
                     return {
-                        ...prev,
-                        [metricKey]: this.compileMetric(
-                            metric,
+                        metricKey,
+                        compiledMetric: this.compileMetric(
+                            metricToCompile,
                             tables,
                             availableParameters,
                         ),
+                        warnings,
                     };
                 } catch (e) {
+                    if (!this.options.allowPartialCompilation) {
+                        throw e;
+                    }
                     const baseMessage =
                         e instanceof Error
                             ? e.message
                             : 'unknown compile error';
                     const errorMessage = `Metric "${metricKey}" failed to compile: ${baseMessage}`;
                     return {
-                        ...prev,
-                        [metricKey]: ExploreCompiler.createMetricWithError(
+                        metricKey,
+                        compiledMetric: ExploreCompiler.createMetricWithError(
                             metric,
                             { message: errorMessage },
                         ),
+                        warnings,
                     };
                 }
-            }
-            return {
-                ...prev,
-                [metricKey]: this.compileMetric(
-                    metric,
-                    tables,
-                    availableParameters,
-                ),
-            };
-        }, {});
+            },
+        );
+        const metrics: Record<string, CompiledMetric> = Object.fromEntries(
+            metricResults.map(({ metricKey, compiledMetric }) => [
+                metricKey,
+                compiledMetric,
+            ]),
+        );
 
         const compiledSqlWhere = table.sqlWhere?.replace(
             lightdashVariablePattern,
@@ -908,57 +961,98 @@ export class ExploreCompiler {
         );
 
         return {
-            ...table,
-            uncompiledSqlWhere: table.sqlWhere,
-            sqlWhere: compiledSqlWhere,
-            dimensions,
-            metrics,
-            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
-            ...(table.parameters && Object.keys(table.parameters).length > 0
-                ? { parameters: table.parameters }
-                : {}),
+            table: {
+                ...table,
+                uncompiledSqlWhere: table.sqlWhere,
+                sqlWhere: compiledSqlWhere,
+                dimensions,
+                metrics,
+                ...(parameterReferences.length > 0
+                    ? { parameterReferences }
+                    : {}),
+                ...(table.parameters && Object.keys(table.parameters).length > 0
+                    ? { parameters: table.parameters }
+                    : {}),
+            },
+            warnings: metricResults.flatMap(({ warnings }) => warnings),
         };
     }
 
-    private static expandShowUnderlyingValueSets(
+    // show_underlying_values only curates the drill-down modal, so mistakes
+    // warn and drop the ref — they must never make a metric fail to compile.
+    private static compileShowUnderlyingValues(
         metric: Metric,
         tables: Record<string, Table>,
-    ) {
+        allTables: Record<string, Table>,
+    ): {
+        showUnderlyingValues: string[] | undefined;
+        warnings: InlineError[];
+    } {
         if (!Array.isArray(metric.showUnderlyingValues)) {
-            return undefined;
+            return { showUnderlyingValues: undefined, warnings: [] };
         }
 
         const currentTable = tables[metric.table];
-        const containsSetFields = metric.showUnderlyingValues.some((field) =>
-            field.endsWith('*'),
-        );
-        if (!containsSetFields || !currentTable) {
-            return metric.showUnderlyingValues;
+        if (!currentTable) {
+            return {
+                showUnderlyingValues: metric.showUnderlyingValues,
+                warnings: [],
+            };
         }
 
-        const expandedValues = expandFieldsWithSets(
-            [...metric.showUnderlyingValues],
-            currentTable,
-        );
+        const warnings: InlineError[] = [];
+        const warn = (problem: string) =>
+            warnings.push(
+                showUnderlyingValuesWarning(
+                    `"show_underlying_values" for metric "${metric.name}"`,
+                    problem,
+                ),
+            );
 
-        expandedValues.forEach((fieldRef) => {
-            const { refTable, refName } = getParsedReference(
-                fieldRef,
-                metric.table,
+        const { fields: expandedValues, setExpansionErrors } =
+            expandFieldsWithSetsLenient(
+                metric.showUnderlyingValues,
+                currentTable,
             );
-            const referencedTable = getReferencedTable(refTable, tables);
-            const isValidReference = !!(
-                referencedTable?.dimensions[refName] ||
-                referencedTable?.metrics[refName]
-            );
-            if (!isValidReference) {
-                throw new CompileError(
-                    `"show_underlying_values" for metric "${metric.name}" has a reference to an unknown field: ${fieldRef} in table "${metric.table}"`,
+        setExpansionErrors.forEach(warn);
+
+        const showUnderlyingValues = expandedValues.filter((fieldRef) => {
+            try {
+                const { refTable, refName } = getParsedReference(
+                    fieldRef,
+                    metric.table,
                 );
+                const referencedTable = getReferencedTable(refTable, tables);
+                if (!referencedTable) {
+                    // Unqualified refs parse to the metric's own table, which is
+                    // guaranteed present above — so this ref is table-qualified.
+                    // If its table exists in the project it may resolve in other
+                    // explores where that table is joined, so skip it silently;
+                    // a table found in no explore is a mistake worth surfacing.
+                    // (May false-positive for a join alias defined only in
+                    // another explore; acceptable as the warning is non-blocking.)
+                    if (!getReferencedTable(refTable, allTables)) {
+                        warn(
+                            `Unknown table "${refTable}" referenced by "${fieldRef}".`,
+                        );
+                    }
+                    return false;
+                }
+                const isValidReference = !!(
+                    referencedTable.dimensions[refName] ||
+                    referencedTable.metrics[refName]
+                );
+                if (!isValidReference) {
+                    warn(`Unknown field "${fieldRef}" in table "${refTable}".`);
+                }
+                return isValidReference;
+            } catch {
+                warn(`Invalid reference "${fieldRef}".`);
+                return false;
             }
         });
 
-        return expandedValues;
+        return { showUnderlyingValues, warnings };
     }
 
     compileMetric(
@@ -972,8 +1066,6 @@ export class ExploreCompiler {
             availableParameters,
         );
 
-        const showUnderlyingValues =
-            ExploreCompiler.expandShowUnderlyingValueSets(metric, tables);
         const tablesRequiredAttributes = Array.from(
             compiledMetric.tablesReferences,
         ).reduce<Record<string, Record<string, string | string[]>>>(
@@ -1018,7 +1110,7 @@ export class ExploreCompiler {
         return {
             ...metric,
             compiledSql,
-            showUnderlyingValues,
+            showUnderlyingValues: metric.showUnderlyingValues,
             tablesReferences: Array.from(compiledMetric.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
@@ -1039,6 +1131,12 @@ export class ExploreCompiler {
                           compiledMetric.compiledRelativeDateFilters,
                   }
                 : {}),
+            ...(compiledMetric.compiledTimestampFilters
+                ? {
+                      compiledTimestampFilters:
+                          compiledMetric.compiledTimestampFilters,
+                  }
+                : {}),
         };
     }
 
@@ -1052,6 +1150,7 @@ export class ExploreCompiler {
         valueSql?: string;
         compiledDistinctKeys?: string[];
         compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+        compiledTimestampFilters?: CompiledMetricTimestampFilter[];
     } {
         // Metric might have references to other dimensions
         if (!tables[metric.table]) {
@@ -1064,6 +1163,13 @@ export class ExploreCompiler {
         const currentShortRef = metric.name;
         let tablesReferences = new Set([metric.table]);
         let relativeDateFilters: CompiledMetricRelativeDateFilter[] | undefined;
+        let timestampFilters: CompiledMetricTimestampFilter[] | undefined;
+        // Referenced metrics inline their baked filter predicates into this
+        // metric's SQL — carry their records too so the query-time rewrite
+        // reaches derived metrics.
+        const referencedRelativeDateFilters: CompiledMetricRelativeDateFilter[] =
+            [];
+        const referencedTimestampFilters: CompiledMetricTimestampFilter[] = [];
         if (metric.sql === undefined || metric.sql === null) {
             throw new CompileError(
                 `Metric "${metric.name}" in table "${metric.table}" is missing a sql definition`,
@@ -1111,6 +1217,8 @@ export class ExploreCompiler {
                 let compiledReference: {
                     sql: string;
                     tablesReferences: Set<string>;
+                    compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+                    compiledTimestampFilters?: CompiledMetricTimestampFilter[];
                 };
 
                 if (isPostCalc) {
@@ -1176,6 +1284,12 @@ export class ExploreCompiler {
                     ...tablesReferences,
                     ...compiledReference.tablesReferences,
                 ]);
+                referencedRelativeDateFilters.push(
+                    ...(compiledReference.compiledRelativeDateFilters ?? []),
+                );
+                referencedTimestampFilters.push(
+                    ...(compiledReference.compiledTimestampFilters ?? []),
+                );
                 return compiledReference.sql;
             },
         );
@@ -1190,6 +1304,8 @@ export class ExploreCompiler {
             }
 
             const compiledRelativeDateFilters: CompiledMetricRelativeDateFilter[] =
+                [];
+            const compiledTimestampFilters: CompiledMetricTimestampFilter[] =
                 [];
             const conditions = metric.filters.map((filter) => {
                 const fieldRef =
@@ -1251,6 +1367,19 @@ export class ExploreCompiler {
                         fieldId: getItemId(compiledDimension),
                         compiledSql: conditionSql,
                     });
+                } else if (
+                    compiledDimension.type === DimensionType.TIMESTAMP &&
+                    filter.values !== undefined &&
+                    filter.values.length > 0
+                ) {
+                    // Absolute timestamp predicate: baked with no domain
+                    // context — record it so the query builder can re-render
+                    // it against a classified column at query time.
+                    compiledTimestampFilters.push({
+                        id: filter.id,
+                        fieldId: getItemId(compiledDimension),
+                        compiledSql: conditionSql,
+                    });
                 }
                 return conditionSql;
             });
@@ -1261,6 +1390,21 @@ export class ExploreCompiler {
             if (compiledRelativeDateFilters.length > 0) {
                 relativeDateFilters = compiledRelativeDateFilters;
             }
+            if (compiledTimestampFilters.length > 0) {
+                timestampFilters = compiledTimestampFilters;
+            }
+        }
+        if (referencedRelativeDateFilters.length > 0) {
+            relativeDateFilters = uniqByFilterId([
+                ...(relativeDateFilters ?? []),
+                ...referencedRelativeDateFilters,
+            ]);
+        }
+        if (referencedTimestampFilters.length > 0) {
+            timestampFilters = uniqByFilterId([
+                ...(timestampFilters ?? []),
+                ...referencedTimestampFilters,
+            ]);
         }
         if (
             metric.type === MetricType.SUM_DISTINCT ||
@@ -1294,6 +1438,7 @@ export class ExploreCompiler {
                 valueSql: renderedSql,
                 compiledDistinctKeys: compiledKeys,
                 compiledRelativeDateFilters: relativeDateFilters,
+                compiledTimestampFilters: timestampFilters,
             };
         }
 
@@ -1307,6 +1452,7 @@ export class ExploreCompiler {
             tablesReferences,
             valueSql: renderedSql,
             compiledRelativeDateFilters: relativeDateFilters,
+            compiledTimestampFilters: timestampFilters,
         };
     }
 
@@ -1505,6 +1651,18 @@ export class ExploreCompiler {
                 {},
             );
         }
+        // Already-compiled dimensions (e.g. pre-aggregate explores rewritten to
+        // materialized columns) are authoritative: reuse instead of recompiling.
+        if (
+            isCompiledDimension(referencedDimension) &&
+            referencedDimension.tablesReferences
+        ) {
+            return {
+                sql: `(${referencedDimension.compiledSql})`,
+                tablesReferences: new Set(referencedDimension.tablesReferences),
+            };
+        }
+
         const compiledDimension = this.compileDimensionSql(
             referencedDimension,
             tables,
@@ -1525,7 +1683,12 @@ export class ExploreCompiler {
         currentTable: string,
         availableParameters: string[],
         fieldContext?: FieldContext,
-    ): { sql: string; tablesReferences: Set<string> } {
+    ): {
+        sql: string;
+        tablesReferences: Set<string>;
+        compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+        compiledTimestampFilters?: CompiledMetricTimestampFilter[];
+    } {
         // Reference to current table
         if (ref === 'TABLE') {
             const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
@@ -1565,6 +1728,9 @@ export class ExploreCompiler {
                 referencedTable?.name || refTableName,
                 ...compiledMetric.tablesReferences,
             ]),
+            compiledRelativeDateFilters:
+                compiledMetric.compiledRelativeDateFilters,
+            compiledTimestampFilters: compiledMetric.compiledTimestampFilters,
         };
     }
 
@@ -1602,6 +1768,13 @@ export class ExploreCompiler {
             },
             tables,
         );
+        // An unnested table's ON clause is TRUE; its dependency on the parent
+        // lives in the FROM item, so it is recorded here for join ordering
+        // and fan-out detection.
+        const nestedFrom = tables[join.table]?.nestedFrom;
+        if (nestedFrom) {
+            tablesReferences.add(nestedFrom.parentTable);
+        }
 
         // Extract parameter references from sqlOn
         const parameterReferences = getParameterReferences(sql);

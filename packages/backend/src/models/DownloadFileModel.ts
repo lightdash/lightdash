@@ -27,11 +27,13 @@ export class DownloadFileModel {
         fileId: string,
         path: string,
         type: DownloadFileType,
+        projectUuid?: string,
     ): Promise<void> {
         await this.database(DownloadFileTableName).insert({
             nanoid: fileId,
             path,
             type,
+            project_uuid: projectUuid ?? null,
         });
     }
 
@@ -50,6 +52,32 @@ export class DownloadFileModel {
             path: row.path,
             createdAt: row.created_at,
             type: row.type as DownloadFileType,
+            projectUuid: row.project_uuid,
+        };
+    }
+
+    async getDownloadFileForProject(
+        projectUuid: string,
+        fileId: string,
+    ): Promise<DownloadFile> {
+        const row = await this.database(DownloadFileTableName)
+            .where({
+                nanoid: fileId,
+                project_uuid: projectUuid,
+            })
+            .select('*')
+            .first();
+
+        if (row === undefined) {
+            throw new NotFoundError(`Cannot find file`);
+        }
+
+        return {
+            nanoid: row.nanoid,
+            path: row.path,
+            createdAt: row.created_at,
+            type: row.type as DownloadFileType,
+            projectUuid: row.project_uuid,
         };
     }
 
@@ -58,6 +86,7 @@ export class DownloadFileModel {
         urlPrefix: string,
         callback: (writer: (data: ResultRow) => void) => Promise<void>,
         fileStorageClient?: FileStorageClient,
+        projectUuid?: string,
     ): Promise<string> {
         const downloadFileId = nanoid();
         const passThrough = new PassThrough();
@@ -87,6 +116,7 @@ export class DownloadFileModel {
             downloadFileId,
             s3FileId,
             DownloadFileType.S3_JSONL,
+            projectUuid,
         );
         Logger.debug('File has been uploaded to S3.');
 
@@ -95,15 +125,37 @@ export class DownloadFileModel {
     }
 
     // TODO: consider removing in milestone #212
-    streamFunction(fileStorageClient: FileStorageClient) {
+    streamFunction(fileStorageClient: FileStorageClient, projectUuid: string) {
         return fileStorageClient.isEnabled()
-            ? this.streamResultsToCloudStorage.bind(this)
-            : this.streamResultsToLocalFile.bind(this);
+            ? (
+                  urlPrefix: string,
+                  callback: (
+                      writer: (data: ResultRow) => void,
+                  ) => Promise<void>,
+              ) =>
+                  this.streamResultsToCloudStorage(
+                      urlPrefix,
+                      callback,
+                      fileStorageClient,
+                      projectUuid,
+                  )
+            : (
+                  urlPrefix: string,
+                  callback: (
+                      writer: (data: ResultRow) => void,
+                  ) => Promise<void>,
+              ) =>
+                  this.streamResultsToLocalFile(
+                      urlPrefix,
+                      callback,
+                      projectUuid,
+                  );
     }
 
     async streamResultsToLocalFile(
         urlPrefix: string,
         callback: (writer: (data: ResultRow) => void) => Promise<void>,
+        projectUuid?: string,
     ): Promise<string> {
         const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
         const filePath = `/tmp/${downloadFileId}.jsonl`;
@@ -112,6 +164,7 @@ export class DownloadFileModel {
             downloadFileId,
             filePath,
             DownloadFileType.JSONL,
+            projectUuid,
         );
         const writeStream = fs.createWriteStream(filePath, {
             encoding: 'utf8',

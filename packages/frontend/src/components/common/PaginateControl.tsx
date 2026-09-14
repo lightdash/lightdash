@@ -1,4 +1,4 @@
-import { Group, Pagination, Text, type GroupProps } from '@mantine-8/core';
+import { Group, Pagination, Text, type GroupProps } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import type { FC } from 'react';
 

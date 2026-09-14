@@ -159,6 +159,7 @@ describe('generatePreviewDeployWorkflowFiles', () => {
             cliVersion: '0.3075.2',
         });
         files.forEach(({ content }) => {
+            expect(content).toContain("node-version: '24.x'");
             // Actions pinned to a 40-char commit SHA, never a floating tag.
             expect(content).toMatch(/actions\/checkout@[0-9a-f]{40}/);
             expect(content).toMatch(/actions\/setup-node@[0-9a-f]{40}/);

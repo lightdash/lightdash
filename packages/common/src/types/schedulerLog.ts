@@ -28,6 +28,9 @@ export enum PartialFailureType {
     DASHBOARD_CHART = 'dashboard_chart',
     DASHBOARD_SQL_CHART = 'dashboard_sql_chart',
     AI_AUGMENTATION = 'ai_augmentation',
+    APP_QUERY = 'app_query',
+    APP_QUERY_MISSING = 'app_query_missing',
+    APP_CAPTURE_OVERFLOW = 'app_capture_overflow',
 }
 
 export type DashboardChartPartialFailure = {
@@ -57,12 +60,40 @@ export type AiAugmentationPartialFailure = {
     error: string;
 };
 
+// A captured app query failed during the delivery: at initial render, at
+// download, or (limit: 'all' only) while re-running a capped query unbounded —
+// 'rerun' failures still deliver the original capped file, so the caller must
+// keep the limit-reached notice for that entry.
+export type AppQueryPartialFailure = {
+    type: PartialFailureType.APP_QUERY;
+    stage: 'render' | 'download' | 'rerun';
+    captureKey: string;
+    label: string;
+    error: string;
+};
+
+// A query declared in the delivery manifest wasn't found among the captured queries.
+export type AppQueryMissingPartialFailure = {
+    type: PartialFailureType.APP_QUERY_MISSING;
+    captureKey: string;
+    label: string;
+};
+
+// Distinct captureKeys dropped once the app delivery hit MAX_DELIVERY_QUERIES.
+export type AppCaptureOverflowPartialFailure = {
+    type: PartialFailureType.APP_CAPTURE_OVERFLOW;
+    droppedCount: number;
+};
+
 // Union of all partial failure types
 export type PartialFailure =
     | DashboardChartPartialFailure
     | DashboardSqlChartPartialFailure
     | MissingTargetsPartialFailure
-    | AiAugmentationPartialFailure;
+    | AiAugmentationPartialFailure
+    | AppQueryPartialFailure
+    | AppQueryMissingPartialFailure
+    | AppCaptureOverflowPartialFailure;
 
 /**
  * Outcome of evaluating a threshold-alert scheduler against the latest query results.

@@ -12,6 +12,7 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { getContextTruncationNote } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -21,6 +22,7 @@ type Dependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     getSavedChart: GetSavedChartFn;
     maxLimit: number;
+    maxContextRows: number;
     enableDataAccess: boolean;
 };
 
@@ -92,6 +94,7 @@ export const getRunSavedChart = ({
     runAsyncQuery,
     getSavedChart,
     maxLimit,
+    maxContextRows,
     enableDataAccess,
 }: Dependencies) =>
     tool({
@@ -138,7 +141,10 @@ export const getRunSavedChart = ({
                     };
                 }
 
-                const csv = convertQueryResultsToCsv(queryResults);
+                const csv = convertQueryResultsToCsv(
+                    queryResults,
+                    maxContextRows,
+                );
                 return {
                     result: `${buildSavedChartHeader(
                         chartUuid,
@@ -147,7 +153,10 @@ export const getRunSavedChart = ({
                         {
                             includeFullSpec: true,
                         },
-                    )}${serializeData(csv, 'csv')}`,
+                    )}${getContextTruncationNote({
+                        rowCount: queryResults.rows.length,
+                        maxContextRows,
+                    })}${serializeData(csv, 'csv')}`,
                     metadata: { status: 'success' },
                 };
             } catch (e) {

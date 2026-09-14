@@ -2,8 +2,11 @@ import {
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatus,
+    type AppVersionStatusHistoryEntry,
+    type DataAppGenerationUsage,
     type DataAppTemplate,
     type DataAppVizSchema,
+    type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 
@@ -22,6 +25,7 @@ export type DbApp = {
     name: string;
     description: string;
     project_uuid: string;
+    slug: string;
     space_uuid: string | null;
     // Stable, registry-owned sandbox id (`sandbox_registry.sandbox_uuid`). Null
     // until the app's first generation creates a sandbox. The provider's own
@@ -31,11 +35,21 @@ export type DbApp = {
     // in-flight old code during a deploy.
     sandbox_id: string | null;
     template: Exclude<DataAppTemplate, 'custom'> | null;
+    // Curated icon name for a custom chart type (`ChartTypeIcon`); null when
+    // no icon is chosen or the app is not a chart type. Stored as text so an
+    // icon retired from the curated set does not fail to read back.
+    icon: string | null;
     design_uuid: string | null;
     // The production app this (preview) app was promoted into. Null until the
     // app is first promoted. Lives on the preview side so a single production
     // app can be the upstream of many preview apps.
     upstream_app_uuid: string | null;
+    // Slug/URL of the registry entry this app was installed from, if any.
+    registry_slug: string | null;
+    registry_url: string | null;
+    // The app this one was forked from, and the version forked at.
+    origin_app_uuid: string | null;
+    origin_app_version: number | null;
     created_at: Date;
     created_by_user_uuid: string;
     deleted_at: Date | null;
@@ -46,7 +60,7 @@ export type DbApp = {
 
 export type AppsTable = Knex.CompositeTableType<
     DbApp,
-    Pick<DbApp, 'project_uuid' | 'created_by_user_uuid'> &
+    Pick<DbApp, 'project_uuid' | 'created_by_user_uuid' | 'slug'> &
         Partial<
             Pick<
                 DbApp,
@@ -56,8 +70,13 @@ export type AppsTable = Knex.CompositeTableType<
                 | 'space_uuid'
                 | 'sandbox_id'
                 | 'template'
+                | 'icon'
                 | 'design_uuid'
                 | 'upstream_app_uuid'
+                | 'registry_slug'
+                | 'registry_url'
+                | 'origin_app_uuid'
+                | 'origin_app_version'
             >
         >,
     Partial<
@@ -65,10 +84,16 @@ export type AppsTable = Knex.CompositeTableType<
             DbApp,
             | 'name'
             | 'description'
+            | 'slug'
             | 'space_uuid'
             | 'sandbox_id'
+            | 'icon'
             | 'design_uuid'
             | 'upstream_app_uuid'
+            | 'registry_slug'
+            | 'registry_url'
+            | 'origin_app_uuid'
+            | 'origin_app_version'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
             | 'views_count'
@@ -84,14 +109,48 @@ export type DbAppVersion = {
     status: AppVersionStatus;
     error: string | null;
     status_message: string | null;
+    // Append-only build narration log; defaults to [] on insert.
+    status_history: AppVersionStatusHistoryEntry[];
     status_updated_at: Date | null;
     resources: AppVersionResources | null;
     // Declared-dependency summary for the version's build; null = template set.
     dependencies: AppVersionDependencies | null;
     // Declared schema for data-app-viz versions; null otherwise.
     viz_schema: DataAppVizSchema | null;
+    // Static data references found in this version's source. Null when not
+    // recorded, including versions created before persistence was added.
+    data_references: PersistedDataAppDataReferences | null;
+    // Token/cost spend for this version's generation. Null when the version
+    // predates spend recording or never called the model.
+    generation_usage: DataAppGenerationUsage | null;
+    // Registry version string this app version was installed/updated from.
+    registry_version: string | null;
     created_at: Date;
     created_by_user_uuid: string;
+};
+
+/**
+ * One row of the org-wide generation activity log: an `app_versions` row joined
+ * to its app and project, plus the author's name.
+ */
+export type DbAppActivityRow = Pick<
+    DbAppVersion,
+    | 'app_id'
+    | 'version'
+    | 'prompt'
+    | 'status'
+    | 'resources'
+    | 'generation_usage'
+    | 'created_at'
+    | 'created_by_user_uuid'
+> & {
+    app_name: string;
+    app_template: DbApp['template'];
+    app_deleted_at: Date | null;
+    project_uuid: string;
+    project_name: string;
+    created_by_user_first_name: string | null;
+    created_by_user_last_name: string | null;
 };
 
 export type AppVersionsTable = Knex.CompositeTableType<
@@ -103,7 +162,11 @@ export type AppVersionsTable = Knex.CompositeTableType<
         Partial<
             Pick<
                 DbAppVersion,
-                'app_version_id' | 'resources' | 'dependencies' | 'viz_schema'
+                | 'app_version_id'
+                | 'resources'
+                | 'dependencies'
+                | 'viz_schema'
+                | 'registry_version'
             >
         >,
     Partial<
@@ -112,8 +175,12 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'status'
             | 'error'
             | 'status_message'
+            | 'status_history'
             | 'status_updated_at'
             | 'viz_schema'
+            | 'data_references'
+            | 'generation_usage'
+            | 'registry_version'
         >
     >
 >;

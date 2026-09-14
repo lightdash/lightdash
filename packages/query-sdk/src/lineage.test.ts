@@ -113,6 +113,18 @@ describe('mountLineage availability announcement', () => {
         expect(availableMessages(parent)).toHaveLength(1);
     });
 
+    it('includes the stamped element count in the announce message', async () => {
+        const mountLineage = await loadMountLineage();
+        document.body.innerHTML =
+            '<div data-ld-query="q-1"></div><div data-ld-query="q-2"></div>';
+        const parent = makeParent();
+        mountLineage(parent as unknown as Window);
+        expect(availableMessages(parent)[0][0]).toEqual({
+            type: 'lightdash:lineage:available',
+            stampCount: 2,
+        });
+    });
+
     it('announces only once even when more stamps appear later', async () => {
         const mountLineage = await loadMountLineage();
         const parent = makeParent();

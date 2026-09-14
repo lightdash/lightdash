@@ -1,4 +1,5 @@
-import { ActionIcon, getDefaultZIndex, Menu, Text } from '@mantine-8/core';
+import { supportsOptionalUserCredentials } from '@lightdash/common';
+import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -14,6 +15,7 @@ import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
 import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal';
+import AppColorSchemeScope from './AppColorSchemeScope';
 
 const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/tables/:tableId',
@@ -159,12 +161,22 @@ const UserCredentialsSwitcher = () => {
         compatibleCredentials,
     ]);
 
+    // Show the switcher when personal credentials are mandatory, or when they
+    // are optional for this warehouse type and the user already has some
+    const isSwitcherVisible =
+        activeProject?.warehouseConnection?.requireUserCredentials ||
+        (supportsOptionalUserCredentials(
+            activeProject?.warehouseConnection?.type,
+        ) &&
+            !!compatibleCredentials?.length);
+
     if (
         isLoadingCredentials ||
         isLoadingActiveProject ||
         isLoadingActiveProjectUuid ||
         !activeProjectUuid ||
-        !activeProject?.warehouseConnection?.requireUserCredentials
+        !activeProject ||
+        !isSwitcherVisible
     ) {
         return null;
     }
@@ -173,7 +185,6 @@ const UserCredentialsSwitcher = () => {
         <>
             <Menu
                 withArrow
-                shadow="lg"
                 position="bottom-end"
                 arrowOffset={16}
                 offset={-2}
@@ -181,12 +192,16 @@ const UserCredentialsSwitcher = () => {
                 portalProps={{ target: '#navbar-header' }}
             >
                 <Menu.Target>
-                    <ActionIcon size="sm" pos="relative">
+                    <Button
+                        aria-label="Warehouse credentials"
+                        variant="default"
+                        size="xs"
+                    >
                         <MantineIcon
-                            data-testid="tile-icon-more"
                             icon={IconDatabaseCog}
+                            color="light-dark(var(--mantine-color-blue-6), var(--mantine-color-blue-4))"
                         />
-                    </ActionIcon>
+                    </Button>
                 </Menu.Target>
 
                 <Menu.Dropdown>
@@ -221,42 +236,44 @@ const UserCredentialsSwitcher = () => {
                 </Menu.Dropdown>
             </Menu>
             {isCreatingCredentials && (
-                <CreateCredentialsModal
-                    opened={isCreatingCredentials}
-                    title={
-                        showCreateModalOnPageLoad
-                            ? `Login to ${getWarehouseLabel(
-                                  activeProject.warehouseConnection?.type,
-                              )}`
-                            : undefined
-                    }
-                    description={
-                        showCreateModalOnPageLoad ? (
-                            <Text>
-                                The admin of your organization "
-                                {user.data?.organizationName}" requires that you
-                                login to{' '}
-                                {getWarehouseLabel(
-                                    activeProject.warehouseConnection?.type,
-                                )}{' '}
-                                to continue.
-                            </Text>
-                        ) : undefined
-                    }
-                    nameValue={
-                        showCreateModalOnPageLoad ? 'Default' : undefined
-                    }
-                    warehouseType={activeProject.warehouseConnection?.type}
-                    projectUuid={activeProjectUuid}
-                    projectName={activeProject.name}
-                    onSuccess={(data) => {
-                        mutate({
-                            projectUuid: activeProjectUuid,
-                            userWarehouseCredentialsUuid: data.uuid,
-                        });
-                    }}
-                    onClose={() => setIsCreatingCredentials(false)}
-                />
+                <AppColorSchemeScope>
+                    <CreateCredentialsModal
+                        opened={isCreatingCredentials}
+                        title={
+                            showCreateModalOnPageLoad
+                                ? `Login to ${getWarehouseLabel(
+                                      activeProject.warehouseConnection?.type,
+                                  )}`
+                                : undefined
+                        }
+                        description={
+                            showCreateModalOnPageLoad ? (
+                                <Text>
+                                    The admin of your organization "
+                                    {user.data?.organizationName}" requires that
+                                    you login to{' '}
+                                    {getWarehouseLabel(
+                                        activeProject.warehouseConnection?.type,
+                                    )}{' '}
+                                    to continue.
+                                </Text>
+                            ) : undefined
+                        }
+                        nameValue={
+                            showCreateModalOnPageLoad ? 'Default' : undefined
+                        }
+                        warehouseType={activeProject.warehouseConnection?.type}
+                        projectUuid={activeProjectUuid}
+                        projectName={activeProject.name}
+                        onSuccess={(data) => {
+                            mutate({
+                                projectUuid: activeProjectUuid,
+                                userWarehouseCredentialsUuid: data.uuid,
+                            });
+                        }}
+                        onClose={() => setIsCreatingCredentials(false)}
+                    />
+                </AppColorSchemeScope>
             )}
         </>
     );

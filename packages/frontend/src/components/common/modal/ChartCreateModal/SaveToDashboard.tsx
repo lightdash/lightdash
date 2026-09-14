@@ -6,26 +6,26 @@ import {
     type CreateSavedChartVersion,
     type DashboardTile,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Stack,
-    Text,
-    Textarea,
-    TextInput,
-} from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
+import SaveChartSuggestions from '../../../../ee/features/contentReview/components/SaveChartSuggestions';
 import {
     appendNewTilesToBottom,
     useDashboardQuery,
 } from '../../../../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
+import {
+    useIsModalHosted,
+    useModalHostedChartSaved,
+} from '../../../../providers/Explorer/useIsModalHosted';
 import classes from './ChartCreateModal.module.css';
 import { DEFAULT_CHART_METADATA, type ChartMetadata } from './types';
 
@@ -36,12 +36,14 @@ type Props = {
     projectUuid?: string;
     onClose: () => void;
     defaults?: ChartMetadata;
+    /** Chart-level palette chosen before the first save. */
+    colorPaletteUuid?: string | null;
 };
 
 type SaveToDashboardFormValues = { name: string; description: string };
 
 const validationSchema = z.object({
-    name: z.string().nonempty(),
+    name: z.string().min(1, 'Name is required'),
     description: z.string(),
 });
 
@@ -54,7 +56,11 @@ export const SaveToDashboard: FC<Props> = ({
     projectUuid,
     onClose,
     defaults = DEFAULT_CHART_METADATA,
+    colorPaletteUuid,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const [dashboardInfoFromStorage, setDashboardInfoFromStorage] = useState({
         name: dashboardName,
         dashboardUuid,
@@ -88,6 +94,8 @@ export const SaveToDashboard: FC<Props> = ({
 
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
+    const isModalHosted = useIsModalHosted();
+    const onModalHostChartSaved = useModalHostedChartSaved();
 
     const { mutateAsync: createChart } = useCreateMutation({
         redirectOnSuccess: false,
@@ -115,6 +123,7 @@ export const SaveToDashboard: FC<Props> = ({
                 ...savedData,
                 name: values.name,
                 description: values.description,
+                colorPaletteUuid,
                 dashboardUuid,
             };
             const chart = await createChart(newChartInDashboard);
@@ -129,6 +138,16 @@ export const SaveToDashboard: FC<Props> = ({
                 },
                 ...getDefaultChartTileSize(savedData.chartConfig?.type),
             };
+            // Modal-hosted: delegate to host, skip dashboard storage and navigation.
+            if (isModalHosted) {
+                onModalHostChartSaved?.(chart);
+                showToastSuccess({
+                    title: `Success! ${values.name} was added to ${dashboardName}`,
+                });
+                onClose();
+                return;
+            }
+
             const unsavedDashboardTiles =
                 getUnsavedDashboardTiles(dashboardUuid);
             const existingTiles =
@@ -144,8 +163,8 @@ export const SaveToDashboard: FC<Props> = ({
             );
             void navigate(
                 activeTabUuid
-                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTabUuid}`
-                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                    ? `/projects/${projectUrlIdentifier}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit/tabs/${activeTabUuid}`
+                    : `/projects/${projectUrlIdentifier}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit`,
             );
             showToastSuccess({
                 title: `Success! ${values.name} was added to ${dashboardName}`,
@@ -153,6 +172,7 @@ export const SaveToDashboard: FC<Props> = ({
         },
         [
             savedData,
+            colorPaletteUuid,
             dashboardUuid,
             createChart,
             getDashboardActiveTabUuid,
@@ -160,9 +180,14 @@ export const SaveToDashboard: FC<Props> = ({
             setUnsavedDashboardTiles,
             navigate,
             projectUuid,
+            projectUrlIdentifier,
             showToastSuccess,
             dashboardName,
             selectedDashboard?.tiles,
+            selectedDashboard?.slug,
+            isModalHosted,
+            onModalHostChartSaved,
+            onClose,
         ],
     );
     return (
@@ -187,10 +212,14 @@ export const SaveToDashboard: FC<Props> = ({
                         maxRows={3}
                         {...form.getInputProps('description')}
                     />
+                    <SaveChartSuggestions
+                        projectUuid={projectUuid ?? null}
+                        name={form.values.name ?? ''}
+                    />
                 </Stack>
                 <Stack gap={4}>
                     <Text fw={500}>Saving to "{dashboardName}" dashboard</Text>
-                    <Text fw={400} c="ldGray.6" fz="xs">
+                    <Text fw={400} c="dimmed" fz="xs">
                         This chart will be saved exclusively to the dashboard "
                         {dashboardName}", keeping your space clutter-free.
                     </Text>

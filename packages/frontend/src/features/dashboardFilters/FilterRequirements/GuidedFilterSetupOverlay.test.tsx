@@ -1,4 +1,10 @@
-import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    FilterOperator,
+    type DashboardFilterableField,
+    type DashboardFilterRule,
+} from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,10 +30,6 @@ const mockDashboardContext = vi.hoisted(() => ({
 
 vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
-}));
-
-vi.mock('./useFilterableItemsMap', () => ({
-    useFilterableItemsMap: vi.fn(() => ({})),
 }));
 
 // Stub the filter input (its Mantine autocomplete is inert in jsdom) but
@@ -106,6 +108,70 @@ describe('GuidedFilterSetupOverlay', () => {
         expect(screen.getByText('1 more to go')).not.toBeNull();
     });
 
+    it.each(['single', 'group'])(
+        'uses the targeted explore label for a legacy %s requirement',
+        (kind) => {
+            const fieldA: DashboardFilterableField = {
+                table: 'team',
+                name: 'name',
+                tableLabel: 'Team at Event A',
+                label: 'Name at Event A',
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                sql: '${TABLE}.name',
+                hidden: false,
+            };
+            const fieldB = {
+                ...fieldA,
+                tableLabel: 'Team at Event B',
+                label: 'Name at Event B',
+            };
+            const rule: DashboardFilterRule = {
+                ...unmetRule,
+                target: { fieldId: 'team_name', tableName: 'team' },
+                required: kind === 'single',
+                requiredGroupId: kind === 'group' ? 'group' : undefined,
+                tileTargets: {
+                    'tile-a': false,
+                    'tile-b': { fieldId: 'team_name', tableName: 'team' },
+                },
+            };
+            const filters = {
+                dimensions:
+                    kind === 'single'
+                        ? [rule]
+                        : [
+                              rule,
+                              {
+                                  ...rule,
+                                  id: 'other',
+                                  label: 'Other condition',
+                              },
+                          ],
+                metrics: [],
+                tableCalculations: [],
+            };
+            Object.assign(mockDashboardContext.current, {
+                dashboardFilters: filters,
+                allFilters: filters,
+                allFilterableFieldsMap: { team_name: fieldA },
+                filterableFieldsByTileUuid: {
+                    'tile-a': [fieldA],
+                    'tile-b': [fieldB],
+                },
+            });
+            renderWithProviders(
+                <GuidedFilterSetupOverlay onDismiss={vi.fn()} />,
+            );
+            expect(
+                screen.getAllByText(/Name at Event B/).length,
+            ).toBeGreaterThan(0);
+            expect(
+                screen.queryByText(/Name at Event A/),
+            ).not.toBeInTheDocument();
+        },
+    );
+
     it('dismisses from the close button but not from clicks inside the card', async () => {
         const onDismiss = vi.fn();
         renderWithProviders(<GuidedFilterSetupOverlay onDismiss={onDismiss} />);
@@ -113,7 +179,7 @@ describe('GuidedFilterSetupOverlay', () => {
         await userEvent.click(screen.getByTestId('guided-filter-setup'));
         expect(onDismiss).not.toHaveBeenCalled();
 
-        const closeButton = document.querySelector('.mantine-8-Modal-close');
+        const closeButton = document.querySelector('.mantine-Modal-close');
         expect(closeButton).not.toBeNull();
         await userEvent.click(closeButton as HTMLElement);
         expect(onDismiss).toHaveBeenCalledTimes(1);
@@ -123,7 +189,7 @@ describe('GuidedFilterSetupOverlay', () => {
         const onDismiss = vi.fn();
         renderWithProviders(<GuidedFilterSetupOverlay onDismiss={onDismiss} />);
 
-        const backdrop = document.querySelector('.mantine-8-Modal-overlay');
+        const backdrop = document.querySelector('.mantine-Modal-overlay');
         expect(backdrop).not.toBeNull();
         await userEvent.click(backdrop as HTMLElement);
         expect(onDismiss).toHaveBeenCalledTimes(1);

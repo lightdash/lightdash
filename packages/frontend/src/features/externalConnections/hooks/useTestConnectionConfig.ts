@@ -27,6 +27,7 @@ const testConnectionConfig = async ({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/external-connections/test-config`,
         body: JSON.stringify(body),
+        sensitive: true,
     });
 
 export const useTestConnectionConfig = () => {

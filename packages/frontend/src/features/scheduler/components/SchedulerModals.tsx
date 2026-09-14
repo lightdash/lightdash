@@ -1,12 +1,13 @@
 import { type ItemsMap } from '@lightdash/common';
-import { useDebouncedValue } from '@mantine-8/hooks';
-import { useState, type FC } from 'react';
+import { useDebouncedValue } from '@mantine/hooks';
+import { useMemo, useState, type FC } from 'react';
 import {
     selectParameterDefinitions,
     selectParameters,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { readAppUrlState } from '../../apps/hooks/useAppUrlStateSync';
 import {
     useAppSchedulerCreateMutation,
     useAppSchedulers,
@@ -52,6 +53,9 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const availableParameters = useDashboardContext(
         (c) => c.parameterDefinitions,
     );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
 
     return (
         <SchedulerModal
@@ -62,6 +66,7 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
             isChart={false}
             currentParameterValues={currentParameterValues}
             availableParameters={availableParameters}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             {...modalProps}
@@ -88,6 +93,8 @@ interface AppSchedulersProps {
     onClose: () => void;
     /** If provided, opens directly in edit mode for this scheduler */
     initialSchedulerUuid?: string;
+    /** Count of ready queries captured by the live preview. */
+    capturedQueryCount?: number;
 }
 
 export const AppSchedulersModal: FC<AppSchedulersProps> = ({
@@ -96,8 +103,16 @@ export const AppSchedulersModal: FC<AppSchedulersProps> = ({
     name,
     ...modalProps
 }) => {
-    const schedulersQuery = useAppSchedulers({ projectUuid, appUuid });
+    const schedulersQuery = useAppSchedulers({
+        projectUuid,
+        appUuid,
+        includeLatestRun: true,
+    });
     const createMutation = useAppSchedulerCreateMutation(projectUuid);
+
+    // The modal only mounts while open, and its hosts (builder/viewer) sync
+    // app state into ?state= — so this is the view the user is looking at.
+    const currentAppState = useMemo(readAppUrlState, []);
 
     return (
         <SchedulerModal
@@ -106,6 +121,10 @@ export const AppSchedulersModal: FC<AppSchedulersProps> = ({
             schedulersQuery={schedulersQuery}
             createMutation={createMutation}
             isApp
+            currentAppState={currentAppState}
+            initialFormValues={
+                currentAppState ? { appState: currentAppState } : undefined
+            }
             {...modalProps}
         />
     );

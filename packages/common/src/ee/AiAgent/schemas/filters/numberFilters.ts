@@ -3,10 +3,10 @@ import { DimensionType, MetricType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
 import { getFieldIdSchema } from '../fieldId';
 import {
-    filterJsonExamples,
     filterOperatorList,
     valuePresenceOperatorDescription,
 } from './filterDescriptionUtils';
+import { filterJsonExamplesForOperators } from './filterExamples';
 
 const commonNumberFilterRuleSchema = z.object({
     fieldId: getFieldIdSchema({ additionalDescription: null }),
@@ -27,6 +27,7 @@ const commonNumberFilterRuleSchema = z.object({
     fieldFilterType: z.literal(FilterType.NUMBER),
 });
 
+// Strict variants prevent Zod from silently stripping invalid AI keys like values/settings.
 const numberFilterSchema = z.union([
     commonNumberFilterRuleSchema
         .extend({
@@ -37,19 +38,14 @@ const numberFilterSchema = z.union([
                 ])
                 .describe(valuePresenceOperatorDescription),
         })
+        .strict()
         .describe(
-            `Use for numeric fields when checking if a value is missing or present. Do not include values. ${filterJsonExamples(
+            `Use for numeric fields when checking if a value is missing or present. Do not include values. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_total_revenue',
                     fieldType: MetricType.SUM,
                     fieldFilterType: FilterType.NUMBER,
-                    operator: FilterOperator.NULL,
-                },
-                {
-                    fieldId: 'orders_total_revenue',
-                    fieldType: MetricType.SUM,
-                    fieldFilterType: FilterType.NUMBER,
-                    operator: FilterOperator.NOT_NULL,
+                    operators: [FilterOperator.NULL, FilterOperator.NOT_NULL],
                 },
             )}`,
         ),
@@ -64,24 +60,20 @@ const numberFilterSchema = z.union([
                     `Use ${filterOperatorList(FilterOperator.EQUALS, FilterOperator.NOT_EQUALS)} for exact numeric matches.`,
                 ),
             values: z
-                .array(z.number())
+                .array(z.coerce.number())
                 .describe('One or more exact numeric values to match.'),
         })
+        .strict()
         .describe(
-            `Use for numeric fields that equal or exclude specific values. ${filterJsonExamples(
+            `Use for numeric fields that equal or exclude specific values. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_item_count',
                     fieldType: MetricType.COUNT,
                     fieldFilterType: FilterType.NUMBER,
-                    operator: FilterOperator.EQUALS,
-                    values: [1, 2],
-                },
-                {
-                    fieldId: 'orders_discount_percent',
-                    fieldType: DimensionType.NUMBER,
-                    fieldFilterType: FilterType.NUMBER,
-                    operator: FilterOperator.NOT_EQUALS,
-                    values: [0],
+                    operators: [
+                        FilterOperator.EQUALS,
+                        FilterOperator.NOT_EQUALS,
+                    ],
                 },
             )}`,
         ),
@@ -98,25 +90,23 @@ const numberFilterSchema = z.union([
                     'Use for threshold comparisons such as greater than 100.',
                 ),
             values: z
-                .array(z.number())
+                .array(z.coerce.number())
                 .length(1)
                 .describe('Exactly one numeric threshold value.'),
         })
+        .strict()
         .describe(
-            `Use for numeric fields with a single comparison threshold. ${filterJsonExamples(
+            `Use for numeric fields with a single comparison threshold. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_total_revenue',
                     fieldType: MetricType.SUM,
                     fieldFilterType: FilterType.NUMBER,
-                    operator: FilterOperator.GREATER_THAN,
-                    values: [1000],
-                },
-                {
-                    fieldId: 'orders_discount_percent',
-                    fieldType: DimensionType.NUMBER,
-                    fieldFilterType: FilterType.NUMBER,
-                    operator: FilterOperator.LESS_THAN_OR_EQUAL,
-                    values: [0.15],
+                    operators: [
+                        FilterOperator.LESS_THAN,
+                        FilterOperator.LESS_THAN_OR_EQUAL,
+                        FilterOperator.GREATER_THAN,
+                        FilterOperator.GREATER_THAN_OR_EQUAL,
+                    ],
                 },
             )}`,
         ),
@@ -129,25 +119,21 @@ const numberFilterSchema = z.union([
                 ])
                 .describe('Use for ranges between two numeric bounds.'),
             values: z
-                .array(z.number())
+                .array(z.coerce.number())
                 .length(2)
                 .describe('Exactly two numeric bounds: [lower, upper].'),
         })
+        .strict()
         .describe(
-            `Use for numeric fields inside or outside a two-value range. ${filterJsonExamples(
+            `Use for numeric fields inside or outside a two-value range. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_total_revenue',
                     fieldType: MetricType.SUM,
                     fieldFilterType: FilterType.NUMBER,
-                    operator: FilterOperator.IN_BETWEEN,
-                    values: [100, 500],
-                },
-                {
-                    fieldId: 'orders_margin_percent',
-                    fieldType: DimensionType.NUMBER,
-                    fieldFilterType: FilterType.NUMBER,
-                    operator: FilterOperator.NOT_IN_BETWEEN,
-                    values: [0.2, 0.4],
+                    operators: [
+                        FilterOperator.IN_BETWEEN,
+                        FilterOperator.NOT_IN_BETWEEN,
+                    ],
                 },
             )}`,
         ),

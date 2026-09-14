@@ -3,7 +3,7 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine-8/core';
+import { Menu, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -44,7 +44,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({
                         onClick={() => onSelect(direction)}
                     >
                         Sort{' '}
-                        <Text span fz="inherit" lh="inherit" fw="bold">
+                        <Text span fw="bold">
                             {getSortLabel(item, direction)}
                         </Text>
                     </Menu.Item>

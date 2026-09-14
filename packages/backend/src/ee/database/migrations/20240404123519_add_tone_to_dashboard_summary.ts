@@ -1,8 +1,8 @@
-import { DashboardSummaryTone } from '@lightdash/common';
 import { Knex } from 'knex';
 
 const DASHBOARD_SUMMARIES_TABLE_NAME = 'dashboard_summaries';
 const ToneColumnName = 'tone';
+const DEFAULT_TONE = 'friendly';
 
 export async function up(knex: Knex): Promise<void> {
     if (await knex.schema.hasTable(DASHBOARD_SUMMARIES_TABLE_NAME)) {
@@ -12,7 +12,7 @@ export async function up(knex: Knex): Promise<void> {
                 table
                     .text(ToneColumnName)
                     .notNullable()
-                    .defaultTo(DashboardSummaryTone.FRIENDLY);
+                    .defaultTo(DEFAULT_TONE);
             },
         );
     }

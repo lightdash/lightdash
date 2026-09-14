@@ -1,6 +1,7 @@
-import { type FeatureFlags } from '@lightdash/common';
 import type {
     AiWritebackSource,
+    AiWritebackWorkstream,
+    FeatureFlags,
     PullRequestProvider,
     SessionUser,
     SupportedDbtVersions,
@@ -38,6 +39,7 @@ export type GithubConnection = {
     projectSubPath: string;
     /** The project's configured branch, or '' to fall back to the repo default. */
     branch: string;
+    semanticLayer?: 'dbt' | 'lightdash';
 };
 
 export type GitlabConnection = {
@@ -53,7 +55,22 @@ export type GitlabConnection = {
  * The dbt repo a writeback run targets. Discriminated by `provider` so the
  * service can read the shared fields while each provider narrows for its own.
  */
-export type GitConnection = GithubConnection | GitlabConnection;
+export type BitbucketConnection = {
+    semanticLayer?: 'dbt' | 'lightdash';
+    provider: PullRequestProvider.BITBUCKET;
+    owner: string;
+    repo: string;
+    projectSubPath: string;
+    branch: string;
+    projectUuid: string;
+    projectDbtSourceUuid: string | null;
+    username: string;
+};
+
+export type GitConnection =
+    | GithubConnection
+    | GitlabConnection
+    | BitbucketConnection;
 
 export type AdoptedPullRequest = {
     prUrl: string;
@@ -96,7 +113,18 @@ export type GitlabInstallation = {
 };
 
 /** Resolved auth for the run's git host. Discriminated by `provider`. */
-export type GitInstallation = GithubInstallation | GitlabInstallation;
+export type BitbucketInstallation = {
+    provider: PullRequestProvider.BITBUCKET;
+    token: string;
+    owner: string;
+    repo: string;
+    commitAuthor: GitCommitAuthor;
+};
+
+export type GitInstallation =
+    | GithubInstallation
+    | GitlabInstallation
+    | BitbucketInstallation;
 
 /** HTTPS clone target; credentials are supplied out-of-band, never in the URL. */
 export type CloneTarget = {
@@ -115,6 +143,7 @@ export type SetStage = (stage: AiWritebackFailureStage) => void;
  */
 export type CodingAgentSetup = {
     systemPrompt: string;
+    repoContext: RepoContext | null;
     /** Claude Code `--allowedTools` string for this mode. */
     allowedTools: string;
     /**
@@ -140,7 +169,7 @@ export type CodingAgentSetup = {
  */
 export type CodingAgentConfig = {
     /** Tags logs/analytics and selects the few remaining mode branches. */
-    mode: 'dbt-writeback' | 'general';
+    mode: AiWritebackWorkstream;
     /**
      * The rollout feature flag this mode is gated behind (CodingAgent for the
      * general agent). Undefined for dbt writeback, which is always enabled.
@@ -256,6 +285,28 @@ export type AgentToolCall = {
 };
 
 /**
+ * The repo file listing handed to the agent in its system prompt.
+ *
+ * `full` is the complete sorted listing — the agent is told to treat it as the
+ * index and not re-discover paths. `summarised` is a directory-level digest
+ * emitted when the full listing is too large to inject: on a big dbt project
+ * the listing alone can exceed the model's context window, which fails the run
+ * before any work happens. In that case the agent is pointed at `Glob`/`Grep`
+ * instead, which costs turns but actually completes.
+ */
+export type RepoContext =
+    | { kind: 'full'; listing: string }
+    | {
+          kind: 'summarised';
+          /** Directory-level digest, one `path/ (N files)` line per directory. */
+          listing: string;
+          /** Number of files in the full listing this was derived from. */
+          fileCount: number;
+          /** Size of the full listing in bytes, for logging. */
+          bytes: number;
+      };
+
+/**
  * The meaningful shapes of a Claude Code stream-json line. Everything the host
  * reacts to (assistant text, tool calls, the final cost summary) is one of
  * these; every other event type collapses to `ignored`.
@@ -266,6 +317,18 @@ export type AgentStreamEvent =
           type: 'result';
           /** Total agent wall-clock (ms) as reported by Claude Code. */
           durationMs: number | null;
+          /**
+           * Whether the CLI classified its own run as failed. When `claude -p`
+           * exits non-zero this is the only machine-readable statement of why —
+           * the subprocess writes nothing to stderr in that case.
+           */
+          isError: boolean | null;
+          /**
+           * The CLI's result classification: `success`, `error_max_turns`,
+           * `error_during_execution`, … Retained verbatim rather than mapped to
+           * an enum so a new upstream subtype reaches the logs unchanged.
+           */
+          subtype: string | null;
       } & AiWritebackUsage)
     | { type: 'ignored' };
 
@@ -348,6 +411,7 @@ export type AiWritebackRunArgs = {
      */
     startNewPullRequest?: boolean;
     aiThreadUuid?: string;
+    promptUuid?: string;
     /**
      * Identifies the trigger surface so logs, metrics, and analytics can
      * group runs by where they originated. Required so adding new triggers

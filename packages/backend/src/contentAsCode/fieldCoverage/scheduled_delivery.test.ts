@@ -6,6 +6,7 @@ describeContentAsCodeSchemaContract({
     documentSchema: 'ScheduledDeliveryAsCode',
     skippedModelFields: [
         'appName',
+        'appState',
         'appUuid',
         'createdAt',
         'createdBy',

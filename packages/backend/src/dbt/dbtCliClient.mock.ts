@@ -10,6 +10,7 @@ export const cliArgs = {
     dbtProjectDirectory: 'dbtProjectDirectory',
     dbtProfilesDirectory: 'dbtProfilesDirectory',
     environment: {},
+    environmentVariableAllowlist: [],
     profileName: 'profileName',
     target: 'target',
 };
@@ -44,13 +45,6 @@ export const cliMockImplementation = {
         throw cliMocks.error;
     },
 };
-
-export const dbtProjectYml = `
-name: 'jaffle_shop'
-version: '0.1'
-profile: 'jaffle_shop'
-config-version: 2
-`;
 
 export const manifestMock: DbtManifest = {
     nodes: {},

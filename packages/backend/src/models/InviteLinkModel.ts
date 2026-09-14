@@ -1,4 +1,5 @@
 import {
+    ExpiredError,
     InviteLink,
     InviteLinkPurpose,
     NotFoundError,
@@ -97,7 +98,15 @@ export class InviteLinkModel {
         if (inviteLinks.length === 0) {
             throw new NotFoundError('No invite link found');
         }
-        return this.mapDbObjectToInviteLink(inviteCode, inviteLinks[0]);
+        const inviteLink = this.mapDbObjectToInviteLink(
+            inviteCode,
+            inviteLinks[0],
+        );
+        if (inviteLink.expiresAt <= new Date()) {
+            await this.deleteByCode(inviteCode);
+            throw new ExpiredError('Invite link expired');
+        }
+        return inviteLink;
     }
 
     async upsert(

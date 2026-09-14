@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { SchedulerFormat } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { ActionIcon, Menu } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconCode,
     IconDots,
@@ -85,17 +85,15 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
     return (
         <>
             <Menu
-                withinPortal
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
-                shadow="md"
                 offset={-4}
                 closeOnItemClick
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon variant="subtle" color="gray">
+                    <ActionIcon>
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>

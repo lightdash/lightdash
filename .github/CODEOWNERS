@@ -4,3 +4,5 @@
 pnpm-workspace.yaml @lightdash/engineering
 renovate.json @lightdash/engineering
 .github/workflows/ @lightdash/engineering
+.github/scripts/ @lightdash/engineering
+.github/trusted-contributors.yml @lightdash/engineering

@@ -1,4 +1,8 @@
-import { SearchItemType, type SearchResult } from '@lightdash/common';
+import {
+    SearchItemType,
+    type RecentContentEntry,
+    type SearchResult,
+} from '@lightdash/common';
 import { type Icon as TablerIcon } from '@tabler/icons-react';
 
 // Display order for the omnibar's "Item type" filter dropdown.
@@ -27,6 +31,7 @@ export type SearchItem = {
     description?: string;
     location: { pathname: string; search?: string };
     item?: SearchResult;
+    recentContent?: RecentContentEntry['content'];
     searchRank?: number;
     slug?: string;
 };
@@ -34,4 +39,17 @@ export type SearchItem = {
 export type FocusedItemIndex = {
     groupIndex: number;
     itemIndex: number;
+};
+
+/** A labelled section of omnibar rows — search-result type groups and the
+ * recently-viewed section share this shape so keyboard navigation, hover
+ * focus and the preview panel behave identically for both. Collapsed groups
+ * keep `items` empty (so keyboard nav skips them) while `totalCount` still
+ * reports how many results the section holds. */
+export type OmnibarGroup = {
+    key: string;
+    label: string;
+    items: SearchItem[];
+    totalCount: number;
+    collapsed: boolean;
 };

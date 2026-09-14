@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Group, Paper, Text, Tooltip } from '@mantine-8/core';
+import { Group, Paper, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
@@ -35,7 +35,7 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
                         name={displayName}
                         userUuid={owner.userUuid}
                     />
-                    <Text fz="sm" fw={600} c="ldGray.9" truncate>
+                    <Text fz="sm" fw={600} truncate>
                         {displayName}
                     </Text>
                 </Group>

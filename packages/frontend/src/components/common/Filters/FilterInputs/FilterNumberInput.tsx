@@ -1,4 +1,4 @@
-import { TextInput, type TextInputProps } from '@mantine-8/core';
+import { TextInput, type TextInputProps } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -96,7 +96,6 @@ const FilterNumberInput: FC<Props> = ({
 
     return (
         <TextInput
-            radius="md"
             w="100%"
             size="xs"
             disabled={disabled}

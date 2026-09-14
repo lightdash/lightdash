@@ -1,13 +1,17 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { type ButtonProps } from '@mantine-8/core';
+import {
+    type ButtonProps,
+    type PolymorphicComponentProps,
+} from '@mantine/core';
 import { type notifications } from '@mantine/notifications';
-import { type PolymorphicComponentProps } from '@mantine/utils';
 import { type Icon } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 
+export type ToastVariant = 'success' | 'error' | 'info' | 'warning';
+
 export type NotificationData = Omit<
     Parameters<typeof notifications.show>[0],
-    'message' | 'key'
+    'message' | 'key' | 'color'
 > & {
     key?: string;
     subtitle?: string | ReactNode;
@@ -16,5 +20,5 @@ export type NotificationData = Omit<
     };
     apiError?: ApiErrorDetail;
     messageKey?: string;
-    isError?: boolean;
+    receivedAt?: string;
 };

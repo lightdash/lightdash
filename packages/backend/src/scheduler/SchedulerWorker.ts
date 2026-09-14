@@ -14,19 +14,25 @@ import {
     run as runGraphileWorker,
     Runner,
     type CronItem,
+    type WorkerEvents,
+    type WorkerPool,
 } from 'graphile-worker';
 import moment from 'moment';
+import { EventEmitter } from 'node:events';
+import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
+import { MigrationLeaseProbe } from './MigrationLeaseProbe';
 import { SchedulerClient } from './SchedulerClient';
 import {
     resolveSchedulerDeliveryFailureAction,
     SchedulerDeliveryError,
 } from './SchedulerDeliveryError';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
+import { SchedulerMigrationQuiesce } from './SchedulerMigrationQuiesce';
 import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
@@ -59,10 +65,39 @@ const PG_PING_INTERVAL_MS = 60_000;
 // stack up overlapping client borrows from the pool.
 const PG_PING_TIMEOUT_MS = 5_000;
 
+// The ping doubles as a worker-pool liveness probe. The NOTIFY on graphile's
+// jobs:insert channel makes every listener in this database — including this
+// process's own — nudge its worker pool. A terminated pool fails that nudge
+// ("nudge called after worker terminated"), which surfaces via
+// pool:listen:error and trips the poolDead latch. Without this, an idle dead
+// worker looks healthy forever: nothing else generates NOTIFYs on a quiet
+// instance, and the wedged runner stops enqueueing even its own cron jobs.
+// The ping's pool (SchedulerClient's WorkerUtils) is separate from the
+// runner's, so it keeps working when the runner is wedged.
+const PG_PING_QUERY = `SELECT pg_notify('jobs:insert', '')`;
+
+type ManagedRunner = {
+    runner: Runner;
+    workerPool: WorkerPool | null;
+};
+
+class ForwardingWorkerEvents extends EventEmitter {
+    constructor(private readonly target: EventEmitter) {
+        super();
+    }
+
+    emit(eventName: string | symbol, ...args: unknown[]): boolean {
+        const emitted = super.emit(eventName, ...args);
+        return this.target.emit(eventName, ...args) || emitted;
+    }
+}
+
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
 
     isRunning: boolean = false;
+
+    isQuiesced: boolean = false;
 
     enabledTasks: Array<SchedulerTaskName>;
 
@@ -70,9 +105,21 @@ export class SchedulerWorker extends SchedulerTask {
 
     private pgPingInterval: NodeJS.Timeout | null = null;
 
+    private isStopping: boolean = false;
+
     private readonly resolveOrganizationName?: OrganizationNameResolver;
 
     private readonly prometheusMetrics: PrometheusMetrics | null;
+
+    private readonly managedRunners = new Set<ManagedRunner>();
+
+    private readonly expectedRunnerStops = new Set<Runner>();
+
+    private migrationQuiesce: SchedulerMigrationQuiesce | null = null;
+
+    private maxPoolSize = 0;
+
+    private runnerStopPromise: Promise<void> | null = null;
 
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
@@ -101,31 +148,169 @@ export class SchedulerWorker extends SchedulerTask {
                 : 10;
 
         // We don't want to exceed the max number of connections to the database
-        const maxPoolSize = Math.min(desiredPoolSize, dbMaxConnections);
+        this.maxPoolSize = Math.min(desiredPoolSize, dbMaxConnections);
 
-        this.runner = await runGraphileWorker({
-            connectionString: this.lightdashConfig.database.connectionUri,
-            logger: workerLogger,
-            concurrency: this.lightdashConfig.scheduler.concurrency,
-            noHandleSignals: true,
-            pollInterval: this.lightdashConfig.scheduler.pollInterval,
-            maxPoolSize,
-            parsedCronItems: parseCronItems(this.getCronItems()),
-            taskList: traceTasks(this.getTaskList(), {
-                resolveOrganizationName: this.resolveOrganizationName,
+        const quiesceConfig = this.lightdashConfig.scheduler.quiesce;
+        this.migrationQuiesce = new SchedulerMigrationQuiesce({
+            probe: new MigrationLeaseProbe({
+                graphileUtils: this.schedulerClient.graphileUtils,
+                cacheMs: quiesceConfig.pollInterval,
             }),
-            events: schedulerWorkerEventEmitter,
+            pollIntervalMs: quiesceConfig.pollInterval,
+            gracePeriodMs: quiesceConfig.gracePeriod,
+            resumeJitterMs: quiesceConfig.resumeJitter,
+            resumeRampPeriodMs: quiesceConfig.resumeRampPeriod,
+            hooks: {
+                onQuiesceStateChange: (quiesced) => {
+                    this.isQuiesced = quiesced;
+                },
+                onFailure: (error) => {
+                    this.isQuiesced = false;
+                    this.workerHealth?.markPoolDead(
+                        `migration quiesce failed: ${getErrorMessage(error)}`,
+                    );
+                    Logger.error('Migration quiesce failed', error);
+                },
+                stopWorkersForRetry: (reason) =>
+                    this.stopManagedRunnersForRetry(reason),
+                startResumeWorkers: () => this.startResumeWorkers(),
+                finishResumeRamp: () => this.finishResumeRamp(),
+            },
         });
 
-        this.isRunning = true;
+        const leaseActive = await this.migrationQuiesce.start();
+        if (!leaseActive) {
+            await this.startManagedRunner(
+                this.lightdashConfig.scheduler.concurrency,
+                this.maxPoolSize,
+                true,
+            );
+            this.isQuiesced = false;
+        } else {
+            this.isQuiesced = true;
+        }
+
         if (this.workerHealth) {
             this.startPgPing(this.workerHealth);
         }
-        // Don't await this! This promise will never resolve, as the worker will keep running until the process is killed
-        void this.runner.promise.finally(() => {
-            this.isRunning = false;
-            this.stopPgPing();
+    }
+
+    async stop() {
+        this.isStopping = true;
+        await this.migrationQuiesce?.stop();
+        this.stopPgPing();
+        this.isRunning = false;
+        this.isQuiesced = false;
+    }
+
+    private async startManagedRunner(
+        concurrency: number,
+        maxPoolSize: number,
+        includeCron: boolean,
+    ): Promise<void> {
+        const events = new ForwardingWorkerEvents(
+            schedulerWorkerEventEmitter as EventEmitter,
+        ) as WorkerEvents;
+        let workerPool: WorkerPool | null = null;
+        events.once('pool:create', ({ workerPool: createdWorkerPool }) => {
+            workerPool = createdWorkerPool;
         });
+
+        const runner = await runGraphileWorker({
+            connectionString: this.lightdashConfig.database.connectionUri,
+            logger: workerLogger,
+            concurrency,
+            noHandleSignals: true,
+            pollInterval: this.lightdashConfig.scheduler.pollInterval,
+            maxPoolSize,
+            parsedCronItems: includeCron
+                ? parseCronItems(this.getCronItems())
+                : [],
+            taskList: traceTasks(this.getTaskList(), {
+                resolveOrganizationName: this.resolveOrganizationName,
+            }),
+            forbiddenFlags: () =>
+                this.migrationQuiesce?.waitForDequeuePermit() ?? null,
+            events,
+        });
+
+        const managedRunner = { runner, workerPool };
+        this.managedRunners.add(managedRunner);
+        if (includeCron) {
+            this.runner = runner;
+        }
+        this.isRunning = true;
+
+        void runner.promise.finally(() => {
+            this.managedRunners.delete(managedRunner);
+            this.isRunning = this.managedRunners.size > 0;
+            if (!this.isStopping && !this.expectedRunnerStops.delete(runner)) {
+                this.workerHealth?.markPoolDead(
+                    'graphile runner stopped unexpectedly',
+                );
+            }
+        });
+    }
+
+    private async startResumeWorkers(): Promise<void> {
+        await this.startManagedRunner(
+            1,
+            Math.max(1, Math.min(2, this.maxPoolSize)),
+            true,
+        );
+    }
+
+    private async finishResumeRamp(): Promise<void> {
+        const remainingConcurrency =
+            this.lightdashConfig.scheduler.concurrency - 1;
+        if (remainingConcurrency <= 0) {
+            return;
+        }
+
+        await this.startManagedRunner(
+            remainingConcurrency,
+            Math.max(1, this.maxPoolSize - 2),
+            false,
+        );
+    }
+
+    private async stopManagedRunnersForRetry(reason: string): Promise<void> {
+        if (this.runnerStopPromise !== null) {
+            await this.runnerStopPromise;
+            return;
+        }
+
+        this.runnerStopPromise = this.performManagedRunnerStop(reason);
+        try {
+            await this.runnerStopPromise;
+        } finally {
+            this.runnerStopPromise = null;
+        }
+    }
+
+    private async performManagedRunnerStop(reason: string): Promise<void> {
+        const managedRunners = [...this.managedRunners];
+        for (const { runner } of managedRunners) {
+            this.expectedRunnerStops.add(runner);
+        }
+
+        await Promise.all(
+            managedRunners.map(async ({ runner, workerPool }) => {
+                if (workerPool !== null) {
+                    await workerPool.gracefulShutdown(reason);
+                }
+                try {
+                    await runner.stop();
+                } catch (error) {
+                    Logger.warn(
+                        `Scheduler runner stop failed: ${getErrorMessage(error)}`,
+                    );
+                }
+            }),
+        );
+        this.managedRunners.clear();
+        this.runner = undefined;
+        this.isRunning = false;
     }
 
     private startPgPing(health: SchedulerWorkerHealth) {
@@ -153,17 +338,25 @@ export class SchedulerWorker extends SchedulerTask {
 
     private async pingPgOnce(health: SchedulerWorkerHealth) {
         let timeoutHandle: NodeJS.Timeout | undefined;
+        let borrowedClient: PoolClient | undefined;
+        let timedOut = false;
         try {
             const graphileClient = await this.schedulerClient.graphileUtils;
-            // withPgClient borrows from graphile's existing pool and releases the
-            // client back when the callback resolves — no long-lived client to leak.
-            const ping = graphileClient.withPgClient((pgClient) =>
-                pgClient.query('SELECT 1'),
-            );
+            const ping = graphileClient.withPgClient(async (pgClient) => {
+                borrowedClient = pgClient;
+                if (timedOut) {
+                    pgClient.release(true);
+                    return;
+                }
+                await pgClient.query(PG_PING_QUERY);
+            });
+            void ping.catch(() => undefined);
             await Promise.race([
                 ping,
                 new Promise<never>((_resolve, reject) => {
                     timeoutHandle = setTimeout(() => {
+                        timedOut = true;
+                        borrowedClient?.release(true);
                         reject(
                             new Error(
                                 `pg ping timeout after ${PG_PING_TIMEOUT_MS}ms`,
@@ -259,6 +452,14 @@ export class SchedulerWorker extends SchedulerTask {
                 options: {
                     backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
                     maxAttempts: 1,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES,
+                pattern: '41 * * * *', // Hourly, off the top of the hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 3,
                 },
             },
             // worker-process pg liveness is driven by a setInterval (see startPgPing);
@@ -1017,6 +1218,43 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.backfillDefaultUserSpaces(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                                error: e.message,
+                            },
+                        });
+                    },
+                );
+            },
             [SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS]: async (
                 payload,
                 helpers,
@@ -1222,6 +1460,24 @@ export class SchedulerWorker extends SchedulerTask {
                 } catch (error) {
                     Logger.error(
                         'Error during deploy sessions cleanup:',
+                        error,
+                    );
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
+                Logger.info('Starting warehouse connect codes cleanup job');
+
+                try {
+                    const deletedCount =
+                        await this.warehouseConnectCodeModel.deleteExpired();
+
+                    Logger.info(
+                        `Warehouse connect codes cleanup completed. Deleted: ${deletedCount}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Error during warehouse connect codes cleanup:',
                         error,
                     );
                     throw error;

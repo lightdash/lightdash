@@ -7,11 +7,10 @@ import {
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
-    type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Button, Group, Tabs, Tooltip } from '@mantine-8/core';
+import { Button, Group, Tabs, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -19,6 +18,7 @@ import {
     Activity,
     memo,
     useCallback,
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -30,24 +30,27 @@ import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
-import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Launcher/useIsLauncherMounted';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { useActiveTabParameters } from '../../hooks/dashboard/useActiveTabParameters';
+import { useHighlightedTile } from '../../hooks/dashboard/useTileLink';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
-import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
+import { SectionName } from '../../types/Events';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
-import { shouldShowLegacyLockedState } from '../dashboardFilters/FilterRequirements/utils';
+import { getDateZoomSummaryLabel } from '../dateZoom/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
@@ -73,6 +76,10 @@ const EMPTY_LAYOUTS: { lg: Layout[]; md: Layout[]; sm: Layout[] } = {
     sm: [],
 };
 
+const DASHBOARD_GRID_BOTTOM_PADDING = 60;
+const SCROLL_TO_TOP_BOTTOM = 24;
+const SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER = 52;
+
 type TabGridPanelProps = {
     tabUuid: string;
     tiles: DashboardTile[];
@@ -80,7 +87,6 @@ type TabGridPanelProps = {
     isActive: boolean;
     isEditMode: boolean;
     locked: boolean;
-    legacyLockedBlur: boolean;
     gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
     dashboardTabs: DashboardTab[];
     onDragStart: () => void;
@@ -113,7 +119,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
         isActive,
         isEditMode,
         locked,
-        legacyLockedBlur,
         gridProps,
         dashboardTabs,
         onDragStart,
@@ -145,7 +150,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
                 <ErrorBoundary>
                     <ResponsiveGridLayout
                         {...gridProps}
-                        className={legacyLockedBlur ? 'locked' : ''}
                         containerPadding={GRID_CONTAINER_PADDING}
                         onDragStart={onDragStart}
                         onDragStop={onDragStop}
@@ -181,8 +185,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
         if (prevProps.isActive !== nextProps.isActive) return false;
         if (prevProps.isEditMode !== nextProps.isEditMode) return false;
         if (prevProps.locked !== nextProps.locked) return false;
-        if (prevProps.legacyLockedBlur !== nextProps.legacyLockedBlur)
-            return false;
         if (prevProps.tiles.length !== nextProps.tiles.length) return false;
 
         // Check if tile identities changed (added/removed/reordered)
@@ -213,13 +215,11 @@ type DashboardTabsProps = {
     handleEditTile: (tiles: IDashboard['tiles'][number]) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     setGridWidth: (value: React.SetStateAction<number>) => void;
+    onNewChart?: () => void;
 
     // parameters
     hasTilesThatSupportFilters: boolean;
     parameterValues: ParametersValuesMap;
-    parameters: {
-        [k: string]: LightdashProjectParameter;
-    };
     shadowedReservedNames: string[];
     isParameterLoading: boolean;
     missingRequiredParameters: string[];
@@ -243,10 +243,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     handleEditTile,
     setGridWidth,
     setAddingTab,
+    onNewChart,
     // parameters
     hasTilesThatSupportFilters,
     parameterValues,
-    parameters,
     shadowedReservedNames,
     isParameterLoading,
     missingRequiredParameters,
@@ -267,13 +267,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardTabsInMemory,
     );
     const keepTabsInMemory = dashboardTabsInMemoryFlag?.enabled ?? false;
-
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
-    const isFilterRequirementsFlagResolved = useDashboardContext(
-        (c) => c.isFilterRequirementsFlagResolved,
-    );
 
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
@@ -331,9 +324,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const { search } = useLocation();
     const navigate = useNavigate();
-
-    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardIdentifier = dashboard?.slug;
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -357,14 +352,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         (c) => c.filterableFieldsByTileUuid,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
-    );
-    const tileParameterReferences = useDashboardContext(
-        (c) => c.tileParameterReferences,
     );
 
     // filters bar state
@@ -374,6 +367,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
 
     const isLauncherMounted = useIsLauncherMounted(projectUuid);
+    const scrollToTopBottom = isLauncherMounted
+        ? SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER
+        : SCROLL_TO_TOP_BOTTOM;
+    const dashboardGridBottomPadding =
+        DASHBOARD_GRID_BOTTOM_PADDING +
+        scrollToTopBottom -
+        SCROLL_TO_TOP_BOTTOM;
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -579,26 +579,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         filterableFieldsByTileUuid,
     ]);
 
-    // Legacy locked UX (feature flag off): blur the grid behind the modal
-    const showLegacyLockedState = shouldShowLegacyLockedState({
-        isFlagResolved: isFilterRequirementsFlagResolved,
-        isFilterRequirementsEnabled,
-    });
-    const legacyLockedBlur =
-        showLegacyLockedState && hasUnmetFilterRequirementsForCurrentTab;
-
     // Guided setup card over the locked grid; dismissal lasts until reload
     const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
     const dashboardProjectUuid = useDashboardContext((c) => c.projectUuid);
     const showGuidedSetup = useMemo(
         () =>
-            isFilterRequirementsEnabled &&
             !isEditMode &&
             !isGuidedSetupDismissed &&
             hasUnmetFilterRequirementsForCurrentTab &&
             !!hasDashboardTiles,
         [
-            isFilterRequirementsEnabled,
             isEditMode,
             isGuidedSetupDismissed,
             hasUnmetFilterRequirementsForCurrentTab,
@@ -609,16 +599,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const project = useProject(
         showGuidedSetup ? dashboardProjectUuid : undefined,
     );
-
-    const sortedTiles = dashboardTiles?.sort((a, b) => {
-        if (a.y === b.y) {
-            // If 'y' is the same, sort by 'x'
-            return a.x - b.x;
-        } else {
-            // Otherwise, sort by 'y'
-            return a.y - b.y;
-        }
-    });
 
     const firstSortedTabUuid = sortedTabs?.[0]?.uuid;
     const isActiveTile = useCallback(
@@ -645,19 +625,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         ],
     );
 
-    const activeTabParameters = useMemo(() => {
-        if (!dashboardTiles) return parameters;
-
-        const activeParamKeys = dashboardTiles
-            .filter(isActiveTile)
-            .flatMap((tile) => tileParameterReferences[tile.uuid] ?? []);
-
-        return Object.fromEntries(
-            Object.entries(parameters).filter(([key]) =>
-                activeParamKeys.includes(key),
-            ),
-        );
-    }, [dashboardTiles, parameters, tileParameterReferences, isActiveTile]);
+    const activeTiles = useMemo(
+        () => dashboardTiles?.filter(isActiveTile),
+        [dashboardTiles, isActiveTile],
+    );
+    const activeTabParameters = useActiveTabParameters(activeTiles);
 
     // Collapsed summary values
     const totalFiltersCount =
@@ -665,67 +637,115 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         dashboardTemporaryFilters.dimensions.length;
     const totalParametersCount = Object.keys(activeTabParameters).length;
 
-    const currentTabHasTiles = !!sortedTiles?.some((tile) =>
+    const currentTabHasTiles = !!dashboardTiles?.some((tile) =>
         isActiveTile(tile),
     );
 
-    const handleChangeTab = (tab: DashboardTab) => {
-        // When tabs are kept in memory, instantly toggle visibility via DOM
-        // manipulation for a snappier UX. When disabled, React handles
-        // the mount/unmount so DOM tweaks are unnecessary.
-        if (keepTabsInMemory) {
-            const container = gridWrapperRef.current;
-            if (container) {
-                for (const child of container.children) {
-                    const panel = child as HTMLElement;
-                    if (panel.dataset.tabUuid === tab.uuid) {
-                        panel.style.contentVisibility = '';
-                        panel.style.containIntrinsicSize = '';
-                        panel.style.position = 'relative';
-                        panel.style.width = '';
-                        panel.style.pointerEvents = '';
-                    } else {
-                        panel.style.contentVisibility = 'hidden';
-                        panel.style.containIntrinsicSize = 'auto 1px auto 1px';
-                        panel.style.position = 'absolute';
-                        panel.style.width = '100%';
-                        panel.style.pointerEvents = 'none';
-                    }
-                }
-
-                // Toggle the active tab indicator via DOM.
-                // Scope to our dashboard tabs root to avoid affecting other Tabs on the page.
-                // Mantine embeds the tab value in the id: "mantine-...-tab-{uuid}"
-                const tabsRoot = document.querySelector(`.${styles.tabsRoot}`);
-                if (tabsRoot) {
-                    const tabButtons =
-                        tabsRoot.querySelectorAll('[role="tab"]');
-                    for (const tabEl of tabButtons) {
-                        if (tabEl.id?.includes(tab.uuid)) {
-                            tabEl.setAttribute('data-active', 'true');
-                            tabEl.setAttribute('aria-selected', 'true');
+    const handleChangeTab = useCallback(
+        (tab: DashboardTab) => {
+            // When tabs are kept in memory, instantly toggle visibility via DOM
+            // manipulation for a snappier UX. When disabled, React handles
+            // the mount/unmount so DOM tweaks are unnecessary.
+            if (keepTabsInMemory) {
+                const container = gridWrapperRef.current;
+                if (container) {
+                    for (const child of container.children) {
+                        const panel = child as HTMLElement;
+                        if (panel.dataset.tabUuid === tab.uuid) {
+                            panel.style.contentVisibility = '';
+                            panel.style.containIntrinsicSize = '';
+                            panel.style.position = 'relative';
+                            panel.style.width = '';
+                            panel.style.pointerEvents = '';
                         } else {
-                            tabEl.removeAttribute('data-active');
-                            tabEl.setAttribute('aria-selected', 'false');
+                            panel.style.contentVisibility = 'hidden';
+                            panel.style.containIntrinsicSize =
+                                'auto 1px auto 1px';
+                            panel.style.position = 'absolute';
+                            panel.style.width = '100%';
+                            panel.style.pointerEvents = 'none';
+                        }
+                    }
+
+                    // Toggle the active tab indicator via DOM.
+                    // Scope to our dashboard tabs root to avoid affecting other Tabs on the page.
+                    // Mantine embeds the tab value in the id: "mantine-...-tab-{uuid}"
+                    const tabsRoot = document.querySelector(
+                        `.${styles.tabsRoot}`,
+                    );
+                    if (tabsRoot) {
+                        const tabButtons =
+                            tabsRoot.querySelectorAll('[role="tab"]');
+                        for (const tabEl of tabButtons) {
+                            if (tabEl.id?.includes(tab.uuid)) {
+                                tabEl.setAttribute('data-active', 'true');
+                                tabEl.setAttribute('aria-selected', 'true');
+                            } else {
+                                tabEl.removeAttribute('data-active');
+                                tabEl.setAttribute('aria-selected', 'false');
+                            }
                         }
                     }
                 }
             }
-        }
 
-        const newParams = new URLSearchParams(search);
-        startTabTransition(() => {
-            void navigate(
-                {
-                    pathname: isEditMode
-                        ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                        : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                    search: newParams.toString(),
-                },
-                { replace: true },
-            );
-        });
-    };
+            const newParams = new URLSearchParams(search);
+            startTabTransition(() => {
+                void navigate(
+                    {
+                        pathname: isEditMode
+                            ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${tab?.uuid}`
+                            : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${tab?.uuid}`,
+                        search: newParams.toString(),
+                    },
+                    { replace: true },
+                );
+            });
+        },
+        [
+            keepTabsInMemory,
+            search,
+            isEditMode,
+            projectUrlIdentifier,
+            dashboardIdentifier,
+            navigate,
+            startTabTransition,
+        ],
+    );
+
+    const { highlightTileUuid } = useHighlightedTile({
+        enabled: !!hasDashboardTiles,
+    });
+
+    // A shared tile link can point at a tab that isn't the active one (e.g. the
+    // tile was moved since), so activate the tab holding the tile first.
+    const hasSwitchedToHighlightedTabRef = useRef(false);
+    useEffect(() => {
+        if (
+            !highlightTileUuid ||
+            !tabsEnabled ||
+            !activeTab ||
+            hasSwitchedToHighlightedTabRef.current
+        ) {
+            return;
+        }
+        const tabWithTile = visibleTabs.find((tab) =>
+            tilesByTab
+                .get(tab.uuid)
+                ?.some((tile) => tile.uuid === highlightTileUuid),
+        );
+        if (!tabWithTile || tabWithTile.uuid === activeTab.uuid) return;
+
+        hasSwitchedToHighlightedTabRef.current = true;
+        handleChangeTab(tabWithTile);
+    }, [
+        highlightTileUuid,
+        tabsEnabled,
+        activeTab,
+        visibleTabs,
+        tilesByTab,
+        handleChangeTab,
+    ]);
 
     const maxTabsPerDashboard =
         health.data?.dashboard?.maxTabsPerDashboard || 20;
@@ -824,7 +844,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // If this is the last tab, navigate to the non-tab URL.
             // See `const = sortedTabs` for more context.
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit`,
                 { replace: true },
             );
 
@@ -1058,7 +1078,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                             <Button
                                                                 ml="sm"
                                                                 size="sm"
-                                                                fz={13}
+                                                                fz="sm"
                                                                 variant="subtle"
                                                                 flex="0 0 auto"
                                                                 disabled={
@@ -1098,8 +1118,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     dateZoomLabel={
                                                         isDateZoomDisabled
                                                             ? null
-                                                            : dateZoomGranularity ||
-                                                              'Default'
+                                                            : getDateZoomSummaryLabel(
+                                                                  dateZoomGranularity,
+                                                                  getUiString,
+                                                              )
                                                     }
                                                     onExpand={() =>
                                                         setIsFiltersCollapsed(
@@ -1178,7 +1200,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     />
                                 )}
 
-                                <Group grow pb={60} px="xs">
+                                <Group
+                                    grow
+                                    pb={dashboardGridBottomPadding}
+                                    px="xs"
+                                >
                                     <div
                                         ref={gridWrapperRef}
                                         className={[
@@ -1238,9 +1264,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                               locked={
                                                                   hasUnmetFilterRequirementsForCurrentTab
                                                               }
-                                                              legacyLockedBlur={
-                                                                  legacyLockedBlur
-                                                              }
                                                               gridProps={
                                                                   gridProps
                                                               }
@@ -1282,11 +1305,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   <ErrorBoundary>
                                                       <ResponsiveGridLayout
                                                           {...gridProps}
-                                                          className={
-                                                              legacyLockedBlur
-                                                                  ? 'locked'
-                                                                  : ''
-                                                          }
                                                           containerPadding={
                                                               GRID_CONTAINER_PADDING
                                                           }
@@ -1362,18 +1380,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               )}
                                     </div>
                                 </Group>
-                                {showLegacyLockedState && (
-                                    <LockedDashboardModal
-                                        opened={
-                                            hasUnmetFilterRequirementsForCurrentTab &&
-                                            !!hasDashboardTiles
-                                        }
-                                    />
-                                )}
                                 {(!hasDashboardTiles ||
                                     !currentTabHasTiles) && (
                                     <EmptyStateNoTiles
                                         onAddTiles={handleAddTiles}
+                                        onNewChart={onNewChart}
                                         emptyContainerType={
                                             dashboardTabs &&
                                             dashboardTabs.length
@@ -1440,10 +1451,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 )}
             </Droppable>
 
-            <ScrollToTop
-                show={isHeaderStuck}
-                bottom={isLauncherMounted ? 52 : 24}
-            />
+            <ScrollToTop show={isHeaderStuck} bottom={scrollToTopBottom} />
         </DragDropContext>
     );
 };

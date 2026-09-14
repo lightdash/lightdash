@@ -4,22 +4,20 @@ import {
     ActionIcon,
     Anchor,
     Box,
+    Button,
     Group,
     Menu,
     Stack,
     Text,
-    Title,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconDots,
     IconEdit,
     IconInfoCircle,
+    IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -35,9 +33,13 @@ import {
     useContentTable,
     type ContentTableColumnDef,
 } from '../../common/ContentTable';
-import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageDocumentationLink,
+} from '../../common/Settings/SettingsPage';
 import ForbiddenPanel from '../../ForbiddenPanel';
 import UserAttributeModal from './UserAttributeModal';
 import { UserAttributesTopToolbar } from './UserAttributesTopToolbar';
@@ -81,27 +83,25 @@ const UserAttributesPanel: FC = () => {
                                 </Text>
                                 {attribute.description && (
                                     <Tooltip
-                                        multiline
                                         maw={300}
-                                        withArrow
                                         label={attribute.description}
                                     >
                                         <Box>
                                             <MantineIcon
                                                 icon={IconInfoCircle}
-                                                color="ldGray.6"
+                                                color="dimmed"
                                             />
                                         </Box>
                                     </Tooltip>
                                 )}
                             </Group>
                             <Group gap="sm">
-                                <Text fz="xs" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     {attribute.users.length} user
                                     {attribute.users.length !== 1 ? 's' : ''}
                                 </Text>
                                 {isGroupManagementEnabled && (
-                                    <Text fz="xs" c="ldGray.6">
+                                    <Text fz="xs" c="dimmed">
                                         {attribute.groups.length} group
                                         {attribute.groups.length !== 1
                                             ? 's'
@@ -130,13 +130,9 @@ const UserAttributesPanel: FC = () => {
                                 e.preventDefault();
                             }}
                         >
-                            <Menu withinPortal position="bottom-end">
+                            <Menu position="bottom-end">
                                 <Menu.Target>
-                                    <ActionIcon
-                                        variant="transparent"
-                                        size="sm"
-                                        color="ldGray.6"
-                                    >
+                                    <ActionIcon variant="transparent" size="sm">
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
@@ -187,33 +183,10 @@ const UserAttributesPanel: FC = () => {
         columns,
         data: tableData,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 420px)' },
         },
@@ -259,18 +232,17 @@ const UserAttributesPanel: FC = () => {
         },
         renderTopToolbar: () => (
             <UserAttributesTopToolbar
-                onAddClick={addAttributeModal.open}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
             />
         ),
         renderEmptyRowsFallback: () =>
             searchQuery.trim() ? (
-                <Text fz="sm" c="ldGray.6" ta="center" py="xl">
+                <Text fz="sm" c="dimmed" ta="center" py="xl">
                     No attributes match your search.
                 </Text>
             ) : (
-                <Text fz="sm" c="ldGray.6" ta="center" py="xl">
+                <Text fz="sm" c="dimmed" ta="center" py="xl">
                     There's no user attributes defined yet. <br /> To learn how
                     to define user attributes, check out our{' '}
                     <Anchor
@@ -285,17 +257,6 @@ const UserAttributesPanel: FC = () => {
                     .
                 </Text>
             ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading: isInitialLoading,
             density: 'md',
@@ -313,51 +274,30 @@ const UserAttributesPanel: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    if (isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading user attributes" />;
-    }
-
     if (!user.data) return null;
 
     return (
-        <>
-            <Stack gap="sm">
-                <Group gap="xs" align="center" pb="xs">
-                    <Title order={5}>
-                        {isGroupManagementEnabled
-                            ? 'User and group attributes'
-                            : 'User attributes'}
-                    </Title>
-                    <Tooltip
-                        multiline
-                        w={400}
-                        withArrow
-                        position="bottom-start"
-                        label={
-                            <Box>
-                                User attributes are metadata defined by your
-                                organization. They can be used to control and
-                                customize the user experience through data
-                                access and personalization. Learn more about
-                                using user attributes by clicking on this icon.
-                            </Box>
-                        }
+        <SettingsPage
+            title={
+                isGroupManagementEnabled
+                    ? 'User and group attributes'
+                    : 'User attributes'
+            }
+            description="Define organization metadata used for data access and personalization."
+            actions={
+                <SettingsPageActions>
+                    <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/user-attributes" />
+                    <Button
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={addAttributeModal.open}
                     >
-                        <ActionIcon
-                            component="a"
-                            href="https://docs.lightdash.com/references/user-attributes"
-                            target="_blank"
-                            rel="noreferrer"
-                            variant="subtle"
-                            size="xs"
-                            color="ldGray.6"
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-                <ContentTable table={table} />
-            </Stack>
+                        Add attribute
+                    </Button>
+                </SettingsPageActions>
+            }
+        >
+            <ContentTable table={table} />
 
             <UserAttributeModal
                 opened={showAddAttributeModal}
@@ -388,7 +328,7 @@ const UserAttributesPanel: FC = () => {
                     }}
                 />
             )}
-        </>
+        </SettingsPage>
     );
 };
 

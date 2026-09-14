@@ -6,7 +6,7 @@ import {
     Stack,
     Tooltip,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconCode, IconCopy } from '@tabler/icons-react';
 import ReactJson from 'react-json-view';
 import { useRjvTheme } from '../hooks/useRjvTheme';
@@ -50,7 +50,6 @@ export const JsonViewerModal = ({
                         {({ copied, copy }) => (
                             <Tooltip
                                 label={copied ? 'Copied' : 'Copy'}
-                                withArrow
                                 position="right"
                             >
                                 <Button

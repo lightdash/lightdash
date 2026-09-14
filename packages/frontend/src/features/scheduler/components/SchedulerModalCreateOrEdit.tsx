@@ -1,10 +1,13 @@
+import { subject } from '@casl/ability';
 import {
     type ApiError,
     type CreateSchedulerAndTargetsWithoutIds,
+    type DashboardFilterableField,
     type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SchedulerAndTargets,
+    type SchedulerAppState,
 } from '@lightdash/common';
 import {
     Box,
@@ -17,7 +20,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseMutationResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
@@ -26,7 +29,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useSavedQuery } from '../../../hooks/useSavedQuery';
+import useApp from '../../../providers/App/useApp';
 import { useSchedulerFormModal } from '../hooks/useSchedulerFormModal';
 import {
     getVisibleSections,
@@ -60,8 +63,13 @@ interface Props {
     isApp?: boolean;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
+    /** App deliveries only: the app state currently reflected in the page URL. */
+    currentAppState?: SchedulerAppState | null;
+    /** App deliveries only: count of ready queries captured by the live preview. */
+    capturedQueryCount?: number;
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
+    filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
     /** undefined = create mode, string = edit mode */
     schedulerUuidToEdit: string | undefined;
     /** Create-mode only: pre-fills the new delivery. */
@@ -78,13 +86,28 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     isApp,
     isThresholdAlert,
     itemsMap,
+    currentAppState,
+    capturedQueryCount,
     currentParameterValues,
     availableParameters,
+    filterableFieldsByTileUuid,
     onClose,
     onBack,
 }) => {
     const isAiVisible = useAiAgentButtonVisibility();
     const projectUuid = useProjectUuid();
+    const { user } = useApp();
+    // Replacing a chart's saved filter shows rows the author filtered out, so
+    // only someone who could query the explore anyway may adjust them.
+    const canAdjustChartFilters =
+        !!user.data &&
+        user.data.ability.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        );
 
     const {
         isEditMode,
@@ -98,10 +121,13 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         confirmText,
         form,
         dashboard,
+        savedChart,
         isThresholdAlertWithNoFields,
         numericMetrics,
         isDashboardTabsAvailable,
+        unmetRequirements,
         requiredFiltersWithoutValues,
+        chartRequiredFiltersWithoutValues,
         hasOnlyUnmetGroupRequirements,
     } = useSchedulerFormModal({
         schedulerUuid: schedulerUuidToEdit,
@@ -114,15 +140,10 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         itemsMap,
         currentParameterValues,
         initialFormValues,
+        filterableFieldsByTileUuid,
     });
 
-    // The AI agent selector filters by the delivered content's space. For
-    // dashboards the space comes with the form-modal's dashboard query; for
-    // charts we fetch the chart here (alerts have no AI section, so skip).
-    const { data: savedChart } = useSavedQuery({
-        uuidOrSlug: isChart && !isThresholdAlert ? resourceUuid : undefined,
-        projectUuid,
-    });
+    // The AI agent selector filters by the delivered content's space.
     const resourceSpaceUuid = isChart
         ? savedChart?.spaceUuid
         : dashboard?.spaceUuid;
@@ -149,8 +170,10 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         (form.values.googleChatTargets?.length || 0),
     );
 
-    const canSendNow =
-        hasRecipient && requiredFiltersWithoutValues.length === 0;
+    const hasUnmetFilterRequirements =
+        requiredFiltersWithoutValues.length > 0 ||
+        chartRequiredFiltersWithoutValues.length > 0;
+    const canSendNow = hasRecipient && !hasUnmetFilterRequirements;
 
     // Name why the submit is blocked instead of failing silently on submit —
     // the offending field may live in a section the user isn't looking at.
@@ -158,7 +181,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         ? `Give your ${isThresholdAlert ? 'alert' : 'delivery'} a name`
         : isThresholdAlert && !form.values.thresholds?.[0]?.fieldId
           ? 'Pick an alert field'
-          : requiredFiltersWithoutValues.length > 0
+          : hasUnmetFilterRequirements
             ? hasOnlyUnmetGroupRequirements
                 ? 'Set a value for at least one filter in each requirement group'
                 : 'Some required filters are missing values'
@@ -189,12 +212,25 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                 return (
                     <SchedulerDataFormatSection
                         dashboard={dashboard}
+                        savedChart={savedChart}
+                        itemsMap={itemsMap}
+                        canAdjustChartFilters={canAdjustChartFilters}
+                        chartFiltersWithUnmetRequirements={
+                            chartRequiredFiltersWithoutValues
+                        }
                         savedSchedulerData={savedSchedulerData}
                         isApp={!!isApp}
+                        appUuid={isApp ? resourceUuid : undefined}
+                        currentAppState={currentAppState}
+                        capturedQueryCount={capturedQueryCount}
                         isDashboardTabsAvailable={isDashboardTabsAvailable}
                         currentParameterValues={currentParameterValues}
                         availableParameters={availableParameters}
                         loading={isMutating || isLoading}
+                        unmetFilterRequirements={unmetRequirements}
+                        filtersWithUnmetRequirements={
+                            requiredFiltersWithoutValues
+                        }
                     />
                 );
             case 'message':
@@ -247,7 +283,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                             wrap="nowrap"
                         >
                             <Group gap="sm" wrap="nowrap">
-                                <Paper p="6px" withBorder radius="md">
+                                <Paper p="6px" radius="md">
                                     <MantineIcon
                                         icon={
                                             isThresholdAlert

@@ -443,7 +443,10 @@ pivot shape, and reshapes them into the `PivotData` structure the table renders.
 2. **Apply visibility + column limit** — hidden dims/metrics are filtered out and
    `columnLimit` (when set) keeps only the first N pivot column groups.
 3. **Build `headerValues` / `indexValues`** from the pivot values and index
-   columns, fanning each input row out per metric when `metricsAsRows` is set.
+   columns. Metrics and table calculations listed in
+   `pivotConfig.rowFieldIds` become ordered index-side value columns using the
+   first rendered pivot group's value; other values remain pivoted. Each input
+   row fans out per remaining metric when `metricsAsRows` is set.
 4. **Read `dataValues` directly** from each row by `pivotColumnName` (no
    client-side grouping pass is needed — the warehouse already grouped).
 5. **Calculate totals** — row totals sum across columns, column totals sum down

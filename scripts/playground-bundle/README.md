@@ -1,0 +1,67 @@
+# Playground bundle
+
+Builds the versioned jaffle-shop DuckDB warehouse and pre-compiled Lightdash
+explores used by playground projects. The build loads every CSV seed with
+`@duckdb/node-api`, materializes the dbt models with dbt-duckdb, then compiles
+explores through Lightdash's backend project adapter.
+
+To keep the shipped file small, the build uses a temporary copy of the dbt
+project whose default model materialization is `view`. CSV seeds remain physical
+tables and are deterministically capped at 5,000 rows each so high-volume demo
+seeds do not inflate the bundled binary. No checked-in demo project files are
+changed.
+
+## Setup
+
+Create the isolated, gitignored Python environment once:
+
+```sh
+python3 -m venv scripts/playground-bundle/.venv
+scripts/playground-bundle/.venv/bin/pip install \
+  'dbt-core==1.10.0' 'dbt-duckdb==1.10.0'
+ln -sf dbt scripts/playground-bundle/.venv/bin/dbt1.10
+```
+
+## Build
+
+From the repository root:
+
+```sh
+pnpm build:playground-bundle
+```
+
+The command replaces these deterministic build outputs:
+
+- `packages/backend/assets/playground/jaffle_shop.duckdb`
+- `packages/backend/assets/playground/explores.json`
+- `packages/backend/assets/playground/content.json`
+- `packages/backend/assets/playground/SHA256SUMS`
+
+The JSON files are emitted as single-line JSON. `content.json` carries a schema
+version and definitions for the editable charts and dashboard created during
+playground provisioning. The build checks every referenced explore and field
+against the explores it just compiled. `SHA256SUMS` records all three bundle
+payloads so a rebuild can be checked with
+`sha256sum --check packages/backend/assets/playground/SHA256SUMS`; with the
+pinned dbt versions and unchanged inputs, the committed checksums should remain
+stable.
+
+The checked-in Postgres profile under the example project is not modified. A
+temporary dbt-duckdb profile points at the output database during the build.
+
+## Teaching content
+
+Edit chart, dashboard, and metrics-tree definitions in `content.ts`. The extra
+University samples — pins, comments, categories, the prebuilt app, agent, and
+completed research report — live in `teachingContent.ts` and are included by
+the same build. Update the source and shipped bundle together.
+
+Check the complete content definition against the shipped bundle without
+rebuilding the warehouse or changing any assets:
+
+```sh
+pnpm test:playground-content
+```
+
+The parity test covers every field, including the app's built/source files and
+research Markdown, so a rebuild cannot silently drop teaching samples.

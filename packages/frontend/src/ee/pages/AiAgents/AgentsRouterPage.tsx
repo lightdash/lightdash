@@ -6,7 +6,6 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Button,
     Center,
     Group,
     Popover,
@@ -14,23 +13,19 @@ import {
     Text,
     Title,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronRight,
     IconInfoCircle,
-    IconSettings,
+    IconNotebook,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-    Link,
-    useLocation,
-    useNavigate,
-    useParams,
-    useSearchParams,
-} from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
@@ -40,12 +35,21 @@ import {
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../../features/aiCopilot/components/ChatElements/contentReferenceUtils';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
+import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
+import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useAiAgentRouterFlow } from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
+import {
+    useAiAgentRouterFlow,
+    type AiAgentRouterErrorArgs,
+    type CreateThreadForAgent,
+} from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
+import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -56,7 +60,7 @@ import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import classes from './AgentsRouterPage.module.css';
 
 const AgentsRouterPage = () => {
-    const { projectUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
@@ -74,11 +78,14 @@ const AgentsRouterPage = () => {
     });
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
+    const memoryEnabled = useAiAgentMemoryEnabled();
 
-    const [sqlMode, setSqlMode] = useState(true);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
+    const dataAppUuid = searchParams.get('dataAppUuid');
 
     const {
         contextInput,
@@ -89,6 +96,7 @@ const AgentsRouterPage = () => {
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dataAppUuidOrSlug: dataAppUuid,
     });
 
     const {
@@ -112,6 +120,9 @@ const AgentsRouterPage = () => {
     const { mutateAsync: createThread } = useCreateAgentThreadMutation(
         projectUuid!,
     );
+    const startDeepResearch = useStartDeepResearchForThreadMutation(
+        projectUuid!,
+    );
 
     const createThreadForAgent = useCallback(
         async (args: {
@@ -121,10 +132,15 @@ const AgentsRouterPage = () => {
             optimisticContext?: AiPromptContext;
             toolHints: string[];
         }) => {
+            const enableSqlMode =
+                sqlModeAvailable &&
+                (agents?.find((agent) => agent.uuid === args.agentUuid)
+                    ?.enableSqlMode ??
+                    true);
             const thread = await createThread({
                 agentUuid: args.agentUuid,
                 context: args.context,
-                enableSqlMode: sqlModeAvailable && sqlMode,
+                enableSqlMode,
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 toolHints: args.toolHints,
@@ -133,7 +149,7 @@ const AgentsRouterPage = () => {
             dispatch(
                 setThreadSqlMode({
                     threadUuid: thread.uuid,
-                    enabled: sqlModeAvailable && sqlMode,
+                    enabled: enableSqlMode,
                 }),
             );
             return thread;
@@ -143,28 +159,44 @@ const AgentsRouterPage = () => {
             dispatch,
             isModelSelectionExplicit,
             modelConfig,
-            sqlMode,
+            agents,
             sqlModeAvailable,
         ],
+    );
+
+    const createDeepResearchForAgent = useCallback<CreateThreadForAgent>(
+        async (args) => {
+            const thread = await createThread({
+                agentUuid: args.agentUuid,
+                context: args.context,
+                modelConfig,
+                optimisticContext: args.optimisticContext,
+                prompt: args.message,
+                skipAgentResponse: true,
+            });
+            await startDeepResearch.mutateAsync({
+                agentUuid: args.agentUuid,
+                promptUuid: thread.firstMessage.uuid,
+                question: args.message,
+                threadUuid: thread.uuid,
+            });
+            return thread;
+        },
+        [createThread, modelConfig, startDeepResearch],
     );
 
     const handleRouteError = useCallback(
         ({
             fallbackAgent,
             context,
+            createThreadForAgent: createThreadForAgentOverride,
             message,
             optimisticContext,
             toolHints,
-        }: {
-            fallbackAgent?: { uuid: string };
-            context?: AiPromptContextInput;
-            message: string;
-            optimisticContext?: AiPromptContext;
-            toolHints: string[];
-        }) => {
+        }: AiAgentRouterErrorArgs) => {
             setPendingPrompt(message);
             if (fallbackAgent && projectUuid) {
-                void createThreadForAgent({
+                void (createThreadForAgentOverride ?? createThreadForAgent)({
                     agentUuid: fallbackAgent.uuid,
                     context,
                     message,
@@ -223,6 +255,32 @@ const AgentsRouterPage = () => {
         },
         [
             contextInput,
+            handleRouterSubmit,
+            isPinnedContextReady,
+            previewItems,
+            setPendingPrompt,
+        ],
+    );
+
+    const handleStartDeepResearch = useCallback(
+        async ({ question }: StartDeepResearchArgs) => {
+            if (!isPinnedContextReady || !canStartDeepResearch) {
+                return;
+            }
+
+            setPendingPrompt('');
+            await handleRouterSubmit({
+                context: contextInput,
+                createThreadForAgent: createDeepResearchForAgent,
+                message: question,
+                optimisticContext: previewItems,
+                toolHints: [],
+            });
+        },
+        [
+            canStartDeepResearch,
+            contextInput,
+            createDeepResearchForAgent,
             handleRouterSubmit,
             isPinnedContextReady,
             previewItems,
@@ -293,18 +351,37 @@ const AgentsRouterPage = () => {
             }
         >
             <Box className={classes.routerView}>
-                {canManageAgents && (
-                    <Button
-                        component={Link}
-                        to={settingsHref}
-                        variant="default"
-                        size="xs"
-                        leftSection={<MantineIcon icon={IconSettings} />}
-                        className={classes.routerSettingsButton}
-                    >
-                        Settings
-                    </Button>
-                )}
+                <Group gap={4} className={classes.routerActions}>
+                    {memoryEnabled && (
+                        <UnstyledButton
+                            type="button"
+                            className={classes.memoriesButton}
+                            onClick={() => setIsMemoriesModalOpen(true)}
+                        >
+                            <Group gap={6} wrap="nowrap" align="center">
+                                <MantineIcon
+                                    icon={IconNotebook}
+                                    size="sm"
+                                    color="dimmed"
+                                />
+                                <Text size="xs">Memories</Text>
+                            </Group>
+                        </UnstyledButton>
+                    )}
+                    {canManageAgents && (
+                        <AgentSettingsSelector
+                            agents={agents ?? []}
+                            projectUuid={projectUuid!}
+                            askAiSettingsHref={settingsHref}
+                        />
+                    )}
+                </Group>
+
+                <MyMemoriesModal
+                    opened={isMemoriesModalOpen}
+                    onClose={() => setIsMemoriesModalOpen(false)}
+                    projectUuid={projectUuid!}
+                />
 
                 <Center h="100%">
                     <Stack
@@ -333,6 +410,7 @@ const AgentsRouterPage = () => {
                                             key={getPromptContextItemKey(item)}
                                             item={item}
                                             projectUuid={projectUuid!}
+                                            previewScope={null}
                                         />
                                     ))}
                                 </Group>
@@ -347,6 +425,11 @@ const AgentsRouterPage = () => {
                             loading={isLocked}
                             disabled={!isPinnedContextReady}
                             onSubmit={handleSubmit}
+                            onStartDeepResearch={
+                                canStartDeepResearch
+                                    ? handleStartDeepResearch
+                                    : undefined
+                            }
                             defaultValue={pendingPrompt}
                             onValueChange={setPendingPrompt}
                             models={modelOptions}
@@ -361,10 +444,6 @@ const AgentsRouterPage = () => {
                                 showExtendedThinking
                                     ? handleExtendedThinkingChange
                                     : undefined
-                            }
-                            sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                            onSqlModeChange={
-                                sqlModeAvailable ? setSqlMode : undefined
                             }
                             clearOnSubmit={false}
                             fullWidth
@@ -401,13 +480,10 @@ const AgentsRouterPage = () => {
                                             width={280}
                                             position="bottom-end"
                                             withArrow
-                                            shadow="md"
                                         >
                                             <Popover.Target>
                                                 <ActionIcon
                                                     size="sm"
-                                                    variant="subtle"
-                                                    color="gray"
                                                     aria-label="Why these agents?"
                                                 >
                                                     <MantineIcon
@@ -473,8 +549,6 @@ const AgentsRouterPage = () => {
                                                                 <Badge
                                                                     size="xs"
                                                                     color="violet"
-                                                                    variant="light"
-                                                                    radius="sm"
                                                                 >
                                                                     Recommended
                                                                 </Badge>

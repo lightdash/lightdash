@@ -8,7 +8,7 @@ import {
     SegmentedControl,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconBrandGithub } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -108,7 +108,6 @@ export const GithubMcpConnectModal: FC<Props> = ({
                                 href={GITHUB_FINE_GRAINED_TOKEN_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                fz="inherit"
                             >
                                 GitHub → Fine-grained tokens
                             </Anchor>

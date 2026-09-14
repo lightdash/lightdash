@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import dayjsTimezone from 'dayjs/plugin/timezone';
+import isPlainObject from 'lodash/isPlainObject';
 import moment, { type MomentInput } from 'moment-timezone';
 import {
     addLocale,
@@ -356,6 +357,61 @@ export const parseDate = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): Date => moment(str, getDateFormat(timeInterval)).toDate();
 
+// The canonical stored formats for calendar values — what the pickers write
+// via formatDate for each grain family (WEEK shares the DAY format).
+const calendarValueFormats = [
+    TimeFrames.DAY,
+    TimeFrames.MONTH,
+    TimeFrames.QUARTER,
+    TimeFrames.YEAR,
+].map((timeInterval) => getDateFormat(timeInterval));
+
+// Strict UTC parse of a stored calendar value (`2024-07-22`, `2024-07`,
+// `2024-Q3`, `2024`) to the start of its period, browser-independent. Unlike
+// parseDate this accepts only canonical calendar formats and does not
+// leniently coerce other inputs.
+export const parseCalendarValueUTC = (value: string): Date | undefined => {
+    const parsed = moment.utc(value, calendarValueFormats, true);
+    return parsed.isValid() ? parsed.toDate() : undefined;
+};
+
+// Datetime shapes: date + time with an optional T separator, optional seconds
+// and up to microsecond fractions. Zoned variants append moment's Z token
+// (`Z`, `±hh:mm`, `±hhmm`, `±hh`).
+const naiveTimestampFormats = ['HH:mm', 'HH:mm:ss', 'HH:mm:ss.SSSSSS'].flatMap(
+    (time) => [`YYYY-MM-DD ${time}`, `YYYY-MM-DD[T]${time}`],
+);
+const zonedTimestampFormats = naiveTimestampFormats.map(
+    (format) => `${format}Z`,
+);
+
+// Strict UTC parse of a datetime string, classifying whether it carries an
+// explicit zone. A zoned value parses to its instant; an offset-less value
+// parses naive-as-UTC. Both are browser-independent; anything outside the
+// canonical shapes is rejected instead of leniently coerced.
+export const parseTimestampValueUTC = (
+    value: string,
+): { date: Date; hasZone: boolean } | undefined => {
+    const zoned = moment.utc(value, zonedTimestampFormats, true);
+    if (zoned.isValid()) return { date: zoned.toDate(), hasZone: true };
+    const naive = moment.utc(value, naiveTimestampFormats, true);
+    if (naive.isValid()) return { date: naive.toDate(), hasZone: false };
+    return undefined;
+};
+
+// Temporal strings safe to move out of a slot that may also hold a numeric
+// value. Bare years are deliberately excluded because `2024` is equally valid
+// as a calendar year and as a numeric threshold.
+export const isUnambiguousTemporalString = (raw: unknown): raw is string => {
+    if (typeof raw !== 'string') return false;
+    const value = raw.trim();
+    if (value !== '' && Number.isFinite(Number(value))) return false;
+    return (
+        parseTimestampValueUTC(value) !== undefined ||
+        parseCalendarValueUTC(value) !== undefined
+    );
+};
+
 export const parseTimestamp = (
     str: string,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
@@ -424,7 +480,7 @@ addLocale({ group: "'", decimal: '.' }, NUMFMT_LOCALE_APOSTROPHE_PERIOD);
 // The numfmt locale used to render an ECMA-376 expression for a given separator.
 // DEFAULT and COMMA_PERIOD return undefined so numfmt keeps its built-in
 // comma-period output, leaving existing format strings byte-identical.
-function separatorToNumfmtLocale(
+export function separatorToNumfmtLocale(
     separator: NumberSeparator | undefined,
 ): string | undefined {
     switch (separator) {
@@ -477,9 +533,20 @@ export function formatNumberValue(
     }
 }
 
+// Warehouse clients that don't serialise STRUCT/ARRAY cells hand over plain
+// objects and arrays; template-string coercion would print [object Object].
+const isStructuredValue = (value: unknown): boolean =>
+    Array.isArray(value) || isPlainObject(value);
+
+const formatStructuredValue = (value: unknown): string =>
+    isStructuredValue(value) ? JSON.stringify(value) : `${value}`;
+
 export function applyDefaultFormat(value: unknown) {
     if (value === null) return '∅';
     if (value === undefined) return '-';
+    // Before the number check: Number([]) is 0, so an empty array would
+    // otherwise format as a blank number.
+    if (isStructuredValue(value)) return JSON.stringify(value);
     if (!isNumber(value)) {
         return `${value}`;
     }
@@ -623,10 +690,23 @@ export function getCustomFormat(
     } else if (isTableCalculation(item)) {
         base = item.format;
     } else {
+        // Key presence alone is not a value: items built with `format:
+        // field?.format` or read back from jsonb carry null/undefined keys,
+        // and treating those as a legacy format gives non-numeric items a
+        // default numeric format.
         const legacyFormat = {
-            ...('format' in item && { format: item.format }),
-            ...('compact' in item && { compact: item.compact }),
-            ...('round' in item && { round: item.round }),
+            ...('format' in item &&
+                item.format != null && {
+                    format: item.format,
+                }),
+            ...('compact' in item &&
+                item.compact != null && {
+                    compact: item.compact,
+                }),
+            ...('round' in item &&
+                item.round != null && {
+                    round: item.round,
+                }),
         };
 
         // Only get custom format from legacy if there are any legacy format options or if the item is numeric
@@ -694,6 +774,17 @@ function applyCompact(
     return { compactValue: Number(value), compactSuffix: '' };
 }
 
+// numfmt renders all-optional decimals Excel-style, leaving a dangling
+// decimal separator when the fraction collapses ("1,234." / "1,000.K").
+// The structured path never shows one, so strip it after formatting.
+const stripDanglingDecimalSeparator = (
+    formatted: string,
+    expression: string,
+): string =>
+    /\.#/.test(expression)
+        ? formatted.replace(/(\d)[.,](?=\D|$)/, '$1')
+        : formatted;
+
 export function formatValueWithExpression(
     expression: string,
     value: unknown,
@@ -741,10 +832,13 @@ export function formatValueWithExpression(
                     `"${binarySuffixMatch}"`,
                     '',
                 );
-                const formattedNumber = formatWithExpression(
+                const formattedNumber = stripDanglingDecimalSeparator(
+                    formatWithExpression(
+                        baseExpression,
+                        convertedValue,
+                        localeOptions,
+                    ),
                     baseExpression,
-                    convertedValue,
-                    localeOptions,
                 );
                 return `${formattedNumber}${binarySuffixMatch}`;
             }
@@ -771,16 +865,25 @@ export function formatValueWithExpression(
 
         // format text
         if (isTextFormat(expression)) {
+            // A bare `@` is the ID/text format: render the value verbatim
+            // like the structured path, sidestepping numfmt's Excel-style
+            // scientific notation for large numbers.
+            if (expression.trim() === '@') {
+                return `${sanitizedValue}`;
+            }
             return formatWithExpression(expression, sanitizedValue);
         }
 
         // format number
         return valueIsNaN(Number(sanitizedValue))
             ? `${value}` // Return the raw value as a string if it's not a number
-            : formatWithExpression(
+            : stripDanglingDecimalSeparator(
+                  formatWithExpression(
+                      expression,
+                      Number(sanitizedValue),
+                      localeOptions,
+                  ),
                   expression,
-                  Number(sanitizedValue),
-                  localeOptions,
               );
     } catch (e) {
         // eslint-disable-next-line no-console
@@ -955,6 +1058,14 @@ export function hasValidFormatExpression<
     );
 }
 
+// A literal `"` cannot appear inside a quoted ECMA-376 section; emit it as a
+// backslash-escaped character between quoted runs (e.g. `ab"cd` → `"ab"\""cd"`).
+const escapeTextLiteral = (text: string): string =>
+    text
+        .split('"')
+        .map((part) => (part ? `"${part}"` : ''))
+        .join('\\"');
+
 const customFormatConversionFnMap: Record<
     string,
     (formatExpression: string, format: CustomFormat) => string
@@ -987,12 +1098,15 @@ const customFormatConversionFnMap: Record<
     },
     prefix: (formatExpression, format) => {
         if (format.prefix) {
-            return `"${format.prefix}"${formatExpression}`;
+            return `${escapeTextLiteral(format.prefix)}${formatExpression}`;
         }
         return formatExpression;
     },
     round: (formatExpression, format) => {
-        let round: number | null = 2;
+        // Mirrors getFormatNumberOptions: no round means up to 3 decimal
+        // places with trailing zeros dropped, for every type except a
+        // currency, whose decimal count comes from the currency itself.
+        let round: number | null = null;
         if (format.round !== undefined) {
             round = format.round;
         } else if (
@@ -1007,12 +1121,9 @@ const customFormatConversionFnMap: Record<
             round = mockCurrencyValue.includes('.')
                 ? mockCurrencyValue.split('.')[1].length
                 : 0;
-        } else if (format.type === CustomFormatType.NUMBER) {
-            round = null;
         }
 
         if (round === null) {
-            // Formatting with null round means we want to show up to 3 decimal places
             return `${formatExpression}.###`;
         }
 
@@ -1047,21 +1158,72 @@ const customFormatConversionFnMap: Record<
     percentage: (formatExpression) => `${formatExpression}%`,
     suffix: (formatExpression, format) => {
         if (format.suffix) {
-            return `${formatExpression}"${format.suffix}"`;
+            return `${formatExpression}${escapeTextLiteral(format.suffix)}`;
         }
         return formatExpression;
     },
 };
 
+// Dynamic compact picks the unit per value, so no static expression can
+// represent it. Bytes apply compact through applyCompact too, so they are
+// just as dynamic as plain numbers and currencies.
 const hasDynamicCompact = (format: CustomFormat) =>
     format.compact === Compact.AUTO &&
     (format.type === CustomFormatType.NUMBER ||
-        format.type === CustomFormatType.CURRENCY);
+        format.type === CustomFormatType.CURRENCY ||
+        format.type === CustomFormatType.BYTES_SI ||
+        format.type === CustomFormatType.BYTES_IEC);
+
+// Magnitude rounding (negative round) maps to maximumSignificantDigits in
+// getFormatNumberOptions and has no ECMA-376 representation. Callers keep the
+// structured formatOptions instead (getFieldFormatOverrideProps escape hatch).
+const hasMagnitudeRound = (format: CustomFormat) =>
+    format.round !== undefined &&
+    format.round < 0 &&
+    (format.type === CustomFormatType.NUMBER ||
+        format.type === CustomFormatType.CURRENCY ||
+        format.type === CustomFormatType.PERCENT ||
+        format.type === CustomFormatType.BYTES_SI ||
+        format.type === CustomFormatType.BYTES_IEC);
+
+// ECMA-376 equivalents of getDateFormat. QUARTER has no quarter token, so it
+// stays renderer-side (via timeInterval on the item/column).
+const getDateFormatExpression = (
+    timeInterval: TimeFrames | undefined = TimeFrames.DAY,
+): string | null => {
+    switch (timeInterval) {
+        case TimeFrames.YEAR:
+            return 'yyyy';
+        case TimeFrames.QUARTER:
+            return null;
+        case TimeFrames.MONTH:
+            return 'yyyy-mm';
+        default:
+            return 'yyyy-mm-dd';
+    }
+};
+
+// ECMA-376 equivalents of getTimeFormat, minus what the dialect cannot
+// express: the ` (Z)` offset suffix and sub-second grains stay renderer-side.
+const getTimestampFormatExpression = (
+    timeInterval: TimeFrames | undefined,
+): string | null => {
+    switch (timeInterval) {
+        case TimeFrames.HOUR:
+            return 'yyyy-mm-dd, hh';
+        case TimeFrames.MINUTE:
+            return 'yyyy-mm-dd, hh:mm';
+        case TimeFrames.SECOND:
+            return 'yyyy-mm-dd, hh:mm:ss';
+        default:
+            return null;
+    }
+};
 
 export function convertCustomFormatToFormatExpression(
     format: CustomFormat,
 ): string | null {
-    if (hasDynamicCompact(format)) {
+    if (hasDynamicCompact(format) || hasMagnitudeRound(format)) {
         return null;
     }
 
@@ -1074,8 +1236,9 @@ export function convertCustomFormatToFormatExpression(
             return format.custom || null;
         }
         case CustomFormatType.DEFAULT: {
-            // No format expression needed
-            break;
+            // Mirrors applyDefaultFormat: grouped with up to 3 trailing-dropped
+            // decimals; round and separator are ignored there too.
+            return '#,##0.###';
         }
         case CustomFormatType.CURRENCY: {
             defaultFormatExpression = '0';
@@ -1104,11 +1267,16 @@ export function convertCustomFormatToFormatExpression(
             conversions = ['separator', 'round', 'compact'];
             break;
         }
-        case CustomFormatType.ID:
-        case CustomFormatType.DATE:
+        case CustomFormatType.ID: {
+            // Text format: mirrors the structured `${value}` render and keeps
+            // spreadsheet exports from showing long IDs in scientific notation.
+            return '@';
+        }
+        case CustomFormatType.DATE: {
+            return getDateFormatExpression(format.timeInterval);
+        }
         case CustomFormatType.TIMESTAMP: {
-            // No format expression needed
-            break;
+            return getTimestampFormatExpression(format.timeInterval);
         }
         default: {
             return assertUnreachable(
@@ -1161,11 +1329,27 @@ export function getFieldFormatOverrideProps(formatOptions: CustomFormat): {
     };
 }
 
+// Whether a format expression carries `${ld.parameters.*}` placeholders that
+// must be resolved against parameter values before it can be rendered.
+export function formatExpressionHasParameters(format: string): boolean {
+    return (
+        format.includes(`\${${LightdashParameters.PREFIX_SHORT}`) ||
+        format.includes(`\${${LightdashParameters.PREFIX}`)
+    );
+}
+
 export function getFormatExpression(
     item: Item | AdditionalMetric,
 ): string | undefined {
     if (hasValidFormatExpression(item)) {
         return item.format;
+    }
+
+    // Year numbers (e.g. 2021) render as plain unseparated values —
+    // formatItemValue short-circuits before applyCustomFormat — so a
+    // converted expression must not reintroduce digit grouping.
+    if (isDimension(item) && item.timeInterval === TimeFrames.YEAR_NUM) {
+        return undefined;
     }
 
     const customFormat = getCustomFormat(item);
@@ -1215,11 +1399,9 @@ export function formatItemValue(
             // numfmt otherwise renders with US separators regardless of locale.
             const separatorLocale = getFormatExpressionLocale(item);
 
-            // Check if format uses parameter placeholders
-            const hasParameterPlaceholders =
-                item.format.includes(
-                    `\${${LightdashParameters.PREFIX_SHORT}`,
-                ) || item.format.includes(`\${${LightdashParameters.PREFIX}`);
+            const hasParameterPlaceholders = formatExpressionHasParameters(
+                item.format,
+            );
 
             // NEW: Handle parameter-based formats separately
             if (hasParameterPlaceholders) {
@@ -1294,7 +1476,7 @@ export function formatItemValue(
                 case TableCalculationType.STRING:
                 case DimensionType.STRING:
                 case MetricType.STRING:
-                    return `${value}`;
+                    return formatStructuredValue(value);
                 case DimensionType.BOOLEAN:
                 case MetricType.BOOLEAN:
                 case TableCalculationType.BOOLEAN:

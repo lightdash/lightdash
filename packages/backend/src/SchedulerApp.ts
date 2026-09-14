@@ -1,4 +1,6 @@
+import './tracing/bootstrap'; // Must run before modules that can load Knex
 import { createTerminus } from '@godaddy/terminus';
+import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { EventEmitter } from 'events';
 import express from 'express';
@@ -18,6 +20,7 @@ import {
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
+import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import {
     initOtelHttpMetrics,
@@ -46,6 +49,20 @@ import {
 } from './tracing/tracing';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
+
+const FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS = 15 * 60 * 1000;
+
+// Delay between the pool-dead latch firing and the fallback process.exit(1).
+// The PRIMARY restart path is the liveness probe: the latch flips
+// /api/v1/health to 503 immediately, the orchestrator SIGTERMs the pod, and
+// terminus runs worker.stop() so graphile fail_job-releases any in-flight
+// jobs for immediate retry (relevant when a single worker died while
+// siblings still process — the latch also fires there). The hard exit only
+// covers deployments with no liveness probe. It must stay comfortably above
+// the helm chart's scheduler liveness window (~305s: failureThreshold 20 x
+// periodSeconds 15) so the probe path, which shuts down cleanly, always wins
+// where configured.
+const POOL_DEAD_EXIT_DELAY_MS = 10 * 60_000;
 
 type SchedulerAppArguments = {
     lightdashConfig: LightdashConfig;
@@ -82,6 +99,8 @@ const schedulerWorkerFactory = (context: {
         dashboardService: context.serviceRepository.getDashboardService(),
         deployService: context.serviceRepository.getDeployService(),
         projectService: context.serviceRepository.getProjectService(),
+        contentAsCodeWritebackService:
+            context.serviceRepository.getContentAsCodeWritebackService(),
         schedulerService: context.serviceRepository.getSchedulerService(),
         validationService: context.serviceRepository.getValidationService(),
         userService: context.serviceRepository.getUserService(),
@@ -95,7 +114,6 @@ const schedulerWorkerFactory = (context: {
         googleChatClient: context.clients.getGoogleChatClient(),
         renameService: context.serviceRepository.getRenameService(),
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
-        featureFlagService: context.serviceRepository.getFeatureFlagService(),
         persistentDownloadFileService:
             context.serviceRepository.getPersistentDownloadFileService(),
         preAggregateModel: context.models.getPreAggregateModel(),
@@ -105,6 +123,8 @@ const schedulerWorkerFactory = (context: {
             context.models.getOrganizationSettingsModel(),
         emailWhitelabelService:
             context.serviceRepository.getEmailWhitelabelService(),
+        warehouseConnectCodeModel:
+            context.models.getWarehouseConnectCodeModel(),
         workerHealth: context.workerHealth,
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
@@ -138,6 +158,8 @@ export default class SchedulerApp {
     private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
     private readonly analyticsEventEmitter: EventEmitter;
+
+    private featureFlagCheckFlushInterval: NodeJS.Timeout | undefined;
 
     constructor(args: SchedulerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -216,9 +238,27 @@ export default class SchedulerApp {
     }
 
     public async start() {
+        this.featureFlagCheckFlushInterval = setInterval(() => {
+            try {
+                this.analytics.trackFeatureFlagChecks(
+                    flushFeatureFlagChecks(),
+                    'scheduler',
+                );
+            } catch {
+                // telemetry must never break the app
+            }
+        }, FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS);
+        this.featureFlagCheckFlushInterval.unref();
+
         registerOAuthRefreshStrategies();
 
         this.prometheusMetrics.start();
+        MotherduckInstanceCache.configure(
+            this.lightdashConfig.motherduckInstanceCache,
+        );
+        MotherduckInstanceCache.setObserver((event) =>
+            this.prometheusMetrics.observeMotherduckCacheEvent(event),
+        );
         setGithubRateLimitObserver((rl) =>
             this.prometheusMetrics.observeGithubRateLimit(rl),
         );
@@ -262,6 +302,25 @@ export default class SchedulerApp {
 
     private async initWorker() {
         const workerHealth = new SchedulerWorkerHealth(derivePoolIdFromEnv());
+        // Crash-only recovery: a terminated graphile-worker pool cannot be
+        // rebuilt in-process (0.13 never respawns dead workers), and queued
+        // jobs are durable, so the correct move is to get this process
+        // replaced. The probe flips 503 immediately via the poolDead latch and
+        // the liveness probe restarts the pod gracefully; the delayed exit is
+        // the belt-and-braces path for deployments without a liveness probe.
+        // Fires at most once.
+        workerHealth.onPoolDead((reason) => {
+            Logger.error(
+                `[scheduler-health] worker pool is dead (${reason}); health probe now reports 503, fallback exit in ${POOL_DEAD_EXIT_DELAY_MS}ms`,
+            );
+            Sentry.captureException(
+                new Error(`Scheduler worker pool dead: ${reason}`),
+                { extra: { poolId: workerHealth.getPoolId() } },
+            );
+            setTimeout(() => {
+                process.exit(1);
+            }, POOL_DEAD_EXIT_DELAY_MS).unref();
+        });
         wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         const worker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
@@ -288,12 +347,21 @@ export default class SchedulerApp {
             );
         }
         const server = http.createServer(app);
+        server.keepAliveTimeout =
+            this.lightdashConfig.httpServer.keepAliveTimeoutMs;
 
         createTerminus(server, {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],
             healthChecks: {
                 '/api/v1/health': () => {
-                    const status = workerHealth.isHealthy();
+                    const status = worker.isQuiesced
+                        ? workerHealth.isHealthyWhileQuiesced()
+                        : workerHealth.isHealthy();
+                    if (worker.isQuiesced && status.ok) {
+                        return Promise.resolve(
+                            'Scheduler worker is quiesced for migration',
+                        );
+                    }
                     const runnerUp = Boolean(
                         worker?.runner && worker.isRunning,
                     );
@@ -315,16 +383,32 @@ export default class SchedulerApp {
                 Logger.info('Shutting down gracefully');
             },
             onSignal: async () => {
+                if (this.featureFlagCheckFlushInterval) {
+                    clearInterval(this.featureFlagCheckFlushInterval);
+                    this.featureFlagCheckFlushInterval = undefined;
+                }
+                try {
+                    this.analytics.trackFeatureFlagChecks(
+                        flushFeatureFlagChecks(),
+                        'scheduler',
+                    );
+                    await this.analytics.flushEvents();
+                } catch {
+                    // telemetry must never break shutdown
+                }
                 if (this.eventStreamWriter) {
                     Logger.info('Flushing usage event stream writer');
                     await this.eventStreamWriter.close();
                 }
+                await MotherduckInstanceCache.closeAll('shutdown');
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();
-                if (worker && worker.runner) {
+                if (worker) {
                     Logger.info('Stopping scheduler worker');
-                    await worker?.runner?.stop();
+                    // worker.stop() (not runner.stop()) so the settling runner
+                    // promise is recognised as graceful, not a pool crash.
+                    await worker.stop();
                 }
             },
             onShutdown: async () => {

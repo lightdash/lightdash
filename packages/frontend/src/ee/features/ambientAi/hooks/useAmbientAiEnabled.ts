@@ -1,6 +1,7 @@
 import { CommercialFeatureFlags } from '@lightdash/common';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../../providers/App/useApp';
 
 /**
  * Checks if the ambient ai is enabled.
@@ -8,8 +9,11 @@ import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeature
  */
 export const useAmbientAiEnabled = () => {
     const { data: health } = useHealth();
+    const { user } = useApp();
+    // The flag is always off without a registered user, so skip the request.
     const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
+        { enabled: !!user.data },
     );
     return health?.ai.isAmbientAiEnabled || aiCopilotFlag?.enabled;
 };

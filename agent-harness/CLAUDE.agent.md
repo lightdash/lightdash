@@ -16,10 +16,10 @@ Always use `agent-cli.sh` to interact with your stack:
 # Check process status
 ./agent-harness/agent-cli.sh ${AGENT_ID} status
 
-# View logs (api, frontend, common-watch, warehouses-watch)
+# View logs (api, api-routes-watch, frontend, common-watch, warehouses-watch)
 ./agent-harness/agent-cli.sh ${AGENT_ID} logs api
 
-# Restart a service after changes
+# Manually recover a service if automatic reload fails
 ./agent-harness/agent-cli.sh ${AGENT_ID} restart api
 
 # Check health
@@ -89,7 +89,7 @@ pnpm -F frontend lint
 pnpm -F common test
 pnpm -F backend test:dev:nowatch
 
-# Generate API specs (after changing TSOA controllers)
+# Manually validate API generation (the harness watches controllers automatically)
 pnpm generate-api
 ```
 
@@ -99,5 +99,6 @@ pnpm generate-api
 - **Frontend**: React + Vite on port ${FE_PORT}
 - **Common**: Shared types/utils (`@lightdash/common`)
 - **Warehouses**: Data warehouse adapters
-- Backend auto-restarts on crashes; frontend does not (restart manually if needed)
+- Backend source and generated-route changes reload automatically; frontend does not restart on crashes
+- The api-routes-watch process regenerates TSOA routes when controllers change
 - TypeScript watchers (common-watch, warehouses-watch) rebuild shared packages on change

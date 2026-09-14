@@ -12,6 +12,7 @@ const entry = (over: Partial<FieldEntry>): FieldEntry => ({
     aiHint: '',
     defaultTimeDimension: null,
     defaultTimeDimensionGranularity: null,
+    requiredParameters: [],
     nameHaystack: '',
     descHaystack: '',
     hintHaystack: '',

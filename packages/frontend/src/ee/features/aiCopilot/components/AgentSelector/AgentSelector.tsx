@@ -7,7 +7,7 @@ import {
     Text,
     UnstyledButton,
     useCombobox,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCheck,
     IconChevronDown,
@@ -37,6 +37,22 @@ type Props = {
      * tight (e.g. the chat input).
      */
     compact?: boolean;
+};
+
+// The action belongs to the stable selector. Named agents are reusable options
+// in the path, so renaming one never removes a control's walkthrough marker.
+const viewAgentTourProps = {
+    'data-tour-scope': 'view:AiAgent',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/ai-agents/:agentUuid',
+    'data-tour-label': 'Open the agent dropdown',
+    'data-tour-title': 'Explore an AI agent',
+    'data-tour-docs':
+        'agents/effective-analytics-with-agents.mdx#think-specialized-not-general:1',
+    'data-tour-interactive': 'true',
+    'data-tour-via': '[data-tour-nav="ask-ai"]',
+    'data-tour-then':
+        '[data-tour-anchor="agent-option"][data-tour-value="Jaffle analyst"]',
 };
 
 const AUTO_VALUE = '__auto__';
@@ -107,8 +123,12 @@ export const AgentSelector = ({
         >
             <Combobox.Target>
                 <UnstyledButton
+                    {...viewAgentTourProps}
                     type="button"
                     onClick={() => combobox.toggleDropdown()}
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="agent-selector"
+                    data-tour-hint="Open the agent dropdown"
                     className={`${styles.target} ${
                         compact ? styles.compact : ''
                     } ${variant === 'header' ? styles.headerTarget : ''}`}
@@ -129,7 +149,7 @@ export const AgentSelector = ({
                         <MantineIcon
                             icon={IconChevronDown}
                             size="sm"
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                     </Group>
                 </UnstyledButton>
@@ -141,7 +161,7 @@ export const AgentSelector = ({
                         <Combobox.Option value={AUTO_VALUE} p={2}>
                             <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
                                 <Avatar size={22} color="ldGray" radius="xl">
-                                    <Text size="10px" fw={700} c="ldGray.6">
+                                    <Text size="10px" fw={600} c="dimmed">
                                         AI
                                     </Text>
                                 </Avatar>
@@ -167,6 +187,9 @@ export const AgentSelector = ({
                 <Combobox.Options>
                     {agentOptions.map((item) => (
                         <Combobox.Option
+                            data-tour-anchor="agent-option"
+                            data-tour-hint="Choose {value}"
+                            data-tour-value={item.label}
                             value={item.value}
                             key={item.value}
                             p={2}
@@ -196,7 +219,19 @@ export const AgentSelector = ({
                     ))}
 
                     <Combobox.Footer p={4} pr={6}>
-                        <Combobox.Option value="new" p={2}>
+                        <Combobox.Option
+                            value="new"
+                            p={2}
+                            // Anchor for scope walkthroughs (data-tour-via),
+                            // read first as a look at where agents start.
+                            data-tour-anchor="agent-new"
+                            data-tour-hint="Choose Create new agent"
+                            data-tour-scope="manage:AiAgent"
+                            data-tour-look="1"
+                            data-tour-after='[data-tour-anchor="agent-selector"]'
+                            data-tour-label="Every agent starts from this dropdown"
+                            data-tour-docs="agents/set-up-agents.mdx#create-a-new-agent:1"
+                        >
                             <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
                                 <Center w={22} h={22}>
                                     <MantineIcon

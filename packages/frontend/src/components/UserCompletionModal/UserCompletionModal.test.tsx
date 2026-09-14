@@ -1,13 +1,70 @@
 import { LightdashMode } from '@lightdash/common';
-import { screen, waitFor, within } from '@testing-library/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import nock from 'nock';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BASE_API_URL } from '../../api';
+import { type UserWithAbility } from '../../hooks/user/useUser';
+import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import { renderWithProviders } from '../../testing/testUtils';
 import UserCompletionModal from './UserCompletionModal';
+
+const CompleteSetupHarness = () => {
+    const navigate = useNavigate();
+    const { mutate } = useUserCompleteMutation();
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                mutate({
+                    organizationName: 'test organization',
+                    jobTitle: 'Software Engineer',
+                    howDidYouHearAboutUs: '',
+                    enableEmailDomainAccess: false,
+                    isMarketingOptedIn: true,
+                    isTrackingAnonymized: false,
+                });
+                void navigate('/');
+            }}
+        >
+            Complete setup
+        </button>
+    );
+};
+
+const SetupStateProbe = () => {
+    const { user } = useApp();
+    return (
+        <div>
+            {user.data?.isSetupComplete ? 'setup complete' : 'setup incomplete'}
+        </div>
+    );
+};
+
+const StaleUserRefetchHarness = () => {
+    const queryClient = useQueryClient();
+
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                queryClient.setQueryData<UserWithAbility>(
+                    ['user'],
+                    (currentUser) =>
+                        currentUser
+                            ? { ...currentUser, isSetupComplete: false }
+                            : currentUser,
+                );
+            }}
+        >
+            Deliver stale user
+        </button>
+    );
+};
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
@@ -214,6 +271,11 @@ describe('UserCompletionModal', () => {
         const roleOption = await screen.findByText('Software Engineer');
         await user.click(roleOption);
 
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
+
         // uncheck email domain checkbox (checked by default)
         const emailDomainCheckbox = await screen.findByRole('checkbox', {
             name: `Allow users with @lightdash.com to join the organization as a viewer`,
@@ -246,6 +308,7 @@ describe('UserCompletionModal', () => {
             .patch('/api/v1/user/me/complete', {
                 organizationName: 'test organization',
                 jobTitle: 'Software Engineer',
+                howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: false,
                 isTrackingAnonymized: true,
@@ -286,6 +349,12 @@ describe('UserCompletionModal', () => {
         });
         expect(emailDomainCheckbox).not.toBeInTheDocument();
 
+        // invited members do not see the referral question
+        const referralInput = screen.queryByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        expect(referralInput).not.toBeInTheDocument();
+
         // select role
         const roleSelect =
             await screen.findByPlaceholderText('Select your role');
@@ -297,7 +366,7 @@ describe('UserCompletionModal', () => {
         // submit button should be enabled now
         expect(submitButton).toBeEnabled();
 
-        // mock api call
+        // mock api call — no referral answer for invited members
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 jobTitle: 'Software Engineer',
@@ -313,6 +382,139 @@ describe('UserCompletionModal', () => {
         // wait for api call to be made
         scope.done();
         await waitFor(() => expect(scope.isDone()).toBe(true));
+    });
+
+    it('should render the how did you hear about us input for the org creator', async () => {
+        renderModal({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+            },
+        });
+
+        const welcomeModal = await screen.findByRole('dialog');
+        expect(
+            within(welcomeModal).getByRole('textbox', {
+                name: /How did you hear about us/,
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('should not render the how did you hear about us input for invited members', async () => {
+        renderModal({
+            user: {
+                isSetupComplete: false,
+                organizationName: 'test organization',
+            },
+        });
+
+        const welcomeModal = await screen.findByRole('dialog');
+        expect(
+            within(welcomeModal).queryByRole('textbox', {
+                name: /How did you hear about us/,
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('should submit the trimmed how did you hear about us answer', async () => {
+        const user = userEvent.setup();
+
+        renderModal({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+            },
+        });
+
+        const submitButton = await screen.findByRole('button', {
+            name: 'Next',
+        });
+
+        const nameInput =
+            await screen.findByPlaceholderText('Enter company name');
+        await user.type(nameInput, 'test organization');
+
+        const roleSelect =
+            await screen.findByPlaceholderText('Select your role');
+        await user.click(roleSelect);
+        const roleOption = await screen.findByText('Software Engineer');
+        await user.click(roleOption);
+
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, '  a podcast  ');
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete', {
+                organizationName: 'test organization',
+                jobTitle: 'Software Engineer',
+                howDidYouHearAboutUs: 'a podcast',
+                // org creator on a custom domain: enabled by default
+                enableEmailDomainAccess: true,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            })
+            .reply(200);
+
+        await user.click(submitButton);
+
+        scope.done();
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+    });
+
+    it('should not submit completion request when referral field is empty', async () => {
+        const user = userEvent.setup();
+
+        renderModal({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+            },
+        });
+
+        const submitButton = await screen.findByRole('button', {
+            name: 'Next',
+        });
+
+        const nameInput =
+            await screen.findByPlaceholderText('Enter company name');
+        await user.type(nameInput, 'test organization');
+
+        const roleSelect =
+            await screen.findByPlaceholderText('Select your role');
+        await user.click(roleSelect);
+        const roleOption = await screen.findByText('Software Engineer');
+        await user.click(roleOption);
+
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, '   ');
+
+        expect(submitButton).toBeDisabled();
+
+        let completionRequestCount = 0;
+        nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete')
+            .optionally()
+            .reply(() => {
+                completionRequestCount += 1;
+                return [200];
+            });
+
+        fireEvent.submit(screen.getByRole('form'));
+
+        await waitFor(() =>
+            expect(
+                screen.getByText((content) =>
+                    content.includes(
+                        'Please let us know how you heard about Lightdash',
+                    ),
+                ),
+            ).toBeInTheDocument(),
+        );
+        expect(completionRequestCount).toBe(0);
     });
 
     it('should redirect to the organization setup page when the flag is enabled and setup is incomplete', async () => {
@@ -332,6 +534,144 @@ describe('UserCompletionModal', () => {
                 user: {
                     isSetupComplete: false,
                     organizationName: '',
+                },
+            },
+        );
+
+        expect(
+            await screen.findByText('Organization setup page'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Nearly there...')).not.toBeInTheDocument();
+    });
+
+    it('does not redirect after a stale refetch follows setup completion', async () => {
+        mockFeatureFlag(true);
+        const user = userEvent.setup();
+
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route
+                        path="/"
+                        element={
+                            <>
+                                <UserCompletionModal />
+                                <StaleUserRefetchHarness />
+                                <div>Home page</div>
+                            </>
+                        }
+                    />
+                    <Route
+                        path="/organization-setup"
+                        element={<div>Organization setup page</div>}
+                    />
+                </Routes>
+            </MemoryRouter>,
+            {
+                user: {
+                    isSetupComplete: true,
+                },
+            },
+        );
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Deliver stale user' }),
+        );
+
+        expect(screen.getByText('Home page')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Organization setup page'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('does not bounce back to organization setup while user setup is completing', async () => {
+        mockFeatureFlag(true);
+        const user = userEvent.setup();
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete')
+            .delay(100)
+            .reply(200, {
+                status: 'ok',
+                results: {
+                    isSetupComplete: true,
+                    organizationName: 'test organization',
+                },
+            });
+
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/organization-setup']}>
+                <Routes>
+                    <Route
+                        path="/organization-setup"
+                        element={
+                            <>
+                                <CompleteSetupHarness />
+                                <div>Organization setup page</div>
+                            </>
+                        }
+                    />
+                    <Route
+                        path="/"
+                        element={
+                            <>
+                                <UserCompletionModal />
+                                <SetupStateProbe />
+                                <div>Home page</div>
+                            </>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>,
+            {
+                user: {
+                    isSetupComplete: false,
+                    organizationName: '',
+                },
+            },
+        );
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Complete setup' }),
+        );
+
+        expect(await screen.findByText('Home page')).toBeInTheDocument();
+        expect(await screen.findByText('setup incomplete')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Organization setup page'),
+        ).not.toBeInTheDocument();
+
+        expect(await screen.findByText('setup complete')).toBeInTheDocument();
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+        expect(screen.getByText('Home page')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Organization setup page'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('still redirects to organization setup when telemetry is disabled', async () => {
+        mockFeatureFlag(true);
+
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route path="/" element={<UserCompletionModal />} />
+                    <Route
+                        path="/organization-setup"
+                        element={<div>Organization setup page</div>}
+                    />
+                </Routes>
+            </MemoryRouter>,
+            {
+                user: {
+                    isSetupComplete: false,
+                    organizationName: '',
+                },
+                health: {
+                    rudder: {
+                        writeKey: undefined,
+                        dataPlaneUrl: undefined,
+                    },
                 },
             },
         );

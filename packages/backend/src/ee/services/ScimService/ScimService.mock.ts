@@ -16,7 +16,9 @@ import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemb
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
+import { UserService } from '../../../services/UserService';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
+import { ScimRequestLogModel } from '../../models/ScimRequestLogModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import { ScimService } from './ScimService';
 
@@ -103,6 +105,18 @@ export const mockProjects = [
     },
 ];
 
+export const mockOrganizationCustomRole: Role = {
+    roleUuid: 'custom-organization-role-uuid',
+    name: 'Custom Organization Role',
+    description: 'Custom organization role',
+    level: 'organization',
+    organizationUuid: 'org-uuid',
+    ownerType: 'user',
+    createdBy: 'test-user-uuid',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+
 // Mock custom roles for testing
 export const mockCustomRoles: Role[] = [
     {
@@ -127,6 +141,7 @@ export const mockCustomRoles: Role[] = [
         createdAt: new Date(),
         updatedAt: new Date(),
     },
+    mockOrganizationCustomRole,
 ];
 
 // Mock organization member profile model
@@ -177,15 +192,30 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     lightdashConfig: lightdashConfigMock,
     organizationMemberProfileModel: organizationMemberProfileModelMock,
     userModel: userModelMock,
+    userService: {
+        ensureDefaultUserSpacesForUser: vi.fn().mockResolvedValue(undefined),
+    } as unknown as UserService,
     emailModel: emailModelMock,
     analytics: analyticsMock,
     groupsModel: {
         removeUserFromAllGroups: vi.fn().mockResolvedValue(2),
     } as unknown as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,
-    commercialFeatureFlagModel: {} as CommercialFeatureFlagModel,
+    scimRequestLogModel: {
+        create: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ScimRequestLogModel,
+    commercialFeatureFlagModel: {
+        get: vi.fn().mockResolvedValue({ id: 'custom-roles', enabled: false }),
+    } as unknown as CommercialFeatureFlagModel,
     rolesModel: {
         removeUserProjectAccess: vi.fn().mockResolvedValue(undefined),
+        getOrganizationUserRoleSet: vi
+            .fn()
+            .mockResolvedValue({ systemRole: 'member', customRoleUuids: [] }),
+        replaceOrganizationUserRoleSet: vi.fn().mockResolvedValue(undefined),
+        replaceProjectUserRoleSet: vi.fn().mockResolvedValue(undefined),
+        getUserProjectRoles: vi.fn().mockResolvedValue([]),
+        setUserOrgAndProjectRoleSets: vi.fn().mockResolvedValue(undefined),
         removeUserAccessFromAllProjects: vi.fn().mockResolvedValue(3),
         getRolesByOrganizationUuid: vi.fn().mockResolvedValue(mockCustomRoles),
         upsertSystemRoleProjectAccess: vi.fn().mockResolvedValue(undefined),

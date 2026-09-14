@@ -9,36 +9,60 @@ import {
     S3Client,
     S3ServiceException,
     type ObjectIdentifier,
-    type S3ClientConfig,
 } from '@aws-sdk/client-s3';
-import { subject } from '@casl/ability';
+import { subject, type Ability } from '@casl/ability';
 import {
+    AlreadyExistsError,
+    APP_UPGRADE_PROMPT_LABEL,
+    APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
+    ChartType,
+    chartTypeIconSchema,
     checkThemeLimits,
+    compareSemverVersions,
     DATA_APP_CLAUDE_MODELS,
+    DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
+    DATA_REFERENCE_EXTRACTOR_VERSION,
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
+    DEFAULT_DATA_APP_CODEX_MODEL,
+    DirectAccessResourceType,
+    extractDataAppDataReferences,
     extractLockfilePackages,
     FeatureFlags,
+    FilterOperator,
     ForbiddenError,
     formatPromptWithClarifications,
+    getContentAsCodePathFromLtreePath,
+    getCustomSqlFieldKey,
     getEffectiveFieldAiHints,
     getErrorMessage,
+    getSdkFeaturesForTarget,
+    getSdkFeatureTargetForTemplate,
+    getVisibleDataAppClaudeModels,
+    isChartTypeIcon,
     isDashboardChartTileType,
     isExploreError,
+    isSemverVersion,
+    isValidDataAppSlug,
+    MAX_APP_FILES_PER_VERSION,
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     QueryExecutionContext,
+    resolveDefaultVisibleDataAppClaudeModel,
     sanitizeAppPackageJsonScripts,
     themeLimitMessage,
     TooManyRequestsError,
     validateDataAppCode,
     validateDataAppDependencies,
+    type Account,
     type AnonymousAccount,
+    type ApiDuplicateAppResponse,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
@@ -50,19 +74,37 @@ import {
     type AppVersionDependencies,
     type AppVersionDependencyEntry,
     type AppVersionExternalConnectionResource,
+    type AppVersionFileResource,
     type AppVersionResources,
+    type AppVersionStatusHistoryEntry,
+    type AppVersionStatusHistoryEntryKind,
+    type ChartConfig,
     type ChartReference,
     type ChartSampleData,
+    type ChartTypeIcon,
     type CompiledExploreJoin,
     type CompiledTable,
+    type DashboardBlueprint,
+    type DataAppActivityEvent,
+    type DataAppActivityFilters,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
+    type DataAppCodeFile,
+    type DataAppCodexModel,
+    type DataAppCodingAgent,
+    type DataAppCodingAgentModel,
     type DataAppContext,
+    type DataAppCreationExperience,
     type DataAppDependencies,
+    type DataAppGenerationUsage,
+    type DataAppManifestExternalConnection,
     type DataAppTemplate,
     type DataAppViz,
+    type DataAppVizRenderMetadata,
     type DataAppVizSchema,
+    type DataAppVizsFilter,
     type EmbedProjectApp,
     type Explore,
     type ExternalConnectionMethod,
@@ -72,13 +114,23 @@ import {
     type KnexPaginatedData,
     type LightdashProjectParameter,
     type MetricQuery,
+    type ModelRequiredFilterRule,
+    type MyAppsSortBy,
+    type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type RegistryChartTypeListItem,
+    type RegistryChartTypeState,
+    type SavedChart,
+    type SdkFeatureTarget,
     type SessionUser,
     type TogglePinnedItemInfo,
+    type UpgradeAppRequestBody,
+    type UpgradeCandidateFeature,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { Knex } from 'knex';
+import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -88,13 +140,15 @@ import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
+    type AiKeyManagement,
 } from '../../../analytics/aiUsage';
 import {
     LightdashAnalytics,
+    type DataAppUploadIdentitySource,
     type DataAppUploadRejectedEvent,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
-import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
+import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -102,20 +156,33 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
+    type DbAppActivityRow,
     type DbAppVersion,
 } from '../../../database/entities/apps';
+import { isUniqueConstraintViolation } from '../../../database/errors';
+import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
-import { AppModel } from '../../../models/AppModel';
+import {
+    AppModel,
+    type PreviewChartVizBindingMapping,
+} from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SpaceModel } from '../../../models/SpaceModel';
-import { mintPreviewToken } from '../../../routers/appPreviewToken';
+import { type UserModel } from '../../../models/UserModel';
+import {
+    mintPreviewToken,
+    verifyPreviewTokenClaims,
+} from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
+import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
+import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -124,49 +191,78 @@ import {
     getOtelTraceHeaders,
     runWithOtelSpanContext,
 } from '../../../tracing/tracing';
+import { VERSION } from '../../../version';
+import { ChartRegistryClient } from '../../clients/ChartRegistryClient';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import { getModel } from '../ai/models';
+import { resolveKeyManagement } from '../ai/models';
 import {
     OrgAiCopilotConfigResolver,
     type CopilotConfig,
+    type ResolvedCopilotConfig,
 } from '../ai/OrgAiCopilotConfigResolver';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
     S3SnapshotStore,
     SandboxCommandError,
-    SandboxManager,
     type AzureSandboxesConfig,
+    type CloudRunSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
+    type SandboxManagerPort,
     type SandboxSpec,
 } from '../SandboxRuntime';
-import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
+import {
+    assertCanViewEmbeddedApp,
+    assertCanViewApp as assertUserCanViewApp,
+    getAppViewAuthorizationContext,
+    type AppViewAuthorizationContext,
+    type AppViewAuthzApp,
+    type AppViewAuthzDeps,
+    type DataAppProjectContext,
+} from './appAuthz';
+import { getBundleServableChecker } from './appBundleStorage';
 import {
     buildManifest,
     contentTypeForPath,
     s3KeyToRelPath,
     versionPrefix,
 } from './appCode';
-import { contextFile, promptHistoryToMarkdown } from './appContext';
+import {
+    contextFile,
+    promptHistoryToMarkdown,
+    SEMANTIC_LAYER_POINTER_FILE,
+} from './appContext';
+import {
+    CLARIFY_APP_SYSTEM_PROMPT,
+    CLARIFY_VIZ_SYSTEM_PROMPT,
+} from './clarifierPrompts';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
 } from './claudeCliFailure';
 import {
     buildClaudeCodeEnv,
+    CLAUDE_CODE_SECRET_ENV_KEYS,
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
 } from './claudeCodeEnv';
 import {
     buildClaudeCodeOtelEnv,
+    CLAUDE_CODE_OTEL_SECRET_ENV_KEYS,
     claudeCodeOtelAllowedHosts,
 } from './claudeCodeOtelEnv';
+import {
+    jobClaudeEffort,
+    payloadClaudeEffort,
+    resolveClaudeEffort,
+} from './claudeEffort';
 import {
     addClaudeGenerationAttempt,
     addClaudeUsage,
@@ -177,6 +273,33 @@ import {
     type ClaudeGenerationUsage,
 } from './ClaudeStreamProcessor';
 import {
+    buildCodexCodeEnv,
+    buildCodexExecCommand,
+    CODEX_CODE_SECRET_ENV_KEYS,
+    CODEX_PROJECT_INSTRUCTIONS,
+    CODEX_PROJECT_INSTRUCTIONS_PATH,
+    codexCodeAllowedHosts,
+    codexSkillDirective,
+    describeCodexCodeEnv,
+    getCodexCodeProvider,
+    getCodexModelId,
+    PREPARE_CODEX_SKILLS_COMMAND,
+} from './codexCodeEnv';
+import { CodexStreamProcessor } from './CodexStreamProcessor';
+import {
+    buildDashboardBlueprint,
+    DASHBOARD_BLUEPRINT_PATH,
+    dashboardBlueprintPromptBlock,
+    describeDashboardBlueprint,
+} from './dashboardBlueprint';
+import {
+    assertDataAppVizPreviewVersionAllowed,
+    getDataAppVizVersionPin,
+    resolveDataAppVisualizationForRender,
+    resolveDataAppVizRenderMetadata,
+    resolveRenderableDataAppVizVersion,
+} from './dataAppVizRender';
+import {
     assertDependenciesHaveNoKnownMalware,
     assertDependenciesMeetMinReleaseAge,
 } from './dependencyGuards';
@@ -184,11 +307,14 @@ import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
+import { assertValidDistTar } from './distTarValidation';
 import { resolveOtelExportHeaders } from './gcpOtelAuth';
 import { readDesignForDownload } from './readDesignForDownload';
 import { readS3ObjectAsBuffer } from './s3Utils';
+import { redactSandboxEnvSecrets } from './sandboxOutputRedaction';
 import {
     buildTemplateBaseline,
+    TEMPLATE_DEV_DEPENDENCIES,
     TEMPLATE_SCRIPTS,
 } from './templateDependencies';
 import { getTemplateInstructions } from './templates';
@@ -199,12 +325,11 @@ import { getTemplateInstructions } from './templates';
  * full async service.
  */
 export const buildChartReference = (
-    chart: {
-        name: string;
-        description?: string;
-        tableName: string;
-        metricQuery: MetricQuery;
-    },
+    chart: Pick<
+        SavedChart,
+        'name' | 'tableName' | 'metricQuery' | 'chartConfig'
+    > &
+        Partial<Pick<SavedChart, 'description' | 'pivotConfig'>>,
     chartUuid: string,
     linked: boolean,
     sampleData: ChartSampleData | null,
@@ -213,6 +338,8 @@ export const buildChartReference = (
     chartDescription: chart.description ?? '',
     exploreName: chart.tableName,
     metricQuery: chart.metricQuery,
+    chartConfig: chart.chartConfig,
+    pivotConfig: chart.pivotConfig ?? null,
     sampleData,
     chartUuid,
     linked,
@@ -221,11 +348,14 @@ export const buildChartReference = (
 type AppExternalConnectionDoc = {
     alias: string;
     origin: string;
+    browserImageOrigin: string | null;
     instructions: string | null;
     allowedMethods: ExternalConnectionMethod[];
     allowedPathPrefixes: string[];
     samples: ExternalConnectionSample[];
 };
+
+type AppRuntimeS3 = { client: S3Client; bucket: string };
 
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
@@ -239,20 +369,61 @@ type AppGenerateServiceDeps = {
     projectModel: ProjectModel;
     projectParametersModel: ProjectParametersModel;
     spaceModel: SpaceModel;
+    userModel: Pick<
+        UserModel,
+        'findSessionUserAndOrgByUuid' | 'findServiceAccountByUserUuid'
+    >;
+    savedChartModel: SavedChartModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
+    coderService: CoderService;
     dashboardService: DashboardService;
     projectService: ProjectService;
     promoteService: PromoteService;
     externalConnectionModel: ExternalConnectionModel;
     sandboxRegistryModel: SandboxRegistryModel;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    /** Test seams: null in production, where both are built from config. */
+    sandboxManager: SandboxManagerPort | null;
+    appRuntimeS3: AppRuntimeS3 | null;
+    chartRegistryClient: ChartRegistryClient;
+};
+
+// Inputs for the AI agent's code-free data app read: manifest fields, the
+// read version's context and data references, and the space for agent scoping.
+export type DataAppReadSource = {
+    app: {
+        uuid: string;
+        slug: string;
+        name: string;
+        description: string;
+        template: DbApp['template'];
+        spaceUuid: string | null;
+    };
+    spaceSlug: string | null;
+    externalConnections: DataAppManifestExternalConnection[];
+    vizSchema: DataAppVizSchema | null;
+    version: number;
+    versionCount: number;
+    newerVersion: { version: number; status: AppVersionStatus } | null;
+    createdBy: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+    resources: AppVersionResources | null;
+    dataReferences: PersistedDataAppDataReferences | null;
 };
 
 type GenerateAppOptions = {
+    creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
     externalConnections?: AppExternalConnectionReference[];
+    codexModelInput?: DataAppCodexModel;
+    // The AI agent tool call that started the build; travels on the job so
+    // the worker can patch its pending result when the build ends.
+    aiAgentToolCall?: AppGeneratePipelineJobPayload['aiAgentToolCall'];
 };
 
 type GenerateAppResult = {
@@ -260,9 +431,61 @@ type GenerateAppResult = {
     version: number;
 };
 
+/**
+ * A staged attachment resolved from its S3 object at version-creation /
+ * sandbox-write time. ContentType and metadata on the staged object are the
+ * source of truth for type and filename — the client only ever sends ids.
+ */
+type StagedAppFile = {
+    fileId: string;
+    mimeType: string;
+    filename: string;
+    isImage: boolean;
+    isScreenshot: boolean;
+};
+
+type NamedStagedFile = StagedAppFile & { sandboxFilename: string };
+
+/**
+ * A compiled table rendered as dbt-style YAML lines. Header (`- name:` through
+ * `meta:`) and column blocks stay separate so a model can be composed into one
+ * document or split across files without re-parsing.
+ */
+type RenderedModel = {
+    name: string;
+    description: string | null;
+    joinedTables: string[];
+    headerLines: string[];
+    columnBlocks: string[][];
+    dimensionCount: number;
+    metricCount: number;
+    requiredFilterCount: number;
+    defaultFilterCount: number;
+    hasSqlFilter: boolean;
+};
+
+/**
+ * Model-level filters that apply when this model is queried as an explore.
+ * They live on the base table but only take effect for queries against the
+ * explore itself, so they're passed explicitly and omitted for join-target
+ * models inlined by pass 2 of exploresToRenderedModels.
+ */
+type RenderedModelFilters = {
+    requiredFilters: ModelRequiredFilterRule[];
+    sqlFilter: string | null;
+};
+
+type ModelFile = {
+    filename: string;
+    contents: string;
+};
+
 type DataAppVersionFailureTelemetry = {
     wasResumed?: boolean;
-    claudeProvider?: 'anthropic' | 'bedrock';
+    codingAgent?: DataAppCodingAgent;
+    codingAgentModel?: DataAppCodingAgentModel;
+    claudeProvider?: 'anthropic' | 'bedrock' | 'openai';
+    keyManagement?: AiKeyManagement;
     schedulerWaitMs?: number;
     generationUsage?: ClaudeGenerationUsage;
     generationAttemptCount?: number;
@@ -277,6 +500,17 @@ type DataAppBuildFixTelemetry = {
     buildMs: number;
     fixAttempts: number;
     fixGenerationMs: number;
+};
+
+type CodingAgentGenerationResult = {
+    durationMs: number;
+    responseText: string | null;
+    structuredOutput: unknown;
+    toolCallCount: number;
+    usage: ClaudeGenerationUsage;
+    timeToFirstTokenMs: number | null;
+    turnDurationsMs: number[];
+    generationAttemptCount: number;
 };
 
 // Wall-clock heartbeat to bump status_updated_at while the pipeline is
@@ -300,6 +534,27 @@ const DATA_APP_WORKSPACE: PersistentWorkspace = {
     ],
     exclude: ['node_modules'],
 };
+// Kill any in-flight coding-agent process before a cancelled sandbox is paused.
+// Native-pause backends (E2B) freeze running processes into the snapshot, so
+// without this the cancelled generation resumes execution the next time the
+// sandbox is resumed. `[c]laude` keeps pkill from matching this command's own
+// shell; pkill exits 1 when nothing matched, hence the trailing `true`. The
+// prompt file is removed so nothing left in the sandbox can replay the
+// cancelled prompt (the next iteration writes a fresh one).
+const INTERRUPT_CODING_AGENT_COMMAND =
+    "pkill -TERM -f '[c]laude|[c]odex' 2>/dev/null; sleep 1; " +
+    "pkill -KILL -f '[c]laude|[c]odex' 2>/dev/null; rm -f /tmp/prompt.txt 2>/dev/null; true";
+
+// Prepended to the prompt when a version since the last ready one was
+// cancelled: the resumed `--continue` session still ends with the cancelled
+// instruction (and possibly its partial tool calls), and Claude would
+// otherwise treat it as outstanding work to pick back up.
+const CANCELLED_PROMPT_NOTICE =
+    '[System notice] The user cancelled the previous instruction while you were working on it. ' +
+    'Treat that instruction as withdrawn: do not resume, finish, or build on it. ' +
+    'The working tree may contain unfinished changes from the cancelled work. ' +
+    "Act only on the user's new request below.";
+
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
@@ -327,11 +582,20 @@ export class AppGenerateService extends BaseService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly userModel: Pick<
+        UserModel,
+        'findSessionUserAndOrgByUuid' | 'findServiceAccountByUserUuid'
+    >;
+
+    private readonly savedChartModel: SavedChartModel;
+
     private readonly schedulerClient: CommercialSchedulerClient;
 
     private readonly savedChartService: SavedChartService;
 
     private readonly spacePermissionService: SpacePermissionService;
+
+    private readonly coderService: CoderService;
 
     private readonly dashboardService: DashboardService;
 
@@ -345,8 +609,16 @@ export class AppGenerateService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
-    // Lazily built from config on first use; memoized for the service lifetime.
-    private sandboxManager: SandboxManager | undefined;
+    private readonly appRuntimeS3: AppRuntimeS3 | null;
+
+    private readonly chartRegistryClient: ChartRegistryClient;
+
+    private sandboxManager: SandboxManagerPort | undefined;
+
+    private readonly dataReferenceRefreshes = new Map<
+        string,
+        Promise<PersistedDataAppDataReferences | null>
+    >();
 
     constructor({
         lightdashConfig,
@@ -360,15 +632,21 @@ export class AppGenerateService extends BaseService {
         projectModel,
         projectParametersModel,
         spaceModel,
+        userModel,
+        savedChartModel,
         schedulerClient,
         savedChartService,
         spacePermissionService,
+        coderService,
         dashboardService,
         projectService,
         promoteService,
         externalConnectionModel,
         sandboxRegistryModel,
         orgAiCopilotConfigResolver,
+        sandboxManager,
+        appRuntimeS3,
+        chartRegistryClient,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -382,55 +660,106 @@ export class AppGenerateService extends BaseService {
         this.projectModel = projectModel;
         this.projectParametersModel = projectParametersModel;
         this.spaceModel = spaceModel;
+        this.userModel = userModel;
+        this.savedChartModel = savedChartModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
+        this.coderService = coderService;
         this.dashboardService = dashboardService;
         this.projectService = projectService;
         this.promoteService = promoteService;
         this.externalConnectionModel = externalConnectionModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
+        this.sandboxManager = sandboxManager ?? undefined;
+        this.appRuntimeS3 = appRuntimeS3;
+        this.chartRegistryClient = chartRegistryClient;
     }
 
-    /**
-     * Resolve the organization UUID for a project. Used to derive the CASL
-     * subject's `organizationUuid` from the resource (the project itself)
-     * rather than the user — so cross-org access attempts are denied by
-     * CASL instead of relying only on upstream project scoping.
-     */
-    private async getProjectOrgUuid(projectUuid: string): Promise<string> {
+    private async getDataAppProjectContext(
+        projectUuid: string,
+    ): Promise<DataAppProjectContext> {
         const summary = await this.projectModel.getSummary(projectUuid);
-        return summary.organizationUuid;
+        return {
+            organizationUuid: summary.organizationUuid,
+            projectUuid,
+            projectType: summary.type,
+            projectCreatedByUserUuid: summary.createdByUserUuid,
+            upstreamProjectUuid: summary.upstreamProjectUuid ?? null,
+        };
+    }
+
+    private static isPreviewOnlyDataAppGrant(
+        rules: CaslAuditWrapper<Ability>['rules'],
+        action: 'view' | 'create' | 'manage',
+    ): boolean {
+        const dataAppRules = rules.filter(
+            (rule) =>
+                rule.subject === 'DataApp' &&
+                !rule.inverted &&
+                (rule.action === action || rule.action === 'manage'),
+        );
+        return (
+            dataAppRules.length > 0 &&
+            dataAppRules.every((rule) => {
+                const { conditions } = rule;
+                return (
+                    typeof conditions === 'object' &&
+                    conditions !== null &&
+                    'projectType' in conditions &&
+                    conditions.projectType === ProjectType.PREVIEW
+                );
+            })
+        );
+    }
+
+    /** Whether the user may create data apps in the project (feature flag aside). */
+    async canCreateDataApp(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const projectContext = await this.getDataAppProjectContext(projectUuid);
+        return this.createAuditedAbility(user).can(
+            'create',
+            subject('DataApp', projectContext),
+        );
     }
 
     /**
      * Run a CASL check on `DataApp`, throwing `ForbiddenError` if denied.
-     * Callers must pass the resource-derived organizationUuid so that the
-     * check is a genuine cross-org guard, not a tautology on the user's own
-     * org.
      */
-    private assertDataAppAbility(
+    private async assertDataAppAbility(
         user: SessionUser,
         action: 'view' | 'create' | 'manage',
-        organizationUuid: string,
         projectUuid: string,
         errorMessage: string,
         extraContext: Record<string, unknown> = {},
-    ): void {
+    ): Promise<DataAppProjectContext> {
+        const projectContext = await this.getDataAppProjectContext(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 action,
                 subject('DataApp', {
-                    organizationUuid,
-                    projectUuid,
+                    ...projectContext,
                     ...extraContext,
                 }),
             )
         ) {
+            if (
+                AppGenerateService.isPreviewOnlyDataAppGrant(
+                    auditedAbility.rules,
+                    action,
+                )
+            ) {
+                throw new ForbiddenError(
+                    `${errorMessage}. Your role only allows data apps in preview projects you created, and this is not one.`,
+                );
+            }
             throw new ForbiddenError(errorMessage);
         }
+        return projectContext;
     }
 
     /**
@@ -469,27 +798,57 @@ export class AppGenerateService extends BaseService {
      *   `createdByUserUuid` lets the creator match the self rule. Project
      *   admins always match via the project-wide rule.
      */
-    private async assertCanViewApp(
+    private getAppViewAuthzDeps(
         user: SessionUser,
-        app: Pick<
-            DbApp,
-            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
-        > & {
-            organization_uuid: string;
-        },
-    ): Promise<void> {
-        await assertUserCanViewApp(
-            {
-                auditedAbility: this.createAuditedAbility(user),
-                getSpaceAccessContext: (userUuid, spaceUuid) =>
-                    this.spacePermissionService.getSpaceAccessContext(
-                        userUuid,
-                        spaceUuid,
-                    ),
-            },
+        {
+            projectContext,
+            includeDeleted = false,
+        }: {
+            projectContext?: DataAppProjectContext;
+            includeDeleted?: boolean;
+        } = {},
+    ): AppViewAuthzDeps {
+        return {
+            auditedAbility: this.createAuditedAbility(user),
+            resolveAccess: (userUuid, targetApp) =>
+                this.spacePermissionService.resolveAccess(
+                    userUuid,
+                    {
+                        type: 'app',
+                        appUuid: targetApp.app_id,
+                        organizationUuid: targetApp.organization_uuid,
+                        projectUuid: targetApp.project_uuid,
+                        spaceUuid: targetApp.space_uuid,
+                    },
+                    { includeDeleted },
+                ),
+            getProjectContext: (projectUuid) =>
+                projectContext
+                    ? Promise.resolve(projectContext)
+                    : this.getDataAppProjectContext(projectUuid),
+        };
+    }
+
+    private async resolveAppAuthorizationContext(
+        user: SessionUser,
+        app: AppViewAuthzApp,
+        options: {
+            projectContext?: DataAppProjectContext;
+            includeDeleted?: boolean;
+        } = {},
+    ): Promise<AppViewAuthorizationContext> {
+        return getAppViewAuthorizationContext(
+            this.getAppViewAuthzDeps(user, options),
             user,
             app,
         );
+    }
+
+    private async assertCanViewApp(
+        user: SessionUser,
+        app: AppViewAuthzApp,
+    ): Promise<AppViewAuthorizationContext> {
+        return assertUserCanViewApp(this.getAppViewAuthzDeps(user), user, app);
     }
 
     /**
@@ -504,31 +863,95 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         app: Pick<
             DbApp,
-            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
+            'app_id' | 'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
         > & {
             organization_uuid: string;
         },
         errorMessage: string,
         extraContext: Record<string, unknown> = {},
-    ): Promise<void> {
-        const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  app.space_uuid,
-              )
-            : {};
-        this.assertDataAppAbility(
+        { includeDeleted = false }: { includeDeleted?: boolean } = {},
+    ): Promise<AppViewAuthorizationContext> {
+        const appContext = await this.resolveAppAuthorizationContext(
+            user,
+            app,
+            {
+                includeDeleted,
+            },
+        );
+        await this.assertDataAppAbility(
             user,
             'manage',
-            app.organization_uuid,
             app.project_uuid,
             errorMessage,
             {
-                ...spaceContext,
-                createdByUserUuid: app.created_by_user_uuid,
+                ...appContext,
                 ...extraContext,
             },
         );
+        return appContext;
+    }
+
+    /** Registry-installed chart types only receive versions from the registry. */
+    private static assertNotRegistryManaged(
+        app: Pick<DbApp, 'registry_slug'>,
+        verb: string,
+    ): void {
+        if (app.registry_slug !== null) {
+            throw new ForbiddenError(
+                `This is an official chart type and cannot be ${verb}. Fork it to customize.`,
+            );
+        }
+    }
+
+    /**
+     * Re-authorize queued work as the principal recorded on the job. Payload
+     * snapshots are useful inputs, but never authorization evidence: the app
+     * must still be manageable by that same user when the worker starts.
+     */
+    private async authorizePipelineExecution(
+        payload: Pick<
+            AppGeneratePipelineJobPayload,
+            'appUuid' | 'organizationUuid' | 'projectUuid' | 'userUuid'
+        >,
+    ): Promise<SessionUser> {
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            payload.userUuid,
+            payload.organizationUuid,
+        );
+        if (!user.isActive) {
+            const serviceAccount =
+                await this.userModel.findServiceAccountByUserUuid(
+                    payload.userUuid,
+                );
+            if (
+                serviceAccount === undefined ||
+                serviceAccount.organizationUuid !== payload.organizationUuid ||
+                (serviceAccount.expiresAt !== null &&
+                    serviceAccount.expiresAt < new Date())
+            ) {
+                throw new ForbiddenError(
+                    'The recorded data app principal is no longer active',
+                );
+            }
+        }
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(
+            payload.appUuid,
+            payload.projectUuid,
+        );
+        if (app.organization_uuid !== payload.organizationUuid) {
+            throw new ForbiddenError(
+                'Data app is not available in this organization',
+            );
+        }
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to build this data app',
+        );
+
+        return user;
     }
 
     private static getAnthropicApiKey(copilot: CopilotConfig): string {
@@ -554,6 +977,43 @@ export class AppGenerateService extends BaseService {
         return buildClaudeCodeEnv(copilot, () =>
             AppGenerateService.getAnthropicApiKey(copilot),
         );
+    }
+
+    private get dataAppCodingAgent(): DataAppCodingAgent {
+        return this.lightdashConfig.appRuntime?.dataAppCodingAgent ?? 'claude';
+    }
+
+    private getCodingAgentConfig(
+        organizationUuid: string | null | undefined,
+    ): Promise<ResolvedCopilotConfig> {
+        return this.dataAppCodingAgent === 'codex'
+            ? this.orgAiCopilotConfigResolver.getCodexConfig(organizationUuid)
+            : this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
+                  organizationUuid,
+              );
+    }
+
+    private getCodingAgentEnv(copilot: CopilotConfig): Record<string, string> {
+        return this.dataAppCodingAgent === 'codex'
+            ? buildCodexCodeEnv(copilot)
+            : AppGenerateService.getClaudeCodeEnv(copilot);
+    }
+
+    private describeCodingAgentEnv(env: Record<string, string>): string {
+        return this.dataAppCodingAgent === 'codex'
+            ? describeCodexCodeEnv(env)
+            : describeClaudeCodeEnv(env);
+    }
+
+    private getCodingAgentProvider(
+        env: Record<string, string>,
+    ): 'anthropic' | 'bedrock' | 'openai' {
+        if (this.dataAppCodingAgent === 'codex') {
+            return getCodexCodeProvider(env) === 'openai'
+                ? 'openai'
+                : 'bedrock';
+        }
+        return env.CLAUDE_CODE_USE_BEDROCK === '1' ? 'bedrock' : 'anthropic';
     }
 
     /**
@@ -587,12 +1047,12 @@ export class AppGenerateService extends BaseService {
 
     /**
      * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
-     * (e2b | docker). Memoized — the feature talks only to the manager for
-     * lifecycle (acquire/resume/suspend/destroy via the stable `sandbox_uuid`)
-     * and to the returned {@link SandboxHandle} for the data plane.
+     * (e2b | docker). The feature talks only to the manager for lifecycle
+     * (acquire/resume/suspend/destroy via the stable `sandbox_uuid`) and to
+     * the returned {@link SandboxHandle} for the data plane.
      * See docs/sandbox-runtime.md.
      */
-    private getSandboxManager(): SandboxManager {
+    private getSandboxManager(): SandboxManagerPort {
         if (!this.sandboxManager) {
             const { sandboxProvider } = this.lightdashConfig.appRuntime;
             this.sandboxManager = createSandboxManager({
@@ -604,11 +1064,17 @@ export class AppGenerateService extends BaseService {
                     sandboxProvider === 'azure-sandboxes'
                         ? this.getAzureSandboxesConfig()
                         : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
+                gcpCloudRun:
+                    sandboxProvider === 'gcp-cloud-run'
+                        ? this.getCloudRunSandboxesConfig()
+                        : null,
+                // Object-store snapshots are only for the backends with no
+                // native pause (Docker, GCP Cloud Run); native-pause providers
+                // (E2B, Lambda, Azure Sandboxes) never touch S3, so don't
+                // construct a client.
                 snapshotStore:
-                    sandboxProvider === 'docker'
+                    sandboxProvider === 'docker' ||
+                    sandboxProvider === 'gcp-cloud-run'
                         ? new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
                           })
@@ -650,6 +1116,12 @@ export class AppGenerateService extends BaseService {
             }
             return diskImage;
         }
+        if (sandboxProvider === 'gcp-cloud-run') {
+            // The toolchain image is baked into the gateway service deployment
+            // — per-sandbox image selection is not possible, so the gateway URL
+            // stands in as the template ref for logs/telemetry.
+            return this.getCloudRunSandboxesConfig().sandboxUrl;
+        }
         // E2B treats `name` and `name:default` interchangeably, so an empty
         // tag is fine — it just resolves to the implicit `default` build.
         return e2bTemplateTag
@@ -686,26 +1158,48 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /** Assemble the `gcp-cloud-run` provider config (gateway URL + secret). */
+    private getCloudRunSandboxesConfig(): CloudRunSandboxesConfig {
+        const { gcpCloudRun } = this.lightdashConfig.appRuntime;
+        if (!gcpCloudRun.sandboxUrl || !gcpCloudRun.sandboxSecret) {
+            throw new MissingConfigError(
+                'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+            );
+        }
+        return {
+            sandboxUrl: gcpCloudRun.sandboxUrl,
+            sandboxSecret: gcpCloudRun.sandboxSecret,
+        };
+    }
+
     private buildSandboxSpec(
         copilot: CopilotConfig,
         extraEgressHosts: string[] = [],
     ): SandboxSpec {
+        const codingAgentHosts =
+            this.dataAppCodingAgent === 'codex'
+                ? codexCodeAllowedHosts(copilot)
+                : claudeCodeAllowedHosts(copilot);
         return {
             templateRef: this.getSandboxTemplateRef(),
             timeoutMs: 60 * 60 * 1000,
             egress: {
                 allow: [
-                    ...claudeCodeAllowedHosts(copilot),
+                    ...codingAgentHosts,
                     ...extraEgressHosts,
-                    ...claudeCodeOtelAllowedHosts(
-                        this.lightdashConfig.appRuntime.otel,
-                    ),
+                    ...(this.dataAppCodingAgent === 'claude'
+                        ? claudeCodeOtelAllowedHosts(
+                              this.lightdashConfig.appRuntime.otel,
+                          )
+                        : []),
                 ],
             },
         };
     }
 
-    private getS3Client(): { client: S3Client; bucket: string } {
+    private getS3Client(): AppRuntimeS3 {
+        if (this.appRuntimeS3) return this.appRuntimeS3;
+
         const s3Config = this.lightdashConfig.appRuntime.s3;
         if (!s3Config) {
             throw new MissingConfigError(
@@ -713,19 +1207,8 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const config: S3ClientConfig = {
-            region: s3Config.region,
-            endpoint: s3Config.endpoint || undefined,
-            forcePathStyle: s3Config.forcePathStyle ?? false,
-        };
-
-        const credentials = resolveS3Credentials(s3Config);
-        if (credentials) {
-            config.credentials = credentials;
-        }
-
         return {
-            client: new S3Client(config),
+            client: createS3ClientFromConfig(s3Config),
             bucket: s3Config.bucket,
         };
     }
@@ -775,7 +1258,7 @@ export class AppGenerateService extends BaseService {
         externalConnections: AppExternalConnectionReference[] | undefined,
     ): Promise<AppVersionExternalConnectionResource[]> {
         if (!externalConnections || externalConnections.length === 0) return [];
-        // Authorize against the connection resource the same way the admin API
+        // Authorize against the connection resource the same way the link API
         // (ExternalConnectionService.linkToApp) does — generation must not be a
         // weaker door to attaching a credentialed connection to an app.
         const ability = this.createAuditedAbility(user);
@@ -800,13 +1283,7 @@ export class AppGenerateService extends BaseService {
                 );
             }
             if (
-                ability.cannot(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: connection.organizationUuid,
-                        projectUuid: connection.projectUuid,
-                    }),
-                )
+                ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
                 throw new ForbiddenError(
                     'You do not have permission to link this external connection',
@@ -836,6 +1313,76 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Resolves manifest `{alias, connectionSlug}` links against the target
+     * project. Invalid aliases and authz failures throw — rejecting the upload
+     * before any side effects — while a slug with no matching connection is
+     * skipped with a warning the CLI surfaces: the app still uploads and the
+     * missing link shows up as an in-app fetch error, not an upload failure.
+     */
+    private async resolveManifestExternalConnections(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+        links: DataAppManifestExternalConnection[] | undefined,
+    ): Promise<{
+        resolvedLinks: AppExternalConnectionReference[];
+        linkWarnings: string[];
+    }> {
+        if (!links || links.length === 0) {
+            return { resolvedLinks: [], linkWarnings: [] };
+        }
+        const seenAliases = new Set<string>();
+        for (const link of links) {
+            // The alias becomes a sandbox file path — same charset rule as
+            // linkToApp and the generation pipeline.
+            if (!/^[a-z0-9_-]+$/i.test(link.alias) || link.alias.length > 64) {
+                throw new ParameterError(
+                    `Invalid external connection alias "${link.alias}" in the app manifest: aliases must contain only letters, numbers, hyphens, and underscores (max 64 chars)`,
+                );
+            }
+            if (seenAliases.has(link.alias)) {
+                throw new ParameterError(
+                    `Duplicate external connection alias "${link.alias}" in the app manifest`,
+                );
+            }
+            seenAliases.add(link.alias);
+        }
+
+        const ability = this.createAuditedAbility(user);
+        const resolvedLinks: AppExternalConnectionReference[] = [];
+        const linkWarnings: string[] = [];
+        for (const link of links) {
+            // eslint-disable-next-line no-await-in-loop
+            const connection = await this.externalConnectionModel.findBySlug(
+                projectUuid,
+                organizationUuid,
+                link.connectionSlug,
+            );
+            if (!connection) {
+                linkWarnings.push(
+                    `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            // Linking attaches a credentialed connection to an app — hold the
+            // same bar as the link API and the generation pipeline.
+            if (
+                ability.cannot('view', getExternalConnectionSubject(connection))
+            ) {
+                throw new ForbiddenError(
+                    'You do not have permission to link this external connection',
+                );
+            }
+            resolvedLinks.push({
+                externalConnectionUuid: connection.externalConnectionUuid,
+                alias: link.alias,
+            });
+        }
+        return { resolvedLinks, linkWarnings };
+    }
+
+    /**
      * Boolean variant of `assertCanViewApp` — does not throw on denial.
      * Use for filtering lists where unauthorized items should be silently
      * dropped (e.g. omnibar search) rather than surfacing a permission error.
@@ -844,36 +1391,28 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         app: Pick<
             DbApp,
-            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
+            'app_id' | 'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
         > & {
             organization_uuid: string;
         },
+        projectContext?: DataAppProjectContext,
     ): Promise<boolean> {
-        const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  app.space_uuid,
-              )
-            : {};
-        const auditedAbility = this.createAuditedAbility(user);
-        return auditedAbility.can(
+        const context = await this.resolveAppAuthorizationContext(user, app, {
+            projectContext,
+        });
+        return this.createAuditedAbility(user).can(
             'view',
-            subject('DataApp', {
-                organizationUuid: app.organization_uuid,
-                projectUuid: app.project_uuid,
-                ...spaceContext,
-                createdByUserUuid: app.created_by_user_uuid,
-            }),
+            subject('DataApp', context),
         );
     }
 
     /**
      * Bulk filter for callers that have a list of apps already loaded
-     * (e.g. SearchService). Resolves space access contexts in parallel —
-     * one `getSpaceAccessContext` call per app with a space.
+     * (e.g. SearchService).
      */
     async filterAppsUserCanView<
         T extends {
+            uuid: string;
             spaceUuid: string | null;
             createdBy: { userUuid: string } | null;
         },
@@ -883,27 +1422,47 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         apps: T[],
     ): Promise<T[]> {
-        const checks = await Promise.all(
-            apps.map((app) =>
-                this.canViewApp(user, {
-                    organization_uuid: organizationUuid,
-                    project_uuid: projectUuid,
-                    space_uuid: app.spaceUuid,
-                    // A null createdBy can never match the self rule — coerce
-                    // to a sentinel that won't equal any real userUuid.
-                    created_by_user_uuid: app.createdBy?.userUuid ?? '',
-                }),
-            ),
-        );
-        return apps.filter((_, i) => checks[i]);
+        const projectContext = await this.getDataAppProjectContext(projectUuid);
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                user.userUuid,
+                apps.map((app) => ({
+                    type: 'app' as const,
+                    appUuid: app.uuid,
+                    organizationUuid,
+                    projectUuid,
+                    spaceUuid: app.spaceUuid,
+                })),
+            );
+        const auditedAbility = this.createAuditedAbility(user);
+        return apps.flatMap((app, index) => {
+            const accessContext = accessResults[index]?.context;
+            if (accessContext === undefined) {
+                return [];
+            }
+            const context = {
+                ...projectContext,
+                ...accessContext,
+                // A null createdBy can never match the self rule — coerce to a
+                // sentinel that won't equal any real userUuid.
+                createdByUserUuid: app.createdBy?.userUuid ?? '',
+            };
+            if (auditedAbility.cannot('view', subject('DataApp', context))) {
+                return [];
+            }
+            // Directly shared apps keep their real parent-space reference;
+            // parent access stays independently unauthorized.
+            return [app];
+        });
     }
 
     /**
-     * Deterministic staging path for uploaded images.
-     * No file extension — the MIME type is stored as the S3 object's ContentType.
+     * Deterministic staging path for uploaded files.
+     * No file extension — the MIME type is stored as the S3 object's
+     * ContentType and the original filename in its metadata.
      */
-    private static imageStagingKey(appUuid: string, imageId: string): string {
-        return `apps/${appUuid}/uploads/${imageId}`;
+    private static fileStagingKey(appUuid: string, fileId: string): string {
+        return `apps/${appUuid}/uploads/${fileId}`;
     }
 
     private static appThumbnailKey(appUuid: string): string {
@@ -916,9 +1475,17 @@ export class AppGenerateService extends BaseService {
             'image/jpeg': 'jpg',
             'image/gif': 'gif',
             'image/webp': 'webp',
+            'application/pdf': 'pdf',
         };
         return extMap[mimeType] ?? 'png';
     }
+
+    private static readonly RASTER_IMAGE_TYPES = [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+    ];
 
     /**
      * Magic-byte signatures for each allowed image MIME type.
@@ -949,35 +1516,132 @@ export class AppGenerateService extends BaseService {
 
     private static readonly SIGNATURE_PREFIX_SIZE = 12;
 
-    private static readonly MAX_IMAGES_PER_VERSION = 4;
+    private static readonly PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46]; // %PDF
 
-    private static validateImageIds(imageIds: string[]): void {
-        if (imageIds.length > AppGenerateService.MAX_IMAGES_PER_VERSION) {
+    /** Split resolved attachments into the two version-resource arrays. */
+    private static toAttachmentResources(stagedFiles: StagedAppFile[]): {
+        images: AppVersionResources['images'];
+        files: AppVersionFileResource[];
+    } {
+        return {
+            images: stagedFiles
+                .filter((f) => f.isImage)
+                .map((f) => ({ imageId: f.fileId })),
+            files: stagedFiles
+                .filter((f) => !f.isImage)
+                .map(({ fileId, filename, mimeType }) => ({
+                    fileId,
+                    filename,
+                    mimeType,
+                })),
+        };
+    }
+
+    private static validateFileIds(fileIds: string[]): void {
+        if (fileIds.length > MAX_APP_FILES_PER_VERSION) {
             throw new ParameterError(
-                `Too many images: ${imageIds.length}. Maximum: ${AppGenerateService.MAX_IMAGES_PER_VERSION}`,
+                `Too many attachments: ${fileIds.length}. Maximum: ${MAX_APP_FILES_PER_VERSION}`,
             );
         }
-        for (const id of imageIds) {
+        for (const id of fileIds) {
             if (!isValidUuid(id)) {
                 throw new ParameterError(
-                    'Invalid imageId: must be a valid UUID',
+                    'Invalid fileId: must be a valid UUID',
                 );
             }
         }
     }
 
     /**
+     * MIME types worth preserving as-is on text uploads. Anything else that
+     * sniffs as text (unknown extensions arrive as application/octet-stream or
+     * vendor types) is normalized to text/plain so downstream consumers never
+     * see a binary-looking ContentType on a text object.
+     */
+    private static isTextLikeMimeType(mimeType: string): boolean {
+        if (mimeType.startsWith('text/')) return true;
+        if (mimeType.endsWith('+json') || mimeType.endsWith('+xml'))
+            return true;
+        return [
+            'application/json',
+            'application/xml',
+            'application/yaml',
+            'application/x-yaml',
+            'application/toml',
+            'application/javascript',
+            'application/typescript',
+            'application/sql',
+            'application/x-ndjson',
+            'application/x-sh',
+            'image/svg+xml',
+        ].includes(mimeType);
+    }
+
+    /**
+     * A file is treated as text when its first bytes contain no NUL and decode
+     * as UTF-8. Streaming decode tolerates a multi-byte sequence cut off at
+     * the sample boundary. UTF-16 (NUL bytes in ASCII range) is deliberately
+     * rejected — the sandbox agent reads files as UTF-8.
+     */
+    private static sniffsAsText(body: Buffer): boolean {
+        const sample = body.subarray(0, 8192);
+        if (sample.includes(0)) return false;
+        try {
+            new TextDecoder('utf-8', { fatal: true }).decode(sample, {
+                stream: true,
+            });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private static matchesSignature(
+        body: Buffer,
+        signature: { offset: number; bytes: number[] }[],
+    ): boolean {
+        return signature.every((sig) =>
+            sig.bytes.every((byte, i) => body[sig.offset + i] === byte),
+        );
+    }
+
+    /**
+     * Sandbox- and metadata-safe version of a user filename: basename only,
+     * conservative character set, bounded length (extension preserved).
+     * Returns null when nothing usable remains — callers fall back to a
+     * generated name.
+     */
+    private static sanitizeFilename(filename: string): string | null {
+        const base = filename.split(/[/\\]/).pop() ?? '';
+        const cleaned = base
+            // eslint-disable-next-line no-control-regex
+            .replace(/[\x00-\x1f\x7f]/g, '')
+            .replace(/[^A-Za-z0-9._ -]/g, '_')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/^\.+/, '');
+        if (cleaned.length === 0) return null;
+        if (cleaned.length <= 100) return cleaned;
+        const dot = cleaned.lastIndexOf('.');
+        const ext = dot > 0 ? cleaned.slice(dot).slice(0, 20) : '';
+        return `${cleaned.slice(0, 100 - ext.length)}${ext}`;
+    }
+
+    /**
      * Resolve the user-supplied Claude model to a known value, defaulting when
      * absent. Rejects unknown strings outright so a stray value can't shell
      * out as `--model <anything>` against the Claude CLI inside the sandbox.
+     * Also enforces the org admin's Data App model visibility settings: an
+     * explicitly hidden model is rejected (can't be newly selected), while an
+     * absent model gracefully falls back to the next visible one if the
+     * system default has been hidden.
      */
-    private static resolveClaudeModel(
+    private async resolveClaudeModel(
+        organizationUuid: string,
         claudeModel: DataAppClaudeModel | undefined,
-    ): DataAppClaudeModel {
-        if (claudeModel === undefined) {
-            return DEFAULT_DATA_APP_CLAUDE_MODEL;
-        }
+    ): Promise<DataAppClaudeModel> {
         if (
+            claudeModel !== undefined &&
             !(DATA_APP_CLAUDE_MODELS as readonly string[]).includes(claudeModel)
         ) {
             throw new ParameterError(
@@ -986,23 +1650,71 @@ export class AppGenerateService extends BaseService {
                 )}`,
             );
         }
+
+        const visibility =
+            await this.orgAiCopilotConfigResolver.getDataAppModelVisibility(
+                organizationUuid,
+            );
+
+        if (claudeModel === undefined) {
+            return (
+                resolveDefaultVisibleDataAppClaudeModel(visibility) ??
+                DEFAULT_DATA_APP_CLAUDE_MODEL
+            );
+        }
+
+        if (!getVisibleDataAppClaudeModels(visibility).includes(claudeModel)) {
+            throw new ParameterError(
+                `The "${claudeModel}" model has been disabled by your organization`,
+            );
+        }
+
         return claudeModel;
     }
 
+    /** Resolve a Codex picker value without changing Claude's model policy. */
+    private static resolveCodexModel(
+        codexModel: DataAppCodexModel | undefined,
+    ): DataAppCodexModel {
+        if (codexModel === undefined) return DEFAULT_DATA_APP_CODEX_MODEL;
+        if (
+            !(DATA_APP_CODEX_MODELS as readonly string[]).includes(codexModel)
+        ) {
+            throw new ParameterError(
+                `Invalid codexModel: ${codexModel}. Allowed: ${DATA_APP_CODEX_MODELS.join(
+                    ', ',
+                )}`,
+            );
+        }
+        return codexModel;
+    }
+
+    /** Reads the app's own template for the pre-field effort fallback. A
+     *  failure here must not sink the telemetry event it feeds. */
+    private async getTemplateForEffort(
+        payload: AppGeneratePipelineJobPayload,
+    ): Promise<DataAppTemplate | null> {
+        try {
+            const app = await this.appModel.getApp(
+                payload.appUuid,
+                payload.projectUuid,
+            );
+            return app.template;
+        } catch (error) {
+            this.logger.warn(
+                `App ${payload.appUuid}: could not read template for effort telemetry: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
     /**
-     * Read the first few bytes of a stream, validate image magic bytes,
-     * then return a new Readable that replays those bytes followed by
-     * the rest of the original stream.
+     * Buffer the full upload body (capped at maxBytes). Buffering up-front
+     * avoids stream pause/pipe state-machine pitfalls and gives us a Buffer
+     * ready for signed S3 PutObject.
      */
-    /**
-     * Buffer the full upload body (capped at maxBytes), then validate that
-     * its leading bytes match the declared MIME type. Returns the buffer.
-     * Buffering up-front avoids stream pause/pipe state-machine pitfalls
-     * and gives us a Buffer ready for signed S3 PutObject.
-     */
-    private static async bufferAndValidate(
+    private static async bufferUploadBody(
         stream: Readable,
-        mimeType: string,
         maxBytes: number,
     ): Promise<Buffer> {
         const chunks: Buffer[] = [];
@@ -1012,103 +1724,171 @@ export class AppGenerateService extends BaseService {
             total += buf.length;
             if (total > maxBytes) {
                 throw new ParameterError(
-                    `Image too large: exceeded ${maxBytes} bytes`,
+                    `File too large: exceeded ${maxBytes} bytes`,
                 );
             }
             chunks.push(buf);
         }
         const body = Buffer.concat(chunks);
-
         if (body.length === 0) {
             throw new ParameterError('Upload body is empty');
         }
-        if (body.length < AppGenerateService.SIGNATURE_PREFIX_SIZE) {
-            throw new ParameterError(
-                'Upload body too small to be a valid image',
-            );
-        }
-
-        const signatures = AppGenerateService.IMAGE_SIGNATURES[mimeType];
-        if (signatures) {
-            const matchesAll = signatures.every((sig) =>
-                sig.bytes.every((byte, i) => body[sig.offset + i] === byte),
-            );
-            if (!matchesAll) {
-                throw new ParameterError(
-                    `File content does not match declared Content-Type: ${mimeType}`,
-                );
-            }
-        }
-
         return body;
     }
 
-    async uploadImage(
+    /**
+     * Classify an upload by its declared MIME type and actual content.
+     * Raster images must match their magic bytes; PDFs must start with %PDF;
+     * everything else is accepted only when it sniffs as UTF-8 text. The
+     * returned mimeType is what gets stored as the S3 ContentType — declared
+     * type for images/PDFs and recognized text types, text/plain otherwise.
+     */
+    private static validateUploadContent(
+        body: Buffer,
+        declaredMimeType: string,
+    ): { category: 'image' | 'pdf' | 'text'; mimeType: string } {
+        if (AppGenerateService.RASTER_IMAGE_TYPES.includes(declaredMimeType)) {
+            if (body.length < AppGenerateService.SIGNATURE_PREFIX_SIZE) {
+                throw new ParameterError(
+                    'Upload body too small to be a valid image',
+                );
+            }
+            const signatures =
+                AppGenerateService.IMAGE_SIGNATURES[declaredMimeType];
+            if (
+                signatures &&
+                !AppGenerateService.matchesSignature(body, signatures)
+            ) {
+                throw new ParameterError(
+                    `File content does not match declared Content-Type: ${declaredMimeType}`,
+                );
+            }
+            return { category: 'image', mimeType: declaredMimeType };
+        }
+
+        const isPdfContent = AppGenerateService.matchesSignature(body, [
+            { offset: 0, bytes: AppGenerateService.PDF_SIGNATURE },
+        ]);
+        if (declaredMimeType === 'application/pdf') {
+            if (!isPdfContent) {
+                throw new ParameterError(
+                    'File content does not match declared Content-Type: application/pdf',
+                );
+            }
+            return { category: 'pdf', mimeType: 'application/pdf' };
+        }
+        // Browsers report an empty/generic type for unknown extensions —
+        // classify by content instead of rejecting on the declared type.
+        if (isPdfContent) {
+            return { category: 'pdf', mimeType: 'application/pdf' };
+        }
+
+        if (AppGenerateService.sniffsAsText(body)) {
+            return {
+                category: 'text',
+                mimeType: AppGenerateService.isTextLikeMimeType(
+                    declaredMimeType,
+                )
+                    ? declaredMimeType
+                    : 'text/plain',
+            };
+        }
+
+        throw new ParameterError(
+            `Unsupported file type: ${declaredMimeType}. Supported: images (PNG, JPEG, GIF, WEBP), PDF, and text-based files (JSON, CSV, Markdown, XML/TWB, YAML, code, …)`,
+        );
+    }
+
+    async uploadFile(
         user: SessionUser,
         projectUuid: string,
-        mimeType: string,
+        declaredMimeType: string,
         body: Readable,
         contentLength: number,
         appUuid: string,
+        filename?: string,
         kind?: 'screenshot',
-    ): Promise<{ imageId: string }> {
+    ): Promise<{
+        fileId: string;
+        imageId: string;
+        filename: string;
+        mimeType: string;
+    }> {
         await this.assertDataAppsEnabled(user);
 
         // For iterations the app already exists — use its space + creator
-        // context so a space editor or the creator can attach an image. For
+        // context so a space editor or the creator can attach a file. For
         // initial creation the appUuid is generated client-side and the app
         // row doesn't exist yet, so we authorize against `create:DataApp`
-        // (anyone who can create an app can stage an image for it).
+        // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
         if (app) {
             await this.assertCanManageApp(
                 user,
                 app,
-                'Insufficient permissions to upload app images',
+                'Insufficient permissions to upload app files',
             );
         } else {
-            const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-            this.assertDataAppAbility(
+            await this.assertDataAppAbility(
                 user,
                 'create',
-                organizationUuid,
                 projectUuid,
-                'Insufficient permissions to upload app images',
-            );
-        }
-
-        const validTypes = [
-            'image/png',
-            'image/jpeg',
-            'image/gif',
-            'image/webp',
-        ];
-        if (!validTypes.includes(mimeType)) {
-            throw new ParameterError(
-                `Invalid image type: ${mimeType}. Allowed: ${validTypes.join(', ')}`,
+                'Insufficient permissions to upload app files',
             );
         }
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
             throw new ParameterError(
-                `Image too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
+                `File too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
             );
         }
 
-        // Buffer the whole body and validate its MIME signature. We need the
-        // full Buffer anyway so the AWS SDK can use standard S3v4 signing —
-        // streaming bodies cause chunked signing which MinIO/GCS reject with
-        // RequestTimeout.
-        const bufferedBody = await AppGenerateService.bufferAndValidate(
+        // Declared types that can never pass content classification are
+        // rejected before the body is buffered, so a 10MB video doesn't cost
+        // memory just to fail. Everything else (incl. octet-stream) is
+        // classified by content after buffering.
+        const [declaredKind] = declaredMimeType.split('/');
+        const cannotPassClassification =
+            ['video', 'audio', 'font'].includes(declaredKind) ||
+            (declaredKind === 'image' &&
+                declaredMimeType !== 'image/svg+xml' &&
+                !AppGenerateService.RASTER_IMAGE_TYPES.includes(
+                    declaredMimeType,
+                ));
+        if (cannotPassClassification) {
+            throw new ParameterError(
+                `Unsupported file type: ${declaredMimeType}. Supported: images (PNG, JPEG, GIF, WEBP), PDF, and text-based files (JSON, CSV, Markdown, XML/TWB, YAML, code, …)`,
+            );
+        }
+
+        // Buffer the whole body, then validate content against the declared
+        // type. We need the full Buffer anyway so the AWS SDK can use standard
+        // S3v4 signing — streaming bodies cause chunked signing which
+        // MinIO/GCS reject with RequestTimeout.
+        const bufferedBody = await AppGenerateService.bufferUploadBody(
             body,
-            mimeType,
             maxSize,
         );
+        const { category, mimeType } = AppGenerateService.validateUploadContent(
+            bufferedBody,
+            declaredMimeType,
+        );
+        if (kind === 'screenshot' && category !== 'image') {
+            throw new ParameterError('Screenshots must be images');
+        }
+
+        const fileId = uuidv4();
+        const storedFilename =
+            (filename ? AppGenerateService.sanitizeFilename(filename) : null) ??
+            `file-${fileId.slice(0, 8)}.${
+                category === 'text'
+                    ? 'txt'
+                    : AppGenerateService.mimeToExt(mimeType)
+            }`;
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const imageId = uuidv4();
-        const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const s3Key = AppGenerateService.fileStagingKey(appUuid, fileId);
 
         await s3Client.send(
             new PutObjectCommand({
@@ -1117,27 +1897,37 @@ export class AppGenerateService extends BaseService {
                 Body: bufferedBody,
                 ContentLength: bufferedBody.length,
                 ContentType: mimeType,
-                // Persist the upload kind on the staged object so
-                // `writeImageToSandbox` can decide the filename prefix later
-                // without needing a separate DB column.
-                ...(kind ? { Metadata: { kind } } : {}),
+                // Persist upload kind + original filename on the staged object
+                // so `writeFileToSandbox` and version creation can use them
+                // later without needing a separate DB column. S3 metadata
+                // values must be ASCII, hence the URI encoding.
+                Metadata: {
+                    filename: encodeURIComponent(storedFilename),
+                    ...(kind ? { kind } : {}),
+                },
             }),
         );
 
         this.analytics.track({
-            event: 'data_app.image_uploaded',
+            event: 'data_app.file_uploaded',
             userId: user.userUuid,
             properties: {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 appUuid,
-                imageId,
+                fileId,
+                category,
                 mimeType,
                 sizeBytes: contentLength,
             },
         });
 
-        return { imageId };
+        return {
+            fileId,
+            imageId: fileId,
+            filename: storedFilename,
+            mimeType,
+        };
     }
 
     async getImageUrl(
@@ -1168,7 +1958,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const s3Key = AppGenerateService.fileStagingKey(appUuid, imageId);
 
         const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
         const imageUrl = await getSignedUrl(
@@ -1208,11 +1998,11 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const bufferedBody = await AppGenerateService.bufferAndValidate(
+        const bufferedBody = await AppGenerateService.bufferUploadBody(
             body,
-            mimeType,
             maxSize,
         );
+        AppGenerateService.validateUploadContent(bufferedBody, mimeType);
 
         const { client: s3Client, bucket } = this.getS3Client();
         await s3Client.send(
@@ -1245,11 +2035,9 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
-            user,
-            app,
-            'Insufficient permissions to view app thumbnail',
-        );
+        // Viewing a thumbnail is a read: anyone who can view the app can see it
+        // (e.g. on a project homepage), not just those who can manage it.
+        await this.assertCanViewApp(user, app);
 
         const { client: s3Client, bucket } = this.getS3Client();
         const key = AppGenerateService.appThumbnailKey(appUuid);
@@ -1327,57 +2115,121 @@ export class AppGenerateService extends BaseService {
         return Math.round(performance.now() - start);
     }
 
-    trackTimeoutFailure(
+    async trackTimeoutFailure(
         payload: AppGeneratePipelineJobPayload,
         error: unknown,
         schedulerWaitMs?: number,
-    ): void {
-        this.trackVersionFailed(payload, 'timeout', error, {}, null, 0, {
+    ): Promise<void> {
+        await this.trackVersionFailed(payload, 'timeout', error, {}, null, 0, {
             schedulerWaitMs,
         });
     }
 
     private static emitDataAppAiUsage(
         payload: AppGeneratePipelineJobPayload,
-        model: DataAppClaudeModel,
-        provider: 'anthropic' | 'bedrock',
+        model: DataAppCodingAgentModel,
+        provider: 'anthropic' | 'bedrock' | 'openai',
+        keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
     ): void {
-        emitAiUsage(
-            getAiCallTelemetry({
-                functionId: 'appClaudeGeneration',
-                feature: 'data-app',
-                organizationUuid: payload.organizationUuid,
-                projectUuid: payload.projectUuid,
-                userUuid: payload.userUuid,
-                model,
-                provider,
-                extra: {
-                    appUuid: payload.appUuid,
-                    appVersion: payload.version,
+        const emit = (
+            resolvedModel: string,
+            tokens: Pick<
+                ClaudeGenerationUsage,
+                | 'inputTokens'
+                | 'outputTokens'
+                | 'cacheReadInputTokens'
+                | 'cacheCreationInputTokens'
+            >,
+        ) =>
+            emitAiUsage(
+                getAiCallTelemetry({
+                    functionId: 'appClaudeGeneration',
+                    feature: 'data-app',
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    userUuid: payload.userUuid,
+                    model: resolvedModel,
+                    provider,
+                    keyManagement,
+                    extra: {
+                        appUuid: payload.appUuid,
+                        appVersion: payload.version,
+                        codingAgentModel: model,
+                    },
+                }),
+                {
+                    // input_tokens is inclusive of cache reads and writes; the
+                    // warehouse derives the uncached share by subtraction.
+                    inputTokens:
+                        tokens.inputTokens +
+                        tokens.cacheReadInputTokens +
+                        tokens.cacheCreationInputTokens,
+                    outputTokens: tokens.outputTokens,
+                    cacheReadTokens: tokens.cacheReadInputTokens,
+                    cacheWriteTokens: tokens.cacheCreationInputTokens,
+                    reasoningTokens: null,
+                    totalTokens:
+                        tokens.inputTokens +
+                        tokens.cacheReadInputTokens +
+                        tokens.cacheCreationInputTokens +
+                        tokens.outputTokens,
                 },
-            }),
-            {
-                inputTokens:
-                    usage.inputTokens +
-                    usage.cacheReadInputTokens +
-                    usage.cacheCreationInputTokens,
-                outputTokens: usage.outputTokens,
-                cacheReadTokens: usage.cacheReadInputTokens,
-                cacheWriteTokens: usage.cacheCreationInputTokens,
-                reasoningTokens: null,
-                totalTokens:
-                    usage.inputTokens +
-                    usage.cacheReadInputTokens +
-                    usage.cacheCreationInputTokens +
-                    usage.outputTokens,
-            },
+            );
+
+        // The run is launched with a tier alias (`opus`, `sonnet`) that the
+        // CLI resolves to a concrete model, and subagents can run on another
+        // model again. Anthropic bills by the concrete model, so when the CLI
+        // reports the per-model split, emit one usage event per model it
+        // actually called; the alias is kept in `extra.codingAgentModel`.
+        const perModel = Object.entries(usage.modelUsage ?? {}).filter(
+            ([, tokens]) =>
+                tokens.inputTokens +
+                    tokens.outputTokens +
+                    tokens.cacheReadInputTokens +
+                    tokens.cacheCreationInputTokens >
+                0,
         );
+        if (perModel.length > 0) {
+            perModel.forEach(([resolvedModel, tokens]) =>
+                emit(resolvedModel, tokens),
+            );
+            return;
+        }
+        emit(model, usage);
     }
 
-    private trackVersionFailed(
+    /**
+     * Persist what the generation cost onto the version row, for the org-wide
+     * activity log. Bookkeeping only — a failure here must never take down a
+     * generation that otherwise succeeded, so it logs and moves on.
+     */
+    private async recordGenerationUsage(
+        payload: AppGeneratePipelineJobPayload,
+        usage: ClaudeGenerationUsage,
+    ): Promise<void> {
+        try {
+            const persistedUsage: DataAppGenerationUsage = {
+                ...usage,
+                costUsd:
+                    this.dataAppCodingAgent === 'codex' ? null : usage.costUsd,
+            };
+            await this.appModel.recordVersionGenerationUsage(
+                payload.appUuid,
+                payload.version,
+                persistedUsage,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${payload.appUuid}: failed to record generation usage for version ${payload.version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async trackVersionFailed(
         payload: AppGeneratePipelineJobPayload,
         failureStage:
+            | 'authorization'
             | 'sandbox'
             | 'catalog'
             | 'generating'
@@ -1391,10 +2243,16 @@ export class AppGenerateService extends BaseService {
         overallStart: number | null,
         buildFixAttempts: number,
         telemetry: DataAppVersionFailureTelemetry = {},
-    ): void {
+    ): Promise<void> {
         const { generationUsage } = telemetry;
         const claudeModel =
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const codingAgent = telemetry.codingAgent ?? this.dataAppCodingAgent;
+        const codingAgentModel =
+            telemetry.codingAgentModel ??
+            (codingAgent === 'codex'
+                ? (payload.codexModel ?? DEFAULT_DATA_APP_CODEX_MODEL)
+                : claudeModel);
 
         if (
             generationUsage &&
@@ -1405,13 +2263,26 @@ export class AppGenerateService extends BaseService {
                 generationUsage.numTurns > 0 ||
                 generationUsage.costUsd > 0)
         ) {
+            const claudeProvider = telemetry.claudeProvider ?? 'anthropic';
             AppGenerateService.emitDataAppAiUsage(
                 payload,
-                claudeModel,
-                telemetry.claudeProvider ?? 'anthropic',
+                codingAgentModel,
+                claudeProvider,
+                // Fall back to the instance rule rather than assuming the key
+                // is Lightdash's: on self-hosted installs it never is.
+                telemetry.keyManagement ??
+                    resolveKeyManagement(
+                        this.lightdashConfig.ai.copilot,
+                        claudeProvider,
+                    ),
                 generationUsage,
             );
+            await this.recordGenerationUsage(payload, generationUsage);
         }
+
+        const claudeEffort = await jobClaudeEffort(payload, () =>
+            this.getTemplateForEffort(payload),
+        );
 
         this.analytics.track({
             event: 'data_app.version.failed',
@@ -1422,9 +2293,14 @@ export class AppGenerateService extends BaseService {
                 appUuid: payload.appUuid,
                 version: payload.version,
                 isIteration: payload.isIteration,
-                claudeModel,
+                isUpgrade: payload.isUpgrade ?? false,
+                creationExperience: payload.creationExperience ?? null,
+                ...(codingAgent === 'claude' ? { claudeModel } : {}),
+                codingAgent,
+                codingAgentModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
+                claudeEffort,
                 failureStage,
                 errorMessage: AppGenerateService.truncateEnd(
                     getErrorMessage(error),
@@ -1454,7 +2330,8 @@ export class AppGenerateService extends BaseService {
                     generationUsage?.cacheCreationInputTokens,
                 numTurns: generationUsage?.numTurns,
                 durationApiMs: generationUsage?.durationApiMs,
-                totalCostUsd: generationUsage?.costUsd,
+                totalCostUsd:
+                    codingAgent === 'codex' ? null : generationUsage?.costUsd,
                 generationAttemptCount: telemetry.generationAttemptCount,
                 timeToFirstTokenMs: telemetry.timeToFirstTokenMs,
                 slowestTurnMs: telemetry.slowestTurnMs,
@@ -1600,7 +2477,7 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): Promise<number> {
         const start = performance.now();
-        const s3Key = `apps/${appUuid}/versions/${version}/source.tar`;
+        const s3Key = `${versionPrefix(appUuid, version)}source.tar`;
 
         const response = await s3Client.send(
             new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
@@ -1647,16 +2524,8 @@ export class AppGenerateService extends BaseService {
         version: number,
         versionDeps: AppVersionDependencies,
     ): Promise<number> {
-        // Kill-switch: enforced at upload time too, but re-checked here so
-        // flipping it off also stops installs of previously-approved dep sets
-        // (iterations and rebuilds), not just new uploads.
-        if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-            throw new ParameterError(
-                'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED); this app version declares custom packages so it cannot be built.',
-            );
-        }
         const start = performance.now();
-        const depsPrefix = `apps/${appUuid}/versions/${version}/deps/`;
+        const depsPrefix = `${versionPrefix(appUuid, version)}deps/`;
 
         const [packageJsonBuf, lockfileBuf] = await Promise.all([
             readS3ObjectAsBuffer(s3Client, bucket, `${depsPrefix}package.json`),
@@ -1803,6 +2672,95 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    private static readonly CLAUDE_SESSION_PATHS =
+        'root/.claude root/.claude.json home/user/.claude home/user/.claude.json';
+
+    /**
+     * Upgrade pre-step: best-effort extract the Claude session state from the
+     * old sandbox, then destroy it and clear `sandbox_id` so `acquireSandbox`
+     * takes its cold-create path — a fresh box from the CURRENT template
+     * image with the latest ready source restored from S3. Session carry and
+     * destroy failures are logged, never fatal.
+     */
+    private async prepareUpgradeColdStart(
+        appUuid: string,
+        projectUuid: string,
+        copilot: CopilotConfig,
+        extraEgressHosts: string[],
+    ): Promise<Buffer | null> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        if (!app.sandbox_id) return null;
+        let sessionTar: Buffer | null = null;
+        try {
+            const { sandbox: oldSandbox } = await this.resumeSandbox(
+                app.sandbox_id,
+                appUuid,
+                copilot,
+                extraEgressHosts,
+            );
+            if (this.dataAppCodingAgent === 'claude') {
+                const result = await oldSandbox.commands.run(
+                    `tar -cf /tmp/claude-session.tar --ignore-failed-read -C / ${AppGenerateService.CLAUDE_SESSION_PATHS}`,
+                    { timeoutMs: 60_000 },
+                );
+                if (result.exitCode === 0) {
+                    sessionTar = Buffer.from(
+                        await oldSandbox.files.readBytes(
+                            '/tmp/claude-session.tar',
+                        ),
+                    );
+                }
+            }
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: could not carry the Claude session over the upgrade: ${getErrorMessage(error)}`,
+            );
+        }
+        await this.destroySandboxAndClearReference(appUuid, app.sandbox_id);
+        this.logger.info(
+            `App ${appUuid}: upgrade cold-start prepared (sessionCarried=${sessionTar !== null})`,
+        );
+        return sessionTar;
+    }
+
+    private async destroySandboxAndClearReference(
+        appUuid: string,
+        sandboxUuid: string,
+    ): Promise<void> {
+        try {
+            await this.getSandboxManager().destroy({
+                sandboxUuid,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to destroy sandbox before cold start: ${getErrorMessage(error)}`,
+            );
+        }
+        await this.appModel.updateSandboxUuid(appUuid, null);
+    }
+
+    /** Best-effort restore of a carried Claude session into the new box. */
+    private async restoreClaudeSession(
+        sandbox: SandboxHandle,
+        appUuid: string,
+        sessionTar: Buffer,
+    ): Promise<void> {
+        try {
+            await sandbox.files.write('/tmp/claude-session.tar', sessionTar);
+            await sandbox.commands.run(
+                'tar -xf /tmp/claude-session.tar -C / && rm -f /tmp/claude-session.tar',
+                { timeoutMs: 60_000 },
+            );
+            this.logger.info(
+                `App ${appUuid}: Claude session restored into the upgraded sandbox`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to restore the Claude session into the new sandbox: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     /**
      * Write resolved chart references as individual JSON files in the sandbox.
      * Returns a summary string to prepend to the prompt, or empty string if
@@ -1880,6 +2838,30 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Write the attached dashboard's structural blueprint (tabs, tile layout,
+     * filters) into the sandbox and return a prompt block framing it as the
+     * layout spec. The blueprint complements the flattened chart references:
+     * they carry the queries, this carries the design.
+     */
+    private async writeDashboardBlueprint(
+        sandbox: SandboxHandle,
+        appUuid: string,
+        blueprint: DashboardBlueprint,
+    ): Promise<string> {
+        await sandbox.commands.run('mkdir -p /tmp/dashboard', {
+            timeoutMs: 10_000,
+        });
+        await sandbox.files.write(
+            DASHBOARD_BLUEPRINT_PATH,
+            JSON.stringify(blueprint, null, 2),
+        );
+        this.logger.info(
+            `App ${appUuid}: wrote dashboard blueprint for "${blueprint.name}" (${describeDashboardBlueprint(blueprint)}) to ${DASHBOARD_BLUEPRINT_PATH}`,
+        );
+        return dashboardBlueprintPromptBlock(blueprint);
+    }
+
+    /**
      * For each linked external connection, write a self-contained API-doc JSON
      * to /tmp/external-data/{alias}.json in the sandbox and return a prompt
      * block listing each file. Writes a file for every connection — the
@@ -1913,8 +2895,9 @@ export class AppGenerateService extends BaseService {
                     alias: doc.alias,
                     ...(instructions ? { instructions } : {}),
                     signature:
-                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
+                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; headers: Record<string, string>; body: unknown; truncated: boolean }>",
                     origin: doc.origin,
+                    browserImageOrigin: doc.browserImageOrigin,
                     // The single most-misread thing: `path` is the COMPLETE path from
                     // the origin, not relative to the prefix. Spell out origin + path.
                     requestUrl: `${doc.origin} + path  (your path is appended to the origin verbatim — the origin and path prefix are NEVER auto-prepended). Example full URL: ${doc.origin}${examplePath}`,
@@ -1923,8 +2906,13 @@ export class AppGenerateService extends BaseService {
                         "query is Record<string, string> — EVERY value must be a string. Write { latitude: '52.52' }, never { latitude: 52.52 }. Numbers and booleans are rejected with a 422.",
                         `path is the COMPLETE path appended to the origin (requestUrl = origin + path). Pass the full path starting from the origin — e.g. "${examplePath}" — and make sure it starts with one of allowedPathPrefixes. Do NOT shorten it to the trailing segment and do NOT assume the origin or prefix is auto-prepended.`,
                         'method must be one of allowedMethods.',
-                        'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
+                        'Read the response from result.body. result.status is the upstream HTTP status; result.headers contains safe upstream response headers with lowercase names; result.truncated is true if the response was capped.',
                         'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
+                        ...(doc.browserImageOrigin
+                            ? [
+                                  `Public images may be loaded directly from ${doc.browserImageOrigin} in <img>, CSS image URLs, or map tile layers. This exception is for image rendering only; keep API/data requests on externalFetch and never put Lightdash data in an image URL.`,
+                              ]
+                            : []),
                     ],
                     allowedMethods: doc.allowedMethods,
                     allowedPathPrefixes: doc.allowedPathPrefixes,
@@ -1974,6 +2962,9 @@ export class AppGenerateService extends BaseService {
             links.map(async (link) => ({
                 alias: link.alias,
                 origin: link.connection.origin,
+                browserImageOrigin: link.connection.allowBrowserImages
+                    ? link.connection.origin
+                    : null,
                 instructions: link.connection.instructions,
                 allowedMethods: link.connection.allowedMethods,
                 allowedPathPrefixes: link.connection.allowedPathPrefixes,
@@ -1992,10 +2983,11 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         projectUuid: string,
         prompt: string,
-        imageIds: string[] | undefined,
+        fileIds: string[] | undefined,
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
+        dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
     ): Promise<{
@@ -2009,18 +3001,24 @@ export class AppGenerateService extends BaseService {
 
         // Source the synthetic schema from the compiled explore cache (not the
         // flattened catalog summary) so it carries joins, real dimension/metric
-        // types, and parameters. See exploresToYaml.
-        const exploresByUuid =
-            await this.projectModel.getAllExploresFromCache(projectUuid);
+        // types, and parameters. See exploresToModelFiles.
+        const [exploresByUuid, chartUsageByTable] = await Promise.all([
+            this.projectModel.getAllExploresFromCache(projectUuid),
+            this.catalogModel.getChartUsageByTable(projectUuid),
+        ]);
         const explores = Object.values(exploresByUuid).filter(
             (explore): explore is Explore => !isExploreError(explore),
         );
         const {
-            yaml: modelYaml,
+            files: modelFiles,
             tableCount,
             dimensionCount,
             metricCount,
-        } = AppGenerateService.exploresToYaml(explores);
+            totalBytes,
+        } = AppGenerateService.exploresToModelFiles(
+            explores,
+            chartUsageByTable,
+        );
 
         // Project-level parameters are global (not attached to any one explore)
         // and live in lightdash.config.yml — the location skill.md already tells
@@ -2034,11 +3032,20 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
+            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
-        await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
+        // One round trip per model file would cost minutes on a large project,
+        // so ship the whole directory as a single archive and unpack in place.
+        await sandbox.files.write(
+            '/tmp/dbt-repo/models.tar',
+            await AppGenerateService.packModelFiles(modelFiles),
+        );
+        await sandbox.commands.run(
+            'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
+            { timeoutMs: 60_000 },
+        );
         if (configYaml) {
             await sandbox.files.write(
                 '/tmp/dbt-repo/lightdash.config.yml',
@@ -2055,6 +3062,18 @@ export class AppGenerateService extends BaseService {
                 chartReferences,
             );
             finalPrompt = referenceBlock + finalPrompt;
+        }
+
+        // Attached dashboard: write its structural blueprint and prepend the
+        // layout-spec block. Prepended after the chart block so it lands above
+        // it in the final prompt — structure first, then the queries.
+        if (dashboardBlueprint) {
+            const blueprintBlock = await this.writeDashboardBlueprint(
+                sandbox,
+                appUuid,
+                dashboardBlueprint,
+            );
+            finalPrompt = blueprintBlock + finalPrompt;
         }
 
         // Linked external connections: write an API-doc file per connection into
@@ -2088,14 +3107,21 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Resolve images from staging, copy to version paths, and write to sandbox
-        if (imageIds && imageIds.length > 0) {
-            const imagePaths = await Promise.all(
-                imageIds.map((id) =>
-                    this.writeImageToSandbox(
+        // Resolve attachments from staging and write them into the sandbox
+        if (fileIds && fileIds.length > 0) {
+            const staged = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+            const named = AppGenerateService.assignSandboxFilenames(staged);
+            const sandboxPaths = await Promise.all(
+                named.map((file) =>
+                    this.writeFileToSandbox(
                         sandbox,
                         appUuid,
-                        id,
+                        file,
                         s3Client,
                         bucket,
                     ),
@@ -2103,22 +3129,25 @@ export class AppGenerateService extends BaseService {
             );
             // Label screenshots distinctly so the agent treats them as
             // "current state of the built app" rather than design targets.
-            // Filename convention is set in `writeImageToSandbox`.
             let designIndex = 0;
-            const referenceLines = imagePaths
-                .map((p) => {
-                    const isScreenshot = p
-                        .split('/')
-                        .pop()
-                        ?.startsWith('screenshot-');
-                    if (isScreenshot) {
+            const referenceLines = named
+                .map((file, i) => {
+                    const p = sandboxPaths[i];
+                    if (file.isScreenshot) {
                         return `[Screenshot of the current app at ${p} — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`;
                     }
-                    designIndex += 1;
-                    return `[Design reference image ${designIndex} at ${p} — use the Read tool to view it]`;
+                    if (file.isImage) {
+                        designIndex += 1;
+                        return `[Design reference image ${designIndex} at ${p} — use the Read tool to view it]`;
+                    }
+                    return `[Attached file "${file.filename}" at ${p} — reference material from the user; use the Read tool to view it]`;
                 })
                 .join('\n');
             finalPrompt = `${referenceLines}\n\n${finalPrompt}`;
+        }
+
+        if (this.dataAppCodingAgent === 'codex') {
+            finalPrompt = `${codexSkillDirective(isDataAppViz)}\n\n${finalPrompt}`;
         }
 
         // Write only the latest prompt — Claude is stateless between runs, but
@@ -2130,40 +3159,175 @@ export class AppGenerateService extends BaseService {
 
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
-            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${dimensionCount}, metrics=${metricCount}, yamlBytes=${modelYaml.length}, ${durationMs}ms)`,
+            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${dimensionCount}, metrics=${metricCount}, files=${modelFiles.length}, yamlBytes=${totalBytes}, ${durationMs}ms)`,
         );
         return {
             durationMs,
             tableCount,
             dimensionCount,
             metricCount,
-            yamlBytes: modelYaml.length,
+            yamlBytes: totalBytes,
         };
     }
 
+    private static packModelFiles(files: ModelFile[]): Promise<Buffer> {
+        return new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+
+            const addNext = (index: number): void => {
+                if (index >= files.length) {
+                    packer.finalize();
+                    return;
+                }
+                const file = files[index];
+                packer.entry(
+                    { name: file.filename },
+                    Buffer.from(file.contents, 'utf-8'),
+                    (err) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        addNext(index + 1);
+                    },
+                );
+            };
+            addNext(0);
+        });
+    }
+
     /**
-     * Reconstruct the image's staging S3 key from convention, read the object
-     * (which gives us the MIME type from ContentType), and write it into the
-     * sandbox for Claude to read. Returns the sandbox file path.
+     * HEAD each staged attachment to recover its ContentType, original
+     * filename, and screenshot flag from upload-time metadata. Order is
+     * preserved so callers can keep the user's attachment order.
+     */
+    private static async resolveStagedFiles(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        fileIds: string[],
+    ): Promise<StagedAppFile[]> {
+        return Promise.all(
+            fileIds.map(async (fileId) => {
+                let response;
+                try {
+                    response = await s3Client.send(
+                        new HeadObjectCommand({
+                            Bucket: bucket,
+                            Key: AppGenerateService.fileStagingKey(
+                                appUuid,
+                                fileId,
+                            ),
+                        }),
+                    );
+                } catch (error) {
+                    if (
+                        error instanceof S3ServiceException &&
+                        error.$metadata.httpStatusCode === 404
+                    ) {
+                        throw new ParameterError(
+                            `Attached file not found: ${fileId}`,
+                        );
+                    }
+                    throw error;
+                }
+                const mimeType =
+                    response.ContentType ?? 'application/octet-stream';
+                const rawFilename = response.Metadata?.filename;
+                let filename: string | null = null;
+                if (rawFilename) {
+                    try {
+                        filename = AppGenerateService.sanitizeFilename(
+                            decodeURIComponent(rawFilename),
+                        );
+                    } catch {
+                        filename =
+                            AppGenerateService.sanitizeFilename(rawFilename);
+                    }
+                }
+                return {
+                    fileId,
+                    mimeType,
+                    // Objects staged before filenames shipped (images only)
+                    // carry no filename metadata — synthesize one.
+                    filename:
+                        filename ??
+                        `file-${fileId.slice(0, 8)}.${AppGenerateService.mimeToExt(mimeType)}`,
+                    isImage:
+                        AppGenerateService.RASTER_IMAGE_TYPES.includes(
+                            mimeType,
+                        ),
+                    isScreenshot: response.Metadata?.kind === 'screenshot',
+                };
+            }),
+        );
+    }
+
+    /**
+     * Unique sandbox filenames for an attachment batch: images keep the
+     * uuid-based convention (`screenshot-` prefix tells the agent apart from
+     * design references); other files use their original name so the agent
+     * sees `sales.twb`, deduped with a numeric suffix on collision.
+     */
+    private static assignSandboxFilenames(
+        files: StagedAppFile[],
+    ): NamedStagedFile[] {
+        const used = new Set<string>();
+        return files.map((file) => {
+            if (file.isImage) {
+                const ext = AppGenerateService.mimeToExt(file.mimeType);
+                const sandboxFilename = file.isScreenshot
+                    ? `screenshot-${file.fileId}.${ext}`
+                    : `${file.fileId}.${ext}`;
+                return { ...file, sandboxFilename };
+            }
+            const dot = file.filename.lastIndexOf('.');
+            const stem = dot > 0 ? file.filename.slice(0, dot) : file.filename;
+            const ext = dot > 0 ? file.filename.slice(dot) : '';
+            let candidate = file.filename;
+            for (let n = 2; used.has(candidate); n += 1) {
+                candidate = `${stem}-${n}${ext}`;
+            }
+            used.add(candidate);
+            return { ...file, sandboxFilename: candidate };
+        });
+    }
+
+    /**
+     * Read a staged attachment from S3 and write it into the sandbox for
+     * Claude to read. Returns the sandbox file path.
      *
-     * Design references are dual-written: once to `/tmp/images/` (read-only
-     * inspection — picked up by the prompt prepend and the agent's Read
-     * tool), and again to `/app/src/uploads/` so the agent can `import` them
-     * as Vite assets when the image should ship inside the rendered app
+     * Design-reference images are dual-written: once to `/tmp/images/`
+     * (read-only inspection — picked up by the prompt prepend and the agent's
+     * Read tool), and again to `/app/src/uploads/` so the agent can `import`
+     * them as Vite assets when the image should ship inside the rendered app
      * (logo, hero illustration, etc). Screenshots are inspection-only and
      * never end up in the bundle — they describe current state, not target.
+     *
+     * Non-image attachments go to `/tmp/uploads/` only and are deliberately
+     * NOT copied into the app source tree: they are reference material and
+     * may embed secrets or connection details (e.g. Tableau workbooks), which
+     * must not ship to app viewers unless the agent explicitly inlines
+     * something at the user's request.
      */
-    private async writeImageToSandbox(
+    private async writeFileToSandbox(
         sandbox: SandboxHandle,
         appUuid: string,
-        imageId: string,
+        file: NamedStagedFile,
         s3Client: S3Client,
         bucket: string,
     ): Promise<string> {
-        const stagingKey = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const stagingKey = AppGenerateService.fileStagingKey(
+            appUuid,
+            file.fileId,
+        );
 
         this.logger.info(
-            `App ${appUuid}: reading staged image (key=${stagingKey})`,
+            `App ${appUuid}: reading staged file (key=${stagingKey})`,
         );
 
         const response = await s3Client.send(
@@ -2173,18 +3337,9 @@ export class AppGenerateService extends BaseService {
             }),
         );
 
-        const mimeType = response.ContentType ?? 'image/png';
-        const ext = AppGenerateService.mimeToExt(mimeType);
-        // Screenshots get a filename prefix so the agent can tell them apart
-        // from user-provided design references. Stamped on the staging object
-        // at upload time via S3 metadata (see `uploadImage`).
-        const isScreenshot = response.Metadata?.kind === 'screenshot';
-        const filename = isScreenshot
-            ? `screenshot-${imageId}.${ext}`
-            : `${imageId}.${ext}`;
-        const sandboxPath = `/tmp/images/${filename}`;
+        const dir = file.isImage ? '/tmp/images' : '/tmp/uploads';
+        const sandboxPath = `${dir}/${file.sandboxFilename}`;
 
-        // Read the image bytes
         const chunks: Uint8Array[] = [];
         const body = response.Body;
         if (body && typeof (body as NodeJS.ReadableStream).on === 'function') {
@@ -2196,24 +3351,22 @@ export class AppGenerateService extends BaseService {
         }
         const buffer = Buffer.concat(chunks);
 
-        // Write to sandbox
         this.logger.info(
-            `App ${appUuid}: writing image to sandbox (${mimeType}, ${buffer.length} bytes)`,
+            `App ${appUuid}: writing file to sandbox (${file.mimeType}, ${buffer.length} bytes)`,
         );
-        await sandbox.commands.run('mkdir -p /tmp/images', {
+        await sandbox.commands.run(`mkdir -p ${dir}`, {
             timeoutMs: 10_000,
         });
         await sandbox.files.write(sandboxPath, buffer);
 
-        // Design references go into the Vite-bundled source tree so the agent
-        // can `import logo from './uploads/<file>'` and have the URL hashed,
-        // auth-gated, and CSP-clean — same path as theme images. Screenshots
-        // are explicitly inspection-only and skipped to keep the bundle lean.
-        if (!isScreenshot) {
+        if (file.isImage && !file.isScreenshot) {
             await sandbox.commands.run('mkdir -p /app/src/uploads', {
                 timeoutMs: 10_000,
             });
-            await sandbox.files.write(`/app/src/uploads/${filename}`, buffer);
+            await sandbox.files.write(
+                `/app/src/uploads/${file.sandboxFilename}`,
+                buffer,
+            );
         }
 
         return sandboxPath;
@@ -2269,7 +3422,12 @@ export class AppGenerateService extends BaseService {
      * Convert an internal tool description (e.g. "Write /app/src/Dashboard.tsx")
      * into a user-friendly status message (e.g. "Creating Dashboard.tsx").
      */
-    private static toolDescriptionToStatusMessage(description: string): string {
+    /** Human-readable status for a recognized tool; null for tools we have
+     *  no meaningful description for (the caller shows a coding phrase as
+     *  the live status instead, without recording it in the history). */
+    private static toolDescriptionToStatusMessage(
+        description: string,
+    ): string | null {
         const parts = description.split(' ');
         const tool = parts[0];
         const filePath = parts.slice(1).join(' ');
@@ -2287,8 +3445,10 @@ export class AppGenerateService extends BaseService {
                 return 'Searching codebase';
             case 'TodoWrite':
                 return 'Updating TODOs';
+            case 'Command':
+                return 'Running command';
             default:
-                return AppGenerateService.randomCodingPhrase();
+                return null;
         }
     }
 
@@ -2296,12 +3456,7 @@ export class AppGenerateService extends BaseService {
 
     private static readonly GENERATION_RETRY_DELAY_MS = 5_000;
 
-    /**
-     * Effective system-prompt file passed to Claude via
-     * `--append-system-prompt-file`. Always assembled fresh at the start of
-     * every pipeline run by `assembleEffectiveSkill`, so the CLI flag can
-     * point at a single stable path regardless of theme.
-     */
+    /** Effective Lightdash reference assembled fresh for every agent run. */
     private static readonly EFFECTIVE_SKILL_PATH = '/app/effective-skill.md';
 
     /**
@@ -2339,10 +3494,16 @@ export class AppGenerateService extends BaseService {
                 manifestLines.length > 0
                     ? `\n\nAvailable theme files:\n${manifestLines.join('\n')}`
                     : '\n\nNo CSS, font, or image files were copied for this theme.';
+            const omittedFontNote =
+                designCopy.omittedRestrictedFonts.length > 0
+                    ? `\n\n${omittedThemeFontGuidance(
+                          designCopy.omittedRestrictedFonts,
+                      )}`
+                    : '';
 
             sections.push(
                 `## Active organization theme: ${designCopy.designSnapshot.name}\n\n` +
-                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.designSnapshot.fileCount} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.${manifest}\n\nBefore saying a theme asset is unavailable, inspect \`/app/src/design/\` with Glob or Read.`,
+                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.filesCopied} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.${manifest}${omittedFontNote}\n\nBefore saying a theme asset is unavailable, inspect \`/app/src/design/\` with Glob or Read.`,
             );
         }
         if (designCopy.instructionMarkdown) {
@@ -2361,6 +3522,18 @@ export class AppGenerateService extends BaseService {
         );
     }
 
+    private static async prepareCodexProjectContext(
+        sandbox: SandboxHandle,
+    ): Promise<void> {
+        await sandbox.commands.run(PREPARE_CODEX_SKILLS_COMMAND, {
+            timeoutMs: 10_000,
+        });
+        await sandbox.files.write(
+            CODEX_PROJECT_INSTRUCTIONS_PATH,
+            CODEX_PROJECT_INSTRUCTIONS,
+        );
+    }
+
     private async runClaudeGeneration(
         sandbox: SandboxHandle,
         appUuid: string,
@@ -2368,24 +3541,21 @@ export class AppGenerateService extends BaseService {
         continueSession: boolean,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
+        claudeEffort: DataAppClaudeEffort,
         // JSON Schema string for `--json-schema` structured output. When set,
         // the CLI validates the run's final output against it (retrying on
         // failure) and emits the parsed object on the result event. `null`
         // for runs that don't collect a structured schema (metadata, builds).
         structuredOutputSchema: string | null,
         onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
-    ): Promise<{
-        durationMs: number;
-        responseText: string | null;
-        structuredOutput: unknown;
-        toolCallCount: number;
-        usage: ClaudeGenerationUsage;
-        timeToFirstTokenMs: number | null;
-        turnDurationsMs: number[];
-        generationAttemptCount: number;
-    }> {
+    ): Promise<CodingAgentGenerationResult> {
         const start = performance.now();
         let telemetry = ZERO_CLAUDE_GENERATION_TELEMETRY;
+        const redactOutput = (text: string): string =>
+            redactSandboxEnvSecrets(text, claudeCodeEnv, [
+                ...CLAUDE_CODE_SECRET_ENV_KEYS,
+                ...CLAUDE_CODE_OTEL_SECRET_ENV_KEYS,
+            ]);
 
         if (structuredOutputSchema) {
             // A resumed sandbox may still hold a root-owned
@@ -2407,6 +3577,8 @@ export class AppGenerateService extends BaseService {
             ? '--json-schema "$(cat /tmp/output-schema.json)" '
             : '';
 
+        const effortFlag = `--effort ${claudeEffort} `;
+
         // When the sandbox was resumed from a previous iteration, use
         // --continue so Claude has the full conversation history of what
         // it built before. For fresh sandboxes, start a new session.
@@ -2419,16 +3591,21 @@ export class AppGenerateService extends BaseService {
         const runAttempt = async (
             attempt: number,
             forceContinue: boolean,
-        ): Promise<{
-            durationMs: number;
-            responseText: string | null;
-            structuredOutput: unknown;
-            toolCallCount: number;
-            usage: ClaudeGenerationUsage;
-            timeToFirstTokenMs: number | null;
-            turnDurationsMs: number[];
-            generationAttemptCount: number;
-        }> => {
+        ): Promise<CodingAgentGenerationResult> => {
+            // Bail before spawning claude when the version is no longer in
+            // progress (typically cancelled). This gates the retry and
+            // build-fix paths, which have no advanceStage check between
+            // attempts — without it a cancel could be followed by another
+            // full generation run of the cancelled prompt.
+            const status = await this.appModel.getVersionStatus(
+                appUuid,
+                version,
+            );
+            if (!isAppVersionInProgress(status)) {
+                throw new Error(
+                    `Claude generation aborted — version ${version} is ${status} (likely cancelled)`,
+                );
+            }
             const attemptStartedAfterMs = AppGenerateService.elapsed(start);
             const sessionFlags =
                 continueSession || forceContinue ? '--continue -p' : '-p';
@@ -2440,9 +3617,10 @@ export class AppGenerateService extends BaseService {
             const result = await sandbox.commands
                 .run(
                     `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
-                        `--model ${claudeModel} ` +
+                        `--model ${claudeModel} ${effortFlag}` +
+                        `--thinking-display summarized ` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
-                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
+                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/uploads/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/uploads/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/uploads/**),Grep(//tmp/external-data/**)" ` +
                         `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                     {
                         cwd: '/app',
@@ -2456,40 +3634,55 @@ export class AppGenerateService extends BaseService {
                                         this.logger.info(
                                             `App ${appUuid}: claude turn #${event.turn}: thinking`,
                                         );
+                                        // Live-status placeholder only — not
+                                        // worth keeping in the transcript.
                                         this.updateAppStatus(
                                             appUuid,
                                             version,
                                             'Thinking',
+                                            null,
                                         );
                                         break;
                                     case 'thinking_snippet':
                                         this.updateAppStatus(
                                             appUuid,
                                             version,
-                                            event.snippet,
+                                            redactOutput(event.snippet),
+                                            'thinking',
                                         );
                                         break;
                                     case 'tool_use': {
+                                        const description = redactOutput(
+                                            event.description,
+                                        );
                                         this.logger.info(
-                                            `App ${appUuid}: claude tool #${event.index}: ${event.description}`,
+                                            `App ${appUuid}: claude tool #${event.index}: ${description}`,
                                         );
                                         // description can be comma-separated
                                         // (e.g. "Write foo.tsx, Read bar.tsx") —
                                         // use only the first tool for the status.
                                         const firstTool =
-                                            event.description.split(', ')[0];
+                                            description.split(', ')[0];
+                                        const toolStatus =
+                                            AppGenerateService.toolDescriptionToStatusMessage(
+                                                firstTool,
+                                            );
+                                        // Unknown tools get a fun live status
+                                        // but stay out of the transcript.
                                         this.updateAppStatus(
                                             appUuid,
                                             version,
-                                            AppGenerateService.toolDescriptionToStatusMessage(
-                                                firstTool,
-                                            ),
+                                            toolStatus ??
+                                                AppGenerateService.randomCodingPhrase(),
+                                            toolStatus ? 'tool' : null,
                                         );
                                         break;
                                     }
                                     case 'result':
                                         if (event.text) {
-                                            responseText = event.text;
+                                            responseText = redactOutput(
+                                                event.text,
+                                            );
                                         }
                                         structuredOutput =
                                             event.structuredOutput;
@@ -2501,11 +3694,6 @@ export class AppGenerateService extends BaseService {
                                         );
                                 }
                             }
-                        },
-                        onStderr: (chunk) => {
-                            this.logger.debug(
-                                `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
-                            );
                         },
                     },
                 )
@@ -2523,7 +3711,12 @@ export class AppGenerateService extends BaseService {
                         stdout: err.stdout,
                         stderr: err.stderr,
                     };
-                });
+                })
+                .then((raw) => ({
+                    ...raw,
+                    stdout: redactOutput(raw.stdout),
+                    stderr: redactOutput(raw.stderr),
+                }));
             const toolCallCount = processor.totalToolCalls;
             const usage = processor.lastUsage;
             const { timeToFirstTokenMs, turnDurationsMs } = processor;
@@ -2540,7 +3733,7 @@ export class AppGenerateService extends BaseService {
             onTelemetry?.(telemetry);
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
-                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, effort=${claudeEffort}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
             );
             this.logger.info(
                 `App ${appUuid}: claude turn timeline (ttft=${timeToFirstTokenMs ?? 'n/a'}ms, turnsMs=[${turnDurationsMs.join(', ')}])`,
@@ -2573,16 +3766,19 @@ export class AppGenerateService extends BaseService {
                 4000,
             );
 
-            if (attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS) {
+            const classification = classifyClaudeCliFailure(
+                result.stderr,
+                result.stdout,
+            );
+            if (
+                attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS ||
+                !classification.retryable
+            ) {
                 // On final failure, promote stderr+stdout to info so the
                 // upstream API error (often emitted to stdout in
                 // stream-json mode) is captured in production logs.
-                const classification = classifyClaudeCliFailure(
-                    result.stderr,
-                    result.stdout,
-                );
                 this.logger.info(
-                    `App ${appUuid}: Claude failure (category=${classification.category}, exit=${result.exitCode})`,
+                    `App ${appUuid}: Claude failure (category=${classification.category}, retryable=${classification.retryable}, exit=${result.exitCode}, attempt=${attempt})`,
                 );
                 this.logger.info(
                     `App ${appUuid}: Claude stderr (tail): ${stderrTail}`,
@@ -2590,14 +3786,16 @@ export class AppGenerateService extends BaseService {
                 this.logger.info(
                     `App ${appUuid}: Claude stdout (tail): ${stdoutTail}`,
                 );
-                const message = `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`;
-                if (classification.category === 'unknown') {
-                    throw new Error(message);
-                }
+                // Prefer the CLI's human-readable error over stderr, which is
+                // usually empty in stream-json mode.
+                const message = `Claude generation failed (exit ${result.exitCode}): ${
+                    classification.providerDetail ?? result.stderr
+                }`;
                 throw new ClaudeGenerationError({
                     message,
                     userMessage: classification.userMessage,
                     category: classification.category,
+                    providerDetail: classification.providerDetail,
                 });
             }
 
@@ -2625,17 +3823,263 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Codex prototype runner. Each invocation is deliberately ephemeral: app
+     * source is the durable state between iterations and build-fix turns. This
+     * avoids coupling the first usable version to Codex session migration.
+     */
+    private async runCodexGeneration(
+        sandbox: SandboxHandle,
+        appUuid: string,
+        version: number,
+        codexEnv: Record<string, string>,
+        reasoningEffort: DataAppClaudeEffort,
+        structuredOutputSchema: string | null,
+        onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
+    ): Promise<CodingAgentGenerationResult> {
+        const start = performance.now();
+        let telemetry = ZERO_CLAUDE_GENERATION_TELEMETRY;
+        const redactOutput = (text: string): string =>
+            redactSandboxEnvSecrets(text, codexEnv, CODEX_CODE_SECRET_ENV_KEYS);
+
+        if (structuredOutputSchema) {
+            await sandbox.commands.run(
+                'rm -f /tmp/output-schema.json 2>/dev/null; true',
+                { timeoutMs: 10_000 },
+            );
+            await sandbox.files.write(
+                '/tmp/output-schema.json',
+                structuredOutputSchema,
+            );
+        }
+        const provider = getCodexCodeProvider(codexEnv);
+        const codexCommand = buildCodexExecCommand({
+            provider,
+            reasoningEffort,
+            outputSchemaPath: structuredOutputSchema
+                ? '/tmp/output-schema.json'
+                : null,
+        });
+
+        const runAttempt = async (
+            attempt: number,
+        ): Promise<CodingAgentGenerationResult> => {
+            const status = await this.appModel.getVersionStatus(
+                appUuid,
+                version,
+            );
+            if (!isAppVersionInProgress(status)) {
+                throw new Error(
+                    `Codex generation aborted — version ${version} is ${status} (likely cancelled)`,
+                );
+            }
+
+            const attemptStartedAfterMs = AppGenerateService.elapsed(start);
+            const processor = new CodexStreamProcessor();
+            let responseText: string | null = null;
+            const result = await sandbox.commands
+                .run(codexCommand, {
+                    cwd: '/app',
+                    timeoutMs: 55 * 60 * 1000,
+                    envs: codexEnv,
+                    onStdout: (chunk) => {
+                        for (const event of processor.feedChunk(chunk)) {
+                            switch (event.kind) {
+                                case 'thinking_started':
+                                    this.logger.info(
+                                        `App ${appUuid}: codex turn #${event.turn}: thinking`,
+                                    );
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        'Thinking',
+                                        null,
+                                    );
+                                    break;
+                                case 'thinking_snippet':
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        redactOutput(event.snippet),
+                                        'thinking',
+                                    );
+                                    break;
+                                case 'tool_use': {
+                                    const description = redactOutput(
+                                        event.description,
+                                    );
+                                    this.logger.info(
+                                        `App ${appUuid}: codex tool #${event.index}: ${description}`,
+                                    );
+                                    const toolStatus =
+                                        AppGenerateService.toolDescriptionToStatusMessage(
+                                            description,
+                                        );
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        toolStatus ??
+                                            AppGenerateService.randomCodingPhrase(),
+                                        toolStatus ? 'tool' : null,
+                                    );
+                                    break;
+                                }
+                                case 'result':
+                                    if (event.text) {
+                                        responseText = redactOutput(event.text);
+                                    }
+                                    break;
+                                default:
+                                    assertUnreachable(
+                                        event,
+                                        'Unhandled Codex stream event',
+                                    );
+                            }
+                        }
+                    },
+                })
+                .catch((err: unknown) => {
+                    if (!(err instanceof SandboxCommandError)) {
+                        throw err;
+                    }
+                    return {
+                        exitCode: err.exitCode,
+                        stdout: err.stdout,
+                        stderr: err.stderr,
+                    };
+                })
+                .then((raw) => ({
+                    ...raw,
+                    stdout: redactOutput(raw.stdout),
+                    stderr: redactOutput(raw.stderr),
+                }));
+
+            const usage = processor.lastUsage;
+            const toolCallCount = processor.totalToolCalls;
+            const { timeToFirstTokenMs, turnDurationsMs } = processor;
+            telemetry = addClaudeGenerationAttempt(
+                telemetry,
+                {
+                    usage,
+                    toolCallCount,
+                    timeToFirstTokenMs,
+                    turnDurationsMs,
+                },
+                attemptStartedAfterMs,
+            );
+            onTelemetry?.(telemetry);
+            const durationMs = AppGenerateService.elapsed(start);
+            this.logger.info(
+                `App ${appUuid}: Codex generation completed (model=${codexEnv.DATA_APP_CODEX_MODEL}, effort=${reasoningEffort}, exit=${result.exitCode}, toolCalls=${toolCallCount}, outputTokens=${usage?.outputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+            );
+
+            if (result.exitCode === 0) {
+                let structuredOutput: unknown = null;
+                if (structuredOutputSchema && responseText) {
+                    try {
+                        structuredOutput = JSON.parse(responseText);
+                    } catch (error) {
+                        this.logger.warn(
+                            `App ${appUuid}: Codex returned invalid structured output; leaving viz_schema null: ${getErrorMessage(error)}`,
+                        );
+                    }
+                }
+                return {
+                    durationMs,
+                    responseText,
+                    structuredOutput,
+                    toolCallCount: telemetry.toolCallCount,
+                    usage: telemetry.usage,
+                    timeToFirstTokenMs: telemetry.timeToFirstTokenMs,
+                    turnDurationsMs: telemetry.turnDurationsMs,
+                    generationAttemptCount: telemetry.attemptCount,
+                };
+            }
+
+            const stderrTail = AppGenerateService.truncateEnd(
+                result.stderr,
+                4000,
+            );
+            const stdoutTail = AppGenerateService.truncateEnd(
+                result.stdout,
+                4000,
+            );
+            if (attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS) {
+                this.logger.info(
+                    `App ${appUuid}: Codex stderr (tail): ${stderrTail}`,
+                );
+                this.logger.info(
+                    `App ${appUuid}: Codex stdout (tail): ${stdoutTail}`,
+                );
+                throw new Error(
+                    `Codex generation failed (exit ${result.exitCode}): ${stderrTail || stdoutTail}`,
+                );
+            }
+
+            this.logger.warn(
+                `App ${appUuid}: Codex generation failed (exit ${result.exitCode}), retrying (attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+            );
+            this.updateAppStatus(appUuid, version, 'Hit a snag, retrying');
+            await new Promise<void>((resolve) => {
+                setTimeout(
+                    resolve,
+                    AppGenerateService.GENERATION_RETRY_DELAY_MS,
+                );
+            });
+            return runAttempt(attempt + 1);
+        };
+
+        return runAttempt(1);
+    }
+
+    private runCodingAgentGeneration(
+        sandbox: SandboxHandle,
+        appUuid: string,
+        version: number,
+        continueSession: boolean,
+        codingAgentEnv: Record<string, string>,
+        claudeModel: DataAppClaudeModel,
+        reasoningEffort: DataAppClaudeEffort,
+        structuredOutputSchema: string | null,
+        onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
+    ): Promise<CodingAgentGenerationResult> {
+        if (this.dataAppCodingAgent === 'codex') {
+            return this.runCodexGeneration(
+                sandbox,
+                appUuid,
+                version,
+                codingAgentEnv,
+                reasoningEffort,
+                structuredOutputSchema,
+                onTelemetry,
+            );
+        }
+        return this.runClaudeGeneration(
+            sandbox,
+            appUuid,
+            version,
+            continueSession,
+            codingAgentEnv,
+            claudeModel,
+            reasoningEffort,
+            structuredOutputSchema,
+            onTelemetry,
+        );
+    }
+
+    /**
      * Fire-and-forget app status message update. Logs (but does not propagate)
      * failures so transient DB errors during a long generation don't kill the
-     * pipeline.
+     * pipeline. `kind` tags the entry in the narration history; `null` shows
+     * the message as the live status without recording it.
      */
     private updateAppStatus(
         appUuid: string,
         version: number,
         message: string,
+        kind: AppVersionStatusHistoryEntryKind | null = 'stage',
     ): void {
         void this.appModel
-            .updateStatusMessage(appUuid, version, message)
+            .recordBuildNarration(appUuid, version, message, kind)
             .catch((e) => {
                 this.logger.warn(
                     `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
@@ -2644,116 +4088,107 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * After a successful first build, ask Claude (with --continue so it has
-     * full context) for a short name and description for the app.
-     * Returns null if parsing fails — callers should treat this as non-fatal.
+     * Generates the app's display name/description from the user's prompt via
+     * a fast backend LLM call — no sandbox involvement, so it can run
+     * concurrently with the build instead of gating `ready`. Config resolution
+     * mirrors the clarify flow (org-resolved copilot config, BYO-key-aware
+     * fast model). Returns a null name when no provider is configured or the
+     * response is unusable — the app keeps its "Untitled" fallback.
+     *
+     * For a chart type the same call also suggests a curated icon, so the
+     * icon costs no extra model round trip.
      */
-    private async generateAppMetadata(
-        sandbox: SandboxHandle,
+    private async generateAppMetadataFromPrompt(
         appUuid: string,
-        version: number,
-        claudeCodeEnv: Record<string, string>,
-        claudeModel: DataAppClaudeModel,
-        onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
+        prompt: string,
+        organizationUuid: string,
+        projectUuid: string,
+        userUuid: string,
+        isChartType: boolean,
     ): Promise<{
         name: string | null;
         description: string;
-        durationMs: number;
-        usage: ClaudeGenerationUsage;
+        icon: ChartTypeIcon | null;
     }> {
-        const start = performance.now();
-        const metadataPrompt =
-            'Respond with ONLY a JSON object (no markdown, no explanation) ' +
-            'containing a short "name" (3-6 words, title case, no quotes around it) ' +
-            'and a one-sentence "description" for the app you just built. ' +
-            'Example: {"name": "Weekly Sales Dashboard", "description": "Interactive dashboard showing weekly sales trends by region and product category."}';
-
-        await sandbox.commands.run('rm -f /tmp/prompt.txt 2>/dev/null; true', {
-            timeoutMs: 10_000,
-        });
-        await sandbox.files.write('/tmp/prompt.txt', `${metadataPrompt}\n`);
-
-        const generation = await this.runClaudeGeneration(
-            sandbox,
-            appUuid,
-            version,
-            true, // --continue: Claude remembers what it just built
-            claudeCodeEnv,
-            claudeModel,
-            null, // metadata run collects no structured schema
-            onTelemetry,
-        );
-
-        const durationMs = AppGenerateService.elapsed(start);
-
-        if (!generation.responseText) {
-            this.logger.warn(
-                `App ${appUuid}: metadata generation returned no text`,
+        const copilot =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
             );
-            return {
-                name: null,
-                description: '',
-                durationMs,
-                usage: generation.usage,
-            };
-        }
-
-        // Extract JSON from the response (Claude may wrap it in markdown code fences)
-        const jsonMatch = generation.responseText.match(/\{[\s\S]*\}/) ?? null;
-        if (!jsonMatch) {
-            this.logger.warn(
-                `App ${appUuid}: could not find JSON in metadata response`,
-            );
-            return {
-                name: null,
-                description: '',
-                durationMs,
-                usage: generation.usage,
-            };
-        }
-
+        let modelOptions;
         try {
-            const parsed = JSON.parse(jsonMatch[0]);
-            const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
-            const name =
-                typeof parsed.name === 'string'
-                    ? stripHtml(parsed.name).slice(0, 255)
-                    : null;
-            const description =
-                typeof parsed.description === 'string'
-                    ? stripHtml(parsed.description).slice(0, 1024)
-                    : null;
-            if (!name) {
-                this.logger.warn(
-                    `App ${appUuid}: metadata missing "name" field`,
+            modelOptions =
+                await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilot,
+                    { enableReasoning: false },
                 );
-                return {
-                    name: null,
-                    description: description ?? '',
-                    durationMs,
-                    usage: generation.usage,
-                };
-            }
-            return {
-                name,
-                description: description ?? '',
-                durationMs,
-                usage: generation.usage,
-            };
-        } catch {
-            const safeLog = generation.responseText
-                .replace(/[\n\r]/g, ' ')
-                .slice(0, 200);
-            this.logger.warn(
-                `App ${appUuid}: failed to parse metadata JSON: ${safeLog}`,
+        } catch (err) {
+            this.logger.info(
+                `App ${appUuid}: skipping auto-name — no LLM provider configured (${getErrorMessage(err)})`,
             );
-            return {
-                name: null,
-                description: '',
-                durationMs,
-                usage: generation.usage,
-            };
+            return { name: null, description: '', icon: null };
         }
+
+        const metadataSchema = z.object({
+            name: z
+                .string()
+                .describe(
+                    'Short display name for the app: 3-6 words, title case, no quotes',
+                ),
+            description: z
+                .string()
+                .describe('One-sentence description of what the app shows'),
+            ...(isChartType
+                ? {
+                      icon: chartTypeIconSchema.describe(
+                          'Icon from the list that best represents how the chart looks',
+                      ),
+                  }
+                : {}),
+        });
+
+        const METADATA_TIMEOUT_MS = 15_000;
+        const telemetry = getAiCallTelemetry({
+            functionId: 'nameApp',
+            feature: 'data-app',
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            ...getLanguageModelAttribution(modelOptions.model),
+            keyManagement: modelOptions.keyManagement,
+        });
+        const result = await generateObject({
+            model: modelOptions.model,
+            ...modelOptions.callOptions,
+            providerOptions: modelOptions.providerOptions,
+            experimental_telemetry: telemetry,
+            schema: metadataSchema,
+            abortSignal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
+            messages: [
+                {
+                    role: 'system',
+                    content: `You write display metadata for a data app that is being generated from the prompt the user provides. Respond with a short name (3-6 words, title case) and a one-sentence description of the app.${
+                        isChartType
+                            ? ' This app is a reusable chart type, so also pick the icon that best matches how the chart looks.'
+                            : ''
+                    }`,
+                },
+                { role: 'user', content: prompt },
+            ],
+        });
+
+        const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
+        const name = stripHtml(result.object.name).slice(0, 255);
+        const description = stripHtml(result.object.description).slice(0, 1024);
+        const icon = isChartTypeIcon(result.object.icon)
+            ? result.object.icon
+            : null;
+        if (!name) {
+            this.logger.warn(
+                `App ${appUuid}: auto-name returned an empty name`,
+            );
+            return { name: null, description, icon };
+        }
+        return { name, description, icon };
     }
 
     private async runBuild(
@@ -2826,8 +4261,9 @@ export class AppGenerateService extends BaseService {
         sandbox: SandboxHandle,
         appUuid: string,
         version: number,
-        claudeCodeEnv: Record<string, string>,
+        codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
+        claudeEffort: DataAppClaudeEffort,
         onTelemetry?: (telemetry: DataAppBuildFixTelemetry) => void,
     ): Promise<{
         buildMs: number;
@@ -2879,10 +4315,11 @@ export class AppGenerateService extends BaseService {
             );
 
             try {
-                await this.appModel.updateStatusMessage(
+                await this.appModel.recordBuildNarration(
                     appUuid,
                     version,
                     isBuildError ? 'Fixing build errors' : 'Fixing blank app',
+                    'stage',
                 );
             } catch (e) {
                 this.logger.warn(
@@ -2913,7 +4350,9 @@ export class AppGenerateService extends BaseService {
             // fail with EPERM. Same reason as in writeCatalogAndPrompt.
             await sandbox.commands.run(
                 'rm -f /tmp/prompt.txt 2>/dev/null; true',
-                { timeoutMs: 10_000 },
+                {
+                    timeoutMs: 10_000,
+                },
             );
             await sandbox.files.write('/tmp/prompt.txt', `${fixPrompt}\n`);
 
@@ -2922,13 +4361,14 @@ export class AppGenerateService extends BaseService {
             const buildMsBeforeAttempt = buildMs;
             const currentFixAttempt = fixAttempts;
             const fixGenerationMsBeforeAttempt = fixGenerationMs;
-            const generation = await this.runClaudeGeneration(
+            const generation = await this.runCodingAgentGeneration(
                 sandbox,
                 appUuid,
                 version,
                 true, // --continue: keep conversation context from generation
-                claudeCodeEnv,
+                codingAgentEnv,
                 claudeModel,
+                claudeEffort,
                 null, // build-fix run collects no structured schema
                 (telemetry) => {
                     onTelemetry?.({
@@ -2948,10 +4388,11 @@ export class AppGenerateService extends BaseService {
             fixUsage = addClaudeUsage(fixUsage, generation.usage);
 
             try {
-                await this.appModel.updateStatusMessage(
+                await this.appModel.recordBuildNarration(
                     appUuid,
                     version,
                     'Rebuilding',
+                    'stage',
                 );
             } catch (e) {
                 this.logger.warn(
@@ -3087,7 +4528,7 @@ export class AppGenerateService extends BaseService {
         sourceTar: Buffer,
     ): Promise<number> {
         const start = performance.now();
-        const s3Prefix = `apps/${appUuid}/versions/${version}`;
+        const s3Prefix = versionPrefix(appUuid, version);
 
         const [distResult] = await Promise.all([
             AppGenerateService.extractAndUploadToS3(
@@ -3100,17 +4541,23 @@ export class AppGenerateService extends BaseService {
                 .send(
                     new PutObjectCommand({
                         Bucket: bucket,
-                        Key: `${s3Prefix}/source.tar`,
+                        Key: `${s3Prefix}source.tar`,
                         Body: sourceTar,
                         ContentType: 'application/x-tar',
                     }),
                 )
                 .then(() => {
                     this.logger.debug(
-                        `App ${appUuid}: uploaded ${s3Prefix}/source.tar`,
+                        `App ${appUuid}: uploaded ${s3Prefix}source.tar`,
                     );
                 }),
         ]);
+
+        await this.extractAndPersistVersionDataReferencesFromTar(
+            appUuid,
+            version,
+            sourceTar,
+        );
 
         const durationMs = AppGenerateService.elapsed(start);
         const totalBytes = distResult.totalBytes + sourceTar.length;
@@ -3166,14 +4613,10 @@ export class AppGenerateService extends BaseService {
         payload: AppGeneratePipelineJobPayload,
         schedulerWaitMs: number,
     ): Promise<void> {
-        const {
-            appUuid,
-            version,
-            projectUuid,
-            imageIds,
-            isIteration,
-            chartReferences,
-        } = payload;
+        const { appUuid, version, projectUuid, isIteration, chartReferences } =
+            payload;
+        // Jobs enqueued before the fileIds rename still carry imageIds.
+        const fileIds = payload.fileIds ?? payload.imageIds;
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -3187,15 +4630,48 @@ export class AppGenerateService extends BaseService {
             return;
         }
 
-        let claudeCodeEnv: Record<string, string>;
-        let copilot: CopilotConfig;
+        try {
+            await this.authorizePipelineExecution(payload);
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: pipeline authorization failed for user ${payload.userUuid} on version ${version}: ${getErrorMessage(error)}`,
+            );
+            const marked = await this.markError(
+                appUuid,
+                version,
+                error,
+                'Build stopped because access is no longer available.',
+            );
+            if (marked) {
+                await this.trackVersionFailed(
+                    payload,
+                    'authorization',
+                    error,
+                    {},
+                    null,
+                    0,
+                    { schedulerWaitMs },
+                );
+            }
+            return;
+        }
+
+        let codingAgentEnv: Record<string, string>;
+        let copilot: ResolvedCopilotConfig;
         let s3Client: S3Client;
         let bucket: string;
         try {
-            copilot = await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
-                payload.organizationUuid,
-            );
-            claudeCodeEnv = AppGenerateService.getClaudeCodeEnv(copilot);
+            copilot = await this.getCodingAgentConfig(payload.organizationUuid);
+            codingAgentEnv = this.getCodingAgentEnv(copilot);
+            if (this.dataAppCodingAgent === 'codex') {
+                const codexModel =
+                    payload.codexModel ?? DEFAULT_DATA_APP_CODEX_MODEL;
+                codingAgentEnv.DATA_APP_CODEX_MODEL = codexModel;
+                codingAgentEnv.DATA_APP_CODEX_MODEL_ID = getCodexModelId(
+                    getCodexCodeProvider(codingAgentEnv),
+                    codexModel,
+                );
+            }
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {
             // Config errors (missing/incomplete provider, E2B, or S3 setup) carry
@@ -3213,9 +4689,17 @@ export class AppGenerateService extends BaseService {
                 userMessage,
             );
             if (marked) {
-                this.trackVersionFailed(payload, 'config', error, {}, null, 0, {
-                    schedulerWaitMs,
-                });
+                await this.trackVersionFailed(
+                    payload,
+                    'config',
+                    error,
+                    {},
+                    null,
+                    0,
+                    {
+                        schedulerWaitMs,
+                    },
+                );
             }
             return;
         }
@@ -3235,8 +4719,10 @@ export class AppGenerateService extends BaseService {
 
         this.logger.info(
             `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration}, model=${
-                payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL
-            }, designUuid=${payload.designUuid ?? 'none'}, llm=${describeClaudeCodeEnv(claudeCodeEnv)})`,
+                this.dataAppCodingAgent === 'codex'
+                    ? (payload.codexModel ?? DEFAULT_DATA_APP_CODEX_MODEL)
+                    : (payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL)
+            }, designUuid=${payload.designUuid ?? 'none'}, llm=${this.describeCodingAgentEnv(codingAgentEnv)})`,
         );
 
         // --- Stage: sandbox ---
@@ -3254,6 +4740,18 @@ export class AppGenerateService extends BaseService {
                 return;
             }
             try {
+                // Upgrade: drop the old sandbox first (carrying the Claude
+                // session best-effort) so the iteration path below cold-starts
+                // on the current template image.
+                let upgradeSessionTar: Buffer | null = null;
+                if (payload.isUpgrade) {
+                    upgradeSessionTar = await this.prepareUpgradeColdStart(
+                        appUuid,
+                        projectUuid,
+                        copilot,
+                        registryHosts,
+                    );
+                }
                 if (isIteration) {
                     const app = await this.appModel.getApp(
                         appUuid,
@@ -3286,6 +4784,13 @@ export class AppGenerateService extends BaseService {
                     durations.sandboxMs = result.durationMs;
                     await this.appModel.updateSandboxUuid(appUuid, sandboxUuid);
                 }
+                if (upgradeSessionTar) {
+                    await this.restoreClaudeSession(
+                        sandbox,
+                        appUuid,
+                        upgradeSessionTar,
+                    );
+                }
             } catch (error) {
                 const marked = await this.markError(
                     appUuid,
@@ -3294,7 +4799,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to set up build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         error,
@@ -3320,7 +4825,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to resume build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         missingSandboxError,
@@ -3351,7 +4856,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to resume build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         error,
@@ -3400,20 +4905,27 @@ export class AppGenerateService extends BaseService {
                         'app.claude_model':
                             payload.claudeModel ??
                             DEFAULT_DATA_APP_CLAUDE_MODEL,
-                        'app.claude_provider':
-                            claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
-                                ? 'bedrock'
-                                : 'anthropic',
+                        'app.coding_agent': this.dataAppCodingAgent,
+                        'app.coding_agent_model':
+                            this.dataAppCodingAgent === 'codex'
+                                ? codingAgentEnv.DATA_APP_CODEX_MODEL
+                                : (payload.claudeModel ??
+                                  DEFAULT_DATA_APP_CLAUDE_MODEL),
+                        'app.coding_agent_provider':
+                            this.getCodingAgentProvider(codingAgentEnv),
                         ...(process.env.LIGHTDASH_INSTALL_ID
                             ? { installId: process.env.LIGHTDASH_INSTALL_ID }
                             : {}),
                     },
                 },
                 async () => {
-                    const otelEnv = await this.resolveSandboxOtelEnv(
-                        appUuid,
-                        getOtelTraceHeaders().traceparent,
-                    );
+                    const otelEnv =
+                        this.dataAppCodingAgent === 'claude'
+                            ? await this.resolveSandboxOtelEnv(
+                                  appUuid,
+                                  getOtelTraceHeaders().traceparent,
+                              )
+                            : {};
                     await this.runPipelineStages(
                         sandbox,
                         payload,
@@ -3423,8 +4935,9 @@ export class AppGenerateService extends BaseService {
                         overallStart,
                         currentStatus,
                         wasResumed,
-                        { ...claudeCodeEnv, ...otelEnv },
-                        imageIds,
+                        { ...codingAgentEnv, ...otelEnv },
+                        copilot,
+                        fileIds,
                         chartReferences,
                         versionDeps,
                         schedulerWaitMs,
@@ -3446,8 +4959,9 @@ export class AppGenerateService extends BaseService {
         overallStart: number,
         currentStatus: AppVersionStatus,
         wasResumed: boolean,
-        claudeCodeEnv: Record<string, string>,
-        imageIds: string[] | undefined,
+        codingAgentEnv: Record<string, string>,
+        copilot: ResolvedCopilotConfig,
+        fileIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
         versionDeps: AppVersionDependencies | null,
         schedulerWaitMs: number,
@@ -3464,13 +4978,64 @@ export class AppGenerateService extends BaseService {
         // to the default so we never run with `--model undefined`.
         const claudeModel: DataAppClaudeModel =
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
-        const claudeProvider: 'anthropic' | 'bedrock' =
-            claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
-                ? 'bedrock'
-                : 'anthropic';
+        const claudeEffort = payloadClaudeEffort(payload, pipelineApp.template);
+        const claudeProvider = this.getCodingAgentProvider(codingAgentEnv);
+        const codingAgentModel: DataAppCodingAgentModel =
+            this.dataAppCodingAgent === 'codex'
+                ? (payload.codexModel ?? DEFAULT_DATA_APP_CODEX_MODEL)
+                : claudeModel;
+        const claudeKeyManagement = resolveKeyManagement(
+            copilot,
+            claudeProvider,
+        );
         const durations: Record<string, number> = { ...extraDurations };
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
+
+        // Auto-name (first version only): a fast prompt-based LLM call that
+        // runs concurrently with the build so it never gates `ready`. The
+        // write is race-safe (setMetadataIfUnset) and the status poller picks
+        // the name up mid-build. Resolves to its duration; never rejects.
+        let metadataPromise: Promise<number> | null = null;
+        if (version === 1) {
+            const metadataStart = performance.now();
+            metadataPromise = this.generateAppMetadataFromPrompt(
+                appUuid,
+                prompt,
+                payload.organizationUuid,
+                projectUuid,
+                payload.userUuid,
+                isDataAppViz,
+            )
+                .then(async (metadata) => {
+                    if (metadata.name) {
+                        // Only fills fields the user hasn't already set. When
+                        // the name is applied, the temporary slug is replaced
+                        // from the same generated name.
+                        const updatedApp =
+                            await this.appModel.setMetadataIfUnset(
+                                appUuid,
+                                projectUuid,
+                                {
+                                    name: metadata.name,
+                                    description: metadata.description,
+                                    icon: metadata.icon,
+                                },
+                            );
+                        this.logger.info(
+                            `App ${appUuid}: auto-named "${updatedApp.name}" (slug=${updatedApp.slug})`,
+                        );
+                    }
+                    return AppGenerateService.elapsed(metadataStart);
+                })
+                .catch((error) => {
+                    // Non-fatal — the app works fine without a name
+                    this.logger.warn(
+                        `App ${appUuid}: failed to auto-generate name: ${getErrorMessage(error)}`,
+                    );
+                    return AppGenerateService.elapsed(metadataStart);
+                });
+        }
 
         // Theme (org design) copy + system-prompt assembly. Runs
         // unconditionally on every pipeline execution — including
@@ -3502,7 +5067,7 @@ export class AppGenerateService extends BaseService {
                     message,
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'config',
                         themeError,
@@ -3526,6 +5091,9 @@ export class AppGenerateService extends BaseService {
             logger: this.logger,
         });
         await this.assembleEffectiveSkill(sandbox, designCopy);
+        if (this.dataAppCodingAgent === 'codex') {
+            await AppGenerateService.prepareCodexProjectContext(sandbox);
+        }
 
         let catalogStats = {
             tableCount: 0,
@@ -3561,7 +5129,10 @@ export class AppGenerateService extends BaseService {
         };
         const failureTelemetry = (): DataAppVersionFailureTelemetry => ({
             wasResumed,
+            codingAgent: this.dataAppCodingAgent,
+            codingAgentModel,
             claudeProvider,
+            keyManagement: claudeKeyManagement,
             schedulerWaitMs,
             buildFixGenerationMs,
             ...(generationAttemptCount > 0
@@ -3587,15 +5158,33 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
+                // A resumed sandbox's Claude session may still end with a
+                // prompt the user cancelled mid-run — disavow it so Claude
+                // doesn't treat it as outstanding work. Fresh sandboxes get
+                // a new session (no --continue), so no notice is needed.
+                const previousPromptCancelled =
+                    wasResumed &&
+                    (await this.appModel.hasCancelledVersionSinceLastReady(
+                        appUuid,
+                        version,
+                    ));
+                if (previousPromptCancelled) {
+                    this.logger.info(
+                        `App ${appUuid}: prepending cancelled-prompt notice (a version since the last ready one was cancelled)`,
+                    );
+                }
                 const catalogResult = await this.writeCatalogAndPrompt(
                     sandbox,
                     appUuid,
                     projectUuid,
-                    prompt,
-                    imageIds,
+                    previousPromptCancelled
+                        ? `${CANCELLED_PROMPT_NOTICE}\n\n${prompt}`
+                        : prompt,
+                    fileIds,
                     s3Client,
                     bucket,
                     chartReferences,
+                    payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
                 );
@@ -3618,7 +5207,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to load your data models. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'catalog',
                         error,
@@ -3655,13 +5244,14 @@ export class AppGenerateService extends BaseService {
                 // the conversation where it left off.
                 const continueSession =
                     currentStatus === 'generating' || wasResumed;
-                const generation = await this.runClaudeGeneration(
+                const generation = await this.runCodingAgentGeneration(
                     sandbox,
                     appUuid,
                     version,
                     continueSession,
-                    claudeCodeEnv,
+                    codingAgentEnv,
                     claudeModel,
+                    claudeEffort,
                     // Data app vizs collect a validated schema as the run's
                     // structured output; other apps don't declare one.
                     isDataAppViz ? JSON.stringify(dataAppVizJsonSchema) : null,
@@ -3685,20 +5275,35 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                // Prefer a classified upstream-API message (quota /
-                // rate-limit / auth / overloaded). Otherwise fall back to
-                // the existing branches: Bedrock failures are often the
-                // model not being enabled in the configured region — point
-                // operators at that instead of the generic "try rephrasing".
+                // Prefer a classified upstream-API message (quota / spend
+                // limit / rate-limit / auth / overloaded). For unclassified
+                // provider errors, show the provider's own message — it's
+                // already human-readable (e.g. "API Error: 400 ..."). Then:
+                // Bedrock failures are often the model not being enabled in
+                // the configured region — point operators at that. The last
+                // resort is honest about not knowing the cause rather than
+                // blaming the user's request — infra failures (connection
+                // loss, sandbox death) land here too.
                 let userMessage: string;
-                if (error instanceof ClaudeGenerationError) {
+                if (
+                    error instanceof ClaudeGenerationError &&
+                    error.userMessage
+                ) {
                     userMessage = error.userMessage;
-                } else if (claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1') {
+                } else if (
+                    error instanceof ClaudeGenerationError &&
+                    error.providerDetail
+                ) {
+                    userMessage = `Couldn't generate the app — the AI provider returned an error: ${AppGenerateService.truncateEnd(
+                        error.providerDetail,
+                        500,
+                    )}`;
+                } else if (codingAgentEnv.CLAUDE_CODE_USE_BEDROCK === '1') {
                     userMessage =
                         'Failed to generate the app. If this keeps happening, check that the selected model is enabled in your AWS Bedrock region (see server logs).';
                 } else {
                     userMessage =
-                        'Failed to generate app code. Try rephrasing your request.';
+                        'Something unexpected went wrong while generating your app. Please try again.';
                 }
                 const marked = await this.markError(
                     appUuid,
@@ -3707,7 +5312,7 @@ export class AppGenerateService extends BaseService {
                     userMessage,
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'generating',
                         error,
@@ -3738,10 +5343,11 @@ export class AppGenerateService extends BaseService {
                 // the Vite build. Skipped for template-only versions.
                 if (versionDeps !== null) {
                     try {
-                        await this.appModel.updateStatusMessage(
+                        await this.appModel.recordBuildNarration(
                             appUuid,
                             version,
                             'Installing dependencies',
+                            'stage',
                         );
                     } catch (e) {
                         this.logger.warn(
@@ -3775,7 +5381,7 @@ export class AppGenerateService extends BaseService {
                             'Installing dependencies',
                         );
                         if (marked) {
-                            this.trackVersionFailed(
+                            await this.trackVersionFailed(
                                 payload,
                                 'building',
                                 installError,
@@ -3788,10 +5394,11 @@ export class AppGenerateService extends BaseService {
                         return;
                     }
                     try {
-                        await this.appModel.updateStatusMessage(
+                        await this.appModel.recordBuildNarration(
                             appUuid,
                             version,
                             'Packaging your app',
+                            'stage',
                         );
                     } catch (e) {
                         this.logger.warn(
@@ -3805,8 +5412,9 @@ export class AppGenerateService extends BaseService {
                     sandbox,
                     appUuid,
                     version,
-                    claudeCodeEnv,
+                    codingAgentEnv,
                     claudeModel,
+                    claudeEffort,
                     (telemetry) => {
                         durations.buildMs = telemetry.buildMs;
                         buildFixAttempts = telemetry.fixAttempts;
@@ -3833,14 +5441,18 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: build failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
+                // Auto-fix runs Claude too — a classified upstream failure
+                // there (quota, spend limit, auth) is not a compile problem.
                 const marked = await this.markError(
                     appUuid,
                     version,
                     error,
-                    "The generated code couldn't be compiled. Try again or simplify your request.",
+                    error instanceof ClaudeGenerationError && error.userMessage
+                        ? error.userMessage
+                        : "The generated code couldn't be compiled. Try again or simplify your request.",
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'building',
                         error,
@@ -3851,56 +5463,6 @@ export class AppGenerateService extends BaseService {
                     );
                 }
                 return;
-            }
-        }
-
-        // --- Auto-name: first version only ---
-        if (version === 1) {
-            const metadataStart = performance.now();
-            let metadataUsage = ZERO_CLAUDE_USAGE;
-            try {
-                const metadata = await this.generateAppMetadata(
-                    sandbox,
-                    appUuid,
-                    version,
-                    claudeCodeEnv,
-                    claudeModel,
-                    (telemetry) => {
-                        metadataUsage = telemetry.usage;
-                    },
-                );
-                durations.metadataMs = metadata.durationMs;
-                generationUsage = addClaudeUsage(
-                    generationUsage,
-                    metadata.usage,
-                );
-                if (metadata.name) {
-                    // Only fills fields the user hasn't already set — the
-                    // build is async, so by the time we get here the user
-                    // may have renamed the app themselves.
-                    await this.appModel.setMetadataIfUnset(
-                        appUuid,
-                        projectUuid,
-                        {
-                            name: metadata.name,
-                            description: metadata.description,
-                        },
-                    );
-                    this.logger.info(
-                        `App ${appUuid}: auto-named "${metadata.name}"`,
-                    );
-                }
-            } catch (error) {
-                durations.metadataMs =
-                    AppGenerateService.elapsed(metadataStart);
-                generationUsage = addClaudeUsage(
-                    generationUsage,
-                    metadataUsage,
-                );
-                // Non-fatal — the app works fine without a name
-                this.logger.warn(
-                    `App ${appUuid}: failed to auto-generate name: ${getErrorMessage(error)}`,
-                );
             }
         }
 
@@ -3941,7 +5503,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to deploy your app. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'packaging',
                         error,
@@ -3957,8 +5519,12 @@ export class AppGenerateService extends BaseService {
 
         // Data app viz: persist the schema the generator declared as the run's
         // structured output.
-        if (isDataAppViz) {
+        if (isDataAppViz && !payload.isUpgrade) {
             await this.persistSchema(vizStructuredOutput, appUuid, version);
+        } else if (isDataAppViz) {
+            this.logger.info(
+                `Kept the copied schema for SDK upgrade of app ${appUuid} version ${version}; skipped structured schema regeneration`,
+            );
         }
 
         try {
@@ -3968,7 +5534,9 @@ export class AppGenerateService extends BaseService {
                 version,
                 'ready',
                 null,
-                isDataAppViz ? 'Visualization ready' : responseText,
+                isDataAppViz
+                    ? (payload.upgradeStatusMessage ?? 'Visualization ready')
+                    : responseText,
             );
             durations.dbMs = AppGenerateService.elapsed(dbStart);
             if (!updated) {
@@ -3988,7 +5556,7 @@ export class AppGenerateService extends BaseService {
                 'Something went wrong. Please try again.',
             );
             if (marked) {
-                this.trackVersionFailed(
+                await this.trackVersionFailed(
                     payload,
                     'db',
                     error,
@@ -4002,8 +5570,13 @@ export class AppGenerateService extends BaseService {
         }
 
         const totalMs = AppGenerateService.elapsed(overallStart);
+        // Normally resolved long before `ready` — awaited only so the
+        // completed event records its duration.
+        if (metadataPromise) {
+            durations.metadataMs = await metadataPromise;
+        }
         this.logger.info(
-            `App ${appUuid}: generation completed successfully in ${totalMs}ms (model=${claudeModel}, ${Object.entries(
+            `App ${appUuid}: generation completed successfully in ${totalMs}ms (agent=${this.dataAppCodingAgent}, model=${codingAgentModel}, ${Object.entries(
                 durations,
             )
                 .map(([k, v]) => `${k}=${v}ms`)
@@ -4017,10 +5590,12 @@ export class AppGenerateService extends BaseService {
         // usage stream and stamps the app/version onto the accompanying span.
         AppGenerateService.emitDataAppAiUsage(
             payload,
-            claudeModel,
+            codingAgentModel,
             claudeProvider,
+            claudeKeyManagement,
             generationUsage,
         );
+        await this.recordGenerationUsage(payload, generationUsage);
 
         this.analytics.track({
             event: 'data_app.version.completed',
@@ -4031,9 +5606,16 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 isIteration: payload.isIteration,
-                claudeModel,
+                isUpgrade: payload.isUpgrade ?? false,
+                creationExperience: payload.creationExperience ?? null,
+                ...(this.dataAppCodingAgent === 'claude'
+                    ? { claudeModel }
+                    : {}),
+                codingAgent: this.dataAppCodingAgent,
+                codingAgentModel,
                 claudeProvider,
                 schedulerWaitMs,
+                claudeEffort,
                 wasResumed,
                 totalDurationMs: totalMs,
                 sandboxMs: durations.sandboxMs,
@@ -4055,7 +5637,10 @@ export class AppGenerateService extends BaseService {
                     generationUsage.cacheCreationInputTokens,
                 numTurns: generationUsage.numTurns,
                 durationApiMs: generationUsage.durationApiMs,
-                totalCostUsd: generationUsage.costUsd,
+                totalCostUsd:
+                    this.dataAppCodingAgent === 'codex'
+                        ? null
+                        : generationUsage.costUsd,
                 generationAttemptCount,
                 timeToFirstTokenMs,
                 slowestTurnMs,
@@ -4070,17 +5655,23 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Extract UUID v4 patterns from the prompt, attempt to resolve each as a
-     * saved chart (permission-checked), and return structured references for
-     * any that resolve.
+     * Resolve an attached dashboard (permission-checked) into the chart uuids
+     * of its saved-chart tiles plus a structural blueprint of the dashboard
+     * itself — tabs, tile layout, filters.
      */
-    private async resolveDashboardToChartUuids(
-        dashboardUuid: string,
+    private async resolveDashboardReference(
+        dashboardUuidOrSlug: string,
         user: SessionUser,
-    ): Promise<{ chartUuids: string[]; dashboardName: string }> {
+        projectUuid: string,
+    ): Promise<{
+        chartUuids: string[];
+        dashboardName: string;
+        blueprint: DashboardBlueprint;
+    }> {
         const dashboard = await this.dashboardService.getByIdOrSlug(
             user,
-            dashboardUuid,
+            dashboardUuidOrSlug,
+            { projectUuid },
         );
         const chartUuids = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -4089,6 +5680,7 @@ export class AppGenerateService extends BaseService {
         return {
             chartUuids: [...new Set(chartUuids)],
             dashboardName: dashboard.name,
+            blueprint: buildDashboardBlueprint(dashboard),
         };
     }
 
@@ -4103,9 +5695,11 @@ export class AppGenerateService extends BaseService {
         charts: AppChartReference[] | undefined,
         dashboard: AppDashboardReference | undefined,
         user: SessionUser,
+        projectUuid: string,
     ): Promise<{
         refs: AppChartReference[];
         dashboardName: string | null;
+        dashboardBlueprint: DashboardBlueprint | null;
     }> {
         const flagByUuid = new Map<
             string,
@@ -4122,12 +5716,15 @@ export class AppGenerateService extends BaseService {
             });
         }
         let dashboardName: string | null = null;
+        let dashboardBlueprint: DashboardBlueprint | null = null;
         if (dashboard) {
-            const result = await this.resolveDashboardToChartUuids(
+            const result = await this.resolveDashboardReference(
                 dashboard.uuid,
                 user,
+                projectUuid,
             );
             dashboardName = result.dashboardName;
+            dashboardBlueprint = result.blueprint;
             for (const uuid of result.chartUuids) {
                 const prev = flagByUuid.get(uuid) ?? {
                     sample: false,
@@ -4146,7 +5743,7 @@ export class AppGenerateService extends BaseService {
                 linkLive: link,
             }),
         );
-        return { refs, dashboardName };
+        return { refs, dashboardName, dashboardBlueprint };
     }
 
     /**
@@ -4207,6 +5804,7 @@ export class AppGenerateService extends BaseService {
     private async resolveChartReferences(
         chartRefs: AppChartReference[],
         user: SessionUser,
+        projectUuid: string,
     ): Promise<{
         references: ChartReference[];
         chartResources: AppVersionChartResource[];
@@ -4214,11 +5812,13 @@ export class AppGenerateService extends BaseService {
     }> {
         // Dedupe by uuid; if any duplicate asks for sample data or link mode,
         // the union wins so the user gets the data they opted into.
+        const { sampleDataEnabled } = this.lightdashConfig.appRuntime;
         const dedup = new Map<string, { sample: boolean; link: boolean }>();
         for (const ref of chartRefs) {
             const prev = dedup.get(ref.uuid) ?? { sample: false, link: false };
             dedup.set(ref.uuid, {
-                sample: prev.sample || ref.includeSampleData,
+                sample:
+                    sampleDataEnabled && (prev.sample || ref.includeSampleData),
                 link: prev.link || (ref.linkLive ?? false),
             });
         }
@@ -4234,7 +5834,9 @@ export class AppGenerateService extends BaseService {
         const account = fromSession(user);
 
         const chartResults = await Promise.allSettled(
-            uuids.map((uuid) => this.savedChartService.get(uuid, account)),
+            uuids.map((uuid) =>
+                this.savedChartService.get(uuid, account, { projectUuid }),
+            ),
         );
 
         // Kick off sample fetches in parallel, only for charts that resolved
@@ -4313,13 +5915,16 @@ export class AppGenerateService extends BaseService {
      * LLM errors — the build flow should proceed without clarification
      * rather than fail. Returns an empty array when:
      * - the prompt is already specific enough (model judgment),
-     * - neither Anthropic nor Bedrock is configured,
+     * - no LLM provider is configured,
      * - the LLM call times out or errors.
      *
-     * Routes through Bedrock when `AI_DEFAULT_PROVIDER=bedrock`, otherwise
-     * Anthropic — mirroring the data-apps sandbox provider switch in
-     * `claudeCodeEnv.ts` so the clarifier and code generation use the same
-     * provider.
+     * Uses the org-resolved, BYO-key-aware fast model so clarification follows
+     * the same provider resolution as other lightweight AI tasks such as app
+     * naming.
+     *
+     * Branches on template: a data app viz gets a component-scoped prompt and
+     * no catalog context, because it never runs a query. Everything else shares
+     * the cap, timeout and fall-through behaviour. See `clarifierPrompts.ts`.
      */
     async clarifyApp(
         user: SessionUser,
@@ -4328,14 +5933,12 @@ export class AppGenerateService extends BaseService {
         template?: DataAppTemplate,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
-        imageIds?: string[],
+        fileIds?: string[],
     ): Promise<{ questions: string[] }> {
         await this.assertDataAppsEnabled(user);
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-        this.assertDataAppAbility(
+        const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
-            organizationUuid,
             projectUuid,
             'Insufficient permissions to create data apps',
         );
@@ -4349,38 +5952,55 @@ export class AppGenerateService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
             );
-        const llmProvider: 'anthropic' | 'bedrock' =
-            copilot.defaultProvider === 'bedrock' ? 'bedrock' : 'anthropic';
 
         let modelOptions;
         try {
-            modelOptions = getModel(copilot, {
-                provider: llmProvider,
-                modelName: 'claude-sonnet-4-5',
-                enableReasoning: false,
-            });
+            modelOptions =
+                await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilot,
+                    { enableReasoning: false },
+                );
         } catch (err) {
             this.logger.info(
-                `Skipping app clarification: ${llmProvider} not configured (${getErrorMessage(err)})`,
+                `Skipping app clarification: no LLM provider configured (${getErrorMessage(err)})`,
             );
             return { questions: [] };
         }
 
+        const modelAttribution = getLanguageModelAttribution(
+            modelOptions.model,
+        );
+        const llmProvider = modelAttribution.provider ?? 'unknown';
+
+        // A data app viz never runs a query — it renders whatever rows the host
+        // explore hands it — so catalog context would only invite questions
+        // about explores, dimensions and time ranges that nobody can answer at
+        // build time. Skip the summary entirely (and its catalog read).
+        const isVizTemplate = template === DATA_APP_VIZ_TEMPLATE;
+
         const [catalogSummary, attachedResources] = await Promise.all([
-            this.buildCatalogSummaryForClarifier(projectUuid),
-            this.buildAttachedResourcesForClarifier(charts, dashboard, user),
+            isVizTemplate
+                ? Promise.resolve(null)
+                : this.buildCatalogSummaryForClarifier(projectUuid),
+            this.buildAttachedResourcesForClarifier(
+                charts,
+                dashboard,
+                user,
+                projectUuid,
+            ),
         ]);
-        const imageCount = imageIds?.length ?? 0;
+        const fileCount = fileIds?.length ?? 0;
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
         // 1–4 cap and we slice client-side after the response.
         const clarifySchema = z.object({
-            questions: z
-                .array(z.string())
-                .describe(
-                    '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change the app.',
-                ),
+            questions: z.array(z.string()).describe(
+                // Deliberately says "what gets built", not "the app" — this
+                // description reaches the model alongside a system prompt
+                // that may be insisting it is building a viz, not an app.
+                '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change what gets built.',
+            ),
         });
 
         // Cap the LLM call so a stalled provider can't pin the chat input
@@ -4395,7 +6015,11 @@ export class AppGenerateService extends BaseService {
             organizationUuid,
             projectUuid,
             userUuid: user.userUuid,
-            ...getLanguageModelAttribution(modelOptions.model),
+            ...modelAttribution,
+            keyManagement: modelOptions.keyManagement,
+            // Which prompt variant ran — the two ask for very different things,
+            // so spend and question counts are only comparable within a variant.
+            extra: { template: template ?? 'custom' },
         });
         let result;
         try {
@@ -4409,53 +6033,40 @@ export class AppGenerateService extends BaseService {
                 messages: [
                     {
                         role: 'system',
-                        content: `You help a user scope a React data app on top of their semantic layer before any code is written. Given the user's prompt, the kind of app they're building, and a summary of the available tables, decide whether 0–4 short clarifying questions would materially change what gets built.
-
-DEFAULT TO ASKING NOTHING. Empty is the right answer for most well-formed prompts. Only ask when the answer would meaningfully change the app's structure, content, or scope — never to fine-tune cosmetics or pick between two equally reasonable defaults. If you're unsure whether to ask, don't. Reasonable defaults during the build beat slowing the user down.
-
-Worth asking about (only when the prompt is silent on them):
-- Which tables or metrics to query, when several plausible options exist
-- Default time range, when the prompt doesn't imply one
-- Audience, when it would change the level of detail (executive vs analyst)
-- The shape of the app (single-page vs tabs, drill-down vs flat) when truly ambiguous
-
-App kind context (use to prioritize, not as a checklist):
-- dashboard: audience, key metrics/KPIs, default time range, layout density.
-- slideshow: number of slides, narrative arc, takeaway per slide.
-- pdf: page orientation, audience, what gets exported vs interactive.
-- custom: focus on the most impactful unknowns.
-
-Do NOT ask about:
-- Cosmetic details with reasonable defaults (date format, exact colors, number formatting, axis labels, column widths).
-- Anything already stated in the prompt — even partially.
-- Things you can look up in the catalog (table names, field names).
-- Picking between two readings of a phrase when one is the obvious interpretation.
-- Multi-part or open-ended — each question must be answerable in one short line.
-- Which chart, dashboard, or image to use, when the user has already attached resources — those are listed under "Resources the user attached".
-
-Each question, when asked, must be a single sentence, 5–15 words.`,
+                        content: isVizTemplate
+                            ? CLARIFY_VIZ_SYSTEM_PROMPT
+                            : CLARIFY_APP_SYSTEM_PROMPT,
                     },
                     {
                         role: 'user',
                         content: [
-                            `App kind: ${template ?? 'custom'}`,
+                            // The viz system prompt already fixes the kind, and
+                            // there is no catalog to describe.
+                            ...(isVizTemplate
+                                ? []
+                                : [`App kind: ${template ?? 'custom'}`]),
                             `\nUser prompt:\n${trimmed}`,
                             `\nResources the user attached:\n${
                                 AppGenerateService.formatAttachedResourcesForClarifier(
                                     attachedResources,
-                                    imageCount,
+                                    fileCount,
                                 ) || '(none)'
                             }`,
-                            `\nAvailable tables and key fields:\n${
-                                catalogSummary || '(no catalog available)'
-                            }`,
+                            ...(isVizTemplate
+                                ? []
+                                : [
+                                      `\nAvailable tables and key fields:\n${
+                                          catalogSummary ||
+                                          '(no catalog available)'
+                                      }`,
+                                  ]),
                         ].join('\n'),
                     },
                 ],
             });
         } catch (err) {
             this.logger.warn(
-                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, llm=${llmProvider}): ${getErrorMessage(err)}`,
+                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider}): ${getErrorMessage(err)}`,
             );
             return { questions: [] };
         }
@@ -4468,7 +6079,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             .slice(0, 4);
 
         this.logger.info(
-            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, llm=${llmProvider})`,
+            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider})`,
         );
 
         return { questions };
@@ -4487,20 +6098,30 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         charts: AppChartReference[] | undefined,
         dashboard: AppDashboardReference | undefined,
         user: SessionUser,
+        projectUuid: string,
     ): Promise<{
         charts: { name: string; exploreName: string }[];
-        dashboardName: string | null;
+        dashboard: { name: string; structureSummary: string } | null;
     }> {
         const uuids = new Set<string>();
         for (const c of charts ?? []) uuids.add(c.uuid);
-        let dashboardName: string | null = null;
+        let resolvedDashboard: {
+            name: string;
+            structureSummary: string;
+        } | null = null;
         if (dashboard) {
             try {
-                const result = await this.resolveDashboardToChartUuids(
+                const result = await this.resolveDashboardReference(
                     dashboard.uuid,
                     user,
+                    projectUuid,
                 );
-                dashboardName = result.dashboardName;
+                resolvedDashboard = {
+                    name: result.dashboardName,
+                    structureSummary: describeDashboardBlueprint(
+                        result.blueprint,
+                    ),
+                };
                 for (const uuid of result.chartUuids) uuids.add(uuid);
             } catch (error) {
                 this.logger.warn(
@@ -4509,11 +6130,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             }
         }
         if (uuids.size === 0) {
-            return { charts: [], dashboardName };
+            return { charts: [], dashboard: resolvedDashboard };
         }
         const account = fromSession(user);
         const chartResults = await Promise.allSettled(
-            [...uuids].map((uuid) => this.savedChartService.get(uuid, account)),
+            [...uuids].map((uuid) =>
+                this.savedChartService.get(uuid, account, { projectUuid }),
+            ),
         );
         const resolvedCharts: { name: string; exploreName: string }[] = [];
         for (const result of chartResults) {
@@ -4524,7 +6147,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 });
             }
         }
-        return { charts: resolvedCharts, dashboardName };
+        return { charts: resolvedCharts, dashboard: resolvedDashboard };
     }
 
     /**
@@ -4535,22 +6158,28 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     private static formatAttachedResourcesForClarifier(
         attached: {
             charts: { name: string; exploreName: string }[];
-            dashboardName: string | null;
+            dashboard: { name: string; structureSummary: string } | null;
         },
-        imageCount: number,
+        fileCount: number,
     ): string {
         const lines: string[] = [];
-        if (attached.dashboardName) {
-            lines.push(`- Dashboard: "${attached.dashboardName}"`);
+        if (attached.dashboard) {
+            // Surface that the layout is already known so the clarifier does
+            // not ask structural questions the blueprint answers.
+            lines.push(
+                `- Dashboard: "${attached.dashboard.name}" (structure attached: ${attached.dashboard.structureSummary})`,
+            );
         }
         for (const chart of attached.charts) {
             lines.push(
                 `- Chart: "${chart.name}" (explore: ${chart.exploreName})`,
             );
         }
-        if (imageCount > 0) {
+        if (fileCount > 0) {
+            // The clarifier only sees ids — file types live on the staged S3
+            // objects — so keep the wording type-agnostic.
             lines.push(
-                `- ${imageCount} image${imageCount === 1 ? '' : 's'} attached as design reference`,
+                `- ${fileCount} file${fileCount === 1 ? '' : 's'} attached (design references or documents)`,
             );
         }
         return lines.join('\n');
@@ -4620,7 +6249,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         user: SessionUser,
         projectUuid: string,
         prompt: string,
-        imageIds: string[],
+        fileIds: string[],
         preGeneratedAppUuid?: string,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
@@ -4630,42 +6259,69 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         claudeModelInput?: DataAppClaudeModel,
         options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
-        const { designUuidInput, externalConnections } = options;
+        const {
+            creationExperience,
+            designUuidInput,
+            externalConnections,
+            codexModelInput,
+            aiAgentToolCall,
+        } = options;
         await this.assertDataAppsEnabled(user);
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-        this.assertDataAppAbility(
+        const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
-            organizationUuid,
             projectUuid,
             'Insufficient permissions to create data apps',
         );
         const claudeModel =
-            AppGenerateService.resolveClaudeModel(claudeModelInput);
+            this.dataAppCodingAgent === 'claude'
+                ? await this.resolveClaudeModel(
+                      organizationUuid,
+                      claudeModelInput,
+                  )
+                : DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const codexModel =
+            this.dataAppCodingAgent === 'codex'
+                ? AppGenerateService.resolveCodexModel(codexModelInput)
+                : undefined;
+        const codingAgentModel = codexModel ?? claudeModel;
 
         // When the caller wants the app to live in a space directly, also
         // require manage rights on that space — same gate space EDITOR/ADMIN
         // (or project admin) already pass through `manage:DataApp@space`.
         if (spaceUuid) {
             const spaceContext =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'space',
                     spaceUuid,
-                );
-            this.assertDataAppAbility(
+                });
+            await this.assertDataAppAbility(
                 user,
                 'manage',
-                organizationUuid,
                 projectUuid,
                 'Insufficient permissions to create a data app in this space',
                 spaceContext,
             );
         }
 
-        AppGenerateService.validateImageIds(imageIds);
+        AppGenerateService.validateFileIds(fileIds);
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
+        const claudeEffort = resolveClaudeEffort(version, template ?? null);
+
+        // Resolve attachment types/filenames from the staged S3 objects so the
+        // version resources can split image chips from file chips in the chat.
+        let stagedFiles: StagedAppFile[] = [];
+        if (fileIds.length > 0) {
+            const { client: s3Client, bucket } = this.getS3Client();
+            stagedFiles = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+        }
 
         // The pipeline gets the augmented prompt so Claude in the sandbox
         // sees the resolved intent. The version row keeps the original
@@ -4677,21 +6333,23 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         );
 
         this.logger.info(
-            `App ${appUuid}: generation started (model=${claudeModel}, promptLength=${prompt.length}, clarifications=${
+            `App ${appUuid}: generation started (model=${codingAgentModel}, promptLength=${prompt.length}, clarifications=${
                 clarifications?.length ?? 0
             })`,
         );
 
-        const { refs, dashboardName } = await this.collectChartReferences(
-            charts,
-            dashboard,
-            user,
-        );
+        const { refs, dashboardName, dashboardBlueprint } =
+            await this.collectChartReferences(
+                charts,
+                dashboard,
+                user,
+                projectUuid,
+            );
         const {
             references: chartReferences,
             chartResources,
             sampleStats,
-        } = await this.resolveChartReferences(refs, user);
+        } = await this.resolveChartReferences(refs, user, projectUuid);
         const externalConnectionResources =
             await this.resolveExternalConnectionResources(
                 user,
@@ -4740,12 +6398,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
 
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
-            images: imageIds.map((id) => ({ imageId: id })),
+            ...AppGenerateService.toAttachmentResources(stagedFiles),
+            ...(creationExperience ? { creationExperience } : {}),
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
+            dashboardUuid: dashboardBlueprint?.dashboardUuid ?? null,
             clarifications: clarifications ?? [],
-            claudeModel,
+            ...(codexModel ? { codexModel } : { claudeModel }),
             design: designSnapshot,
         };
 
@@ -4788,12 +6448,19 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 appUuid,
                 version,
                 promptLength: prompt.length,
-                imageCount: imageIds.length,
+                imageCount: stagedFiles.filter((f) => f.isImage).length,
+                fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 template: template ?? null,
-                claudeModel,
+                ...(this.dataAppCodingAgent === 'claude'
+                    ? { claudeModel }
+                    : {}),
+                codingAgent: this.dataAppCodingAgent,
+                codingAgentModel,
+                claudeEffort,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
                 clarificationCount: clarifications?.length ?? 0,
+                creationExperience: creationExperience ?? null,
             },
         });
 
@@ -4804,13 +6471,17 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
+            ...(creationExperience ? { creationExperience } : {}),
             template,
-            imageIds: imageIds.length > 0 ? imageIds : undefined,
+            fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: false,
+            claudeEffort,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
-            claudeModel,
+            dashboardBlueprint: dashboardBlueprint ?? undefined,
+            ...(codexModel ? { codexModel } : { claudeModel }),
             designUuid: resolvedDesignUuid,
+            ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
         });
 
         return { appUuid, version };
@@ -4821,25 +6492,59 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         projectUuid: string,
         appUuid: string,
         prompt: string,
-        imageIds: string[],
+        fileIds: string[],
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         claudeModelInput?: DataAppClaudeModel,
         options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
-        const { designUuidInput, externalConnections } = options;
+        const {
+            creationExperience,
+            designUuidInput,
+            externalConnections,
+            codexModelInput,
+            aiAgentToolCall,
+        } = options;
         await this.assertDataAppsEnabled(user);
 
-        AppGenerateService.validateImageIds(imageIds);
-        const claudeModel =
-            AppGenerateService.resolveClaudeModel(claudeModelInput);
+        AppGenerateService.validateFileIds(fileIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to modify data apps',
         );
+        AppGenerateService.assertNotRegistryManaged(app, 'edited');
+
+        // Resolve attachment types/filenames from the staged S3 objects so the
+        // version resources can split image chips from file chips in the chat.
+        let stagedFiles: StagedAppFile[] = [];
+        if (fileIds.length > 0) {
+            const { client: s3Client, bucket } = this.getS3Client();
+            stagedFiles = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+        }
+
+        // Resolved after the permission check so an unauthorized caller gets a
+        // 403 rather than a model-visibility error. Scoped to the project's
+        // organization (not the caller's) to match generateApp.
+        const claudeModel =
+            this.dataAppCodingAgent === 'claude'
+                ? await this.resolveClaudeModel(
+                      organizationUuid,
+                      claudeModelInput,
+                  )
+                : DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const codexModel =
+            this.dataAppCodingAgent === 'codex'
+                ? AppGenerateService.resolveCodexModel(codexModelInput)
+                : undefined;
+        const codingAgentModel = codexModel ?? claudeModel;
 
         const externalConnectionResources = await this.linkExternalConnections(
             user,
@@ -4859,25 +6564,27 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
-
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
         this.logger.info(
-            `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length}, designUuidInput=${
+            `App ${appUuid}: iteration started (version=${newVersion}, model=${codingAgentModel}, promptLength=${prompt.length}, designUuidInput=${
                 designUuidInput === undefined
                     ? 'inherit'
                     : (designUuidInput ?? 'none')
             })`,
         );
 
-        const { refs, dashboardName } = await this.collectChartReferences(
-            charts,
-            dashboard,
-            user,
-        );
+        const { refs, dashboardName, dashboardBlueprint } =
+            await this.collectChartReferences(
+                charts,
+                dashboard,
+                user,
+                projectUuid,
+            );
         const {
             references: chartReferences,
             chartResources,
             sampleStats,
-        } = await this.resolveChartReferences(refs, user);
+        } = await this.resolveChartReferences(refs, user, projectUuid);
 
         // Omitted designUuid means a normal content iteration that inherits
         // the app's current theme. Explicit string/null means "change the
@@ -4922,65 +6629,22 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             : prompt;
 
         const resources: AppVersionResources = {
-            images: imageIds.map((id) => ({ imageId: id })),
+            ...AppGenerateService.toAttachmentResources(stagedFiles),
+            ...(creationExperience ? { creationExperience } : {}),
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
+            dashboardUuid: dashboardBlueprint?.dashboardUuid ?? null,
             clarifications: [],
-            claudeModel,
+            ...(codexModel ? { codexModel } : { claudeModel }),
             design: designSnapshot,
         };
 
-        // Carry the latest version's custom dependency set forward. The dep
-        // FILES must be copied under the new version's S3 prefix BEFORE the
-        // row is created so a copy failure can't orphan a pending version.
-        // An errored version can hold a summary without files, so walk back
-        // to the newest version whose files actually exist.
-        let carriedDependencies: AppVersionDependencies | undefined;
-        if (latestVersion?.dependencies) {
-            // Kill-switch: iterations restore the stored dep set, so they must
-            // stop too when custom dependencies are disabled instance-wide.
-            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-                throw new ParameterError(
-                    'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). This app declares custom packages, so it cannot be iterated until they are re-enabled.',
-                );
-            }
-            carriedDependencies = latestVersion.dependencies;
-            const { client, bucket } = this.getS3Client();
-            const toPrefix = versionPrefix(appUuid, newVersion);
-            const candidates =
-                await this.appModel.getVersionsWithDependencies(appUuid);
-            let copied = false;
-            for (const candidate of candidates) {
-                const fromPrefix = versionPrefix(appUuid, candidate.version);
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await Promise.all(
-                        ['deps/package.json', 'deps/pnpm-lock.yaml'].map(
-                            (key) =>
-                                client.send(
-                                    new CopyObjectCommand({
-                                        Bucket: bucket,
-                                        CopySource: `${bucket}/${fromPrefix}${key}`,
-                                        Key: `${toPrefix}${key}`,
-                                    }),
-                                ),
-                        ),
-                    );
-                    copied = true;
-                    break;
-                } catch (err) {
-                    this.logger.warn(
-                        `App ${appUuid}: dependency files missing for version ${candidate.version}, trying an earlier version (${getErrorMessage(err)})`,
-                    );
-                }
-            }
-            if (!copied) {
-                throw new ParameterError(
-                    "Could not carry this app's custom dependencies forward: no stored dependency files found. Re-upload the app with 'lightdash upload --apps' to restore them.",
-                );
-            }
-        }
+        const carriedDependencies = await this.carryDependenciesForward(
+            appUuid,
+            newVersion,
+            latestVersion?.dependencies,
+        );
 
         await this.appModel.createVersion(
             appUuid,
@@ -5009,8 +6673,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 version: newVersion,
                 iterationNumber: newVersion - 1,
                 promptLength: prompt.length,
-                imageCount: imageIds.length,
-                claudeModel,
+                imageCount: stagedFiles.filter((f) => f.isImage).length,
+                fileCount: stagedFiles.filter((f) => !f.isImage).length,
+                ...(this.dataAppCodingAgent === 'claude'
+                    ? { claudeModel }
+                    : {}),
+                codingAgent: this.dataAppCodingAgent,
+                codingAgentModel,
+                claudeEffort,
                 themeChanged: isThemeChange,
                 designUuid: effectiveDesignUuid,
                 previousVersionStatus: latestVersion?.status ?? null,
@@ -5019,6 +6689,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     : null,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
+                creationExperience: creationExperience ?? null,
             },
         });
 
@@ -5029,12 +6700,298 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
-            imageIds: imageIds.length > 0 ? imageIds : undefined,
+            ...(creationExperience ? { creationExperience } : {}),
+            fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: true,
+            claudeEffort,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
-            claudeModel,
+            dashboardBlueprint: dashboardBlueprint ?? undefined,
+            ...(codexModel ? { codexModel } : { claudeModel }),
             designUuid: effectiveDesignUuid,
+            ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
+        });
+
+        return { appUuid, version: newVersion };
+    }
+
+    /**
+     * Carry the latest version's custom dependency set forward. The dep
+     * FILES must be copied under the new version's S3 prefix BEFORE the
+     * row is created so a copy failure can't orphan a pending version.
+     * An errored version can hold a summary without files, so walk back
+     * to the newest version whose files actually exist.
+     */
+    private async carryDependenciesForward(
+        appUuid: string,
+        newVersion: number,
+        latestDependencies: AppVersionDependencies | null | undefined,
+    ): Promise<AppVersionDependencies | undefined> {
+        if (!latestDependencies) return undefined;
+        const { client, bucket } = this.getS3Client();
+        const toPrefix = versionPrefix(appUuid, newVersion);
+        const candidates =
+            await this.appModel.getVersionsWithDependencies(appUuid);
+        let copied = false;
+        for (const candidate of candidates) {
+            const fromPrefix = versionPrefix(appUuid, candidate.version);
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await Promise.all(
+                    ['deps/package.json', 'deps/pnpm-lock.yaml'].map((key) =>
+                        client.send(
+                            new CopyObjectCommand({
+                                Bucket: bucket,
+                                CopySource: `${bucket}/${fromPrefix}${key}`,
+                                Key: `${toPrefix}${key}`,
+                            }),
+                        ),
+                    ),
+                );
+                copied = true;
+                break;
+            } catch (err) {
+                this.logger.warn(
+                    `App ${appUuid}: dependency files missing for version ${candidate.version}, trying an earlier version (${getErrorMessage(err)})`,
+                );
+            }
+        }
+        if (!copied) {
+            throw new ParameterError(
+                "Could not carry this app's custom dependencies forward: no stored dependency files found. Re-upload the app with 'lightdash upload --apps' to restore them.",
+            );
+        }
+        return latestDependencies;
+    }
+
+    /**
+     * The stored row prompt stays the short label (what chat history shows);
+     * this composed instruction is what the pipeline actually sends —
+     * mirrors the theme-change prompt pattern.
+     */
+    /**
+     * The client computes candidates from its own registry, but the registry
+     * is the same for every bundle kind, so re-check applicability here: a
+     * chart type never gets query/Sheets/delivery features, an app never
+     * gets viz-context ones. Keys the registry does not know are dropped too.
+     */
+    private static applicableCandidateFeatures(
+        body: UpgradeAppRequestBody,
+        target: SdkFeatureTarget,
+    ): UpgradeCandidateFeature[] {
+        const applicableKeys = new Set(
+            getSdkFeaturesForTarget(target).map((f) => f.key),
+        );
+        return (body.candidateFeatures ?? [])
+            .filter((f) => applicableKeys.has(f.key))
+            .slice(0, 20);
+    }
+
+    private static buildUpgradePrompt(
+        body: UpgradeAppRequestBody,
+        target: SdkFeatureTarget,
+    ): string {
+        const candidates = AppGenerateService.applicableCandidateFeatures(
+            body,
+            target,
+        );
+        const featureStep =
+            candidates.length > 0
+                ? [
+                      '2. These SDK features may be new to this app:',
+                      ...candidates.map(
+                          (f) =>
+                              `   - ${f.key}: ${f.label} — ${f.description}${
+                                  f.wiring
+                                      ? ` [wiring needed: ${f.wiring}]`
+                                      : ''
+                              }`,
+                      ),
+                      '   Keep only the ones that BOTH exist in the SDK installed in this workspace (verify in node_modules/@lightdash/query-sdk, e.g. dist/features.js) AND would be genuinely useful for what this app does. Silently discard the rest.',
+                      '   A feature marked [wiring needed] still counts as available — if it fits the app, OFFER it (the wiring happens later, only if the user asks). Remember its wiring note: it is how you implement the feature when they do.',
+                      '   A candidate that is ALREADY working after this rebuild (it activates automatically on the new SDK, or the app already contains its wiring) belongs in the "Now active" section of your final message, not the ask-list.',
+                  ].join('\n')
+                : '2. Read SDK_FEATURES from node_modules/@lightdash/query-sdk/dist/features.js to see what is available. If that file does not exist, the installed SDK predates feature reporting — there is nothing to offer; skip the feature list entirely.';
+        return [
+            'This app has just been moved to the latest app template (new SDK, components, and skills).',
+            'Do the following, in order:',
+            '1. You cannot run shell commands — the pipeline builds the app after your turn and returns any build errors to you. Check compatibility by reading the app source against the installed SDK, and fix any breakage minimally in the source. Do not change features, content, or visual design.',
+            featureStep,
+            'Never infer or invent "new features" from export lists, type definitions, or guesswork — if a feature is not declared in the installed SDK feature registry, do not mention it.',
+            '3. Your ENTIRE final message must be this template and nothing else — no text before it, between its parts, or after it:',
+            '',
+            '   The app was upgraded to the latest template successfully. [or, on failure, one plain sentence saying what broke]',
+            '',
+            '   Now active:',
+            '   - **<feature label>** — one short phrase on what it does. [one bullet per candidate you VERIFIED is already working after the rebuild]',
+            '',
+            '   Newly available — ask me to add any of these:',
+            '   - **<feature label>** — one short sentence on what it would do for this app.',
+            '',
+            '   Omit the "Now active" and/or "Newly available" sections when empty.',
+            '   It is for a non-technical app owner: never describe what you checked or how, never mention files, code, or APIs, and do not discuss features outside the bullet list.',
+            '   Do not implement any of the features now.',
+        ].join('\n');
+    }
+
+    private static buildDataAppVizUpgradeStatusMessage(
+        body: UpgradeAppRequestBody,
+    ): string {
+        const candidates = AppGenerateService.applicableCandidateFeatures(
+            body,
+            'chart_type',
+        );
+        if (body.reportedFeatures === undefined) {
+            return [
+                'Upgraded to the latest chart SDK.',
+                '',
+                'This chart came from an older SDK that could not report its capabilities. Ask for a new capability in the prompt bar when you want the builder to add it.',
+            ].join('\n');
+        }
+        if (candidates.length === 0) {
+            return 'Upgraded to the latest chart SDK. This chart already had all currently reported capabilities.';
+        }
+        const nowActive = candidates.filter((feature) => !feature.wiring);
+        const askToAdd = candidates.filter((feature) => feature.wiring);
+        const sections = ['Upgraded to the latest chart SDK.'];
+        if (nowActive.length > 0) {
+            sections.push(
+                [
+                    'Now active:',
+                    '',
+                    ...nowActive.map(
+                        (feature) =>
+                            `- **${feature.label}** — ${feature.description}`,
+                    ),
+                ].join('\n'),
+            );
+        }
+        if (askToAdd.length > 0) {
+            const askCopy =
+                askToAdd.length === 1
+                    ? 'Newly available — ask me to add this in the prompt bar:'
+                    : 'Newly available — ask me to add any of these in the prompt bar:';
+            sections.push(
+                [
+                    askCopy,
+                    '',
+                    ...askToAdd.map(
+                        (feature) =>
+                            `- **${feature.label}** — ${feature.description}`,
+                    ),
+                ].join('\n'),
+            );
+        }
+        return sections.join('\n\n');
+    }
+
+    /**
+     * Upgrade-as-iteration: rebuilds the app on the current template image.
+     * The `isUpgrade` flag makes the pipeline destroy the app's sandbox
+     * (carrying the Claude session best-effort) so the run cold-starts on the
+     * current image with the latest source restored. Nothing is persisted
+     * about freshness — the running bundle self-reports via the SDK manifest.
+     */
+    async upgradeApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        body: UpgradeAppRequestBody = {},
+    ): Promise<GenerateAppResult> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to upgrade this data app',
+        );
+        AppGenerateService.assertNotRegistryManaged(app, 'upgraded here');
+
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        if (
+            latestVersion?.status &&
+            isAppVersionInProgress(latestVersion.status)
+        ) {
+            throw new ParameterError(
+                'A version is already building for this app',
+            );
+        }
+        const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        if (!latestReady) {
+            throw new ParameterError(
+                'This app has no ready version to upgrade',
+            );
+        }
+
+        const newVersion = (latestVersion?.version ?? 0) + 1;
+        this.logger.info(
+            `App ${appUuid}: upgrade started (version=${newVersion}, reportedSdkVersion=${
+                body.reportedSdkVersion ?? 'unknown'
+            })`,
+        );
+
+        const carriedDependencies = await this.carryDependenciesForward(
+            appUuid,
+            newVersion,
+            latestVersion?.dependencies,
+        );
+
+        await this.appModel.createVersion(
+            appUuid,
+            {
+                version: newVersion,
+                prompt: APP_UPGRADE_PROMPT_LABEL,
+            },
+            'pending',
+            user.userUuid,
+            undefined,
+            carriedDependencies,
+            app.template === DATA_APP_VIZ_TEMPLATE
+                ? (latestReady.viz_schema ?? undefined)
+                : undefined,
+        );
+
+        this.analytics.track({
+            event: 'data_app.upgrade_requested',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid,
+                version: newVersion,
+                reportedSdkVersion: body.reportedSdkVersion ?? null,
+                reportedFeatureCount: body.reportedFeatures?.length ?? null,
+                candidateFeatureKeys:
+                    body.candidateFeatures?.map((f) => f.key) ?? null,
+            },
+        });
+
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
+        const sdkFeatureTarget = getSdkFeatureTargetForTemplate(app.template);
+
+        await this.schedulerClient.appGeneratePipeline({
+            appUuid,
+            version: newVersion,
+            projectUuid,
+            organizationUuid: user.organizationUuid!,
+            userUuid: user.userUuid,
+            prompt: AppGenerateService.buildUpgradePrompt(
+                body,
+                sdkFeatureTarget,
+            ),
+            isIteration: true,
+            isUpgrade: true,
+            ...(app.template === DATA_APP_VIZ_TEMPLATE
+                ? {
+                      upgradeStatusMessage:
+                          AppGenerateService.buildDataAppVizUpgradeStatusMessage(
+                              body,
+                          ),
+                  }
+                : {}),
+            claudeEffort,
+            designUuid: app.design_uuid,
         });
 
         return { appUuid, version: newVersion };
@@ -5099,7 +7056,6 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 `Cannot restore version ${sourceVersion}: status is ${source.status}, expected ready`,
             );
         }
-
         const newVersion = (latestVersion?.version ?? 0) + 1;
         const { client: s3Client, bucket } = this.getS3Client();
 
@@ -5118,10 +7074,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         if (app.sandbox_id) {
             let sandbox: SandboxHandle | null = null;
             try {
-                const copilot =
-                    await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
-                        app.organization_uuid,
-                    );
+                const copilot = await this.getCodingAgentConfig(
+                    app.organization_uuid,
+                );
                 const resumed = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
@@ -5140,12 +7095,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 // the working tree was reset and doesn't try to diff
                 // against code we've undone. Failures here don't fail the
                 // restore — worst case the next reply is mildly confused.
-                await this.notifyClaudeOfRestore(
-                    sandbox,
-                    appUuid,
-                    sourceVersion,
-                    copilot,
-                );
+                if (this.dataAppCodingAgent === 'claude') {
+                    await this.notifyClaudeOfRestore(
+                        sandbox,
+                        appUuid,
+                        sourceVersion,
+                        copilot,
+                    );
+                }
             } catch (error) {
                 // A half-synced sandbox would corrupt the next iteration —
                 // surface the failure and roll back the S3 copy.
@@ -5163,7 +7120,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             }
         }
 
-        // 3. Insert the new version
+        // 3. Insert the new version. A restore is not an AI generation, so do
+        // not copy the source version's creation experience onto it.
+        const restoredResources = source.resources
+            ? { ...source.resources }
+            : undefined;
+        if (restoredResources) {
+            delete restoredResources.creationExperience;
+        }
         await this.appModel.createVersion(
             appUuid,
             {
@@ -5172,7 +7136,18 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             },
             'ready',
             user.userUuid,
-            source.resources ?? undefined,
+            restoredResources,
+            source.dependencies ?? undefined,
+            // A data app viz is only listed while its latest ready version
+            // declares a schema, so dropping it here delists the viz and
+            // strips the contract from every chart bound to it.
+            source.viz_schema ?? undefined,
+            { registryVersion: source.registry_version ?? undefined },
+        );
+        await this.persistVersionDataReferences(
+            appUuid,
+            newVersion,
+            source.data_references,
         );
         await this.appModel.updateStatusMessage(
             appUuid,
@@ -5211,8 +7186,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         source: { appUuid: string; version: number },
         target: { appUuid: string; version: number },
     ): Promise<string[]> {
-        const sourcePrefix = `apps/${source.appUuid}/versions/${source.version}/`;
-        const destinationPrefix = `apps/${target.appUuid}/versions/${target.version}/`;
+        const sourcePrefix = versionPrefix(source.appUuid, source.version);
+        const destinationPrefix = versionPrefix(target.appUuid, target.version);
         const copiedKeys: string[] = [];
 
         let continuationToken: string | undefined;
@@ -5280,7 +7255,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
-        const sourceKey = `apps/${appUuid}/versions/${version}/source.tar`;
+        const sourceKey = `${versionPrefix(appUuid, version)}source.tar`;
         const response = await s3Client.send(
             new GetObjectCommand({ Bucket: bucket, Key: sourceKey }),
         );
@@ -5372,7 +7347,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 // sandbox hasn't generated anything before this restore).
                 // Best-effort: log and move on.
                 this.logger.warn(
-                    `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(result.stderr, 500)}`,
+                    `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(redactSandboxEnvSecrets(result.stderr, claudeCodeEnv, CLAUDE_CODE_SECRET_ENV_KEYS), 500)}`,
                 );
                 return;
             }
@@ -5439,9 +7414,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: sourceResources?.charts ?? [],
             externalConnections: sourceResources?.externalConnections ?? [],
             dashboardName: sourceResources?.dashboardName ?? null,
+            dashboardUuid: sourceResources?.dashboardUuid ?? null,
             clarifications: [],
             ...(sourceResources?.claudeModel
                 ? { claudeModel: sourceResources.claudeModel }
+                : {}),
+            ...(sourceResources?.codexModel
+                ? { codexModel: sourceResources.codexModel }
                 : {}),
         };
     }
@@ -5507,7 +7486,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): Promise<PromoteAppDiff> {
         await this.assertDataAppsEnabled(user);
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
             'Insufficient permissions to promote this data app',
@@ -5520,10 +7499,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             sourceApp,
             upstreamProjectUuid,
         );
-
-        const space = sourceApp.space_uuid
-            ? await this.spaceModel.getSpaceSummary(sourceApp.space_uuid)
-            : null;
+        const space =
+            !sourceAuthorization.directOnly && sourceApp.space_uuid
+                ? await this.spaceModel.getSpaceSummary(sourceApp.space_uuid)
+                : null;
 
         return {
             action: upstreamApp ? 'update' : 'create',
@@ -5559,7 +7538,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         await this.assertDataAppsEnabled(user);
 
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
             'Insufficient permissions to promote this data app',
@@ -5573,13 +7552,27 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
 
         // Authoring rights on the upstream project itself — viewers of the
         // preview must not be able to write into production.
-        this.assertDataAppAbility(
+        await this.assertDataAppAbility(
             user,
             'create',
-            upstreamOrganizationUuid,
             upstreamProjectUuid,
             'Insufficient permissions to promote into the upstream project',
         );
+
+        // Resolved (and guarded) before any persistent write below —
+        // getOrCreateUpstreamSpace() can create the upstream space and its
+        // ancestors, so the registry check must run first or a blocked
+        // promotion still leaves orphan empty spaces behind.
+        const upstreamApp = await this.findLinkedUpstreamApp(
+            sourceApp,
+            upstreamProjectUuid,
+        );
+        if (upstreamApp) {
+            AppGenerateService.assertNotRegistryManaged(
+                upstreamApp,
+                'promoted onto',
+            );
+        }
 
         const sourceVersion = await this.appModel.getLatestReadyVersion(
             sourceApp.app_id,
@@ -5589,17 +7582,17 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 'Cannot promote an app that has no successful version',
             );
         }
-
         // Resolve the upstream space (creating it + ancestors if missing) so
         // the production app mirrors the preview app's placement. Spaceless
         // apps land at the project root.
-        const targetSpaceUuid = sourceApp.space_uuid
-            ? await this.promoteService.getOrCreateUpstreamSpace(
-                  user,
-                  sourceApp.space_uuid,
-                  upstreamProjectUuid,
-              )
-            : null;
+        const targetSpaceUuid =
+            !sourceAuthorization.directOnly && sourceApp.space_uuid
+                ? await this.promoteService.getOrCreateUpstreamSpace(
+                      user,
+                      sourceApp.space_uuid,
+                      upstreamProjectUuid,
+                  )
+                : null;
 
         // Designs are org-scoped and the preview shares the upstream org, so
         // the design carries over — but guard against a since-deleted design.
@@ -5615,26 +7608,30 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const resources = AppGenerateService.buildCopiedResources(
             sourceVersion.resources ?? null,
         );
+        // Custom chart types promote like data apps, deliberately: template
+        // and viz_schema are copied below (so the promoted viz appears in the
+        // upstream picker) and vizs are spaceless, so targetSpaceUuid stays
+        // null. Note charts BOUND to a viz do not remap their dataAppVizUuid
+        // when promoted — that's the chart-binding portability gap, tracked
+        // separately.
+        const isChartType = sourceApp.template === DATA_APP_VIZ_TEMPLATE;
         // Frame the production version's chat bubble like a duplicate's: the
         // verb "Promote" plus a markdown link (rendered as an anchor by
         // ChatMessageContent) back to the preview version it came from, for
         // provenance.
-        const sourceDisplayName = sourceApp.name || 'untitled app';
-        const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
+        const sourceDisplayName =
+            sourceApp.name ||
+            (isChartType ? 'untitled chart type' : 'untitled app');
+        const sourcePreviewPath = isChartType
+            ? `/projects/${projectUuid}/chart-types/${sourceApp.app_id}`
+            : `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const prompt = `Promote [${sourceDisplayName}](${sourcePreviewPath})`;
         const { client: s3Client, bucket } = this.getS3Client();
-
-        // Re-read the link immediately before branching to narrow (not fully
-        // close) the window where two concurrent first-promotions could both
-        // create a production app. A duplicate is a rare, recoverable outcome.
-        const upstreamApp = await this.findLinkedUpstreamApp(
-            sourceApp,
-            upstreamProjectUuid,
-        );
 
         const metadata = {
             name: sourceApp.name,
             description: sourceApp.description,
+            icon: sourceApp.icon,
             space_uuid: targetSpaceUuid,
             design_uuid: targetDesignUuid,
         };
@@ -5685,6 +7682,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     targetAppUuid,
                 );
             }
+            await this.persistVersionDataReferences(
+                targetAppUuid,
+                targetVersion,
+                sourceVersion.data_references,
+            );
             await this.appModel.updateStatusMessage(
                 targetAppUuid,
                 targetVersion,
@@ -5701,6 +7703,48 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 copiedKeys,
             );
             throw error;
+        }
+
+        // Re-establish external-connection links on the production app by
+        // slug: preview connections are clones that keep the upstream slug,
+        // so each source link maps back to the same-slug upstream connection.
+        // Links to connections that exist only in the preview are skipped —
+        // there is nothing in production to point them at.
+        const sourceLinks = await this.externalConnectionModel.listAppLinks(
+            sourceApp.app_id,
+        );
+        const upstreamLinks: AppExternalConnectionReference[] = [];
+        for (const link of sourceLinks) {
+            const upstreamConnection =
+                // eslint-disable-next-line no-await-in-loop
+                await this.externalConnectionModel.findBySlug(
+                    upstreamProjectUuid,
+                    upstreamOrganizationUuid,
+                    link.connection.slug,
+                );
+            if (!upstreamConnection) {
+                this.logger.warn(
+                    `App ${targetAppUuid}: skipping external connection link "${link.alias}" — no connection with slug "${link.connection.slug}" in upstream project ${upstreamProjectUuid}`,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            upstreamLinks.push({
+                externalConnectionUuid:
+                    upstreamConnection.externalConnectionUuid,
+                alias: link.alias,
+            });
+        }
+        await this.externalConnectionModel.replaceAppLinks(
+            targetAppUuid,
+            upstreamLinks,
+        );
+
+        if (upstreamApp?.sandbox_id) {
+            await this.destroySandboxAndClearReference(
+                targetAppUuid,
+                upstreamApp.sandbox_id,
+            );
         }
 
         this.analytics.track({
@@ -5754,24 +7798,36 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         user: SessionUser,
         projectUuid: string,
         appUuids: string[],
-    ): Promise<{ sourceAppUuid: string; upstreamAppUuid: string }[]> {
+    ): Promise<
+        {
+            sourceAppUuid: string;
+            upstreamAppUuid: string;
+            upstreamAppVersion: number;
+        }[]
+    > {
         if (appUuids.length === 0) {
             return [];
         }
         await this.assertDataAppsEnabled(user);
 
-        const results: { sourceAppUuid: string; upstreamAppUuid: string }[] =
-            [];
+        const results: {
+            sourceAppUuid: string;
+            upstreamAppUuid: string;
+            upstreamAppVersion: number;
+        }[] = [];
         /* eslint-disable no-await-in-loop */
         for (const appUuid of appUuids) {
             const sourceApp = await this.appModel.findApp(appUuid, projectUuid);
             if (sourceApp) {
-                const { appUuid: upstreamAppUuid } = await this.promoteApp(
-                    user,
-                    projectUuid,
-                    appUuid,
-                );
-                results.push({ sourceAppUuid: appUuid, upstreamAppUuid });
+                const {
+                    appUuid: upstreamAppUuid,
+                    version: upstreamAppVersion,
+                } = await this.promoteApp(user, projectUuid, appUuid);
+                results.push({
+                    sourceAppUuid: appUuid,
+                    upstreamAppUuid,
+                    upstreamAppVersion,
+                });
             }
         }
         /* eslint-enable no-await-in-loop */
@@ -5849,7 +7905,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         user: SessionUser,
         projectUuid: string,
         sourceAppUuid: string,
-    ): Promise<GenerateAppResult> {
+        options?: { name?: string },
+    ): Promise<ApiDuplicateAppResponse['results']> {
         await this.assertDataAppsEnabled(user);
 
         const sourceApp = await this.appModel.getApp(
@@ -5861,13 +7918,20 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // The duplicate lands as a personal app in the same project. We need
         // `create:DataApp` on the project itself — viewers who can read a
         // shared app but can't author new ones must not be able to fork it.
-        this.assertDataAppAbility(
+        await this.assertDataAppAbility(
             user,
             'create',
-            sourceApp.organization_uuid,
             projectUuid,
             'Insufficient permissions to duplicate this data app',
         );
+
+        // Mirrors updateApp's name validation. Empty-after-trim is not an
+        // error here — it falls back to the default "Duplicate of ..." name.
+        if (options?.name !== undefined && options.name.trim().length > 255) {
+            throw new ParameterError(
+                'App name must be 255 characters or fewer',
+            );
+        }
 
         const sourceVersion = await this.appModel.getLatestReadyVersion(
             sourceApp.app_id,
@@ -5877,7 +7941,6 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 'Cannot duplicate an app that has no successful version',
             );
         }
-
         const sourceLinks = await this.externalConnectionModel.listAppLinks(
             sourceApp.app_id,
         );
@@ -5914,23 +7977,37 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const sourceDisplayName = sourceApp.name || 'untitled app';
         const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const duplicatePrompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
+        const newAppName =
+            options?.name?.trim() || `Duplicate of ${sourceDisplayName}`;
+        let newAppSlug: string;
 
         try {
-            await this.appModel.createWithVersion(
+            const { app } = await this.appModel.createWithVersion(
                 {
                     app_id: newAppUuid,
                     project_uuid: projectUuid,
                     created_by_user_uuid: user.userUuid,
-                    name: `Duplicate of ${sourceDisplayName}`,
+                    name: newAppName,
                     description: sourceApp.description,
+                    icon: sourceApp.icon,
                     template: sourceApp.template,
                     space_uuid: null,
+                    // A fork is a plain local chart type — registry lineage
+                    // is never copied, only fork lineage.
+                    origin_app_uuid: sourceApp.app_id,
+                    origin_app_version: sourceVersion.version,
                 },
                 { version: newVersion, prompt: duplicatePrompt },
                 'ready',
                 resources,
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
+            );
+            newAppSlug = app.slug;
+            await this.persistVersionDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.data_references,
             );
             await this.linkResolvedExternalConnections(
                 newAppUuid,
@@ -5963,6 +8040,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 appUuid: newAppUuid,
                 duplicatedFromAppUuid: sourceApp.app_id,
                 duplicatedFromVersion: sourceVersion.version,
+                duplicatedFromRegistrySlug: sourceApp.registry_slug,
             },
         });
 
@@ -5970,7 +8048,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             `App ${newAppUuid}: duplicated from app ${sourceApp.app_id} v${sourceVersion.version} (user=${user.userUuid}, copied ${copiedKeys.length} S3 object(s))`,
         );
 
-        return { appUuid: newAppUuid, version: newVersion };
+        return { appUuid: newAppUuid, slug: newAppSlug, version: newVersion };
     }
 
     /**
@@ -6030,12 +8108,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
-        const mappings: { sourceAppUuid: string; previewAppUuid: string }[] =
-            [];
+        const mappings: PreviewChartVizBindingMapping[] = [];
 
         /* eslint-disable no-await-in-loop */
         for (const sourceApp of sourceApps) {
-            const previewAppUuid = await this.copyAppForPreview(
+            const previewApp = await this.copyAppForPreview(
                 sourceApp,
                 sourceProjectUuid,
                 previewProjectUuid,
@@ -6045,10 +8122,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 s3Client,
                 bucket,
             );
-            if (previewAppUuid) {
+            if (previewApp) {
                 mappings.push({
                     sourceAppUuid: sourceApp.app_id,
-                    previewAppUuid,
+                    previewAppUuid: previewApp.appUuid,
+                    previewAppVersion: previewApp.version,
                 });
             }
         }
@@ -6057,6 +8135,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // Repoint the preview's dashboard tiles (copied still pointing at the
         // upstream apps) onto the duplicated apps.
         await this.appModel.remapPreviewDashboardTileApps(
+            previewProjectUuid,
+            mappings,
+        );
+        // Same for charts on a custom chart type — their copied chart_config
+        // still references the upstream viz uuid, which is invisible to the
+        // preview's project-scoped viz render endpoints.
+        await this.appModel.remapPreviewChartVizBindings(
             previewProjectUuid,
             mappings,
         );
@@ -6081,7 +8166,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         connectionUuidMap: Map<string, string>,
         s3Client: S3Client,
         bucket: string,
-    ): Promise<string | null> {
+    ): Promise<{ appUuid: string; version: number } | null> {
         const sourceVersion = await this.appModel.getLatestReadyVersion(
             sourceApp.app_id,
         );
@@ -6168,7 +8253,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     // by their creator inside the preview.
                     created_by_user_uuid: sourceApp.created_by_user_uuid,
                     name: sourceApp.name,
+                    slug: sourceApp.slug,
                     description: sourceApp.description,
+                    icon: sourceApp.icon,
                     template: sourceApp.template,
                     space_uuid: previewSpaceUuid,
                     design_uuid: targetDesignUuid,
@@ -6178,6 +8265,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 resources,
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
+            );
+            await this.persistVersionDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.data_references,
             );
             // Link back to the upstream app so a later promote updates it
             // instead of creating a duplicate.
@@ -6211,7 +8303,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             return null;
         }
 
-        return newAppUuid;
+        return { appUuid: newAppUuid, version: newVersion };
     }
 
     async cancelVersion(
@@ -6237,8 +8329,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             appUuid,
             version,
             'error',
-            'Cancelled by user',
-            'Cancelled by user',
+            APP_VERSION_CANCELLED_BY_USER,
+            APP_VERSION_CANCELLED_BY_USER,
         );
         if (!updated) {
             throw new ParameterError('This version is not currently building');
@@ -6260,20 +8352,44 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     stageAtCancellation: versionRow.status,
                     msElapsedBeforeCancel:
                         Date.now() - versionRow.created_at.getTime(),
+                    creationExperience:
+                        versionRow.resources?.creationExperience ?? null,
                 },
             });
         }
 
-        // Suspend the sandbox to interrupt any running commands while keeping
-        // it resumable for the next iteration (snapshot + destroy on
-        // object-store backends, preserving state).
+        // Kill the in-flight claude process, then suspend the sandbox while
+        // keeping it resumable for the next iteration (snapshot + destroy on
+        // object-store backends, preserving state). The kill must happen
+        // before the pause: on native-pause backends a frozen claude process
+        // would otherwise resume executing the cancelled instruction when the
+        // next iteration resumes the sandbox.
         // The pipeline will catch the resulting error, but markError is now
         // a no-op since the version is already in 'error' state — and
         // pipeline catches gate `trackVersionFailed` on the markError result,
         // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
-                await this.getSandboxManager().suspendByUuid(app.sandbox_id);
+                await this.getSandboxManager().suspendByUuid(app.sandbox_id, {
+                    beforeSuspend: async (handle) => {
+                        try {
+                            await handle.commands.run(
+                                INTERRUPT_CODING_AGENT_COMMAND,
+                                {
+                                    timeoutMs: 15_000,
+                                },
+                            );
+                            this.logger.info(
+                                `App ${appUuid}: interrupted in-flight claude before suspend`,
+                            );
+                        } catch (error) {
+                            // Best-effort — the suspend must still happen.
+                            this.logger.warn(
+                                `App ${appUuid}: failed to interrupt claude before suspend: ${getErrorMessage(error)}`,
+                            );
+                        }
+                    },
+                });
                 this.logger.info(
                     `App ${appUuid}: sandbox suspended after cancel (sandboxUuid=${app.sandbox_id})`,
                 );
@@ -6286,10 +8402,42 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
     }
 
+    /**
+     * Narration entries as served to the chat UI. Stage labels are always
+     * dropped (transient progress the live status line already showed). On
+     * terminal versions, reasoning entries restated in the final completion
+     * message are dropped too — the snippet stream can't tell Claude's
+     * closing response apart from mid-run narration, so its sentences also
+     * land in the history. Snippets are verbatim extracts, so a normalized
+     * substring check identifies them exactly.
+     */
+    private static filterStatusHistoryForApi(
+        history: AppVersionStatusHistoryEntry[] | null,
+        status: AppVersionStatus,
+        statusMessage: string | null,
+    ): AppVersionStatusHistoryEntry[] {
+        const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
+        const finalText =
+            !isAppVersionInProgress(status) && statusMessage
+                ? normalize(statusMessage)
+                : null;
+        return (history ?? []).filter((entry) => {
+            if (entry.kind === 'stage') return false;
+            if (
+                finalText &&
+                entry.kind === 'thinking' &&
+                finalText.includes(normalize(entry.message))
+            ) {
+                return false;
+            }
+            return true;
+        });
+    }
+
     async getAppVersions(
         user: SessionUser,
         projectUuid: string,
-        appUuid: string,
+        appUuidOrSlug: string,
         opts: { beforeVersion?: number; limit?: number },
     ): Promise<{
         appUuid: string;
@@ -6301,11 +8449,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         template: Exclude<DataAppTemplate, 'custom'> | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
+        slug: string;
+        views: number;
         versions: {
             version: number;
             prompt: string;
             status: AppVersionStatus;
             statusMessage: string | null;
+            statusHistory: AppVersionStatusHistoryEntry[];
             error: string | null;
             createdAt: Date;
             statusUpdatedAt: Date | null;
@@ -6319,24 +8470,39 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }[];
         hasMore: boolean;
         latestReadyVersion: number | null;
+        registrySlug: string | null;
+        icon: ChartTypeIcon | null;
     }> {
         await this.assertDataAppsEnabled(user);
+
+        // Resolve to the real uuid before any query — the raw arg may be a
+        // slug and must never reach a uuid-typed filter.
+        const resolvedApp = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
+        const appUuid = resolvedApp.app_id;
 
         const {
             name,
             description,
+            icon,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
             spaceName,
             template,
+            slug,
+            viewsCount,
             pinnedListUuid,
             pinnedListOrder,
             versions,
             hasMore,
+            registrySlug,
         } = await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
 
-        await this.assertCanViewApp(user, {
+        const appAuthorization = await this.assertCanViewApp(user, {
+            app_id: appUuid,
             project_uuid: projectUuid,
             space_uuid: spaceUuid,
             organization_uuid: organizationUuid,
@@ -6352,16 +8518,25 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             name,
             description,
             createdByUserUuid,
-            spaceUuid,
-            spaceName,
+            spaceUuid: appAuthorization.directOnly ? null : spaceUuid,
+            spaceName: appAuthorization.directOnly ? null : spaceName,
             template,
-            pinnedListUuid,
-            pinnedListOrder,
+            slug,
+            views: viewsCount,
+            pinnedListUuid: appAuthorization.directOnly ? null : pinnedListUuid,
+            pinnedListOrder: appAuthorization.directOnly
+                ? null
+                : pinnedListOrder,
             versions: versions.map((v) => ({
                 version: v.version,
                 prompt: v.prompt,
                 status: v.status,
                 statusMessage: v.status_message,
+                statusHistory: AppGenerateService.filterStatusHistoryForApi(
+                    v.status_history,
+                    v.status,
+                    v.status_message,
+                ),
                 error: v.error,
                 // Attach `vizSchema` even when `resources` JSONB is null (a
                 // viz with no other attachments) — never drop existing
@@ -6371,12 +8546,16 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     v.resources || v.viz_schema
                         ? {
                               images: v.resources?.images ?? [],
+                              creationExperience:
+                                  v.resources?.creationExperience,
+                              files: v.resources?.files ?? [],
                               charts: v.resources?.charts ?? [],
                               externalConnections:
                                   v.resources?.externalConnections,
                               dashboardName: v.resources?.dashboardName ?? null,
                               clarifications: v.resources?.clarifications ?? [],
                               claudeModel: v.resources?.claudeModel,
+                              codexModel: v.resources?.codexModel,
                               design: v.resources?.design,
                               vizSchema: v.viz_schema ?? null,
                           }
@@ -6402,31 +8581,39 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             })),
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
+            registrySlug,
+            // An icon retired from the curated set reads back as no icon.
+            icon: isChartTypeIcon(icon) ? icon : null,
         };
     }
 
     /**
-     * List all (non-deleted) data apps in a project — used by the embed config
-     * UI to populate the standalone-app allowlist picker.
+     * List the project's (non-deleted) apps of one kind. Serves both listing
+     * endpoints: GET /apps ('exclude' — data apps for the embed config
+     * allowlist picker and the CLI) and GET /apps/chart-types ('only' —
+     * custom chart types for the CLI). Defaults to excluding chart types:
+     * they are not data apps.
      */
     async listAppsForProject(
         user: SessionUser,
         projectUuid: string,
+        dataAppVizsFilter: DataAppVizsFilter = 'exclude',
     ): Promise<EmbedProjectApp[]> {
         await this.assertDataAppsEnabled(user);
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const projectContext = await this.getDataAppProjectContext(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('DataApp', { organizationUuid, projectUuid }),
-            )
-        ) {
+        if (auditedAbility.cannot('view', subject('DataApp', projectContext))) {
             throw new ForbiddenError('Insufficient permissions');
         }
-        const apps = await this.appModel.listAppsByProject(projectUuid);
-        return apps.map((app) => ({ appUuid: app.app_id, name: app.name }));
+        const apps = await this.appModel.listAppsByProject(projectUuid, {
+            dataAppVizsFilter,
+        });
+        return apps.map((app) => ({
+            appUuid: app.app_id,
+            name: app.name,
+            slug: app.slug,
+            template: app.template,
+        }));
     }
 
     // Validate the generator's declared schema. Pure (no IO); null when the
@@ -6469,6 +8656,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): DataAppViz {
         return {
             dataAppVizUuid: app.app_id,
+            slug: app.slug,
             name: app.name,
             description: app.description,
             projectUuid: app.project_uuid,
@@ -6476,6 +8664,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             schema: app.viz_schema,
             createdAt: app.created_at,
             createdByUserUuid: app.created_by_user_uuid,
+            registrySlug: app.registry_slug,
+            // An icon retired from the curated set reads back as no icon.
+            icon: isChartTypeIcon(app.icon) ? app.icon : null,
         };
     }
 
@@ -6489,10 +8680,12 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
+        // The library is offered to whoever can build a chart in an explore:
+        // picking a renderer is part of configuring a chart, not app access.
         if (
             auditedAbility.cannot(
-                'view',
-                subject('DataApp', { organizationUuid, projectUuid }),
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError('Insufficient permissions');
@@ -6506,10 +8699,329 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
     }
 
+    /** Whether the given entry's `minLightdashVersion` is newer than this instance. Non-semver instance versions are treated as compatible. */
+    private static isRegistryEntryIncompatible(entry: {
+        minLightdashVersion: string | null;
+    }): boolean {
+        return (
+            entry.minLightdashVersion !== null &&
+            isSemverVersion(VERSION) &&
+            compareSemverVersions(VERSION, entry.minLightdashVersion) < 0
+        );
+    }
+
+    /**
+     * The catalog of installable chart types from the configured chart
+     * registry, merged with this project's install state. Gated behind
+     * both the data-apps flag and the `ChartTypeRegistry` rollout flag; the
+     * library is offered to whoever can build a chart in an explore, same as
+     * `listDataAppVisualizations`.
+     */
+    async listRegistryChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{
+        registryEnabled: boolean;
+        charts: RegistryChartTypeListItem[];
+    }> {
+        await this.assertDataAppsEnabled(user);
+        const { enabled: registryFlagEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ChartTypeRegistry,
+            });
+        if (!registryFlagEnabled) {
+            throw new ForbiddenError('The chart type library is not enabled');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        if (!this.chartRegistryClient.isEnabled()) {
+            return { registryEnabled: false, charts: [] };
+        }
+        const [index, installed] = await Promise.all([
+            this.chartRegistryClient.getIndex(),
+            this.appModel.listRegistryInstalledApps(projectUuid),
+        ]);
+        const bySlug = new Map(installed.map((a) => [a.registry_slug, a]));
+        const charts: RegistryChartTypeListItem[] = index.charts.map(
+            (entry) => {
+                const inst = bySlug.get(entry.slug);
+                const incompatible =
+                    AppGenerateService.isRegistryEntryIncompatible(entry);
+                let state: RegistryChartTypeState = 'not_installed';
+                if (inst?.latest_ready_registry_version) {
+                    state =
+                        !incompatible &&
+                        compareSemverVersions(
+                            inst.latest_ready_registry_version,
+                            entry.version,
+                        ) < 0
+                            ? 'update_available'
+                            : 'installed';
+                } else if (incompatible) {
+                    state = 'incompatible';
+                }
+                return {
+                    ...entry,
+                    state,
+                    installedAppUuid: inst?.app_id ?? null,
+                    installedRegistryVersion:
+                        inst?.latest_ready_registry_version ?? null,
+                    installedCreatedByUserUuid:
+                        inst?.created_by_user_uuid ?? null,
+                };
+            },
+        );
+        return { registryEnabled: true, charts };
+    }
+
+    /**
+     * Install a chart type from the chart registry, or append a new version
+     * when it's already installed at an older registry version. Registry
+     * artifacts are verified (digest-checked) and downloaded before any S3 or
+     * DB write; a DB write failure rolls back the copied S3 keys.
+     */
+    async installRegistryChartType(
+        user: SessionUser,
+        projectUuid: string,
+        chartSlug: string,
+    ): Promise<{
+        appUuid: string;
+        slug: string;
+        version: number;
+        action: 'installed' | 'upgraded' | 'unchanged';
+    }> {
+        await this.assertDataAppsEnabled(user);
+        const { enabled: registryFlagEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ChartTypeRegistry,
+            });
+        if (!registryFlagEnabled) {
+            throw new ForbiddenError('The chart type library is not enabled');
+        }
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+
+        // Install/upgrade is an explicit "check the registry now" action —
+        // bypass the index TTL so a just-published version installs
+        // immediately instead of returning "unchanged" until expiry.
+        const entry = await this.chartRegistryClient.getEntry(chartSlug, {
+            forceRefresh: true,
+        });
+        if (!entry) {
+            throw new NotFoundError(
+                `Chart type "${chartSlug}" not found in the registry`,
+            );
+        }
+        if (AppGenerateService.isRegistryEntryIncompatible(entry)) {
+            throw new ParameterError(
+                `Chart type "${entry.slug}" requires a newer Lightdash version (>= ${entry.minLightdashVersion}); this instance is on ${VERSION}`,
+            );
+        }
+        // Belt-and-braces: the index was already zod-validated when fetched.
+        const vizSchemaParse = dataAppVizSchema.safeParse(entry.vizSchema);
+        if (!vizSchemaParse.success) {
+            throw new ParameterError(
+                `Chart type "${entry.slug}" has an invalid vizSchema and cannot be installed`,
+            );
+        }
+        const vizSchema = vizSchemaParse.data;
+
+        const installedApps =
+            await this.appModel.listRegistryInstalledApps(projectUuid);
+        const existing = installedApps.find(
+            (a) => a.registry_slug === chartSlug,
+        );
+        if (
+            existing &&
+            existing.latest_ready_registry_version === entry.version
+        ) {
+            const latest = await this.appModel.getLatestReadyVersion(
+                existing.app_id,
+            );
+            return {
+                appUuid: existing.app_id,
+                slug: chartSlug,
+                version: latest!.version,
+                action: 'unchanged',
+            };
+        }
+
+        const [sourceTar, distTar] = await Promise.all([
+            this.chartRegistryClient.downloadArtifact(entry, 'source'),
+            this.chartRegistryClient.downloadArtifact(entry, 'dist'),
+        ]);
+        // The registry is an external input — validate the dist bundle's
+        // shape before any S3 write, so a malicious/malformed dist.tar (e.g.
+        // an entry that would overwrite source.tar at this version prefix)
+        // never reaches extraction.
+        await assertValidDistTar(distTar);
+        const { client: s3Client, bucket } = this.getS3Client();
+        const appUuid = existing?.app_id ?? uuidv4();
+        const version = existing
+            ? (await this.appModel.getLatestVersion(appUuid))!.version + 1
+            : 1;
+        const prefix = versionPrefix(appUuid, version);
+        await s3Client.send(
+            new PutObjectCommand({
+                Bucket: bucket,
+                Key: `${prefix}source.tar`,
+                Body: sourceTar,
+                ContentType: 'application/x-tar',
+            }),
+        );
+        await AppGenerateService.extractAndUploadToS3(
+            distTar,
+            s3Client,
+            bucket,
+            prefix,
+        );
+
+        const prompt = `Installed ${entry.name} v${entry.version} from the chart type library`;
+        try {
+            if (existing) {
+                await this.appModel.createVersion(
+                    appUuid,
+                    { version, prompt },
+                    'ready',
+                    user.userUuid,
+                    undefined,
+                    undefined,
+                    vizSchema,
+                    { registryVersion: entry.version },
+                );
+                // Registry-installed apps are read-only, so the registry's
+                // icon always wins on upgrade.
+                await this.appModel.updateApp(appUuid, projectUuid, {
+                    icon: entry.icon,
+                });
+            } else {
+                await this.appModel.createWithVersion(
+                    {
+                        app_id: appUuid,
+                        project_uuid: projectUuid,
+                        created_by_user_uuid: user.userUuid,
+                        name: entry.name,
+                        description: entry.description,
+                        slug: entry.slug,
+                        template: DATA_APP_VIZ_TEMPLATE,
+                        icon: entry.icon,
+                        registry_slug: entry.slug,
+                        registry_url: this.chartRegistryClient.getBaseUrl(),
+                    },
+                    { version: 1, prompt },
+                    'ready',
+                    undefined,
+                    undefined,
+                    vizSchema,
+                    { registryVersion: entry.version },
+                );
+            }
+        } catch (e) {
+            if (isUniqueConstraintViolation(e)) {
+                if (existing) {
+                    // A concurrent upgrade of the same app can also win the
+                    // race to (app_id, version) — its createVersion already
+                    // committed to this exact S3 prefix, so cleaning it up
+                    // here would delete the winner's just-written bundle.
+                    throw new ParameterError(
+                        'Another install of this chart type is in progress — retry',
+                    );
+                }
+                // A concurrent fresh install races on registry_slug, not on
+                // this app's own (unshared) uuid/prefix — cleaning up here
+                // only removes the loser's own bundle, never the winner's.
+                await this.deleteVersionS3Prefix(
+                    s3Client,
+                    bucket,
+                    appUuid,
+                    version,
+                );
+                throw new ParameterError(
+                    'This chart type was just installed by someone else — refresh',
+                );
+            }
+            await this.deleteVersionS3Prefix(
+                s3Client,
+                bucket,
+                appUuid,
+                version,
+            );
+            throw e;
+        }
+
+        const action = existing ? 'upgraded' : 'installed';
+        this.analytics.track({
+            event: 'data_app.registry_installed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid,
+                chartSlug: entry.slug,
+                version,
+                registryVersion: entry.version,
+                action,
+            },
+        });
+
+        return { appUuid, slug: entry.slug, version, action };
+    }
+
+    /**
+     * Thin pass-through to the chart registry's index-listed images
+     * (thumbnails/screenshots). No ability check beyond route auth — these
+     * are catalog metadata, not project data — but gated the same way as
+     * `listRegistryChartTypes`: the data-apps flag, then the
+     * `ChartTypeRegistry` rollout flag, before falling back to the registry
+     * client's own enabled check (`chartRegistryClient.getAsset` throws when
+     * it isn't).
+     */
+    async getRegistryAsset(
+        user: SessionUser,
+        path: string,
+    ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
+        await this.assertDataAppsEnabled(user);
+        const { enabled: registryFlagEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ChartTypeRegistry,
+            });
+        if (!registryFlagEnabled) {
+            throw new ForbiddenError('The chart type library is not enabled');
+        }
+        if (!this.chartRegistryClient.isEnabled()) {
+            return undefined;
+        }
+        return this.chartRegistryClient.getAsset(path);
+    }
+
+    /**
+     * `version` answers with that version's own schema instead of the latest
+     * ready one, so a builder previewing an older version can configure the
+     * options that version declares. It resolves through the same guard as the
+     * preview token: whatever can be previewed can be configured.
+     */
     async getDataAppVisualization(
         user: SessionUser,
         projectUuid: string,
         dataAppVizUuid: string,
+        version?: number,
     ): Promise<DataAppViz> {
         await this.assertDataAppsEnabled(user);
         const dataAppViz = await this.appModel.findVisualizationApp(
@@ -6522,18 +9034,226 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
         await this.assertCanViewApp(user, {
+            app_id: dataAppViz.app_id,
             project_uuid: dataAppViz.project_uuid,
             space_uuid: dataAppViz.space_uuid,
             organization_uuid: dataAppViz.organization_uuid,
             created_by_user_uuid: dataAppViz.created_by_user_uuid,
         });
-        return AppGenerateService.mapDataAppViz(dataAppViz);
+        if (version === undefined) {
+            return AppGenerateService.mapDataAppViz(dataAppViz);
+        }
+        const appVersion = await resolveRenderableDataAppVizVersion(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+        );
+        return AppGenerateService.mapDataAppViz({
+            ...dataAppViz,
+            viz_schema: appVersion.viz_schema,
+        });
+    }
+
+    /**
+     * Authoring preview: the chart does not exist yet (or is being edited), so
+     * there is no chart ACL to defer to. Picking a renderer is part of building
+     * a chart in an explore, so this matches `listDataAppVisualizations`.
+     */
+    private async getAuthorizedDataAppVizForAuthoring(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ) {
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        await this.assertDataAppsEnabled(user);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: dataAppViz.organization_uuid,
+                    projectUuid: dataAppViz.project_uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        return dataAppViz;
+    }
+
+    /**
+     * Viewing a saved chart that renders this viz. Authorization follows the
+     * chart, so space-private charts stay private, and the chart must actually
+     * reference the requested viz.
+     */
+    private async getAuthorizedDataAppVizForChart(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+        chartVersionUuid?: string,
+    ) {
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        await this.assertDataAppsEnabled(user);
+
+        await this.savedChartService.hasAccess(
+            'view',
+            { user, projectUuid },
+            { savedChartUuid },
+        );
+
+        // Version history previews an older config, so authorize against the
+        // version actually being rendered rather than the latest one.
+        const chart = await this.savedChartModel.get(
+            savedChartUuid,
+            chartVersionUuid,
+            { projectUuid },
+        );
+        if (
+            chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
+        ) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
+
+        return { dataAppViz, chart };
+    }
+
+    private resolveVizRenderMetadata(
+        appUuid: string,
+        pinnedVersion?: number,
+    ): Promise<DataAppVizRenderMetadata> {
+        return resolveDataAppVizRenderMetadata(
+            this.appModel,
+            appUuid,
+            getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
+            pinnedVersion,
+        );
+    }
+
+    async getDataAppVizRenderMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
+            user,
+            projectUuid,
+            dataAppVizUuid,
+        );
+        return this.resolveVizRenderMetadata(dataAppViz.app_id);
+    }
+
+    async getDataAppVizPreviewToken(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
+            user,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        await resolveRenderableDataAppVizVersion(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+        );
+
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecrets,
+            dataAppViz.app_id,
+            version,
+            user.userUuid,
+            dataAppViz.organization_uuid,
+            projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
+        );
+    }
+
+    async getChartDataAppVizRenderMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+        chartVersionUuid?: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForChart(
+                user,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                chartVersionUuid,
+            );
+        const pinnedVersion = getDataAppVizVersionPin(chart.chartConfig);
+        return this.resolveVizRenderMetadata(dataAppViz.app_id, pinnedVersion);
+    }
+
+    async getChartDataAppVizPreviewToken(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+        chartVersionUuid?: string,
+    ): Promise<string> {
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForChart(
+                user,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                chartVersionUuid,
+            );
+
+        await assertDataAppVizPreviewVersionAllowed(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+            getDataAppVizVersionPin(chart.chartConfig),
+        );
+
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecrets,
+            dataAppViz.app_id,
+            version,
+            user.userUuid,
+            dataAppViz.organization_uuid,
+            projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
+        );
     }
 
     async listMyApps(
         user: SessionUser,
         paginateArgs?: { page: number; pageSize: number },
-        options: { excludePreviewProjects?: boolean } = {},
+        options: {
+            excludePreviewProjects?: boolean;
+            projectUuids?: string[];
+            search?: string;
+            sortBy?: MyAppsSortBy;
+        } = {},
     ): Promise<{
         data: {
             appUuid: string;
@@ -6580,6 +9300,90 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 lastVersionStatus: row.lastVersion?.status ?? null,
             })),
             pagination: result.pagination,
+        };
+    }
+
+    private static toActivityEvent(
+        row: DbAppActivityRow,
+    ): DataAppActivityEvent {
+        const codexModel = row.resources?.codexModel;
+        const claudeModel =
+            row.resources?.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const codingAgent = codexModel ? 'codex' : 'claude';
+        return {
+            appUuid: row.app_id,
+            appName: row.app_name,
+            appDeleted: row.app_deleted_at !== null,
+            template: row.app_template,
+            version: row.version,
+            status: row.status,
+            prompt: row.prompt,
+            codingAgent,
+            codingAgentModel: codexModel ?? claudeModel,
+            ...(codingAgent === 'claude' ? { claudeModel } : {}),
+            createdAt: row.created_at,
+            projectUuid: row.project_uuid,
+            projectName: row.project_name,
+            // first_name/last_name are non-null on the user row, so a null here
+            // means the join missed entirely (hard-deleted author).
+            user:
+                row.created_by_user_first_name === null ||
+                row.created_by_user_last_name === null
+                    ? null
+                    : {
+                          userUuid: row.created_by_user_uuid,
+                          firstName: row.created_by_user_first_name,
+                          lastName: row.created_by_user_last_name,
+                      },
+            usage:
+                row.generation_usage === null
+                    ? null
+                    : {
+                          ...row.generation_usage,
+                          costUsd:
+                              codingAgent === 'codex'
+                                  ? null
+                                  : row.generation_usage.costUsd,
+                      },
+        };
+    }
+
+    /**
+     * Org-wide log of every data app generation — who built what, when, and
+     * with which model. Org admins only.
+     */
+    async getOrganizationActivity(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: DataAppActivityFilters,
+    ): Promise<KnexPaginatedData<DataAppActivityEvent[]>> {
+        await this.assertDataAppsEnabled(user);
+
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        const { data, pagination } =
+            await this.appModel.getOrganizationActivity(
+                organizationUuid,
+                paginateArgs,
+                filters,
+            );
+
+        return {
+            data: data.map(AppGenerateService.toActivityEvent),
+            pagination,
         };
     }
 
@@ -6665,8 +9469,17 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-        update: { name?: string; description?: string },
-    ): Promise<{ appUuid: string; name: string; description: string }> {
+        update: {
+            name?: string;
+            description?: string;
+            icon?: ChartTypeIcon | null;
+        },
+    ): Promise<{
+        appUuid: string;
+        name: string;
+        description: string;
+        icon: ChartTypeIcon | null;
+    }> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -6674,9 +9487,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             app,
             'Insufficient permissions to manage data apps',
         );
+        AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
-        const fieldsToUpdate: Partial<{ name: string; description: string }> =
-            {};
+        const fieldsToUpdate: Partial<{
+            name: string;
+            description: string;
+            icon: string | null;
+        }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
             if (trimmedName.length === 0) {
@@ -6698,10 +9515,23 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             }
             fieldsToUpdate.description = trimmedDescription;
         }
+        if (update.icon !== undefined) {
+            if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+                throw new ParameterError(
+                    'Only custom chart types can have an icon',
+                );
+            }
+            if (update.icon !== null && !isChartTypeIcon(update.icon)) {
+                throw new ParameterError(
+                    `Invalid chart type icon: ${String(update.icon)}`,
+                );
+            }
+            fieldsToUpdate.icon = update.icon;
+        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name or description must be provided',
+                'At least one of name, description or icon must be provided',
             );
         }
 
@@ -6714,6 +9544,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             appUuid: updatedApp.app_id,
             name: updatedApp.name,
             description: updatedApp.description,
+            icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
         };
     }
 
@@ -6769,6 +9600,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 projectId: projectUuid,
                 appUuid,
                 softDelete: softDeleteEnabled,
+                registrySlug: app.registry_slug,
             },
         });
     }
@@ -6794,12 +9626,12 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             });
         } else {
             await this.assertDataAppsEnabled(user);
-            this.assertDataAppAbility(
+            await this.assertCanManageApp(
                 user,
-                'manage',
-                app.organization_uuid,
-                projectUuid,
+                app,
                 'Insufficient permissions to restore data apps',
+                {},
+                { includeDeleted: true },
             );
         }
 
@@ -6840,12 +9672,12 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             });
         } else {
             await this.assertDataAppsEnabled(user);
-            this.assertDataAppAbility(
+            await this.assertCanManageApp(
                 user,
-                'manage',
-                app.organization_uuid,
-                projectUuid,
+                app,
                 'Insufficient permissions to delete data apps',
+                {},
+                { includeDeleted: true },
             );
         }
 
@@ -6861,6 +9693,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 projectId: projectUuid,
                 appUuid,
                 softDelete: false,
+                registrySlug: app.registry_slug,
             },
         });
     }
@@ -6904,6 +9737,19 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
      * uploads, version source tarballs, built dist tarballs, and per-version
      * assets.
      */
+    /**
+     * Remove the stored files of every app in a project. Deleting a project
+     * only removes rows; a training copy is deleted after each walkthrough,
+     * so its duplicated app files would otherwise pile up in the bucket.
+     */
+    async deleteProjectAppFiles(projectUuid: string): Promise<number> {
+        const apps = await this.appModel.listAppsByProject(projectUuid);
+        await Promise.all(
+            apps.map((app) => this.deleteAppS3Prefix(app.app_id)),
+        );
+        return apps.length;
+    }
+
     private async deleteAppS3Prefix(appUuid: string): Promise<void> {
         const { client, bucket } = this.getS3Client();
         const prefix = `apps/${appUuid}/`;
@@ -6951,6 +9797,55 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     /**
+     * Best-effort cleanup of the objects copied for a single app version
+     * (used to roll back a registry install/upgrade when the DB write
+     * fails). Logs rather than throwing — a leaked S3 key is harmless.
+     */
+    private async deleteVersionS3Prefix(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        version: number,
+    ): Promise<void> {
+        const prefix = versionPrefix(appUuid, version);
+        try {
+            let continuationToken: string | undefined;
+            /* eslint-disable no-await-in-loop */
+            do {
+                const listResponse = await s3Client.send(
+                    new ListObjectsV2Command({
+                        Bucket: bucket,
+                        Prefix: prefix,
+                        ContinuationToken: continuationToken,
+                    }),
+                );
+                const objects: ObjectIdentifier[] = (
+                    listResponse.Contents ?? []
+                )
+                    .map((obj) => obj.Key)
+                    .filter((key): key is string => typeof key === 'string')
+                    .map((Key) => ({ Key }));
+                if (objects.length > 0) {
+                    await s3Client.send(
+                        new DeleteObjectsCommand({
+                            Bucket: bucket,
+                            Delete: { Objects: objects, Quiet: true },
+                        }),
+                    );
+                }
+                continuationToken = listResponse.IsTruncated
+                    ? listResponse.NextContinuationToken
+                    : undefined;
+            } while (continuationToken);
+            /* eslint-enable no-await-in-loop */
+        } catch (e) {
+            this.logger.error(
+                `Failed to clean up S3 objects under ${prefix} after a failed registry install: ${getErrorMessage(e)}`,
+            );
+        }
+    }
+
+    /**
      * Move a data app into a space, or between spaces.
      *
      * Implements the shared `BulkActionable` interface so `ContentService`
@@ -6989,6 +9884,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
 
+        // Vizs are project-global chart content — space semantics don't apply.
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            throw new ParameterError(
+                'Custom chart types cannot be moved into spaces',
+            );
+        }
+
         if (checkForAccess) {
             // Manage on the source app (where it currently lives) — space
             // editors/admins of the source space can move it out.
@@ -7000,14 +9902,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             // …and manage on the target space, otherwise a user could move an
             // app into a space they don't own.
             const targetSpaceContext =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    targetSpaceUuid,
-                );
-            this.assertDataAppAbility(
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'space',
+                    spaceUuid: targetSpaceUuid,
+                });
+            await this.assertDataAppAbility(
                 user,
                 'manage',
-                app.organization_uuid,
                 projectUuid,
                 "You don't have access to the space this data app is being moved to",
                 targetSpaceContext,
@@ -7043,7 +9944,6 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         return new Promise<{ fileCount: number; totalBytes: number }>(
             (resolve, reject) => {
                 const extractor = extract();
-                const uploads: Promise<void>[] = [];
                 let fileCount = 0;
                 let totalBytes = 0;
 
@@ -7067,13 +9967,17 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                                     /^dist\//,
                                     '',
                                 );
-                                const s3Key = `${s3Prefix}/${relativePath}`;
+                                const s3Key = `${s3Prefix}${relativePath}`;
                                 const contentType =
                                     AppGenerateService.getContentType(
                                         relativePath,
                                     );
 
-                                const upload = s3Client
+                                // Awaited before next(): uploads run
+                                // sequentially rather than firing unbounded
+                                // concurrent PutObject calls for every tar
+                                // entry — bundles are small, so this is cheap.
+                                s3Client
                                     .send(
                                         new PutObjectCommand({
                                             Bucket: bucket,
@@ -7082,10 +9986,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                                             ContentType: contentType,
                                         }),
                                     )
-                                    .then(() => {});
-
-                                uploads.push(upload);
-                                next();
+                                    .then(() => next(), reject);
                             });
                             stream.on('error', reject);
                         } else {
@@ -7095,11 +9996,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     },
                 );
 
+                // Every upload was awaited before its entry's next() was
+                // called, so by the time 'finish' fires all uploads are done.
                 extractor.on('finish', () => {
-                    Promise.all(uploads).then(
-                        () => resolve({ fileCount, totalBytes }),
-                        reject,
-                    );
+                    resolve({ fileCount, totalBytes });
                 });
 
                 extractor.on('error', reject);
@@ -7131,12 +10031,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         await this.assertCanViewApp(user, app);
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             appUuid,
             version,
             user.userUuid,
             user.organizationUuid!,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
         );
     }
 
@@ -7150,9 +10051,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
      *   self-authorizes it (the project opted in via `allow_all_apps` or the
      *   `app_uuids` allowlist, enforced at account build); a mismatched appUuid
      *   is rejected outright.
-     * - dashboard-tile embed: the app must be referenced by a tile on a
-     *   dashboard in the embed's allowlist (or `allowAllDashboards`), mirroring
-     *   how embedded charts are gated by whitelisted dashboards.
+     * - dashboard-tile embed: the app must be referenced by a tile on the
+     *   dashboard named by the JWT, mirroring how embedded charts are pinned
+     *   to their dashboard.
      * The app must live in the embed's project — source-project apps (preview
      * environments) are out of scope and surface as a 404 to the frontend.
      */
@@ -7172,51 +10073,15 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             throw new NotFoundError(`App not found: ${appUuid}`);
         }
 
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('DataApp', {
-                    organizationUuid: app.organization_uuid,
-                    projectUuid: app.project_uuid,
-                    metadata: { appUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to access this data app',
-            );
-        }
-
-        if (account.access.content.type === 'dataApp') {
-            // A standalone data app JWT authorizes EXACTLY its named app
-            // (already gated at account build in
-            // EmbedService.getAccountFromJwt). Requesting any other app is
-            // denied — we must NOT fall through to the dashboard-allowlist gate,
-            // which could otherwise mint a token for an app that merely sits on
-            // an allowlisted dashboard, bypassing the per-app `app_uuids`
-            // allowlist.
-            if (account.access.content.appUuid !== appUuid) {
-                throw new ForbiddenError(
-                    'This embed is not authorized for this data app',
-                );
-            }
-        } else if (!account.embed.allowAllDashboards) {
-            const dashboardsWithApp =
-                await this.appModel.findDashboardsContainingApp(
-                    appUuid,
-                    projectUuid,
-                );
-            const allowedDashboards = new Set(account.embed.dashboardUuids);
-            const onAllowedDashboard = dashboardsWithApp.some((d) =>
-                allowedDashboards.has(d),
-            );
-            if (!onAllowedDashboard) {
-                throw new ForbiddenError(
-                    'Data app is not authorized by this embed',
-                );
-            }
-        }
+        await assertCanViewEmbeddedApp(
+            {
+                createAuditedAbility: (embeddedAccount) =>
+                    this.createAuditedAbility(embeddedAccount),
+                appModel: this.appModel,
+            },
+            account,
+            app,
+        );
 
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
         if (!latestReady) {
@@ -7226,24 +10091,22 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
 
         const token = mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             appUuid,
             latestReady.version,
             account.user.id,
             app.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
         );
 
         return { token, version: latestReady.version };
     }
 
     /** Escape a string into a safe, single-line double-quoted YAML scalar. */
-    private static yamlQuote(s: string): string {
-        const cleaned = s
-            .replace(/[\r\n\t]+/g, ' ')
-            .replace(/\\/g, '\\\\')
-            .replace(/"/g, '\\"');
-        return `"${cleaned}"`;
+    private static yamlQuote(value: unknown): string {
+        const cleaned = String(value).replace(/[\r\n\t]+/g, ' ');
+        return JSON.stringify(cleaned);
     }
 
     /** Render a single Lightdash parameter as indented YAML lines. */
@@ -7300,157 +10163,224 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         return lines;
     }
 
-    /**
-     * Convert compiled explores into the dbt-style YAML that skill.md expects.
-     * One model per explore, keyed by the explore name (the value passed to
-     * `query()`), carrying real metric/dimension types, join relationships
-     * (`meta.joins`), AI hints, and model-level parameters. Joined tables that
-     * aren't themselves a top-level explore (seeds, aliased joins) are inlined
-     * so their dot-notation fields stay discoverable. Hidden fields are
-     * skipped; descriptions are truncated to keep the prompt bounded.
-     */
-    private static exploresToYaml(explores: Explore[]): {
-        yaml: string;
-        tableCount: number;
-        dimensionCount: number;
-        metricCount: number;
-    } {
-        const DESCRIPTION_MAX_LEN = 200;
-        const truncate = (s: string): string =>
-            s.length > DESCRIPTION_MAX_LEN
-                ? `${s.slice(0, DESCRIPTION_MAX_LEN - 1)}…`
-                : s;
+    private static readonly DESCRIPTION_MAX_LEN = 200;
 
-        const lines: string[] = ['models:'];
-        let tableCount = 0;
-        let dimensionCount = 0;
-        let metricCount = 0;
+    private static truncateDescription(s: string): string {
+        return s.length > AppGenerateService.DESCRIPTION_MAX_LEN
+            ? `${s.slice(0, AppGenerateService.DESCRIPTION_MAX_LEN - 1)}…`
+            : s;
+    }
+
+    /**
+     * Render one model-level filter in the SDK `Filter` shape (field/operator/
+     * value/unit) so the agent can pass entries into `.filters([...])` as-is.
+     */
+    private static renderModelFilterYaml(
+        filter: ModelRequiredFilterRule,
+    ): string[] {
+        const lines: string[] = [
+            `        - field: ${filter.target.fieldRef}`,
+            `          operator: ${filter.operator}`,
+        ];
+        if (
+            filter.operator !== FilterOperator.NULL &&
+            filter.operator !== FilterOperator.NOT_NULL
+        ) {
+            const values = (filter.values ?? []).map((v: unknown) =>
+                typeof v === 'number' || typeof v === 'boolean'
+                    ? String(v)
+                    : AppGenerateService.yamlQuote(v),
+            );
+            lines.push(`          value: [${values.join(', ')}]`);
+        }
+        const unitOfTime: unknown = filter.settings?.unitOfTime;
+        if (typeof unitOfTime === 'string') {
+            lines.push(`          unit: ${unitOfTime}`);
+        }
+        return lines;
+    }
+
+    /**
+     * Render one compiled table as a dbt-style model, carrying real
+     * metric/dimension types, join relationships (`meta.joins`), AI hints,
+     * model-level parameters, and model-level filters (`sql_filter`,
+     * `required_filters`, `default_filters`). Joins, parameters, and filters
+     * are explore-scoped rather than table-scoped, so they're passed in
+     * explicitly. Hidden fields are skipped; descriptions are truncated to
+     * keep the output bounded.
+     */
+    private static renderTableModel(
+        modelName: string,
+        table: CompiledTable,
+        joins: CompiledExploreJoin[],
+        parameters: Record<string, LightdashProjectParameter> | undefined,
+        modelFilters: RenderedModelFilters,
+    ): RenderedModel {
+        const truncate = AppGenerateService.truncateDescription;
+        const headerLines: string[] = [`  - name: ${modelName}`];
+        if (table.description) {
+            headerLines.push(
+                `    description: ${AppGenerateService.yamlQuote(truncate(table.description))}`,
+            );
+        }
+
+        const metrics = Object.values(table.metrics).filter((m) => !m.hidden);
+        const dimensions = Object.values(table.dimensions).filter(
+            (d) => !d.hidden,
+        );
+        const parameterEntries = parameters ? Object.entries(parameters) : [];
+        // Same predicate MetricQueryBuilder uses to decide enforcement.
+        const requiredFilters = modelFilters.requiredFilters.filter(
+            (f) => f.required !== false,
+        );
+        const defaultFilters = modelFilters.requiredFilters.filter(
+            (f) => f.required === false,
+        );
+        const { sqlFilter } = modelFilters;
+
+        if (
+            metrics.length > 0 ||
+            joins.length > 0 ||
+            parameterEntries.length > 0 ||
+            requiredFilters.length > 0 ||
+            defaultFilters.length > 0 ||
+            sqlFilter !== null
+        ) {
+            headerLines.push(`    meta:`);
+            if (metrics.length > 0) {
+                headerLines.push(`      metrics:`);
+                for (const m of metrics) {
+                    headerLines.push(`        ${m.name}:`);
+                    headerLines.push(`          type: ${m.type}`);
+                    if (m.label && m.label !== m.name) {
+                        headerLines.push(
+                            `          label: ${AppGenerateService.yamlQuote(m.label)}`,
+                        );
+                    }
+                    if (m.description) {
+                        headerLines.push(
+                            `          description: ${AppGenerateService.yamlQuote(truncate(m.description))}`,
+                        );
+                    }
+                    const aiHints = getEffectiveFieldAiHints(m, table);
+                    if (aiHints) {
+                        headerLines.push(`          ai_hints:`);
+                        for (const aiHint of aiHints) {
+                            headerLines.push(
+                                `            - ${AppGenerateService.yamlQuote(aiHint)}`,
+                            );
+                        }
+                    }
+                }
+            }
+            if (joins.length > 0) {
+                headerLines.push(`      joins:`);
+                for (const j of joins) {
+                    headerLines.push(`        - join: ${j.table}`);
+                    if (j.relationship) {
+                        headerLines.push(
+                            `          relationship: ${j.relationship}`,
+                        );
+                    }
+                    if (j.sqlOn) {
+                        headerLines.push(
+                            `          sql_on: ${AppGenerateService.yamlQuote(j.sqlOn)}`,
+                        );
+                    }
+                }
+            }
+            if (sqlFilter !== null) {
+                headerLines.push(
+                    `      sql_filter: ${AppGenerateService.yamlQuote(sqlFilter)}`,
+                );
+            }
+            if (requiredFilters.length > 0) {
+                headerLines.push(`      required_filters:`);
+                for (const filter of requiredFilters) {
+                    headerLines.push(
+                        ...AppGenerateService.renderModelFilterYaml(filter),
+                    );
+                }
+            }
+            if (defaultFilters.length > 0) {
+                headerLines.push(`      default_filters:`);
+                for (const filter of defaultFilters) {
+                    headerLines.push(
+                        ...AppGenerateService.renderModelFilterYaml(filter),
+                    );
+                }
+            }
+            if (parameterEntries.length > 0) {
+                headerLines.push(`      parameters:`);
+                for (const [key, param] of parameterEntries) {
+                    headerLines.push(
+                        ...AppGenerateService.renderParameterYaml(
+                            key,
+                            param,
+                            '        ',
+                        ),
+                    );
+                }
+            }
+        }
+
+        const columnBlocks = dimensions.map((d) => {
+            const block: string[] = [`      - name: ${d.name}`];
+            if (d.label && d.label !== d.name) {
+                block.push(
+                    `        label: ${AppGenerateService.yamlQuote(d.label)}`,
+                );
+            }
+            if (d.description) {
+                block.push(
+                    `        description: ${AppGenerateService.yamlQuote(truncate(d.description))}`,
+                );
+            }
+            const aiHints = getEffectiveFieldAiHints(d, table);
+            if (aiHints) {
+                block.push(`        ai_hints:`);
+                for (const aiHint of aiHints) {
+                    block.push(
+                        `          - ${AppGenerateService.yamlQuote(aiHint)}`,
+                    );
+                }
+            }
+            block.push(`        meta:`);
+            block.push(`          dimension:`);
+            block.push(`            type: ${d.type}`);
+            return block;
+        });
+
+        return {
+            name: modelName,
+            description: table.description ? truncate(table.description) : null,
+            joinedTables: joins.map((j) => j.table),
+            headerLines,
+            columnBlocks,
+            dimensionCount: dimensions.length,
+            metricCount: metrics.length,
+            requiredFilterCount: requiredFilters.length,
+            defaultFilterCount: defaultFilters.length,
+            hasSqlFilter: sqlFilter !== null,
+        };
+    }
+
+    /**
+     * One model per explore, keyed by the explore name (the value passed to
+     * `query()`). Joined tables that aren't themselves a top-level explore
+     * (seeds, aliased joins) are appended so their dot-notation fields stay
+     * discoverable.
+     */
+    private static exploresToRenderedModels(
+        explores: Explore[],
+    ): RenderedModel[] {
+        const models: RenderedModel[] = [];
 
         // Names already emitted as a standalone model, so the join-target
         // fallback (pass 2) only inlines tables that aren't otherwise visible.
         const emittedModelNames = new Set<string>(
             explores.map((explore) => explore.name),
         );
-
-        // Emit one model from a compiled table. Joins and parameters live on
-        // the explore (not the table), so they're passed in explicitly.
-        const emitTableModel = (
-            modelName: string,
-            table: CompiledTable,
-            joins: CompiledExploreJoin[],
-            parameters: Record<string, LightdashProjectParameter> | undefined,
-        ): void => {
-            tableCount += 1;
-            lines.push(`  - name: ${modelName}`);
-            if (table.description) {
-                lines.push(
-                    `    description: ${AppGenerateService.yamlQuote(truncate(table.description))}`,
-                );
-            }
-
-            const metrics = Object.values(table.metrics).filter(
-                (m) => !m.hidden,
-            );
-            const dimensions = Object.values(table.dimensions).filter(
-                (d) => !d.hidden,
-            );
-            const parameterEntries = parameters
-                ? Object.entries(parameters)
-                : [];
-
-            if (
-                metrics.length > 0 ||
-                joins.length > 0 ||
-                parameterEntries.length > 0
-            ) {
-                lines.push(`    meta:`);
-                if (metrics.length > 0) {
-                    lines.push(`      metrics:`);
-                    for (const m of metrics) {
-                        metricCount += 1;
-                        lines.push(`        ${m.name}:`);
-                        lines.push(`          type: ${m.type}`);
-                        if (m.label && m.label !== m.name) {
-                            lines.push(
-                                `          label: ${AppGenerateService.yamlQuote(m.label)}`,
-                            );
-                        }
-                        if (m.description) {
-                            lines.push(
-                                `          description: ${AppGenerateService.yamlQuote(truncate(m.description))}`,
-                            );
-                        }
-                        const aiHints = getEffectiveFieldAiHints(m, table);
-                        if (aiHints) {
-                            lines.push(`          ai_hints:`);
-                            for (const aiHint of aiHints) {
-                                lines.push(
-                                    `            - ${AppGenerateService.yamlQuote(aiHint)}`,
-                                );
-                            }
-                        }
-                    }
-                }
-                if (joins.length > 0) {
-                    lines.push(`      joins:`);
-                    for (const j of joins) {
-                        lines.push(`        - join: ${j.table}`);
-                        if (j.relationship) {
-                            lines.push(
-                                `          relationship: ${j.relationship}`,
-                            );
-                        }
-                        if (j.sqlOn) {
-                            lines.push(
-                                `          sql_on: ${AppGenerateService.yamlQuote(j.sqlOn)}`,
-                            );
-                        }
-                    }
-                }
-                if (parameterEntries.length > 0) {
-                    lines.push(`      parameters:`);
-                    for (const [key, param] of parameterEntries) {
-                        lines.push(
-                            ...AppGenerateService.renderParameterYaml(
-                                key,
-                                param,
-                                '        ',
-                            ),
-                        );
-                    }
-                }
-            }
-
-            if (dimensions.length > 0) {
-                lines.push(`    columns:`);
-                for (const d of dimensions) {
-                    dimensionCount += 1;
-                    lines.push(`      - name: ${d.name}`);
-                    if (d.label && d.label !== d.name) {
-                        lines.push(
-                            `        label: ${AppGenerateService.yamlQuote(d.label)}`,
-                        );
-                    }
-                    if (d.description) {
-                        lines.push(
-                            `        description: ${AppGenerateService.yamlQuote(truncate(d.description))}`,
-                        );
-                    }
-                    const aiHints = getEffectiveFieldAiHints(d, table);
-                    if (aiHints) {
-                        lines.push(`        ai_hints:`);
-                        for (const aiHint of aiHints) {
-                            lines.push(
-                                `          - ${AppGenerateService.yamlQuote(aiHint)}`,
-                            );
-                        }
-                    }
-                    lines.push(`        meta:`);
-                    lines.push(`          dimension:`);
-                    lines.push(`            type: ${d.type}`);
-                }
-            }
-        };
 
         // Pass 1: every explore becomes a model keyed by its queryable name.
         for (const explore of explores) {
@@ -7459,11 +10389,17 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 const joins = (explore.joinedTables ?? []).filter(
                     (j) => !j.hidden,
                 );
-                emitTableModel(
-                    explore.name,
-                    baseTable,
-                    joins,
-                    explore.parameters,
+                models.push(
+                    AppGenerateService.renderTableModel(
+                        explore.name,
+                        baseTable,
+                        joins,
+                        explore.parameters,
+                        {
+                            requiredFilters: baseTable.requiredFilters ?? [],
+                            sqlFilter: baseTable.sqlWhere ?? null,
+                        },
+                    ),
                 );
             }
         }
@@ -7482,16 +10418,276 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     !inlined.has(key)
                 ) {
                     inlined.add(key);
-                    emitTableModel(key, joinedTable, [], undefined);
+                    models.push(
+                        AppGenerateService.renderTableModel(
+                            key,
+                            joinedTable,
+                            [],
+                            undefined,
+                            // A join target's own filters only apply when it
+                            // is queried as its own explore, which these are
+                            // not — rendering them here would be misleading.
+                            { requiredFilters: [], sqlFilter: null },
+                        ),
+                    );
                 }
             }
         }
 
+        return models;
+    }
+
+    private static renderedModelToLines(model: RenderedModel): string[] {
+        return [
+            ...model.headerLines,
+            ...(model.columnBlocks.length > 0 ? ['    columns:'] : []),
+            ...model.columnBlocks.flat(),
+        ];
+    }
+
+    static readonly MODELS_INDEX_FILENAME = '_index.md';
+
+    // Iterations resume the previous Claude session, whose history still points
+    // at the single-file layout this replaced. Leave a signpost so a remembered
+    // read lands on instructions rather than a missing file.
+    private static readonly MODELS_LEGACY_POINTER: ModelFile = {
+        filename: 'schema.yml',
+        contents: [
+            '# This project is sharded across one YAML file per model in this directory.',
+            `# Start with ${AppGenerateService.MODELS_INDEX_FILENAME}, then read only the model files you need.`,
+            '',
+        ].join('\n'),
+    };
+
+    // The agent's Read tool refuses files over 256KB outright, so every file we
+    // write has to stay comfortably under it or it is unreadable in the sandbox.
+    private static readonly MODEL_FILE_MAX_BYTES = 200_000;
+
+    private static readonly INDEX_MAX_BYTES = 200_000;
+
+    // Below this, index entries carry joins and a description; past it they
+    // degrade to name/file/counts so every model still gets listed.
+    private static readonly INDEX_DETAIL_MAX_BYTES = 120_000;
+
+    private static readonly INDEX_DESCRIPTION_MAX_LEN = 120;
+
+    /**
+     * The index carries the resolved filename for every model, so sanitizing a
+     * name here never leaves the agent guessing at the path.
+     */
+    private static modelFilenames(models: RenderedModel[]): string[] {
+        const taken = new Set<string>([
+            AppGenerateService.MODELS_INDEX_FILENAME,
+            AppGenerateService.MODELS_LEGACY_POINTER.filename,
+        ]);
+        return models.map((model) => {
+            const safe = model.name.replace(/[^a-zA-Z0-9_-]/g, '_') || 'model';
+            let filename = `${safe}.yml`;
+            let suffix = 2;
+            while (taken.has(filename)) {
+                filename = `${safe}-${suffix}.yml`;
+                suffix += 1;
+            }
+            taken.add(filename);
+            return filename;
+        });
+    }
+
+    /**
+     * One model as one or more YAML files. A model whose columns push it past
+     * the Read ceiling is split across `<name>.yml`, `<name>.part2.yml`, … —
+     * each a standalone-parseable document for the same model.
+     */
+    private static modelToFiles(
+        model: RenderedModel,
+        filename: string,
+    ): ModelFile[] {
+        const whole = `models:\n${AppGenerateService.renderedModelToLines(
+            model,
+        ).join('\n')}\n`;
+        // Columns are the only split point, so a model with none is written
+        // whole however big its metrics make it — an oversized file is still
+        // greppable, whereas a model the index names but never writes is not.
+        if (
+            Buffer.byteLength(whole) <=
+                AppGenerateService.MODEL_FILE_MAX_BYTES ||
+            model.columnBlocks.length === 0
+        ) {
+            return [{ filename, contents: whole }];
+        }
+
+        const base = filename.replace(/\.yml$/, '');
+        const header = `models:\n${model.headerLines.join('\n')}\n    columns:\n`;
+        const files: ModelFile[] = [];
+        let current: string[] = [];
+        let currentBytes = Buffer.byteLength(header);
+
+        const flush = () => {
+            if (current.length === 0) return;
+            const part = files.length + 1;
+            files.push({
+                filename: part === 1 ? filename : `${base}.part${part}.yml`,
+                contents:
+                    part === 1
+                        ? `${header}${current.join('\n')}\n`
+                        : `models:\n  - name: ${model.name}\n    columns:\n${current.join(
+                              '\n',
+                          )}\n`,
+            });
+            current = [];
+            currentBytes = Buffer.byteLength(header);
+        };
+
+        for (const block of model.columnBlocks) {
+            const text = block.join('\n');
+            const blockBytes = Buffer.byteLength(text) + 1;
+            if (
+                current.length > 0 &&
+                currentBytes + blockBytes >
+                    AppGenerateService.MODEL_FILE_MAX_BYTES
+            ) {
+                flush();
+            }
+            current.push(text);
+            currentBytes += blockBytes;
+        }
+        flush();
+
+        return files.map((file, i) => ({
+            ...file,
+            contents:
+                i < files.length - 1
+                    ? `${file.contents}# ${model.name} continues in ${
+                          files[i + 1].filename
+                      }\n`
+                    : file.contents,
+        }));
+    }
+
+    /**
+     * Shard the compiled explores into one YAML file per model plus an index
+     * listing every model, so full fidelity stays on disk without the whole
+     * catalog having to fit in the context window. `chartUsageByTable` ranks
+     * the index, so any detail it sheds comes off the least-queried models.
+     */
+    private static exploresToModelFiles(
+        explores: Explore[],
+        chartUsageByTable: Map<string, number>,
+    ): {
+        files: ModelFile[];
+        tableCount: number;
+        dimensionCount: number;
+        metricCount: number;
+        totalBytes: number;
+    } {
+        const models = AppGenerateService.exploresToRenderedModels(explores);
+        const filenames = AppGenerateService.modelFilenames(models);
+
+        const files = models.flatMap((model, i) =>
+            AppGenerateService.modelToFiles(model, filenames[i]),
+        );
+
+        const ranked = models
+            .map((model, i) => ({
+                model,
+                filename: filenames[i],
+                chartUsage: chartUsageByTable.get(model.name) ?? 0,
+            }))
+            .sort(
+                (a, b) =>
+                    b.chartUsage - a.chartUsage ||
+                    a.model.name.localeCompare(b.model.name),
+            );
+
+        const header = [
+            `# Semantic layer — ${models.length} model${
+                models.length === 1 ? '' : 's'
+            }`,
+            '',
+            'Every model in this project is listed below, most-queried first. Read',
+            'only the model files you need — never the whole directory. To locate a',
+            'field whose model you do not know, Grep this directory for its name.',
+            'Mind the YAML shape: dimensions are `- name:` list entries under',
+            '`columns:`, but metrics are mapping keys under `meta.metrics:` — a',
+            'grep for `- name:` enumerates only dimensions, never metrics.',
+            'A `filters=` marker means the model declares model-level filters',
+            '(required/default/sql_filter) that affect every query against it —',
+            'read that model file before querying it.',
+            '',
+            'name  file  dims/metrics  joins  [filters]  description',
+            '',
+        ].join('\n');
+
+        const detailLine = (entry: (typeof ranked)[number]): string => {
+            const { model, filename } = entry;
+            const joins =
+                model.joinedTables.length > 0
+                    ? model.joinedTables.join(',')
+                    : '-';
+            const filterParts = [
+                model.requiredFilterCount > 0
+                    ? `required:${model.requiredFilterCount}`
+                    : null,
+                model.defaultFilterCount > 0
+                    ? `default:${model.defaultFilterCount}`
+                    : null,
+                model.hasSqlFilter ? 'sql' : null,
+            ].filter((part) => part !== null);
+            const filters =
+                filterParts.length > 0
+                    ? `  filters=${filterParts.join(',')}`
+                    : '';
+            const description = model.description
+                ? `  ${model.description
+                      .replace(/\s+/g, ' ')
+                      .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
+                : '';
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
+        };
+
+        const compactLine = (entry: (typeof ranked)[number]): string =>
+            `${entry.model.name}  ${entry.filename}  dims=${entry.model.dimensionCount} metrics=${entry.model.metricCount}`;
+
+        const lines: string[] = [];
+        let bytes = Buffer.byteLength(header);
+        let detailed = true;
+        let omitted = 0;
+        for (const entry of ranked) {
+            if (detailed && bytes > AppGenerateService.INDEX_DETAIL_MAX_BYTES) {
+                detailed = false;
+            }
+            const line = detailed ? detailLine(entry) : compactLine(entry);
+            const lineBytes = Buffer.byteLength(line) + 1;
+            if (bytes + lineBytes > AppGenerateService.INDEX_MAX_BYTES) {
+                omitted += 1;
+            } else {
+                lines.push(line);
+                bytes += lineBytes;
+            }
+        }
+        if (omitted > 0) {
+            lines.push(
+                `\n(${omitted} rarely-queried models not listed — Glob this directory for *.yml to see them all)`,
+            );
+        }
+
+        files.push(
+            {
+                filename: AppGenerateService.MODELS_INDEX_FILENAME,
+                contents: `${header}${lines.join('\n')}\n`,
+            },
+            AppGenerateService.MODELS_LEGACY_POINTER,
+        );
+
         return {
-            yaml: lines.join('\n'),
-            tableCount,
-            dimensionCount,
-            metricCount,
+            files,
+            tableCount: models.length,
+            dimensionCount: models.reduce((n, m) => n + m.dimensionCount, 0),
+            metricCount: models.reduce((n, m) => n + m.metricCount, 0),
+            totalBytes: files.reduce(
+                (n, f) => n + Buffer.byteLength(f.contents),
+                0,
+            ),
         };
     }
 
@@ -7523,72 +10719,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
      * Read all artifacts for a specific (or latest ready) built app version from
      * S3 and return them as a base64-encoded bundle together with a manifest.
      */
-    async getAppCode(
-        user: SessionUser,
-        projectUuid: string,
-        appUuid: string,
-        version?: number,
-    ): Promise<DataAppCodeDownload> {
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanViewApp(user, app);
-
-        let resolvedVersion: number;
-        let versionRow: DbAppVersion | null;
-        if (version !== undefined) {
-            resolvedVersion = version;
-            versionRow = await this.appModel.getVersion(app.app_id, version);
-        } else {
-            const latestReady = await this.appModel.getLatestReadyVersion(
-                app.app_id,
-            );
-            if (!latestReady) {
-                throw new NotFoundError(
-                    `Data app has no ready version yet: ${appUuid}`,
-                );
-            }
-            resolvedVersion = latestReady.version;
-            versionRow = latestReady;
-        }
-
-        const { client: s3Client, bucket } = this.getS3Client();
-        const sourceTarKey = `${versionPrefix(appUuid, resolvedVersion)}source.tar`;
-
-        // Download the single source archive for this version
-        let tarBuffer: Buffer;
-        try {
-            const response = await s3Client.send(
-                new GetObjectCommand({ Bucket: bucket, Key: sourceTarKey }),
-            );
-            const stream = response.Body as Readable;
-            const chunks: Buffer[] = [];
-            for await (const chunk of stream) {
-                chunks.push(
-                    Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
-                );
-            }
-            tarBuffer = Buffer.concat(chunks);
-        } catch (err: unknown) {
-            const code =
-                err instanceof Error &&
-                'Code' in err &&
-                typeof (err as { Code: unknown }).Code === 'string'
-                    ? (err as { Code: string }).Code
-                    : undefined;
-            const name = err instanceof Error ? err.name : undefined;
-            if (code === 'NoSuchKey' || name === 'NoSuchKey') {
-                throw new NotFoundError(
-                    `Source not found for app ${appUuid} version ${resolvedVersion}`,
-                );
-            }
-            throw err;
-        }
-
-        // Extract the tar in-process and collect file entries
-        const files = await new Promise<
-            { path: string; contentBase64: string }[]
-        >((resolve, reject) => {
+    /** Extracts a tar archive in-process and collects its file entries. */
+    private static extractTarFiles(
+        tarBuffer: Buffer,
+    ): Promise<DataAppCodeFile[]> {
+        return new Promise<DataAppCodeFile[]>((resolve, reject) => {
             const extractor = extract();
-            const entries: { path: string; contentBase64: string }[] = [];
+            const entries: DataAppCodeFile[] = [];
 
             extractor.on(
                 'entry',
@@ -7621,24 +10758,468 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             passThrough.pipe(extractor);
             passThrough.end(tarBuffer);
         });
+    }
+
+    private static extractPersistedDataReferences(
+        files: DataAppCodeFile[],
+    ): PersistedDataAppDataReferences {
+        const extracted = extractDataAppDataReferences(
+            files.map(({ path, contentBase64 }) => ({
+                path,
+                content: Buffer.from(contentBase64, 'base64').toString('utf8'),
+            })),
+        );
+        return {
+            extractorVersion: extracted.extractorVersion,
+            references: extracted.references,
+            parseErrors: extracted.parseErrors,
+            stats: extracted.stats,
+        };
+    }
+
+    private async refreshVersionDataReferences(
+        appUuid: string,
+        version: number,
+    ): Promise<PersistedDataAppDataReferences | null> {
+        try {
+            const { client, bucket } = this.getS3Client();
+            const sourceTar = await readS3ObjectAsBuffer(
+                client,
+                bucket,
+                `${versionPrefix(appUuid, version)}source.tar`,
+            );
+            const files = await AppGenerateService.extractTarFiles(sourceTar);
+            const dataReferences =
+                AppGenerateService.extractPersistedDataReferences(files);
+            await this.persistVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+            return dataReferences;
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to refresh data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
+    async getVersionDataReferences(
+        appUuid: string,
+        version: number,
+    ): Promise<PersistedDataAppDataReferences | null> {
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        if (!versionRow || versionRow.status !== 'ready') return null;
+        if (
+            versionRow.data_references?.extractorVersion ===
+            DATA_REFERENCE_EXTRACTOR_VERSION
+        ) {
+            return versionRow.data_references;
+        }
+
+        const key = `${appUuid}:${version}`;
+        const existingRefresh = this.dataReferenceRefreshes.get(key);
+        if (existingRefresh) return existingRefresh;
+
+        const refresh = this.refreshVersionDataReferences(appUuid, version);
+        this.dataReferenceRefreshes.set(key, refresh);
+        try {
+            return await refresh;
+        } finally {
+            this.dataReferenceRefreshes.delete(key);
+        }
+    }
+
+    async getCustomSqlProvenance({
+        account,
+        projectUuid,
+        organizationUuid,
+        exploreName,
+        previewToken,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        previewToken: string;
+    }): Promise<{
+        tableCalculations: Set<string>;
+        customDimensions: Set<string>;
+        additionalMetrics: Set<string>;
+    }> {
+        const empty = () => ({
+            tableCalculations: new Set<string>(),
+            customDimensions: new Set<string>(),
+            additionalMetrics: new Set<string>(),
+        });
+        if (!account.isRegisteredUser() || !previewToken) return empty();
+
+        const verified = verifyPreviewTokenClaims(
+            previewToken,
+            this.lightdashConfig.lightdashSecrets,
+        );
+        if (!verified.ok) return empty();
+        const { payload } = verified;
+        if (
+            payload.userUuid !== account.user.id ||
+            payload.organizationUuid !== organizationUuid ||
+            payload.projectUuid !== projectUuid
+        ) {
+            return empty();
+        }
+
+        const app = await this.appModel.findApp(payload.appUuid, projectUuid);
+        if (!app || app.organization_uuid !== organizationUuid) return empty();
+        const [accessContext, projectContext] = await Promise.all([
+            this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'app',
+                appUuid: app.app_id,
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+                spaceUuid: app.space_uuid,
+            }),
+            this.getDataAppProjectContext(projectUuid),
+        ]);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', {
+                    ...projectContext,
+                    ...accessContext,
+                    createdByUserUuid: app.created_by_user_uuid,
+                }),
+            )
+        ) {
+            return empty();
+        }
+
+        const dataReferences = await this.getVersionDataReferences(
+            payload.appUuid,
+            payload.version,
+        );
+        if (!dataReferences) return empty();
+
+        const provenance = empty();
+        for (const reference of dataReferences.references) {
+            if (
+                reference.kind === 'query' &&
+                reference.explore === exploreName &&
+                reference.customSql
+            ) {
+                for (const sql of reference.customSql.tableCalculations) {
+                    provenance.tableCalculations.add(sql);
+                }
+                for (const field of reference.customSql.customDimensions) {
+                    provenance.customDimensions.add(
+                        getCustomSqlFieldKey(field),
+                    );
+                }
+                for (const metric of reference.customSql.additionalMetrics) {
+                    provenance.additionalMetrics.add(
+                        getCustomSqlFieldKey(metric),
+                    );
+                }
+            }
+        }
+        return provenance;
+    }
+
+    private async persistVersionDataReferences(
+        appUuid: string,
+        version: number,
+        dataReferences: PersistedDataAppDataReferences | null | undefined,
+    ): Promise<void> {
+        if (dataReferences == null) return;
+        try {
+            await this.appModel.updateVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to persist data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async extractAndPersistVersionDataReferences(
+        appUuid: string,
+        version: number,
+        files: DataAppCodeFile[],
+    ): Promise<void> {
+        try {
+            const dataReferences =
+                AppGenerateService.extractPersistedDataReferences(files);
+            await this.persistVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to extract data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async extractAndPersistVersionDataReferencesFromTar(
+        appUuid: string,
+        version: number,
+        sourceTar: Buffer,
+    ): Promise<void> {
+        try {
+            const files = await AppGenerateService.extractTarFiles(sourceTar);
+            await this.extractAndPersistVersionDataReferences(
+                appUuid,
+                version,
+                files,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to read source for data-reference extraction in version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /**
+     * Manifest spaceSlug → space uuid in the target project, creating the
+     * space if missing (same machinery as dashboards-as-code). Returns
+     * undefined when the manifest has no placement (personal apps and
+     * pre-field bundles), which callers treat as "leave untouched".
+     */
+    private async resolveManifestSpace(
+        user: SessionUser,
+        projectUuid: string,
+        spaceSlug: string | undefined,
+    ): Promise<string | undefined> {
+        if (spaceSlug === undefined) return undefined;
+        const { space } = await this.coderService.getOrCreateSpace(
+            projectUuid,
+            spaceSlug,
+            user,
+            undefined,
+            undefined,
+            undefined,
+            true,
+        );
+        return space.uuid;
+    }
+
+    // First half of the as-code download, without downloading the source.
+    async readDataApp(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<DataAppReadSource> {
+        const app = await this.appModel.findAppBySlug(projectUuid, slug);
+        if (!app) {
+            throw new NotFoundError(`Data app "${slug}" was not found`);
+        }
+        await this.assertCanViewApp(user, app);
+
+        const readyVersion = await this.appModel.getLatestReadyVersion(
+            app.app_id,
+        );
+        if (!readyVersion) {
+            throw new NotFoundError(
+                `Data app "${slug}" has no ready version yet, so it cannot be read`,
+            );
+        }
+
+        const [
+            latestVersion,
+            versionCount,
+            createdBy,
+            appLinks,
+            appSpace,
+            dataReferences,
+        ] = await Promise.all([
+            this.appModel.getLatestVersion(app.app_id),
+            this.appModel.countVersions(app.app_id),
+            this.appModel.findAppCreator(app.app_id),
+            this.externalConnectionModel.listAppLinks(app.app_id),
+            app.space_uuid
+                ? this.spaceModel.getSpaceSummary(app.space_uuid)
+                : null,
+            this.getVersionDataReferences(app.app_id, readyVersion.version),
+        ]);
+
+        return {
+            app: {
+                uuid: app.app_id,
+                slug: app.slug,
+                name: app.name,
+                description: app.description,
+                template: app.template,
+                spaceUuid: app.space_uuid,
+            },
+            spaceSlug: appSpace
+                ? getContentAsCodePathFromLtreePath(appSpace.path)
+                : null,
+            externalConnections: appLinks.map((link) => ({
+                alias: link.alias,
+                connectionSlug: link.connection.slug,
+            })),
+            vizSchema: readyVersion.viz_schema,
+            version: readyVersion.version,
+            versionCount,
+            newerVersion:
+                latestVersion && latestVersion.version > readyVersion.version
+                    ? {
+                          version: latestVersion.version,
+                          status: latestVersion.status,
+                      }
+                    : null,
+            createdBy,
+            resources: readyVersion.resources,
+            dataReferences,
+        };
+    }
+
+    async getAppCode(
+        user: SessionUser,
+        projectUuid: string,
+        appUuidOrSlug: string,
+        version?: number,
+    ): Promise<DataAppCodeDownload> {
+        const app = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
+        const appAuthorization = await this.assertCanViewApp(user, app);
+
+        let resolvedVersion: number;
+        let versionRow: DbAppVersion | null;
+        if (version !== undefined) {
+            resolvedVersion = version;
+            versionRow = await this.appModel.getVersion(app.app_id, version);
+        } else {
+            const latestReady = await this.appModel.getLatestReadyVersion(
+                app.app_id,
+            );
+            if (!latestReady) {
+                throw new NotFoundError(
+                    `Data app has no ready version yet: ${appUuidOrSlug}`,
+                );
+            }
+            resolvedVersion = latestReady.version;
+            versionRow = latestReady;
+        }
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        const sourceTarKey = `${versionPrefix(app.app_id, resolvedVersion)}source.tar`;
+
+        // Download the single source archive for this version
+        let tarBuffer: Buffer;
+        try {
+            const response = await s3Client.send(
+                new GetObjectCommand({ Bucket: bucket, Key: sourceTarKey }),
+            );
+            const stream = response.Body as Readable;
+            const chunks: Buffer[] = [];
+            for await (const chunk of stream) {
+                chunks.push(
+                    Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                );
+            }
+            tarBuffer = Buffer.concat(chunks);
+        } catch (err: unknown) {
+            const code =
+                err instanceof Error &&
+                'Code' in err &&
+                typeof (err as { Code: unknown }).Code === 'string'
+                    ? (err as { Code: string }).Code
+                    : undefined;
+            const name = err instanceof Error ? err.name : undefined;
+            if (code === 'NoSuchKey' || name === 'NoSuchKey') {
+                throw new NotFoundError(
+                    `Source not found for app ${appUuidOrSlug} version ${resolvedVersion}`,
+                );
+            }
+            throw err;
+        }
+
+        const files = await AppGenerateService.extractTarFiles(tarBuffer);
+
+        // Emit the app's live links so a cross-project/instance upload can
+        // re-establish them by connection slug. Omit the key when there are
+        // none so link-less manifests stay unchanged.
+        const appLinks = await this.externalConnectionModel.listAppLinks(
+            app.app_id,
+        );
+
+        // In-space apps emit the space as a content-as-code path so uploads
+        // can recreate placement; personal apps omit the key.
+        const appSpace =
+            !appAuthorization.directOnly && app.space_uuid
+                ? await this.spaceModel.getSpaceSummary(app.space_uuid)
+                : null;
+
+        // Direct grants ride along only for callers who could manage the
+        // app's sharing anyway — code download itself is view-gated, and a
+        // viewer must not learn who the app is shared with.
+        const canManageAppPolicy = await this.assertCanManageApp(
+            user,
+            app,
+            'not used',
+        ).then(
+            () => true,
+            () => false,
+        );
+        const appAccess = canManageAppPolicy
+            ? (
+                  await this.coderService.getPortableDirectAccessByUuid(
+                      user,
+                      app.organization_uuid,
+                      DirectAccessResourceType.APP,
+                      [app.app_id],
+                  )
+              ).get(app.app_id)
+            : undefined;
 
         const manifest = buildManifest({
-            appUuid,
-            projectUuid,
+            slug: app.slug,
             version: resolvedVersion,
             name: app.name,
             description: app.description,
             template: app.template,
+            // Only chart types carry an icon; omit the key entirely for other
+            // apps so their manifests stay unchanged.
+            ...(app.template === DATA_APP_VIZ_TEMPLATE
+                ? { icon: isChartTypeIcon(app.icon) ? app.icon : null }
+                : {}),
             // Only viz versions carry a schema; omit the key entirely otherwise
             // so non-viz manifests stay unchanged.
             ...(versionRow?.viz_schema
                 ? { vizSchema: versionRow.viz_schema }
                 : {}),
+            ...(appLinks.length > 0
+                ? {
+                      externalConnections: appLinks.map((link) => ({
+                          alias: link.alias,
+                          connectionSlug: link.connection.slug,
+                      })),
+                  }
+                : {}),
+            ...(appSpace
+                ? {
+                      spaceSlug: getContentAsCodePathFromLtreePath(
+                          appSpace.path,
+                      ),
+                  }
+                : {}),
+            ...(appAccess ? { access: appAccess } : {}),
             downloadedAt: new Date().toISOString(),
         });
 
         const context = await this.assembleAppContext(
-            app,
+            {
+                appUuid: app.app_id,
+                designUuid: app.design_uuid,
+            },
             projectUuid,
             app.organization_uuid,
         );
@@ -7648,14 +11229,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // dropping the files would make a re-upload build with template deps.
         let dependencies: DataAppDependencies | undefined;
         if (versionRow?.dependencies) {
-            // Kill-switch: stripping deps instead would hand out a folder
-            // whose src imports packages the lockfile no longer declares.
-            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-                throw new ParameterError(
-                    'This app declares custom dependencies, and custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED), so it cannot be downloaded.',
-                );
-            }
-            const depsPrefix = `${versionPrefix(appUuid, resolvedVersion)}deps/`;
+            const depsPrefix = `${versionPrefix(app.app_id, resolvedVersion)}deps/`;
             const [packageJsonBuffer, lockfileBuffer] = await Promise.all([
                 readS3ObjectAsBuffer(
                     s3Client,
@@ -7680,7 +11254,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             properties: {
                 organizationId: app.organization_uuid,
                 projectId: projectUuid,
-                appUuid,
+                appUuid: app.app_id,
                 version: resolvedVersion,
                 versionPinned: version !== undefined,
                 fileCount: files.length,
@@ -7697,15 +11271,45 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         };
     }
 
+    async getDataAppAuthoringContext(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        designUuid: string | null,
+    ): Promise<DataAppContext> {
+        await this.assertDataAppsEnabled(user);
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to create data apps',
+        );
+        if (!isValidDataAppSlug(slug)) {
+            throw new ParameterError(
+                `Invalid data app slug "${slug}". Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters.`,
+            );
+        }
+        if (await this.appModel.hasAppSlug(projectUuid, slug)) {
+            throw new AlreadyExistsError(
+                `A data app with slug "${slug}" already exists in this project. Download it with lightdash download --apps ${slug}.`,
+            );
+        }
+        return this.assembleAppContext(
+            { appUuid: null, designUuid },
+            projectUuid,
+            organizationUuid,
+        );
+    }
+
     private async assembleAppContext(
-        app: { app_id: string; design_uuid: string | null },
+        app: { appUuid: string | null; designUuid: string | null },
         projectUuid: string,
         organizationUuid: string,
     ): Promise<DataAppContext> {
         // Each piece is fetched independently — a failure in one degrades only
         // that piece and never blocks the download of manifest + files.
 
-        const semanticLayer = await (async () => {
+        const { semanticLayer, semanticLayerFiles } = await (async () => {
             try {
                 const exploresByUuid =
                     await this.projectModel.getAllExploresFromCache(
@@ -7714,18 +11318,51 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 const explores = Object.values(exploresByUuid).filter(
                     (e): e is Explore => !isExploreError(e),
                 );
-                const { yaml: modelYaml } =
-                    AppGenerateService.exploresToYaml(explores);
-                return contextFile('semantic-layer.yml', modelYaml);
+                // Chart usage only orders the index — degrade the ranking, not
+                // the whole semantic layer, when it is unavailable.
+                const chartUsageByTable = await (async () => {
+                    try {
+                        return await this.catalogModel.getChartUsageByTable(
+                            projectUuid,
+                        );
+                    } catch {
+                        return new Map<string, number>();
+                    }
+                })();
+                const { files } = AppGenerateService.exploresToModelFiles(
+                    explores,
+                    chartUsageByTable,
+                );
+                return {
+                    semanticLayer: SEMANTIC_LAYER_POINTER_FILE,
+                    semanticLayerFiles: files
+                        // The sandbox-only legacy pointer; downloads carry
+                        // their own at semantic-layer.yml.
+                        .filter(
+                            (file) =>
+                                file.filename !==
+                                AppGenerateService.MODELS_LEGACY_POINTER
+                                    .filename,
+                        )
+                        .map((file) =>
+                            contextFile(
+                                `models/${file.filename}`,
+                                file.contents,
+                            ),
+                        ),
+                };
             } catch (err) {
                 this.logger.warn(
                     `assembleAppContext: semantic layer unavailable for project ${projectUuid}`,
                     err,
                 );
-                return contextFile(
-                    'semantic-layer.yml',
-                    '# Semantic layer unavailable\n',
-                );
+                return {
+                    semanticLayer: contextFile(
+                        'semantic-layer.yml',
+                        '# Semantic layer unavailable\n',
+                    ),
+                    semanticLayerFiles: [],
+                };
             }
         })();
 
@@ -7750,9 +11387,15 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         })();
 
         const promptHistory = await (async () => {
+            if (app.appUuid === null) {
+                return contextFile(
+                    'prompt-history.md',
+                    '# Prompt history\n\n_No previous versions._\n',
+                );
+            }
             try {
                 const withVersions = await this.appModel.getAppWithVersions(
-                    app.app_id,
+                    app.appUuid,
                     projectUuid,
                     { limit: 100 },
                 );
@@ -7769,7 +11412,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 return contextFile('prompt-history.md', promptMd);
             } catch (err) {
                 this.logger.warn(
-                    `assembleAppContext: prompt history unavailable for app ${app.app_id}`,
+                    `assembleAppContext: prompt history unavailable for app ${app.appUuid}`,
                     err,
                 );
                 return contextFile(
@@ -7780,6 +11423,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         })();
 
         const theme = await (async () => {
+            if (app.designUuid === null) {
+                return { instructions: null, assets: [], skippedAssetCount: 0 };
+            }
             try {
                 const { client: s3Client, bucket } = this.getS3Client();
                 return await readDesignForDownload({
@@ -7787,7 +11433,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     bucket,
                     organizationDesignModel: this.organizationDesignModel,
                     organizationUuid,
-                    designUuid: app.design_uuid,
+                    designUuid: app.designUuid,
                     logger: this.logger,
                 });
             } catch (err) {
@@ -7799,7 +11445,125 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             }
         })();
 
-        return { semanticLayer, parameters, promptHistory, theme };
+        return {
+            semanticLayer,
+            semanticLayerFiles,
+            parameters,
+            promptHistory,
+            theme,
+        };
+    }
+
+    /**
+     * Validates a manifest icon value: null clears it, a curated icon name
+     * passes through, anything else is rejected loudly (a hand-edited
+     * lightdash-app.yml is the only way to get a bad value here).
+     */
+    private static resolveManifestIcon(
+        manifestIcon: unknown,
+    ): ChartTypeIcon | null {
+        if (manifestIcon === null) return null;
+        if (isChartTypeIcon(manifestIcon)) return manifestIcon;
+        throw new ParameterError(
+            'Invalid icon in the app manifest. Use one of the curated chart type icons, or null to clear it.',
+        );
+    }
+
+    /**
+     * Applies manifest name/description/icon to the app row when they
+     * differ. App-level metadata only — never touches versions or builds.
+     * The icon is only meaningful on chart types; a manifest icon on any
+     * other app is ignored, not rejected.
+     */
+    private async updateAppMetadataIfChanged(
+        existingApp: Pick<
+            DbApp,
+            'app_id' | 'name' | 'description' | 'template' | 'icon'
+        >,
+        manifest: DataAppCode['manifest'],
+        projectUuid: string,
+    ): Promise<void> {
+        const update: Partial<Pick<DbApp, 'name' | 'description' | 'icon'>> =
+            {};
+        if (manifest.name !== existingApp.name) update.name = manifest.name;
+        if (manifest.description !== existingApp.description)
+            update.description = manifest.description;
+        if (
+            manifest.icon !== undefined &&
+            existingApp.template === DATA_APP_VIZ_TEMPLATE
+        ) {
+            const resolvedIcon = AppGenerateService.resolveManifestIcon(
+                manifest.icon,
+            );
+            if (resolvedIcon !== existingApp.icon) update.icon = resolvedIcon;
+        }
+        if (Object.keys(update).length > 0) {
+            await this.appModel.updateApp(
+                existingApp.app_id,
+                projectUuid,
+                update,
+            );
+        }
+    }
+
+    /**
+     * Whether an uploaded bundle would rebuild exactly what `versionRow`
+     * already built: same src file set, same custom-dependency summary and,
+     * for viz apps, the same declared viz schema. Comparison failures (e.g.
+     * source.tar not stored yet for an in-flight generation) count as
+     * "changed" so the upload proceeds — skipping is only an optimization.
+     */
+    private async isUploadIdenticalToVersion(
+        appUuid: string,
+        versionRow: DbAppVersion,
+        sourceFiles: DataAppCodeFile[],
+        dependencySummary: AppVersionDependencies | undefined,
+        manifestVizSchema: DataAppVizSchema | undefined,
+    ): Promise<boolean> {
+        if (dependencySummary === undefined) {
+            if (versionRow.dependencies !== null) return false;
+        } else {
+            const stored = versionRow.dependencies;
+            if (stored === null) return false;
+            if (stored.lockfileHash !== dependencySummary.lockfileHash)
+                return false;
+            const storedCustom = new Map(
+                stored.custom.map((dep) => [dep.name, dep.version]),
+            );
+            if (
+                storedCustom.size !== dependencySummary.custom.length ||
+                !dependencySummary.custom.every(
+                    (dep) => storedCustom.get(dep.name) === dep.version,
+                )
+            ) {
+                return false;
+            }
+        }
+        if (!isEqual(versionRow.viz_schema ?? null, manifestVizSchema ?? null))
+            return false;
+
+        try {
+            const { client, bucket } = this.getS3Client();
+            const tarBuffer = await readS3ObjectAsBuffer(
+                client,
+                bucket,
+                `${versionPrefix(appUuid, versionRow.version)}source.tar`,
+            );
+            const storedFiles =
+                await AppGenerateService.extractTarFiles(tarBuffer);
+            if (storedFiles.length !== sourceFiles.length) return false;
+            const storedByPath = new Map(
+                storedFiles.map((file) => [file.path, file.contentBase64]),
+            );
+            return sourceFiles.every(
+                (file) => storedByPath.get(file.path) === file.contentBase64,
+            );
+        } catch (err) {
+            this.logger.warn(
+                `App ${appUuid}: unchanged-upload check failed, proceeding with a new version: ${getErrorMessage(err)}`,
+            );
+            return false;
+        }
     }
 
     async importAppCode(
@@ -7809,7 +11573,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): Promise<{
         appUuid: string;
         version: number;
-        action: 'create' | 'append';
+        action: 'create' | 'append' | 'unchanged';
+        slug: string;
+        warnings: string[];
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -7821,7 +11587,36 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
+
+        // Resolve manifest external-connection links up front so a broken
+        // bundle rejects before creating anything.
+        const manifestLinks = code.manifest.externalConnections;
+        const { resolvedLinks, linkWarnings } =
+            await this.resolveManifestExternalConnections(
+                user,
+                projectUuid,
+                organizationUuid,
+                manifestLinks,
+            );
+        const warnings = [...linkWarnings];
+
+        // Access block preflight also runs up front: unresolvable or
+        // ambiguous principals reject the bundle before anything is written.
+        // Guarded like manifestLinks so pre-field bundles never touch the
+        // direct-access seam at all.
+        const directAccessAssignments =
+            code.manifest.access !== undefined
+                ? await this.coderService.prepareDirectAccessReplace({
+                      user,
+                      organizationUuid,
+                      access: code.manifest.access,
+                      contentLabel: `App ${
+                          code.manifest.slug ?? code.manifest.name
+                      }`,
+                  })
+                : null;
 
         // Validate the round-tripped viz schema up front and fail loud: the
         // build-from-source pipeline has no generation run to re-emit it, so
@@ -7908,7 +11703,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 // capability, so it requires manage:DataAppDependency (admins
                 // only by default) — a level above the create/manage:DataApp
                 // needed to upload a template-only app. Checked before the
-                // instance/org gates so an unauthorized user gets a clear 403.
+                // org gate so an unauthorized user gets a clear 403.
                 try {
                     this.assertCanManageDataAppDependencies(
                         user,
@@ -7922,22 +11717,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     });
                     throw err;
                 }
-                if (
-                    !this.lightdashConfig.appRuntime.customDependenciesEnabled
-                ) {
-                    trackUploadRejected(
-                        'custom_dependencies_disabled_instance',
-                        { customDependencies },
-                    );
-                    throw new ParameterError(
-                        'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). Remove the added packages or ask an admin to enable them.',
-                    );
-                }
-                // Per-org rollout gate, layered on the instance env gate: even
-                // when the instance allows custom deps, the org must be
-                // explicitly enabled. Only applies to uploading NEW custom-dep
-                // content — builds/downloads of already-approved sets stay
-                // gated by the env kill-switch alone.
+                // The per-org rollout gate applies when uploading a new custom
+                // dependency set. Once approved and stored, background builds,
+                // iterations, and downloads must continue to use that exact set.
                 const { enabled: orgAllowsCustomDeps } =
                     await this.featureFlagModel.get({
                         user,
@@ -8006,17 +11788,153 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             }
         }
 
-        // Determine mode: append to existing app or create new one
-        const existingApp = body.targetAppUuid
-            ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
-            : undefined;
-        if (body.targetAppUuid && existingApp === undefined) {
+        // Identity resolution (charts-as-code pattern): the manifest slug is
+        // matched against the TARGET project — found → append a version,
+        // missing → create with that exact slug. targetAppUuid remains as the
+        // fallback for pre-slug bundles/CLIs; createNew forces a fresh app.
+        const manifestSlug = code.manifest.slug;
+        // Reject before any lookup: the slug becomes a project-scoped index
+        // key here and a filesystem folder name on the CLI's next download —
+        // a hand-edited manifest (e.g. `slug: ../../../../tmp/evil`) must
+        // never reach either use unvalidated.
+        if (manifestSlug !== undefined && !isValidDataAppSlug(manifestSlug)) {
             throw new ParameterError(
-                `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+                `Invalid slug "${manifestSlug}" in the app manifest. Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters. Re-download the app or fix lightdash-app.yml.`,
+            );
+        }
+        let existingApp: Awaited<ReturnType<AppModel['findApp']>> | undefined;
+        if (body.createNew) {
+            existingApp = undefined;
+        } else if (manifestSlug !== undefined) {
+            existingApp = await this.appModel.findAppBySlug(
+                projectUuid,
+                manifestSlug,
+            );
+        } else if (body.targetAppUuid) {
+            existingApp = await this.appModel.findApp(
+                body.targetAppUuid,
+                projectUuid,
+            );
+            if (existingApp === undefined) {
+                throw new ParameterError(
+                    `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+                );
+            }
+        }
+        // Registry-managed apps never receive uploads, including the
+        // identical-bundle short-circuit below that only patches metadata.
+        if (existingApp) {
+            AppGenerateService.assertNotRegistryManaged(
+                existingApp,
+                'updated by upload',
             );
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
+        // Mirrors the resolution precedence above. Watch 'uuid-fallback' and
+        // 'none' (both pre-slug bundles) decay to zero before removing the
+        // targetAppUuid fallback in a future codeVersion bump.
+        let identitySource: DataAppUploadIdentitySource;
+        if (body.createNew) {
+            identitySource = 'create-new';
+        } else if (manifestSlug !== undefined) {
+            identitySource = 'slug';
+        } else if (body.targetAppUuid) {
+            identitySource = 'uuid-fallback';
+        } else {
+            identitySource = 'none';
+        }
+
+        // A bundle identical to the app's latest version needs no new version
+        // and no rebuild — bulk re-uploads would otherwise burn build slots on
+        // unchanged apps and trip the per-project build cap. Checked before
+        // that cap so unchanged uploads always succeed. An 'error' latest
+        // version never skips, so re-uploading the same source retries the
+        // build. App-level metadata (name/description) and links still apply.
+        if (
+            action === 'append' &&
+            existingApp !== undefined &&
+            body.force !== true
+        ) {
+            await this.assertCanManageApp(
+                user,
+                existingApp,
+                'You do not have access to update this app',
+            );
+            const latestVersion = await this.appModel.getLatestVersion(
+                existingApp.app_id,
+            );
+            if (
+                latestVersion !== null &&
+                latestVersion.status !== 'error' &&
+                (await this.isUploadIdenticalToVersion(
+                    existingApp.app_id,
+                    latestVersion,
+                    sourceFiles,
+                    dependencySummary,
+                    existingApp.template === DATA_APP_VIZ_TEMPLATE
+                        ? manifestVizSchema
+                        : undefined,
+                ))
+            ) {
+                await this.updateAppMetadataIfChanged(
+                    existingApp,
+                    code.manifest,
+                    projectUuid,
+                );
+                if (manifestLinks !== undefined) {
+                    await this.externalConnectionModel.replaceAppLinks(
+                        existingApp.app_id,
+                        resolvedLinks,
+                    );
+                }
+                // An unchanged bundle still reconciles its declared policy —
+                // same contract as links and metadata above.
+                if (directAccessAssignments !== null) {
+                    await this.coderService.applyDirectAccessPolicy(
+                        user,
+                        projectUuid,
+                        DirectAccessResourceType.APP,
+                        existingApp.app_id,
+                        directAccessAssignments,
+                    );
+                }
+                this.analytics.track({
+                    event: 'data_app.uploaded',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        appUuid: existingApp.app_id,
+                        version: latestVersion.version,
+                        action: 'unchanged',
+                        template: code.manifest.template,
+                        sourceFileCount: sourceFiles.length,
+                        sourceBytes: sourceFiles.reduce(
+                            (total, file) =>
+                                total +
+                                Buffer.byteLength(file.contentBase64, 'base64'),
+                            0,
+                        ),
+                        hasCustomDependencies: dependencySummary !== undefined,
+                        customDependencyCount:
+                            dependencySummary?.custom.length ?? 0,
+                        customDependencies: dependencySummary?.custom ?? [],
+                        identitySource,
+                        ...(dependencySummary !== undefined
+                            ? { lockfileHash: dependencySummary.lockfileHash }
+                            : {}),
+                    },
+                });
+                return {
+                    appUuid: existingApp.app_id,
+                    version: latestVersion.version,
+                    action: 'unchanged',
+                    slug: existingApp.slug,
+                    warnings,
+                };
+            }
+        }
 
         const inProgressCount =
             await this.appModel.countInProgressVersionsForProject(projectUuid);
@@ -8027,6 +11945,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
 
         let newAppUuid: string;
+        let newAppSlug: string;
         let newVersion: number;
 
         if (action === 'append' && existingApp !== undefined) {
@@ -8035,20 +11954,54 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 existingApp,
                 'You do not have access to update this app',
             );
-            const nameChanged = code.manifest.name !== existingApp.name;
-            const descChanged =
-                code.manifest.description !== existingApp.description;
-            if (nameChanged || descChanged) {
-                const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
-                if (nameChanged) update.name = code.manifest.name;
-                if (descChanged) update.description = code.manifest.description;
-                await this.appModel.updateApp(
-                    existingApp.app_id,
+            await this.updateAppMetadataIfChanged(
+                existingApp,
+                code.manifest,
+                projectUuid,
+            );
+            // Vizs are project-global chart content — space semantics don't
+            // apply, and a spaced viz would leak into every space-scoped
+            // data-app surface. Skip placement (guarded before
+            // resolveManifestSpace so a viz upload can't create the space).
+            if (existingApp.template === DATA_APP_VIZ_TEMPLATE) {
+                if (code.manifest.spaceSlug !== undefined) {
+                    warnings.push(
+                        'Custom chart types cannot be placed in spaces — the manifest spaceSlug was ignored.',
+                    );
+                }
+            } else {
+                // spaceSlug present → reconcile placement; absent → untouched
+                // (mirrors the externalConnections manifest semantics).
+                const manifestSpaceUuid = await this.resolveManifestSpace(
+                    user,
                     projectUuid,
-                    update,
+                    code.manifest.spaceSlug,
                 );
+                if (
+                    manifestSpaceUuid !== undefined &&
+                    manifestSpaceUuid !== existingApp.space_uuid
+                ) {
+                    const spaceContext =
+                        await this.spacePermissionService.resolveAccess(
+                            user.userUuid,
+                            { type: 'space', spaceUuid: manifestSpaceUuid },
+                        );
+                    await this.assertDataAppAbility(
+                        user,
+                        'manage',
+                        projectUuid,
+                        'Insufficient permissions to move this data app into the manifest space',
+                        spaceContext,
+                    );
+                    await this.appModel.moveToSpace({
+                        appId: existingApp.app_id,
+                        projectUuid,
+                        targetSpaceUuid: manifestSpaceUuid,
+                    });
+                }
             }
             newAppUuid = existingApp.app_id;
+            newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
                 existingApp.app_id,
             );
@@ -8066,23 +12019,46 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     : undefined,
             );
         } else {
-            this.assertDataAppAbility(
+            await this.assertDataAppAbility(
                 user,
                 'create',
-                organizationUuid,
                 projectUuid,
                 'Insufficient permissions to create data apps',
             );
-            if (body.spaceUuid) {
-                const spaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
-                        user.userUuid,
-                        body.spaceUuid,
+            // Vizs are project-global chart content — created spaceless
+            // regardless of --app-space or manifest spaceSlug (a spaced viz
+            // would leak into every space-scoped data-app surface).
+            let targetSpaceUuid: string | null = null;
+            if (code.manifest.template === DATA_APP_VIZ_TEMPLATE) {
+                if (
+                    body.spaceUuid !== undefined ||
+                    code.manifest.spaceSlug !== undefined
+                ) {
+                    warnings.push(
+                        'Custom chart types cannot be placed in spaces — created without a space.',
                     );
-                this.assertDataAppAbility(
+                }
+            } else {
+                // Explicit --app-space wins over the manifest's spaceSlug;
+                // both absent → personal app.
+                targetSpaceUuid =
+                    body.spaceUuid ??
+                    (await this.resolveManifestSpace(
+                        user,
+                        projectUuid,
+                        code.manifest.spaceSlug,
+                    )) ??
+                    null;
+            }
+            if (targetSpaceUuid) {
+                const spaceContext =
+                    await this.spacePermissionService.resolveAccess(
+                        user.userUuid,
+                        { type: 'space', spaceUuid: targetSpaceUuid },
+                    );
+                await this.assertDataAppAbility(
                     user,
                     'manage',
-                    organizationUuid,
                     projectUuid,
                     'Insufficient permissions to create a data app in this space',
                     spaceContext,
@@ -8096,7 +12072,22 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     name: code.manifest.name,
                     description: code.manifest.description,
                     template: code.manifest.template,
-                    space_uuid: body.spaceUuid ?? null,
+                    space_uuid: targetSpaceUuid,
+                    // The icon is only meaningful on chart types; a manifest
+                    // icon on any other app is ignored, not rejected.
+                    ...(code.manifest.icon !== undefined &&
+                    code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                        ? {
+                              icon: AppGenerateService.resolveManifestIcon(
+                                  code.manifest.icon,
+                              ),
+                          }
+                        : {}),
+                    // Round-trip the manifest slug exactly; createNew and
+                    // pre-slug bundles let the model generate a unique one.
+                    ...(manifestSlug !== undefined && !body.createNew
+                        ? { slug: manifestSlug }
+                        : {}),
                 },
                 { version: newVersion, prompt: '' },
                 'pending',
@@ -8105,9 +12096,40 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 code.manifest.template === DATA_APP_VIZ_TEMPLATE
                     ? manifestVizSchema
                     : undefined,
+                // Verbatim slug + loud conflict, so re-uploads stay
+                // idempotent (never silently minting suffixed duplicates).
+                { forceSlug: true },
             );
             newAppUuid = app.app_id;
+            newAppSlug = app.slug;
         }
+
+        // Reconcile links only when the manifest carries the field — bundles
+        // downloaded before link support must leave existing links untouched.
+        if (manifestLinks !== undefined) {
+            await this.externalConnectionModel.replaceAppLinks(
+                newAppUuid,
+                resolvedLinks,
+            );
+        }
+
+        // Same reconciliation contract for the direct policy: present
+        // (including empty) → atomic replacement; absent → untouched.
+        if (directAccessAssignments !== null) {
+            await this.coderService.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.APP,
+                newAppUuid,
+                directAccessAssignments,
+            );
+        }
+
+        await this.extractAndPersistVersionDataReferences(
+            newAppUuid,
+            newVersion,
+            sourceFiles,
+        );
 
         // Re-tar the source files into a single source.tar Buffer
         const sourceTar = await new Promise<Buffer>((resolve, reject) => {
@@ -8163,6 +12185,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     Body: sanitizeAppPackageJsonScripts(
                         code.dependencies.packageJson,
                         TEMPLATE_SCRIPTS,
+                        TEMPLATE_DEV_DEPENDENCIES,
                     ),
                     ContentType: 'application/json',
                 }),
@@ -8201,24 +12224,42 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 hasCustomDependencies: dependencySummary !== undefined,
                 customDependencyCount: dependencySummary?.custom.length ?? 0,
                 customDependencies: dependencySummary?.custom ?? [],
+                identitySource,
                 ...(dependencySummary !== undefined
                     ? { lockfileHash: dependencySummary.lockfileHash }
                     : {}),
             },
         });
 
-        return { appUuid: newAppUuid, version: newVersion, action };
+        return {
+            appUuid: newAppUuid,
+            version: newVersion,
+            action,
+            slug: newAppSlug,
+            warnings,
+        };
     }
 
     async runBuildFromSourcePipeline(
         payload: AppBuildFromSourceJobPayload,
     ): Promise<void> {
         const { appUuid, version, organizationUuid, projectUuid } = payload;
-        const { client, bucket } = this.getS3Client();
-        const copilot =
-            await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
-                organizationUuid,
+        try {
+            await this.authorizePipelineExecution(payload);
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: source-build authorization failed for user ${payload.userUuid} on version ${version}: ${getErrorMessage(error)}`,
             );
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                'Build stopped because access is no longer available.',
+            );
+            return;
+        }
+        const { client, bucket } = this.getS3Client();
+        const copilot = await this.getCodingAgentConfig(organizationUuid);
 
         // Look up the version's custom dependency set once — null means the
         // build uses the template set only (no install step).
@@ -8284,10 +12325,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             // package.json + lockfile and run pnpm install before the build.
             if (versionDeps !== null) {
                 try {
-                    await this.appModel.updateStatusMessage(
+                    await this.appModel.recordBuildNarration(
                         appUuid,
                         version,
                         'Installing dependencies',
+                        'stage',
                     );
                 } catch (e) {
                     this.logger.warn(

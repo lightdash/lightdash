@@ -1,4 +1,4 @@
-import { TextInput } from '@mantine-8/core';
+import { TextInput } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { parseCronExpression } from './cronInputUtils';

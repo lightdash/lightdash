@@ -1,4 +1,4 @@
-import { useLocalStorage } from '@mantine-8/hooks';
+import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useMemo, type FC, type PropsWithChildren } from 'react';
 import useApp from '../../../../../providers/App/useApp';
 import { store as aiAgentStore } from '../../store';

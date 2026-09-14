@@ -161,6 +161,7 @@ export async function selectAgent({
         feature: 'agent-selector',
         ...getLanguageModelAttribution(model),
         ...telemetry,
+        keyManagement: telemetry?.keyManagement ?? null,
     });
     const result = await generateObject({
         model,

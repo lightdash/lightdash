@@ -14,6 +14,12 @@
     width: rem(32px);
 }
 
+.threadAction {
+    width: rem(32px);
+    height: rem(32px);
+    color: var(--mantine-color-ldGray-9);
+}
+
 .flippedIcon {
     transform: scaleX(-1);
 }

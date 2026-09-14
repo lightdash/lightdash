@@ -1,4 +1,4 @@
-import { Select } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import React, { type FC } from 'react';
 import { Frequency } from './cronInputUtils';
 import styles from './FrequencySelect.module.css';
@@ -16,6 +16,10 @@ const FrequencyItems: Array<FrequencyItem> = [
     {
         value: Frequency.DAILY,
         label: 'Daily',
+    },
+    {
+        value: Frequency.WEEKDAYS,
+        label: 'Weekdays',
     },
     {
         value: Frequency.WEEKLY,
@@ -43,7 +47,7 @@ const FrequencySelect: FC<{
             value={value}
             disabled={disabled}
             onChange={onChange}
-            w={110}
+            w={120}
         />
     );
 };

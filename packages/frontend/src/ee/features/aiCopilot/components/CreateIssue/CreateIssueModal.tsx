@@ -13,7 +13,7 @@ import {
     Text,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChartBar,
     IconLayoutDashboard,
@@ -38,7 +38,6 @@ const rootCauseOptions: { value: AiAgentRootCause; label: string }[] = [
     { value: 'semantic_layer', label: 'Semantic layer' },
     { value: 'project_context', label: 'Project context' },
     { value: 'agent_configuration', label: 'Agent configuration' },
-    { value: 'product_capability', label: 'Product capability' },
     { value: 'runtime_reliability', label: 'Runtime reliability' },
     { value: 'feedback_quality', label: 'Feedback quality' },
     { value: 'not_a_failure', label: 'Not a failure' },
@@ -73,11 +72,7 @@ const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
 
     if (context.chartUuid) {
         return (
-            <Badge
-                variant="light"
-                color="gray"
-                leftSection={<MantineIcon icon={IconChartBar} size={12} />}
-            >
+            <Badge leftSection={<MantineIcon icon={IconChartBar} size={12} />}>
                 Reported from {chart?.name ?? 'a chart'}
             </Badge>
         );
@@ -85,8 +80,6 @@ const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
     if (context.dashboardUuid) {
         return (
             <Badge
-                variant="light"
-                color="gray"
                 leftSection={
                     <MantineIcon icon={IconLayoutDashboard} size={12} />
                 }

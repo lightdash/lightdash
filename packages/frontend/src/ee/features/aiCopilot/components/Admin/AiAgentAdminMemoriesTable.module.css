@@ -1,0 +1,14 @@
+.toolbarDivider {
+    align-self: center;
+}
+
+.resultCount {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    border-radius: 6px;
+}
+
+.bottomToolbar {
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+}

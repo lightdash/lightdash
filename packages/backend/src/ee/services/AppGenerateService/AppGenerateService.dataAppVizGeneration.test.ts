@@ -21,19 +21,43 @@ function buildService(
     overrides: {
         appModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
+        codingAgent?: 'claude' | 'codex';
     } = {},
 ) {
+    const analytics = { track: vi.fn() };
     const appModel = overrides.appModel ?? {
         createWithVersion: vi.fn().mockResolvedValue(undefined),
+        createVersion: vi.fn().mockResolvedValue(undefined),
+        getApp: vi.fn().mockResolvedValue({
+            app_id: 'app-1',
+            project_uuid: 'project-1',
+            organization_uuid: 'org-1',
+            created_by_user_uuid: 'user-1',
+            space_uuid: null,
+            design_uuid: null,
+            registry_slug: null,
+        }),
+        getLatestVersion: vi.fn().mockResolvedValue({
+            version: 1,
+            status: 'ready',
+            dependencies: null,
+            created_at: new Date(),
+        }),
     };
     const schedulerClient = overrides.schedulerClient ?? {
         appGeneratePipeline: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AppGenerateService({
-        lightdashConfig: {} as never,
-        analytics: { track: vi.fn() } as never,
+        lightdashConfig: {
+            appRuntime: {
+                sampleDataEnabled: true,
+                dataAppCodingAgent: overrides.codingAgent,
+            },
+        } as never,
+        analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -49,26 +73,45 @@ function buildService(
         } as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
+        savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
-        spacePermissionService: {} as never,
+        spacePermissionService: {
+            resolveAccess: vi.fn().mockResolvedValue({
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                inheritsFromOrgOrProject: false,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }),
+        } as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
-        orgAiCopilotConfigResolver: {} as never,
+        orgAiCopilotConfigResolver: {
+            // generateApp resolves the Claude model through this; null means
+            // the org has no Data App model restrictions.
+            getDataAppModelVisibility: async () => null,
+        } as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
         service as unknown as { createAuditedAbility: () => unknown }
-    ).createAuditedAbility = () => ({ cannot: () => false });
-    return { service, appModel, schedulerClient };
+    ).createAuditedAbility = () => ({ can: () => true, cannot: () => false });
+    return { service, appModel, schedulerClient, analytics };
 }
 
 describe('AppGenerateService.generateApp with the data app viz template', () => {
     it('persists the viz template so the pipeline builds a data app viz', async () => {
-        const { service, appModel, schedulerClient } = buildService();
+        const { service, appModel, schedulerClient, analytics } =
+            buildService();
 
         const result = await service.generateApp(
             USER,
@@ -79,6 +122,10 @@ describe('AppGenerateService.generateApp with the data app viz template', () => 
             undefined, // charts
             undefined, // dashboard
             DATA_APP_VIZ_TEMPLATE,
+            undefined, // clarifications
+            undefined, // spaceUuid
+            undefined, // claudeModelInput
+            { creationExperience: 'explorer_chart_config' },
         );
 
         expect(result).toEqual({
@@ -97,6 +144,9 @@ describe('AppGenerateService.generateApp with the data app viz template', () => 
             space_uuid: null,
         });
         expect(createCall[2]).toBe('pending');
+        expect(createCall[3]).toMatchObject({
+            creationExperience: 'explorer_chart_config',
+        });
 
         // The pipeline switches on the app's stored template to build a data
         // app viz — no separate endpoint or flag needed.
@@ -109,7 +159,183 @@ describe('AppGenerateService.generateApp with the data app viz template', () => 
             projectUuid: 'project-1',
             isIteration: false,
             template: DATA_APP_VIZ_TEMPLATE,
+            creationExperience: 'explorer_chart_config',
         });
+
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.created',
+                properties: expect.objectContaining({
+                    creationExperience: 'explorer_chart_config',
+                }),
+            }),
+        );
+    });
+
+    it('does not misclassify older callers with no experience', async () => {
+        const { service, appModel, schedulerClient, analytics } =
+            buildService();
+
+        await service.generateApp(
+            USER,
+            'project-1',
+            'Build a visualization',
+            [],
+            'app-1',
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+        );
+
+        const createCall = (
+            appModel.createWithVersion as ReturnType<typeof vi.fn>
+        ).mock.calls[0];
+        expect(createCall[3]).not.toHaveProperty('creationExperience');
+        expect(
+            (schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>)
+                .mock.calls[0][0],
+        ).not.toHaveProperty('creationExperience');
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.created',
+                properties: expect.objectContaining({
+                    creationExperience: null,
+                }),
+            }),
+        );
+    });
+
+    it('tracks the selected Codex model without a fake Claude model', async () => {
+        const { service, analytics } = buildService({ codingAgent: 'codex' });
+
+        await service.generateApp(
+            USER,
+            'project-1',
+            'Build a visualization',
+            [],
+            'app-1',
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+            undefined,
+            undefined,
+            undefined,
+            { codexModelInput: 'gpt-5.6-sol' },
+        );
+
+        const event = analytics.track.mock.calls[0][0];
+        expect(event).toMatchObject({
+            event: 'data_app.created',
+            properties: {
+                codingAgent: 'codex',
+                codingAgentModel: 'gpt-5.6-sol',
+            },
+        });
+        expect(event.properties).not.toHaveProperty('claudeModel');
+    });
+});
+
+describe('AppGenerateService.iterateApp creation experience', () => {
+    it('persists the experience that submitted this version', async () => {
+        const { service, appModel, schedulerClient, analytics } =
+            buildService();
+
+        await service.iterateApp(
+            USER,
+            'project-1',
+            'app-1',
+            'make the bars teal',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            { creationExperience: 'explorer_chart_config' },
+        );
+
+        const createCall = (appModel.createVersion as ReturnType<typeof vi.fn>)
+            .mock.calls[0];
+        expect(createCall[4]).toMatchObject({
+            creationExperience: 'explorer_chart_config',
+        });
+        expect(
+            (schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>)
+                .mock.calls[0][0],
+        ).toMatchObject({
+            version: 2,
+            creationExperience: 'explorer_chart_config',
+        });
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.iterated',
+                properties: expect.objectContaining({
+                    version: 2,
+                    creationExperience: 'explorer_chart_config',
+                }),
+            }),
+        );
+    });
+
+    it('forwards the AI-agent tool call correlation to the pipeline', async () => {
+        const { service, schedulerClient } = buildService();
+
+        await service.iterateApp(
+            USER,
+            'project-1',
+            'app-1',
+            'make the bars teal',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            {
+                creationExperience: 'ai_agent',
+                aiAgentToolCall: {
+                    promptUuid: 'prompt-1',
+                    toolCallId: 'tool-call-1',
+                },
+            },
+        );
+
+        expect(
+            (schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>)
+                .mock.calls[0][0],
+        ).toMatchObject({
+            isIteration: true,
+            aiAgentToolCall: {
+                promptUuid: 'prompt-1',
+                toolCallId: 'tool-call-1',
+            },
+        });
+    });
+
+    it('does not misclassify an older iteration caller', async () => {
+        const { service, appModel, schedulerClient, analytics } =
+            buildService();
+
+        await service.iterateApp(
+            USER,
+            'project-1',
+            'app-1',
+            'make the bars teal',
+            [],
+        );
+
+        const createCall = (appModel.createVersion as ReturnType<typeof vi.fn>)
+            .mock.calls[0];
+        expect(createCall[4]).not.toHaveProperty('creationExperience');
+        expect(
+            (schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>)
+                .mock.calls[0][0],
+        ).not.toHaveProperty('creationExperience');
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.iterated',
+                properties: expect.objectContaining({
+                    version: 2,
+                    creationExperience: null,
+                }),
+            }),
+        );
     });
 });
 
@@ -125,6 +351,7 @@ describe('AppGenerateService.parseSchema', () => {
             { name: 'value', label: 'Value', type: 'metric', required: true },
         ],
         configOptions: [],
+        colorPalette: null,
     };
 
     it('validates a well-formed schema', () => {
@@ -133,7 +360,7 @@ describe('AppGenerateService.parseSchema', () => {
         );
     });
 
-    it('defaults configOptions to [] when omitted', () => {
+    it('defaults configOptions to [] and colorPalette to null when omitted', () => {
         expect(
             AppGenerateService.parseSchema({ fields: validSchema.fields }),
         ).toEqual(validSchema);

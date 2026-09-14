@@ -16,62 +16,28 @@ import {
 import * as Sentry from '@sentry/node';
 import execa, { ExecaError, ExecaReturnValue } from 'execa';
 import * as fs from 'fs/promises';
-import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
+import yaml from 'js-yaml';
+import os from 'os';
 import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient } from '../types';
-
-type DbtProjectConfig = {
-    targetDir: string;
-};
-
-type RawDbtProjectConfig = {
-    'target-path'?: string;
-    'target-dir'?: string;
-};
-
-const isRawDbtConfig = (raw: AnyType): raw is RawDbtProjectConfig =>
-    typeof raw === 'object' &&
-    raw !== null &&
-    (raw['target-dir'] === undefined || typeof raw['target-dir'] === 'string');
-
-export const getDbtConfig = async (
-    dbtProjectDirectory: string,
-): Promise<DbtProjectConfig> => {
-    let config;
-    const configPath = path.join(dbtProjectDirectory, 'dbt_project.yml');
-    try {
-        config = loadYaml(await fs.readFile(configPath, 'utf-8'));
-    } catch (e) {
-        throw new ParseError(
-            `dbt_project.yml was not found or isn't a valid yaml document: ${getErrorMessage(
-                e,
-            )}`,
-            {},
-        );
-    }
-    if (!isRawDbtConfig(config)) {
-        throw new Error('dbt_project.yml not valid');
-    }
-    const updatedConfig = {
-        ...config,
-        'target-path': 'target',
-    };
-    await fs.writeFile(configPath, dumpYaml(updatedConfig), 'utf-8');
-    return {
-        targetDir: '/target',
-    };
-};
+import {
+    getDbtProcessEnvironment,
+    getMissingEnvironmentVariableHint,
+} from './dbtProcessEnvironment';
 
 type DbtCliArgs = {
     dbtProjectDirectory: string;
     dbtProfilesDirectory: string;
     environment: Record<string, string>;
+    environmentVariableAllowlist: string[];
     profileName?: string;
     target?: string;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
+    gitConfigGlobalPath?: string;
+    dbtDepsErrorHint?: string;
 };
 
 enum DbtCommands {
@@ -93,6 +59,8 @@ export class DbtCliClient implements DbtClient {
 
     environment: Record<string, string>;
 
+    environmentVariableAllowlist: string[];
+
     profileName: string | undefined;
 
     target: string | undefined;
@@ -103,35 +71,61 @@ export class DbtCliClient implements DbtClient {
 
     selector?: string;
 
+    gitConfigGlobalPath?: string;
+
+    dbtDepsErrorHint?: string;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
         environment,
+        environmentVariableAllowlist,
         profileName,
         target,
         dbtVersion,
         selector,
+        gitConfigGlobalPath,
+        dbtDepsErrorHint,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
         this.environment = environment;
+        this.environmentVariableAllowlist = environmentVariableAllowlist;
         this.profileName = profileName;
         this.target = target;
         this.targetDirectory = undefined;
         this.dbtVersion = dbtVersion;
         this.selector = selector;
+        this.gitConfigGlobalPath = gitConfigGlobalPath;
+        this.dbtDepsErrorHint = dbtDepsErrorHint;
     }
 
     getSelector(): string | undefined {
         return this.selector;
     }
 
+    // Each client gets its own dbt target directory so that concurrent
+    // compilations of different projects — which share the same on-disk
+    // project dir — cannot overwrite each other's manifest.json. The path is
+    // passed to dbt via DBT_TARGET_PATH (see _runDbtCommand); the shared
+    // dbt_project.yml is never mutated.
     private async _getTargetDirectory(): Promise<string> {
         if (!this.targetDirectory) {
-            const config = await getDbtConfig(this.dbtProjectDirectory);
-            this.targetDirectory = config.targetDir;
+            this.targetDirectory = await fs.mkdtemp(
+                path.join(os.tmpdir(), 'dbt_target_'),
+            );
         }
         return this.targetDirectory;
+    }
+
+    async cleanup(): Promise<void> {
+        if (this.targetDirectory) {
+            await fs.rm(this.targetDirectory, {
+                recursive: true,
+                force: true,
+            });
+            this.targetDirectory = undefined;
+        }
     }
 
     static parseDbtJsonLogs(logs: string | undefined): DbtLog[] {
@@ -183,6 +177,7 @@ export class DbtCliClient implements DbtClient {
         stdout: string;
     }> {
         const dbtExec = this.getDbtExec();
+        const targetPath = await this._getTargetDirectory();
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -210,11 +205,15 @@ export class DbtCliClient implements DbtClient {
             const dbtProcess = await execa(dbtExec, dbtArgs, {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
-                env: {
-                    DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
-                    DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
-                    ...this.environment,
-                },
+                extendEnv: false,
+                env: getDbtProcessEnvironment({
+                    processEnvironment: process.env,
+                    environmentVariableAllowlist:
+                        this.environmentVariableAllowlist,
+                    projectEnvironment: this.environment,
+                    targetPath,
+                    gitConfigGlobalPath: this.gitConfigGlobalPath,
+                }),
             });
             return {
                 logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
@@ -233,10 +232,15 @@ export class DbtCliClient implements DbtClient {
                 'all' in execaError &&
                 typeof execaError.all === 'string'
             ) {
+                const missingVariablesHint = getMissingEnvironmentVariableHint(
+                    execaError.all,
+                );
                 throw new DbtError(
                     `Failed to run "${dbtExec} ${command.join(
                         ' ',
-                    )}" with dbt version "${this.dbtVersion}"`,
+                    )}" with dbt version "${this.dbtVersion}"${
+                        missingVariablesHint ? `. ${missingVariablesHint}` : ''
+                    }`,
                     DbtCliClient.parseDbtJsonLogs(execaError.all),
                 );
             }
@@ -252,7 +256,17 @@ export class DbtCliClient implements DbtClient {
             },
             async () => {
                 const startTime = Date.now();
-                await this._runDbtCommand('deps');
+                try {
+                    await this._runDbtCommand('deps');
+                } catch (error) {
+                    if (error instanceof DbtError && this.dbtDepsErrorHint) {
+                        throw new DbtError(
+                            `${error.message}. ${this.dbtDepsErrorHint}`,
+                            error.logs,
+                        );
+                    }
+                    throw error;
+                }
                 Logger.info(
                     `dbt deps completed in ${Date.now() - startTime}ms`,
                 );
@@ -385,11 +399,7 @@ export class DbtCliClient implements DbtClient {
     private async loadDbtTargetArtifact(filename: string): Promise<AnyType> {
         const targetDir = await this._getTargetDirectory();
 
-        const fullPath = path.join(
-            this.dbtProjectDirectory,
-            targetDir,
-            filename,
-        );
+        const fullPath = path.join(targetDir, filename);
         return DbtCliClient.loadDbtFile(fullPath);
     }
 

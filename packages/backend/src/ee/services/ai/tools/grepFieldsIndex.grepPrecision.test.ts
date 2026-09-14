@@ -36,7 +36,7 @@ type FieldSpec = {
     name: string;
     label?: string;
     description?: string;
-    aiHint?: string;
+    aiHint?: string | string[];
     groups?: string[];
 };
 
@@ -119,7 +119,7 @@ describe('summarizeRequiredFilters', () => {
         });
 
         expect(summarizeRequiredFilters(explore)).toBe(
-            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]',
+            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]. Required filter values are replaceable defaults, not fixed data limits; use a compatible query filter on the same field or a derived time dimension of that field when the requested scope differs.',
         );
     });
 });
@@ -315,6 +315,33 @@ describe('buildFieldIndex haystack scope', () => {
         );
         expect(compileMatcher('zephyr')(entry.hintHaystack)).toBe(true);
     });
+
+    it('ignores malformed field and group hints while keeping valid hints', () => {
+        const malformedExplore = makeExplore({
+            name: 'payments',
+            groupDetails: {
+                settlements: {
+                    label: 'Settlements',
+                    aiHint: { invalid: true } as unknown as string[],
+                },
+            },
+            fields: [
+                {
+                    name: 'total_revenue',
+                    aiHint: [
+                        'Canonical revenue metric.',
+                        { Formula: 'clicks + keys' },
+                    ] as unknown as string[],
+                    groups: ['settlements'],
+                },
+            ],
+        });
+
+        expect(() => buildFieldIndex([malformedExplore])).not.toThrow();
+        const [entry] = buildFieldIndex([malformedExplore]);
+        expect(entry.aiHint).toBe('Canonical revenue metric.');
+        expect(entry.hintHaystack).not.toContain('[object object]');
+    });
 });
 
 describe('buildExploreIndex', () => {
@@ -334,6 +361,19 @@ describe('buildExploreIndex', () => {
         const matches = compileMatcher('comment');
         const hits = index.filter((e) => matches(e.haystack));
         expect(hits.map((e) => e.exploreName)).toEqual(['learner_reviews']);
+    });
+
+    it('ignores malformed explore-level hints', () => {
+        const malformedExplore = makeExplore({
+            name: 'orders',
+            aiHint: { Formula: 'clicks + keys' } as unknown as string[],
+            fields: [{ name: 'status' }],
+        });
+
+        expect(() => buildExploreIndex([malformedExplore])).not.toThrow();
+        expect(buildExploreIndex([malformedExplore])[0].haystack).not.toContain(
+            '[object object]',
+        );
     });
 });
 
@@ -384,5 +424,28 @@ describe('selectCandidateFields', () => {
         expect(
             selectCandidateFields(index, ['led']).map((field) => field.path),
         ).toEqual(['events/events_sales_led_flag']);
+    });
+});
+
+describe('buildFieldIndex parameter references', () => {
+    it('carries a field parameterReferences into the index entry', () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'selected_metric' }, { name: 'status' }],
+        });
+        explore.tables.orders.dimensions.selected_metric.parameterReferences = [
+            'orders.metric',
+        ];
+
+        const index = buildFieldIndex([explore]);
+        const parameterized = index.find(
+            (entry) => entry.path === 'orders/orders_selected_metric',
+        );
+        const plain = index.find(
+            (entry) => entry.path === 'orders/orders_status',
+        );
+
+        expect(parameterized?.requiredParameters).toEqual(['orders.metric']);
+        expect(plain?.requiredParameters).toEqual([]);
     });
 });

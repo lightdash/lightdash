@@ -1,3 +1,4 @@
+import type { AiDeepResearchPhase } from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
 import Logger from '../logging/logger';
@@ -11,6 +12,7 @@ type BaseTrack = Omit<AnalyticsTrack, 'context'>;
  */
 export type AiCallFeature =
     | 'agent'
+    | 'deep-research'
     | 'agent-subtask'
     | 'chart-metadata'
     | 'document-summary'
@@ -26,14 +28,44 @@ export type AiCallFeature =
     | 'project-router'
     | 'agent-selector'
     | 'review-classifier'
+    | 'prompt-input-classifier'
+    | 'ai-agent-memory'
     | 'llm-judge'
     | 'data-app'
-    | 'managed-agent';
+    | 'managed-agent'
+    | 'external-connection-config'
+    | 'delivery-summary';
+
+/**
+ * Whether the AI call ran on Lightdash's own (instance) provider key or the
+ * customer's self-managed (bring-your-own) key. Lets analytics/CS tell who is
+ * on a Lightdash-managed key — e.g. to follow up on upgrades, or spot orgs
+ * using our key when they shouldn't. Null when the origin isn't known for the
+ * call (e.g. embeddings/instance-only paths).
+ */
+export type AiKeyManagement = 'lightdash-managed' | 'self-managed';
+
+const AI_KEY_MANAGEMENT_VALUES: readonly AiKeyManagement[] = [
+    'lightdash-managed',
+    'self-managed',
+];
+
+const parseKeyManagement = (value: string | null): AiKeyManagement | null =>
+    value !== null && (AI_KEY_MANAGEMENT_VALUES as string[]).includes(value)
+        ? (value as AiKeyManagement)
+        : null;
 
 /**
  * Token counts for a single AI call, normalized across providers and call
  * kinds (LLM text/object generation, embeddings). Null means the provider
  * did not report that class of tokens.
+ *
+ * `inputTokens` is the total number of prompt tokens. This total includes the
+ * cache-read tokens and the cache-write tokens. The warehouse model
+ * `ai_token_usage` calculates the uncached input tokens. To do this, it
+ * subtracts the cache tokens (`input_tokens - cache_read - cache_write`). Each
+ * producer must keep this total. If a producer records only the uncached part,
+ * the input count becomes too low. The uncached column then becomes zero.
  */
 export type AiUsageTokens = {
     inputTokens: number | null;
@@ -49,6 +81,10 @@ export type AiUsageTokens = {
 export const languageModelUsageToTokens = (
     usage: LanguageModelUsage,
 ): AiUsageTokens => ({
+    // The AI SDK `inputTokens` is the total input. It includes the cache-read
+    // tokens and the cache-write tokens. `inputTokenDetails` gives each class.
+    // Keep this total. The warehouse calculates the uncached input. To do this,
+    // it subtracts the cache tokens.
     inputTokens: usage?.inputTokens ?? null,
     outputTokens: usage?.outputTokens ?? null,
     cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens ?? null,
@@ -91,6 +127,9 @@ export type AiUsageEvent = BaseTrack & {
         promptId: string | null;
         model: string | null;
         provider: string | null;
+        keyManagement: AiKeyManagement | null;
+        deepResearchRunId: string | null;
+        deepResearchPhase: AiDeepResearchPhase | null;
     } & AiUsageTokens;
 };
 
@@ -151,6 +190,17 @@ export const emitAiUsage = (
             promptId: getMetadataString(metadata, 'promptUuid'),
             model: getMetadataString(metadata, 'model'),
             provider: getMetadataString(metadata, 'provider'),
+            keyManagement: parseKeyManagement(
+                getMetadataString(metadata, 'keyManagement'),
+            ),
+            deepResearchRunId: getMetadataString(
+                metadata,
+                'deepResearchRunUuid',
+            ),
+            deepResearchPhase: getMetadataString(
+                metadata,
+                'deepResearchPhase',
+            ) as AiDeepResearchPhase | null,
             ...tokens,
         };
 
@@ -159,7 +209,7 @@ export const emitAiUsage = (
         // all metadata, so log-based consumers would otherwise see a bare
         // `AI usage` line with no token data.
         Logger.info(
-            `AI usage: feature=${properties.feature} provider=${properties.provider} model=${properties.model} ` +
+            `AI usage: feature=${properties.feature} provider=${properties.provider} keyManagement=${properties.keyManagement} model=${properties.model} ` +
                 `inputTokens=${properties.inputTokens} outputTokens=${properties.outputTokens} ` +
                 `cacheReadTokens=${properties.cacheReadTokens} cacheWriteTokens=${properties.cacheWriteTokens} ` +
                 `reasoningTokens=${properties.reasoningTokens} totalTokens=${properties.totalTokens} ` +

@@ -14,6 +14,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SmptError,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import fs from 'fs';
@@ -28,6 +29,14 @@ import SMTPPool from 'nodemailer/lib/smtp-pool';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import {
+    buildFailureCountPhrase,
+    toEmailFailureFields,
+} from '../../utils/partialFailureUtils';
+import {
+    buildPlainTextEmailBody,
+    type PlainTextEmailMode,
+} from './plainTextEmailBody';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
 
@@ -48,6 +57,21 @@ function isNodemailerSmtpError(
     return error instanceof Error;
 }
 
+function isRetryableSmtpError(error: unknown): boolean {
+    return (
+        isNodemailerSmtpError(error) &&
+        ((error.code &&
+            // Check if the error code is in the list of retryable error codes
+            RETRYABLE_ERROR_CODES.includes(error.code)) ||
+            // Check if the error message contains any of the retryable error codes
+            RETRYABLE_ERROR_CODES.some((code) =>
+                error.message.includes(code),
+            ) ||
+            // It can be either `Connection timeout` or `Timeout`
+            error.message.toLowerCase().includes('timeout'))
+    );
+}
+
 // Timeout configurations based on Nodemailer defaults, adjusted for scheduler compatibility
 export const SMTP_CONNECTION_CONFIG = {
     connectionTimeout: 120000, // 2 minutes - max time to establish connection (default)
@@ -58,6 +82,8 @@ export const SMTP_CONNECTION_CONFIG = {
 export type AttachmentUrl = {
     path: string;
     filename: string;
+    /** Clean label shown to recipients (app deliveries); filename stays the download name. */
+    chartName?: string;
     localPath: string;
     truncated: boolean;
 };
@@ -246,44 +272,11 @@ export default class EmailClient {
         };
     }
 
-    private async sendEmail(
-        options: Mail.Options & EmailTemplate,
-    ): Promise<void> {
+    private async deliverMail(emailOptions: Mail.Options): Promise<void> {
         if (this.initPromise) {
             await this.initPromise;
         }
         if (this.transporter) {
-            const useCid = this.lightdashConfig.smtp?.inlineImageCid === true;
-            const host = this.lightdashConfig.siteUrl;
-
-            const imageSources: Record<string, string> = {};
-            for (const img of EmailClient.STATIC_CID_IMAGES) {
-                imageSources[img.contextKey] = useCid
-                    ? `cid:${img.cid}`
-                    : `${host}${img.hostPath}`;
-            }
-
-            const emailOptions: Mail.Options & EmailTemplate = {
-                ...options,
-                context: { ...options.context, ...imageSources },
-                attachments: [
-                    ...(Array.isArray(options.attachments)
-                        ? options.attachments
-                        : []),
-                    ...(useCid
-                        ? EmailClient.STATIC_CID_IMAGES.map((img) => ({
-                              filename: img.filename,
-                              path: path.join(
-                                  __dirname,
-                                  `./templates/${img.filename}`,
-                              ),
-                              cid: img.cid,
-                              contentDisposition: 'inline' as const,
-                          }))
-                        : []),
-                ],
-            };
-
             const maxRetries = 3;
             const baseDelay = 1000; // 1 second
 
@@ -295,17 +288,7 @@ export default class EmailClient {
                     return; // Success, exit retry loop
                 } catch (error) {
                     const isLastAttempt = attempt === maxRetries;
-                    const isRetryableError =
-                        isNodemailerSmtpError(error) &&
-                        ((error.code &&
-                            // Check if the error code is in the list of retryable error codes
-                            RETRYABLE_ERROR_CODES.includes(error.code)) ||
-                            // Check if the error message contains any of the retryable error codes
-                            RETRYABLE_ERROR_CODES.some((code) =>
-                                error.message.includes(code),
-                            ) ||
-                            // It can be either `Connection timeout` or `Timeout`
-                            error.message.toLowerCase().includes('timeout'));
+                    const isRetryableError = isRetryableSmtpError(error);
 
                     if (isLastAttempt || !isRetryableError) {
                         const isFileError =
@@ -353,6 +336,55 @@ export default class EmailClient {
                 }
             }
         }
+    }
+
+    private async sendEmail(
+        options: Mail.Options & EmailTemplate,
+    ): Promise<void> {
+        const useCid = this.lightdashConfig.smtp?.inlineImageCid === true;
+        const host = this.lightdashConfig.siteUrl;
+
+        const imageSources: Record<string, string> = {};
+        for (const img of EmailClient.STATIC_CID_IMAGES) {
+            imageSources[img.contextKey] = useCid
+                ? `cid:${img.cid}`
+                : `${host}${img.hostPath}`;
+        }
+
+        const emailOptions: Mail.Options & EmailTemplate = {
+            ...options,
+            context: { ...options.context, ...imageSources },
+            attachments: [
+                ...(Array.isArray(options.attachments)
+                    ? options.attachments
+                    : []),
+                ...(useCid
+                    ? EmailClient.STATIC_CID_IMAGES.map((img) => ({
+                          filename: img.filename,
+                          path: path.join(
+                              __dirname,
+                              `./templates/${img.filename}`,
+                          ),
+                          cid: img.cid,
+                          contentDisposition: 'inline' as const,
+                      }))
+                    : []),
+            ],
+        };
+
+        return this.deliverMail(emailOptions);
+    }
+
+    /**
+     * Sends a text-only email. No template is attached, so the compile plugin
+     * leaves `html` unset and nodemailer emits a single text/plain part
+     * (multipart/mixed once files are attached) — recipients never fall back to
+     * an HTML alternative. The branding images are skipped for the same reason.
+     */
+    private async sendPlainTextEmail(
+        options: Mail.Options & { text: string },
+    ): Promise<void> {
+        return this.deliverMail(options);
     }
 
     public canSendEmail() {
@@ -432,8 +464,9 @@ export default class EmailClient {
             });
         }
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your Google Sheets sync <strong>"${schedulerName}"</strong> failed.</p>
+            <p>Your Google Sheets sync <strong>"${safeName}"</strong> failed.</p>
             <br />
             <br />
             <br />
@@ -482,8 +515,9 @@ export default class EmailClient {
 
         const urlWithRef = appendCorrelationRef(schedulerUrl, correlationId);
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to send.</p>
+            <p>Your scheduled delivery <strong>"${safeName}"</strong> failed to send.</p>
             <br />
             <br />
             <br />
@@ -577,8 +611,9 @@ export default class EmailClient {
             )
             .join('');
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
+            <p>Your scheduled delivery <strong>"${safeName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
                 totalTargets > 1 ? 's' : ''
             }.</p>
             <br />
@@ -718,7 +753,37 @@ export default class EmailClient {
         deliveryType: string = 'Scheduled delivery',
         imageBuffer?: Buffer,
         sender?: EmailSenderIdentity | null,
+        plainText?: PlainTextEmailMode,
     ) {
+        if (plainText) {
+            return this.sendPlainTextEmail({
+                ...EmailClient.senderMailFields(sender),
+                to: recipient,
+                subject,
+                text: buildPlainTextEmailBody({
+                    title,
+                    message,
+                    cadence: plainText.cadence,
+                    // The chart image only exists inside the HTML body, so it
+                    // is offered as a link unless a PDF carries it.
+                    downloads:
+                        !pdfFile && imageUrl
+                            ? [{ filename: `${title}.png`, url: imageUrl }]
+                            : [],
+                    noResults: false,
+                }),
+                attachments: pdfFile
+                    ? [
+                          {
+                              filename: `${title}.pdf`,
+                              path: pdfFile,
+                              contentType: 'application/pdf',
+                          },
+                      ]
+                    : undefined,
+            });
+        }
+
         const useCidImage =
             this.lightdashConfig.smtp?.inlineImageCid === true &&
             imageBuffer !== undefined;
@@ -757,7 +822,7 @@ export default class EmailClient {
             context: {
                 title,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 imageUrl: useCidImage ? 'cid:chart-image' : imageUrl,
                 description,
                 date,
@@ -794,14 +859,40 @@ export default class EmailClient {
         asAttachment?: boolean,
         format?: SchedulerFormat,
         sender?: EmailSenderIdentity | null,
+        plainText?: PlainTextEmailMode,
     ) {
         const csvUrl = attachment.path;
+        const noResults = attachment.path === '#no-results';
         const attachments =
             asAttachment &&
             (attachment.localPath || attachment.path) &&
-            attachment.path !== '#no-results'
+            !noResults
                 ? [EmailClient.createFileAttachment(attachment, format)]
                 : undefined;
+
+        if (plainText) {
+            return this.sendPlainTextEmail({
+                ...EmailClient.senderMailFields(sender),
+                to: recipient,
+                subject,
+                text: buildPlainTextEmailBody({
+                    title,
+                    message,
+                    cadence: plainText.cadence,
+                    downloads:
+                        attachments || noResults
+                            ? []
+                            : [
+                                  {
+                                      filename: attachment.filename,
+                                      url: csvUrl,
+                                  },
+                              ],
+                    noResults,
+                }),
+                attachments,
+            });
+        }
 
         return this.sendEmail({
             ...EmailClient.senderMailFields(sender),
@@ -812,7 +903,7 @@ export default class EmailClient {
                 title,
                 description,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 date,
                 frequency,
                 url,
@@ -852,30 +943,66 @@ export default class EmailClient {
         asAttachment?: boolean,
         format?: SchedulerFormat,
         failures?: PartialFailure[],
+        notices?: DeliveryNotice[],
         sender?: EmailSenderIdentity | null,
+        isApp: boolean = false,
+        plainText?: PlainTextEmailMode,
     ) {
-        const csvUrls = attachments.filter(
-            (attachment) => !attachment.truncated,
-        );
+        // App deliveries carry the query label; dashboards fall back to the
+        // (timestamped) download filename.
+        const withDisplayName = (attachment: AttachmentUrl) => ({
+            ...attachment,
+            displayName: attachment.chartName ?? attachment.filename,
+        });
 
-        const truncatedCsvUrls = attachments.filter(
-            (attachment) => attachment.truncated,
+        const csvUrls = attachments
+            .filter((attachment) => !attachment.truncated)
+            .map(withDisplayName);
+
+        const truncatedCsvUrls = attachments
+            .filter((attachment) => attachment.truncated)
+            .map(withDisplayName);
+
+        const attachableCsvUrls = csvUrls.filter(
+            (attachment) =>
+                (attachment.localPath || attachment.path) &&
+                attachment.path !== '#no-results',
         );
 
         const emailAttachments = asAttachment
-            ? csvUrls
-                  .filter(
-                      (attachment) =>
-                          (attachment.localPath || attachment.path) &&
-                          attachment.path !== '#no-results',
-                  )
-                  .map((attachment) =>
-                      EmailClient.createFileAttachment(attachment, format),
-                  )
+            ? attachableCsvUrls.map((attachment) =>
+                  EmailClient.createFileAttachment(attachment, format),
+              )
             : undefined;
 
         const allChartsFailed =
             csvUrls.length === 0 && failures && failures.length > 0;
+
+        if (plainText) {
+            const attached = new Set(asAttachment ? attachableCsvUrls : []);
+            return this.sendPlainTextEmail({
+                ...EmailClient.senderMailFields(sender),
+                to: recipient,
+                subject,
+                text: buildPlainTextEmailBody({
+                    title,
+                    message,
+                    cadence: plainText.cadence,
+                    downloads: [...csvUrls, ...truncatedCsvUrls]
+                        .filter(
+                            (csvAttachment) =>
+                                csvAttachment.path !== '#no-results' &&
+                                !attached.has(csvAttachment),
+                        )
+                        .map((csvAttachment) => ({
+                            filename: csvAttachment.displayName,
+                            url: csvAttachment.path,
+                        })),
+                    noResults: csvUrls.length === 0,
+                }),
+                attachments: emailAttachments,
+            });
+        }
 
         return this.sendEmail({
             ...EmailClient.senderMailFields(sender),
@@ -885,8 +1012,11 @@ export default class EmailClient {
             context: {
                 title,
                 description,
+                resultsHeadline: isApp
+                    ? 'The latest results for the queries in this app are ready to download!'
+                    : 'The latest results for the charts in this dashboard are ready to download!',
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 date,
                 frequency,
                 csvUrls,
@@ -904,8 +1034,13 @@ export default class EmailClient {
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
-                failures,
+                failures: failures?.map(toEmailFailureFields),
+                failureCountPhrase: failures
+                    ? buildFailureCountPhrase(failures)
+                    : undefined,
                 hasFailures: failures && failures.length > 0,
+                notices,
+                hasNotices: notices && notices.length > 0,
                 allChartsFailed,
             },
             text: title,
@@ -1019,7 +1154,7 @@ export default class EmailClient {
             template: 'genericNotification',
             context: {
                 title,
-                message: marked(message),
+                message: sanitizeHtml(marked(message)),
                 host: this.lightdashConfig.siteUrl,
             },
             text: `${title}\n\n${message}`,

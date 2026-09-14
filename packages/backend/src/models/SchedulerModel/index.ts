@@ -78,6 +78,8 @@ import {
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
+import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 
 type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
@@ -148,6 +150,7 @@ export class SchedulerModel {
             notificationFrequency:
                 scheduler.notification_frequency ?? undefined,
             includeLinks: scheduler.include_links,
+            plainTextEmail: scheduler.plain_text_email,
             projectUuid: scheduler.project_uuid ?? undefined,
             projectName: scheduler.project_name ?? undefined,
         };
@@ -195,6 +198,7 @@ export class SchedulerModel {
                 dashboardUuid: null,
                 savedSqlUuid: null,
                 appUuid: scheduler.app_uuid,
+                appState: scheduler.app_state ?? undefined,
             };
         }
         throw new UnexpectedServerError(
@@ -231,6 +235,7 @@ export class SchedulerModel {
             enabled: true,
             notification_frequency: newScheduler.notificationFrequency || null,
             include_links: newScheduler.includeLinks !== false,
+            plain_text_email: newScheduler.plainTextEmail === true,
         };
 
         if (isDashboardCreateScheduler(newScheduler)) {
@@ -246,6 +251,7 @@ export class SchedulerModel {
                 ),
                 custom_viewport_width: newScheduler.customViewportWidth ?? null,
                 selected_tabs: newScheduler.selectedTabs ?? null,
+                app_state: null,
             };
         }
         if (isChartCreateScheduler(newScheduler)) {
@@ -261,6 +267,7 @@ export class SchedulerModel {
                 ),
                 custom_viewport_width: null,
                 selected_tabs: null,
+                app_state: null,
             };
         }
         if (isSqlChartScheduler(newScheduler)) {
@@ -274,6 +281,7 @@ export class SchedulerModel {
                 parameters: null,
                 custom_viewport_width: null,
                 selected_tabs: null,
+                app_state: null,
             };
         }
         if (isAppCreateScheduler(newScheduler)) {
@@ -287,6 +295,7 @@ export class SchedulerModel {
                 parameters: null,
                 custom_viewport_width: null,
                 selected_tabs: null,
+                app_state: SchedulerModel.toJsonColumn(newScheduler.appState),
             };
         }
         throw new UnexpectedServerError(
@@ -588,9 +597,36 @@ export class SchedulerModel {
     }
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
+        // `service_accounts` is an EE-only table, absent in unlicensed
+        // deployments, so only reference it when it actually exists.
+        // `to_regclass` returns NULL for a missing table instead of erroring.
+        const [row] = await this.database.select<
+            { has_service_accounts: boolean }[]
+        >(
+            this.database.raw(
+                'to_regclass(?) is not null as has_service_accounts',
+                [ServiceAccountsTableName],
+            ),
+        );
+        const hasServiceAccounts = row?.has_service_accounts ?? false;
         const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.enabled`, true)
-            .where(`${UserTableName}.is_active`, true);
+            .where(function activeUserOrServiceAccount() {
+                // Human creators run only while their account is active.
+                void this.where(`${UserTableName}.is_active`, true);
+                // Service accounts are backed by an always-inactive internal
+                // user, so gate them on the service account still existing
+                // instead — deleting the account (tombstone) stops delivery.
+                if (hasServiceAccounts) {
+                    void this.orWhereExists(function serviceAccountExists() {
+                        void this.select('*')
+                            .from(ServiceAccountsTableName)
+                            .whereRaw(
+                                `${ServiceAccountsTableName}.service_account_user_uuid = ${SchedulerTableName}.created_by`,
+                            );
+                    });
+                }
+            });
         return this.getSchedulersWithTargets(await schedulers);
     }
 
@@ -1044,8 +1080,11 @@ export class SchedulerModel {
         return this.getSchedulersWithTargets(await schedulers);
     }
 
-    async getAppSchedulers(appUuid: string): Promise<SchedulerAndTargets[]> {
-        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
+    async getAppSchedulers(
+        appUuid: string,
+        createdByUserUuid?: string,
+    ): Promise<SchedulerAndTargets[]> {
+        let schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.app_uuid`, appUuid)
             .orderBy([
                 {
@@ -1057,6 +1096,12 @@ export class SchedulerModel {
                     order: 'asc',
                 },
             ]);
+        if (createdByUserUuid) {
+            schedulers = schedulers.where(
+                `${SchedulerTableName}.created_by`,
+                createdByUserUuid,
+            );
+        }
         return this.getSchedulersWithTargets(await schedulers);
     }
 
@@ -1124,6 +1169,8 @@ export class SchedulerModel {
     async createScheduler(
         newScheduler: CreateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
+        await validateSchedulerWebhookTargets(newScheduler.targets);
+
         const schedulerUuid = await this.database.transaction(async (trx) => {
             const { projectUuid, slug } = await SchedulerModel.getCreateSlug(
                 trx,
@@ -1205,6 +1252,8 @@ export class SchedulerModel {
     async updateScheduler(
         scheduler: UpdateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
+        await validateSchedulerWebhookTargets(scheduler.targets);
+
         await this.database.transaction(async (trx) => {
             await trx(SchedulerTableName)
                 .update({
@@ -1219,6 +1268,7 @@ export class SchedulerModel {
                     parameters: SchedulerModel.toJsonColumn(
                         scheduler.parameters,
                     ),
+                    app_state: SchedulerModel.toJsonColumn(scheduler.appState),
                     custom_viewport_width:
                         scheduler.customViewportWidth ?? null,
                     thresholds: SchedulerModel.toJsonColumn(
@@ -1231,6 +1281,7 @@ export class SchedulerModel {
                             ? (scheduler.selectedTabs as string[])
                             : null,
                     include_links: scheduler.includeLinks !== false,
+                    plain_text_email: scheduler.plainTextEmail === true,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 
@@ -2155,6 +2206,16 @@ export class SchedulerModel {
         const sevenDaysAgo: Date = new Date(
             Date.now() - 7 * 24 * 60 * 60 * 1000,
         );
+        const now = new Date();
+
+        const relevantParentRunsQuery = this.database(SchedulerLogTableName)
+            .whereRaw('job_id = job_group')
+            .whereIn('scheduler_uuid', schedulerUuids)
+            .where('scheduled_time', '>', sevenDaysAgo)
+            .where('scheduled_time', '<', now);
+        const relevantParentJobIdsSubquery = relevantParentRunsQuery
+            .clone()
+            .distinct('job_id');
 
         // Build subquery for child job counts - only count most recent status per child
         // First, get the most recent entry for each child job
@@ -2169,6 +2230,7 @@ export class SchedulerModel {
                 ),
             )
             .whereRaw('job_id != job_group') // Only child jobs
+            .whereIn('job_group', relevantParentJobIdsSubquery)
             .as('ranked_children');
 
         // Then count only the most recent status of each child (rn = 1)
@@ -2213,7 +2275,8 @@ export class SchedulerModel {
 
         // Use window function (ROW_NUMBER) to get only the most recent parent job per run
         // This approach is safer and more compatible than DISTINCT ON
-        const rankedRunsSubquery = this.database(SchedulerLogTableName)
+        const rankedRunsSubquery = relevantParentRunsQuery
+            .clone()
             .select(
                 'job_id',
                 'scheduler_uuid',
@@ -2225,10 +2288,6 @@ export class SchedulerModel {
                     'ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY created_at DESC) as rn',
                 ),
             )
-            .whereRaw('job_id = job_group') // Only parent jobs
-            .whereIn('scheduler_uuid', schedulerUuids)
-            .where('scheduled_time', '>', sevenDaysAgo)
-            .where('scheduled_time', '<', new Date())
             .as('ranked_runs');
 
         const distinctRunsSubquery = this.database
@@ -2461,15 +2520,15 @@ export class SchedulerModel {
         };
     }
 
-    async attachLatestRunToSchedulers(
-        schedulers: KnexPaginatedData<SchedulerAndTargets[]>,
-    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        if (schedulers.data.length === 0) {
+    async attachLatestRunToSchedulerList(
+        schedulers: SchedulerAndTargets[],
+    ): Promise<SchedulerAndTargets[]> {
+        if (schedulers.length === 0) {
             return schedulers;
         }
 
         const runs = await this.getRunsForSchedulers({
-            schedulers: schedulers.data,
+            schedulers,
             latestOnly: true,
         });
 
@@ -2478,13 +2537,19 @@ export class SchedulerModel {
             latestRunByScheduler.set(run.schedulerUuid, run);
         });
 
+        return schedulers.map((scheduler) => ({
+            ...scheduler,
+            latestRun:
+                latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
+        }));
+    }
+
+    async attachLatestRunToSchedulers(
+        schedulers: KnexPaginatedData<SchedulerAndTargets[]>,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         return {
             ...schedulers,
-            data: schedulers.data.map((scheduler) => ({
-                ...scheduler,
-                latestRun:
-                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
-            })),
+            data: await this.attachLatestRunToSchedulerList(schedulers.data),
         };
     }
 

@@ -7,9 +7,11 @@ import {
     IconLayoutGrid,
     IconMarkdown,
     IconMessageChatbot,
+    IconRocket,
     IconSpeakerphone,
     IconStar,
     type Icon,
+    IconSun,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,7 +21,9 @@ import {
 } from './AnnouncementsBlock';
 import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
+import { CtaBlockBuild, CtaBlockView } from './CtaBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
+import { GreetingBlockBuild, GreetingBlockView } from './GreetingBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
 import { MetricsBlockBuild, MetricsBlockView } from './MetricsBlock';
 import { getDefaultQuickActions } from './quickActionDefaults';
@@ -39,6 +43,8 @@ export type BlockDefinition = {
     requiresAi?: boolean;
     /** Can only be added once per homepage. */
     singleton?: boolean;
+    /** Renders per-viewer content, so admin previews show a placeholder. */
+    personal?: boolean;
     create: () => HomepageBlock;
     View: FC<BlockComponentProps>;
     Build: FC<BuildComponentProps>;
@@ -61,6 +67,21 @@ export const blockLibrary: BlockDefinition[] = [
         Build: AskAiHeroBlockBuild,
     },
     {
+        type: 'greeting',
+        label: 'Greeting',
+        description: 'A time-of-day welcome, personalised per viewer.',
+        icon: IconSun,
+        create: () => ({
+            id: uuidv4(),
+            type: 'greeting',
+            config: {
+                subtitle: 'Pick up where you left off, or start something new.',
+            },
+        }),
+        View: GreetingBlockView,
+        Build: GreetingBlockBuild,
+    },
+    {
         type: 'quick-actions',
         label: 'Quick actions',
         description: 'Primary CTA cards — tailor the main action per audience.',
@@ -68,10 +89,27 @@ export const blockLibrary: BlockDefinition[] = [
         create: () => ({
             id: uuidv4(),
             type: 'quick-actions',
-            config: { actions: getDefaultQuickActions(true) },
+            config: { actions: getDefaultQuickActions() },
         }),
         View: QuickActionsBlockView,
         Build: QuickActionsBlockBuild,
+    },
+    {
+        type: 'cta',
+        label: 'Call to action',
+        description: 'One brand-themed banner with a single button.',
+        icon: IconRocket,
+        singleton: true,
+        create: () => ({
+            id: uuidv4(),
+            type: 'cta',
+            config: {
+                buttonLabel: 'Run a query',
+                target: { type: 'run-query' },
+            },
+        }),
+        View: CtaBlockView,
+        Build: CtaBlockBuild,
     },
     {
         type: 'metrics',
@@ -90,7 +128,8 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'collection',
         label: 'Collection',
-        description: 'A curated set of dashboards and charts.',
+        description:
+            'A curated set of dashboards, charts, spaces, and data apps.',
         icon: IconLayoutGrid,
         create: () => ({
             id: uuidv4(),
@@ -103,7 +142,8 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'resources',
         label: 'Resources',
-        description: 'Rich cards — Claude artifacts, YouTube, docs, links.',
+        description:
+            'Rich cards — data apps, Claude artifacts, YouTube, docs, links.',
         icon: IconBook,
         create: () => ({
             id: uuidv4(),
@@ -122,7 +162,7 @@ export const blockLibrary: BlockDefinition[] = [
         create: () => ({
             id: uuidv4(),
             type: 'announcements',
-            config: { title: 'From the data team', items: [] },
+            config: { title: 'From the data team' },
         }),
         View: AnnouncementsBlockView,
         Build: AnnouncementsBlockBuild,
@@ -132,6 +172,7 @@ export const blockLibrary: BlockDefinition[] = [
         label: 'Favorites',
         description: 'Each viewer’s starred content, only visible to them.',
         icon: IconStar,
+        personal: true,
         create: () => ({
             id: uuidv4(),
             type: 'favorites',
@@ -146,6 +187,7 @@ export const blockLibrary: BlockDefinition[] = [
         description: 'Each viewer’s recently opened charts and dashboards.',
         icon: IconClock,
         singleton: true,
+        personal: true,
         create: () => ({
             id: uuidv4(),
             type: 'recent',

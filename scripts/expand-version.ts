@@ -37,7 +37,6 @@ const RELEASE_TAG_RE = /^\d+\.\d+\.\d+$/;
 
 export type PresentAt = (tag: string) => boolean;
 
-/** PURE. Numeric semver compare of two `X.Y.Z` release tags. */
 export function compareVersions(a: string, b: string): number {
     const pa = a.split('.').map((n) => parseInt(n, 10));
     const pb = b.split('.').map((n) => parseInt(n, 10));

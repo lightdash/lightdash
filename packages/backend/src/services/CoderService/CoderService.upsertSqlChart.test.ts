@@ -10,6 +10,8 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { AppModel } from '../../models/AppModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -66,14 +68,19 @@ const accessContext = (projectUuid: string = PROJECT_UUID) => ({
 
 const buildService = (
     savedSqlModel: AnyType,
-    getSpacesAccessContext: AnyType = vi.fn(
-        async (_userUuid: string, spaceUuids: string[]) =>
-            Object.fromEntries(
-                spaceUuids.map((uuid) => [uuid, accessContext()]),
-            ),
+    resolveAccessBatch: AnyType = vi.fn(
+        async (
+            _userUuid: string,
+            targets: { type: 'space'; spaceUuid: string }[],
+        ) =>
+            targets.map((target) => ({
+                target,
+                context: { ...accessContext(), directOnly: false },
+            })),
     ),
 ) =>
     new CoderService({
+        directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {
@@ -84,6 +91,7 @@ const buildService = (
         } as unknown as ProjectModel,
         savedChartModel: {} as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
+        appModel: {} as unknown as AppModel,
         dashboardModel: {} as unknown as DashboardModel,
         spaceModel: {
             find: vi.fn(async () => [{ uuid: SPACE_UUID }]),
@@ -97,9 +105,13 @@ const buildService = (
         schedulerClient: {} as unknown as SchedulerClient,
         promoteService: {} as unknown as PromoteService,
         spacePermissionService: {
-            getSpacesAccessContext,
+            resolveAccessBatch,
             can: vi.fn(async () => true),
         } as unknown as SpacePermissionService,
+        contentAsCodeSnapshotModel: {
+            upsert: vi.fn(),
+        } as unknown as ContentAsCodeSnapshotModel,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as never,
         contentVerificationModel: {} as unknown as ContentVerificationModel,
         groupsModel: {} as never,
         organizationMemberProfileModel: {} as never,
@@ -194,16 +206,20 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 service.spaceModel.findClosestAncestorByPath,
             ).mockResolvedValue(PARENT_SPACE_UUID);
             vi.mocked(
-                service.spacePermissionService.getSpacesAccessContext,
-            ).mockResolvedValue({
-                [PARENT_SPACE_UUID]: {
-                    organizationUuid: ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                    inheritsFromOrgOrProject: false,
-                    access: [],
-                    admins: [],
+                service.spacePermissionService.resolveAccessBatch,
+            ).mockResolvedValue([
+                {
+                    target: { type: 'space', spaceUuid: PARENT_SPACE_UUID },
+                    context: {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        inheritsFromOrgOrProject: false,
+                        access: [],
+                        admins: [],
+                        directOnly: false,
+                    },
                 },
-            });
+            ]);
             const user = makeUser([
                 { subject: 'ContentAsCode', action: 'create' },
                 { subject: 'CustomSql', action: 'manage' },
@@ -283,46 +299,59 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             expect(savedSqlModel.update).not.toHaveBeenCalled();
         });
 
-        it('blocks a move when the user lacks access to the chart current space', async () => {
-            // Chart currently lives in OTHER_SPACE_UUID; YAML moves it to SPACE_UUID.
-            // User can update in the target space but not the current one.
-            const savedSqlModel = {
-                find: vi.fn(async () => [existingRow(OTHER_SPACE_UUID)]),
-                update: vi.fn(),
-                create: vi.fn(),
-            };
-            const getSpacesAccessContext = vi.fn(
-                async (_userUuid: string, spaceUuids: string[]) =>
-                    Object.fromEntries(
-                        spaceUuids.map((uuid) => [
-                            uuid,
-                            uuid === SPACE_UUID
-                                ? accessContext(PROJECT_UUID)
-                                : accessContext('inaccessible-project'),
-                        ]),
-                    ),
-            );
-            const service = buildService(savedSqlModel, getSpacesAccessContext);
-            stubSpace(service, SPACE_UUID);
-            const user = makeUser([
-                { subject: 'ContentAsCode', action: 'create' },
-                { subject: 'CustomSql', action: 'manage' },
-                {
-                    subject: 'SavedChart',
-                    action: 'update',
-                    conditions: { projectUuid: PROJECT_UUID },
-                },
-            ]);
+        it.each(['create', 'manage'] as const)(
+            'blocks a move before space creation when current access is denied (%s)',
+            async (uploadAction) => {
+                // Chart currently lives in OTHER_SPACE_UUID; YAML moves it to SPACE_UUID.
+                // User can update in the target space but not the current one.
+                const savedSqlModel = {
+                    find: vi.fn(async () => [existingRow(OTHER_SPACE_UUID)]),
+                    update: vi.fn(),
+                    create: vi.fn(),
+                };
+                const resolveAccessBatch = vi.fn(
+                    async (
+                        _userUuid: string,
+                        targets: { type: 'space'; spaceUuid: string }[],
+                    ) =>
+                        targets.map((target) => ({
+                            target,
+                            context:
+                                target.spaceUuid === SPACE_UUID
+                                    ? {
+                                          ...accessContext(PROJECT_UUID),
+                                          directOnly: false,
+                                      }
+                                    : {
+                                          ...accessContext(
+                                              'inaccessible-project',
+                                          ),
+                                          directOnly: false,
+                                      },
+                        })),
+                );
+                const service = buildService(savedSqlModel, resolveAccessBatch);
+                stubSpace(service, SPACE_UUID);
+                const user = makeUser([
+                    { subject: 'ContentAsCode', action: uploadAction },
+                    { subject: 'CustomSql', action: 'manage' },
+                    {
+                        subject: 'SavedChart',
+                        action: 'update',
+                        conditions: { projectUuid: PROJECT_UUID },
+                    },
+                ]);
 
-            await expect(upsert(service, user)).rejects.toThrow(
-                'You don\'t have access to update Saved SQL chart "my-sql-chart"',
-            );
-            expect(savedSqlModel.update).not.toHaveBeenCalled();
-            // both the target and the current space were checked
-            expect(getSpacesAccessContext).toHaveBeenCalledWith('user-uuid', [
-                SPACE_UUID,
-                OTHER_SPACE_UUID,
-            ]);
-        });
+                await expect(upsert(service, user)).rejects.toThrow(
+                    'You don\'t have access to update Saved SQL chart "my-sql-chart"',
+                );
+                expect(savedSqlModel.update).not.toHaveBeenCalled();
+                expect(service.getOrCreateSpace).not.toHaveBeenCalled();
+                // Reject the current space before resolving or creating the target.
+                expect(resolveAccessBatch).toHaveBeenCalledWith('user-uuid', [
+                    { type: 'space', spaceUuid: OTHER_SPACE_UUID },
+                ]);
+            },
+        );
     });
 });

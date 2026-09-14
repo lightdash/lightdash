@@ -1,0 +1,102 @@
+import { type NotificationContentReview } from '@lightdash/common';
+import { Group, Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { IconCircleFilled } from '@tabler/icons-react';
+import dayjs from 'dayjs';
+import { useCallback, type FC } from 'react';
+import { useNavigate } from 'react-router';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
+import { useUpdateNotification } from '../hooks/useNotifications';
+import classes from './DashboardCommentsNotifications.module.css';
+
+type Props = {
+    notifications: NotificationContentReview[];
+};
+
+const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
+    const date = useTimeAgo(createdAt);
+    return (
+        <Tooltip
+            position="top-end"
+            offset={-2}
+            label={
+                <Text fz="xs">
+                    {dayjs(createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                </Text>
+            }
+        >
+            <Text
+                fz="sm"
+                ta="right"
+                mb="one"
+                fw={500}
+                className={classes.notificationTime}
+            >
+                {date}
+            </Text>
+        </Tooltip>
+    );
+};
+
+export const ContentReviewNotifications: FC<Props> = ({ notifications }) => {
+    const { track } = useTracking();
+    const theme = useMantineTheme();
+    const navigate = useNavigate();
+    const { mutateAsync: updateNotification } = useUpdateNotification();
+
+    const handleOnNotificationClick = useCallback(
+        async (notification: NotificationContentReview) => {
+            await updateNotification({
+                notificationId: notification.notificationId,
+                resourceType: notification.resourceType,
+                toUpdate: { viewed: true },
+            });
+
+            track({
+                name: EventName.NOTIFICATIONS_ITEM_CLICKED,
+                properties: {
+                    resourceType: notification.resourceType,
+                    event: notification.metadata.event,
+                    projectUuid: notification.metadata.projectUuid,
+                    requestUuid: notification.metadata.requestUuid,
+                },
+            });
+
+            if (notification.url) {
+                void navigate(notification.url);
+            }
+        },
+        [navigate, track, updateNotification],
+    );
+
+    return (
+        <>
+            {notifications.map((notification) => (
+                <Menu.Item
+                    p="xs"
+                    key={notification.notificationId}
+                    onClick={() => handleOnNotificationClick(notification)}
+                    fz="sm"
+                >
+                    <NotificationTime createdAt={notification.createdAt} />
+                    <Group gap={6} wrap="nowrap" align="center">
+                        <MantineIcon
+                            size={8}
+                            icon={IconCircleFilled}
+                            style={{
+                                color: notification.viewed
+                                    ? 'transparent'
+                                    : theme.colors.teal[5],
+                            }}
+                        />
+                        <Text fz="sm" className={classes.notificationMessage}>
+                            {notification.message}
+                        </Text>
+                    </Group>
+                </Menu.Item>
+            ))}
+        </>
+    );
+};

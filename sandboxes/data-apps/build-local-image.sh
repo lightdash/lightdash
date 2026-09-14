@@ -12,10 +12,7 @@ cd "$(dirname "$0")"
 
 IMAGE="${1:-lightdash-sandbox:local}"
 
-if [ ! -f lightdash-query-sdk.tgz ]; then
-    echo "lightdash-query-sdk.tgz missing — run build-sandbox.ts first or pack the SDK." >&2
-    exit 1
-fi
+bash ./pack-query-sdk.sh
 
 # Derive a local Dockerfile that creates the `user` account before the chown.
 sed 's|^RUN chown -R user:user /app|RUN useradd -m -s /bin/bash user 2>/dev/null \|\| true \&\& chown -R user:user /app|' \

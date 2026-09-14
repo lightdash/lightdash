@@ -1,5 +1,5 @@
 import { FieldType, type SortField } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
+import { Menu } from '@mantine/core';
 import { useCallback, useMemo, type ComponentProps, type FC } from 'react';
 import {
     explorerActions,
@@ -25,6 +25,7 @@ import PivotTable, { type PivotSortMenuTarget } from '../common/PivotTable';
 import ColumnHeaderSortMenuOptions from '../Explorer/ResultsCard/ColumnHeaderSortMenuOptions';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { getExplorerPivotSortMenu } from './getExplorerPivotSortMenu';
 
 type ExplorerPivotTableProps = Omit<
     ComponentProps<typeof PivotTable>,
@@ -41,6 +42,7 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
     getFieldLabel,
     getField,
     data,
+    enableContextMenu = true,
     ...rest
 }) => {
     const dispatch = useExplorerDispatch();
@@ -231,8 +233,13 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
             data={data}
             getFieldLabel={getFieldLabel}
             getField={getField}
+            enableContextMenu={enableContextMenu}
             sortBy={sorts}
-            renderSortMenu={isEditMode ? renderSortMenu : undefined}
+            renderSortMenu={getExplorerPivotSortMenu({
+                enableContextMenu,
+                isEditMode,
+                renderSortMenu,
+            })}
         />
     );
 };

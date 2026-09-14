@@ -1,10 +1,16 @@
 import {
+    AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES,
+    AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS,
     AnyType,
+    assertUnreachable,
     PreAggregateMissReason,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type AiAgentMemoryConsolidationOperationType,
+    type AiAgentMemoryConsolidationRejectionReason,
     type WarehousePhaseTimings,
 } from '@lightdash/common';
+import type { MotherduckCacheEvent } from '@lightdash/warehouses';
 import { EventEmitter } from 'events';
 import express from 'express';
 import * as fs from 'fs';
@@ -56,6 +62,37 @@ const SCHEDULED_CONTEXTS: ReadonlySet<string> = new Set<string>([
     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
 ]);
 
+export const AI_AGENT_MEMORY_DISTILL_OUTCOMES = [
+    'disabled',
+    'skipped',
+    'memory',
+    'no_op',
+    'failed',
+] as const;
+
+export type AiAgentMemoryDistillOutcome =
+    (typeof AI_AGENT_MEMORY_DISTILL_OUTCOMES)[number];
+
+export const AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES = [
+    'consolidated',
+    // Proposed and applied nothing: never counted as a consolidated partition.
+    'dry_run',
+    'skipped',
+    'failed',
+    'aborted',
+] as const;
+
+export type AiAgentMemoryConsolidateOutcome =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES)[number];
+
+const AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES = [
+    ...AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES,
+    'dry_run_failed',
+] as const;
+
+type AiAgentMemoryConsolidateMetricOutcome =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES)[number];
+
 export function getQueryContextLabel(
     context: string,
 ): 'interactive' | 'scheduled' {
@@ -96,6 +133,42 @@ export default class PrometheusMetrics {
     public aiAgentStreamFirstChunkHistogram: prometheus.Histogram | null = null;
 
     public aiAgentTTFTHistogram: prometheus.Histogram | null = null;
+
+    // AI agent memory background pipeline (sweep + distill jobs)
+    public aiAgentMemoryDistillCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    public aiAgentMemoryDistillDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    public aiAgentMemorySweepEnqueuedCounter: prometheus.Counter | null = null;
+
+    public aiAgentMemoryUnknownToolPolicyCounter: prometheus.Counter | null =
+        null;
+
+    public aiAgentMemoryCitedCounter: prometheus.Counter | null = null;
+
+    public aiAgentMemoryUnresolvedRetiredCounter: prometheus.Counter | null =
+        null;
+
+    public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    // AI agent memory consolidation pass (daily cron)
+    public aiAgentMemoryConsolidateCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    public aiAgentMemoryConsolidateDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    public aiAgentMemoryConsolidateOperationCounter: prometheus.Counter<'operation'> | null =
+        null;
+
+    public aiAgentMemoryConsolidateRejectedCounter: prometheus.Counter<'reason'> | null =
+        null;
+
+    public aiAgentMemoryEligiblePartitionsCounter: prometheus.Counter | null =
+        null;
 
     // repoShell (read-only repo VFS) GitHub API latency
     public repoFsGithubTreeDurationHistogram: prometheus.Histogram | null =
@@ -169,6 +242,26 @@ export default class PrometheusMetrics {
 
     public queryCacheHitCounter: prometheus.Counter<string> | null = null;
 
+    public motherduckCacheAcquisitionCounter: prometheus.Counter<
+        'result' | 'project_uuid'
+    > | null = null;
+
+    public motherduckCacheInstanceCreatedCounter: prometheus.Counter<'project_uuid'> | null =
+        null;
+
+    public motherduckCacheEvictionCounter: prometheus.Counter<
+        'reason' | 'project_uuid'
+    > | null = null;
+
+    public motherduckCacheSizeGauge: prometheus.Gauge | null = null;
+
+    public motherduckCacheRetryCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    public motherduckCacheAcquireDurationHistogram: prometheus.Histogram<
+        'result' | 'project_uuid'
+    > | null = null;
+
     // Usage event stream writer metrics
     public usageEventsPushedCounter: prometheus.Counter | null = null;
 
@@ -238,6 +331,9 @@ export default class PrometheusMetrics {
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
 
     private warehousePhaseDurationHistogram: prometheus.Histogram | null = null;
+
+    private projectQueryPhaseDurationHistogram: prometheus.Histogram | null =
+        null;
 
     private overheadDurationHistogram: prometheus.Histogram | null = null;
 
@@ -342,6 +438,22 @@ export default class PrometheusMetrics {
                         ...rest,
                     },
                 );
+
+                this.projectQueryPhaseDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_query_warehouse_phase_duration_by_project_seconds',
+                        help: 'Warehouse query duration by phase, attributed per project for allowlisted projects',
+                        labelNames: [
+                            'project_uuid',
+                            'phase',
+                            'warehouse_type',
+                            'context',
+                        ],
+                        buckets: [
+                            0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120,
+                        ],
+                        ...rest,
+                    });
 
                 this.overheadDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_overhead_duration_seconds',
@@ -469,6 +581,107 @@ export default class PrometheusMetrics {
                     ],
                     ...rest,
                 });
+
+                // AI agent memory background pipeline
+                this.aiAgentMemoryDistillCounter = new prometheus.Counter({
+                    name: 'ai_agent_memory_distill_total',
+                    help: 'AI agent memory distill jobs by outcome (disabled | skipped | memory | no_op | failed)',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+
+                this.aiAgentMemoryDistillDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_agent_memory_distill_duration_ms',
+                        help: 'AI agent memory distill job duration in ms by outcome',
+                        labelNames: ['outcome'],
+                        buckets: [
+                            100, 250, 500, 1000, 2500, 5000, 10000, 20000,
+                            30000, 60000, 120000, 300000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiAgentMemorySweepEnqueuedCounter = new prometheus.Counter(
+                    {
+                        name: 'ai_agent_memory_sweep_enqueued_total',
+                        help: 'Threads enqueued for memory distill by the sweep job',
+                        ...rest,
+                    },
+                );
+
+                this.aiAgentMemoryUnknownToolPolicyCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_unknown_tool_policy_total',
+                        help: 'Tool calls serialized with the fallback memory distill policy',
+                        ...rest,
+                    });
+
+                this.aiAgentMemoryCitedCounter = new prometheus.Counter({
+                    name: 'ai_agent_memory_cited_total',
+                    help: 'Memories cited in an agent response, counted once per memory per response',
+                    ...rest,
+                });
+
+                this.aiAgentMemoryUnresolvedRetiredCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_unresolved_retired_total',
+                        help: 'Memories retired by the sweep because every object they name left the catalog',
+                        ...rest,
+                    });
+
+                this.aiDeepResearchReportCleanupCounter =
+                    new prometheus.Counter({
+                        name: 'ai_deep_research_report_cleanup_total',
+                        help: 'Deep Research reports processed by cleanup outcome',
+                        labelNames: ['outcome'],
+                        ...rest,
+                    });
+
+                // AI agent memory consolidation pass
+                this.aiAgentMemoryConsolidateCounter = new prometheus.Counter({
+                    name: 'ai_agent_memory_consolidate_total',
+                    help: 'AI agent memory consolidation runs by outcome (consolidated | dry_run | skipped | failed | dry_run_failed | aborted)',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+
+                this.aiAgentMemoryConsolidateDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_agent_memory_consolidate_duration_ms',
+                        help: 'AI agent memory consolidation run duration in ms by outcome',
+                        labelNames: ['outcome'],
+                        // A reasoning call on the org's default model, so the
+                        // tail runs minutes rather than seconds.
+                        buckets: [
+                            100, 500, 1000, 5000, 15000, 30000, 60000, 120000,
+                            300000, 600000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiAgentMemoryConsolidateOperationCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_consolidate_operations_total',
+                        help: 'AI agent memory consolidation operations applied by type (merge | supersede | retire)',
+                        labelNames: ['operation'],
+                        ...rest,
+                    });
+
+                this.aiAgentMemoryConsolidateRejectedCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_consolidate_rejected_total',
+                        help: 'AI agent memory consolidation operations rejected by reason',
+                        labelNames: ['reason'],
+                        ...rest,
+                    });
+
+                this.aiAgentMemoryEligiblePartitionsCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_eligible_partitions_total',
+                        help: 'Partitions eligible for memory consolidation, counted per cron tick',
+                        ...rest,
+                    });
 
                 // repoShell GitHub API latency (per-request round-trips)
                 const githubRequestBuckets = [
@@ -617,6 +830,52 @@ export default class PrometheusMetrics {
                 AI_WRITEBACK_STAGES.forEach((stage) => {
                     this.aiWritebackStageDurationHistogram?.zero({ stage });
                 });
+                AI_AGENT_MEMORY_DISTILL_OUTCOMES.forEach((outcome) => {
+                    this.aiAgentMemoryDistillCounter?.inc({ outcome }, 0);
+                    this.aiAgentMemoryDistillDurationHistogram?.zero({
+                        outcome,
+                    });
+                });
+                this.aiAgentMemorySweepEnqueuedCounter?.inc(0);
+                this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
+                this.aiAgentMemoryCitedCounter?.inc(0);
+                this.aiAgentMemoryUnresolvedRetiredCounter?.inc(0);
+                (['scanned', 'expired', 'failed'] as const).forEach(
+                    (outcome) => {
+                        this.aiDeepResearchReportCleanupCounter?.inc(
+                            { outcome },
+                            0,
+                        );
+                    },
+                );
+                AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES.forEach(
+                    (outcome) => {
+                        this.aiAgentMemoryConsolidateCounter?.inc(
+                            { outcome },
+                            0,
+                        );
+                        this.aiAgentMemoryConsolidateDurationHistogram?.zero({
+                            outcome,
+                        });
+                    },
+                );
+                AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES.forEach(
+                    (operation) => {
+                        this.aiAgentMemoryConsolidateOperationCounter?.inc(
+                            { operation },
+                            0,
+                        );
+                    },
+                );
+                AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS.forEach(
+                    (reason) => {
+                        this.aiAgentMemoryConsolidateRejectedCounter?.inc(
+                            { reason },
+                            0,
+                        );
+                    },
+                );
+                this.aiAgentMemoryEligiblePartitionsCounter?.inc(0);
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
@@ -788,6 +1047,55 @@ export default class PrometheusMetrics {
                     ],
                     ...rest,
                 });
+
+                this.motherduckCacheAcquisitionCounter = new prometheus.Counter(
+                    {
+                        name: 'lightdash_motherduck_instance_cache_acquisitions_total',
+                        help: 'Total MotherDuck instance cache acquisitions',
+                        labelNames: ['result', 'project_uuid'],
+                        ...rest,
+                    },
+                );
+
+                this.motherduckCacheInstanceCreatedCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_motherduck_instance_cache_instances_created_total',
+                        help: 'Total MotherDuck instances created by the cache',
+                        labelNames: ['project_uuid'],
+                        ...rest,
+                    });
+
+                this.motherduckCacheEvictionCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_cache_evictions_total',
+                    help: 'Total MotherDuck instance cache evictions',
+                    labelNames: ['reason', 'project_uuid'],
+                    ...rest,
+                });
+
+                this.motherduckCacheSizeGauge = new prometheus.Gauge({
+                    name: 'lightdash_motherduck_instance_cache_entries',
+                    help: 'Current MotherDuck instance cache entry count',
+                    ...rest,
+                });
+
+                this.motherduckCacheRetryCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_cache_retries_total',
+                    help: 'Total MotherDuck instance cache retries',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+
+                this.motherduckCacheAcquireDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_motherduck_instance_cache_acquire_duration_seconds',
+                        help: 'MotherDuck instance cache acquisition duration',
+                        labelNames: ['result', 'project_uuid'],
+                        buckets: [
+                            0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1,
+                            2.5, 5,
+                        ],
+                        ...rest,
+                    });
 
                 // Usage event stream writer metrics
                 this.usageEventsPushedCounter = new prometheus.Counter({
@@ -1181,6 +1489,48 @@ export default class PrometheusMetrics {
         });
     }
 
+    public observeMotherduckCacheEvent(event: MotherduckCacheEvent) {
+        switch (event.type) {
+            case 'acquire': {
+                const labels = {
+                    result: event.result,
+                    project_uuid: event.projectUuid ?? 'unknown',
+                };
+                this.motherduckCacheAcquisitionCounter?.inc(labels);
+                if (event.result === 'miss') {
+                    this.motherduckCacheInstanceCreatedCounter?.inc({
+                        project_uuid: event.projectUuid ?? 'unknown',
+                    });
+                }
+                this.motherduckCacheAcquireDurationHistogram?.observe(
+                    labels,
+                    (event.waitMs + event.instanceCreateMs + event.connectMs) /
+                        1000,
+                );
+                return;
+            }
+            case 'evict':
+                this.motherduckCacheEvictionCounter?.inc({
+                    reason: event.reason,
+                    project_uuid: event.projectUuid ?? 'unknown',
+                });
+                return;
+            case 'retry':
+                this.motherduckCacheRetryCounter?.inc({
+                    outcome: event.outcome,
+                });
+                return;
+            case 'size':
+                this.motherduckCacheSizeGauge?.set(event.entries);
+                return;
+            default:
+                assertUnreachable(
+                    event,
+                    'Unknown MotherDuck instance cache event',
+                );
+        }
+    }
+
     public monitorPreAggregates(knex: Knex) {
         const { enabled, ...rest } = this.config;
         if (!enabled) {
@@ -1274,6 +1624,26 @@ export default class PrometheusMetrics {
         Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
             this.warehousePhaseDurationHistogram?.observe(
                 {
+                    phase,
+                    warehouse_type: warehouseType,
+                    context: contextLabel,
+                },
+                durationMs / 1000,
+            );
+        });
+    }
+
+    public observeProjectQueryPhaseDurations(
+        projectUuid: string,
+        phaseTimings: WarehousePhaseTimings,
+        warehouseType: string,
+        context: string,
+    ) {
+        const contextLabel = getQueryContextLabel(context);
+        Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
+            this.projectQueryPhaseDurationHistogram?.observe(
+                {
+                    project_uuid: projectUuid,
                     phase,
                     warehouse_type: warehouseType,
                     context: contextLabel,
@@ -1437,6 +1807,77 @@ export default class PrometheusMetrics {
         }
     }
 
+    public trackAiAgentMemoryDistill(
+        outcome: AiAgentMemoryDistillOutcome,
+        durationMs: number,
+    ) {
+        this.aiAgentMemoryDistillCounter?.inc({ outcome });
+        this.aiAgentMemoryDistillDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public incrementAiAgentMemorySweepEnqueued(count: number) {
+        this.aiAgentMemorySweepEnqueuedCounter?.inc(count);
+    }
+
+    public incrementAiAgentMemoryUnknownToolPolicy() {
+        this.aiAgentMemoryUnknownToolPolicyCounter?.inc();
+    }
+
+    public incrementAiAgentMemoryCited(count: number) {
+        this.aiAgentMemoryCitedCounter?.inc(count);
+    }
+
+    public incrementAiAgentMemoryUnresolvedRetired(count: number) {
+        this.aiAgentMemoryUnresolvedRetiredCounter?.inc(count);
+    }
+
+    public incrementAiDeepResearchReportCleanup(
+        outcome: 'scanned' | 'expired' | 'failed',
+        count: number,
+    ) {
+        this.aiDeepResearchReportCleanupCounter?.inc({ outcome }, count);
+    }
+
+    public trackAiAgentMemoryConsolidate(
+        outcome: AiAgentMemoryConsolidateMetricOutcome,
+        durationMs: number,
+    ) {
+        this.aiAgentMemoryConsolidateCounter?.inc({ outcome });
+        this.aiAgentMemoryConsolidateDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public trackAiAgentMemoryConsolidateOperations(args: {
+        applied: Record<AiAgentMemoryConsolidationOperationType, number>;
+        rejected: Record<AiAgentMemoryConsolidationRejectionReason, number>;
+    }) {
+        Object.entries(args.applied).forEach(([operation, count]) => {
+            if (count > 0) {
+                this.aiAgentMemoryConsolidateOperationCounter?.inc(
+                    { operation },
+                    count,
+                );
+            }
+        });
+        Object.entries(args.rejected).forEach(([reason, count]) => {
+            if (count > 0) {
+                this.aiAgentMemoryConsolidateRejectedCounter?.inc(
+                    { reason },
+                    count,
+                );
+            }
+        });
+    }
+
+    public incrementAiAgentMemoryEligiblePartitions(count: number) {
+        this.aiAgentMemoryEligiblePartitionsCounter?.inc(count);
+    }
+
     public observeAiWritebackSandboxCreateDuration(durationMs: number) {
         this.aiWritebackSandboxCreateDurationHistogram?.observe(durationMs);
     }
@@ -1575,7 +2016,7 @@ export default class PrometheusMetrics {
                 Logger.error(
                     `Invalid PrometheusEventMetricManager config from ${resolvedPath}`,
                     {
-                        errors: parsedConfig.error.errors.map((issue) => ({
+                        errors: parsedConfig.error.issues.map((issue) => ({
                             message: issue.message,
                             path: issue.path.join('.'),
                         })),

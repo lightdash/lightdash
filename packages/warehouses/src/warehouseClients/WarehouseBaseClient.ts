@@ -3,13 +3,15 @@ import {
     CreateWarehouseCredentials,
     DimensionType,
     Metric,
-    PartitionColumn,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseCatalog,
     WarehouseResults,
     WarehouseSqlBuilder,
+    WarehouseTables,
     WeekDay,
+    type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
     type WarehousePhaseTimings,
@@ -172,6 +174,11 @@ export default abstract class WarehouseBaseClient<
         await this.runQuery('SELECT 1');
     }
 
+    // Adapters that can report their session timezone override this.
+    async getSessionTimezone(): Promise<string | null> {
+        return null;
+    }
+
     concatString(...args: string[]): string {
         return this.sqlBuilder.concatString(...args);
     }
@@ -179,14 +186,7 @@ export default abstract class WarehouseBaseClient<
     abstract getAllTables(
         schema?: string,
         tags?: Record<string, string>,
-    ): Promise<
-        {
-            database: string;
-            schema: string;
-            table: string;
-            partitionColumn?: PartitionColumn;
-        }[]
-    >;
+    ): Promise<WarehouseTables>;
 
     abstract getFields(
         tableName: string,
@@ -198,6 +198,7 @@ export default abstract class WarehouseBaseClient<
     parseWarehouseCatalog(
         rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
+        mapTimestampDomain?: (type: string) => TimestampDomain | undefined,
     ): WarehouseCatalog {
         return rows.reduce(
             (
@@ -215,9 +216,18 @@ export default abstract class WarehouseBaseClient<
                     acc[table_catalog][table_schema] || {};
                 acc[table_catalog][table_schema][table_name] =
                     acc[table_catalog][table_schema][table_name] || {};
-                if (column_name && data_type)
+                if (column_name && data_type) {
                     acc[table_catalog][table_schema][table_name][column_name] =
                         mapFieldType(data_type);
+                    setCatalogTimestampDomain(
+                        acc,
+                        table_catalog,
+                        table_schema,
+                        table_name,
+                        column_name,
+                        mapTimestampDomain?.(data_type),
+                    );
+                }
                 return acc;
             },
             {},
@@ -234,6 +244,14 @@ export default abstract class WarehouseBaseClient<
 
     castToTimestamp(date: Date): string {
         return this.sqlBuilder.castToTimestamp(date);
+    }
+
+    castToDate(date: Date): string {
+        return this.sqlBuilder.castToDate(date);
+    }
+
+    castToNaiveTimestamp(date: Date): string {
+        return this.sqlBuilder.castToNaiveTimestamp(date);
     }
 
     getIntervalSql(value: number, unit: TimeIntervalUnit): string {

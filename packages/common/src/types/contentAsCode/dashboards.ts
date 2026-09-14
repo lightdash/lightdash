@@ -16,6 +16,7 @@ import type {
 import type { DashboardFilterRule } from '../filter';
 import type { PromotionChanges } from '../promotion';
 import type { ContentAsCodeType } from './core';
+import type { ContentAsCodeDirectAccess } from './directAccess';
 import type { SpaceAsCode } from './spaces';
 
 type DashboardTileAsCodeBase = {
@@ -40,7 +41,10 @@ type DashboardTileAsCodeBase = {
      * @maximum 36
      */
     w: DashboardTile['w'];
-    tabUuid: DashboardTile['tabUuid'];
+    /** Portable reference to the dashboard tab containing this tile. */
+    tabSlug?: string | null;
+    /** Legacy project-local tab reference. Accepted on upload for backwards compatibility. */
+    tabUuid?: DashboardTile['tabUuid'];
 };
 
 export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
@@ -76,7 +80,17 @@ export type DashboardHeadingTileAsCode = DashboardTileAsCodeBase & {
 
 export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
     type: DashboardTileTypes.DATA_APP;
-    properties: DashboardDataAppTileProperties['properties'];
+    properties: Pick<
+        DashboardDataAppTileProperties['properties'],
+        'title' | 'hideTitle'
+    > & {
+        /** Portable project-scoped reference written by download. */
+        appSlug?: string | null;
+        /** Legacy project-local reference. Accepted on upload, never written by download. */
+        appUuid?: string;
+        /** Legacy read-only deletion marker. Ignored on upload, never written by download. */
+        appDeletedAt?: string | null;
+    };
 };
 
 export type DashboardTileAsCode =
@@ -92,7 +106,10 @@ export type DashboardTileWithSlug = DashboardTile & {
 };
 
 export type DashboardTabAsCode = {
-    uuid: DashboardTab['uuid'];
+    /** Portable tab identifier used by new downloads. */
+    slug?: string;
+    /** Legacy project-local identifier. Accepted on upload for backwards compatibility. */
+    uuid?: DashboardTab['uuid'];
     /**
      * @minLength 1
      */
@@ -133,6 +150,13 @@ export type DashboardAsCode = Omit<
         tableCalculations?: DashboardFilterRule[];
     };
     /**
+     * Declarative dashboard owner, referenced by email so it is portable across projects.
+     * A string assigns the organization member with that email as owner, `null` unassigns
+     * the owner, `undefined` leaves the current owner untouched. Download sets this to the
+     * owner's email when an owner is assigned.
+     */
+    ownerEmail?: string | null;
+    /**
      * Declarative verification state.
      * `true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the
      * current state untouched. Download sets this to `true` when the dashboard is verified.
@@ -140,6 +164,8 @@ export type DashboardAsCode = Omit<
     verified?: boolean;
     /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
+    /** Direct user/group grants. Omission leaves the existing policy unchanged on upload. */
+    access?: ContentAsCodeDirectAccess;
 };
 
 export type ApiDashboardAsCodeListResponse = {
@@ -161,7 +187,12 @@ export type ApiDashboardAsCodeListResponse = {
         offset: number;
     };
 };
+export type DashboardAsCodeUpsertResult = PromotionChanges & {
+    /** Non-fatal issues, e.g. a data app tile whose app is not in this project. */
+    warnings?: string[];
+};
+
 export type ApiDashboardAsCodeUpsertResponse = {
     status: 'ok';
-    results: PromotionChanges;
+    results: DashboardAsCodeUpsertResult;
 };

@@ -1,17 +1,15 @@
 import {
-    AiResultType,
     ChartType,
     ECHARTS_DEFAULT_COLORS,
     getGroupByDimensions,
     getWebAiChartConfig,
+    isCustomChartTypeSlugChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
+    type DataAppVizChart,
     type EChartsSeries,
-    type ToolRunQueryArgs,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
+    type PersistedRunQueryPayload,
 } from '@lightdash/common';
 import {
     Box,
@@ -23,14 +21,13 @@ import {
     Stack,
     Text,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronUp,
     IconExclamationCircle,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
@@ -43,11 +40,13 @@ import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useExplore } from '../../../../../hooks/useExplore';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
+import AgentVisualizationParameters from './AgentVisualizationParameters';
 import {
     getVisualizationFieldsCount,
     getVisualizationFiltersCount,
@@ -58,11 +57,10 @@ import {
 type Props = {
     vizQueryData: ApiAiAgentThreadMessageVizQuery;
     results: InfiniteQueryResults;
-    chartConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs;
+    chartConfig: PersistedRunQueryPayload;
+    // Set for custom chart type answers (from the artifact envelope): the
+    // saved-chart shape the dedicated renderer mounts with.
+    customChartType?: DataAppVizChart | null;
     selectedChartType: AiAgentChartTypeOption | null;
     // When provided, an inline switcher is rendered above the chart. Omit
     // it (e.g. on the floating panel) when a parent renders its own.
@@ -76,12 +74,20 @@ type Props = {
     headerContent?: ReactNode;
     displayFields?: boolean;
     displayFilters?: boolean;
+    loadExplore?: boolean;
+    interactionMode?: 'full' | 'read-only';
+    // Screenshot/export surfaces: flips VisualizationProvider into minimal
+    // mode so renderers disable drill-down/underlying-data structurally.
+    minimal?: boolean;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
     vizQueryData,
     results,
     chartConfig,
+    customChartType = null,
     selectedChartType,
     onChartTypeChange,
     switcherVariant = 'default',
@@ -89,9 +95,14 @@ export const AiVisualizationRenderer: FC<Props> = ({
     headerContent,
     displayFields = true,
     displayFilters: displayFiltersProp = true,
+    loadExplore = true,
+    interactionMode = 'full',
+    minimal = false,
+    onScreenshotReady,
+    onScreenshotError,
 }) => {
     const { data: health } = useHealth();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isEmbed = isEmbedAiAgentRoute();
     const { data: resolvedPalette } = useProjectColorPalette(
         projectUuid,
@@ -111,7 +122,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const { metricQuery, fields, resolvedTimezone } = vizQueryData.query;
     const tableName = metricQuery?.exploreName;
-    const { data: explore } = useExplore(tableName);
+    const allowsAnalyticalInteraction = interactionMode === 'full';
+    const { data: explore } = useExplore(
+        loadExplore && allowsAnalyticalInteraction ? tableName : undefined,
+    );
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsSeriesClickEvent | null>(null);
@@ -181,12 +195,30 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const filtersCount = displayFilters
         ? getVisualizationFiltersCount(metricQuery.filters)
         : 0;
-    const displayDetails = fieldsCount > 0 || filtersCount > 0;
+    // Only parameters the query actually references — usedParametersValues
+    // also carries unrelated project-wide defaults.
+    const usedParameters = useMemo(() => {
+        const references = vizQueryData.query.parameterReferences ?? [];
+        if (references.length === 0) return {};
+        return Object.fromEntries(
+            Object.entries(
+                vizQueryData.query.usedParametersValues ?? {},
+            ).filter(([name]) => references.includes(name)),
+        );
+    }, [
+        vizQueryData.query.parameterReferences,
+        vizQueryData.query.usedParametersValues,
+    ]);
+    const parametersCount = Object.keys(usedParameters).length;
+    const displayDetails =
+        fieldsCount > 0 || filtersCount > 0 || parametersCount > 0;
+
+    const isCustomChartTypeAnswer = customChartType !== null;
 
     const defaultChartType: AiAgentChartTypeOption =
-        webAiChartConfig.type === AiResultType.QUERY_RESULT
-            ? (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table')
-            : 'table';
+        isCustomChartTypeSlugChartConfig(webAiChartConfig.vizTool.chartConfig)
+            ? 'table'
+            : (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table');
 
     const handleChartConfigChange = useCallback(
         (newConfig: ChartConfig) => {
@@ -199,7 +231,14 @@ export const AiVisualizationRenderer: FC<Props> = ({
         [onExpandedChartConfigChange, selectedChartType],
     );
 
-    if (!webAiChartConfig.echartsConfig) {
+    // Custom chart type answers mount the dedicated renderer with the
+    // saved-chart shape built from the artifact envelope; builtin answers
+    // use the derived echarts config (or the user's expanded override).
+    const providerChartConfig: ChartConfig | undefined = customChartType
+        ? { type: ChartType.DATA_APP_VIZ, config: customChartType }
+        : (activeExpandedChartConfig ?? webAiChartConfig.echartsConfig);
+
+    if (!providerChartConfig) {
         return (
             <Center h={300}>
                 <Stack gap="xs" align="center">
@@ -222,11 +261,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
         >
             <VisualizationProvider
                 hasExplorerStore={false}
+                minimal={minimal}
                 key={selectedChartType ?? 'default'}
                 resultsData={resultsData}
-                chartConfig={
-                    activeExpandedChartConfig ?? webAiChartConfig.echartsConfig
-                }
+                chartConfig={providerChartConfig}
                 parameters={vizQueryData.query.usedParametersValues}
                 columnOrder={[
                     ...metricQuery.dimensions,
@@ -236,13 +274,17 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 initialPivotDimensions={groupByDimensions}
                 colorPalette={colorPalette}
                 isLoading={resultsData.isFetchingRows}
-                onSeriesContextMenu={(
-                    e: EchartsSeriesClickEvent,
-                    series: EChartsSeries[],
-                ) => {
-                    setEchartsClickEvent(e);
-                    setEchartsSeries(series);
-                }}
+                onSeriesContextMenu={
+                    allowsAnalyticalInteraction
+                        ? (
+                              event: EchartsSeriesClickEvent,
+                              series: EChartsSeries[],
+                          ) => {
+                              setEchartsClickEvent(event);
+                              setEchartsSeries(series);
+                          }
+                        : undefined
+                }
                 onChartConfigChange={handleChartConfigChange}
                 unsavedMetricQuery={metricQuery}
             >
@@ -258,22 +300,21 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     }}
                 >
                     {headerContent}
-                    {webAiChartConfig.type === AiResultType.QUERY_RESULT &&
-                        onChartTypeChange && (
-                            <Group justify="flex-end">
-                                <AgentVisualizationChartTypeSwitcher
-                                    metricQuery={metricQuery}
-                                    selectedChartType={
-                                        selectedChartType ?? defaultChartType
-                                    }
-                                    hasGroupByDimensions={
-                                        (groupByDimensions?.length ?? 0) > 0
-                                    }
-                                    onChartTypeChange={onChartTypeChange}
-                                    variant={switcherVariant}
-                                />
-                            </Group>
-                        )}
+                    {!isCustomChartTypeAnswer && onChartTypeChange && (
+                        <Group justify="flex-end">
+                            <AgentVisualizationChartTypeSwitcher
+                                metricQuery={metricQuery}
+                                selectedChartType={
+                                    selectedChartType ?? defaultChartType
+                                }
+                                hasGroupByDimensions={
+                                    (groupByDimensions?.length ?? 0) > 0
+                                }
+                                onChartTypeChange={onChartTypeChange}
+                                variant={switcherVariant}
+                            />
+                        </Group>
+                    )}
                     <Box
                         flex="1"
                         mih={0}
@@ -288,25 +329,33 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         <LightdashVisualization
                             className="sentry-block ph-no-capture"
                             data-testid="ai-visualization"
+                            enableContextMenu={allowsAnalyticalInteraction}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                         />
 
-                        {webAiChartConfig.echartsConfig.type ===
-                            ChartType.CARTESIAN && (
-                            <SeriesContextMenu
-                                echartsSeriesClickEvent={
-                                    echartsClickEvent ?? undefined
-                                }
-                                dimensions={metricQuery.dimensions}
-                                series={echartsSeries}
-                                explore={explore}
-                            />
-                        )}
-                        <UnderlyingDataModal />
-                        <DrillDownModal />
+                        {allowsAnalyticalInteraction &&
+                            webAiChartConfig.echartsConfig?.type ===
+                                ChartType.CARTESIAN && (
+                                <SeriesContextMenu
+                                    echartsSeriesClickEvent={
+                                        echartsClickEvent ?? undefined
+                                    }
+                                    dimensions={metricQuery.dimensions}
+                                    series={echartsSeries}
+                                    explore={explore}
+                                />
+                            )}
+                        {allowsAnalyticalInteraction ? (
+                            <>
+                                <UnderlyingDataModal />
+                                <DrillDownModal />
+                            </>
+                        ) : null}
                     </Box>
 
                     {displayDetails ? (
-                        <Stack gap="xs" style={{ flexShrink: 0 }}>
+                        <Stack gap="xs" flex="0 0 auto">
                             <Flex align="center" justify="flex-start">
                                 <Button
                                     size="compact-xs"
@@ -340,12 +389,15 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                         filtersCount > 0
                                             ? `Filters ${filtersCount}`
                                             : null,
+                                        parametersCount > 0
+                                            ? `Parameters ${parametersCount}`
+                                            : null,
                                     ]
                                         .filter(Boolean)
                                         .join(' · ')}
                                 </Button>
                             </Flex>
-                            <Collapse in={detailsExpanded}>
+                            <Collapse expanded={detailsExpanded}>
                                 <Stack gap="xs">
                                     <ErrorBoundary>
                                         {displayMetricsAndDimensions && (
@@ -359,6 +411,12 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                             <AgentVisualizationFilters
                                                 filters={metricQuery.filters}
                                                 fieldsMap={fields}
+                                            />
+                                        ) : null}
+
+                                        {parametersCount > 0 ? (
+                                            <AgentVisualizationParameters
+                                                parameterValues={usedParameters}
                                             />
                                         ) : null}
                                     </ErrorBoundary>

@@ -1,5 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
+    ANNOUNCEMENT_BODY_MAX_LENGTH,
+    AnnouncementCategory,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -10,6 +12,7 @@ import {
     type ProjectHomepage,
     type SessionUser,
 } from '@lightdash/common';
+import { Readable } from 'stream';
 import {
     ProjectHomepageService,
     type ProjectHomepageServiceArguments,
@@ -20,6 +23,18 @@ const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
 const USER_UUID = '00000000-0000-0000-0000-000000000004';
 const HOMEPAGE_UUID = '00000000-0000-0000-0000-000000000010';
+
+type SlackBlock = {
+    type: string;
+    elements?: Array<{ text?: string }>;
+};
+
+const slackContextTexts = (blocks: SlackBlock[]): string[] =>
+    blocks
+        .filter((block) => block.type === 'context')
+        .flatMap((block) => block.elements ?? [])
+        .map((element) => element.text)
+        .filter((text): text is string => text != null);
 
 const validConfig: HomepageConfig = {
     version: 1,
@@ -42,7 +57,6 @@ const makeHomepage = (
     draftConfig: validConfig,
     publishedConfig: null,
     isDefault: true,
-    allowPersonal: true,
     createdByUserUuid: USER_UUID,
     createdAt: NOW,
     updatedAt: NOW,
@@ -77,12 +91,18 @@ const makeAdminUser = (): SessionUser => ({
         {
             action: 'view',
             subject: 'Project',
-            conditions: { projectUuid: PROJECT_UUID },
+            conditions: {
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            },
         },
         {
             action: 'manage',
             subject: 'ProjectHomepage',
-            conditions: { projectUuid: PROJECT_UUID },
+            conditions: {
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            },
         },
     ]),
 });
@@ -94,7 +114,10 @@ const makeViewerUser = (): SessionUser => ({
         {
             action: 'view',
             subject: 'Project',
-            conditions: { projectUuid: PROJECT_UUID },
+            conditions: {
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            },
         },
     ]),
 });
@@ -104,6 +127,12 @@ const makeService = ({
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
+    userModel = {},
+    fileStorageClient = {},
+    persistentDownloadFileService = {},
+    slackClient = {},
+    slackInstalled = true,
+    schedulerClient = {},
 }: {
     flagEnabled?: boolean;
     projectHomepageModel?: Partial<
@@ -111,8 +140,24 @@ const makeService = ({
     >;
     groupsModel?: Partial<ProjectHomepageServiceArguments['groupsModel']>;
     projectModel?: Partial<ProjectHomepageServiceArguments['projectModel']>;
+    userModel?: Partial<ProjectHomepageServiceArguments['userModel']>;
+    fileStorageClient?: Partial<
+        ProjectHomepageServiceArguments['fileStorageClient']
+    >;
+    persistentDownloadFileService?: Partial<
+        ProjectHomepageServiceArguments['persistentDownloadFileService']
+    >;
+    slackClient?: Partial<ProjectHomepageServiceArguments['slackClient']>;
+    slackInstalled?: boolean;
+    schedulerClient?: Partial<
+        ProjectHomepageServiceArguments['schedulerClient']
+    >;
 } = {}) =>
     new ProjectHomepageService({
+        recentContentService: {
+            getRecentlyViewed: vi.fn().mockResolvedValue([]),
+        },
+        analytics: { track: vi.fn() },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({
                 id: 'homepage-builder',
@@ -123,11 +168,7 @@ const makeService = ({
             getDefault: vi.fn().mockResolvedValue(undefined),
             getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
-            getRecentlyViewed: vi.fn().mockResolvedValue([]),
             getAssignments: vi.fn().mockResolvedValue([]),
-            getPersonalOverride: vi.fn().mockResolvedValue(undefined),
-            setPersonalOverride: vi.fn().mockResolvedValue(undefined),
-            deletePersonalOverride: vi.fn().mockResolvedValue(undefined),
             updateGroupPriorities: vi.fn().mockResolvedValue(undefined),
             resolvePublished: vi.fn().mockResolvedValue(undefined),
             list: vi.fn().mockResolvedValue([]),
@@ -143,9 +184,11 @@ const makeService = ({
             createAnnouncement: vi.fn(),
             updateAnnouncement: vi.fn(),
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
-            listCategories: vi.fn().mockResolvedValue([]),
-            getCategory: vi.fn().mockResolvedValue(undefined),
-            createCategory: vi.fn(),
+            publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([]),
+            publishPendingAnnouncements: vi.fn().mockResolvedValue([]),
+            findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
+            upsertOrgHomepageSettings: vi.fn(),
+            swapHeroBlocks: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
         },
         groupsModel: {
@@ -154,17 +197,151 @@ const makeService = ({
         },
         projectModel: {
             getProjectMemberAccess: vi.fn().mockResolvedValue(undefined),
+            getProjectGroupAccesses: vi.fn().mockResolvedValue([]),
+            getSummary: vi.fn().mockResolvedValue({
+                organizationUuid: ORGANIZATION_UUID,
+            }),
             ...projectModel,
+        },
+        userModel: {
+            getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                ...baseUser(),
+                role: OrganizationMemberRole.MEMBER,
+            }),
+            ...userModel,
+        },
+        fileStorageClient: {
+            uploadImage: vi.fn(),
+            ...fileStorageClient,
+        } as ProjectHomepageServiceArguments['fileStorageClient'],
+        persistentDownloadFileService: {
+            createPersistentUrl: vi.fn(),
+            deleteFileWithKeyPrefix: vi.fn().mockResolvedValue(undefined),
+            ...persistentDownloadFileService,
+        } as ProjectHomepageServiceArguments['persistentDownloadFileService'],
+        slackClient: {
+            postMessage: vi.fn().mockResolvedValue(undefined),
+            ...slackClient,
+        } as ProjectHomepageServiceArguments['slackClient'],
+        slackAuthenticationModel: {
+            getInstallationFromOrganizationUuid: vi
+                .fn()
+                .mockResolvedValue(
+                    slackInstalled
+                        ? { organizationUuid: ORGANIZATION_UUID }
+                        : undefined,
+                ),
+        } as unknown as ProjectHomepageServiceArguments['slackAuthenticationModel'],
+        lightdashConfig: {
+            siteUrl: 'http://localhost:3000',
+        } as ProjectHomepageServiceArguments['lightdashConfig'],
+        schedulerClient: {
+            schedulePublishAnnouncement: vi
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
+            cancelPublishAnnouncement: vi.fn().mockResolvedValue(undefined),
+            ...schedulerClient,
         },
     });
 
 describe('ProjectHomepageService', () => {
+    it('accepts fileStorageClient and persistentDownloadFileService in its constructor', () => {
+        expect(() => makeService()).not.toThrow();
+    });
+
     it('getPublishedHomepage throws ForbiddenError when flag is disabled', async () => {
         const service = makeService({ flagEnabled: false });
 
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('org settings opt-in enables the homepage even when the flag is off', async () => {
+        const service = makeService({
+            flagEnabled: false,
+            projectHomepageModel: {
+                findOrgHomepageSettings: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    enabled: true,
+                    opening: 'content-first',
+                }),
+            },
+        });
+
+        await expect(
+            service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
+        ).resolves.toBeNull();
+    });
+
+    it('getOrgHomepageSettings returns defaults when the org never opted in', async () => {
+        const service = makeService();
+
+        await expect(
+            service.getOrgHomepageSettings(makeViewerUser()),
+        ).resolves.toEqual({
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: false,
+            opening: null,
+        });
+    });
+
+    it('updateOrgHomepageSettings requires org-admin ability', async () => {
+        const upsert = vi.fn();
+        const service = makeService({
+            projectHomepageModel: { upsertOrgHomepageSettings: upsert },
+        });
+
+        await expect(
+            service.updateOrgHomepageSettings(makeViewerUser(), {
+                enabled: true,
+                opening: 'ask-first',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('updateOrgHomepageSettings upserts for org admins', async () => {
+        const settings = {
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: true,
+            opening: 'content-first' as const,
+        };
+        const upsert = vi.fn().mockResolvedValue(settings);
+        const swapHeroes = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: {
+                upsertOrgHomepageSettings: upsert,
+                swapHeroBlocks: swapHeroes,
+            },
+        });
+        const orgAdmin: SessionUser = {
+            ...baseUser(),
+            ability: new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: { organizationUuid: ORGANIZATION_UUID },
+                },
+            ]),
+        };
+
+        await expect(
+            service.updateOrgHomepageSettings(orgAdmin, {
+                enabled: true,
+                opening: 'content-first',
+            }),
+        ).resolves.toEqual(settings);
+        expect(upsert).toHaveBeenCalledWith(ORGANIZATION_UUID, {
+            enabled: true,
+            opening: 'content-first',
+        });
+        // The chosen opening rewrites stored heroes so the builder and the
+        // rendered pages agree with it, in both directions.
+        expect(swapHeroes).toHaveBeenCalledWith(
+            ORGANIZATION_UUID,
+            'content-first',
+        );
     });
 
     it('getPublishedHomepage returns null when nothing is published', async () => {
@@ -175,6 +352,20 @@ describe('ProjectHomepageService', () => {
         ).resolves.toBeNull();
     });
 
+    it('getPublishedHomepage rejects a project owned by another organization', async () => {
+        const service = makeService({
+            projectModel: {
+                getSummary: vi.fn().mockResolvedValue({
+                    organizationUuid: 'another-organization-uuid',
+                }),
+            },
+        });
+
+        await expect(
+            service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
     it('createHomepage throws ForbiddenError for a viewer', async () => {
         const service = makeService();
 
@@ -182,6 +373,20 @@ describe('ProjectHomepageService', () => {
             service.createHomepage(makeViewerUser(), PROJECT_UUID, {
                 name: 'Nope',
             }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('listHomepages rejects a project owned by another organization', async () => {
+        const service = makeService({
+            projectModel: {
+                getSummary: vi.fn().mockResolvedValue({
+                    organizationUuid: 'another-organization-uuid',
+                }),
+            },
+        });
+
+        await expect(
+            service.listHomepages(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
     });
 
@@ -294,15 +499,232 @@ describe('ProjectHomepageService', () => {
             PROJECT_UUID,
             HOMEPAGE_UUID,
             { type: 'everyone' },
-            true,
         );
 
-        expect(publish).toHaveBeenCalledWith(
+        expect(publish).toHaveBeenCalledWith(HOMEPAGE_UUID, {
+            type: 'everyone',
+        });
+        expect(result.publishedConfig).toEqual(validConfig);
+    });
+
+    it('publishHomepage publishes draft announcements and fires their pending Slack notifications', async () => {
+        const publishedAnnouncement = {
+            announcementUuid: 'ann-draft-1',
+            projectUuid: PROJECT_UUID,
+            title: 'Draft launch',
+            body: null,
+            category: AnnouncementCategory.LAUNCH,
+            pinned: false,
+            published: true,
+            createdByUserUuid: 'user-1',
+            authorName: 'Ana',
+            createdAt: NOW,
+            updatedAt: NOW,
+        };
+        const postMessage = vi.fn().mockResolvedValue(undefined);
+        const publishProjectDraftAnnouncements = vi.fn().mockResolvedValue([
+            {
+                announcement: publishedAnnouncement,
+                slackChannelId: 'C1',
+            },
+        ]);
+        const service = makeService({
+            projectHomepageModel: {
+                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                publish: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ publishedConfig: validConfig }),
+                    ),
+                publishProjectDraftAnnouncements,
+            },
+            slackClient: { postMessage },
+        });
+
+        await service.publishHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
             HOMEPAGE_UUID,
             { type: 'everyone' },
-            true,
         );
-        expect(result.publishedConfig).toEqual(validConfig);
+
+        expect(publishProjectDraftAnnouncements).toHaveBeenCalledWith(
+            PROJECT_UUID,
+        );
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C1',
+                text: '📢 Launch from Ana: Draft launch',
+            }),
+        );
+        const [{ blocks }] = postMessage.mock.calls[0];
+        expect(slackContextTexts(blocks)).toEqual([
+            'Launch · Posted by Ana',
+            expect.stringContaining('View on the homepage'),
+        ]);
+    });
+
+    it('publishHomepage retries the Slack notification without the image block', async () => {
+        const publishedAnnouncement = {
+            announcementUuid: 'ann-draft-2',
+            projectUuid: PROJECT_UUID,
+            title: 'Draft launch',
+            body: 'Look ![shot](/api/v1/file/abc123)',
+            category: AnnouncementCategory.UPDATE,
+            pinned: false,
+            published: true,
+            pendingSlackChannelId: null,
+            createdByUserUuid: 'user-1',
+            authorName: 'Ana',
+            createdAt: NOW,
+            updatedAt: NOW,
+        };
+        const postMessage = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('invalid_blocks'))
+            .mockResolvedValueOnce(undefined);
+        const service = makeService({
+            projectHomepageModel: {
+                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                publish: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ publishedConfig: validConfig }),
+                    ),
+                publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([
+                    {
+                        announcement: publishedAnnouncement,
+                        slackChannelId: 'C1',
+                    },
+                ]),
+            },
+            slackClient: { postMessage },
+        });
+
+        await service.publishHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            HOMEPAGE_UUID,
+            { type: 'everyone' },
+        );
+
+        expect(postMessage).toHaveBeenCalledTimes(2);
+        const [firstCall] = postMessage.mock.calls[0];
+        const [retryCall] = postMessage.mock.calls[1];
+        expect(
+            firstCall.blocks.some(
+                (block: { type: string }) => block.type === 'image',
+            ),
+        ).toBe(true);
+        expect(
+            retryCall.blocks.some(
+                (block: { type: string }) => block.type === 'image',
+            ),
+        ).toBe(false);
+        expect(retryCall.text).toBe('📢 Update from Ana: Draft launch');
+        expect(slackContextTexts(retryCall.blocks)).toEqual([
+            'Update · Posted by Ana',
+            expect.stringContaining('View on the homepage'),
+        ]);
+    });
+
+    it('publishHomepage Slack notification omits empty author and category attribution', async () => {
+        const publishedAnnouncement = {
+            announcementUuid: 'ann-draft-3',
+            projectUuid: PROJECT_UUID,
+            title: 'Draft launch',
+            body: null,
+            category: null,
+            pinned: false,
+            published: true,
+            createdByUserUuid: null,
+            authorName: null,
+            createdAt: NOW,
+            updatedAt: NOW,
+        };
+        const postMessage = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: {
+                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                publish: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ publishedConfig: validConfig }),
+                    ),
+                publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([
+                    {
+                        announcement: publishedAnnouncement,
+                        slackChannelId: 'C1',
+                    },
+                ]),
+            },
+            slackClient: { postMessage },
+        });
+
+        await service.publishHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            HOMEPAGE_UUID,
+            { type: 'everyone' },
+        );
+
+        const [{ text, blocks }] = postMessage.mock.calls[0];
+        expect(text).toBe('📢 New announcement: Draft launch');
+        expect(slackContextTexts(blocks)).toEqual([
+            expect.stringContaining('View on the homepage'),
+        ]);
+        expect(slackContextTexts(blocks).join(' ')).not.toMatch(
+            /Posted by|Launch|Update|Heads up/i,
+        );
+    });
+
+    it('publishHomepage Slack notification attributes a category without an author', async () => {
+        const publishedAnnouncement = {
+            announcementUuid: 'ann-draft-4',
+            projectUuid: PROJECT_UUID,
+            title: 'Warehouse delay',
+            body: null,
+            category: AnnouncementCategory.HEADS_UP,
+            pinned: false,
+            published: true,
+            createdByUserUuid: null,
+            authorName: null,
+            createdAt: NOW,
+            updatedAt: NOW,
+        };
+        const postMessage = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: {
+                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                publish: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ publishedConfig: validConfig }),
+                    ),
+                publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([
+                    {
+                        announcement: publishedAnnouncement,
+                        slackChannelId: 'C1',
+                    },
+                ]),
+            },
+            slackClient: { postMessage },
+        });
+
+        await service.publishHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            HOMEPAGE_UUID,
+            { type: 'everyone' },
+        );
+
+        const [{ text, blocks }] = postMessage.mock.calls[0];
+        expect(text).toBe('📢 Heads up: Warehouse delay');
+        expect(slackContextTexts(blocks)).toEqual([
+            'Heads up',
+            expect.stringContaining('View on the homepage'),
+        ]);
+        expect(slackContextTexts(blocks).join(' ')).not.toContain('Posted by');
     });
 
     it('discardDraft reverts the draft to the published config for an admin when the flag is on', async () => {
@@ -348,7 +770,6 @@ describe('ProjectHomepageService', () => {
                 homepageUuid: HOMEPAGE_UUID,
                 name: 'Sales homepage',
                 config: validConfig,
-                allowPersonal: true,
             },
             source: { type: 'group', groupUuid: 'group-1', priority: 1 },
         });
@@ -388,6 +809,101 @@ describe('ProjectHomepageService', () => {
         );
     });
 
+    it('resolves the role tier from the org role when there is no project membership', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            userModel: {
+                getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                    ...baseUser(),
+                    role: OrganizationMemberRole.EDITOR,
+                }),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: [],
+            role: 'editor',
+        });
+    });
+
+    it('resolves the role tier from group project access', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            groupsModel: {
+                findUserGroups: vi
+                    .fn()
+                    .mockResolvedValue([{ uuid: 'group-1', name: 'Sales' }]),
+            },
+            projectModel: {
+                getProjectGroupAccesses: vi.fn().mockResolvedValue([
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'group-1',
+                        role: ProjectMemberRole.DEVELOPER,
+                    },
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'other-group',
+                        role: ProjectMemberRole.ADMIN,
+                    },
+                ]),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: ['group-1'],
+            role: 'developer',
+        });
+    });
+
+    it('resolves the role tier to the highest of org, membership and group roles', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            groupsModel: {
+                findUserGroups: vi
+                    .fn()
+                    .mockResolvedValue([{ uuid: 'group-1', name: 'Sales' }]),
+            },
+            projectModel: {
+                getProjectMemberAccess: vi.fn().mockResolvedValue({
+                    userUuid: USER_UUID,
+                    projectUuid: PROJECT_UUID,
+                    role: ProjectMemberRole.VIEWER,
+                    email: 'x@y.z',
+                    firstName: 'A',
+                    lastName: 'B',
+                }),
+                getProjectGroupAccesses: vi.fn().mockResolvedValue([
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'group-1',
+                        role: 'custom-role-uuid',
+                    },
+                ]),
+            },
+            userModel: {
+                getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                    ...baseUser(),
+                    role: OrganizationMemberRole.ADMIN,
+                }),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: ['group-1'],
+            role: 'admin',
+        });
+    });
+
     it('viewAsHomepage is forbidden for a viewer', async () => {
         const service = makeService();
 
@@ -405,13 +921,11 @@ describe('ProjectHomepageService', () => {
                 homepageUuid: HOMEPAGE_UUID,
                 name: 'Editors homepage',
                 config: validConfig,
-                allowPersonal: true,
             },
             source: { type: 'role', role: 'editor' },
         });
-        const getPersonalOverride = vi.fn();
         const service = makeService({
-            projectHomepageModel: { resolvePublished, getPersonalOverride },
+            projectHomepageModel: { resolvePublished },
         });
 
         const result = await service.viewAsHomepage(
@@ -424,34 +938,10 @@ describe('ProjectHomepageService', () => {
             groupUuids: [],
             role: 'editor',
         });
-        // group/role targets never consult the target's personal override
-        expect(getPersonalOverride).not.toHaveBeenCalled();
         expect(result.reason).toEqual({ type: 'role', role: 'editor' });
         expect(result.resolved).toEqual(
             expect.objectContaining({ type: 'homepage' }),
         );
-    });
-
-    it("viewAsHomepage for a user target applies the target's personal override", async () => {
-        const service = makeService({
-            projectHomepageModel: {
-                getPersonalOverride: vi
-                    .fn()
-                    .mockResolvedValue('dashboard-uuid-1'),
-                resolvePublished: vi.fn().mockResolvedValue(undefined),
-            },
-        });
-
-        const result = await service.viewAsHomepage(
-            makeAdminUser(),
-            PROJECT_UUID,
-            { type: 'user', userUuid: USER_UUID },
-        );
-
-        expect(result).toEqual({
-            resolved: { type: 'dashboard', dashboardUuid: 'dashboard-uuid-1' },
-            reason: { type: 'personal', dashboardUuid: 'dashboard-uuid-1' },
-        });
     });
 
     describe('announcements', () => {
@@ -461,7 +951,7 @@ describe('ProjectHomepageService', () => {
                 service.createAnnouncement(makeViewerUser(), PROJECT_UUID, {
                     title: 'Hello',
                     body: null,
-                    categoryUuid: null,
+                    category: null,
                 }),
             ).rejects.toThrow(ForbiddenError);
         });
@@ -472,29 +962,419 @@ describe('ProjectHomepageService', () => {
                 service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
                     title: '   ',
                     body: null,
-                    categoryUuid: null,
+                    category: null,
                 }),
             ).rejects.toThrow(ParameterError);
         });
 
-        it('createAnnouncement rejects a category from another project', async () => {
+        const madeAnnouncement = {
+            announcementUuid: 'ann-9',
+            projectUuid: PROJECT_UUID,
+            title: 'Launch',
+            body: null,
+            category: null,
+            pinned: false,
+            published: false,
+            scheduledPublishAt: null,
+            createdByUserUuid: 'user-1',
+            authorName: 'Ana',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        it('createAnnouncement does not notify Slack when no channel is given', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
             const service = makeService({
                 projectHomepageModel: {
-                    getCategory: vi.fn().mockResolvedValue({
-                        categoryUuid: 'cat-1',
-                        projectUuid: 'other-project',
-                        name: 'Release',
-                        color: '#3b5bdb',
+                    createAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                },
+                slackClient: { postMessage },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+            });
+            expect(postMessage).not.toHaveBeenCalled();
+        });
+
+        it('createAnnouncement stores the pending Slack channel but does not notify yet', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const createAnnouncement = vi
+                .fn()
+                .mockResolvedValue(madeAnnouncement);
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+                slackClient: { postMessage },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+                slackChannelId: 'C123',
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ pendingSlackChannelId: 'C123' }),
+            );
+            expect(postMessage).not.toHaveBeenCalled();
+        });
+
+        it('createAnnouncement is created as a draft (no Slack notification) even without a channel', async () => {
+            const createAnnouncement = vi
+                .fn()
+                .mockResolvedValue(madeAnnouncement);
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+            });
+            await expect(
+                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    slackChannelId: 'C123',
+                }),
+            ).resolves.toEqual(madeAnnouncement);
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ pendingSlackChannelId: 'C123' }),
+            );
+        });
+
+        it('createAnnouncement with publishNow creates it published and notifies Slack immediately', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const createAnnouncement = vi.fn().mockResolvedValue({
+                ...madeAnnouncement,
+                published: true,
+                category: AnnouncementCategory.HEADS_UP,
+            });
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+                slackClient: { postMessage },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: AnnouncementCategory.HEADS_UP,
+                slackChannelId: 'C123',
+                publishNow: true,
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ published: true }),
+            );
+            expect(postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    channel: 'C123',
+                    text: '📢 Heads up from Ana: Launch',
+                }),
+            );
+            const [{ blocks }] = postMessage.mock.calls[0];
+            expect(slackContextTexts(blocks)).toEqual([
+                'Heads up · Posted by Ana',
+                expect.stringContaining('View on the homepage'),
+            ]);
+        });
+
+        it('createAnnouncement with publishNow and no channel publishes without Slack', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const createAnnouncement = vi
+                .fn()
+                .mockResolvedValue({ ...madeAnnouncement, published: true });
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+                slackClient: { postMessage },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+                publishNow: true,
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ published: true }),
+            );
+            expect(postMessage).not.toHaveBeenCalled();
+        });
+
+        it('createAnnouncement with scheduledPublishAt stores it and enqueues the one-shot job', async () => {
+            const future = new Date(Date.now() + 60 * 60 * 1000);
+            const createAnnouncement = vi.fn().mockResolvedValue({
+                ...madeAnnouncement,
+                scheduledPublishAt: future,
+            });
+            const schedulePublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' });
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+                schedulerClient: { schedulePublishAnnouncement },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+                scheduledPublishAt: future,
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    published: false,
+                    scheduledPublishAt: future,
+                }),
+            );
+            expect(schedulePublishAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    announcementUuid: madeAnnouncement.announcementUuid,
+                    projectUuid: PROJECT_UUID,
+                }),
+                future,
+            );
+        });
+
+        it('createAnnouncement rejects a past scheduledPublishAt', async () => {
+            const service = makeService();
+            await expect(
+                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    scheduledPublishAt: new Date(Date.now() - 1000),
+                }),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('createAnnouncement rejects publishNow combined with scheduledPublishAt', async () => {
+            const service = makeService();
+            await expect(
+                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    publishNow: true,
+                    scheduledPublishAt: new Date(Date.now() + 60_000),
+                }),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('updateAnnouncement reschedules the job when scheduledPublishAt changes', async () => {
+            const future = new Date(Date.now() + 60 * 60 * 1000);
+            const schedulePublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' });
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                    updateAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        scheduledPublishAt: future,
+                    }),
+                },
+                schedulerClient: { schedulePublishAnnouncement },
+            });
+            await service.updateAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                'ann-9',
+                { scheduledPublishAt: future },
+            );
+            expect(schedulePublishAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ announcementUuid: 'ann-9' }),
+                future,
+            );
+        });
+
+        it('updateAnnouncement unschedules back to draft and cancels the job', async () => {
+            const cancelPublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const updateAnnouncement = vi
+                .fn()
+                .mockResolvedValue(madeAnnouncement);
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        scheduledPublishAt: new Date(Date.now() + 60_000),
+                    }),
+                    updateAnnouncement,
+                },
+                schedulerClient: { cancelPublishAnnouncement },
+            });
+            await service.updateAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                'ann-9',
+                { scheduledPublishAt: null },
+            );
+            expect(updateAnnouncement).toHaveBeenCalledWith(
+                'ann-9',
+                expect.objectContaining({ scheduledPublishAt: null }),
+            );
+            expect(cancelPublishAnnouncement).toHaveBeenCalledWith('ann-9');
+        });
+
+        it('updateAnnouncement publishNow publishes once, notifies Slack, and cancels the job', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const cancelPublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const publishPendingAnnouncements = vi.fn().mockResolvedValue([
+                {
+                    announcement: { ...madeAnnouncement, published: true },
+                    slackChannelId: 'C123',
+                },
+            ]);
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                    publishPendingAnnouncements,
+                },
+                schedulerClient: { cancelPublishAnnouncement },
+                slackClient: { postMessage },
+            });
+            const result = await service.updateAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                'ann-9',
+                { publishNow: true },
+            );
+            expect(publishPendingAnnouncements).toHaveBeenCalledWith({
+                announcementUuid: 'ann-9',
+                onlyDue: false,
+            });
+            expect(cancelPublishAnnouncement).toHaveBeenCalledWith('ann-9');
+            expect(postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    channel: 'C123',
+                    text: '📢 New announcement from Ana: Launch',
+                }),
+            );
+            expect(result.published).toBe(true);
+        });
+
+        it('updateAnnouncement rejects scheduling a published announcement', async () => {
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        published: true,
                     }),
                 },
             });
             await expect(
-                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
-                    title: 'Hello',
-                    body: null,
-                    categoryUuid: 'cat-1',
+                service.updateAnnouncement(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                    'ann-9',
+                    { scheduledPublishAt: new Date(Date.now() + 60_000) },
+                ),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('deleteAnnouncement cancels any pending publish job', async () => {
+            const cancelPublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                },
+                schedulerClient: { cancelPublishAnnouncement },
+            });
+            await service.deleteAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                madeAnnouncement.announcementUuid,
+            );
+            expect(cancelPublishAnnouncement).toHaveBeenCalledWith(
+                madeAnnouncement.announcementUuid,
+            );
+        });
+
+        it('publishScheduledAnnouncement no-ops when the payload project does not own the row', async () => {
+            const publishPendingAnnouncements = vi.fn();
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        projectUuid: 'other-project',
+                    }),
+                    publishPendingAnnouncements,
+                },
+            });
+            await service.publishScheduledAnnouncement({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                userUuid: 'user-1',
+                announcementUuid: madeAnnouncement.announcementUuid,
+            });
+            expect(publishPendingAnnouncements).not.toHaveBeenCalled();
+        });
+
+        it('sweepDueAnnouncements publishes due rows and notifies Slack via the project org', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const getSummary = vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: ORGANIZATION_UUID });
+            const service = makeService({
+                projectHomepageModel: {
+                    publishPendingAnnouncements: vi.fn().mockResolvedValue([
+                        {
+                            announcement: {
+                                ...madeAnnouncement,
+                                published: true,
+                            },
+                            slackChannelId: 'C123',
+                        },
+                        {
+                            announcement: {
+                                ...madeAnnouncement,
+                                announcementUuid: 'ann-10',
+                                published: true,
+                            },
+                            slackChannelId: null,
+                        },
+                    ]),
+                },
+                projectModel: { getSummary },
+                slackClient: { postMessage },
+            });
+            const count = await service.sweepDueAnnouncements();
+            expect(count).toBe(2);
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            expect(postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    channel: 'C123',
+                    text: '📢 New announcement from Ana: Launch',
                 }),
-            ).rejects.toThrow(NotFoundError);
+            );
+            const [{ blocks }] = postMessage.mock.calls[0];
+            expect(slackContextTexts(blocks)).toEqual([
+                'Posted by Ana',
+                expect.stringContaining('View on the homepage'),
+            ]);
+        });
+
+        it('createAnnouncement without publishNow stays a draft', async () => {
+            const createAnnouncement = vi
+                .fn()
+                .mockResolvedValue(madeAnnouncement);
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ published: false }),
+            );
         });
 
         it('updateAnnouncement passes pinned through for an owned announcement', async () => {
@@ -503,7 +1383,7 @@ describe('ProjectHomepageService', () => {
                 projectUuid: PROJECT_UUID,
                 title: 'Hello',
                 body: null,
-                categoryUuid: null,
+                category: null,
                 pinned: false,
                 createdByUserUuid: 'user-1',
                 authorName: 'Ana',
@@ -531,6 +1411,175 @@ describe('ProjectHomepageService', () => {
             expect(result.pinned).toBe(true);
         });
 
+        it('createAnnouncement rejects a body over the length cap', async () => {
+            const service = makeService();
+            await expect(
+                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                    title: 'Launch',
+                    body: 'x'.repeat(ANNOUNCEMENT_BODY_MAX_LENGTH + 1),
+                    category: null,
+                }),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('createAnnouncement rejects a Slack channel when Slack is not installed', async () => {
+            const createAnnouncement = vi.fn();
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+                slackInstalled: false,
+            });
+            await expect(
+                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    slackChannelId: 'C123',
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(createAnnouncement).not.toHaveBeenCalled();
+        });
+
+        it('updateAnnouncement rejects a body over the length cap', async () => {
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        announcementUuid: 'ann-1',
+                    }),
+                },
+            });
+            await expect(
+                service.updateAnnouncement(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                    'ann-1',
+                    { body: 'x'.repeat(ANNOUNCEMENT_BODY_MAX_LENGTH + 1) },
+                ),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('updateAnnouncement clears the pending Slack channel on a draft', async () => {
+            const updateAnnouncement = vi.fn().mockResolvedValue({
+                ...madeAnnouncement,
+                pendingSlackChannelId: null,
+            });
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        announcementUuid: 'ann-1',
+                    }),
+                    updateAnnouncement,
+                },
+            });
+
+            await service.updateAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                'ann-1',
+                { slackChannelId: null },
+            );
+
+            expect(updateAnnouncement).toHaveBeenCalledWith('ann-1', {
+                slackChannelId: null,
+            });
+        });
+
+        it('updateAnnouncement rejects retargeting Slack on a published announcement', async () => {
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        announcementUuid: 'ann-1',
+                        published: true,
+                    }),
+                },
+            });
+            await expect(
+                service.updateAnnouncement(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                    'ann-1',
+                    { slackChannelId: 'C999' },
+                ),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('updateAnnouncement rejects a Slack channel when Slack is not installed', async () => {
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        announcementUuid: 'ann-1',
+                    }),
+                },
+                slackInstalled: false,
+            });
+            await expect(
+                service.updateAnnouncement(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                    'ann-1',
+                    { slackChannelId: 'C999' },
+                ),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('deleteAnnouncement removes the images referenced in its body', async () => {
+            const deleteFileWithKeyPrefix = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        announcementUuid: 'ann-1',
+                        body: '![shot](/api/v1/file/abc123)',
+                    }),
+                },
+                persistentDownloadFileService: { deleteFileWithKeyPrefix },
+            });
+
+            await service.deleteAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                'ann-1',
+            );
+
+            expect(deleteFileWithKeyPrefix).toHaveBeenCalledWith(
+                'abc123',
+                `announcements/${PROJECT_UUID}/`,
+            );
+        });
+
+        it('deleteAnnouncement succeeds even when image cleanup fails', async () => {
+            const deleteAnnouncement = vi.fn().mockResolvedValue(undefined);
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        announcementUuid: 'ann-1',
+                        body: '![shot](/api/v1/file/abc123)',
+                    }),
+                    deleteAnnouncement,
+                },
+                persistentDownloadFileService: {
+                    deleteFileWithKeyPrefix: vi
+                        .fn()
+                        .mockRejectedValue(new Error('s3 down')),
+                },
+            });
+
+            await expect(
+                service.deleteAnnouncement(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                    'ann-1',
+                ),
+            ).resolves.toBeUndefined();
+            expect(deleteAnnouncement).toHaveBeenCalledWith('ann-1');
+        });
+
         it('updateAnnouncement 404s for an announcement in another project', async () => {
             const service = makeService({
                 projectHomepageModel: {
@@ -550,17 +1599,6 @@ describe('ProjectHomepageService', () => {
             ).rejects.toThrow(NotFoundError);
         });
 
-        it('createAnnouncementCategory validates the colour format', async () => {
-            const service = makeService();
-            await expect(
-                service.createAnnouncementCategory(
-                    makeAdminUser(),
-                    PROJECT_UUID,
-                    { name: 'Ops', color: 'red' },
-                ),
-            ).rejects.toThrow(ParameterError);
-        });
-
         it('listAnnouncements allows a viewer and rejects bad pagination', async () => {
             const service = makeService();
             await expect(
@@ -575,6 +1613,118 @@ describe('ProjectHomepageService', () => {
                     pageSize: 25,
                 }),
             ).rejects.toThrow(ParameterError);
+        });
+
+        describe('uploadAnnouncementImage', () => {
+            // Minimal 1x1 PNG, valid enough for `loadImage` to decode.
+            const tinyPng = Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+                'base64',
+            );
+
+            const bufferToReadable = (buf: Buffer): Readable => {
+                const readable = new Readable();
+                readable.push(buf);
+                readable.push(null);
+                return readable;
+            };
+
+            it('is forbidden for a viewer', async () => {
+                const service = makeService();
+                await expect(
+                    service.uploadAnnouncementImage(
+                        makeViewerUser(),
+                        PROJECT_UUID,
+                        'image/png',
+                        bufferToReadable(tinyPng),
+                        tinyPng.length,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            });
+
+            it('rejects unsupported mime types', async () => {
+                const service = makeService();
+                await expect(
+                    service.uploadAnnouncementImage(
+                        makeAdminUser(),
+                        PROJECT_UUID,
+                        'application/pdf',
+                        bufferToReadable(tinyPng),
+                        tinyPng.length,
+                    ),
+                ).rejects.toThrow(ParameterError);
+            });
+
+            it('rejects uploads over the size cap', async () => {
+                const service = makeService();
+                await expect(
+                    service.uploadAnnouncementImage(
+                        makeAdminUser(),
+                        PROJECT_UUID,
+                        'image/png',
+                        bufferToReadable(tinyPng),
+                        6 * 1024 * 1024,
+                    ),
+                ).rejects.toThrow(ParameterError);
+            });
+
+            it('rejects an image whose header declares too many pixels', async () => {
+                // Valid PNG header rewritten to declare 30000x30000
+                const bomb = Buffer.from(tinyPng);
+                bomb.writeUInt32BE(30000, 16);
+                bomb.writeUInt32BE(30000, 20);
+                const service = makeService();
+                await expect(
+                    service.uploadAnnouncementImage(
+                        makeAdminUser(),
+                        PROJECT_UUID,
+                        'image/png',
+                        bufferToReadable(bomb),
+                        bomb.length,
+                    ),
+                ).rejects.toThrow(ParameterError);
+            });
+
+            it('uploads the normalized image and returns a site-relative URL', async () => {
+                const uploadImage = vi
+                    .fn()
+                    .mockResolvedValue('https://s3/presigned');
+                const createPersistentUrl = vi
+                    .fn()
+                    .mockResolvedValue(
+                        'https://app.lightdash.com/api/v1/file/abc123',
+                    );
+                const service = makeService({
+                    fileStorageClient: { uploadImage },
+                    persistentDownloadFileService: { createPersistentUrl },
+                });
+
+                const result = await service.uploadAnnouncementImage(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                    'image/png',
+                    bufferToReadable(tinyPng),
+                    tinyPng.length,
+                );
+
+                expect(uploadImage).toHaveBeenCalledWith(
+                    expect.any(Buffer),
+                    expect.stringMatching(
+                        new RegExp(`^announcements/${PROJECT_UUID}/`),
+                    ),
+                );
+                expect(createPersistentUrl).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        fileType: 'image',
+                        organizationUuid: ORGANIZATION_UUID,
+                        projectUuid: PROJECT_UUID,
+                        createdByUserUuid: USER_UUID,
+                    }),
+                );
+                expect(result).toEqual({
+                    url: '/api/v1/file/abc123',
+                });
+            });
         });
     });
 });

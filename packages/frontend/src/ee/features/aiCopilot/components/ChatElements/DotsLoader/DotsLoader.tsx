@@ -1,8 +1,4 @@
-import {
-    Box,
-    type BoxProps,
-    type MantineLoaderComponent,
-} from '@mantine-8/core';
+import { Box, type BoxProps, type MantineLoaderComponent } from '@mantine/core';
 import { forwardRef, memo } from 'react';
 import styles from './DotsLoader.module.css';
 

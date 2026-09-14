@@ -1,10 +1,22 @@
 import {
+    APP_SDK_COLOR_SCHEME_MESSAGE,
+    APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    APP_SDK_VIZ_DRILL_DOWN_PATH,
+    APP_SDK_VIZ_UNDERLYING_DATA_PATH,
+    extractAppSdkRouteProjectUuid,
+    isAllowedAppSdkRoute,
+    isAppSdkScheduleDownloadRoute,
     JWT_HEADER_NAME,
+    LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
-    type DataAppVizContext,
+    LightdashSignedDownloadHeader,
+    type AppColorScheme,
     type DashboardFilters,
+    type DataAppVizContext,
+    type ExternalFetchResponse,
+    type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
@@ -14,6 +26,7 @@ import {
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
 import useApp from '../../../providers/App/useApp';
+import type { DeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
 import {
     handleGsheetExport,
     type GsheetExportColumn,
@@ -37,6 +50,11 @@ const resolveFetchUrl = (path: string): string => {
     // SDK persists with a trailing slash; `path` always starts with `/`.
     return `${instanceUrl.replace(/\/$/, '')}${path}`;
 };
+
+const getEmbedAuthHeaders = (
+    embedToken: string | undefined,
+): Record<string, string> =>
+    embedToken ? { [JWT_HEADER_NAME]: embedToken } : {};
 
 export type QueryEventTableCalculation = {
     name: string;
@@ -73,6 +91,37 @@ export type QueryEvent = {
 };
 
 /**
+ * Shared null/empty field defaults for a terminal (ready/error) QueryEvent.
+ * A terminal event carries no query shape of its own — only the fields the
+ * emitter actually knows (id, queryUuid, status, rowCount/durationMs/error)
+ * vary between call sites.
+ */
+const TERMINAL_EVENT_DEFAULTS: Pick<
+    QueryEvent,
+    | 'label'
+    | 'exploreName'
+    | 'dimensions'
+    | 'metrics'
+    | 'filters'
+    | 'sorts'
+    | 'tableCalculations'
+    | 'additionalMetrics'
+    | 'limit'
+    | 'rawMetricQuery'
+> = {
+    label: null,
+    exploreName: '',
+    dimensions: [],
+    metrics: [],
+    filters: {},
+    sorts: [],
+    tableCalculations: [],
+    additionalMetrics: [],
+    limit: 0,
+    rawMetricQuery: null,
+};
+
+/**
  * A single external-connection fetch proxied through the bridge, reported for
  * the external-requests inspector tab. Single-shot lifecycle: one `pending`
  * event when the fetch starts, one terminal `ready`/`error` event when it
@@ -99,52 +148,10 @@ export type ExternalRequestEvent = {
     error: string | null;
 };
 
-/**
- * Routes the SDK is allowed to call through the postMessage bridge.
- * Everything else is rejected. Patterns use :param for path segments.
- */
-const ALLOWED_ROUTES: Array<{ method: string; pattern: RegExp }> = [
-    // Async metric query execution
-    {
-        method: 'POST',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/,
-    },
-    // Run a saved chart live by UUID (linked charts)
-    {
-        method: 'POST',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/chart$/,
-    },
-    // Run underlying-data queries for SDK result rows
-    {
-        method: 'POST',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/underlying-data$/,
-    },
-    // Poll for query results
-    {
-        method: 'GET',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+$/,
-    },
-    // Schedule backend CSV/XLSX export jobs for SDK query results
-    {
-        method: 'POST',
-        pattern:
-            /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+\/schedule-download$/,
-    },
-    // Poll export job status until the backend returns a file URL
-    {
-        method: 'GET',
-        pattern: /^\/api\/v1\/schedulers\/job\/[^/]+\/status$/,
-    },
-    // Get current user
-    { method: 'GET', pattern: /^\/api\/v1\/user$/ },
-];
-
-function isAllowedRoute(method: string, path: string): boolean {
-    return ALLOWED_ROUTES.some(
-        (route) =>
-            route.method === method.toUpperCase() && route.pattern.test(path),
-    );
-}
+// Routes the SDK is allowed to call through the postMessage bridge live in
+// @lightdash/common (APP_SDK_ALLOWED_ROUTES) — shared with the CLI preview
+// proxy so preview and deployed authority can't drift. Everything else is
+// rejected.
 
 // Keep in sync with MAX_URL_STATE_CHARS in packages/query-sdk/src/urlState.ts.
 // Caps what an app can push into the host page's URL / browser history.
@@ -161,6 +168,12 @@ const isChartQueryPost = (method: string, path: string): boolean =>
 const isQueryResultGet = (method: string, path: string): boolean =>
     method.toUpperCase() === 'GET' &&
     /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+$/.test(path);
+
+/** Capability manifest reported by the iframe SDK bundle. */
+export type SdkManifest = {
+    sdkVersion: string;
+    features: string[];
+};
 
 export type ElementSelectedEvent = {
     /** Bracketed reference produced by the iframe inspector, e.g. `[button "Save"]`. */
@@ -205,6 +218,8 @@ export type UseAppSdkBridgeParams = {
     projectUuid: string;
     /** App the proxied EE external-fetch calls are attributed to. */
     appUuid: string;
+    /** Signed token binding this bridge to the rendered app version. */
+    previewToken: string;
     onQueryEvent?: (event: QueryEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailable?: () => void;
@@ -232,6 +247,13 @@ export type UseAppSdkBridgeParams = {
     onLineageAvailable?: () => void;
     onLineageSelected?: (event: { queryUuid: string }) => void;
     /**
+     * Fires when the iframe SDK reports its capability manifest
+     * (`lightdash:sdk:manifest`) — sent by SDKs new enough to have a feature
+     * registry. Old bundles never send it; the parent owns the "no manifest
+     * yet" timeout that classifies them as legacy.
+     */
+    onSdkManifest?: (manifest: SdkManifest) => void;
+    /**
      * When provided, external-connection fetches proxied through this bridge
      * are reported for the external-requests inspector tab — mirrors
      * `onQueryEvent` for metric queries. Emits `pending` when the fetch starts
@@ -241,9 +263,49 @@ export type UseAppSdkBridgeParams = {
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
+    /**
+     * Rewrites the viz underlying-data virtual route
+     * (`APP_SDK_VIZ_UNDERLYING_DATA_PATH`) into the real API request, which
+     * then flows through the standard pipeline (allowlist, project pinning,
+     * authenticated fetch). Absent = the capability is off and the virtual
+     * route answers with an error — availability is enforced here, not in the
+     * iframe's menu. Throws on invalid intent (untrusted iframe input).
+     */
+    rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
+        method: 'POST';
+        path: string;
+        body: unknown;
+    };
+    /**
+     * Handles the viz drill-down virtual route
+     * (`APP_SDK_VIZ_DRILL_DOWN_PATH`): resolves the click intent and opens the
+     * host drill dialog. Never forwarded to the API. Absent = the capability
+     * is off and the route answers with an error — availability is enforced
+     * here, not in the iframe's menu. Throws on invalid intent (untrusted
+     * iframe input).
+     */
+    onVizDrillDownIntent?: (intentBody: unknown) => void;
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
+    /** When set, every metric/chart query POST is recorded into this accumulator
+     *  (initiation, response, terminal) — the delivery/preview capture source. */
+    deliveryCapture?: DeliveryCaptureAccumulator;
+    /** Rides as `deliveryRender: true` on the `lightdash:sdk:ready` handshake
+     *  so the iframe SDK's `useDeliveryRender()` reports true. Absent (never
+     *  `false`) on interactive loads, so old SDKs ignore the unknown field
+     *  and new SDKs on old hosts default to false. */
+    captureRender?: boolean;
+    /** When set, stamped as `context` onto metric/chart POST bodies (delivery
+     *  renders send SCHEDULED_DELIVERY for honest attribution). */
+    queryContextOverride?: QueryExecutionContext;
+    /**
+     * The light/dark mode the app should render in — the host's resolved
+     * scheme. Pushed on load and on every change so a host theme toggle
+     * restyles the app without reloading the iframe. Bundles built before the
+     * SDK understood the message ignore it.
+     */
+    colorScheme: AppColorScheme;
 };
 
 export function useAppSdkBridge({
@@ -251,6 +313,7 @@ export function useAppSdkBridge({
     expectedPreviewOrigin,
     projectUuid,
     appUuid,
+    previewToken,
     onQueryEvent,
     onElementSelected,
     onInspectorAvailable,
@@ -262,7 +325,14 @@ export function useAppSdkBridge({
     onLineageSelected,
     onExternalRequestEvent,
     dataAppVizContext,
+    rewriteVizUnderlyingDataRequest,
+    onVizDrillDownIntent,
     onUrlStateChange,
+    onSdkManifest,
+    deliveryCapture,
+    captureRender,
+    queryContextOverride,
+    colorScheme,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -301,6 +371,16 @@ export function useAppSdkBridge({
         );
     }, [iframeRef, dataAppVizContext]);
 
+    // Tell the iframe which scheme to render in. Wildcard target for the same
+    // reason as every other outbound message: the sandboxed iframe has an
+    // opaque origin, and the payload is a single non-sensitive enum.
+    const pushColorScheme = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme },
+            '*',
+        );
+    }, [iframeRef, colorScheme]);
+
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
@@ -322,6 +402,31 @@ export function useAppSdkBridge({
                 return;
             }
 
+            if (data?.type === 'lightdash:sdk:manifest') {
+                if (!onSdkManifest) return;
+                // Untrusted app payload: require sane strings, cap sizes, and
+                // drop anything malformed rather than partially trusting it.
+                const sdkVersion: unknown = data.sdkVersion;
+                const features: unknown = data.features;
+                if (
+                    typeof sdkVersion !== 'string' ||
+                    sdkVersion.length === 0 ||
+                    sdkVersion.length > 50 ||
+                    !Array.isArray(features) ||
+                    features.length > 200 ||
+                    !features.every(
+                        (f: unknown): f is string =>
+                            typeof f === 'string' &&
+                            f.length > 0 &&
+                            f.length <= 100,
+                    )
+                ) {
+                    return;
+                }
+                onSdkManifest({ sdkVersion, features });
+                return;
+            }
+
             if (data?.type === 'lightdash:sdk:screenshot-available') {
                 onScreenshotAvailable?.();
                 return;
@@ -335,6 +440,13 @@ export function useAppSdkBridge({
                 return;
             }
 
+            // Same handshake for the color scheme: the SDK asks as soon as its
+            // listener is live, so it can't miss the load-time push.
+            if (data?.type === APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE) {
+                pushColorScheme();
+                return;
+            }
+
             if (data?.type === 'lightdash:inspect:selected') {
                 const label = typeof data.label === 'string' ? data.label : '';
                 if (label && onElementSelected) {
@@ -344,7 +456,13 @@ export function useAppSdkBridge({
             }
 
             if (data?.type === 'lightdash:lineage:available') {
-                onLineageAvailable?.();
+                // Only trust announces that carry proof of stamped elements.
+                // Legacy SDK bundles announced unconditionally, enabling the
+                // Inspect-data toggle in apps where clicks can never resolve.
+                const stampCount: unknown = data.stampCount;
+                if (typeof stampCount === 'number' && stampCount > 0) {
+                    onLineageAvailable?.();
+                }
                 return;
             }
 
@@ -507,21 +625,6 @@ export function useAppSdkBridge({
 
                 emitExternal({ status: 'pending' });
 
-                // External fetch is not available to embedded apps: the proxy
-                // endpoint requires a registered session, not an embed JWT.
-                // Fail clearly rather than make a doomed authenticated call.
-                if (embedToken) {
-                    const embedError =
-                        'External data access is not available in embedded apps';
-                    emitExternal({
-                        status: 'error',
-                        error: embedError,
-                        durationMs: Date.now() - startedAt,
-                    });
-                    respondExternal({ error: embedError });
-                    return;
-                }
-
                 // Build the EE request body from app-supplied fields ONLY.
                 // No URL, no headers, no connection UUID — the backend resolves
                 // the alias and attaches the connection's secrets. The
@@ -543,6 +646,7 @@ export function useAppSdkBridge({
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                ...getEmbedAuthHeaders(embedToken),
                             },
                             body: JSON.stringify(externalFetchBody),
                         },
@@ -550,12 +654,7 @@ export function useAppSdkBridge({
                     const json = await res.json();
                     if (json.status === 'ok') {
                         const result = json.results as
-                            | {
-                                  status?: number;
-                                  contentType?: string;
-                                  body?: unknown;
-                                  truncated?: boolean;
-                              }
+                            | ExternalFetchResponse
                             | undefined;
                         emitExternal({
                             status: 'ready',
@@ -592,7 +691,8 @@ export function useAppSdkBridge({
 
             if (data?.type !== 'lightdash:sdk:fetch') return;
 
-            const { id, method, path, body, metadata } = data;
+            const { id, metadata } = data;
+            let { method, path, body } = data;
 
             const respond = (response: {
                 result?: unknown;
@@ -608,18 +708,94 @@ export function useAppSdkBridge({
                 );
             };
 
-            if (!isAllowedRoute(method, path)) {
+            // Bridge-only virtual route: the viz posts semantic click intent;
+            // the host rewrites it into the real underlying-data request, then
+            // the standard pipeline (allowlist, project pinning, auth) applies.
+            if (path === APP_SDK_VIZ_UNDERLYING_DATA_PATH) {
+                if (!rewriteVizUnderlyingDataRequest) {
+                    respond({
+                        error: 'Underlying data is not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    ({ method, path, body } =
+                        rewriteVizUnderlyingDataRequest(body));
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid underlying-data request.',
+                    });
+                    return;
+                }
+            }
+
+            // Bridge-only virtual route: the viz posts a drill click intent;
+            // the host resolves it and opens its drill dialog. Answered here —
+            // nothing is forwarded to the API.
+            if (path === APP_SDK_VIZ_DRILL_DOWN_PATH) {
+                if (!onVizDrillDownIntent) {
+                    respond({
+                        error: 'Drill-down is not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    onVizDrillDownIntent(body);
+                    respond({ result: {} });
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid drill-down request.',
+                    });
+                }
+                return;
+            }
+
+            if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
             }
 
-            // Stamp dashboard filters and the cache-invalidation flag onto
-            // outgoing query bodies. The backend drops filters whose fields
-            // aren't in the query's/chart's explore, so it's safe to send the
-            // full set on every call. Both `dashboardFilters` and
-            // `invalidateCache` apply to inline metric queries AND linked
-            // (/query/chart) charts, so a dashboard filter or refresh reaches
-            // linked charts too. App attribution rides on the
+            const requestProjectUuid = extractAppSdkRouteProjectUuid(path);
+            if (
+                requestProjectUuid !== null &&
+                requestProjectUuid !== projectUuid
+            ) {
+                respond({
+                    error: `Blocked: request targets project ${requestProjectUuid}, but this app belongs to ${projectUuid}`,
+                });
+                return;
+            }
+
+            // Record the pre-stamp body — dashboard filters/invalidateCache/
+            // context are per-render decoration, not part of the query's identity.
+            if (
+                isMetricQueryPost(method, path) ||
+                isChartQueryPost(method, path)
+            ) {
+                deliveryCapture?.onInitiation({
+                    requestId: id,
+                    method,
+                    path,
+                    body,
+                    label:
+                        ((metadata as Record<string, unknown> | undefined)
+                            ?.label as string | undefined) ?? null,
+                });
+            }
+
+            // Stamp dashboard filters, the cache-invalidation flag, and a
+            // query-context override onto outgoing query bodies. The backend
+            // drops filters whose fields aren't in the query's/chart's
+            // explore, so it's safe to send the full set on every call. All
+            // three apply to inline metric queries AND linked (/query/chart)
+            // charts, so a dashboard filter, refresh, or delivery-capture
+            // context reaches linked charts too. App attribution rides on the
             // LightdashAppUuidHeader instead (see the fetch below).
             const stampFilters =
                 (isMetricQueryPost(method, path) ||
@@ -629,12 +805,19 @@ export function useAppSdkBridge({
                 (isMetricQueryPost(method, path) ||
                     isChartQueryPost(method, path)) &&
                 !!invalidateCache;
+            const stampContext =
+                (isMetricQueryPost(method, path) ||
+                    isChartQueryPost(method, path)) &&
+                !!queryContextOverride;
             const effectiveBody =
-                stampFilters || stampInvalidate
+                stampFilters || stampInvalidate || stampContext
                     ? {
                           ...(body as Record<string, unknown> | undefined),
                           ...(stampFilters ? { dashboardFilters } : {}),
                           ...(stampInvalidate ? { invalidateCache } : {}),
+                          ...(stampContext
+                              ? { context: queryContextOverride }
+                              : {}),
                       }
                     : body;
 
@@ -692,11 +875,12 @@ export function useAppSdkBridge({
             // for the POST.
             const emitPostFailure = (errorMessage: string) => {
                 if (
-                    (!isMetricQueryPost(method, path) &&
-                        !isChartQueryPost(method, path)) ||
-                    !onQueryEvent
+                    !isMetricQueryPost(method, path) &&
+                    !isChartQueryPost(method, path)
                 )
                     return;
+                deliveryCapture?.onPostFailure(id, errorMessage);
+                if (!onQueryEvent) return;
                 onQueryEvent({
                     id,
                     timestamp: Date.now(),
@@ -726,13 +910,24 @@ export function useAppSdkBridge({
                     method,
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(embedToken
-                            ? { [JWT_HEADER_NAME]: embedToken }
-                            : {}),
+                        ...getEmbedAuthHeaders(embedToken),
                         // Self-reported app attribution; the backend tags
                         // warehouse queries with it. Tracking only.
                         ...(appUuid
                             ? { [LightdashAppUuidHeader]: appUuid }
+                            : {}),
+                        ...(isMetricQueryPost(method, path)
+                            ? {
+                                  [LightdashAppPreviewTokenHeader]:
+                                      previewToken,
+                              }
+                            : {}),
+                        // The SDK fetches the export's fileUrl from inside
+                        // the sandboxed iframe, where session cookies don't
+                        // attach — ask the backend for a SIGNED URL that
+                        // survives that credential-less fetch.
+                        ...(isAppSdkScheduleDownloadRoute(method, path)
+                            ? { [LightdashSignedDownloadHeader]: 'true' }
                             : {}),
                     },
                     ...(effectiveBody
@@ -743,6 +938,16 @@ export function useAppSdkBridge({
                 const json = await res.json();
 
                 if (json.status === 'ok') {
+                    if (
+                        isMetricQueryPost(method, path) ||
+                        isChartQueryPost(method, path)
+                    ) {
+                        deliveryCapture?.onPostResponse(
+                            id,
+                            json.results ?? null,
+                        );
+                    }
+
                     // Track metric query initiation response (has queryUuid)
                     if (
                         (isMetricQueryPost(method, path) ||
@@ -753,6 +958,24 @@ export function useAppSdkBridge({
                         const initLabel = (
                             metadata as Record<string, unknown> | undefined
                         )?.label as string | undefined;
+
+                        // Displaced by results-cache dedupe (see ref comment
+                        // above); `queryUuid: null` avoids masking the real terminal.
+                        const displacedId = queryUuidToPostIdRef.current.get(
+                            json.results.queryUuid,
+                        );
+                        if (displacedId !== undefined && displacedId !== id) {
+                            onQueryEvent({
+                                ...TERMINAL_EVENT_DEFAULTS,
+                                id: displacedId,
+                                timestamp: Date.now(),
+                                queryUuid: null,
+                                status: 'ready',
+                                rowCount: null,
+                                durationMs: null,
+                                error: null,
+                            });
+                        }
                         queryUuidToPostIdRef.current.set(
                             json.results.queryUuid,
                             id,
@@ -786,7 +1009,7 @@ export function useAppSdkBridge({
                     }
 
                     // Track query result polling responses
-                    if (isQueryResultGet(method, path) && onQueryEvent) {
+                    if (isQueryResultGet(method, path)) {
                         const result = json.results;
                         // Re-key terminal events to the POST id so consumers
                         // see a single stable id across the pending →
@@ -803,18 +1026,14 @@ export function useAppSdkBridge({
                             queryUuidToPostIdRef.current.delete(
                                 result.queryUuid,
                             );
-                            onQueryEvent({
+                            deliveryCapture?.onTerminal(result.queryUuid, {
+                                status: 'ready',
+                                rowCount: result.totalResults ?? null,
+                            });
+                            onQueryEvent?.({
+                                ...TERMINAL_EVENT_DEFAULTS,
                                 id: lifecycleId,
                                 timestamp: Date.now(),
-                                label: null,
-                                exploreName: '',
-                                dimensions: [],
-                                metrics: [],
-                                filters: {},
-                                sorts: [],
-                                tableCalculations: [],
-                                additionalMetrics: [],
-                                limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'ready',
                                 // Use totalResults (full row count across all
@@ -826,7 +1045,6 @@ export function useAppSdkBridge({
                                     result.metadata?.performance
                                         ?.initialQueryExecutionMs ?? null,
                                 error: null,
-                                rawMetricQuery: null,
                             });
                         } else if (
                             result?.status === 'error' ||
@@ -835,24 +1053,19 @@ export function useAppSdkBridge({
                             queryUuidToPostIdRef.current.delete(
                                 result.queryUuid,
                             );
-                            onQueryEvent({
+                            deliveryCapture?.onTerminal(result.queryUuid, {
+                                status: 'error',
+                                error: result.error ?? 'Query failed',
+                            });
+                            onQueryEvent?.({
+                                ...TERMINAL_EVENT_DEFAULTS,
                                 id: lifecycleId,
                                 timestamp: Date.now(),
-                                label: null,
-                                exploreName: '',
-                                dimensions: [],
-                                metrics: [],
-                                filters: {},
-                                sorts: [],
-                                tableCalculations: [],
-                                additionalMetrics: [],
-                                limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'error',
                                 rowCount: null,
                                 durationMs: null,
                                 error: result.error ?? 'Query failed',
-                                rawMetricQuery: null,
                             });
                         }
                     }
@@ -876,6 +1089,7 @@ export function useAppSdkBridge({
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
+            previewToken,
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable,
@@ -889,9 +1103,15 @@ export function useAppSdkBridge({
             onLineageSelected,
             onExternalRequestEvent,
             pushDataAppVizContext,
+            rewriteVizUnderlyingDataRequest,
+            onVizDrillDownIntent,
+            pushColorScheme,
             onUrlStateChange,
+            onSdkManifest,
             health.data,
             user.data,
+            deliveryCapture,
+            queryContextOverride,
         ],
     );
 
@@ -900,6 +1120,13 @@ export function useAppSdkBridge({
         return () => window.removeEventListener('message', handleMessage);
     }, [handleMessage]);
 
+    // Re-push on every host theme change so an already-loaded app restyles in
+    // place. The initial value also rides in the iframe URL hash, which the SDK
+    // applies as the app boots — this message would arrive too late for that.
+    useEffect(() => {
+        pushColorScheme();
+    }, [pushColorScheme]);
+
     const handleIframeLoad = useCallback(() => {
         // `*` because the load event fires once for the initial about:blank
         // (which inherits the parent's origin) and again after the iframe
@@ -907,10 +1134,17 @@ export function useAppSdkBridge({
         // first call logs a noisy postMessage warning. The :ready signal
         // carries no sensitive data, so wildcard is safe here.
         iframeRef.current?.contentWindow?.postMessage(
-            { type: 'lightdash:sdk:ready' },
+            {
+                type: 'lightdash:sdk:ready',
+                // Omitted (not `false`) outside capture modes so old SDKs —
+                // which ignore unknown fields — and new SDKs on old hosts
+                // both default to `useDeliveryRender() === false`.
+                ...(captureRender ? { deliveryRender: true } : {}),
+            },
             '*',
         );
-    }, [iframeRef]);
+        pushColorScheme();
+    }, [iframeRef, pushColorScheme, captureRender]);
 
     // Re-push the render context whenever the host's field mapping or rows
     // change, so an already-loaded iframe re-renders live. The initial delivery

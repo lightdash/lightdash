@@ -1,4 +1,5 @@
 import {
+    DeleteObjectCommand,
     GetObjectCommand,
     HeadObjectCommand,
     NoSuchKey,
@@ -24,7 +25,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { writeWithBackpressure } from '../../utils/streamUtils';
-import { type FileStorageClient } from '../FileStorage/FileStorageClient';
+import {
+    type FileStorageClient,
+    type FileStreamResult,
+} from '../FileStorage/FileStorageClient';
 import getContentTypeFromFileType from './getContentTypeFromFileType';
 import { S3BaseClient } from './S3BaseClient';
 
@@ -160,9 +164,14 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         });
     }
 
-    async uploadZip(zip: ReadStream, zipName: string): Promise<string> {
+    async uploadZip(
+        zip: ReadStream,
+        zipName: string,
+        attachmentDownloadName?: string,
+    ): Promise<string> {
         return this.uploadFile(zipName, zip, {
             contentType: 'application/zip',
+            attachmentDownloadName,
         });
     }
 
@@ -238,7 +247,7 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         return onEnd;
     }
 
-    async getFileStream(fileId: string): Promise<Readable> {
+    async getFileStream(fileId: string): Promise<FileStreamResult> {
         const command = new GetObjectCommand({
             Bucket: this.lightdashConfig.s3?.bucket,
             Key: fileId,
@@ -249,7 +258,10 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
             if (response === undefined) {
                 throw new S3Error('No response from S3', { fileId });
             }
-            return response.Body as Readable;
+            return {
+                stream: response.Body as Readable,
+                contentDisposition: response.ContentDisposition ?? null,
+            };
         } catch (error) {
             if (error instanceof NoSuchKey || error instanceof NotFound) {
                 throw new NotFoundError('File not found');
@@ -388,6 +400,18 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         );
 
         return url;
+    }
+
+    async deleteFile(fileName: string): Promise<void> {
+        if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        await this.s3.send(
+            new DeleteObjectCommand({
+                Bucket: this.lightdashConfig.s3.bucket,
+                Key: fileName,
+            }),
+        );
     }
 
     async objectExists(fileName: string): Promise<boolean> {

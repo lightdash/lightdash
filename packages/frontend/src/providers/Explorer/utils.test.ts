@@ -5,7 +5,37 @@ import {
     type Series,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
-import { cleanConfig } from './utils';
+import { cleanConfig, getValidChartConfig } from './utils';
+
+describe('getValidChartConfig', () => {
+    const cached = {
+        [ChartType.DATA_APP_VIZ]: {
+            chartConfig: {
+                dataAppVizUuid: 'viz-1',
+                fieldMapping: {},
+                optionValues: {},
+            },
+            pivotConfig: undefined,
+        },
+    };
+
+    test('keeps a config given for the requested type, absent included', () => {
+        expect(
+            getValidChartConfig(ChartType.DATA_APP_VIZ, cached, {
+                type: ChartType.DATA_APP_VIZ,
+            }),
+        ).toStrictEqual({ type: ChartType.DATA_APP_VIZ });
+    });
+
+    test('falls back to the cache, then the default, without a config', () => {
+        expect(
+            getValidChartConfig(ChartType.DATA_APP_VIZ, cached).config,
+        ).toEqual(cached[ChartType.DATA_APP_VIZ].chartConfig);
+        expect(getValidChartConfig(ChartType.DATA_APP_VIZ, {})).toStrictEqual({
+            type: ChartType.DATA_APP_VIZ,
+        });
+    });
+});
 
 describe('cleanConfig', () => {
     test('should strip isFilteredOut from cartesian series', () => {

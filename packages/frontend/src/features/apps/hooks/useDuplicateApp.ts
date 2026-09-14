@@ -6,15 +6,16 @@ import useToaster from '../../../hooks/toaster/useToaster';
 type DuplicateAppParams = {
     projectUuid: string;
     appUuid: string;
+    name?: string;
 };
 
 type DuplicateAppResult = ApiDuplicateAppResponse['results'];
 
-const duplicateApp = ({ projectUuid, appUuid }: DuplicateAppParams) =>
+const duplicateApp = ({ projectUuid, appUuid, name }: DuplicateAppParams) =>
     lightdashApi<DuplicateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/duplicate`,
-        body: undefined,
+        body: JSON.stringify(name ? { name } : {}),
     });
 
 export const useDuplicateApp = () => {
@@ -25,6 +26,7 @@ export const useDuplicateApp = () => {
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ['myApps'] });
             void queryClient.invalidateQueries({ queryKey: ['content'] });
+            void queryClient.invalidateQueries({ queryKey: ['data-app-vizs'] });
             showToastSuccess({ title: 'Data app duplicated' });
         },
         onError: ({ error }) => {

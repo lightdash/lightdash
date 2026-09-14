@@ -492,6 +492,13 @@ export type TableCalculationTemplate =
           type: TableCalculationTemplateType.RUNNING_TOTAL;
           /** Field ID to apply the template to */
           fieldId: string;
+          // undefined = legacy: follows the results-table sort at query time; [] = explicitly unordered.
+          // Never normalize undefined to [] — it changes the SQL of every pre-existing running total.
+          /** Fields to order by for the running total */
+          orderBy?: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
       }
     | {
           /** Type of template calculation */
@@ -511,6 +518,15 @@ export type TableCalculationTemplate =
           frame?: FrameClause;
       };
 
+export enum TableCalculationTotalMode {
+    /** Apply the calculation to the aggregated totals row (default) — right for ratios */
+    FORMULA = 'formula',
+    /** Sum the calculation's row-level values — right for row-level transformations */
+    SUM_OF_ROWS = 'sum_of_rows',
+    /** Show no total for this calculation */
+    NONE = 'none',
+}
+
 export type TableCalculationBase = {
     /** Display order index */
     index?: number;
@@ -522,6 +538,8 @@ export type TableCalculationBase = {
     format?: CustomFormat;
     /** Data type of the calculation result */
     type?: TableCalculationType;
+    /** How column totals are computed for this calculation */
+    totalMode?: TableCalculationTotalMode;
 };
 
 export type SqlTableCalculation = TableCalculationBase & {
@@ -678,6 +696,15 @@ export enum DimensionType {
     BOOLEAN = 'boolean',
 }
 
+/**
+ * Whether a TIMESTAMP column stores an instant ('aware') or a bare wall clock
+ * ('naive'). Absent means unknown — never assume 'aware' for a missing value.
+ */
+export type TimestampDomain = 'aware' | 'naive';
+
+export const isTimestampDomain = (value: unknown): value is TimestampDomain =>
+    value === 'aware' || value === 'naive';
+
 export type FilterAutocompleteValue = {
     value: string;
     label?: string;
@@ -687,7 +714,34 @@ export type FilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetchFromWarehouse: boolean;
     labelDimension?: string;
+    optionsFromDimension?: {
+        model: string;
+        dimension: string;
+        labelDimension?: string;
+    };
 };
+
+/**
+ * The label source follows the value source: when values come from another
+ * model, only that lookup's own label dimension is in scope.
+ */
+export const getFilterAutocompleteLabelDimension = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+): string | undefined =>
+    filterAutocomplete?.optionsFromDimension
+        ? filterAutocomplete.optionsFromDimension.labelDimension
+        : filterAutocomplete?.labelDimension;
+
+/**
+ * There is nothing to autocomplete: warehouse fetching is off and no curated
+ * values are provided, so filter inputs fall back to plain manual entry.
+ */
+export const isFilterAutocompleteManualOnly = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+): boolean =>
+    filterAutocomplete !== undefined &&
+    !filterAutocomplete.fetchFromWarehouse &&
+    (filterAutocomplete.values?.length ?? 0) === 0;
 
 /**
  * Whether a dimension's curated `filter_autocomplete` values can answer a value
@@ -707,10 +761,10 @@ export const shouldUseStaticFilterAutocomplete = (
     );
 };
 
-export const filterStaticFilterAutocompleteValues = (
+export const searchFilterAutocompleteValues = (
     values: FilterAutocompleteValue[],
     search: string,
-): string[] => {
+): FilterAutocompleteValue[] => {
     const normalizedSearch = search.trim().toLowerCase();
     const matched =
         normalizedSearch.length === 0
@@ -723,14 +777,19 @@ export const filterStaticFilterAutocompleteValues = (
               );
     const seen = new Set<string>();
     return matched
-        .map(({ value }) => value)
-        .filter((value) => {
+        .filter(({ value }) => {
             if (seen.has(value)) return false;
             seen.add(value);
             return true;
         })
-        .sort((a, b) => a.localeCompare(b));
+        .sort((a, b) => a.value.localeCompare(b.value));
 };
+
+export const filterStaticFilterAutocompleteValues = (
+    values: FilterAutocompleteValue[],
+    search: string,
+): string[] =>
+    searchFilterAutocompleteValues(values, search).map(({ value }) => value);
 
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
@@ -751,6 +810,7 @@ export interface Dimension extends Field {
     customTimeInterval?: string;
     isAdditionalDimension?: boolean;
     skipTimezoneConversion?: boolean;
+    timestampDomain?: TimestampDomain;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
     aiHint?: string | string[];
@@ -798,6 +858,12 @@ type CompiledProperties = {
     // these boundaries at query time by swapping the stored predicate for a
     // freshly rendered one, so the window is no longer frozen to compile time.
     compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+    // Metric-only: compile-time SQL for each metric filter with an absolute
+    // operator targeting a TIMESTAMP dimension. Baked without any data
+    // timezone or timestamp-domain context, so the query builder re-renders
+    // the predicate with the query-time domain context and swaps it in when
+    // the target is classified.
+    compiledTimestampFilters?: CompiledMetricTimestampFilter[];
 };
 
 export type CompiledMetricRelativeDateFilter = {
@@ -805,6 +871,8 @@ export type CompiledMetricRelativeDateFilter = {
     fieldId: string; // resolved dimension id the filter targets
     compiledSql: string; // compile-time predicate, used as the query-time swap anchor
 };
+
+export type CompiledMetricTimestampFilter = CompiledMetricRelativeDateFilter;
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;
 
@@ -821,6 +889,10 @@ export const isDimension = (
     field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
 ): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
+
+export const isCompiledDimension = (
+    field: ItemsMap[string] | AdditionalMetric | undefined,
+): field is CompiledDimension => isDimension(field) && 'compiledSql' in field;
 
 export const isTimeBasedDimension = (
     item: ItemsMap[string] | AdditionalMetric | undefined,

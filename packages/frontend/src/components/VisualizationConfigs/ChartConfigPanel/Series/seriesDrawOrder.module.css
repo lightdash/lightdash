@@ -1,0 +1,27 @@
+.orderBar {
+    background-color: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.depthSlot {
+    flex: 0 0 auto;
+    min-width: 46px;
+    margin-left: auto;
+}
+
+.seriesHeader .frontAction {
+    opacity: 0;
+    transition: opacity 100ms ease;
+}
+
+.seriesHeader:hover .frontAction,
+.seriesHeader:focus-within .frontAction {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .seriesHeader .frontAction {
+        transition: none;
+    }
+}

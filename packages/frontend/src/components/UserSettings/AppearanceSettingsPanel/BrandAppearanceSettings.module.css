@@ -49,7 +49,7 @@
     display: flex;
     align-items: center;
     border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-sm);
+    border-radius: var(--mantine-radius-md);
     background-color: var(--mantine-color-default);
     overflow: hidden;
 }
@@ -83,6 +83,13 @@
 
 .addColor {
     border-style: dashed;
+}
+
+.paletteSwatch {
+    width: 20px;
+    height: 20px;
+    border-radius: var(--mantine-radius-sm);
+    border: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .footer {

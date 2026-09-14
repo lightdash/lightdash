@@ -6,6 +6,7 @@ import {
     DashboardTile,
     LightdashUser,
     NotificationAiReview,
+    NotificationContentReview,
     NotificationDashboardComment,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -83,6 +84,30 @@ export class NotificationsModel {
             createdAt: notif.created_at,
             resourceUuid: notif.resource_uuid ?? undefined,
             metadata: notif.metadata as NotificationAiReview['metadata'],
+        }));
+    }
+
+    async getContentReviewNotifications(
+        userUuid: string,
+    ): Promise<NotificationContentReview[]> {
+        const notifications = await this.database(NotificationsTableName)
+            .select()
+            .where(`${NotificationsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${NotificationsTableName}.resource_type`,
+                DbNotificationResourceType.ContentReviewRequest,
+            )
+            .orderBy(`${NotificationsTableName}.created_at`, 'desc');
+
+        return notifications.map((notif) => ({
+            notificationId: notif.notification_id,
+            resourceType: ApiNotificationResourceType.ContentReview,
+            message: notif.message ?? undefined,
+            url: notif.url ?? undefined,
+            viewed: notif.viewed,
+            createdAt: notif.created_at,
+            resourceUuid: notif.resource_uuid ?? undefined,
+            metadata: notif.metadata as NotificationContentReview['metadata'],
         }));
     }
 
@@ -177,6 +202,32 @@ export class NotificationsModel {
                     user_uuid: userUuid,
                     resource_uuid: metadata.fingerprint,
                     resource_type: DbNotificationResourceType.AiReviewItem,
+                    message,
+                    url,
+                    metadata: JSON.stringify(metadata),
+                });
+            }),
+        );
+    }
+
+    async createContentReviewNotifications({
+        recipients,
+        metadata,
+        message,
+        url,
+    }: {
+        recipients: { userUuid: string }[];
+        metadata: NotificationContentReview['metadata'];
+        message: string;
+        url: string;
+    }): Promise<void> {
+        await Promise.all(
+            recipients.map(async ({ userUuid }) => {
+                await this.database(NotificationsTableName).insert({
+                    user_uuid: userUuid,
+                    resource_uuid: metadata.requestUuid,
+                    resource_type:
+                        DbNotificationResourceType.ContentReviewRequest,
                     message,
                     url,
                     metadata: JSON.stringify(metadata),

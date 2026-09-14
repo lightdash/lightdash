@@ -3,12 +3,11 @@ import {
     Button,
     Collapse,
     Group,
-    NumberInput,
     Radio,
     SimpleGrid,
     Stack,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -17,10 +16,13 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { NumberInput } from '../../../components/common/NumberInput';
 import useHealth from '../../../hooks/health/useHealth';
 import { Limit, Values } from './types';
 
 type XlsxFileLayout = NonNullable<SchedulerCsvOptions['xlsxFileLayout']>;
+
+export type LimitVariant = 'full' | 'tableOrAll';
 
 type CsvFormattingOptionsProps = {
     format: SchedulerFormat.CSV | SchedulerFormat.XLSX;
@@ -36,10 +38,15 @@ type CsvFormattingOptionsProps = {
     onXlsxFileLayoutChange: (value: XlsxFileLayout) => void;
     /** Render the options directly (two-column grid) instead of behind a collapsible */
     inline?: boolean;
+    /** 'tableOrAll' (app deliveries) drops the numeric Custom option — a single
+     *  row cap can't apply across an app's heterogeneous captured queries. */
+    limitVariant?: LimitVariant;
+    /** Suppresses the pivot layout control — meaningless without chart config (e.g. apps) */
+    hideExportPivotedData?: boolean;
 };
 
 const HelpTooltip: FC<{ label: string }> = ({ label }) => (
-    <Tooltip withinPortal maw={300} multiline label={label} position="top">
+    <Tooltip maw={300} label={label} position="top">
         <MantineIcon
             icon={IconHelpCircle}
             size="md"
@@ -66,6 +73,8 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
     xlsxFileLayout,
     onXlsxFileLayoutChange,
     inline = false,
+    limitVariant = 'full',
+    hideExportPivotedData = false,
 }) => {
     const health = useHealth();
     const [showFormatting, setShowFormatting] = useState(false);
@@ -82,23 +91,25 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                     <Radio label="Raw" value={Values.RAW} />
                 </Stack>
             </Radio.Group>
-            <Radio.Group
-                label={
-                    <>
-                        Layout
-                        <HelpTooltip label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query." />
-                    </>
-                }
-                value={exportPivotedData ? 'pivoted' : 'unpivoted'}
-                onChange={(value) =>
-                    onExportPivotedDataChange(value === 'pivoted')
-                }
-            >
-                <Stack gap="xxs" pt="xs">
-                    <Radio label="Grouped" value="pivoted" />
-                    <Radio label="Flat" value="unpivoted" />
-                </Stack>
-            </Radio.Group>
+            {!hideExportPivotedData && (
+                <Radio.Group
+                    label={
+                        <>
+                            Layout
+                            <HelpTooltip label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query." />
+                        </>
+                    }
+                    value={exportPivotedData ? 'pivoted' : 'unpivoted'}
+                    onChange={(value) =>
+                        onExportPivotedDataChange(value === 'pivoted')
+                    }
+                >
+                    <Stack gap="xxs" pt="xs">
+                        <Radio label="Grouped" value="pivoted" />
+                        <Radio label="Flat" value="unpivoted" />
+                    </Stack>
+                </Radio.Group>
+            )}
             <Stack gap="xs">
                 <Radio.Group
                     label="Limit"
@@ -108,10 +119,12 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                     <Stack gap="xxs" pt="xs">
                         <Radio label="Results in Table" value={Limit.TABLE} />
                         <Radio label="All Results" value={Limit.ALL} />
-                        <Radio label="Custom..." value={Limit.CUSTOM} />
+                        {limitVariant === 'full' && (
+                            <Radio label="Custom..." value={Limit.CUSTOM} />
+                        )}
                     </Stack>
                 </Radio.Group>
-                {limit === Limit.CUSTOM && (
+                {limitVariant === 'full' && limit === Limit.CUSTOM && (
                     <NumberInput
                         w={150}
                         min={1}
@@ -123,13 +136,20 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                     />
                 )}
 
-                {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                {limitVariant === 'full' &&
+                    (limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                        <i>
+                            Results are limited to{' '}
+                            {Number(
+                                health.data?.query.csvCellsLimit || 100000,
+                            ).toLocaleString()}{' '}
+                            cells for each file
+                        </i>
+                    )}
+                {limitVariant === 'tableOrAll' && limit === Limit.ALL && (
                     <i>
-                        Results are limited to{' '}
-                        {Number(
-                            health.data?.query.csvCellsLimit || 100000,
-                        ).toLocaleString()}{' '}
-                        cells for each file
+                        Queries that hit their row limit are re-run without a
+                        limit at delivery time — this may be slower.
                     </i>
                 )}
             </Stack>
@@ -179,7 +199,7 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
             >
                 Formatting options
             </Button>
-            <Collapse in={showFormatting} pl="md">
+            <Collapse expanded={showFormatting} pl="md">
                 <Group align="start" gap="xxl">
                     {optionGroups}
                 </Group>

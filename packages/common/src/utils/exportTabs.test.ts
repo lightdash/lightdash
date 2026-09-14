@@ -3,6 +3,7 @@ import {
     getPagedExportOrphanHomeTabUuid,
     isTileInPagedExport,
     resolveExportTabs,
+    sortTilesByDashboardOrder,
 } from './exportTabs';
 
 const tab = (uuid: string, order: number, hidden?: boolean): DashboardTab => ({
@@ -44,6 +45,60 @@ describe('resolveExportTabs', () => {
         const snapshot = [...input];
         resolveExportTabs(input, null);
         expect(input).toEqual(snapshot);
+    });
+});
+
+describe('sortTilesByDashboardOrder', () => {
+    const tile = (
+        id: string,
+        tabUuid: string | null,
+        y: number,
+        x: number,
+    ) => ({ id, tabUuid, y, x });
+
+    it('sorts by tab order first, then y, then x', () => {
+        const tabs = [tab('second', 1), tab('first', 0)];
+        const tiles = [
+            tile('s1', 'second', 0, 0),
+            tile('f3', 'first', 1, 0),
+            tile('f2', 'first', 0, 5),
+            tile('f1', 'first', 0, 2),
+        ];
+        expect(sortTilesByDashboardOrder(tiles, tabs).map((t) => t.id)).toEqual(
+            ['f1', 'f2', 'f3', 's1'],
+        );
+    });
+
+    it('interleaves orphan tiles with the first tab by position', () => {
+        const tabs = [tab('a', 0), tab('b', 1)];
+        const tiles = [
+            tile('b1', 'b', 0, 0),
+            tile('orphan', null, 0, 0),
+            tile('a1', 'a', 1, 0),
+        ];
+        expect(sortTilesByDashboardOrder(tiles, tabs).map((t) => t.id)).toEqual(
+            ['orphan', 'a1', 'b1'],
+        );
+    });
+
+    it('sorts untabbed dashboards by y then x', () => {
+        const tiles = [
+            tile('c', null, 1, 0),
+            tile('a', null, 0, 0),
+            tile('b', null, 0, 3),
+        ];
+        expect(sortTilesByDashboardOrder(tiles, []).map((t) => t.id)).toEqual([
+            'a',
+            'b',
+            'c',
+        ]);
+    });
+
+    it('does not mutate the input array', () => {
+        const tiles = [tile('b', null, 1, 0), tile('a', null, 0, 0)];
+        const snapshot = [...tiles];
+        sortTilesByDashboardOrder(tiles, []);
+        expect(tiles).toEqual(snapshot);
     });
 });
 

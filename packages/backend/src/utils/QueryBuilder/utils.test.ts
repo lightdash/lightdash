@@ -9,6 +9,8 @@ import {
     JoinRelationship,
     MetricType,
     SupportedDbtAdapter,
+    TableCalculationTotalMode,
+    TableCalculationType,
     TimeFrames,
     WeekDay,
     type TableCalculation,
@@ -16,8 +18,6 @@ import {
 import {
     bigqueryClientMock,
     COMPILED_DIMENSION,
-    COMPILED_MONTH_NAME_DIMENSION,
-    COMPILED_WEEK_NAME_DIMENSION,
     CUSTOM_SQL_DIMENSION,
     EXPLORE,
     INTRINSIC_USER_ATTRIBUTES,
@@ -33,14 +33,54 @@ import {
     assertValidDimensionRequiredAttribute,
     findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
+    findUnnestCrossProductWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getJoinedTables,
+    getSumOfRowsTableCalculations,
     replaceUserAttributesAsStrings,
     replaceUserAttributesInSqlTable,
     sortDayOfWeekName,
     sortMonthName,
+    sortQuarterName,
 } from './utils';
+
+describe('getSumOfRowsTableCalculations', () => {
+    const tableCalculation = (
+        name: string,
+        type?: TableCalculationType,
+        totalMode = TableCalculationTotalMode.SUM_OF_ROWS,
+    ): TableCalculation => ({
+        name,
+        displayName: name,
+        sql: '1',
+        type,
+        totalMode,
+    });
+
+    it('returns only numeric sum-of-rows calculations', () => {
+        const metricQuery = {
+            ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+            tableCalculations: [
+                tableCalculation('implicit-number'),
+                tableCalculation('number', TableCalculationType.NUMBER),
+                tableCalculation('string', TableCalculationType.STRING),
+                tableCalculation('date', TableCalculationType.DATE),
+                tableCalculation(
+                    'formula',
+                    TableCalculationType.NUMBER,
+                    TableCalculationTotalMode.FORMULA,
+                ),
+            ],
+        };
+
+        expect(
+            getSumOfRowsTableCalculations(metricQuery).map(
+                (calculation) => calculation.name,
+            ),
+        ).toEqual(['implicit-number', 'number']);
+    });
+});
 
 describe('replaceUserAttributes', () => {
     it('method with no user attribute should return same sqlFilter', () => {
@@ -413,6 +453,14 @@ describe('with custom dimensions', () => {
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
+            exprs: {
+                age_range: `CASE
+                    WHEN "table1".dim1 IS NULL THEN NULL
+WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
+WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
+ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
+                    END`,
+            },
             selects: {
                 age_range: `CASE
                     WHEN "table1".dim1 IS NULL THEN NULL
@@ -464,6 +512,9 @@ ELSE 2
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
+            exprs: {
+                age_range: `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id)`,
+            },
             selects: {
                 age_range: `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
             },
@@ -494,6 +545,14 @@ ELSE 2
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
+            exprs: {
+                age_range: `CASE
+                    WHEN "table1".dim1 IS NULL THEN NULL
+WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
+WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
+ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
+                    END`,
+            },
             selects: {
                 age_range: `CASE
                     WHEN "table1".dim1 IS NULL THEN NULL
@@ -519,39 +578,25 @@ const ignoreIndentation = (sql: string) => sql.replace(/\s+/g, ' ');
 describe('Time frame sorting', () => {
     it('sortMonthName SQL', () => {
         expect(
-            ignoreIndentation(
-                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', false),
-            ),
+            ignoreIndentation(sortMonthName('"table1_dim1"', false)),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_SQL));
     });
     it('sortMonthName Descending SQL', () => {
         expect(
-            ignoreIndentation(
-                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', true),
-            ),
+            ignoreIndentation(sortMonthName('"table1_dim1"', true)),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_DESCENDING_SQL));
     });
     it('sortDayOfWeekName SQL for Saturday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    undefined,
-                    `"`,
-                    true,
-                ),
+                sortDayOfWeekName('"table1_dim1"', undefined, true),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_DESCENDING_SQL));
     });
     it('sortDayOfWeekName SQL for Sunday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    WeekDay.SUNDAY,
-                    `"`,
-                    false,
-                ),
+                sortDayOfWeekName('"table1_dim1"', WeekDay.SUNDAY, false),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL)); // same as undefined
     });
@@ -559,12 +604,7 @@ describe('Time frame sorting', () => {
     it('sortDayOfWeekName SQL for Wednesday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(
-                    COMPILED_WEEK_NAME_DIMENSION,
-                    WeekDay.WEDNESDAY,
-                    `"`,
-                    false,
-                ),
+                sortDayOfWeekName('"table1_dim1"', WeekDay.WEDNESDAY, false),
             ),
         ).toStrictEqual(
             ignoreIndentation(`(
@@ -580,6 +620,18 @@ describe('Time frame sorting', () => {
             END
         )`),
         );
+    });
+
+    it('uses an already-rendered identifier without changing its escaping', () => {
+        const fieldSql = '"table1_""month"""';
+
+        const monthSql = sortMonthName(fieldSql, false);
+        const daySql = sortDayOfWeekName(fieldSql, undefined, false);
+        const quarterSql = sortQuarterName(fieldSql, false);
+
+        expect(monthSql.match(/"table1_""month"""/g)).toHaveLength(12);
+        expect(daySql.match(/"table1_""month"""/g)).toHaveLength(7);
+        expect(quarterSql.match(/"table1_""month"""/g)).toHaveLength(4);
     });
 });
 
@@ -897,6 +949,51 @@ describe('applyLimitToSqlQuery', () => {
 });
 
 describe('findMetricInflationWarnings', () => {
+    it('does not ask unnested tables for a primary key but still flags parent metrics', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                sessions: { primaryKey: ['id'] },
+                sessions__hits: {
+                    nestedFrom: { parentTable: 'sessions', columnPath: 'hits' },
+                },
+            },
+            possibleJoins: [
+                {
+                    table: 'sessions__hits',
+                    sqlOn: 'TRUE',
+                    compiledSqlOn: 'TRUE',
+                    tablesReferences: ['sessions'],
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                },
+            ],
+            baseTable: 'sessions',
+            joinedTables: new Set(['sessions__hits']),
+            metrics: [
+                {
+                    name: 'total_pageviews',
+                    type: MetricType.SUM,
+                    table: 'sessions',
+                    label: 'Total pageviews',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'sessions__hits',
+                    label: 'Total revenue',
+                },
+            ],
+        });
+
+        expect(
+            result.some((warning) =>
+                warning.message.includes('missing a primary key definition'),
+            ),
+        ).toBe(false);
+        expect(result.map((warning) => warning.fields)).toEqual([
+            ['sessions_total_pageviews'],
+        ]);
+    });
+
     it('should return no warnings when there are no metrics', () => {
         const result = findMetricInflationWarnings({
             tables: {
@@ -1545,6 +1642,77 @@ describe('getJoinedTables', () => {
         const result = getJoinedTables(explore, ['orders', 'users']);
 
         expect(result).toContain('intermediary_table');
+    });
+});
+
+describe('findUnnestCrossProductWarnings', () => {
+    const tables = {
+        sessions: {},
+        sessions__hits: {
+            nestedFrom: { parentTable: 'sessions', columnPath: 'hits' },
+        },
+        sessions__hits__product: {
+            nestedFrom: {
+                parentTable: 'sessions__hits',
+                columnPath: 'hits.product',
+            },
+        },
+        sessions__hits__promotion: {
+            nestedFrom: {
+                parentTable: 'sessions__hits',
+                columnPath: 'hits.promotion',
+            },
+        },
+        sessions__customDimensions: {
+            nestedFrom: {
+                parentTable: 'sessions',
+                columnPath: 'customDimensions',
+            },
+        },
+        users: {},
+    };
+
+    it('does not warn for a single ancestry chain of unnests', () => {
+        expect(
+            findUnnestCrossProductWarnings({
+                tables,
+                joinedTables: new Set([
+                    'sessions__hits',
+                    'sessions__hits__product',
+                ]),
+            }),
+        ).toEqual([]);
+    });
+
+    it('does not warn when only regular joins are present', () => {
+        expect(
+            findUnnestCrossProductWarnings({
+                tables,
+                joinedTables: new Set(['users', 'sessions__hits']),
+            }),
+        ).toEqual([]);
+    });
+
+    it('warns once naming the independent unnests, not their shared ancestors', () => {
+        const result = findUnnestCrossProductWarnings({
+            tables,
+            joinedTables: new Set([
+                'sessions__hits',
+                'sessions__hits__product',
+                'sessions__hits__promotion',
+                'sessions__customDimensions',
+            ]),
+        });
+        expect(result).toHaveLength(1);
+        expect(result[0].tables).toEqual([
+            'sessions__hits__product',
+            'sessions__hits__promotion',
+            'sessions__customDimensions',
+        ]);
+        expect(result[0].message).toContain(
+            'Repeated columns **"sessions__hits__product"**, **"sessions__hits__promotion"** and **"sessions__customDimensions"** are unnested together',
+        );
+        expect(result[0].message).not.toContain('"sessions__hits"');
     });
 });
 

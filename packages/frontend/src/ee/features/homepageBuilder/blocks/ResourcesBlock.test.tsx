@@ -1,5 +1,5 @@
 import { type HomepageResourcesBlock } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fetchHomepageLinkMetadata } from '../hooks/useHomepageLinkMetadata';
 import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
@@ -9,10 +9,22 @@ vi.mock('../hooks/useHomepageLinkMetadata', () => ({
     fetchHomepageLinkMetadata: vi.fn(),
 }));
 
+const { thumbnailState } = vi.hoisted(() => ({
+    thumbnailState: {
+        current: { data: null } as {
+            data: { thumbnailUrl: string } | null;
+        },
+    },
+}));
+
+vi.mock('../../../../features/apps/hooks/useAppThumbnail', () => ({
+    useAppThumbnailUrl: () => thumbnailState.current,
+}));
+
 const mockFetch = vi.mocked(fetchHomepageLinkMetadata);
 
 const wrap = (ui: React.ReactNode) =>
-    render(<MantineProvider>{ui}</MantineProvider>);
+    render(<MantineProvider env="test">{ui}</MantineProvider>);
 
 const block = (
     config: Partial<HomepageResourcesBlock['config']>,
@@ -60,6 +72,166 @@ describe('ResourcesBlockView', () => {
             'href',
             claudeItem.url,
         );
+    });
+
+    it('derives a data app href from appUuid, ignoring the stored url', () => {
+        const dataAppItem = {
+            url: '/projects/p1/nabc-123', // malformed url persisted by an old builder version
+            kind: 'data-app' as const,
+            title: 'My App',
+            appUuid: 'abc-123',
+        };
+        wrap(
+            <ResourcesBlockView
+                itemSpan={null}
+                projectUuid="p1"
+                block={block({ layout: 'list', items: [dataAppItem] })}
+            />,
+        );
+        expect(screen.getByRole('link')).toHaveAttribute(
+            'href',
+            '/projects/p1/apps/abc-123/view',
+        );
+    });
+
+    describe('data app thumbnails', () => {
+        const dataAppItem = {
+            url: '/projects/p1/napp-1',
+            kind: 'data-app' as const,
+            title: 'Orders KPI Snapshot',
+            description: 'Daily orders and revenue',
+            appUuid: 'app-1',
+        };
+
+        afterEach(() => {
+            thumbnailState.current = { data: null };
+        });
+
+        const withThumbnail = (thumbnailUrl: string | undefined) => {
+            thumbnailState.current = {
+                data: thumbnailUrl ? { thumbnailUrl } : null,
+            };
+        };
+
+        it('shows the screenshot when the app has one', () => {
+            withThumbnail('https://example.invalid/shot.png');
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({ layout: 'card', items: [dataAppItem] })}
+                />,
+            );
+            expect(screen.getByRole('img')).toHaveAttribute(
+                'src',
+                'https://example.invalid/shot.png',
+            );
+        });
+
+        it('falls back to an icon rather than an image when there is no screenshot', () => {
+            withThumbnail(undefined);
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({ layout: 'card', items: [dataAppItem] })}
+                />,
+            );
+            expect(screen.queryByRole('img')).not.toBeInTheDocument();
+            expect(screen.getByText('Orders KPI Snapshot')).toBeInTheDocument();
+        });
+
+        it('falls back to an icon in list layout too', () => {
+            withThumbnail(undefined);
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({ layout: 'list', items: [dataAppItem] })}
+                />,
+            );
+            expect(screen.queryByRole('img')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('list layout scan hierarchy', () => {
+        it('carries kind in the leading glyph, not a trailing pill', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'list',
+                        items: [
+                            {
+                                url: 'https://example.com/handbook',
+                                kind: 'doc' as const,
+                                title: 'How we define revenue',
+                                description: 'Metric definitions',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            expect(
+                screen.getByText('How we define revenue'),
+            ).toBeInTheDocument();
+            // The pill repeated what the glyph already says, from the far edge.
+            expect(screen.queryByText('Doc')).not.toBeInTheDocument();
+        });
+
+        it('uses one monochrome glyph family — no hero images, no brand favicons', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'list',
+                        items: [
+                            {
+                                url: 'https://www.youtube.com/watch?v=abc',
+                                kind: 'youtube' as const,
+                                title: 'Reading the funnel report',
+                                imageUrl: 'https://i.ytimg.com/vi/abc/hq.jpg',
+                            },
+                            {
+                                url: 'https://example.com/handbook',
+                                kind: 'doc' as const,
+                                title: 'How we define revenue',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            // A cropped 16:9 still is a smudge at 34px, and a saturated brand
+            // favicon is a hotspot in a row of grey glyphs. Every row gets the
+            // same neutral square instead.
+            expect(screen.queryAllByRole('img')).toHaveLength(0);
+        });
+
+        it('still shows a hero image in the card layout', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'card',
+                        items: [
+                            {
+                                url: 'https://www.youtube.com/watch?v=abc',
+                                kind: 'youtube' as const,
+                                title: 'Reading the funnel report',
+                                imageUrl: 'https://i.ytimg.com/vi/abc/hq.jpg',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            expect(screen.getByRole('img')).toHaveAttribute(
+                'src',
+                'https://i.ytimg.com/vi/abc/hq.jpg',
+            );
+        });
     });
 
     it('renders nothing when there are no items', () => {

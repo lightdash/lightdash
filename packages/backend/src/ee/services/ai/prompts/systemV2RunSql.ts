@@ -1,4 +1,9 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    DEFAULT_RUN_SQL_LIMIT,
+    DEFAULT_RUN_SQL_MAX_LIMIT,
+    WarehouseTypes,
+    type AgentSqlScope,
+} from '@lightdash/common';
 
 const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.POSTGRES]:
@@ -21,21 +26,71 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
         'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex. DuckLake-configured projects expose tables under an attached catalog and follow the project schema.',
 };
 
-export const getRunSqlSection = (
-    warehouseType: WarehouseTypes | null,
-    warehouseSchema: string | null,
-) => {
+export const getRunSqlSection = ({
+    warehouseType,
+    warehouseSchema,
+    sqlScope,
+    // Configurable per instance, so a literal here would contradict the tool schema.
+    runSqlMaxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
+    // Composer queries replace the standalone runSql tool: raw SQL runs as
+    // `sql` nodes inside runComposerQueries, under all the same rules.
+    viaComposerQueries = false,
+}: {
+    warehouseType: WarehouseTypes | null;
+    warehouseSchema: string | null;
+    sqlScope?: AgentSqlScope | null;
+    runSqlMaxLimit?: number;
+    viaComposerQueries?: boolean;
+}) => {
     const warehouseLine = warehouseType
         ? `**Warehouse:** ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
         : 'Use the SQL dialect of the connected warehouse.';
+
+    // When any scope is configured the qualification rules apply, because the
+    // guard cannot classify a bare table name or a comma-join operand.
+    const SCOPE_RULES =
+        'The server REJECTS any query reading outside this scope — a rejected query is a wasted turn, so never try. Every table must be schema-qualified, and comma-join syntax (`FROM a, b`) is rejected: use explicit JOIN. If the data the user asked for is out of scope, say so plainly instead of substituting a different table.';
+
+    const list = (values: string[]) => values.map((v) => `\`${v}\``).join(', ');
+
+    const allowedSchemas = sqlScope?.schemas.length ? sqlScope.schemas : null;
+    const deniedSchemas = sqlScope?.deniedSchemas?.length
+        ? sqlScope.deniedSchemas
+        : null;
+
+    const scopeParts = [
+        allowedSchemas
+            ? `**Allowed schemas for this project:** ${list(allowedSchemas)}.`
+            : null,
+        sqlScope?.catalogs?.length
+            ? `**Allowed catalogs for this project:** ${list(
+                  sqlScope.catalogs,
+              )}. Qualify every table as catalog.schema.table — two-part references are rejected because their catalog cannot be verified.`
+            : null,
+        deniedSchemas
+            ? `**Never read these schemas:** ${list(deniedSchemas)}.`
+            : null,
+        sqlScope?.deniedCatalogs?.length
+            ? `**Never read these catalogs:** ${list(sqlScope.deniedCatalogs)}.`
+            : null,
+    ].filter((part): part is string => part !== null);
+
+    const scopeLine = scopeParts.length
+        ? `${scopeParts.join(' ')} ${SCOPE_RULES}`
+        : null;
 
     const schemaLine = warehouseSchema
         ? `**Default schema for this project:** \`${warehouseSchema}\`. ALWAYS qualify your tables with this schema (e.g. \`${warehouseSchema}.fm_work_orders\`). Bare table names will fail.`
         : 'You do not know the warehouse schema. Use listWarehouseTables to discover the right schema before writing SQL.';
 
+    const intro = viaComposerQueries
+        ? `**Raw SQL (runComposerQueries \`sql\` nodes):**
+There is NO standalone runSql tool. Raw SELECT queries against the warehouse run as \`sql\` nodes inside runComposerQueries — a submission with a single \`sql\` node is the direct equivalent of a raw SQL call. Wherever the rules below say "runSql" or "runSql call", read that as a \`sql\` node in a runComposerQueries submission; each submission containing \`sql\` nodes costs one approval click. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`
+        : `**Raw SQL (runSql tool):**
+You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`;
+
     return `
-**Raw SQL (runSql tool):**
-You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.
+${intro}
 
 **When to use it:**
 - ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.
@@ -53,8 +108,10 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 
 - If earlier SQL steps informed the answer, fold the final logic into one SELECT/WITH statement using CTEs and joins.
 - Do not make the final answer depend on intermediate discovery queries unless the final result genuinely came from that intermediate table.
-- If the user should inspect, edit, or save the final SQL in SQL Runner, include this exact standalone markdown link in your final answer: \`[Open in SQL Runner](#sql-runner-link)\`. The UI will turn it into a button wired to the latest successful runSql query.
+- Every \`runSql\` result is already rendered as its own artifact with a "Continue exploring in SQL Runner" action scoped to that exact query — do not also add a standalone SQL Runner link in your text; it cannot be scoped to a specific query and will point at the wrong one if you make more than one \`runSql\` call in a turn.
 - Do not paste the full SQL into your final answer unless the user explicitly asks to see the SQL. If you do include SQL, use a fenced \`\`\`sql code block.
+
+**One ask, not two.** If you're unsure whether to proceed (e.g. chart this SQL vs. rebuild it in the semantic layer), state the tradeoff once and end with a single closing question. Don't restate the same choice earlier in your analysis and then ask it again as a separate closing question — pick one spot.
 
 **1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have four discovery tools that cover every legitimate use case:
 
@@ -88,14 +145,16 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 
 NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQL costs an approval click.
 
-**5. Schema qualification on the first attempt.** ${schemaLine}
+**5. Schema qualification on the first attempt.** ${
+        scopeLine ? `${schemaLine} ${scopeLine}` : schemaLine
+    }
 
 **6. Write SQL like the user will read it.** Comment non-trivial logic, use meaningful aliases, format CTEs clearly. The user is about to read every character before clicking Approve.
 
 **Operational rules:**
 - SELECT/WITH only. Mutations (INSERT, UPDATE, DELETE, DDL) are rejected server-side.
 - Prefer a concise text summary of the SQL result. If a small table helps the answer, include it in the final response.
-- Default row limit 500, max 5000. Include LIMIT explicitly or rely on the default.
+- Default row limit ${DEFAULT_RUN_SQL_LIMIT}, max ${runSqlMaxLimit}. Include LIMIT explicitly or rely on the default. These two numbers apply to \`runSql\` ONLY — never reuse them as the limit for another tool, each one has its own.
 - ${warehouseLine}
 `;
 };

@@ -1,7 +1,15 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
-import { AnyType, QueryExecutionContext } from '@lightdash/common';
+import {
+    AnyType,
+    DimensionType,
+    QueryExecutionContext,
+} from '@lightdash/common';
 import { Columns, Iterator, QueryData, QueryResult, Trino } from 'trino-client';
-import { TrinoTypes, TrinoWarehouseClient } from './TrinoWarehouseClient';
+import {
+    TrinoSqlBuilder,
+    TrinoTypes,
+    TrinoWarehouseClient,
+} from './TrinoWarehouseClient';
 import {
     credentials,
     queryResponse,
@@ -29,6 +37,11 @@ describe('TrinoWarehouseClient', () => {
         acc[key.toLowerCase()] = warehouseClient.expectedFields[key];
         return acc;
     }, {});
+    // The mock's number column is a Trino integer, which reports its kind
+    lowerCaseFields.mynumbercolumn = {
+        ...lowerCaseFields.mynumbercolumn,
+        numericKind: { kind: 'integer' },
+    };
     const lowerCaseRow = Object.keys(warehouseClient.expectedRow).reduce<
         Record<string, AnyType>
     >((acc, key) => {
@@ -76,7 +89,36 @@ describe('TrinoWarehouseClient', () => {
 
         await expect(
             warehouse.getCatalog(warehouseClient.config),
-        ).resolves.toEqual(warehouseClient.expectedWarehouseSchema);
+        ).resolves.toEqual(
+            warehouseClient.expectedWarehouseSchemaWithNaiveTimestamp,
+        );
+    });
+
+    it('maps decimal precision and scale to a numeric dimension', async () => {
+        const warehouse = new TrinoWarehouseClient(credentials);
+        queryResultMock.mockReturnValue({
+            next: vi.fn().mockResolvedValue({
+                done: true,
+                value: {
+                    ...querySchemaResponse,
+                    data: [
+                        [
+                            'myDatabase',
+                            'mySchema',
+                            'myTable',
+                            'myDecimalColumn',
+                            'decimal(18,4)',
+                        ],
+                    ],
+                },
+            }),
+        });
+
+        const catalog = await warehouse.getCatalog(warehouseClient.config);
+
+        expect(catalog.myDatabase.mySchema.myTable.myDecimalColumn).toEqual(
+            DimensionType.NUMBER,
+        );
     });
 
     describe('streamQuery client tag headers', () => {
@@ -126,6 +168,32 @@ describe('TrinoWarehouseClient', () => {
             );
         });
 
+        it('coerces non-string tag values instead of throwing', async () => {
+            const warehouse = new TrinoWarehouseClient(credentials);
+            queryResultMock.mockReturnValue({
+                next: vi
+                    .fn()
+                    .mockResolvedValue({ done: true, value: queryResponse }),
+            });
+
+            // graphile-worker job ids arrive as BigInt at runtime despite the
+            // Record<string, string> type (global pg INT8 parser override)
+            await warehouse.runQuery('SELECT 1', {
+                job_id: BigInt(4482031),
+                query_context:
+                    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+            } as unknown as Record<string, string>);
+
+            expect(queryResultMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    extraHeaders: {
+                        'X-Trino-Client-Tags':
+                            'job_id=4482031,query_context=scheduledGsheetsDashboard',
+                    },
+                }),
+            );
+        });
+
         it('sends query as plain string (no extraHeaders) when no tags are provided', async () => {
             const warehouse = new TrinoWarehouseClient(credentials);
             queryResultMock.mockReturnValue({
@@ -138,5 +206,57 @@ describe('TrinoWarehouseClient', () => {
 
             expect(queryResultMock).toHaveBeenCalledWith('SELECT 1');
         });
+    });
+});
+
+describe('TrinoSqlBuilder temporal literals', () => {
+    // Trino rejects zone-suffixed strings cast to plain TIMESTAMP.
+    const builder = new TrinoSqlBuilder();
+    const epoch = new Date(0);
+
+    it('emits a zone-free TIMESTAMP literal', () => {
+        expect(builder.castToTimestamp(epoch)).toBe(
+            "TIMESTAMP '1970-01-01 00:00:00.000'",
+        );
+    });
+
+    it('emits a DATE literal', () => {
+        expect(builder.castToDate(epoch)).toBe("DATE '1970-01-01'");
+    });
+
+    it('reuses the plain TIMESTAMP literal for naive timestamps', () => {
+        expect(builder.castToNaiveTimestamp(epoch)).toBe(
+            "TIMESTAMP '1970-01-01 00:00:00.000'",
+        );
+    });
+});
+
+describe('TrinoWarehouseClient getAllTables', () => {
+    it('lists tables and views', async () => {
+        const warehouse = new TrinoWarehouseClient(credentials);
+        const runQuery = vi.spyOn(warehouse, 'runQuery').mockResolvedValueOnce({
+            rows: [
+                {
+                    table_catalog: 'hive',
+                    table_schema: 'analytics',
+                    table_name: 'orders_view',
+                    table_type: 'VIEW',
+                },
+            ],
+            fields: {},
+        });
+
+        const tables = await warehouse.getAllTables();
+
+        const [query] = runQuery.mock.calls[0];
+        expect(query).toContain("table_type IN ('BASE TABLE', 'VIEW')");
+        expect(tables).toEqual([
+            {
+                database: 'hive',
+                schema: 'analytics',
+                table: 'orders_view',
+                tableType: 'view',
+            },
+        ]);
     });
 });

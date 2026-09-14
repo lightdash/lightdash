@@ -1,4 +1,4 @@
-import { Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Group, Loader, Stack, Text } from '@mantine/core';
 import { IconFolder, IconRocket } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -79,7 +79,7 @@ export const PromoteAppModal: FC<Props> = ({
                         )}
                     </Text>
                     <Group gap="xs">
-                        <MantineIcon icon={IconFolder} color="ldGray.6" />
+                        <MantineIcon icon={IconFolder} color="dimmed" />
                         <Text size="sm" c="dimmed">
                             {diff.space
                                 ? `Space: ${diff.space.name}`

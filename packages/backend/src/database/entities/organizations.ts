@@ -25,6 +25,7 @@ export type DbOrganization = {
     default_project_uuid: string | null;
     color_palette_uuid: string | null;
     impersonation_enabled: boolean;
+    ai_agent_memory_enabled: boolean | null;
     brand: DbOrganizationBrand | null;
 };
 
@@ -36,6 +37,7 @@ export type DbOrganizationUpdate = Partial<
         | 'default_project_uuid'
         | 'color_palette_uuid'
         | 'impersonation_enabled'
+        | 'ai_agent_memory_enabled'
         | 'brand'
     >
 >;

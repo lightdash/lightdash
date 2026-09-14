@@ -4,14 +4,18 @@ import {
     CreatePostgresLikeCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
+    setCatalogTimestampDomain,
     SslConfiguration,
     SupportedDbtAdapter,
     WarehouseCatalog,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
+    type TimestampDomain,
     type WarehouseQueryPhase,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
@@ -71,6 +75,7 @@ export enum PostgresTypes {
     TIMESTAMP = 'timestamp',
     TIMESTAMP_TZ = 'timestamptz',
     TIMESTAMP_WITHOUT_TIME_ZONE = 'timestamp without time zone',
+    TIMESTAMP_WITH_TIME_ZONE = 'timestamp with time zone',
 }
 
 const mapFieldType = (type: string): DimensionType => {
@@ -104,6 +109,7 @@ const mapFieldType = (type: string): DimensionType => {
         case PostgresTypes.TIMESTAMP_TZ:
         case PostgresTypes.TIME_WITHOUT_TIME_ZONE:
         case PostgresTypes.TIMESTAMP_WITHOUT_TIME_ZONE:
+        case PostgresTypes.TIMESTAMP_WITH_TIME_ZONE:
             return DimensionType.TIMESTAMP;
         case PostgresTypes.BOOLEAN:
         case PostgresTypes.BOOL:
@@ -113,15 +119,31 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
+// Strips the precision that format_type emits, e.g. `timestamp(3) with time zone`
+export const getPostgresTimestampDomain = (
+    type: string,
+): TimestampDomain | undefined => {
+    switch (type.replace(/\(\d+\)/, '').replace(/\s{2,}/g, ' ')) {
+        case PostgresTypes.TIMESTAMP:
+        case PostgresTypes.TIMESTAMP_WITHOUT_TIME_ZONE:
+            return 'naive';
+        case PostgresTypes.TIMESTAMP_TZ:
+        case PostgresTypes.TIMESTAMP_WITH_TIME_ZONE:
+            return 'aware';
+        default:
+            return undefined;
+    }
+};
+
 const { builtins } = pg.types;
 const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
 
 // Server-side ceiling for a single streamed query, bounded just under the
 // 10-min scheduler job timeout so a stalled cursor fails clearly instead of
-// hanging the whole job. The pool's `query_timeout` does not fire on the
-// cursor (pg-cursor) path, so the ceiling is enforced via `statement_timeout`
-// plus a client-side wall-clock backstop. Overridable per-connection via
-// `timeoutSeconds`.
+// hanging the whole job. Enforced via `statement_timeout` plus a client-side
+// wall-clock backstop. Do not also configure the pg pool's `query_timeout`: it
+// applies to cursor queries and would race these deliberately ordered limits.
+// Overridable per-connection via `timeoutSeconds`.
 const DEFAULT_STATEMENT_TIMEOUT_MS = 1000 * 60 * 9; // 9 minutes
 
 // The client-side backstop fires this long after the server-side
@@ -153,6 +175,29 @@ const convertDataTypeIdToDimensionType = (
             return DimensionType.BOOLEAN;
         default:
             return DimensionType.STRING;
+    }
+};
+
+// numeric(p,s) encodes its typmod as ((p << 16) | s) + 4; -1 means unconstrained
+const getNumericKindFromDataType = (
+    dataTypeId: number,
+    dataTypeModifier: number,
+): ResultNumericKind | null => {
+    switch (dataTypeId) {
+        case builtins.INT2:
+        case builtins.INT4:
+        case builtins.INT8:
+            return { kind: 'integer' };
+        case builtins.FLOAT4:
+        case builtins.FLOAT8:
+            return { kind: 'float' };
+        case builtins.NUMERIC:
+            return dataTypeModifier >= 4
+                ? // eslint-disable-next-line no-bitwise
+                  { kind: 'decimal', scale: (dataTypeModifier - 4) & 0xffff }
+                : null;
+        default:
+            return null;
     }
 };
 
@@ -206,14 +251,48 @@ export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+type CatalogQueryFilters = {
+    databaseFilters: string[];
+    schemaFilters: string[];
+    tableFilters: string[];
+    values: string[] | undefined;
+};
+
 export class PostgresClient<
     T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
+    async getSessionTimezone(): Promise<string | null> {
+        try {
+            const { rows } = await this.runQuery(
+                "SELECT current_setting('TIMEZONE') AS tz",
+            );
+            const timezone = rows[0]?.tz;
+            return typeof timezone === 'string' && timezone.length > 0
+                ? timezone
+                : null;
+        } catch {
+            return null;
+        }
+    }
+
     config: pg.PoolConfig;
 
     constructor(credentials: T, config: pg.PoolConfig) {
         super(credentials, new PostgresSqlBuilder(credentials.startOfWeek));
         this.config = config;
+    }
+
+    protected getCatalogQueryFilters(
+        databases: Set<string>,
+        schemas: Set<string>,
+        tables: Set<string>,
+    ): CatalogQueryFilters {
+        return {
+            databaseFilters: [...databases].map((value) => `'${value}'`),
+            schemaFilters: [...schemas].map((value) => `'${value}'`),
+            tableFilters: [...tables].map((value) => `'${value}'`),
+            values: undefined,
+        };
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -226,12 +305,21 @@ export class PostgresClient<
 
     static convertQueryResultFields(
         fields: QueryResult<AnyType>['fields'],
-    ): Record<string, { type: DimensionType }> {
+    ): WarehouseResults['fields'] {
         return Object.fromEntries(
-            fields.map(({ name, dataTypeID }) => [
-                name,
-                { type: convertDataTypeIdToDimensionType(dataTypeID) },
-            ]),
+            fields.map(({ name, dataTypeID, dataTypeModifier }) => {
+                const numericKind = getNumericKindFromDataType(
+                    dataTypeID,
+                    dataTypeModifier,
+                );
+                return [
+                    name,
+                    {
+                        type: convertDataTypeIdToDimensionType(dataTypeID),
+                        ...(numericKind ? { numericKind } : {}),
+                    },
+                ];
+            }),
         );
     }
 
@@ -264,15 +352,15 @@ export class PostgresClient<
         let pool: pg.Pool | undefined;
         let closeClient: (() => void) | undefined;
         let activeStream: QueryStream | undefined;
-        let queryTimeout: ReturnType<typeof setTimeout> | undefined;
+        let clientTimeout: ReturnType<typeof setTimeout> | undefined;
 
         const reportPhase = options.onPhaseTiming;
 
-        // The pool's `query_timeout` does not fire on the cursor (pg-cursor)
-        // path, so we enforce the ceiling ourselves: a server-side
-        // `statement_timeout` (set below) plus this client-side wall-clock
-        // backstop that fires shortly after, in case the server never reports
-        // back (e.g. a stalled SSH tunnel socket).
+        // Enforce the ceiling with a server-side `statement_timeout` (set
+        // below) plus this client-side wall-clock backstop, which fires shortly
+        // after in case the server never reports back (e.g. a stalled SSH
+        // tunnel socket). A pg `query_timeout` is deliberately omitted because
+        // it also applies to cursor queries and would race the server timeout.
         const statementTimeoutMs = this.credentials.timeoutSeconds
             ? this.credentials.timeoutSeconds * 1000
             : DEFAULT_STATEMENT_TIMEOUT_MS;
@@ -280,7 +368,7 @@ export class PostgresClient<
             statementTimeoutMs + CLIENT_STATEMENT_TIMEOUT_BUFFER_MS;
 
         return new Promise<void>((resolve, reject) => {
-            queryTimeout = setTimeout(() => {
+            clientTimeout = setTimeout(() => {
                 const timeoutError = new WarehouseQueryError(
                     `Query timed out after ${Math.round(
                         clientTimeoutMs / 1000,
@@ -293,9 +381,6 @@ export class PostgresClient<
             pool = new pg.Pool({
                 ...this.config,
                 connectionTimeoutMillis: 30000,
-                query_timeout: this.credentials.timeoutSeconds
-                    ? this.credentials.timeoutSeconds * 1000
-                    : 1000 * 60 * 5, // sets the default query timeout to 5 minutes
             });
 
             pool.on('error', (err) => {
@@ -351,17 +436,11 @@ export class PostgresClient<
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                     //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
                     activeStream = client.query(
-                        // callback is not defined in types when using QueryStream
-                        // @ts-ignore
                         new QueryStream(
                             this.getSQLWithMetadata(sql, options?.tags),
                             options?.values,
                         ),
-                        // there is a bug in PG lib where callback is required when passing `query_timeout` to the Pool
-                        // see the code: https://github.com/brianc/node-postgres/blob/master/packages/pg/lib/client.js#L541-L542
-                        () => {},
-                        // typecast is necessary to fix the type issue described above
-                    ) as unknown as QueryStream;
+                    );
 
                     // Cache field conversion — result.fields is the same
                     // array reference for every row in a query, so we only
@@ -436,10 +515,10 @@ export class PostgresClient<
                     });
                 };
 
-                // Always enforce a server-side statement timeout — the pool's
-                // query_timeout is ineffective on the cursor path. Issued as
-                // its own single statement (followed by the optional timezone)
-                // to stay portable across Postgres and Redshift.
+                // Always enforce the primary query-execution ceiling on the
+                // server. Issued as its own single statement (followed by the
+                // optional timezone) to stay portable across Postgres and
+                // Redshift.
                 const sessionStart = performance.now();
                 client
                     .query(`SET statement_timeout = ${statementTimeoutMs}`)
@@ -474,8 +553,8 @@ export class PostgresClient<
                 throw this.parseError(error, sql);
             })
             .finally(async () => {
-                if (queryTimeout) {
-                    clearTimeout(queryTimeout);
+                if (clientTimeout) {
+                    clearTimeout(clientTimeout);
                 }
                 // Release the client first, then end the pool
                 if (closeClient) {
@@ -509,9 +588,9 @@ export class PostgresClient<
             tables: Set<string>;
         }>(
             (acc, { database, schema, table }) => ({
-                databases: acc.databases.add(`'${database}'`),
-                schemas: acc.schemas.add(`'${schema}'`),
-                tables: acc.tables.add(`'${table}'`),
+                databases: acc.databases.add(database),
+                schemas: acc.schemas.add(schema),
+                tables: acc.tables.add(table),
             }),
             {
                 databases: new Set(),
@@ -519,18 +598,17 @@ export class PostgresClient<
                 tables: new Set(),
             },
         );
-        if (databases.size <= 0 || schemas.size <= 0 || tables.size <= 0) {
+        const { databaseFilters, schemaFilters, tableFilters, values } =
+            this.getCatalogQueryFilters(databases, schemas, tables);
+        if (
+            databaseFilters.length <= 0 ||
+            schemaFilters.length <= 0 ||
+            tableFilters.length <= 0
+        ) {
             return {};
         }
 
-        const { rows: pgVersionRows } = await this.runQuery('SELECT version()');
-        const pgVersionString = pgVersionRows[0]?.version ?? '';
-        const versionRegex = /PostgreSQL (\d+)\./;
-        const versionMatch = pgVersionString.match(versionRegex);
-        const supportsMatviews =
-            versionMatch && versionMatch[1]
-                ? parseInt(versionMatch[1], 10) >= 12
-                : false;
+        const supportsMatviews = await this.supportsMatviews();
 
         const query = `
             SELECT table_catalog,
@@ -539,9 +617,9 @@ export class PostgresClient<
                    column_name,
                    data_type
             FROM information_schema.columns
-            WHERE table_catalog IN (${Array.from(databases)})
-              AND table_schema IN (${Array.from(schemas)})
-              AND table_name IN (${Array.from(tables)})
+            WHERE table_catalog IN (${databaseFilters})
+              AND table_schema IN (${schemaFilters})
+              AND table_name IN (${tableFilters})
             ${
                 supportsMatviews
                     ? `
@@ -552,21 +630,24 @@ export class PostgresClient<
                 n.nspname AS table_schema,
                 c.relname AS table_name,
                 a.attname AS column_name,
-                pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type
+                pg_catalog.format_type(a.atttypid, NULL) AS data_type
             FROM pg_catalog.pg_attribute a
             JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
             JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
             JOIN pg_catalog.pg_matviews mv ON n.nspname = mv.schemaname AND c.relname = mv.matviewname
             WHERE c.relkind = 'm'
-            AND current_database() IN (${Array.from(databases)})
-            AND n.nspname IN (${Array.from(schemas)})
-            AND c.relname IN (${Array.from(tables)})
+            AND current_database() IN (${databaseFilters})
+            AND n.nspname IN (${schemaFilters})
+            AND c.relname IN (${tableFilters})
             AND a.attnum > 0
             AND NOT a.attisdropped`
                     : ''
             }`;
 
-        const { rows } = await this.runQuery(query);
+        const { rows } =
+            values === undefined
+                ? await this.runQuery(query)
+                : await this.runQuery(query, {}, undefined, values);
         const catalog = rows.reduce(
             (
                 acc,
@@ -592,6 +673,14 @@ export class PostgresClient<
                         acc[table_catalog][table_schema][table_name] || {};
                     acc[table_catalog][table_schema][table_name][column_name] =
                         mapFieldType(data_type);
+                    setCatalogTimestampDomain(
+                        acc,
+                        table_catalog,
+                        table_schema,
+                        table_name,
+                        column_name,
+                        getPostgresTimestampDomain(data_type),
+                    );
                 }
 
                 return acc;
@@ -601,29 +690,70 @@ export class PostgresClient<
         return catalog;
     }
 
+    private serverVersion: Promise<string> | undefined;
+
+    protected getServerVersion(): Promise<string> {
+        this.serverVersion ??= this.runQuery('SELECT version()').then(
+            ({ rows }) => String(rows[0]?.version ?? ''),
+        );
+        return this.serverVersion;
+    }
+
+    // Redshift reports itself as PostgreSQL 8.x and has no pg_matviews
+    protected async supportsMatviews(): Promise<boolean> {
+        const versionMatch = (await this.getServerVersion()).match(
+            /PostgreSQL (\d+)\./,
+        );
+        return versionMatch?.[1] ? parseInt(versionMatch[1], 10) >= 12 : false;
+    }
+
+    protected async isRedshift(): Promise<boolean> {
+        return (await this.getServerVersion()).includes('Redshift');
+    }
+
+    // A session only sees its own database, so no catalog filter is needed
     async getAllTables() {
-        const databaseName = this.config.database;
-        const whereSql = databaseName ? `AND table_catalog = $1` : '';
-        const filterSystemTables = `AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
+        const supportsMatviews = await this.supportsMatviews();
         const query = `
-            SELECT table_catalog, table_schema, table_name
+            SELECT table_catalog, table_schema, table_name, table_type
             FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE'
-                ${whereSql}
-                ${filterSystemTables}
+            WHERE table_type IN ('BASE TABLE', 'VIEW', 'FOREIGN')
+                AND table_schema NOT IN ('information_schema', 'pg_catalog')
+            ${
+                supportsMatviews
+                    ? `
+            UNION ALL
+            SELECT current_database() AS table_catalog,
+                   schemaname AS table_schema,
+                   matviewname AS table_name,
+                   'MATERIALIZED VIEW' AS table_type
+            FROM pg_catalog.pg_matviews
+            WHERE schemaname NOT IN ('information_schema', 'pg_catalog')`
+                    : ''
+            }
             ORDER BY 1, 2, 3
         `;
-        const { rows } = await this.runQuery(
-            query,
-            {},
-            undefined,
-            databaseName ? [databaseName] : [],
-        );
+        const { rows } = await this.runQuery(query);
         return rows.map((row) => ({
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
+    }
+
+    // Positional parameters for a field lookup, so optional filters keep their numbering
+    protected bindFieldsFilters(
+        tableName: string,
+        schema?: string,
+        database?: string,
+    ) {
+        const values = [tableName];
+        const schemaParam = schema ? `$${values.push(schema)}` : undefined;
+        const databaseParam = database
+            ? `$${values.push(database)}`
+            : undefined;
+        return { values, schemaParam, databaseParam };
     }
 
     async getFields(
@@ -632,6 +762,12 @@ export class PostgresClient<
         database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
+        const { values, schemaParam, databaseParam } = this.bindFieldsFilters(
+            tableName,
+            schema,
+            database,
+        );
+        const supportsMatviews = await this.supportsMatviews();
         const query = `
             SELECT table_catalog,
                    table_schema,
@@ -640,19 +776,42 @@ export class PostgresClient<
                    data_type
             FROM information_schema.columns
             WHERE table_name = $1
-            ${schema ? 'AND table_schema = $2' : ''}
-            ${database ? 'AND table_catalog = $3' : ''}
+            ${schemaParam ? `AND table_schema = ${schemaParam}` : ''}
+            ${databaseParam ? `AND table_catalog = ${databaseParam}` : ''}
+            ${
+                supportsMatviews
+                    ? `
+            UNION ALL
+            SELECT current_database() AS table_catalog,
+                   n.nspname AS table_schema,
+                   c.relname AS table_name,
+                   a.attname AS column_name,
+                   pg_catalog.format_type(a.atttypid, NULL) AS data_type
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+            WHERE c.relkind = 'm'
+            AND c.relname = $1
+            ${schemaParam ? `AND n.nspname = ${schemaParam}` : ''}
+            ${databaseParam ? `AND current_database() = ${databaseParam}` : ''}
+            AND a.attnum > 0
+            AND NOT a.attisdropped`
+                    : ''
+            }
         `;
-        const values = [tableName];
-        if (schema) {
-            values.push(schema);
-        }
-        if (database) {
-            values.push(database);
-        }
         const { rows } = await this.runQuery(query, tags, undefined, values);
 
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return this.parsePostgresCatalog(rows);
+    }
+
+    protected parsePostgresCatalog(
+        rows: Record<string, AnyType>[],
+    ): WarehouseCatalog {
+        return this.parseWarehouseCatalog(
+            rows,
+            mapFieldType,
+            getPostgresTimestampDomain,
+        );
     }
 
     parseError(error: pg.DatabaseError, query: string = '') {
@@ -753,6 +912,25 @@ const getSSLConfigFromMode = ({
 };
 
 export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCredentials> {
+    protected getCatalogQueryFilters(
+        databases: Set<string>,
+        schemas: Set<string>,
+        tables: Set<string>,
+    ): CatalogQueryFilters {
+        const values = [...databases, ...schemas, ...tables];
+
+        return {
+            databaseFilters: [...databases].map((_, index) => `$${index + 1}`),
+            schemaFilters: [...schemas].map(
+                (_, index) => `$${databases.size + index + 1}`,
+            ),
+            tableFilters: [...tables].map(
+                (_, index) => `$${databases.size + schemas.size + index + 1}`,
+            ),
+            values,
+        };
+    }
+
     constructor(credentials: CreatePostgresCredentials) {
         const ssl = getSSLConfigFromMode(credentials);
         super(credentials, {

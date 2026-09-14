@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { IconFilter, IconFilterOff } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
@@ -76,11 +76,9 @@ const PreAggregateTopToolbar: FC<Props> = ({
             {hasActiveFilters && (
                 <Tooltip label="Reset filters">
                     <ActionIcon
-                        variant="subtle"
                         size="sm"
-                        color="gray"
                         onClick={resetFilters}
-                        style={{ flexShrink: 0 }}
+                        flex="0 0 auto"
                     >
                         <MantineIcon icon={IconFilterOff} />
                     </ActionIcon>

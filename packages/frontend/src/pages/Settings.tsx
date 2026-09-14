@@ -10,8 +10,8 @@ import {
     Text,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue, useLocalStorage } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue, useLocalStorage } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -30,6 +30,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
+import { SettingsPage } from '../components/common/Settings/SettingsPage';
 import PageSpinner from '../components/PageSpinner';
 import ProjectSettings from '../components/Settings/ProjectSettings';
 import SettingsNavigation from '../components/Settings/SettingsNavigation';
@@ -46,6 +47,7 @@ import GithubUserSettingsPanel from '../components/UserSettings/GithubUserSettin
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
+import LightdashAnalyticsPanel from '../components/UserSettings/LightdashAnalyticsPanel';
 import LimitsPanel from '../components/UserSettings/LimitsPanel';
 import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
@@ -70,7 +72,10 @@ import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel'
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
 import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
+import { AiDeepResearchSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiDeepResearchSettingsPage';
+import { AiEvalsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiEvalsSettingsPage';
 import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiGeneralSettingsPage';
+import { AiMemoriesSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiMemoriesSettingsPage';
 import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage';
 import { AiSettingsProviders } from '../ee/features/aiCopilot/components/Admin/settings/AiSettingsProviders';
 import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiThreadsSettingsPage';
@@ -81,7 +86,10 @@ import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
+import Roadmap from '../ee/pages/Roadmap';
+import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
+import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
 import { useSettingsNavigation } from '../hooks/settings/useSettingsNavigation';
@@ -146,15 +154,19 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         dataAppsFlag,
+        externalSourcesFlag,
+        isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
         showImpersonationPanel,
-        isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
+        isAnalyticsProjectFlagLoading,
+        isOrganizationRoadmapEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
@@ -180,27 +192,27 @@ const Settings: FC = () => {
             {
                 path: '/profile',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="Profile"
+                        description="Manage your personal details and account preferences."
+                    >
                         <SettingsGridCard>
-                            <Title order={4}>Profile settings</Title>
+                            <Title order={5}>Profile details</Title>
                             <ProfilePanel />
                         </SettingsGridCard>
                         {health?.hasGithub && <GithubUserSettingsPanel />}
-                        {isLeaveOrganizationEnabled && (
-                            <SettingsGridCard>
-                                <Box>
-                                    <Title order={4}>Danger zone</Title>
-                                    <Text c="ldGray.6" fz="xs">
-                                        Leave the organization to remove
-                                        yourself from it (you cannot leave if
-                                        you are the only admin). This action is
-                                        not reversible.
-                                    </Text>
-                                </Box>
-                                <LeaveOrganizationPanel />
-                            </SettingsGridCard>
-                        )}
-                    </Stack>
+                        <SettingsGridCard>
+                            <Box>
+                                <Title order={5}>Danger zone</Title>
+                                <Text c="dimmed" fz="xs">
+                                    Leave the organization to remove yourself
+                                    from it (you cannot leave if you are the
+                                    only admin). This action is not reversible.
+                                </Text>
+                            </Box>
+                            <LeaveOrganizationPanel />
+                        </SettingsGridCard>
+                    </SettingsPage>
                 ),
             },
             {
@@ -213,19 +225,22 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/password',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="Password"
+                        description="Update your password and manage the ways you sign in."
+                    >
                         <SettingsGridCard>
-                            <Title order={4}>Password settings</Title>
+                            <Title order={5}>Change password</Title>
                             <PasswordPanel />
                         </SettingsGridCard>
 
                         {hasSocialLogin && (
                             <SettingsGridCard>
-                                <Title order={4}>Social logins</Title>
+                                <Title order={5}>Social logins</Title>
                                 <SocialLoginsPanel />
                             </SettingsGridCard>
                         )}
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -243,31 +258,19 @@ const Settings: FC = () => {
             // Since the service returns specifically the user's scheduled deliveries, this is completely intended behavior.
             allowedRoutes.push({
                 path: '/userScheduledDeliveries',
-                element: (
-                    <Stack gap="xl">
-                        <SettingsGridCard>
-                            <Title order={4}>My scheduled deliveries</Title>
-                        </SettingsGridCard>
-                        <UserScheduledDeliveriesPanel />
-                    </Stack>
-                ),
+                element: <UserScheduledDeliveriesPanel />,
             });
         }
         if (dataAppsFlag?.enabled && user?.ability.can('create', 'DataApp')) {
             allowedRoutes.push({
                 path: '/myApps',
                 element: (
-                    <Stack gap="xl">
-                        <SettingsGridCard>
-                            <Title order={4}>My apps</Title>
-                        </SettingsGridCard>
-                        <MyAppsPanel
-                            key={String(project?.type === ProjectType.PREVIEW)}
-                            includePreviewAppsByDefault={
-                                project?.type === ProjectType.PREVIEW
-                            }
-                        />
-                    </Stack>
+                    <MyAppsPanel
+                        key={String(project?.type === ProjectType.PREVIEW)}
+                        includePreviewAppsByDefault={
+                            project?.type === ProjectType.PREVIEW
+                        }
+                    />
                 ),
             });
         }
@@ -275,16 +278,19 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/organization',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="General"
+                        description="Manage organization-wide defaults, access, and account controls."
+                    >
                         <SettingsGridCard>
-                            <Title order={4}>General</Title>
+                            <Title order={5}>Organization details</Title>
                             <OrganizationPanel />
                         </SettingsGridCard>
 
                         <SettingsGridCard>
                             <div>
-                                <Title order={4}>Allowed email domains</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Title order={5}>Allowed email domains</Title>
+                                <Text c="dimmed" fz="xs">
                                     Anyone with email addresses at these domains
                                     can automatically join the organization.
                                 </Text>
@@ -294,8 +300,8 @@ const Settings: FC = () => {
 
                         <SettingsGridCard>
                             <div>
-                                <Title order={4}>Default Project</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Title order={5}>Default project</Title>
+                                <Text c="dimmed" fz="xs">
                                     This is the project users will see when they
                                     log in for the first time or from a new
                                     device. If a user does not have access, they
@@ -307,44 +313,42 @@ const Settings: FC = () => {
 
                         {showImpersonationPanel && (
                             <SettingsGridCard>
-                                <Title order={4}>User impersonation</Title>
+                                <Title order={5}>User impersonation</Title>
                                 <ImpersonationPanel />
                             </SettingsGridCard>
                         )}
 
                         <SettingsGridCard>
-                            <Title order={4}>Lightdash support access</Title>
+                            <Title order={5}>Lightdash support access</Title>
                             <SupportImpersonationPanel />
                         </SettingsGridCard>
 
-                        {(isLeaveOrganizationEnabled ||
-                            user.ability?.can('delete', 'Organization')) && (
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={4}>Danger zone </Title>
-                                    <Text c="ldGray.6" fz="xs">
-                                        {isLeaveOrganizationEnabled &&
-                                            'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '}
-                                        {user.ability?.can(
-                                            'delete',
-                                            'Organization',
-                                        ) &&
-                                            'Deleting the organization removes the whole workspace and all its content, including users. '}
-                                        These actions are not reversible.
-                                    </Text>
-                                </div>
-                                <Stack gap="sm" align="flex-end">
-                                    {isLeaveOrganizationEnabled && (
-                                        <LeaveOrganizationPanel />
-                                    )}
+                        <SettingsGridCard>
+                            <Box>
+                                <Title order={5}>Danger zone</Title>
+                                <Text c="dimmed" fz="xs">
+                                    {
+                                        'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '
+                                    }
                                     {user.ability?.can(
                                         'delete',
                                         'Organization',
-                                    ) && <DeleteOrganizationPanel />}
-                                </Stack>
-                            </SettingsGridCard>
-                        )}
-                    </Stack>
+                                    ) &&
+                                        'Deleting the organization removes the whole workspace and all its content, including users. '}
+                                    These actions are not reversible.
+                                </Text>
+                            </Box>
+                            <Stack gap="sm" align="flex-end">
+                                <LeaveOrganizationPanel
+                                    showDeleteAction={false}
+                                />
+                                {user.ability?.can(
+                                    'delete',
+                                    'Organization',
+                                ) && <DeleteOrganizationPanel />}
+                            </Stack>
+                        </SettingsGridCard>
+                    </SettingsPage>
                 ),
             });
         }
@@ -352,11 +356,14 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/exporting',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="Exporting"
+                        description="Control how exported files are shared outside Lightdash."
+                    >
                         <SettingsGridCard>
                             <div>
-                                <Title order={4}>Scheduled deliveries</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Title order={5}>Scheduled deliveries</Title>
+                                <Text c="dimmed" fz="xs">
                                     Control how files exported from your
                                     organization — starting with scheduled
                                     deliveries — are shared.{' '}
@@ -373,7 +380,17 @@ const Settings: FC = () => {
                             </div>
                             <ExportingPanel />
                         </SettingsGridCard>
-                    </Stack>
+                    </SettingsPage>
+                ),
+            });
+        }
+        if (canAccessAnalyticsSettings) {
+            allowedRoutes.push({
+                path: '/lightdashAnalytics',
+                element: (
+                    <LightdashAnalyticsPanel
+                        activeProjectUuid={project?.projectUuid}
+                    />
                 ),
             });
         }
@@ -381,11 +398,14 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/limits',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="Limits"
+                        description="Set organization-wide query and export limits."
+                    >
                         <SettingsGridCard>
                             <div>
-                                <Title order={4}>Limits</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Title order={5}>Query and export limits</Title>
+                                <Text c="dimmed" fz="xs">
                                     Limit how many rows a query can return and
                                     how many cells a CSV or Excel export can
                                     contain for your organization.
@@ -393,7 +413,7 @@ const Settings: FC = () => {
                             </div>
                             <LimitsPanel />
                         </SettingsGridCard>
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -464,7 +484,11 @@ const Settings: FC = () => {
                 path: '/projectManagement/:projectUuid/*',
                 element: (
                     <TrackPage name={PageName.PROJECT_SETTINGS}>
-                        <ProjectSettings />
+                        <ProjectSettings
+                            externalSourcesEnabled={
+                                externalSourcesFlag?.enabled ?? false
+                            }
+                        />
                     </TrackPage>
                 ),
             });
@@ -476,22 +500,50 @@ const Settings: FC = () => {
             });
         }
 
-        if (
-            dataAppsFlag?.enabled &&
-            user?.ability.can('view', 'OrganizationDesign')
-        ) {
-            allowedRoutes.push({
-                path: '/themes',
-                element: <DesignListPage />,
-            });
+        if (dataAppsFlag?.enabled) {
+            const canManageThemes =
+                user?.ability.can('manage', 'OrganizationDesign') ?? false;
+            const canViewActivity =
+                user?.ability.can('manage', 'Organization') ?? false;
+
+            if (canManageThemes) {
+                allowedRoutes.push({
+                    path: '/dataApps/themes',
+                    element: <DesignListPage />,
+                });
+            }
+            if (canViewActivity) {
+                allowedRoutes.push({
+                    path: '/dataApps/activity',
+                    element: <DataAppActivitySettingsPage />,
+                });
+            }
+            // Land on whichever sub-page the user can actually reach.
+            if (canManageThemes || canViewActivity) {
+                allowedRoutes.push({
+                    path: '/dataApps',
+                    element: (
+                        <Navigate
+                            to={
+                                canManageThemes
+                                    ? '/generalSettings/dataApps/themes'
+                                    : '/generalSettings/dataApps/activity'
+                            }
+                            replace
+                        />
+                    ),
+                });
+            }
         }
 
         if (user?.ability.can('manage', 'Organization')) {
             allowedRoutes.push({
                 path: '/integrations',
                 element: (
-                    <Stack>
-                        <Title order={4}>Integrations</Title>
+                    <SettingsPage
+                        title="Integrations"
+                        description="Connect Lightdash to the tools your organization uses."
+                    >
                         {!health?.hasSlack &&
                             !health?.hasGithub &&
                             !health?.hasGitlab &&
@@ -499,7 +551,7 @@ const Settings: FC = () => {
                         {health?.hasSlack && <SlackSettingsPanel />}
                         {health?.hasGithub && <GithubSettingsPanel />}
                         {health?.hasGitlab && <GitlabSettingsPanel />}
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -538,15 +590,10 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/sso',
                 element: (
-                    <Stack gap="md">
-                        <Stack gap="xs">
-                            <Title order={5}>Single Sign-On</Title>
-                            <Text c="ldGray.6" fz="xs">
-                                Configure SSO providers for your organization.
-                                Users are routed to the matching provider based
-                                on their email domain.
-                            </Text>
-                        </Stack>
+                    <SettingsPage
+                        title="Single Sign-On"
+                        description="Configure SSO providers and account linking. Users are routed to the matching provider based on their email domain."
+                    >
                         <AzureAdSsoPanel />
                         <OktaSsoPanel />
                         <GenericOidcSsoPanel />
@@ -555,7 +602,7 @@ const Settings: FC = () => {
                             toggle when Google is enabled instance-wide. */}
                         {health?.auth.google.enabled && <GoogleSsoPanel />}
                         <AccountLinkingPanel />
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -581,6 +628,25 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            isOrganizationRoadmapEnabled &&
+            user?.ability.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/roadmap',
+                element: (
+                    <TrackPage name={PageName.ROADMAP}>
+                        <Roadmap />
+                    </TrackPage>
+                ),
+            });
+        }
+
         if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             allowedRoutes.push({
                 path: '/ai',
@@ -601,6 +667,18 @@ const Settings: FC = () => {
                     path: '/ai/general',
                     element: <AiGeneralSettingsPage />,
                 });
+                if (
+                    canAccessDeepResearchSettings({
+                        isAiCopilotEnabledOrTrial,
+                        canManageOrgAiAgent,
+                        hasAnyAiAgentAccess,
+                    })
+                ) {
+                    allowedRoutes.push({
+                        path: '/ai/deep-research',
+                        element: <AiDeepResearchSettingsPage />,
+                    });
+                }
             }
             allowedRoutes.push({
                 path: '/ai/threads',
@@ -619,10 +697,26 @@ const Settings: FC = () => {
                 ),
             });
             allowedRoutes.push({
+                path: '/ai/evals',
+                element: (
+                    <AiSettingsProviders>
+                        <AiEvalsSettingsPage />
+                    </AiSettingsProviders>
+                ),
+            });
+            allowedRoutes.push({
                 path: '/ai/mcp',
                 element: (
                     <AiSettingsProviders>
                         <McpActivitySettingsPage />
+                    </AiSettingsProviders>
+                ),
+            });
+            allowedRoutes.push({
+                path: '/ai/memories',
+                element: (
+                    <AiSettingsProviders>
+                        <AiMemoriesSettingsPage />
                     </AiSettingsProviders>
                 ),
             });
@@ -692,10 +786,12 @@ const Settings: FC = () => {
         health?.hasGitlab,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
+        externalSourcesFlag?.enabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
+        isOrganizationRoadmapEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
-        isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
@@ -720,18 +816,6 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
-                    path: '/generalSettings/userScheduledDeliveries',
-                },
-                location.pathname,
-            ) &&
-            !matchPath(
-                {
-                    path: '/generalSettings/myApps',
-                },
-                location.pathname,
-            ) &&
-            !matchPath(
-                {
                     path: '/generalSettings/projectManagement/:projectUuid/compilationHistory',
                 },
                 location.pathname,
@@ -739,6 +823,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/projectManagement/:projectUuid/recentlyDeleted',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
                 },
                 location.pathname,
             ) &&
@@ -779,6 +869,12 @@ const Settings: FC = () => {
                 location.pathname,
             ) &&
             !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/contentReview',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
                 { path: '/generalSettings/ai/threads' },
                 location.pathname,
             ) &&
@@ -787,7 +883,15 @@ const Settings: FC = () => {
                 location.pathname,
             ) &&
             !matchPath(
+                { path: '/generalSettings/ai/evals' },
+                location.pathname,
+            ) &&
+            !matchPath(
                 { path: '/generalSettings/ai/mcp' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/memories' },
                 location.pathname,
             ) &&
             !matchPath(
@@ -805,6 +909,14 @@ const Settings: FC = () => {
             !matchPath(
                 { path: '/generalSettings/ai/issues/:fingerprint' },
                 location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/roadmap' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/dataApps/activity' },
+                location.pathname,
             )
         );
     }, [location.pathname]);
@@ -816,6 +928,14 @@ const Settings: FC = () => {
     const isAwaitingAiSettingsRoute =
         isAiOrganizationSettingsLoading &&
         Boolean(matchPath('/generalSettings/ai/*', location.pathname));
+    const isAwaitingDataAppsRoute =
+        isDataAppsFlagLoading &&
+        Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
+    const isAwaitingAnalyticsRoute =
+        isAnalyticsProjectFlagLoading &&
+        Boolean(
+            matchPath('/generalSettings/lightdashAnalytics', location.pathname),
+        );
 
     if (
         isHealthLoading ||
@@ -823,7 +943,9 @@ const Settings: FC = () => {
         isOrganizationLoading ||
         isActiveProjectUuidLoading ||
         isProjectLoading ||
-        isAwaitingAiSettingsRoute
+        isAwaitingAiSettingsRoute ||
+        isAwaitingDataAppsRoute ||
+        isAwaitingAnalyticsRoute
     ) {
         return <PageSpinner />;
     }
@@ -854,10 +976,8 @@ const Settings: FC = () => {
             isSidebarCollapsed={isSidebarCollapsed}
             isSidebarCollapsible
             collapsedSidebarContent={
-                <Tooltip label="Pin sidebar" position="right" variant="xs">
+                <Tooltip label="Pin sidebar" position="right">
                     <ActionIcon
-                        variant="subtle"
-                        color="gray"
                         size="lg"
                         onClick={() => setIsSidebarCollapsed(false)}
                         aria-label="Pin sidebar"
@@ -882,11 +1002,8 @@ const Settings: FC = () => {
                                     ? 'Pin sidebar'
                                     : 'Unpin sidebar'
                             }
-                            variant="xs"
                         >
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="lg"
                                 onClick={() =>
                                     setIsSidebarCollapsed(!isSidebarCollapsed)
@@ -921,7 +1038,7 @@ const Settings: FC = () => {
                             />
                         ) : (
                             <Stack gap="xs" align="center" py="xl" px="md">
-                                <Text fz="sm" c="ldGray.6" ta="center">
+                                <Text fz="sm" c="dimmed" ta="center">
                                     No settings match “{debouncedSearch.trim()}”
                                 </Text>
                                 <Anchor

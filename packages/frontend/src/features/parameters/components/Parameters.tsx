@@ -4,15 +4,16 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
+    type UiStringResolver,
 } from '@lightdash/common';
-import { Group, Skeleton } from '@mantine-8/core';
+import { Group, Skeleton } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
-import { useParams } from 'react-router';
 import {
     DraggableItem,
     DroppableArea,
 } from '../../../components/common/DndHelpers';
 import { useDndSensors } from '../../../hooks/useDndSensors';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import Parameter from './Parameter';
 
 type Props = {
@@ -33,6 +34,7 @@ type Props = {
     triggerClassName?: string;
     dropdownClassName?: string;
     shadowedReservedNames?: string[];
+    getUiString?: UiStringResolver;
 };
 
 export const Parameters: FC<Props> = ({
@@ -48,8 +50,9 @@ export const Parameters: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     shadowedReservedNames = [],
+    getUiString,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [openPopoverId, setOpenPopoverId] = useState<string | undefined>();
 
     const handlePopoverOpen = useCallback((popoverId: string) => {
@@ -150,6 +153,7 @@ export const Parameters: FC<Props> = ({
                                 isEditMode={isEditMode}
                                 isDraggable={isEditMode}
                                 shadowedReservedNames={shadowedReservedNames}
+                                getUiString={getUiString}
                             />
                         </DraggableItem>
                     </DroppableArea>

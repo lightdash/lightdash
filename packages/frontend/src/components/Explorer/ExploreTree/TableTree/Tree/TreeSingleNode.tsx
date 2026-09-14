@@ -5,6 +5,7 @@ import {
     isAdditionalMetric,
     isCompiledMetric,
     isCustomDimension,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isFilterableField,
@@ -19,13 +20,15 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Group,
     Highlight,
     NavLink,
+    Popover,
     Text,
     HoverCard,
-} from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+    Tooltip,
+} from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCalendarPin,
@@ -33,8 +36,9 @@ import {
     IconFilter,
     IconHierarchyOff,
     IconInfoCircle,
+    IconTrash,
 } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import {
     explorerActions,
@@ -56,8 +60,12 @@ import {
 } from '../../../../../utils/fieldColors';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
+import { useCustomMetricDelete } from '../../useCustomMetricDelete';
 import { ItemDetailPreview } from '../ItemDetailPreview';
+import previewClasses from '../ItemDetailPreview.module.css';
+import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from '../itemDetailPreviewTransition';
 import { MAX_GROUP_DEPTH } from './constants';
+import CustomMetricQuickCreate from './CustomMetricQuickCreate';
 import styles from './TreeSingleNode.module.css';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 import { type Node } from './types';
@@ -108,12 +116,7 @@ const NavItemIcon = ({
     }
     if (tzAffordance) {
         return (
-            <Tooltip
-                withinPortal
-                maw={300}
-                multiline
-                label={tzAffordance.tooltip}
-            >
+            <Tooltip maw={300} label={tzAffordance.tooltip}>
                 {tzAffordance.pinIcon ? (
                     <MantineIcon
                         icon={tzAffordance.pinIcon}
@@ -173,6 +176,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const missingCustomMetrics = useTableTree(
         (context) => context.missingCustomMetrics,
     );
+    const dashboardMetricIds = useTableTree(
+        (context) => context.dashboardMetricIds,
+    );
     const itemsAlerts = useTableTree((context) => context.itemsAlerts);
     const missingCustomDimensions = useTableTree(
         (context) => context.missingCustomDimensions,
@@ -188,6 +194,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
+    const [quickCreateType, setQuickCreateType] = useState<MetricType | null>(
+        null,
+    );
 
     const isVisible = !isSearching || searchResults.includes(node.key);
 
@@ -282,6 +291,16 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         return false;
     }, [description, isMissing, item, metricInfo]);
 
+    // Shared with the dashboard: edits go via impact preview, actions reduced
+    const isRegistryMetric =
+        isAdditionalMetric(item) &&
+        (dashboardMetricIds?.has(getItemId(item)) ?? false);
+    // The '=' badge marks provenance: dashboard-local from creation. The ids
+    // set is only provided when the shared-metrics layer is enabled.
+    const isDashboardMetric =
+        isRegistryMetric ||
+        (dashboardMetricIds !== undefined && isAdditionalMetric(item));
+
     const itemColors = getFieldColors(item);
     const alerts = itemsAlerts?.[getItemId(item)];
     const isFiltered = isField(item) && isFieldFiltered;
@@ -289,6 +308,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
         isFilterableField(item);
+    const { showDeleteAction, handleDeleteClick } = useCustomMetricDelete({
+        item,
+        fieldId,
+        isHover: isHover && !isRegistryMetric,
+    });
 
     const timeIntervalLabel =
         isDimension(item) &&
@@ -343,10 +367,24 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         );
     }, [toggleHover, dispatch, item, label, description]);
 
-    const onToggleMenu = useCallback(() => {
-        toggleHover(false);
-        toggleMenu();
-    }, [toggleHover, toggleMenu]);
+    const onToggleMenu = useCallback(
+        (opened: boolean) => {
+            toggleHover(false);
+            toggleMenu(opened);
+        },
+        [toggleHover, toggleMenu],
+    );
+
+    const quickCreateItem =
+        isDimension(item) || isCustomSqlDimension(item) ? item : null;
+    const openQuickCreate = useCallback(
+        (type: MetricType) => {
+            toggleHover(false);
+            setQuickCreateType(type);
+        },
+        [toggleHover],
+    );
+    const closeQuickCreate = useCallback(() => setQuickCreateType(null), []);
 
     const icon = useMemo(
         () => <NavItemIcon isMissing={isMissing} item={item} />,
@@ -371,15 +409,13 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             return (
                 <Tooltip
                     key={type}
-                    withinPortal
                     maw={300}
-                    multiline
                     label={messages.map((m) => m.message).join('\n')}
                 >
                     <MantineIcon
                         icon={alertIcon}
                         color={color}
-                        style={{ flexShrink: 0 }}
+                        className={styles.nodeIcon}
                     />
                 </Tooltip>
             );
@@ -409,146 +445,200 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     if (!item || !isVisible) return null;
 
+    const isQuickCreateOpen = quickCreateType !== null && !!quickCreateItem;
+
     return (
-        <NavLink
-            component="div"
-            noWrap
-            data-selected={isSelected || undefined}
-            className={styles.root}
-            style={
-                {
-                    '--tree-node-bg': itemColors.bg,
-                    '--tree-node-hover-bg': itemColors.bgHover,
-                } as React.CSSProperties
-            }
-            leftSection={icon}
-            onClick={handleClick}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            pl={pl}
-            label={
-                <Group wrap="nowrap" gap="xs">
-                    <HoverCard
-                        openDelay={300}
-                        keepMounted={false}
-                        shadow="subtle"
-                        withinPortal
-                        withArrow
-                        disabled={isHoverCardDisabled}
-                        position="right"
-                        radius="md"
-                        /**
-                         * Regular fields show a filter ActionIcon on hover that
-                         * eats ~28px of the row, narrowing the HoverCard target.
-                         * Custom metrics and custom dimensions never render that
-                         * icon, so their target is wider and the popover ends up
-                         * further right at the same offset. Shave ~28px off to
-                         * align both.
-                         */
-                        offset={
-                            isAdditionalMetric(item) || isCustomDimension(item)
-                                ? 36
-                                : 70
-                        }
-                    >
-                        <HoverCard.Target>
-                            <Text truncate fz="sm" style={{ flexGrow: 1 }}>
-                                <Highlight
-                                    component="span"
-                                    highlight={searchQuery || ''}
-                                    inherit
-                                >
-                                    {label}
-                                </Highlight>
-                            </Text>
-                        </HoverCard.Target>
-                        <HoverCard.Dropdown
-                            hidden={!isHover}
-                            p="xs"
-                            miw={400}
-                            mah={500}
-                            /**
-                             * Takes up space to the right, so it's OK to go fairly wide in the interest
-                             * of readability.
-                             */
-                            maw={500}
-                            className={styles.detailPreviewDropdown}
-                            onClick={handleDropdownClick}
-                        >
-                            {isMissing ? (
-                                `This field from '${item.table}' table is no longer available`
-                            ) : (
-                                <ItemDetailPreview
-                                    onViewDescription={onOpenDescriptionView}
-                                    description={description}
-                                    metricInfo={metricInfo}
-                                />
-                            )}
-                        </HoverCard.Dropdown>
-                    </HoverCard>
-                    {renderAlerts}
-                    {isTruncated && (
-                        <Tooltip
-                            withinPortal
-                            maw={300}
-                            multiline
-                            label={`Located ${truncatedActualDepth} levels deep`}
-                        >
-                            <MantineIcon
-                                icon={IconHierarchyOff}
-                                color="ldGray.6"
-                                style={{ flexShrink: 0 }}
-                            />
-                        </Tooltip>
-                    )}
-                    {showFilterAction && (
-                        <Tooltip
-                            withinPortal
-                            label={
-                                isFiltered
-                                    ? 'This field is filtered'
-                                    : 'Click here to add filter'
-                            }
-                        >
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={handleFilterClick}
+        <Popover
+            opened={isQuickCreateOpen}
+            onDismiss={closeQuickCreate}
+            position="right-start"
+            offset={4}
+            width={320}
+            withArrow
+            withinPortal
+            trapFocus
+            returnFocus
+        >
+            <Popover.Target>
+                <NavLink
+                    component="div"
+                    noWrap
+                    data-selected={isSelected || undefined}
+                    data-quick-create={isQuickCreateOpen || undefined}
+                    // Anchors for scope walkthroughs (data-tour-via): a field to
+                    // select. The name depends on the field, so the generator reads
+                    // each anchor's hint from these literal declarations:
+                    //   data-tour-anchor="explore-dimension" data-tour-hint="Select a dimension"
+                    //   data-tour-anchor="explore-metric" data-tour-hint="Select a metric"
+                    data-tour-anchor={
+                        isField(item)
+                            ? isDimension(item)
+                                ? 'explore-dimension'
+                                : 'explore-metric'
+                            : undefined
+                    }
+                    className={styles.root}
+                    style={
+                        {
+                            '--tree-node-bg': itemColors.bg,
+                            '--tree-node-hover-bg': itemColors.bgHover,
+                        } as React.CSSProperties
+                    }
+                    leftSection={icon}
+                    onClick={handleClick}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    pl={pl}
+                    label={
+                        <Group wrap="nowrap" gap="xs">
+                            <HoverCard
+                                openDelay={300}
+                                keepMounted={false}
+                                withArrow
+                                disabled={isHoverCardDisabled}
+                                position="right"
+                                /**
+                                 * Regular fields show a filter ActionIcon on hover and
+                                 * custom metrics a delete ActionIcon, each eating ~28px
+                                 * of the row and narrowing the HoverCard target.
+                                 * Custom dimensions never render an inline icon, so
+                                 * their target is wider and the popover ends up further
+                                 * right at the same offset. Shave ~28px off to align.
+                                 */
+                                offset={isCustomDimension(item) ? 36 : 70}
+                                transitionProps={
+                                    ITEM_DETAIL_PREVIEW_TRANSITION_PROPS
+                                }
                             >
-                                <MantineIcon
-                                    icon={IconFilter}
-                                    style={{ flexShrink: 0 }}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                    {isField(item) && item.hidden ? (
-                        <Tooltip
-                            withinPortal
-                            label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
-                        >
-                            <MantineIcon
-                                icon={IconAlertTriangle}
-                                color="yellow.9"
-                                style={{ flexShrink: 0 }}
-                            />
-                        </Tooltip>
-                    ) : null}
-                </Group>
-            }
-            rightSection={
-                <TreeSingleNodeActions
-                    item={item}
-                    isHovered={isHover}
-                    isSelected={isSelected}
-                    isOpened={isMenuOpen}
-                    hasDescription={!!description}
-                    onViewDescription={onOpenDescriptionView}
-                    onMenuChange={onToggleMenu}
+                                <HoverCard.Target>
+                                    <Text truncate fz="sm" flex={1}>
+                                        <Highlight
+                                            component="span"
+                                            highlight={searchQuery || ''}
+                                            inherit
+                                        >
+                                            {label}
+                                        </Highlight>
+                                    </Text>
+                                </HoverCard.Target>
+                                <HoverCard.Dropdown
+                                    hidden={!isHover}
+                                    p="md"
+                                    miw={400}
+                                    mah={500}
+                                    /**
+                                     * Takes up space to the right, so it's OK to go fairly wide in the interest
+                                     * of readability.
+                                     */
+                                    maw={500}
+                                    className={`${styles.detailPreviewDropdown} ${previewClasses.previewDropdown}`}
+                                    onClick={handleDropdownClick}
+                                >
+                                    {isMissing ? (
+                                        `This field from '${item.table}' table is no longer available`
+                                    ) : (
+                                        <ItemDetailPreview
+                                            onViewDescription={
+                                                onOpenDescriptionView
+                                            }
+                                            description={description}
+                                            metricInfo={metricInfo}
+                                        />
+                                    )}
+                                </HoverCard.Dropdown>
+                            </HoverCard>
+                            {isDashboardMetric && (
+                                <Tooltip label="Only available in this dashboard">
+                                    <Badge
+                                        size="xs"
+                                        radius="sm"
+                                        px={4}
+                                        flex="0 0 auto"
+                                    >
+                                        =
+                                    </Badge>
+                                </Tooltip>
+                            )}
+                            {renderAlerts}
+                            {isTruncated && (
+                                <Tooltip
+                                    maw={300}
+                                    label={`Located ${truncatedActualDepth} levels deep`}
+                                >
+                                    <MantineIcon
+                                        icon={IconHierarchyOff}
+                                        color="dimmed"
+                                        className={styles.nodeIcon}
+                                    />
+                                </Tooltip>
+                            )}
+                            {showFilterAction && (
+                                <Tooltip
+                                    label={
+                                        isFiltered
+                                            ? 'This field is filtered'
+                                            : 'Click here to add filter'
+                                    }
+                                >
+                                    <ActionIcon onClick={handleFilterClick}>
+                                        <MantineIcon
+                                            icon={IconFilter}
+                                            className={styles.nodeIcon}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            {showDeleteAction && (
+                                <Tooltip label="Delete custom metric">
+                                    <ActionIcon onClick={handleDeleteClick}>
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            className={styles.nodeIcon}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            {isField(item) && item.hidden ? (
+                                <Tooltip label="This field has been hidden in the dbt project. It's recommend to remove it from the query">
+                                    <MantineIcon
+                                        icon={IconAlertTriangle}
+                                        color="yellow.9"
+                                        className={styles.nodeIcon}
+                                    />
+                                </Tooltip>
+                            ) : null}
+                        </Group>
+                    }
+                    rightSection={
+                        <TreeSingleNodeActions
+                            item={item}
+                            isHovered={isHover}
+                            isSelected={isSelected}
+                            isOpened={isMenuOpen}
+                            hasDescription={!!description}
+                            basicActionsOnly={isRegistryMetric}
+                            allowRegistryEdit={isRegistryMetric}
+                            onViewDescription={onOpenDescriptionView}
+                            onMenuChange={onToggleMenu}
+                            onQuickCreateMetric={
+                                quickCreateItem ? openQuickCreate : undefined
+                            }
+                        />
+                    }
+                    data-testid={`tree-single-node-${label}`}
                 />
-            }
-            data-testid={`tree-single-node-${label}`}
-        />
+            </Popover.Target>
+            <Popover.Dropdown p="sm" onClick={handleDropdownClick}>
+                {isQuickCreateOpen && quickCreateItem && quickCreateType ? (
+                    <CustomMetricQuickCreate
+                        key={`${fieldId}-${quickCreateType}`}
+                        item={quickCreateItem}
+                        type={quickCreateType}
+                        onClose={closeQuickCreate}
+                    />
+                ) : null}
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 

@@ -1,5 +1,5 @@
 import { TooltipSortByOptions, type TooltipSortBy } from '@lightdash/common';
-import { Group, Select } from '@mantine-8/core';
+import { Group, Select } from '@mantine/core';
 import { type FC } from 'react';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';

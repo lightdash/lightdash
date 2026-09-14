@@ -2,6 +2,7 @@ import {
     defineUserAbility,
     ForbiddenError,
     OrganizationMemberRole,
+    ProjectMemberRole,
     PullRequestProvider,
 } from '@lightdash/common';
 import type { SessionUser } from '@lightdash/common';
@@ -33,6 +34,22 @@ const user = {
     ability: defineUserAbility(userFields, []),
 } as SessionUser;
 
+const projectDeveloper = {
+    ...userFields,
+    role: OrganizationMemberRole.MEMBER,
+    ability: defineUserAbility(
+        { ...userFields, role: OrganizationMemberRole.MEMBER },
+        [
+            {
+                userUuid: userFields.userUuid,
+                projectUuid: 'project-uuid',
+                role: ProjectMemberRole.DEVELOPER,
+                roleUuid: undefined,
+            },
+        ],
+    ),
+} as SessionUser;
+
 const buildService = ({
     findCredential,
     deleteCredential = vi.fn(),
@@ -59,6 +76,16 @@ const buildService = ({
 describe('GithubAppService', () => {
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('getRepos', () => {
+        it('rejects a project developer who cannot manage the organization Git integration', async () => {
+            const service = buildService();
+
+            await expect(service.getRepos(projectDeveloper)).rejects.toThrow(
+                ForbiddenError,
+            );
+        });
     });
 
     describe('linkUserRedirect (open redirect protection)', () => {

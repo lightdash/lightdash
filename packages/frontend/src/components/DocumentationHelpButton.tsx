@@ -3,7 +3,7 @@ import {
     Tooltip,
     type AnchorProps,
     type TooltipProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon, { type MantineIconProps } from './common/MantineIcon';
@@ -20,7 +20,6 @@ const DocumentationHelpButton: FC<Props> = ({
     ...anchorProps
 }) => (
     <Tooltip
-        withinPortal
         label="Open documentation"
         position="top"
         maw={350}

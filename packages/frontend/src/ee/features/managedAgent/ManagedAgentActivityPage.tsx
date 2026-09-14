@@ -4,13 +4,18 @@ import {
     type ContentVerificationInfo,
     countTotalFilterRules,
     type Dashboard,
+    DEFAULT_MANAGED_AGENT_POLICY,
     getFixedBrokenMetadata,
     getManagedAgentActionCategory,
     type ManagedAgentAction,
     ManagedAgentActionType,
+    type ManagedAgentPolicy,
     type ManagedAgentRun,
     ManagedAgentRunStatus,
     ManagedAgentScheduleOption,
+    ManagedAgentTargetType,
+    type UpdateManagedAgentPolicy,
+    type UpdateManagedAgentSpaceScope,
     type Project,
     type SavedChart,
     type UpdatedByUser,
@@ -20,23 +25,31 @@ import {
     Anchor,
     Box,
     Button,
+    Divider,
     Group,
     Loader,
     Menu,
+    MultiSelect,
     Select,
     Stack,
     Switch,
     Table,
     Text,
+    TextInput,
     Title,
     Tooltip,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
+import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import {
+    IconAdjustments,
     IconAlertTriangle,
     IconArrowBackUp,
     IconBrandSlack,
+    IconCalendar,
     IconChartBar,
+    IconCheck,
+    IconChevronDown,
     IconChevronRight,
     IconCircleCheck,
     IconClock,
@@ -48,6 +61,7 @@ import {
     IconHash,
     IconLayoutDashboard,
     IconPlayerPlay,
+    IconSearch,
     IconSelector,
     IconSettings,
     IconTarget,
@@ -58,6 +72,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import {
+    Fragment,
     useCallback,
     useEffect,
     useMemo,
@@ -66,10 +81,13 @@ import {
     type FC,
 } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
+import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
+import CalendarRangePicker from '../../../components/common/DatePickers/CalendarRangePicker';
+import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { NumberInput } from '../../../components/common/NumberInput';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
@@ -80,13 +98,19 @@ import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useChartVersion, useSavedQuery } from '../../../hooks/useSavedQuery';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
-import { useManagedAgentActions } from './hooks/useManagedAgentActions';
+import {
+    useManagedAgentActions,
+    type ManagedAgentActionQueryFilters,
+} from './hooks/useManagedAgentActions';
 import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
 import { useManagedAgentRuns } from './hooks/useManagedAgentRuns';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
+import { SuggestionsSpaceAccess } from './SuggestionsSpaceAccess';
 import { ToolActivityBadge } from './ToolActivityBadge';
 
 const reverseAction = async (
@@ -106,6 +130,8 @@ const updateSettings = async (
         schedule?: ManagedAgentScheduleOption;
         slackChannelId?: string | null;
         toolSettings?: Record<string, boolean>;
+        policy?: UpdateManagedAgentPolicy;
+        spaceScope?: UpdateManagedAgentSpaceScope;
     },
 ) =>
     lightdashApi({
@@ -120,6 +146,10 @@ const runHeartbeat = async (projectUuid: string) =>
         method: 'POST',
         body: undefined,
     });
+
+// Messages can be several paragraphs of agent reasoning; the hover tooltip only
+// needs a preview, the sidebar renders the full markdown.
+const MESSAGE_TOOLTIP_MAX_LENGTH = 280;
 
 const SCHEDULE_OPTIONS = [
     { value: ManagedAgentScheduleOption.EVERY_6_HOURS, label: 'Every 6 hours' },
@@ -137,7 +167,7 @@ const CAPABILITY_GROUPS = [
         key: 'readOnly',
         label: 'Read content',
         description:
-            'Reads project health signals, recent Autopilot actions, stale charts and dashboards, broken content, chart definitions, user questions, popular content, preview projects, and slow query history.',
+            'Reads project health signals, recent Autopilot actions, stale charts and dashboards, broken content, chart definitions, user questions, popular content, preview projects, slow query history, inactive project members, content whose owner has left, AI agents with little or no traffic, and pre-aggregate candidates from query patterns.',
         locked: true,
     },
     {
@@ -155,6 +185,75 @@ const CAPABILITY_GROUPS = [
         locked: false,
     },
 ];
+
+const AGGRESSION_OPTIONS: {
+    value: ManagedAgentPolicy['aggression'];
+    label: string;
+}[] = [
+    { value: 'observe', label: 'Observe' },
+    { value: 'flag', label: 'Flag' },
+    { value: 'cleanup', label: 'Clean up' },
+];
+
+const AGGRESSION_DESCRIPTIONS: Record<
+    ManagedAgentPolicy['aggression'],
+    string
+> = {
+    observe: 'Records insights only. Never flags or deletes content.',
+    flag: 'Flags stale and broken content for review. Never deletes.',
+    cleanup:
+        'Flags first, then soft-deletes content that stays flagged past the escalation window.',
+};
+
+// Observe mode never flags or deletes, so this only keeps recent content out
+// of the stale lists it reports on.
+const PROTECT_RECENT_LABELS: Record<ManagedAgentPolicy['aggression'], string> =
+    {
+        observe: 'Skip content newer than',
+        flag: 'Protect new content',
+        cleanup: 'Protect new content',
+    };
+
+const POLICY_SECTION_DESCRIPTIONS: Record<
+    ManagedAgentPolicy['aggression'],
+    string
+> = {
+    observe:
+        'Tune the thresholds below. In observe mode they decide what Autopilot reports, not what it changes.',
+    flag: 'Tune staleness thresholds and what Autopilot flags for review.',
+    cleanup:
+        'Tune staleness thresholds and how aggressively Autopilot cleans up.',
+};
+
+const PolicyNumberField: FC<{
+    label: string;
+    suffix: string;
+    value: number;
+    min: number;
+    max: number;
+    disabled: boolean;
+    onCommit: (value: number) => void;
+}> = ({ label, suffix, value, min, max, disabled, onCommit }) => {
+    const [draft, setDraft] = useState<number | undefined>(value);
+    return (
+        <NumberInput
+            label={label}
+            suffix={suffix}
+            size="xs"
+            min={min}
+            max={max}
+            clampBehavior="strict"
+            defaultValue={value}
+            onNumberChange={setDraft}
+            onBlur={() => {
+                if (draft !== undefined && draft !== value) {
+                    onCommit(Math.min(max, Math.max(min, draft)));
+                }
+            }}
+            disabled={disabled}
+        />
+    );
+};
 
 const SetupSection: FC<{
     enabled: boolean;
@@ -185,9 +284,7 @@ const SetupSection: FC<{
                         <Box className={classes.setupOrb}>
                             <IconTarget size={16} />
                         </Box>
-                        <Title order={4} fw={700}>
-                            Autopilot
-                        </Title>
+                        <Title order={4}>Autopilot</Title>
                         <Box className={classes.activeBadge}>
                             <Box
                                 className={
@@ -221,9 +318,7 @@ const SetupSection: FC<{
                         <ActionIcon
                             aria-label="Run Autopilot now"
                             variant="default"
-                            color="dark"
                             size="md"
-                            radius="md"
                             onClick={onRunNow}
                             disabled={!enabled || isRunNowLoading || isRunning}
                             loading={isRunNowLoading || isRunning}
@@ -233,7 +328,6 @@ const SetupSection: FC<{
                     </Tooltip>
                     <Button
                         variant={settingsOpen ? 'light' : 'default'}
-                        color="dark"
                         size="xs"
                         leftSection={<IconSettings size={14} />}
                         onClick={onOpenSettings}
@@ -285,6 +379,12 @@ const ACTION_CONFIG: Record<
         label: 'Insight',
         dotColor: 'var(--mantine-color-violet-5)',
     },
+    blocked: {
+        label: 'Blocked',
+        dotColor: 'var(--mantine-color-ldGray-6)',
+        tooltip:
+            'Autopilot attempted this but an admin protection stopped it. Dismiss to acknowledge.',
+    },
 };
 
 const revertActionLabel = (
@@ -316,7 +416,7 @@ const formatAbsoluteTimestamp = (dateStr: string) =>
 // --- Detail Sidebar ---
 
 const MetadataLabel: FC<{ label: string }> = ({ label }) => (
-    <Text fz={10} fw={600} c="dimmed" tt="uppercase" lts={0.5}>
+    <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.5}>
         {label}
     </Text>
 );
@@ -332,7 +432,7 @@ const MetadataFieldList: FC<{ label: string; fields: string[] }> = ({
                 {fields.map((f) => (
                     <Text
                         key={f}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPill}
                     >
@@ -368,7 +468,7 @@ const ChartDetails: FC<{ metadata: Record<string, unknown> }> = ({
             <Group gap="lg">
                 {chartType && (
                     <Stack gap={2}>
-                        <Text fz={10} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             Type
                         </Text>
                         <Text fz="xs" fw={500}>
@@ -378,7 +478,7 @@ const ChartDetails: FC<{ metadata: Record<string, unknown> }> = ({
                 )}
                 {exploreName && (
                     <Stack gap={2}>
-                        <Text fz={10} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             Explore
                         </Text>
                         <Text fz="xs" fw={500}>
@@ -482,7 +582,7 @@ const FieldDiffRow: FC<{ diff: FieldDiff }> = ({ diff }) => {
                 {diff.removed.map((f) => (
                     <Text
                         key={`removed-${f}`}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPillRemoved}
                     >
@@ -492,7 +592,7 @@ const FieldDiffRow: FC<{ diff: FieldDiff }> = ({ diff }) => {
                 {diff.added.map((f) => (
                     <Text
                         key={`added-${f}`}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPillAdded}
                     >
@@ -665,7 +765,6 @@ const ContentContextDetails: FC<{
                             label={formatAbsoluteTimestamp(
                                 new Date(context.updatedAt).toISOString(),
                             )}
-                            withinPortal
                         >
                             <span>
                                 {formatDistanceToNowStrict(
@@ -744,10 +843,7 @@ const ProjectContextDetails: FC<{
                 )}
                 {createdAt && (
                     <InfoRow icon={IconClock} label="Created">
-                        <Tooltip
-                            label={formatAbsoluteTimestamp(createdAt)}
-                            withinPortal
-                        >
+                        <Tooltip label={formatAbsoluteTimestamp(createdAt)}>
                             <span>{formatTimestamp(createdAt)}</span>
                         </Tooltip>
                     </InfoRow>
@@ -930,7 +1026,7 @@ const DetailSidebar: FC<{
                         tooltip={config.tooltip}
                     />
                     <Group gap={2}>
-                        <Menu position="bottom-end" withinPortal>
+                        <Menu position="bottom-end">
                             <Menu.Target>
                                 <UnstyledButton className={classes.closeBtn}>
                                     <IconDots size={14} />
@@ -961,7 +1057,7 @@ const DetailSidebar: FC<{
                     <TargetIcon
                         size={16}
                         color="var(--mantine-color-dimmed)"
-                        style={{ flexShrink: 0 }}
+                        className={classes.targetIcon}
                     />
                     <TruncatedText maxWidth={260} fz="sm" fw={600}>
                         {action.targetName}
@@ -974,10 +1070,7 @@ const DetailSidebar: FC<{
                                 target="_blank"
                                 rel="noreferrer"
                                 aria-label={`Open ${action.targetType}`}
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
-                                radius="md"
                                 className={classes.titleAction}
                             >
                                 <MantineIcon
@@ -1067,8 +1160,6 @@ const DetailSidebar: FC<{
                     ) : (
                         <Tooltip
                             label="This fix was recorded before revert support. Restore manually via chart history."
-                            withinPortal
-                            multiline
                             w={240}
                         >
                             <Button
@@ -1145,9 +1236,9 @@ const DetailSidebar: FC<{
                 {/* Agent reasoning */}
                 <Stack gap={4}>
                     <MetadataLabel label="Agent reasoning" />
-                    <Text fz="xs" lh={1.7} c="dimmed">
+                    <AiMarkdown className={classes.reasoningMarkdown}>
                         {action.description}
-                    </Text>
+                    </AiMarkdown>
                 </Stack>
             </Stack>
         </Stack>
@@ -1160,6 +1251,8 @@ const SettingsSidebar: FC<{
     schedule: ManagedAgentScheduleOption;
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;
+    policy: ManagedAgentPolicy;
+    scopedSpaceUuids: string[];
     isLoading: boolean;
     onClose: () => void;
 }> = ({
@@ -1168,11 +1261,14 @@ const SettingsSidebar: FC<{
     schedule,
     slackChannelId,
     toolSettings,
+    policy,
+    scopedSpaceUuids,
     isLoading,
     onClose,
 }) => {
     const queryClient = useQueryClient();
     const { data: slackInstallation } = useGetSlack();
+    const { data: spaceSummaries } = useSpaceSummaries(projectUuid, true);
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
     const [slackNotificationsEnabled, setSlackNotificationsEnabled] =
         useState(!!slackChannelId);
@@ -1181,12 +1277,19 @@ const SettingsSidebar: FC<{
         setSlackNotificationsEnabled(!!slackChannelId);
     }, [slackChannelId]);
 
+    const { showToastApiError: showSettingsApiError } = useToaster();
     const mutation = useMutation({
         mutationFn: (body: Parameters<typeof updateSettings>[1]) =>
             updateSettings(projectUuid, body),
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-settings', projectUuid],
+            });
+        },
+        onError: ({ error }: ApiError) => {
+            showSettingsApiError({
+                title: 'Failed to update Autopilot settings',
+                apiError: error,
             });
         },
     });
@@ -1231,6 +1334,47 @@ const SettingsSidebar: FC<{
         },
         [mutation, toolSettings],
     );
+
+    const handlePolicyChange = useCallback(
+        (update: UpdateManagedAgentPolicy) => {
+            mutation.mutate({ policy: update });
+        },
+        [mutation],
+    );
+
+    // Scope edits are drafted locally and saved with one PATCH on Apply
+    const [selectedSpaces, setSelectedSpaces] =
+        useState<string[]>(scopedSpaceUuids);
+    const [draftScopeMode, setDraftScopeMode] = useState(policy.spaceScopeMode);
+
+    const isScopeDirty =
+        draftScopeMode !== policy.spaceScopeMode ||
+        selectedSpaces.length !== scopedSpaceUuids.length ||
+        selectedSpaces.some((uuid) => !scopedSpaceUuids.includes(uuid));
+
+    const handleApplySpaceScope = useCallback(() => {
+        const scope: UpdateManagedAgentSpaceScope = {
+            mode: draftScopeMode,
+            spaceUuids: selectedSpaces,
+        };
+        mutation.mutate({ spaceScope: scope });
+    }, [mutation, draftScopeMode, selectedSpaces]);
+
+    const handleResetSpaceScope = useCallback(() => {
+        setDraftScopeMode(policy.spaceScopeMode);
+        setSelectedSpaces(scopedSpaceUuids);
+    }, [policy.spaceScopeMode, scopedSpaceUuids]);
+
+    // The caption reflects what is saved, not the draft being composed
+    const spaceScopeSummary = (() => {
+        const count = scopedSpaceUuids.length;
+        if (policy.spaceScopeMode === 'only') {
+            return `Monitoring ${count} selected ${count === 1 ? 'space' : 'spaces'}.`;
+        }
+        return count === 0
+            ? 'Monitoring all spaces.'
+            : `Monitoring all spaces except ${count} excluded.`;
+    })();
 
     return (
         <Stack gap={0} h="100%" className={classes.sidebar}>
@@ -1403,7 +1547,7 @@ const SettingsSidebar: FC<{
                                             <Text fz="xs" fw={500}>
                                                 {capability.label}
                                             </Text>
-                                            <Text fz={11} c="dimmed">
+                                            <Text fz="xs" c="dimmed">
                                                 {capability.description}
                                             </Text>
                                         </Stack>
@@ -1446,7 +1590,266 @@ const SettingsSidebar: FC<{
                                         )}
                                     </Group>
                                 ))}
+                                <Stack
+                                    gap={6}
+                                    className={classes.toolToggleRow}
+                                >
+                                    <Text fz="xs" fw={500}>
+                                        Space scope
+                                    </Text>
+                                    <Stack gap={4}>
+                                        <Select
+                                            data={[
+                                                {
+                                                    value: 'all-except',
+                                                    label: 'Monitor all spaces except…',
+                                                },
+                                                {
+                                                    value: 'only',
+                                                    label: 'Monitor only these spaces…',
+                                                },
+                                            ]}
+                                            value={draftScopeMode}
+                                            onChange={(value) => {
+                                                if (value) {
+                                                    setDraftScopeMode(
+                                                        value as ManagedAgentPolicy['spaceScopeMode'],
+                                                    );
+                                                }
+                                            }}
+                                            size="sm"
+                                            disabled={mutation.isLoading}
+                                        />
+                                        <MultiSelect
+                                            data={(spaceSummaries ?? []).map(
+                                                (space) => ({
+                                                    value: space.uuid,
+                                                    label: space.name,
+                                                }),
+                                            )}
+                                            value={selectedSpaces}
+                                            onChange={setSelectedSpaces}
+                                            placeholder={
+                                                selectedSpaces.length === 0
+                                                    ? 'Search spaces...'
+                                                    : undefined
+                                            }
+                                            searchable
+                                            clearable
+                                            size="sm"
+                                            disabled={mutation.isLoading}
+                                        />
+                                    </Stack>
+                                    {isScopeDirty && (
+                                        <Group gap="xs">
+                                            <Button
+                                                size="xs"
+                                                onClick={handleApplySpaceScope}
+                                                loading={mutation.isLoading}
+                                            >
+                                                Apply scope
+                                            </Button>
+                                            <Button
+                                                size="xs"
+                                                variant="subtle"
+                                                onClick={handleResetSpaceScope}
+                                                disabled={mutation.isLoading}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </Group>
+                                    )}
+                                    <Text fz="xs" c="dimmed">
+                                        {spaceScopeSummary}{' '}
+                                        {policy.spaceScopeMode === 'only'
+                                            ? 'New spaces are not monitored until added here. Selections include child spaces.'
+                                            : 'Excluded spaces and their child spaces are invisible to Autopilot.'}
+                                    </Text>
+                                </Stack>
                             </Stack>
+                        </Stack>
+
+                        <Stack gap="md" className={classes.settingsRow}>
+                            <Stack gap={4}>
+                                <Group gap={6}>
+                                    <IconAdjustments
+                                        size={16}
+                                        color="var(--mantine-color-dimmed)"
+                                    />
+                                    <Text fz="sm" fw={500}>
+                                        Policy
+                                    </Text>
+                                </Group>
+                                <Text fz="xs" c="dimmed">
+                                    {
+                                        POLICY_SECTION_DESCRIPTIONS[
+                                            policy.aggression
+                                        ]
+                                    }
+                                </Text>
+                            </Stack>
+
+                            <Stack gap={6}>
+                                <Text fz="xs" fw={500}>
+                                    Cleanup mode
+                                </Text>
+                                <Select
+                                    data={AGGRESSION_OPTIONS}
+                                    value={policy.aggression}
+                                    onChange={(value) => {
+                                        if (value) {
+                                            handlePolicyChange({
+                                                aggression:
+                                                    value as ManagedAgentPolicy['aggression'],
+                                            });
+                                        }
+                                    }}
+                                    size="sm"
+                                    disabled={mutation.isLoading}
+                                />
+                                <Text fz="xs" c="dimmed">
+                                    {AGGRESSION_DESCRIPTIONS[policy.aggression]}
+                                </Text>
+                            </Stack>
+
+                            <Group grow align="flex-end">
+                                <PolicyNumberField
+                                    key={`chart-${policy.stalenessChartDays}`}
+                                    label="Stale charts after"
+                                    suffix=" days"
+                                    value={policy.stalenessChartDays}
+                                    min={7}
+                                    max={3650}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            stalenessChartDays: value,
+                                        })
+                                    }
+                                />
+                                <PolicyNumberField
+                                    key={`dash-${policy.stalenessDashboardDays}`}
+                                    label="Stale dashboards after"
+                                    suffix=" days"
+                                    value={policy.stalenessDashboardDays}
+                                    min={7}
+                                    max={3650}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            stalenessDashboardDays: value,
+                                        })
+                                    }
+                                />
+                            </Group>
+
+                            <Group grow align="flex-end">
+                                <PolicyNumberField
+                                    key={`protect-${policy.protectRecentDays}`}
+                                    label={
+                                        PROTECT_RECENT_LABELS[policy.aggression]
+                                    }
+                                    suffix=" days"
+                                    value={policy.protectRecentDays}
+                                    min={0}
+                                    max={365}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            protectRecentDays: value,
+                                        })
+                                    }
+                                />
+                                <PolicyNumberField
+                                    key={`preview-${policy.previewProjectDays}`}
+                                    label="Old previews after"
+                                    suffix=" days"
+                                    value={policy.previewProjectDays}
+                                    min={7}
+                                    max={3650}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            previewProjectDays: value,
+                                        })
+                                    }
+                                />
+                            </Group>
+
+                            <Group grow align="flex-end">
+                                {policy.aggression === 'cleanup' && (
+                                    <PolicyNumberField
+                                        key={`escalation-${policy.escalationHours}`}
+                                        label="Flag before delete"
+                                        suffix=" hours"
+                                        value={policy.escalationHours}
+                                        min={0}
+                                        max={720}
+                                        disabled={mutation.isLoading}
+                                        onCommit={(value) =>
+                                            handlePolicyChange({
+                                                escalationHours: value,
+                                            })
+                                        }
+                                    />
+                                )}
+                                <PolicyNumberField
+                                    key={`slow-${policy.slowQueryThresholdMs}`}
+                                    label="Slow query threshold"
+                                    suffix=" ms"
+                                    value={policy.slowQueryThresholdMs}
+                                    min={100}
+                                    max={600000}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            slowQueryThresholdMs: value,
+                                        })
+                                    }
+                                />
+                            </Group>
+
+                            <SuggestionsSpaceAccess
+                                projectUuid={projectUuid}
+                                audience={policy.audience}
+                                disabled={mutation.isLoading}
+                                onAudienceChange={(audience) =>
+                                    handlePolicyChange({ audience })
+                                }
+                            />
+
+                            <Group
+                                justify="space-between"
+                                align="flex-start"
+                                wrap="nowrap"
+                            >
+                                <Stack gap={3}>
+                                    <Text fz="xs" fw={500}>
+                                        Protect verified content
+                                    </Text>
+                                    <Text fz="xs" c="dimmed">
+                                        Autopilot can report on verified charts
+                                        and dashboards but never changes or
+                                        deletes them.
+                                    </Text>
+                                </Stack>
+                                <Switch
+                                    checked={
+                                        policy.verifiedContent === 'protected'
+                                    }
+                                    onChange={(e) =>
+                                        handlePolicyChange({
+                                            verifiedContent: e.currentTarget
+                                                .checked
+                                                ? 'protected'
+                                                : 'none',
+                                        })
+                                    }
+                                    disabled={mutation.isLoading}
+                                    size="xs"
+                                    color="ldDark"
+                                />
+                            </Group>
                         </Stack>
                     </>
                 )}
@@ -1491,7 +1894,7 @@ const ActionRow: FC<{
                     <TargetIcon
                         size={14}
                         color="var(--mantine-color-dimmed)"
-                        style={{ flexShrink: 0 }}
+                        className={classes.targetIcon}
                     />
                     <TruncatedText maxWidth={220} fz="xs" fw={500}>
                         {action.targetName}
@@ -1499,7 +1902,12 @@ const ActionRow: FC<{
                 </Group>
             </Table.Td>
             <Table.Td className={classes.messageCell}>
-                <TruncatedText maxWidth={9999} fz="xs" c="dimmed">
+                <TruncatedText
+                    maxWidth={9999}
+                    tooltipMaxLength={MESSAGE_TOOLTIP_MAX_LENGTH}
+                    fz="xs"
+                    c="dimmed"
+                >
                     {action.description}
                 </TruncatedText>
             </Table.Td>
@@ -1572,9 +1980,8 @@ const RunHeaderRow: FC<{
                     ) : (
                         <Tooltip
                             label={TRIGGERED_BY_ICON[run.triggeredBy].tooltip}
-                            withinPortal
                         >
-                            <Box style={{ display: 'inline-flex' }}>
+                            <Box display="inline-flex">
                                 <MantineIcon
                                     icon={
                                         TRIGGERED_BY_ICON[run.triggeredBy].icon
@@ -1585,7 +1992,7 @@ const RunHeaderRow: FC<{
                             </Box>
                         </Tooltip>
                     )}
-                    <Text fz={11} fw={700} tt="uppercase" c="bright" lts={0.4}>
+                    <Text fz="xs" fw={600} tt="uppercase" c="bright" lts={0.4}>
                         Run
                     </Text>
                     {variant !== 'live' && (
@@ -1597,7 +2004,6 @@ const RunHeaderRow: FC<{
                                 label={formatAbsoluteTimestamp(
                                     run.startedAt.toString(),
                                 )}
-                                withinPortal
                             >
                                 <Text fz="xs" c="dimmed">
                                     {formatTimestamp(run.startedAt.toString())}
@@ -1618,7 +2024,7 @@ const RunHeaderRow: FC<{
                 </Group>
                 <Group gap={6} wrap="nowrap">
                     {variant === 'completed-empty' ? (
-                        <Text fz={11} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             No actions
                         </Text>
                     ) : run.actionCount > 0 ? (
@@ -1631,20 +2037,13 @@ const RunHeaderRow: FC<{
                                         ];
                                     if (!cfg || !count) return null;
                                     return (
-                                        <Tooltip
-                                            key={type}
-                                            label={cfg.label}
-                                            withinPortal
-                                        >
+                                        <Tooltip key={type} label={cfg.label}>
                                             <span
                                                 className={classes.runCountPill}
                                             >
                                                 <Box
                                                     className={classes.dot}
-                                                    style={{
-                                                        backgroundColor:
-                                                            cfg.dotColor,
-                                                    }}
+                                                    bg={cfg.dotColor}
                                                 />
                                                 {count}
                                             </span>
@@ -1652,7 +2051,7 @@ const RunHeaderRow: FC<{
                                     );
                                 },
                             )}
-                            <Text fz={11} c="dimmed">
+                            <Text fz="xs" c="dimmed">
                                 {run.actionCount}{' '}
                                 {run.actionCount === 1 ? 'action' : 'actions'}
                             </Text>
@@ -1766,7 +2165,6 @@ const QuietRunsGroup: FC<{
                     label={`${runs.length} quiet ${
                         runs.length === 1 ? 'run' : 'runs'
                     }`}
-                    withinPortal
                 >
                     <Box style={{ display: 'flex', justifyContent: 'center' }}>
                         <MantineIcon
@@ -1797,7 +2195,7 @@ const QuietRunsGroup: FC<{
                                 />
                                 <Group gap={4} wrap="nowrap">
                                     <Text
-                                        fz={10}
+                                        fz="xs"
                                         fw={600}
                                         tt="uppercase"
                                         c="dimmed"
@@ -1805,7 +2203,7 @@ const QuietRunsGroup: FC<{
                                     >
                                         Run
                                     </Text>
-                                    <Text fz={10} c="dimmed">
+                                    <Text fz="xs" c="dimmed">
                                         ·{' '}
                                         {formatTimestamp(
                                             run.startedAt.toString(),
@@ -1813,7 +2211,7 @@ const QuietRunsGroup: FC<{
                                     </Text>
                                 </Group>
                             </Group>
-                            <Text fz={10} c="dimmed">
+                            <Text fz="xs" c="dimmed">
                                 No actions
                             </Text>
                         </Group>
@@ -1826,8 +2224,391 @@ const QuietRunsGroup: FC<{
 // --- Page ---
 
 // ts-unused-exports:disable-next-line
-export const ManagedAgentActivityPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+// --- Action filters ---
+
+const ACTION_TYPE_OPTIONS = Object.entries(ACTION_CONFIG).map(
+    ([value, config]) => ({ value, label: config.label }),
+);
+
+const TARGET_TYPE_OPTIONS = [
+    { value: ManagedAgentTargetType.CHART, label: 'Charts' },
+    { value: ManagedAgentTargetType.DASHBOARD, label: 'Dashboards' },
+    { value: ManagedAgentTargetType.SPACE, label: 'Spaces' },
+    { value: ManagedAgentTargetType.PROJECT, label: 'Project' },
+];
+
+type ActionFiltersState = {
+    search: string;
+    actionTypes: ManagedAgentActionType[];
+    targetTypes: ManagedAgentTargetType[];
+    dateRange: CalendarDateRange;
+};
+
+const EMPTY_ACTION_FILTERS: ActionFiltersState = {
+    search: '',
+    actionTypes: [],
+    targetTypes: [],
+    dateRange: [null, null],
+};
+
+const hasActiveActionFilters = (filters: ActionFiltersState): boolean =>
+    filters.search.trim() !== '' ||
+    filters.actionTypes.length > 0 ||
+    filters.targetTypes.length > 0 ||
+    filters.dateRange[0] !== null ||
+    filters.dateRange[1] !== null;
+
+// Omnibar-style filter chip: a subtle button whose caret becomes an X that
+// clears just this filter without opening the menu behind it.
+const FilterChipRightSection: FC<{
+    isActive: boolean;
+    onClear: () => void;
+}> = ({ isActive, onClear }) =>
+    isActive ? (
+        <Box
+            component="span"
+            role="button"
+            aria-label="Clear filter"
+            className={classes.filterChipClear}
+            onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClear();
+            }}
+        >
+            <MantineIcon icon={IconX} strokeWidth={1.5} />
+        </Box>
+    ) : (
+        <MantineIcon icon={IconChevronDown} strokeWidth={1.5} />
+    );
+
+const filterChipProps = (isActive: boolean) =>
+    ({
+        size: 'compact-xs',
+        variant: 'subtle',
+        radius: 'md',
+        className: isActive
+            ? `${classes.filterChip} ${classes.filterChipActive}`
+            : classes.filterChip,
+    }) as const;
+
+const FilterChipMultiSelect: FC<{
+    label: string;
+    options: Array<{ value: string; label: string }>;
+    selected: string[];
+    onChange: (selected: string[]) => void;
+}> = ({ label, options, selected, onChange }) => {
+    const selectedLabels = options
+        .filter((option) => selected.includes(option.value))
+        .map((option) => option.label);
+    const summary =
+        selectedLabels.length === 0
+            ? label
+            : selectedLabels.length === 1
+              ? selectedLabels[0]
+              : `${selectedLabels[0]} +${selectedLabels.length - 1}`;
+
+    const chipButton = (
+        <Button
+            rightSection={
+                <FilterChipRightSection
+                    isActive={selected.length > 0}
+                    onClear={() => onChange([])}
+                />
+            }
+            {...filterChipProps(selected.length > 0)}
+        >
+            {summary}
+        </Button>
+    );
+
+    return (
+        <Menu position="bottom-start" closeOnItemClick={false}>
+            <Menu.Target>
+                {selectedLabels.length > 1 ? (
+                    <Tooltip label={selectedLabels.join(', ')}>
+                        {chipButton}
+                    </Tooltip>
+                ) : (
+                    chipButton
+                )}
+            </Menu.Target>
+            <Menu.Dropdown>
+                {options.map((option) => {
+                    const isSelected = selected.includes(option.value);
+                    return (
+                        <Menu.Item
+                            key={option.value}
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconCheck}
+                                    style={{
+                                        visibility: isSelected
+                                            ? 'visible'
+                                            : 'hidden',
+                                    }}
+                                />
+                            }
+                            onClick={() =>
+                                onChange(
+                                    isSelected
+                                        ? selected.filter(
+                                              (value) => value !== option.value,
+                                          )
+                                        : [...selected, option.value],
+                                )
+                            }
+                        >
+                            {option.label}
+                        </Menu.Item>
+                    );
+                })}
+            </Menu.Dropdown>
+        </Menu>
+    );
+};
+
+const formatDateRangeLabel = ([from, to]: CalendarDateRange): string => {
+    const fmt = (date: Date) => format(date, 'MMM d, yyyy');
+    if (from && to) {
+        return from.getTime() === to.getTime()
+            ? fmt(from)
+            : `${format(from, 'MMM d')} – ${fmt(to)}`;
+    }
+    if (from) return `From ${fmt(from)}`;
+    if (to) return `To ${fmt(to)}`;
+    return 'Date range';
+};
+
+const FilterChipDateRange: FC<{
+    value: CalendarDateRange;
+    onChange: (value: CalendarDateRange) => void;
+}> = ({ value, onChange }) => {
+    const [isOpen, menuHandlers] = useDisclosure(false);
+    const isActive = value[0] !== null || value[1] !== null;
+    return (
+        <Menu
+            position="bottom-start"
+            opened={isOpen}
+            onOpen={menuHandlers.open}
+            onClose={menuHandlers.close}
+        >
+            <Menu.Target>
+                <Button
+                    leftSection={
+                        <MantineIcon icon={IconCalendar} strokeWidth={1.5} />
+                    }
+                    rightSection={
+                        <FilterChipRightSection
+                            isActive={isActive}
+                            onClear={() => onChange([null, null])}
+                        />
+                    }
+                    {...filterChipProps(isActive)}
+                >
+                    {formatDateRangeLabel(value)}
+                </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+                <CalendarRangePicker
+                    allowSingleDateInRange
+                    maxDate={new Date()}
+                    value={value}
+                    onChange={(range) => {
+                        onChange(range);
+                        if (range[0] && range[1]) {
+                            menuHandlers.close();
+                        }
+                    }}
+                />
+            </Menu.Dropdown>
+        </Menu>
+    );
+};
+
+const ActionFilterBar: FC<{
+    filters: ActionFiltersState;
+    onChange: (filters: ActionFiltersState) => void;
+}> = ({ filters, onChange }) => {
+    const isActive = hasActiveActionFilters(filters);
+    return (
+        <Box className={classes.filterBar}>
+            <TextInput
+                className={classes.filterSearch}
+                size="xs"
+                placeholder="Search actions…"
+                leftSection={<MantineIcon icon={IconSearch} size={14} />}
+                value={filters.search}
+                onChange={(event) =>
+                    onChange({ ...filters, search: event.currentTarget.value })
+                }
+            />
+            <Divider orientation="vertical" className={classes.filterDivider} />
+            <FilterChipMultiSelect
+                label="Action"
+                options={ACTION_TYPE_OPTIONS}
+                selected={filters.actionTypes}
+                onChange={(selected) =>
+                    onChange({
+                        ...filters,
+                        actionTypes: selected as ManagedAgentActionType[],
+                    })
+                }
+            />
+            <FilterChipMultiSelect
+                label="Content"
+                options={TARGET_TYPE_OPTIONS}
+                selected={filters.targetTypes}
+                onChange={(selected) =>
+                    onChange({
+                        ...filters,
+                        targetTypes: selected as ManagedAgentTargetType[],
+                    })
+                }
+            />
+            <FilterChipDateRange
+                value={filters.dateRange}
+                onChange={(dateRange) => onChange({ ...filters, dateRange })}
+            />
+            {isActive && (
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    color="gray"
+                    radius="xl"
+                    ml="auto"
+                    leftSection={<MantineIcon icon={IconX} size="sm" />}
+                    onClick={() => onChange(EMPTY_ACTION_FILTERS)}
+                >
+                    Clear
+                </Button>
+            )}
+        </Box>
+    );
+};
+
+const FilteredActionsView: FC<{
+    filters: ActionFiltersState;
+    debouncedSearch: string;
+    selectedActionUuid: string | null;
+    onSelectAction: (action: ManagedAgentAction) => void;
+}> = ({ filters, debouncedSearch, selectedActionUuid, onSelectAction }) => {
+    const queryFilters = useMemo<ManagedAgentActionQueryFilters>(
+        () => ({
+            search: debouncedSearch.trim() || undefined,
+            actionTypes:
+                filters.actionTypes.length > 0
+                    ? filters.actionTypes
+                    : undefined,
+            targetTypes:
+                filters.targetTypes.length > 0
+                    ? filters.targetTypes
+                    : undefined,
+            dateFrom: filters.dateRange[0]
+                ? format(filters.dateRange[0], 'yyyy-MM-dd')
+                : undefined,
+            dateTo: filters.dateRange[1]
+                ? format(filters.dateRange[1], 'yyyy-MM-dd')
+                : undefined,
+        }),
+        [
+            debouncedSearch,
+            filters.actionTypes,
+            filters.targetTypes,
+            filters.dateRange,
+        ],
+    );
+    const { data: actions, isLoading } = useManagedAgentActions({
+        filters: queryFilters,
+    });
+
+    const dayGroups = useMemo(() => {
+        const groups: Array<{ day: string; actions: ManagedAgentAction[] }> =
+            [];
+        (actions ?? []).forEach((action) => {
+            const day = format(new Date(action.createdAt), 'MMM d, yyyy');
+            const lastGroup = groups[groups.length - 1];
+            if (lastGroup && lastGroup.day === day) {
+                lastGroup.actions.push(action);
+            } else {
+                groups.push({ day, actions: [action] });
+            }
+        });
+        return groups;
+    }, [actions]);
+
+    return (
+        <Table className={classes.table}>
+            <Table.Thead>
+                <Table.Tr>
+                    <Table.Th w={140}>Action</Table.Th>
+                    <Table.Th w={260}>Name</Table.Th>
+                    <Table.Th>Message</Table.Th>
+                </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+                {isLoading ? (
+                    <Table.Tr>
+                        <Table.Td colSpan={3}>
+                            <Group gap="xs" justify="center" py="md">
+                                <Loader size={8} type="dots" color="dark" />
+                                <Text fz="xs" c="dimmed">
+                                    Searching actions…
+                                </Text>
+                            </Group>
+                        </Table.Td>
+                    </Table.Tr>
+                ) : dayGroups.length === 0 ? (
+                    <Table.Tr>
+                        <Table.Td colSpan={3}>
+                            <Stack gap={2} align="center" py="lg">
+                                <Text fw={500} fz="sm">
+                                    No matching actions
+                                </Text>
+                                <Text fz="xs" c="dimmed">
+                                    Try widening the date range or clearing a
+                                    filter.
+                                </Text>
+                            </Stack>
+                        </Table.Td>
+                    </Table.Tr>
+                ) : (
+                    dayGroups.map((group) => (
+                        <Fragment key={group.day}>
+                            <Table.Tr className={classes.dayHeaderRow}>
+                                <Table.Td colSpan={3}>
+                                    <Text
+                                        fz="xs"
+                                        fw={600}
+                                        tt="uppercase"
+                                        c="dimmed"
+                                        lts={0.4}
+                                    >
+                                        {group.day}
+                                    </Text>
+                                </Table.Td>
+                            </Table.Tr>
+                            {group.actions.map((action) => (
+                                <ActionRow
+                                    key={action.actionUuid}
+                                    action={action}
+                                    selected={
+                                        selectedActionUuid === action.actionUuid
+                                    }
+                                    onSelect={onSelectAction}
+                                />
+                            ))}
+                        </Fragment>
+                    ))
+                )}
+            </Table.Tbody>
+        </Table>
+    );
+};
+
+const ManagedAgentActivityPage: FC = () => {
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { user } = useApp();
     const canManageAutopilot =
@@ -1900,6 +2681,10 @@ export const ManagedAgentActivityPage: FC = () => {
     ]);
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [actionFilters, setActionFilters] =
+        useState<ActionFiltersState>(EMPTY_ACTION_FILTERS);
+    const [debouncedSearch] = useDebouncedValue(actionFilters.search, 300);
+    const filtersActive = hasActiveActionFilters(actionFilters);
     const [openQuietGroups, setOpenQuietGroups] = useState<Set<string>>(
         new Set(),
     );
@@ -2032,11 +2817,7 @@ export const ManagedAgentActivityPage: FC = () => {
     }
 
     return (
-        <Stack
-            h={`calc(100vh - ${NAVBAR_HEIGHT}px)`}
-            gap={0}
-            style={{ flex: 1 }}
-        >
+        <Stack h={`calc(100vh - ${NAVBAR_HEIGHT}px)`} gap={0} flex={1}>
             <PanelGroup direction="horizontal">
                 <Panel
                     id="activity-table"
@@ -2073,94 +2854,114 @@ export const ManagedAgentActivityPage: FC = () => {
                                 </Box>
                             ) : (
                                 <Box className={classes.tableWrapper}>
-                                    <Table className={classes.table}>
-                                        <Table.Thead>
-                                            <Table.Tr>
-                                                <Table.Th w={140}>
-                                                    Action
-                                                </Table.Th>
-                                                <Table.Th w={260}>
-                                                    Name
-                                                </Table.Th>
-                                                <Table.Th>Message</Table.Th>
-                                            </Table.Tr>
-                                        </Table.Thead>
-                                        {displayRows.map((row) => {
-                                            if (row.type === 'quietGroup') {
+                                    <ActionFilterBar
+                                        filters={actionFilters}
+                                        onChange={setActionFilters}
+                                    />
+                                    {filtersActive ? (
+                                        <FilteredActionsView
+                                            filters={actionFilters}
+                                            debouncedSearch={debouncedSearch}
+                                            selectedActionUuid={
+                                                selected?.actionUuid ?? null
+                                            }
+                                            onSelectAction={(action) => {
+                                                setSettingsOpen(false);
+                                                setSelected(action);
+                                            }}
+                                        />
+                                    ) : (
+                                        <Table className={classes.table}>
+                                            <Table.Thead>
+                                                <Table.Tr>
+                                                    <Table.Th w={140}>
+                                                        Action
+                                                    </Table.Th>
+                                                    <Table.Th w={260}>
+                                                        Name
+                                                    </Table.Th>
+                                                    <Table.Th>Message</Table.Th>
+                                                </Table.Tr>
+                                            </Table.Thead>
+                                            {displayRows.map((row) => {
+                                                if (row.type === 'quietGroup') {
+                                                    return (
+                                                        <QuietRunsGroup
+                                                            key={`quiet-${row.groupId}`}
+                                                            runs={row.runs}
+                                                            isOpen={openQuietGroups.has(
+                                                                row.groupId,
+                                                            )}
+                                                            onToggle={() =>
+                                                                toggleQuietGroup(
+                                                                    row.groupId,
+                                                                )
+                                                            }
+                                                        />
+                                                    );
+                                                }
+                                                const { run } = row;
+                                                const isLive =
+                                                    run.status ===
+                                                    ManagedAgentRunStatus.STARTED;
                                                 return (
-                                                    <QuietRunsGroup
-                                                        key={`quiet-${row.groupId}`}
-                                                        runs={row.runs}
-                                                        isOpen={openQuietGroups.has(
-                                                            row.groupId,
+                                                    <RunRow
+                                                        key={run.runUuid}
+                                                        run={run}
+                                                        isOpen={isRunOpen(
+                                                            run.runUuid,
+                                                            isLive,
                                                         )}
                                                         onToggle={() =>
-                                                            toggleQuietGroup(
-                                                                row.groupId,
+                                                            toggleRun(
+                                                                run.runUuid,
+                                                                isLive,
+                                                            )
+                                                        }
+                                                        selectedActionUuid={
+                                                            selected?.actionUuid ??
+                                                            null
+                                                        }
+                                                        onSelectAction={(
+                                                            action,
+                                                        ) =>
+                                                            handleSelectAction(
+                                                                action,
+                                                                run.runUuid,
                                                             )
                                                         }
                                                     />
                                                 );
-                                            }
-                                            const { run } = row;
-                                            const isLive =
-                                                run.status ===
-                                                ManagedAgentRunStatus.STARTED;
-                                            return (
-                                                <RunRow
-                                                    key={run.runUuid}
-                                                    run={run}
-                                                    isOpen={isRunOpen(
-                                                        run.runUuid,
-                                                        isLive,
-                                                    )}
-                                                    onToggle={() =>
-                                                        toggleRun(
-                                                            run.runUuid,
-                                                            isLive,
-                                                        )
-                                                    }
-                                                    selectedActionUuid={
-                                                        selected?.actionUuid ??
-                                                        null
-                                                    }
-                                                    onSelectAction={(action) =>
-                                                        handleSelectAction(
-                                                            action,
-                                                            run.runUuid,
-                                                        )
-                                                    }
-                                                />
-                                            );
-                                        })}
-                                        {hasNextPage && (
-                                            <Table.Tbody>
-                                                <Table.Tr
-                                                    className={
-                                                        classes.showMoreRow
-                                                    }
-                                                >
-                                                    <Table.Td colSpan={3}>
-                                                        <UnstyledButton
-                                                            className={
-                                                                classes.showMoreButton
-                                                            }
-                                                            onClick={() =>
-                                                                void fetchNextPage()
-                                                            }
-                                                            disabled={
-                                                                isFetchingNextPage
-                                                            }
-                                                        >
-                                                            {isFetchingNextPage
-                                                                ? 'Loading…'
-                                                                : 'Load older runs'}
-                                                        </UnstyledButton>
-                                                    </Table.Td>
-                                                </Table.Tr>
-                                            </Table.Tbody>
-                                        )}
-                                    </Table>
+                                            })}
+                                            {hasNextPage && (
+                                                <Table.Tbody>
+                                                    <Table.Tr
+                                                        className={
+                                                            classes.showMoreRow
+                                                        }
+                                                    >
+                                                        <Table.Td colSpan={3}>
+                                                            <UnstyledButton
+                                                                className={
+                                                                    classes.showMoreButton
+                                                                }
+                                                                onClick={() =>
+                                                                    void fetchNextPage()
+                                                                }
+                                                                disabled={
+                                                                    isFetchingNextPage
+                                                                }
+                                                            >
+                                                                {isFetchingNextPage
+                                                                    ? 'Loading…'
+                                                                    : 'Load older runs'}
+                                                            </UnstyledButton>
+                                                        </Table.Td>
+                                                    </Table.Tr>
+                                                </Table.Tbody>
+                                            )}
+                                        </Table>
+                                    )}
                                 </Box>
                             )}
                         </Stack>
@@ -2196,6 +2997,13 @@ export const ManagedAgentActivityPage: FC = () => {
                                         settings?.slackChannelId ?? null
                                     }
                                     toolSettings={settings?.toolSettings ?? {}}
+                                    policy={
+                                        settings?.policy ??
+                                        DEFAULT_MANAGED_AGENT_POLICY
+                                    }
+                                    scopedSpaceUuids={
+                                        settings?.scopedSpaceUuids ?? []
+                                    }
                                     isLoading={settingsLoading}
                                     onClose={() => setSettingsOpen(false)}
                                 />
@@ -2207,3 +3015,5 @@ export const ManagedAgentActivityPage: FC = () => {
         </Stack>
     );
 };
+
+export default ManagedAgentActivityPage;

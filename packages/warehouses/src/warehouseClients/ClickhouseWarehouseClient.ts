@@ -9,14 +9,18 @@ import {
     CreateClickhouseCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     Metric,
     MetricType,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
+    type TimestampDomain,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
 import {
@@ -68,9 +72,7 @@ interface TableInfo {
     table: string;
 }
 
-export const convertDataTypeToDimensionType = (
-    type: ClickhouseTypes | string,
-): DimensionType => {
+const cleanClickhouseType = (type: ClickhouseTypes | string): string => {
     // Iteratively unwrap Nullable/LowCardinality wrappers in any nesting order
     // e.g. LowCardinality(Nullable(Int32)) -> Nullable(Int32) -> Int32
     let cleanType = type;
@@ -82,7 +84,58 @@ export const convertDataTypeToDimensionType = (
             .replace(/^LowCardinality\((.+)\)$/, '$1');
     }
     // Strip all parenthesized arguments (handles Decimal(18,2), DateTime64(3,'UTC'), FixedString(N), etc.)
-    cleanType = cleanType.replace(/\(.*\)$/, '');
+    return cleanType.replace(/\(.*\)$/, '');
+};
+
+// ClickHouse has no naive timestamp type: DateTime/DateTime64 store epoch
+// instants and their zone is display metadata, so they are always aware.
+export const getClickhouseTimestampDomain = (
+    type: ClickhouseTypes | string,
+): TimestampDomain | undefined => {
+    switch (cleanClickhouseType(type)) {
+        case ClickhouseTypes.DATETIME:
+        case ClickhouseTypes.DATETIME64:
+            return 'aware';
+        default:
+            return undefined;
+    }
+};
+
+// The server names every decimal Decimal(P, S); one wider than 38 digits exceeds a DuckDB decimal
+export const getClickhouseNumericKind = (
+    type: ClickhouseTypes | string,
+): ResultNumericKind | null => {
+    const cleanType = cleanClickhouseType(type);
+    switch (cleanType) {
+        case ClickhouseTypes.UINT8:
+        case ClickhouseTypes.UINT16:
+        case ClickhouseTypes.UINT32:
+        case ClickhouseTypes.UINT64:
+        case ClickhouseTypes.INT8:
+        case ClickhouseTypes.INT16:
+        case ClickhouseTypes.INT32:
+        case ClickhouseTypes.INT64:
+            return { kind: 'integer' };
+        case ClickhouseTypes.FLOAT32:
+        case ClickhouseTypes.FLOAT64:
+            return { kind: 'float' };
+        case ClickhouseTypes.DECIMAL: {
+            const params = type.match(/Decimal\(\s*(\d+)\s*,\s*(\d+)\s*\)/);
+            if (!params) return null;
+            const [, precision, scale] = params;
+            return Number(precision) <= 38
+                ? { kind: 'decimal', scale: Number(scale) }
+                : null;
+        }
+        default:
+            return null;
+    }
+};
+
+export const convertDataTypeToDimensionType = (
+    type: ClickhouseTypes | string,
+): DimensionType => {
+    const cleanType = cleanClickhouseType(type);
 
     switch (cleanType) {
         case ClickhouseTypes.BOOL:
@@ -140,6 +193,14 @@ const catalogToSchema = (
             warehouseCatalog[database][tableSchema || 'default'][tableName][
                 columnName
             ] = convertDataTypeToDimensionType(dataType);
+            setCatalogTimestampDomain(
+                warehouseCatalog,
+                database,
+                tableSchema || 'default',
+                tableName,
+                columnName,
+                getClickhouseTimestampDomain(dataType),
+            );
         });
     });
     return warehouseCatalog;
@@ -223,10 +284,27 @@ export class ClickhouseSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+const DEFAULT_MAX_OPEN_CONNECTIONS = 10;
+
+// The client is cached per project and shared by all concurrent query jobs;
+// when jobs outnumber sockets they queue and report inflated exec times.
+export const getMaxOpenConnections = (maxOpenConnections?: number): number =>
+    Number.isInteger(maxOpenConnections)
+        ? Math.max(maxOpenConnections as number, DEFAULT_MAX_OPEN_CONNECTIONS)
+        : DEFAULT_MAX_OPEN_CONNECTIONS;
+
+export type ClickhouseWarehouseClientOptions = {
+    /** Upper bound of concurrent queries sharing this client; sizes the HTTP socket pool. */
+    maxOpenConnections?: number;
+};
+
 export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickhouseCredentials> {
     client: ClickHouseClient;
 
-    constructor(credentials: CreateClickhouseCredentials) {
+    constructor(
+        credentials: CreateClickhouseCredentials,
+        options?: ClickhouseWarehouseClientOptions,
+    ) {
         super(credentials, new ClickhouseSqlBuilder(credentials.startOfWeek));
 
         const protocol = credentials.secure ? 'https' : 'http';
@@ -238,6 +316,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             password: credentials.password,
             database: credentials.schema, // In clickhouse schema = database
             request_timeout: (credentials.timeoutSeconds || 30) * 1000,
+            max_open_connections: getMaxOpenConnections(
+                options?.maxOpenConnections,
+            ),
         });
     }
 
@@ -272,7 +353,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             });
 
             const columnNames: string[] = [];
-            const fields: Record<string, { type: DimensionType }> = {};
+            const fields: WarehouseResults['fields'] = {};
 
             const stream = resultSet.stream();
 
@@ -297,10 +378,12 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                     } else if (Object.keys(fields).length === 0) {
                         // handle second row with column types
                         columnNames.forEach((c, index) => {
+                            const rawType = String(row[index]);
+                            const numericKind =
+                                getClickhouseNumericKind(rawType);
                             fields[c] = {
-                                type: convertDataTypeToDimensionType(
-                                    String(row[index]),
-                                ),
+                                type: convertDataTypeToDimensionType(rawType),
+                                ...(numericKind ? { numericKind } : {}),
                             };
                         });
                         // eslint-disable-next-line no-await-in-loop
@@ -418,7 +501,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 databaseName,
             },
         );
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getClickhouseTimestampDomain,
+        );
     }
 
     async getFields(
@@ -450,7 +537,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 tableName,
             },
         );
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getClickhouseTimestampDomain,
+        );
     }
 
     async getAllTables() {
@@ -459,7 +550,8 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             SELECT 
                 '' as "table_catalog",
                 database as "table_schema",
-                name as "table_name"
+                name as "table_name",
+                engine as "table_type"
             FROM system.tables
             WHERE database = {databaseName: String}
             ORDER BY database, name
@@ -471,6 +563,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             database: row.table_catalog,
             schema: row.table_schema || 'default',
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 

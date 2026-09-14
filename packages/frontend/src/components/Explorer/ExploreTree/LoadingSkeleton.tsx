@@ -1,4 +1,4 @@
-import { Skeleton, Stack } from '@mantine-8/core';
+import { Skeleton, Stack } from '@mantine/core';
 import type { FC } from 'react';
 
 const LoadingSkeleton: FC<{ hideHeaders?: boolean }> = ({ hideHeaders }) => (

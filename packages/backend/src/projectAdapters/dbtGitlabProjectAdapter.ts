@@ -6,9 +6,8 @@ import {
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { CachedWarehouse } from '../types';
+import { DEFAULT_GITLAB_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
-
-const DEFAULT_GITLAB_HOST_DOMAIN = 'gitlab.com';
 
 type DbtGitlabProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
@@ -20,6 +19,7 @@ type DbtGitlabProjectAdapterArgs = {
     hostDomain?: string;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    environmentVariableAllowlist: string[];
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
@@ -37,6 +37,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         hostDomain,
         targetName,
         environment,
+        environmentVariableAllowlist,
         cachedWarehouse,
         dbtVersion,
         selector,
@@ -54,6 +55,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             warehouseCredentials,
             targetName,
             environment,
+            environmentVariableAllowlist,
             cachedWarehouse,
             dbtVersion,
             selector,

@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useParams } from 'react-router';
+import { validate as isUuidString } from 'uuid';
 import { useOrganization } from './organization/useOrganization';
 import { useProject } from './useProject';
 import { useProjects } from './useProjects';
@@ -47,10 +48,31 @@ export const useActiveProject = () => {
     );
 };
 
-const clearProjectCache = async (queryClient: QueryClient) => {
-    queryClient.removeQueries(['project']);
-    queryClient.removeQueries(['projects']);
-    await queryClient.invalidateQueries();
+// Project-scoped queries keyed by projectUuid need nothing here — a switch
+// changes their key. These don't: the pointer query reads localStorage, and
+// useValidation keys on ['validation', fromSettings] — scoped to where it is
+// read from, but not to the project, so its key survives a switch.
+const ACTIVE_PROJECT_DEPENDENT_KEYS = [
+    ['activeProject'],
+    ['validation'],
+    ['project'],
+];
+
+const clearProjectCache = (queryClient: QueryClient) =>
+    Promise.all(
+        ACTIVE_PROJECT_DEPENDENT_KEYS.map((queryKey) =>
+            queryClient.invalidateQueries(queryKey),
+        ),
+    );
+
+// Shared by every useActiveProjectUuid instance: the project a persist is
+// already in flight for. localStorage is global, so this guard has to be too.
+let persistingProjectUuid: string | undefined;
+
+// Module state outlives a test, so a spec that leaves a mutation unsettled
+// would hand its guard to the next one.
+export const resetPersistingProjectUuidForTests = () => {
+    persistingProjectUuid = undefined;
 };
 
 export const useUpdateActiveProjectMutation = () => {
@@ -63,8 +85,14 @@ export const useUpdateActiveProjectMutation = () => {
             ),
         onSuccess: async () => {
             await clearProjectCache(queryClient);
-            await queryClient.invalidateQueries(['validations']);
-            await queryClient.invalidateQueries(['activeProject']);
+        },
+        // Every mutate() builds its own Mutation but they all share the one
+        // guard, so an earlier settle must not release a later project's
+        // persist: clear only the value this settle was for.
+        onSettled: (_data, _error, projectUuid) => {
+            if (persistingProjectUuid === projectUuid) {
+                persistingProjectUuid = undefined;
+            }
         },
     });
 };
@@ -80,9 +108,15 @@ export const useDeleteActiveProjectMutation = () => {
 };
 
 export const useActiveProjectUuid = (useQueryFetchOptions?: {
-    refetchOnMount: boolean;
+    refetchOnMount?: boolean;
+    projectUuid?: string;
 }) => {
     const params = useParams<{ projectUuid?: string }>();
+    const paramProjectUuid =
+        useQueryFetchOptions?.projectUuid ??
+        (isUuidString(params.projectUuid ?? '')
+            ? params.projectUuid
+            : undefined);
     const { data: lastProjectUuid, isFetched: isLastProjectUuidFetched } =
         useActiveProject();
     const { mutate } = useUpdateActiveProjectMutation();
@@ -96,12 +130,12 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
 
     // Priority 1: Project UUID from URL params
     const { data: paramProject, isInitialLoading: isLoadingParamProject } =
-        useProject(params.projectUuid);
+        useProject(paramProjectUuid);
 
     // Priority 2: Last used project from localStorage
     // Only fetch if no param project and we have a lastProjectUuid
     const shouldFetchLastProject =
-        isLoggedIn && !params.projectUuid && !!lastProjectUuid;
+        isLoggedIn && !paramProjectUuid && !!lastProjectUuid;
     const { data: lastProject, isInitialLoading: isLoadingLastProject } =
         useProject(shouldFetchLastProject ? lastProjectUuid : undefined, {
             onError: () => {
@@ -116,7 +150,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     // Only fetch if no param project, no last project, and org has a default
     const shouldFetchDefaultProject =
         isLoggedIn &&
-        !params.projectUuid &&
+        !paramProjectUuid &&
         isLastProjectUuidFetched &&
         !lastProject &&
         !!organization?.defaultProjectUuid;
@@ -132,7 +166,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     // Try to fetch fallback since the last project might have been a preview that was deleted
     const shouldFetchFallbackProjects =
         isLoggedIn &&
-        !params.projectUuid &&
+        !paramProjectUuid &&
         isLastProjectUuidFetched &&
         !lastProject &&
         !isLoadingOrg &&
@@ -145,20 +179,26 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         },
     );
 
-    // Find fallback project: first try ProjectType.DEFAULT, then first available
+    // Find fallback project: first try a non-playground ProjectType.DEFAULT,
+    // then any DEFAULT, then first available
     const fallbackProject = shouldFetchFallbackProjects
-        ? projects?.find(({ type }) => type === ProjectType.DEFAULT) ||
+        ? projects?.find(
+              ({ type, provisioningSource }) =>
+                  type === ProjectType.DEFAULT &&
+                  provisioningSource !== 'playground',
+          ) ||
+          projects?.find(({ type }) => type === ProjectType.DEFAULT) ||
           projects?.[0]
         : undefined;
 
     const isLoading =
         // Still loading if we haven't checked localStorage yet (unless we have URL param)
-        (!params.projectUuid && !isLastProjectUuidFetched) ||
+        (!paramProjectUuid && !isLastProjectUuidFetched) ||
         isLoadingParamProject ||
         (shouldFetchLastProject && isLoadingLastProject) ||
         (shouldFetchDefaultProject && isLoadingDefaultProject) ||
         (shouldFetchFallbackProjects && isLoadingProjects) ||
-        (!params.projectUuid && !lastProjectUuid && isLoadingOrg);
+        (!paramProjectUuid && !lastProjectUuid && isLoadingOrg);
 
     // Determine the active project UUID
     const activeProjectUuid =
@@ -175,15 +215,16 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
             fallbackProject?.projectUuid;
 
         const hasValidLastProject = !!lastProject?.projectUuid;
-        const shouldPersistProject =
-            !!params.projectUuid || !hasValidLastProject;
+        const shouldPersistProject = !!paramProjectUuid || !hasValidLastProject;
 
         if (
             !isLoading &&
             shouldPersistProject &&
             newValue &&
-            newValue !== lastProjectUuid
+            newValue !== lastProjectUuid &&
+            persistingProjectUuid !== newValue
         ) {
+            persistingProjectUuid = newValue;
             mutate(newValue);
         }
     }, [
@@ -194,7 +235,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         lastProjectUuid,
         mutate,
         paramProject?.projectUuid,
-        params.projectUuid,
+        paramProjectUuid,
     ]);
 
     return {

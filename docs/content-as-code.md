@@ -179,35 +179,138 @@ organization resources will use the same root.
 | Scheduled deliveries | Project      | Project-scoped slug              | `lightdash/scheduled-deliveries/`        |
 | Alerts               | Project      | Project-scoped slug              | `lightdash/alerts/`                      |
 | Google Sheets syncs  | Project      | Project-scoped slug              | `lightdash/google-sheets/`               |
+| External connections | Project      | Project-scoped slug              | `lightdash/external-connections/`        |
 | Custom roles         | Organization | Exact role name                  | `lightdash/custom-roles/`                |
 | Users                | Organization | Lowercase primary email          | `lightdash/users/`                       |
 | Groups               | Organization | Exact, case-sensitive group name | `lightdash/groups/`                      |
+| Data App themes      | Organization | Immutable organization slug      | `lightdash/themes/<slug>/`               |
 
-Data apps are deliberately outside the YAML resource registry because they are
-multi-file source bundles. They may reuse shared path-safety and reporting
-utilities without pretending to be single-document resources.
+Data apps and organization Data App themes are deliberately outside the
+single-document YAML resource registry because they are multi-file bundles.
+They reuse shared path-safety, dependency-ordering, and reporting utilities
+without pretending to be single-document resources.
 
 Project APIs use `/api/v1/projects/{projectUuid}/code/{resource}`. Organization
 APIs use `/api/v2/orgs/{orgUuid}/code/{resource}`. The resource segments are
 `charts`, `sqlCharts`, `dashboards`, `spaces`, `virtualViews`, `aiAgents`,
-`scheduledDeliveries`, `alerts`, `googleSheets`, `roles`, `users`, and `groups`.
+`scheduledDeliveries`, `alerts`, `googleSheets`, `externalConnections`,
+`roles`, `users`, and `groups`.
 The legacy resource-first routes are deprecated in OpenAPI and should not be
 used by new clients.
 
+Organization themes use the organization-design package endpoints instead of a
+`/code/{resource}` endpoint because their portable representation is an
+uncompressed tar archive rather than one JSON document.
+
 ## Optional project resources
 
-Virtual views, AI agents, alerts, scheduled deliveries, and Google Sheets syncs
-are opt-in for download through their resource selectors, `--include-*` flags,
-or `--include-all`. Upload processes matching files already present on disk
-unless the corresponding `--skip-*` option is supplied. This distinction is
-intentional: a normal download must not delete or rewrite optional local
-resources that were not fetched.
+Virtual views, AI agents, alerts, scheduled deliveries, Google Sheets syncs,
+and external connections are opt-in for download through their resource
+selectors, `--include-*` flags, or `--include-all`. Upload processes matching
+files already present on disk unless the corresponding `--skip-*` option is
+supplied. This distinction is intentional: a normal download must not delete
+or rewrite optional local resources that were not fetched.
 
 Google Sheets documents contain portable destination metadata. Content-as-code
 uploads validate the payload and permissions but do not call Google Drive to
 validate the spreadsheet URL. This allows CI and service-account deployments
 without the uploader's personal Google OAuth token. Executing an enabled sync
 still requires usable Google credentials for the scheduler owner.
+
+## Organization Data App themes
+
+Themes live under `lightdash/themes/<slug>/` with a strict
+`lightdash-theme.yml` manifest and optional files directly inside `css/`,
+`fonts/`, `images/`, and `instructions/`. The immutable, organization-scoped
+manifest slug is the portable identity. Existing imports preserve the design
+UUID and default status; a new slug creates a non-default theme.
+
+The endpoints are:
+
+- `GET /api/v1/org/designs/` to list themes in the authenticated organization;
+- `GET /api/v1/org/designs/{uuidOrSlug}/package` to export one canonical tar;
+- `PUT /api/v1/org/designs/package` to atomically import one canonical tar.
+
+The shared validation contract in `packages/common/src/ee/designs/` is used by
+both the backend package parser and the CLI's local-directory preflight. This
+is an intentional exception to the normal single-document responsibility
+split: the CLI must reject an unsafe or incomplete local bundle before any
+organization resource is mutated, while the backend must repeat every security
+and domain check before persistence.
+
+Download stages and validates every remote package before atomically replacing
+the local `themes/` directory, so a failed batch preserves the previous local
+snapshot. Upload preflights every local theme first, processes organization
+documents in dependency order, then imports themes sequentially. Each theme
+replacement is atomic, but the batch is not: successful siblings remain active
+when another import fails, and the summary names completed slugs and failures.
+
+Missing or empty local theme directories are no-ops. Omitting one theme never
+deletes it remotely, and theme sync never changes the organization default.
+There are no standalone theme commands or theme-specific include, skip, or only
+flags.
+
+## External connections
+
+Data-app external connections (see `docs/data-apps.md` → *External
+connections*) are enterprise-only and both download and upload require the
+admin-only `manage:ExternalConnection` scope. When `--include-all` reaches
+them implicitly on a non-enterprise server or without that permission, the
+CLI warns and skips; the explicit `--external-connections <slugs...>` and
+`--include-external-connections` selectors fail loudly instead.
+
+Documents live in `lightdash/external-connections/<slug>.yml`:
+
+```yaml
+contentType: external_connection
+version: 1
+slug: stripe-api
+name: Stripe API
+authType: api_key # none | api_key | bearer_token | google_service_account
+origin: https://api.stripe.com
+allowBrowserImages: false
+allowDataAppBuilderLinking: false
+instructions: null
+allowedPathPrefixes: []
+allowedMethods:
+  - GET
+allowedContentTypes:
+  - application/json
+responseMaxBytes: 1048576
+requestMaxBytes: 262144
+timeoutMs: 10000
+rateLimitPerMinute: null
+apiKeyName: Authorization
+apiKeyLocation: header
+oauthScopes: null
+customHeaders: null
+```
+
+The endpoints are:
+
+- `GET /api/v1/projects/{projectUuid}/code/externalConnections`
+- `POST /api/v1/projects/{projectUuid}/code/externalConnections/{slug}`
+
+The project-scoped `slug` column is the portable identity. It is generated
+from the name at creation, stays stable across renames, and is unique among
+live connections per project (a partial unique index; generation also reserves
+soft-deleted slugs). Changing the slug in a file creates a new connection;
+omitted files never delete remote connections.
+
+**Secrets never appear in documents or API reads.** At upload time the CLI
+reads `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>` (slug uppercased with
+hyphens as underscores) and sends the value alongside the document. With the
+variable set, the secret is stored (an unchanged secret still reports
+`NO_CHANGES`); unset, an existing connection keeps its stored secret, while
+creating a connection whose `authType` requires a secret fails with an error
+naming the expected variable. Clearing a secret is not supported as code —
+use the settings UI. A stray `secret` key in a YAML file is stripped and
+warned about, never uploaded.
+
+App↔connection links are not part of these documents — each data app's
+bundle manifest (`lightdash-app.yml`) carries them as
+`externalConnections: [{alias, connectionSlug}]`, resolved by slug in the
+target project on app upload. See `docs/data-apps.md` → *Data apps as code*.
 
 ## Spaces and access
 
@@ -427,10 +530,11 @@ access, user attributes, and ownership metadata. Changing the name creates a
 new group and leaves the original group intact; missing files do not delete
 groups.
 
-Organization uploads run dependency phases sequentially: custom roles, then
-users, then groups. A failed phase prevents every dependent phase from
-starting, so group emails are resolved only after the complete users phase has
-succeeded.
+Organization uploads preflight theme packages, then run remote phases
+sequentially: custom roles, users, groups, and themes. A failed document phase
+prevents later phases from starting, so group emails are resolved only after
+the complete users phase has succeeded and theme imports begin only after the
+groups phase succeeds.
 
 SCIM and content as code should not manage the same group. Groups do not yet
 record management provenance, so this limitation cannot be enforced by the
@@ -495,11 +599,10 @@ field. `registry.test.ts` ensures that adding a resource to
 `CONTENT_AS_CODE_VERSIONS` also requires adding a matching coverage test.
 
 When a model changes, regenerate the OpenAPI schema before running a focused
-contract test. CI does this through `build:fast`, but focused local test runs do
-not:
+contract test. CI does this through `build`, but focused local test runs do not:
 
 ```bash
-pnpm generate-api:backend:fast
+pnpm generate-api:backend
 pnpm -F backend exec vitest run \
   src/contentAsCode/fieldCoverage/chart.test.ts \
   --config vitest.config.ts
@@ -527,12 +630,19 @@ This is a schema coverage contract, not a replacement for behavior tests. It
 catches unclassified top-level fields; resource adapters and round-trip tests
 must still prove that portable fields download, compare, and upload correctly.
 
-Charts, dashboards, and spaces do not yet have universal database-enforced
-project-scoped slug uniqueness. Application-level locking protects current
-content-as-code and promotion creation paths, but callers must not assume a slug
-is a globally reliable unique identifier. Resolution should detect ambiguity,
-and new relationships must use UUIDs until database constraints or a dedicated
-portable identity are introduced.
+Charts, dashboards, SQL Runner charts, spaces, and data apps reserve slugs
+within their project, including slugs owned by soft-deleted rows. The database
+uniqueness constraints are authoritative. Normal creation derives a slug from
+the name and appends `-1`, `-2`, and so on after exact indexed candidate
+probes. Content-as-code and promotion may request an exact slug: an available
+slug is preserved, an active matching resource is updated by the upsert flow,
+and a deleted-resource conflict is rejected rather than silently reused.
+
+The same slug may exist in different projects. Slugs remain portable,
+human-readable project-scoped selectors, while UUIDs are the canonical internal
+identity for relationships and unscoped references. Lookup code must always
+include the project scope or reject ambiguity; it must never select an arbitrary
+match.
 
 If implementing the CLI requires importing backend domain maps, reproducing
 validation rules, fetching current resources to calculate a diff, or calling

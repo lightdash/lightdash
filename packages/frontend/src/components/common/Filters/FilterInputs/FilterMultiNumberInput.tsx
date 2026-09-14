@@ -1,13 +1,11 @@
-import { ActionIcon, Box, TextInput, Tooltip } from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine-8/hooks';
+import { ActionIcon, Box, TextInput, Tooltip } from '@mantine/core';
+import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconListDetails } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../../MantineIcon';
-import {
-    DefaultValue,
-    type TagInputValueProps,
-} from '../../TagInput/DefaultValue/DefaultValue';
-import { TagInput } from '../../TagInput/TagInput';
+import { PillTagsInput } from '../../TagsInput/PillTagsInput';
+import { TagPill } from '../../TagsInput/TagPill';
 import classes from './FilterMultiNumberInput.module.css';
 import {
     computeDisplayValues,
@@ -28,6 +26,9 @@ type Props = {
     disabled?: boolean;
     placeholder?: string;
     autoFocus?: boolean;
+    /** Notify the hosting popover so it doesn't close while the modal is open */
+    onModalOpen?: () => void;
+    onModalClose?: () => void;
 };
 
 const FilterMultiNumberInput: FC<Props> = ({
@@ -36,21 +37,35 @@ const FilterMultiNumberInput: FC<Props> = ({
     disabled,
     placeholder,
     autoFocus,
+    onModalOpen,
+    onModalClose,
 }) => {
-    const [opened, { open, close }] = useDisclosure(false);
+    const getUiString = useUiStrings();
+    const [opened, { open: openInternal, close: closeInternal }] =
+        useDisclosure(false);
     const { ref, hovered } = useHover();
+
+    const open = useCallback(() => {
+        openInternal();
+        onModalOpen?.();
+    }, [openInternal, onModalOpen]);
+
+    const close = useCallback(() => {
+        closeInternal();
+        onModalClose?.();
+    }, [closeInternal, onModalClose]);
 
     const isSummaryMode = values.length > SUMMARY_MODE_THRESHOLD;
     const hiddenCount = computeHiddenCount(values);
     const displayValues = useMemo(() => computeDisplayValues(values), [values]);
 
-    const TruncatedValue = useCallback(
-        (props: TagInputValueProps & { value: string }) => {
-            if (props.value === MORE_VALUES_TOKEN) {
+    const renderTruncatedPill = useCallback(
+        ({ value, onRemove }: { value: string; onRemove: () => void }) => {
+            if (value === MORE_VALUES_TOKEN) {
                 return (
-                    <DefaultValue
-                        {...props}
+                    <TagPill
                         label={`+${hiddenCount.toLocaleString()} more`}
+                        size="xs"
                         readOnly
                         onMouseDown={(e: React.MouseEvent) => {
                             e.preventDefault();
@@ -61,7 +76,14 @@ const FilterMultiNumberInput: FC<Props> = ({
                     />
                 );
             }
-            return <DefaultValue {...props} />;
+            return (
+                <TagPill
+                    label={value}
+                    size="xs"
+                    disabled={disabled}
+                    onRemove={onRemove}
+                />
+            );
         },
         [disabled, hiddenCount, open],
     );
@@ -100,10 +122,8 @@ const FilterMultiNumberInput: FC<Props> = ({
     );
 
     const manageButton = disabled ? undefined : (
-        <Tooltip withinPortal label="Edit filter values">
+        <Tooltip label={getUiString('filters.autocomplete.editValuesTooltip')}>
             <ActionIcon
-                variant="subtle"
-                color="gray"
                 size="sm"
                 onClick={open}
                 style={{
@@ -122,7 +142,7 @@ const FilterMultiNumberInput: FC<Props> = ({
                 onClose={close}
                 values={values}
                 onChange={onChange}
-                title="Manage filter values"
+                title={getUiString('filters.manageValues.filterValuesTitle')}
                 validateValue={isValidNumber}
             />
 
@@ -130,7 +150,6 @@ const FilterMultiNumberInput: FC<Props> = ({
                 {isSummaryMode ? (
                     <TextInput
                         size="xs"
-                        radius="md"
                         w="100%"
                         readOnly
                         value={`${values.length.toLocaleString()} values selected`}
@@ -139,7 +158,7 @@ const FilterMultiNumberInput: FC<Props> = ({
                         rightSection={manageButton}
                     />
                 ) : (
-                    <TagInput
+                    <PillTagsInput
                         w="100%"
                         clearable
                         radius="md"
@@ -148,12 +167,12 @@ const FilterMultiNumberInput: FC<Props> = ({
                         disabled={disabled}
                         placeholder={placeholder}
                         allowDuplicates={false}
-                        validationRegex={NUMBER_REGEX}
+                        validate={isValidNumber}
                         classNames={{ input: classes.tagInputContainer }}
                         value={displayValues}
                         onChange={handleChange}
-                        valueComponent={
-                            hiddenCount > 0 ? TruncatedValue : undefined
+                        renderPill={
+                            hiddenCount > 0 ? renderTruncatedPill : undefined
                         }
                         rightSection={manageButton}
                     />

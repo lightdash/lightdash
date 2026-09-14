@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
-import { Box, Center, Flex, Loader } from '@mantine-8/core';
+import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -15,6 +15,13 @@ import {
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
+import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
+import { findRetryableDeepResearchRun } from '../../features/aiCopilot/deepResearch/deepResearchRegistry';
+import { runDeepResearchAgain } from '../../features/aiCopilot/deepResearch/runAgain';
+import {
+    type DeepResearchRunRegistration,
+    type StartDeepResearchArgs,
+} from '../../features/aiCopilot/deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
@@ -24,7 +31,11 @@ import {
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
-import { useStartDeepResearchMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
+import {
+    useStartDeepResearchMutation,
+    useTrackDeepResearchFollowUp,
+} from '../../features/aiCopilot/hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -47,7 +58,8 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../features/a
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
-    const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
+    const { agentUuid, threadUuid, promptUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const isEmbed = isEmbedAiAgentRoute();
     const { user } = useApp();
@@ -149,7 +161,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         },
     );
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid!,
         refetch,
@@ -168,13 +180,18 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const updateReviewItemStatus = useUpdateAiAgentReviewItemStatus();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const startDeepResearch = useStartDeepResearchMutation({
+        projectUuid: projectUuid!,
+        agentUuid: agentUuid!,
+        threadUuid: threadUuid!,
+    });
+    const trackDeepResearchFollowUp = useTrackDeepResearchFollowUp({
         projectUuid: projectUuid!,
         threadUuid: threadUuid!,
     });
     const sqlMode = useAiAgentStoreSelector(
-        selectThreadSqlMode(threadUuid ?? ''),
+        selectThreadSqlMode(threadUuid ?? '', agent.enableSqlMode),
     );
     const dispatch = useAiAgentStoreDispatch();
 
@@ -192,10 +209,8 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const isThreadModelUnavailable =
         !!threadModelConfig &&
         !!availableModels &&
-        !availableModels.some(
-            (m) =>
-                m.provider === threadModelConfig.modelProvider &&
-                m.name === threadModelConfig.modelName,
+        !availableModels.some((model) =>
+            matchesModelConfig(model, threadModelConfig),
         );
 
     const disabledReasons: { when: boolean; message: string }[] = [
@@ -243,6 +258,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         dashboardUuidOrSlug: pinnedDashboardUuid,
     });
     const dashboardUuid = searchParams.get('dashboardUuid');
+    const dataAppUuid = searchParams.get('dataAppUuid');
     const {
         contextInput: pageContextInput,
         previewItems: pagePreviewItems,
@@ -250,6 +266,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     } = usePinnedContext({
         projectUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dataAppUuidOrSlug: dataAppUuid,
     });
 
     const contentMentionItems = useMemo(
@@ -285,26 +302,63 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             ),
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
-        });
+        }).then(trackDeepResearchFollowUp);
     };
     const handleStartDeepResearch = async ({
         question,
-        depth,
-    }: Parameters<typeof startDeepResearch.mutateAsync>[0]) => {
-        const message = await createAgentThreadMessage({
-            prompt: question,
-            modelConfig: threadModelConfig ?? undefined,
-            context: pageContextInput,
-            optimisticContext: pagePreviewItems,
-            skipAgentResponse: true,
+    }: StartDeepResearchArgs) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
+        const retryableRun = findRetryableDeepResearchRun({
+            projectUuid: projectUuid!,
+            agentUuid: agentUuid!,
+            threadUuid: threadUuid!,
+            userUuid: user?.data?.userUuid,
+            question,
         });
+        const promptUuid =
+            retryableRun?.promptUuid ??
+            (
+                await createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig: threadModelConfig ?? undefined,
+                    context: pageContextInput,
+                    optimisticContext: pagePreviewItems,
+                    skipAgentResponse: true,
+                })
+            ).uuid;
         await startDeepResearch.mutateAsync({
             question,
-            depth,
-            promptUuid: message.uuid,
+            promptUuid,
         });
     };
-    const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
+    const handleRunDeepResearchAgain = async (
+        registration: DeepResearchRunRegistration,
+    ) => {
+        if (!canStartDeepResearch) {
+            return;
+        }
+
+        return runDeepResearchAgain({
+            registration,
+            createPrompt: (question) =>
+                createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig: threadModelConfig ?? undefined,
+                    context: pageContextInput,
+                    optimisticContext: pagePreviewItems,
+                    skipAgentResponse: true,
+                }),
+            startRun: startDeepResearch.mutateAsync,
+        });
+    };
+    const isBusy = Boolean(
+        isCreatingMessage ||
+        isStreaming ||
+        isThreadPending ||
+        startDeepResearch.isLoading,
+    );
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
     const handleRetryOriginalQuestion = () => {
         if (!retryPrompt) return;
@@ -345,6 +399,14 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     agentUuid={agentUuid}
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
+                    canRetryDeepResearch={
+                        canStartDeepResearch && !inputDisabled && !isBusy
+                    }
+                    onRunDeepResearchAgain={(registration) => {
+                        void handleRunDeepResearchAgain(registration).catch(
+                            () => undefined,
+                        );
+                    }}
                 >
                     {workstreams && workstreams.length > 0 && (
                         <ThreadWorkstreamsPanel workstreams={workstreams} />
@@ -352,14 +414,20 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     <AgentChatInput
                         disabled={inputDisabled}
                         disabledReason={inputDisabledReason}
+                        footerNotice={
+                            <ThreadRetentionNotice
+                                agentThreadRetentionHours={
+                                    agent.threadRetentionHours ?? null
+                                }
+                            />
+                        }
                         loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
+                            canStartDeepResearch
                                 ? handleStartDeepResearch
                                 : undefined
                         }
-                        deepResearchControlPlacement="page_header"
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}

@@ -6,7 +6,7 @@ import {
     PillsInput,
     Tooltip,
     useCombobox,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import { useProjects } from '../../../hooks/useProjects';
 
@@ -83,11 +83,7 @@ export const ProjectSelect: FC<ProjectSelectProps> = ({
 
         if (deleted) {
             return (
-                <Tooltip
-                    key={uuid}
-                    label="This project has been deleted"
-                    withArrow
-                >
+                <Tooltip key={uuid} label="This project has been deleted">
                     {pill}
                 </Tooltip>
             );

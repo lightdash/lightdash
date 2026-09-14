@@ -8,6 +8,7 @@ import {
     getItemId,
     ItemsMap,
     MetricType,
+    NumberSeparator,
     SortByDirection,
     TimeFrames,
     VizAggregationOptions,
@@ -879,6 +880,100 @@ describe('ExcelService', () => {
     // converted, even if values match ISO 8601 (e.g. "202811").
 
     describe('downloadPivotTableXlsx', () => {
+        it.each([false, true])(
+            'writes formatted pivoted metrics as numeric cells with Excel formats when improved dates is %s',
+            async (enableImprovedExcelDates) => {
+                const pivotDimension = 'orders_status';
+                const indexDimension = 'string_column';
+                const metric = 'number_with_usd_format';
+                const completedColumn = `${metric}_any_completed`;
+                const placedColumn = `${metric}_any_placed`;
+
+                const itemMap: ItemsMap = {
+                    ...mockItemMapWithFormats,
+                    [pivotDimension]: {
+                        ...mockItemMapWithFormats.string_column,
+                        name: 'orders_status',
+                        label: 'Status',
+                    },
+                    [metric]: {
+                        ...mockItemMapWithFormats.number_with_usd_format,
+                        round: 1,
+                        separator: NumberSeparator.PERIOD_COMMA,
+                    },
+                };
+                const valuesColumns = [
+                    ['completed', completedColumn],
+                    ['placed', placedColumn],
+                ].map(([value, pivotColumnName]) => ({
+                    aggregation: VizAggregationOptions.ANY,
+                    pivotValues: [
+                        {
+                            value,
+                            referenceField: pivotDimension,
+                        },
+                    ],
+                    referenceField: metric,
+                    pivotColumnName,
+                }));
+                const pivotDetails = {
+                    totalColumnCount: 2,
+                    valuesColumns,
+                    indexColumn: [
+                        {
+                            type: VizIndexType.CATEGORY,
+                            reference: indexDimension,
+                        },
+                    ],
+                    groupByColumns: [{ reference: pivotDimension }],
+                    sortBy: [
+                        {
+                            direction: SortByDirection.ASC,
+                            reference: indexDimension,
+                        },
+                    ],
+                    originalColumns: {},
+                };
+
+                const buffer = await ExcelService.downloadPivotTableXlsx({
+                    rows: [
+                        {
+                            [indexDimension]: '00123',
+                            [completedColumn]: 1234.56,
+                            [placedColumn]: 9876.54,
+                        },
+                    ],
+                    itemMap,
+                    pivotConfig: {
+                        pivotDimensions: [pivotDimension],
+                        metricsAsRows: false,
+                    },
+                    onlyRaw: false,
+                    customLabels: undefined,
+                    pivotDetails,
+                    enableImprovedExcelDates,
+                });
+
+                const workbook = new (await import('exceljs')).Workbook();
+                // @ts-ignore - Buffer type mismatch between exceljs and Node 20
+                await workbook.xlsx.load(buffer);
+                const worksheet = workbook.getWorksheet('Pivot Table');
+                expect(worksheet).toBeDefined();
+
+                const expectedFormat = getExcelFormatExpression(
+                    itemMap[metric],
+                );
+                const completedCell = worksheet!.getRow(3).getCell(2);
+                const placedCell = worksheet!.getRow(3).getCell(3);
+
+                expect(worksheet!.getRow(3).getCell(1).value).toBe('00123');
+                expect(completedCell.value).toBe(1234.56);
+                expect(placedCell.value).toBe(9876.54);
+                expect(completedCell.numFmt).toBe(expectedFormat);
+                expect(placedCell.numFmt).toBe(expectedFormat);
+            },
+        );
+
         it('should not convert metric values that look like YYYYMM to dates (PROD-6683)', async () => {
             const pivotDimension = 'payments_payment_method';
             const indexDimension = 'customers_created_month';
@@ -1022,23 +1117,13 @@ describe('ExcelService', () => {
             );
             expect(metricDateValues).toHaveLength(0);
 
-            // YYYYMM-like metric values should be preserved as strings
-            const stringValues = dataValues
-                .filter((v) => typeof v.value === 'string')
-                .map((v) => v.value as string);
-            const numericStrings = stringValues.filter((v) =>
-                [
-                    '202,811',
-                    '202811',
-                    '2,028',
-                    '2028',
-                    '20,281,101',
-                    '20281101',
-                    '141,312',
-                    '141312',
-                ].includes(v),
+            // YYYYMM-like metric values should be preserved as native numbers
+            const numericMetricValues = dataValues
+                .filter((v) => v.col > 1 && typeof v.value === 'number')
+                .map((v) => v.value);
+            expect(numericMetricValues).toEqual(
+                expect.arrayContaining([202811, 2028, 20281101, 141312]),
             );
-            expect(numericStrings.length).toBeGreaterThanOrEqual(4);
         });
 
         it('TC1: should convert both DATE and TIMESTAMP index dimensions to Date objects', async () => {
@@ -2093,5 +2178,124 @@ describe('ExcelService conditional formatting in xlsx export (PROD-8199)', () =>
             pattern: 'solid',
             fgColor: { argb: 'FFFF0000' },
         });
+    });
+});
+
+describe('ExcelService column totals row in xlsx export (PROD-9169)', () => {
+    const dimension = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.STRING,
+        name: 'status',
+        table: 'orders',
+        tableLabel: 'Orders',
+        label: 'Status',
+        sql: '',
+        hidden: false,
+    } as ItemsMap[string];
+    const metric = {
+        fieldType: FieldType.METRIC,
+        type: MetricType.SUM,
+        name: 'revenue',
+        table: 'orders',
+        tableLabel: 'Orders',
+        label: 'Revenue',
+        sql: '',
+        hidden: false,
+        compiledSql: '',
+        tablesReferences: [],
+    } as ItemsMap[string];
+    const dimensionId = getItemId(dimension);
+    const metricId = getItemId(metric);
+
+    const { streamJsonlToExcelFile } = ExcelService as unknown as {
+        streamJsonlToExcelFile: (
+            resultsStream: Readable,
+            tempFilePath: string,
+            headers: string[],
+            fields: ItemsMap,
+            onlyRaw: boolean,
+            sortedFieldIds: string[],
+            timezone?: string,
+            conditionalFormattings?: undefined,
+            minMaxMap?: undefined,
+            columnTotals?: Record<string, number>,
+        ) => Promise<{ truncated: boolean }>;
+    };
+
+    const writeAndReadBack = async ({
+        fields,
+        sortedFieldIds,
+        rows,
+        columnTotals,
+    }: {
+        fields: ItemsMap;
+        sortedFieldIds: string[];
+        rows: Record<string, unknown>[];
+        columnTotals?: Record<string, number>;
+    }) => {
+        const tempFilePath = path.join(
+            os.tmpdir(),
+            `excel-totals-test-${process.pid}-${sortedFieldIds.length}-${
+                columnTotals ? 'totals' : 'none'
+            }.xlsx`,
+        );
+        const jsonl = rows.map((row) => JSON.stringify(row)).join('\n');
+        await streamJsonlToExcelFile(
+            Readable.from([jsonl]),
+            tempFilePath,
+            sortedFieldIds.map((id) => id),
+            fields,
+            false,
+            sortedFieldIds,
+            undefined,
+            undefined,
+            undefined,
+            columnTotals,
+        );
+
+        const workbook = new (await import('exceljs')).Workbook();
+        await workbook.xlsx.readFile(tempFilePath);
+        const worksheet = workbook.getWorksheet('Sheet1');
+        fs.unlinkSync(tempFilePath);
+        return worksheet;
+    };
+
+    it('appends a labelled totals row after the data rows', async () => {
+        const worksheet = await writeAndReadBack({
+            fields: { [dimensionId]: dimension, [metricId]: metric },
+            sortedFieldIds: [dimensionId, metricId],
+            rows: [
+                { [dimensionId]: 'placed', [metricId]: 10 },
+                { [dimensionId]: 'shipped', [metricId]: 32.5 },
+            ],
+            columnTotals: { [metricId]: 42.5 },
+        });
+
+        // Row 1 is the header, rows 2-3 the data, row 4 the totals.
+        expect(worksheet!.rowCount).toBe(4);
+        const totalsRow = worksheet!.getRow(4);
+        expect(totalsRow.getCell(1).value).toBe('Total');
+        expect(totalsRow.getCell(2).value).toBe(42.5);
+    });
+
+    it('keeps a first-column total instead of overwriting it with the label', async () => {
+        const worksheet = await writeAndReadBack({
+            fields: { [metricId]: metric },
+            sortedFieldIds: [metricId],
+            rows: [{ [metricId]: 10 }],
+            columnTotals: { [metricId]: 10 },
+        });
+
+        expect(worksheet!.getRow(2).getCell(1).value).toBe(10);
+    });
+
+    it('does not append a row when there are no totals', async () => {
+        const worksheet = await writeAndReadBack({
+            fields: { [dimensionId]: dimension, [metricId]: metric },
+            sortedFieldIds: [dimensionId, metricId],
+            rows: [{ [dimensionId]: 'placed', [metricId]: 10 }],
+        });
+
+        expect(worksheet!.rowCount).toBe(2);
     });
 });

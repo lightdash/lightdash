@@ -1,5 +1,5 @@
 import { type GroupWithMembers } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal, {

@@ -1,10 +1,13 @@
 import {
     ApiErrorPayload,
     ApiGetRolesResponse,
+    ApiOrganizationRoleSetResponse,
     ApiRoleAssignmentListResponse,
     ApiRoleAssignmentResponse,
     ApiRoleWithScopesResponse,
     CreateRole,
+    OrganizationRoleSet,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -13,6 +16,7 @@ import {
     OperationId,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -61,7 +65,7 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('GetOrganizationRoles')
     async getOrganizationRoles(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
+        @Path() orgUuid: UUID,
         @Query() load?: string,
         @Query() roleTypeFilter?: string,
     ): Promise<ApiGetRolesResponse | ApiRoleWithScopesResponse> {
@@ -90,7 +94,7 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('GetOrganizationRoleAssignments')
     async getOrganizationRoleAssignments(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
+        @Path() orgUuid: UUID,
     ): Promise<ApiRoleAssignmentListResponse> {
         const assignments =
             await this.getRolesService().getOrganizationRoleAssignments(
@@ -115,8 +119,8 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('GetCustomRoleByUuid')
     async getCustomRoleByUuid(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() roleUuid: string,
+        @Path() orgUuid: UUID,
+        @Path() roleUuid: UUID,
     ): Promise<ApiRoleWithScopesResponse> {
         const role = await this.getRolesService().getRoleByUuid(
             req.account!,
@@ -144,8 +148,8 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('UpsertOrganizationUserRoleAssignment')
     async upsertOrganizationUserRoleAssignment(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() userId: string,
+        @Path() orgUuid: UUID,
+        @Path() userId: UUID,
         @Body() body: { roleId: string },
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
@@ -164,6 +168,60 @@ export class OrganizationRolesController extends BaseController {
     }
 
     /**
+     * Get the complete role set (system role plus custom roles) a user holds in the organization.
+     * Requires custom roles (Enterprise).
+     * @summary Get organization role set for user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/assignments/user/{userId}/set')
+    @OperationId('GetOrganizationUserRoleSet')
+    async getOrganizationUserRoleSet(
+        @Request() req: express.Request,
+        @Path() orgUuid: UUID,
+        @Path() userId: UUID,
+    ): Promise<ApiOrganizationRoleSetResponse> {
+        const results = await this.getRolesService().getOrganizationUserRoleSet(
+            req.account!,
+            orgUuid,
+            userId,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Atomically replace the complete role set a user holds in the organization.
+     * At most one system role plus any number of custom roles; the set must not be empty.
+     * Requires custom roles (Enterprise).
+     * @summary Replace organization role set for user
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/assignments/user/{userId}/set')
+    @OperationId('ReplaceOrganizationUserRoleSet')
+    async replaceOrganizationUserRoleSet(
+        @Request() req: express.Request,
+        @Path() orgUuid: UUID,
+        @Path() userId: UUID,
+        @Body() body: OrganizationRoleSet,
+    ): Promise<ApiOrganizationRoleSetResponse> {
+        const results =
+            await this.getRolesService().replaceOrganizationUserRoleSet(
+                req.account!,
+                orgUuid,
+                userId,
+                body,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
      * Duplicate a role
      * @summary Duplicate role
      */
@@ -177,7 +235,7 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('DuplicateRole')
     async duplicateRole(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
+        @Path() orgUuid: UUID,
         @Path() roleId: string,
         @Body() body: CreateRole,
     ): Promise<ApiRoleWithScopesResponse> {

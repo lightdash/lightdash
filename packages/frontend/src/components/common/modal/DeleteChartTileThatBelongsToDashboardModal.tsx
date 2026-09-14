@@ -1,4 +1,4 @@
-import { type ModalProps } from '@mantine-8/core';
+import { type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';

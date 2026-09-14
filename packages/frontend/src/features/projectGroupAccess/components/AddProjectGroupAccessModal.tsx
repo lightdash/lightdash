@@ -3,7 +3,7 @@ import {
     type CreateProjectGroupAccess,
     type GroupWithMembers,
 } from '@lightdash/common';
-import { Box, Button, Group, Select, Text } from '@mantine-8/core';
+import { Box, Button, Group, Select, Text } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -135,7 +135,7 @@ const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
                                     })) ?? []
                                 }
                                 {...form.getInputProps('groupUuid')}
-                                style={{ flexGrow: 1 }}
+                                flex={1}
                             />
                             <Select
                                 data={organizationRoles}

@@ -5,9 +5,10 @@ import {
     Input,
     Stack,
     Switch,
+    Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -25,9 +26,18 @@ import {
 type Props = {
     id: string;
     onSubmit: (data: SyncModalFormValues) => void;
+    /** App syncs always write one tab per captured query — there's no single
+     *  "first tab" to override, so the tab-name override doesn't apply. */
+    isApp?: boolean;
+    supportsFilters?: boolean;
 };
 
-export const SyncModalForm: FC<Props> = ({ id, onSubmit }) => {
+export const SyncModalForm: FC<Props> = ({
+    id,
+    onSubmit,
+    isApp = false,
+    supportsFilters = false,
+}) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
@@ -63,7 +73,7 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit }) => {
                         >
                             <TimeZonePicker
                                 size="sm"
-                                style={{ flexGrow: 1 }}
+                                flex={1}
                                 placeholder={`Project Default ${
                                     projectDefaultOffsetString
                                         ? `(UTC ${projectDefaultOffsetString})`
@@ -84,31 +94,53 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit }) => {
 
                 <SelectGoogleSheetButton />
 
-                <Group>
+                {supportsFilters && (
                     <Switch
-                        label="Save in a new tab"
-                        {...form.getInputProps('saveInNewTab', {
+                        label="Show filters applied"
+                        description="Add a fixed three-row filter summary above the synced data"
+                        {...form.getInputProps('showFilters', {
                             type: 'checkbox',
                         })}
-                    ></Switch>
-                    <Tooltip
-                        label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
-                                This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
-                        multiline
-                        withinPortal
-                        position="right"
-                        maw={400}
-                    >
-                        <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
-                    </Tooltip>
-                </Group>
-                {form.values.saveInNewTab && (
-                    <TextInput
-                        required
-                        label="Tab name"
-                        placeholder="Sheet1"
-                        {...form.getInputProps('options.tabName')}
                     />
+                )}
+
+                {isApp && (
+                    <Text size="xs" c="dimmed">
+                        Each query in the app is written to its own tab, named
+                        after the query.
+                    </Text>
+                )}
+
+                {!isApp && (
+                    <>
+                        <Group>
+                            <Switch
+                                label="Save in a new tab"
+                                {...form.getInputProps('saveInNewTab', {
+                                    type: 'checkbox',
+                                })}
+                            ></Switch>
+                            <Tooltip
+                                label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
+                                This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
+                                position="right"
+                                maw={400}
+                            >
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    color="dimmed"
+                                />
+                            </Tooltip>
+                        </Group>
+                        {form.values.saveInNewTab && (
+                            <TextInput
+                                required
+                                label="Tab name"
+                                placeholder="Sheet1"
+                                {...form.getInputProps('options.tabName')}
+                            />
+                        )}
+                    </>
                 )}
             </Stack>
         </form>

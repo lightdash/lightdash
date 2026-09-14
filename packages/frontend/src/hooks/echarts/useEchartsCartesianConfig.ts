@@ -2,6 +2,7 @@ import {
     applyCustomFormat,
     applyRoundedCornersToStackData,
     assertUnreachable,
+    assignSeriesZByOrder,
     buildCartesianTooltipFormatter,
     calculateDynamicBorderRadius,
     CartesianSeriesType,
@@ -25,6 +26,7 @@ import {
     getBarTotalLabelStyle,
     getCustomFormatFromLegacy,
     getDateGroupLabel,
+    getDateGroupLabelWithGranularity,
     getFormatExpressionLocale,
     getFormattedValue,
     getFormatterTimezone,
@@ -62,6 +64,7 @@ import {
     type CartesianChart,
     type ConditionalFormattingConfig,
     type CustomDimension,
+    type EChartsLabelPosition,
     type EChartsSeries,
     type EchartsLegend,
     type Field,
@@ -83,6 +86,7 @@ import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/sty
 import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
 import {
+    format as echartsFormat,
     type DefaultLabelFormatterCallbackParams,
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
@@ -109,11 +113,16 @@ import {
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
 import {
-    applyTimezoneShiftToEchartsOptions,
+    detectTimeAxisMode,
+    finalizeTimeAxisOptions,
     resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
 } from './timezoneShift';
-import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
+import {
+    LEGEND_INTERACTION_HINT,
+    useLegendDoubleClickTooltip,
+    type LegendDoubleClickTooltip,
+} from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -236,7 +245,7 @@ type GetAxisTypeArg = {
     rightAxisYId?: string;
     leftAxisYId?: string;
 };
-const getAxisType = ({
+export const getAxisType = ({
     validCartesianConfig,
     itemsMap,
     topAxisXId,
@@ -274,11 +283,20 @@ const getAxisType = ({
         return shouldUseCategory ? 'category' : axisType;
     };
 
+    // Opt-in: render a numeric dimension axis as discrete categories so bars get
+    // band spacing instead of being centred on their value at the grid edges.
+    const treatXAxisAsCategory =
+        !validCartesianConfig.layout.flipAxes &&
+        !!validCartesianConfig.eChartsConfig.xAxis?.[0]?.treatAsCategory;
+
     const topAxisType = inferAxisType(topAxisXId, true);
+    const inferredBottomAxisType = inferAxisType(bottomAxisXId, true);
     const bottomAxisType =
         bottomAxisXId === EMPTY_X_AXIS
             ? 'category'
-            : inferAxisType(bottomAxisXId, true);
+            : treatXAxisAsCategory && inferredBottomAxisType === 'value'
+              ? 'category'
+              : inferredBottomAxisType;
 
     // horizontal bar chart needs the type 'category' in the left/right axis
     const defaultRightAxisType = inferAxisType(rightAxisYId, false);
@@ -409,13 +427,30 @@ const removeEmptyProperties = <
     );
 };
 
+/** Label width used when the chart width is unknown, e.g. chart export. */
+const OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH = 150;
+const OUTSIDE_LEGEND_MIN_LABEL_WIDTH = 40;
+const OUTSIDE_LEGEND_MARGIN_PERCENT = 2;
+/** Gap ECharts leaves between a legend icon and its label. */
+const ECHARTS_LEGEND_ICON_LABEL_GAP = 5;
+/** ECharts' default legend padding, 5px on each side. */
+const ECHARTS_LEGEND_BOX_PADDING = 10;
+
+type OutsideLegendTextStyle = { overflow: 'truncate'; width: number };
+
+export type MergedLegendSettings = Record<string, unknown> & {
+    textStyle?: OutsideLegendTextStyle;
+    tooltip?: { show: boolean };
+};
+
 export const mergeLegendSettings = <
     T extends Record<string, any> = Record<any, any>,
 >(
     legendConfig: T | undefined,
     legendsSelected: LegendValues,
     series: EChartsSeries[],
-): Record<string, unknown> => {
+    outsideLabelWidth: number = OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH,
+): MergedLegendSettings => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
     if (!normalizedConfig || Object.keys(normalizedConfig).length === 0) {
         return {
@@ -434,8 +469,8 @@ export const mergeLegendSettings = <
     // the full label via the legend's built-in tooltip.
     const outsideLegendOverflow = {
         textStyle: {
-            overflow: 'truncate',
-            width: 150,
+            overflow: 'truncate' as const,
+            width: outsideLabelWidth,
         },
         tooltip: { show: true },
     };
@@ -452,7 +487,7 @@ export const mergeLegendSettings = <
             // pagination still works for legends with many series.
             top: 'middle',
             height: '80%',
-            right: '2%',
+            right: `${OUTSIDE_LEGEND_MARGIN_PERCENT}%`,
             left: undefined,
             bottom: undefined,
             ...outsideLegendOverflow,
@@ -467,7 +502,7 @@ export const mergeLegendSettings = <
             orient: 'vertical',
             top: 'middle',
             height: '80%',
-            left: '2%',
+            left: `${OUTSIDE_LEGEND_MARGIN_PERCENT}%`,
             right: undefined,
             bottom: undefined,
             ...outsideLegendOverflow,
@@ -483,6 +518,83 @@ export const mergeLegendSettings = <
         top: 'bottom' in rest ? undefined : 0,
         ...rest,
         selected: legendsSelected,
+    };
+};
+
+/** Resolves a legend area width ('25%', '300px' or '300') to pixels. */
+const parseLegendAreaWidth = (
+    value: string,
+    chartWidth: number,
+): number | null => {
+    const match = value.trim().match(/^(\d+(?:\.\d+)?)(%|px)?$/);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    return match[2] === '%' ? (chartWidth * amount) / 100 : amount;
+};
+
+type LegendStyle = ReturnType<typeof getLegendStyle>;
+
+/**
+ * Widest label that still fits inside the reserved outside-legend area once
+ * the legend margin, box padding, icon and icon gap are taken out.
+ */
+export const getOutsideLegendLabelWidth = (
+    chartWidth: number | null,
+    legendAreaWidth: string,
+    legendStyle: Pick<LegendStyle, 'itemWidth' | 'textStyle'>,
+): number => {
+    if (chartWidth === null || chartWidth <= 0) {
+        return OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH;
+    }
+    const areaWidth = parseLegendAreaWidth(legendAreaWidth, chartWidth);
+    if (areaWidth === null) return OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH;
+
+    const margin = (chartWidth * OUTSIDE_LEGEND_MARGIN_PERCENT) / 100;
+    const [, paddingRight = 0, , paddingLeft = 0] =
+        legendStyle.textStyle.padding;
+    const available =
+        areaWidth -
+        margin -
+        ECHARTS_LEGEND_BOX_PADDING -
+        legendStyle.itemWidth -
+        ECHARTS_LEGEND_ICON_LABEL_GAP -
+        paddingLeft -
+        paddingRight;
+    return Math.max(OUTSIDE_LEGEND_MIN_LABEL_WIDTH, Math.floor(available));
+};
+
+const getLegendItemName = (params: unknown): string =>
+    typeof params === 'object' &&
+    params !== null &&
+    'name' in params &&
+    typeof params.name === 'string'
+        ? params.name
+        : '';
+
+/**
+ * Layers the shared legend typography over the merged legend settings without
+ * dropping the outside-placement truncation, and shows the full label in the
+ * hover tooltip whenever labels can be truncated.
+ */
+export const composeLegendConfig = (
+    mergedLegend: MergedLegendSettings,
+    legendStyle: LegendStyle,
+    doubleClickTooltip: LegendDoubleClickTooltip,
+) => {
+    const isTruncated = mergedLegend.textStyle?.overflow === 'truncate';
+    return {
+        ...mergedLegend,
+        ...legendStyle,
+        textStyle: { ...legendStyle.textStyle, ...mergedLegend.textStyle },
+        tooltip: isTruncated
+            ? {
+                  ...doubleClickTooltip,
+                  formatter: (params: unknown) =>
+                      `<div style="font-weight: 500">${echartsFormat.encodeHTML(
+                          getLegendItemName(params),
+                      )}</div>${LEGEND_INTERACTION_HINT}`,
+              }
+            : doubleClickTooltip,
     };
 };
 
@@ -955,52 +1067,92 @@ const isStack100Normalized = (series: Series) =>
     !!series.stack &&
     (series.type === CartesianSeriesType.BAR || !!series.areaStyle);
 
-/**
- * Create a labelLayout configuration for stacked bar charts.
- * When showOverlappingLabels is enabled, uses smaller font for labels that don't fit
- * in small segments to keep them visible.
- *
- * @param isStacked - Whether the series is part of a stack
- * @param flipAxes - Whether the chart is horizontal (flipped)
- * @param showOverlappingLabels - Force display labels even when they don't fit
- */
-const createStackedBarLabelLayout = ({
+const MIN_LABEL_SEGMENT_SLACK = 4;
+// `labelLayout` cannot hide a label, and a zero font size still paints the
+// label's background chip, so park it far enough off canvas that the position
+// tween on the next render leaves the viewport within a frame.
+const OFF_CANVAS_LABEL_COORDINATE = -1e5;
+
+export const getCartesianLabelLayout = ({
+    isGroupedBarChart,
     isStacked,
-    flipAxes,
+    seriesType,
+    position,
     showOverlappingLabels,
+    flipAxes,
 }: {
+    isGroupedBarChart: boolean;
     isStacked: boolean;
-    flipAxes: boolean;
+    seriesType: CartesianSeriesType;
+    /** Position actually applied, after stacked segments resolve to `inside*`. */
+    position: EChartsLabelPosition | undefined;
     showOverlappingLabels: boolean;
-}):
-    | { hideOverlap: boolean }
-    | ((params: {
-          rect: { x: number; y: number; width: number; height: number };
-          labelRect: { x: number; y: number; width: number; height: number };
-      }) => { fontSize?: number } | undefined) => {
-    // Only apply small-font treatment when showOverlappingLabels is enabled for stacked bars
-    if (!isStacked || !showOverlappingLabels) {
-        return { hideOverlap: true };
+    flipAxes: boolean;
+}): NonNullable<EChartsSeries['labelLayout']> => {
+    const isInsideStackedBar =
+        isStacked &&
+        seriesType === CartesianSeriesType.BAR &&
+        (position?.startsWith('inside') ?? false);
+
+    if (isInsideStackedBar) {
+        // A segment too short to contain its own label paints it over the
+        // neighbouring segment — over the category axis at the base of a stack.
+        return ({ rect, labelRect }) => {
+            const segmentSize = flipAxes ? rect.width : rect.height;
+            const labelSize = flipAxes ? labelRect.width : labelRect.height;
+
+            return labelSize + MIN_LABEL_SEGMENT_SLACK <= segmentSize
+                ? { hideOverlap: !showOverlappingLabels }
+                : {
+                      x: OFF_CANVAS_LABEL_COORDINATE,
+                      y: OFF_CANVAS_LABEL_COORDINATE,
+                  };
+        };
     }
 
-    // Return callback function for dynamic font sizing
-    return (params) => {
-        const { rect, labelRect } = params;
-
-        // Check if label fits inside the segment at normal size
-        const segmentSize = flipAxes ? rect.width : rect.height;
-        const labelSize = flipAxes ? labelRect.width : labelRect.height;
-        const padding = 4;
-
-        const labelFits = labelSize + padding <= segmentSize;
-
-        if (labelFits) {
-            return undefined; // Keep default size
-        }
-
-        // Label doesn't fit - use smaller font
-        return { fontSize: 8 };
+    return {
+        hideOverlap: !(
+            isGroupedBarChart &&
+            !isStacked &&
+            seriesType === CartesianSeriesType.BAR &&
+            position === 'top'
+        ),
     };
+};
+
+/**
+ * ECharts paints each series after the previous one, so a stacked segment's
+ * `top` label — which sits inside the segment stacked above it — is covered by
+ * that segment's bar. Anchor those labels inside their own segment instead, so
+ * they are painted with the bar they belong to. The segment that ends the stack
+ * has nothing painted after it and keeps the configured position.
+ */
+export const getCartesianLabelPosition = ({
+    isStacked,
+    isStackEnd,
+    seriesType,
+    position,
+    flipAxes,
+}: {
+    isStacked: boolean;
+    isStackEnd: boolean;
+    seriesType: CartesianSeriesType;
+    position: EChartsLabelPosition | undefined;
+    flipAxes: boolean;
+}): EChartsLabelPosition | undefined => {
+    if (
+        !isStacked ||
+        isStackEnd ||
+        seriesType !== CartesianSeriesType.BAR ||
+        position === undefined
+    ) {
+        return position;
+    }
+
+    if (flipAxes) {
+        return position === 'right' ? 'insideRight' : position;
+    }
+    return position === 'top' ? 'insideTop' : position;
 };
 
 const getPivotSeries = ({
@@ -1132,11 +1284,6 @@ const getPivotSeries = ({
                         },
                     }),
             },
-            labelLayout: createStackedBarLabelLayout({
-                isStacked: !!series.stack,
-                flipAxes: !!flipAxes,
-                showOverlappingLabels: !!series.label?.showOverlappingLabels,
-            }),
         }),
     };
 };
@@ -1322,11 +1469,6 @@ const getSimpleSeries = ({
                     },
                 }),
         },
-        labelLayout: createStackedBarLabelLayout({
-            isStacked: !!series.stack,
-            flipAxes: !!flipAxes,
-            showOverlappingLabels: !!series.label?.showOverlappingLabels,
-        }),
     }),
     ...(series.markLine && {
         markLine: applyReadableColorsToMarkLine(
@@ -1447,7 +1589,7 @@ const calculateWidthText = (text: string | undefined): number => {
     span.style.top = '0px';
     span.style.position = 'absolute';
     span.style.whiteSpace = 'no-wrap';
-    span.innerHTML = text;
+    span.textContent = text;
 
     const width = Math.ceil(span.clientWidth);
     span.remove();
@@ -2549,7 +2691,10 @@ const getEchartAxes = ({
                                 })
                               : xAxisConfiguration?.[0]?.name ||
                                 (xAxisItem
-                                    ? getDateGroupLabel(xAxisItem) ||
+                                    ? getDateGroupLabelWithGranularity(
+                                          xAxisItem,
+                                      ) ||
+                                      getDateGroupLabel(xAxisItem) ||
                                       getItemLabelWithoutTableName(xAxisItem)
                                     : undefined),
                           nameLocation: 'center',
@@ -2653,7 +2798,10 @@ const getEchartAxes = ({
                           name: validCartesianConfig.layout.flipAxes
                               ? yAxisConfiguration?.[0]?.name ||
                                 (yAxisItem
-                                    ? getDateGroupLabel(yAxisItem) ||
+                                    ? getDateGroupLabelWithGranularity(
+                                          yAxisItem,
+                                      ) ||
+                                      getDateGroupLabel(yAxisItem) ||
                                       getItemLabelWithoutTableName(yAxisItem)
                                     : undefined)
                               : getAxisName({
@@ -3205,6 +3353,7 @@ export const relocateMarkLinesToVisibleSeries = (
 const useEchartsCartesianConfig = (
     validCartesianConfigLegend?: LegendValues,
     isInDashboard?: boolean,
+    chartWidth: number | null = null,
 ) => {
     const {
         visualizationConfig,
@@ -3345,6 +3494,63 @@ const useEchartsCartesianConfig = (
         timeAxisField,
     ]);
 
+    // Type of the axis the semantic time dimension actually renders on
+    // (xAxis[0], or yAxis[0] when flipped). Derived from the built axes so
+    // reference-line-forced time axes on coarse grains are covered.
+    const physicalTimeAxisType = useMemo(() => {
+        const physicalAxis = validCartesianConfig?.layout?.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
+        return typeof physicalAxis?.type === 'string'
+            ? physicalAxis.type
+            : undefined;
+    }, [validCartesianConfig?.layout?.flipAxes, axes]);
+
+    const plainWallClockTimezone = useMemo(() => {
+        if (!axisTimezone) return undefined;
+        const physicalAxis = validCartesianConfig?.layout?.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
+        const axisLabel = physicalAxis?.axisLabel;
+        if (
+            !axisLabel ||
+            typeof axisLabel !== 'object' ||
+            !('formatter' in axisLabel) ||
+            typeof axisLabel.formatter !== 'function'
+        ) {
+            return undefined;
+        }
+        const fieldId = validCartesianConfig?.layout?.xField;
+        const field = fieldId ? itemsMap?.[fieldId] : undefined;
+        return getFormatterTimezone(field, new Date(0), axisTimezone);
+    }, [
+        axisTimezone,
+        validCartesianConfig?.layout?.flipAxes,
+        validCartesianConfig?.layout?.xField,
+        axes,
+        itemsMap,
+    ]);
+
+    // How the time axis plots its coordinates (instant-shifted, calendar
+    // UTC-anchored, or plain). undefined when there is no time axis or
+    // timezone support is off — the built options then pass through
+    // finalizeTimeAxisOptions untouched.
+    const timeAxisMode = useMemo(() => {
+        return detectTimeAxisMode({
+            validCartesianConfig,
+            itemsMap,
+            resolvedTimezone,
+            physicalAxisType: physicalTimeAxisType,
+            plainWallClockTimezone,
+        });
+    }, [
+        validCartesianConfig,
+        itemsMap,
+        resolvedTimezone,
+        physicalTimeAxisType,
+        plainWallClockTimezone,
+    ]);
+
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
     // decoratedSeriesForChart (stacked rounded corners). Same inputs in both
     // places — keep the calc in one spot.
@@ -3392,6 +3598,8 @@ const useEchartsCartesianConfig = (
         const barSeries = series.filter(
             (s) => s.type === CartesianSeriesType.BAR,
         );
+        const isGroupedBarChart =
+            barSeries.filter((s) => getValidStack(s) === undefined).length > 1;
         const hasCustomColorsStacking =
             barSeries.some((s) => Boolean(s.stack)) ||
             (validCartesianConfig?.layout?.stack !== undefined &&
@@ -3417,25 +3625,52 @@ const useEchartsCartesianConfig = (
 
         const seriesColors = series.map((serie) => getSeriesColor(serie));
 
+        // ECharts stacks in series order, so the last series of a stack is the
+        // one whose segment ends the stack.
+        const stackEndIndexes = new Map<string, number>();
+        series.forEach((serie, index) => {
+            const stack = getValidStack(serie);
+            if (stack !== undefined) stackEndIndexes.set(stack, index);
+        });
+
         const seriesWithValidStack = series.map<EChartsSeries>(
             (serie, index) => {
                 const computedColor = seriesColors[index];
+                const validStack = getValidStack(serie);
+                const labelPosition = getCartesianLabelPosition({
+                    isStacked: validStack !== undefined,
+                    isStackEnd:
+                        validStack === undefined ||
+                        stackEndIndexes.get(validStack) === index,
+                    seriesType: serie.type,
+                    position: serie.label?.position,
+                    flipAxes: isHorizontal,
+                });
 
                 const baseConfig = {
                     ...serie,
                     color: computedColor,
-                    stack: getValidStack(serie),
+                    stack: validStack,
                     // Ensure label styles are applied after color is known
                     ...(serie.label?.show && {
                         label: {
                             ...serie.label,
+                            position: labelPosition,
                             ...getValueLabelStyle(
-                                serie.label.position,
+                                labelPosition,
                                 serie.type,
                                 computedColor,
                             ),
                         },
-                        labelLayout: { hideOverlap: true },
+                        labelLayout: getCartesianLabelLayout({
+                            isGroupedBarChart,
+                            isStacked: validStack !== undefined,
+                            seriesType: serie.type,
+                            position: labelPosition,
+                            showOverlappingLabels:
+                                !!serie.label.showOverlappingLabels,
+                            flipAxes: isHorizontal,
+                        }),
                     }),
                     // Apply reference line styling with readable colors
                     ...(serie.markLine && {
@@ -3711,7 +3946,7 @@ const useEchartsCartesianConfig = (
             }, []);
 
             // ! good candidate for deduplication, we loop over the result set in many places in this file - should mostly impact very large datasets
-            const sorted = sortedResults.sort((a, b) => {
+            const sorted = sortedResults.slice().sort((a, b) => {
                 const totalA =
                     stackTotalEntries.find(
                         (entry) => entry[0] === a[xFieldId],
@@ -4206,12 +4441,6 @@ const useEchartsCartesianConfig = (
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
     const legendConfigWithInstructionsTooltip = useMemo(() => {
-        const mergedLegendConfig = mergeLegendSettings(
-            validCartesianConfig?.eChartsConfig.legend,
-            validCartesianConfigLegend,
-            series,
-        );
-
         // Use line icon only for line/area charts, otherwise use square with border radius
         const hasOnlyLineCharts = series.every(
             (s) =>
@@ -4223,12 +4452,33 @@ const useEchartsCartesianConfig = (
             hasOnlyLineCharts ? 'line' : 'square',
         );
 
-        return {
-            ...mergedLegendConfig,
-            ...legendStyle,
-            tooltip: legendDoubleClickTooltip,
-        };
+        const legendAreaWidth =
+            validCartesianConfig?.eChartsConfig.legend?.placement ===
+            'outsideLeft'
+                ? currentGrid.left
+                : currentGrid.right;
+        const outsideLabelWidth = getOutsideLegendLabelWidth(
+            chartWidth,
+            legendAreaWidth,
+            legendStyle,
+        );
+
+        const mergedLegendConfig = mergeLegendSettings(
+            validCartesianConfig?.eChartsConfig.legend,
+            validCartesianConfigLegend,
+            series,
+            outsideLabelWidth,
+        );
+
+        return composeLegendConfig(
+            mergedLegendConfig,
+            legendStyle,
+            legendDoubleClickTooltip,
+        );
     }, [
+        chartWidth,
+        currentGrid.left,
+        currentGrid.right,
         legendDoubleClickTooltip,
         validCartesianConfig?.eChartsConfig.legend,
         validCartesianConfigLegend,
@@ -4369,9 +4619,11 @@ const useEchartsCartesianConfig = (
             xAxis: resolvedLabels.xAxis,
             yAxis: resolvedLabels.yAxis,
             useUTC: true,
-            series: relocateMarkLinesToVisibleSeries(
-                resolvedLabels.series,
-                validCartesianConfigLegend,
+            series: assignSeriesZByOrder(
+                relocateMarkLinesToVisibleSeries(
+                    resolvedLabels.series,
+                    validCartesianConfigLegend,
+                ),
             ),
             animation: !(isInDashboard || minimal),
             legend: legendConfigWithInstructionsTooltip,
@@ -4382,9 +4634,7 @@ const useEchartsCartesianConfig = (
             tooltip,
             grid: currentGrid,
             textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(
-                    theme?.other.chartFont as string | undefined,
-                ),
+                fontFamily: sanitizeEchartsFontFamily(theme?.other.chartFont),
             },
             // We assign colors per series, so we specify an empty list here.
             color: [],
@@ -4412,9 +4662,7 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        return timeAxisField
-            ? applyTimezoneShiftToEchartsOptions(baseOptions, timeAxisField)
-            : baseOptions;
+        return finalizeTimeAxisOptions(baseOptions, timeAxisMode);
     }, [
         sortedAxes,
         sortedSeriesForChart,
@@ -4428,7 +4676,7 @@ const useEchartsCartesianConfig = (
         currentGrid,
         theme?.other.chartFont,
         validCartesianConfig,
-        timeAxisField,
+        timeAxisMode,
     ]);
 
     if (

@@ -18,7 +18,7 @@ vi.mock('../logging/logger', () => ({
 }));
 
 describe('languageModelUsageToTokens', () => {
-    it('maps AI SDK usage to token classes', () => {
+    it('maps AI SDK usage to token classes, keeping input inclusive of cache', () => {
         expect(
             languageModelUsageToTokens({
                 inputTokens: 1000,
@@ -35,6 +35,9 @@ describe('languageModelUsageToTokens', () => {
                 totalTokens: 1200,
             }),
         ).toEqual({
+            // The value includes the cache tokens (150 uncached + 800 read +
+            // 50 write). It is not the uncached part. The warehouse subtracts
+            // the cache tokens.
             inputTokens: 1000,
             outputTokens: 200,
             cacheReadTokens: 800,
@@ -42,6 +45,42 @@ describe('languageModelUsageToTokens', () => {
             reasoningTokens: 30,
             totalTokens: 1200,
         });
+    });
+
+    it('passes the inclusive input through regardless of which cache classes are reported', () => {
+        expect(
+            languageModelUsageToTokens({
+                inputTokens: 1_000,
+                inputTokenDetails: {
+                    noCacheTokens: undefined,
+                    cacheReadTokens: 800,
+                    cacheWriteTokens: 50,
+                },
+                outputTokens: 200,
+                outputTokenDetails: {
+                    textTokens: 170,
+                    reasoningTokens: 30,
+                },
+                totalTokens: 1_200,
+            }).inputTokens,
+        ).toBe(1_000);
+
+        expect(
+            languageModelUsageToTokens({
+                inputTokens: 1_000,
+                inputTokenDetails: {
+                    noCacheTokens: undefined,
+                    cacheReadTokens: 800,
+                    cacheWriteTokens: undefined,
+                },
+                outputTokens: 200,
+                outputTokenDetails: {
+                    textTokens: 170,
+                    reasoningTokens: 30,
+                },
+                totalTokens: 1_200,
+            }).inputTokens,
+        ).toBe(1_000);
     });
 
     it('maps unreported token classes to null', () => {
@@ -131,6 +170,9 @@ describe('emitAiUsage', () => {
             promptId: 'prompt-1',
             model: 'claude-sonnet-5',
             provider: 'anthropic',
+            keyManagement: null,
+            deepResearchRunId: null,
+            deepResearchPhase: null,
             ...tokens,
         };
 
@@ -152,6 +194,62 @@ describe('emitAiUsage', () => {
             event: 'ai.usage',
             userId: 'user-1',
             properties: expectedProperties,
+        });
+    });
+
+    it('reads keyManagement from metadata and drops unknown values', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAiUsage(
+            {
+                functionId: 'generateAgentResponse',
+                metadata: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    keyManagement: 'self-managed',
+                },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.keyManagement).toBe(
+            'self-managed',
+        );
+
+        track.mockClear();
+        emitAiUsage(
+            {
+                functionId: 'generateAgentResponse',
+                metadata: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    keyManagement: 'bogus',
+                },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.keyManagement).toBeNull();
+    });
+
+    it('attributes Deep Research usage to its run and phase', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAiUsage(
+            {
+                functionId: 'generateAgentResponse',
+                metadata: {
+                    feature: 'agent',
+                    deepResearchRunUuid: 'run-1',
+                    deepResearchPhase: 'investigating',
+                },
+            },
+            tokens,
+        );
+
+        expect(track.mock.calls[0][0].properties).toMatchObject({
+            deepResearchRunId: 'run-1',
+            deepResearchPhase: 'investigating',
         });
     });
 

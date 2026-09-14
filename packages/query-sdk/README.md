@@ -92,9 +92,17 @@ lightdash
         { field: 'amount', operator: 'greaterThan', value: 1000 },
         { field: 'order_date', operator: 'inThePast', value: 90, unit: 'days' },
     ])
+    .metricFilters([
+        { field: 'total_revenue', operator: 'greaterThanOrEqual', value: 5000 },
+    ])
     .sorts([{ field: 'total_revenue', direction: 'desc' }])
     .limit(100);
 ```
+
+`.filters()` accepts dimensions and serializes them as WHERE filters.
+`.metricFilters()` accepts metrics and serializes them as HAVING filters. A
+metric can be used only as a filter and does not need to be selected with
+`.metrics()`.
 
 Supported filter operators: `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`, `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent`, `inBetween`, `notInBetween`, `isNull`, `notNull`, `startsWith`, `endsWith`, `include`, `doesNotInclude`.
 

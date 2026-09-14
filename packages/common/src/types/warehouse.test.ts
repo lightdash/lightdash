@@ -1,7 +1,16 @@
+import { DimensionType } from './field';
 import {
+    catalogHasTimestampDomains,
+    ensureCatalogTimestampDomainsKey,
+    getCatalogTimestampDomain,
     getUserAttributeQueryTags,
+    getWarehouseTableType,
+    isWarehouseTableType,
     sanitizeQueryTagKey,
     sanitizeQueryTagValue,
+    setCatalogTimestampDomain,
+    WarehouseTableType,
+    type WarehouseCatalog,
 } from './warehouse';
 
 describe('getUserAttributeQueryTags', () => {
@@ -68,5 +77,86 @@ describe('getUserAttributeQueryTags', () => {
             'invalid_query_tag__',
         );
         expect(sanitizeQueryTagValue("O'Reilly Media")).toBe('o_reilly_media');
+    });
+});
+
+describe('catalog timestamp domain sidecar', () => {
+    const buildCatalog = (): WarehouseCatalog => ({
+        db: { schema: { table: { created_at: DimensionType.TIMESTAMP } } },
+    });
+
+    it('reports a catalog without the sidecar as pre-domain', () => {
+        expect(catalogHasTimestampDomains(buildCatalog())).toBe(false);
+    });
+
+    it('reports a catalog with a classified column as domain-aware', () => {
+        const catalog = buildCatalog();
+        setCatalogTimestampDomain(
+            catalog,
+            'db',
+            'schema',
+            'table',
+            'created_at',
+            'naive',
+        );
+        expect(catalogHasTimestampDomains(catalog)).toBe(true);
+    });
+
+    it('marks a domain-less catalog without clobbering classifications', () => {
+        const empty = buildCatalog();
+        ensureCatalogTimestampDomainsKey(empty);
+        expect(catalogHasTimestampDomains(empty)).toBe(true);
+
+        const classified = buildCatalog();
+        setCatalogTimestampDomain(
+            classified,
+            'db',
+            'schema',
+            'table',
+            'created_at',
+            'aware',
+        );
+        ensureCatalogTimestampDomainsKey(classified);
+        expect(
+            getCatalogTimestampDomain(
+                classified,
+                'db',
+                'schema',
+                'table',
+                'created_at',
+            ),
+        ).toEqual('aware');
+    });
+});
+
+describe('getWarehouseTableType', () => {
+    it.each([
+        ['BASE TABLE', WarehouseTableType.TABLE],
+        ['MANAGED', WarehouseTableType.TABLE],
+        ['STREAMING_TABLE', WarehouseTableType.TABLE],
+        ['MergeTree', WarehouseTableType.TABLE],
+        ['VIEW', WarehouseTableType.VIEW],
+        ['View', WarehouseTableType.VIEW],
+        ['VIRTUAL_VIEW', WarehouseTableType.VIEW],
+        ['MATERIALIZED VIEW', WarehouseTableType.MATERIALIZED_VIEW],
+        ['MATERIALIZED_VIEW', WarehouseTableType.MATERIALIZED_VIEW],
+        ['MaterializedView', WarehouseTableType.MATERIALIZED_VIEW],
+        ['EXTERNAL', WarehouseTableType.EXTERNAL],
+        ['EXTERNAL TABLE', WarehouseTableType.EXTERNAL],
+        ['EXTERNAL_TABLE', WarehouseTableType.EXTERNAL],
+        ['FOREIGN', WarehouseTableType.EXTERNAL],
+        [null, WarehouseTableType.TABLE],
+        [undefined, WarehouseTableType.TABLE],
+        [42, WarehouseTableType.TABLE],
+    ])('maps %s to %s', (raw, expected) => {
+        expect(getWarehouseTableType(raw)).toBe(expected);
+    });
+});
+
+describe('isWarehouseTableType', () => {
+    it('accepts stored enum values and rejects raw warehouse strings', () => {
+        expect(isWarehouseTableType('view')).toBe(true);
+        expect(isWarehouseTableType('VIEW')).toBe(false);
+        expect(isWarehouseTableType(null)).toBe(false);
     });
 });

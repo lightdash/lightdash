@@ -1,5 +1,5 @@
-import { Button, Group, SegmentedControl, Stack, Text } from '@mantine-8/core';
-import { useLocalStorage } from '@mantine-8/hooks';
+import { Button, Group, SegmentedControl, Stack } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import {
     IconLayoutKanban,
     IconPlus,
@@ -10,7 +10,10 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { GuidedTour } from '../../../../../../components/common/GuidedTour';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
+import {
+    SettingsPage,
+    SettingsPageActions,
+} from '../../../../../../components/common/Settings/SettingsPage';
 import { useGuidedTour } from '../../../../../../hooks/useGuidedTour';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import { openCreateIssue } from '../../../store/createIssueSlice';
@@ -53,12 +56,18 @@ export const AiReviewsSettingsPage = () => {
 
     const isSidebarOpen = selectedReviewItem !== null;
 
-    // Seeds the board/table project filter when arriving from a project's
-    // "Review AI findings" promo (e.g. `?projects=<uuid>`).
+    // Seeds the board/table filters when arriving from a project's "Review AI
+    // findings" promo or an agent deep link (e.g. `?projects=<uuid>&agents=<uuid>`).
     const initialProjectUuids = useMemo(() => {
         const projectsParam = searchParams.get('projects');
         if (!projectsParam) return [];
         return projectsParam.split(',').filter(Boolean);
+    }, [searchParams]);
+
+    const initialAgentUuids = useMemo(() => {
+        const agentsParam = searchParams.get('agents');
+        if (!agentsParam) return [];
+        return agentsParam.split(',').filter(Boolean);
     }, [searchParams]);
 
     // While the tour runs, the board always shows the same sample cards so the
@@ -126,97 +135,93 @@ export const AiReviewsSettingsPage = () => {
 
     return (
         <Stack mb="lg" gap="md">
-            <Stack gap={4} data-tour="reviews-intro">
-                <Group justify="space-between" align="flex-start">
-                    <PageBreadcrumbs
-                        items={[
-                            {
-                                title: 'Ask AI',
-                                to: '/generalSettings/ai/general',
-                            },
-                            { title: 'Issues', active: true },
-                        ]}
-                    />
-                    <Group gap="xs">
-                        <Button
-                            size="compact-xs"
-                            leftSection={<MantineIcon icon={IconPlus} />}
-                            onClick={() => dispatch(openCreateIssue(null))}
-                        >
-                            New issue
-                        </Button>
-                        <SegmentedControl
-                            size="xs"
-                            value={effectiveView}
-                            onChange={(value) =>
-                                setView(value as 'board' | 'table')
+            <div data-tour="reviews-intro">
+                <SettingsPage
+                    title="Issues"
+                    description={
+                        <>
+                            An actionable queue of data issues from AI findings
+                            and human asks. Semantic layer fixes open a pull
+                            request; project context fixes add guidance your
+                            agents read before answering.
+                        </>
+                    }
+                    actions={
+                        <SettingsPageActions>
+                            <Button
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                                onClick={() => dispatch(openCreateIssue(null))}
+                            >
+                                New issue
+                            </Button>
+                            <SegmentedControl
+                                size="xs"
+                                value={effectiveView}
+                                onChange={(value) =>
+                                    setView(value as 'board' | 'table')
+                                }
+                                data={[
+                                    {
+                                        value: 'board',
+                                        label: (
+                                            <Group gap={6} wrap="nowrap">
+                                                <MantineIcon
+                                                    icon={IconLayoutKanban}
+                                                />
+                                                Board
+                                            </Group>
+                                        ),
+                                    },
+                                    {
+                                        value: 'table',
+                                        label: (
+                                            <Group gap={6} wrap="nowrap">
+                                                <MantineIcon icon={IconTable} />
+                                                Table
+                                            </Group>
+                                        ),
+                                    },
+                                ]}
+                            />
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconRoute} />}
+                                onClick={startTour}
+                            >
+                                Take the tour
+                            </Button>
+                        </SettingsPageActions>
+                    }
+                >
+                    {settings?.aiAgentsVisible === false && (
+                        <AiFeaturesDisabledAlert />
+                    )}
+
+                    {effectiveView === 'board' ? (
+                        <ReviewKanbanBoard
+                            selectedReviewItemUuid={
+                                selectedReviewItem?.reviewItemUuid
                             }
-                            data={[
-                                {
-                                    value: 'board',
-                                    label: (
-                                        <Group gap={6} wrap="nowrap">
-                                            <MantineIcon
-                                                icon={IconLayoutKanban}
-                                            />
-                                            Board
-                                        </Group>
-                                    ),
-                                },
-                                {
-                                    value: 'table',
-                                    label: (
-                                        <Group gap={6} wrap="nowrap">
-                                            <MantineIcon icon={IconTable} />
-                                            Table
-                                        </Group>
-                                    ),
-                                },
-                            ]}
+                            onReviewItemSelect={handleReviewItemSelect}
+                            showOnboardingExamples={isTourOpen}
+                            initialProjectUuids={initialProjectUuids}
+                            initialAgentUuids={initialAgentUuids}
                         />
-                        <Button
-                            variant="subtle"
-                            color="gray"
-                            size="compact-xs"
-                            leftSection={<MantineIcon icon={IconRoute} />}
-                            onClick={startTour}
-                        >
-                            Take the tour
-                        </Button>
-                    </Group>
-                </Group>
-
-                <Text c="dimmed" fz="sm" maw={760}>
-                    An actionable queue of data issues from AI findings and
-                    human asks. Open an issue to inspect the thread, metadata,
-                    and suggested fix.{' '}
-                    <Text span fw={600} fz="inherit">
-                        Semantic layer
-                    </Text>{' '}
-                    fixes open a dbt PR.{' '}
-                    <Text span fw={600} fz="inherit">
-                        Project context
-                    </Text>{' '}
-                    fixes add a note your agents read before answering.
-                </Text>
-            </Stack>
-
-            {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
-
-            {effectiveView === 'board' ? (
-                <ReviewKanbanBoard
-                    selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
-                    onReviewItemSelect={handleReviewItemSelect}
-                    showOnboardingExamples={isTourOpen}
-                    initialProjectUuids={initialProjectUuids}
-                />
-            ) : (
-                <AiAgentAdminReviewItemsTable
-                    selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
-                    onReviewItemSelect={handleReviewItemSelect}
-                    initialProjectUuids={initialProjectUuids}
-                />
-            )}
+                    ) : (
+                        <AiAgentAdminReviewItemsTable
+                            selectedReviewItemUuid={
+                                selectedReviewItem?.reviewItemUuid
+                            }
+                            onReviewItemSelect={handleReviewItemSelect}
+                            initialProjectUuids={initialProjectUuids}
+                            initialAgentUuids={initialAgentUuids}
+                        />
+                    )}
+                </SettingsPage>
+            </div>
 
             <GuidedTour
                 steps={REVIEWS_TOUR_STEPS}

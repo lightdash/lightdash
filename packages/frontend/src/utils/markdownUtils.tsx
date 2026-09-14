@@ -4,7 +4,7 @@ import {
     Title,
     useMantineTheme,
     type MantineStyleProp,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import type MarkdownPreview from '@uiw/react-markdown-preview';
 import type MDEditor from '@uiw/react-md-editor';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';

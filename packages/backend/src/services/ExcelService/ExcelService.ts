@@ -24,7 +24,6 @@ import {
     isNumericItem,
     ItemsMap,
     PivotConfig,
-    pivotResultsAsCsv,
     pivotResultsAsData,
     ResultRow,
     shouldShiftItemTimezone,
@@ -34,6 +33,7 @@ import {
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
+    type PivotResultsDataCell,
     type PivotRowTotalsByIndex,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
@@ -158,6 +158,48 @@ export class ExcelService {
                 undefined,
                 timezone,
             );
+        });
+    }
+
+    private static convertPivotCellToExcel(
+        cell: PivotResultsDataCell,
+        itemMap: ItemsMap,
+        onlyRaw: boolean,
+    ): string | number {
+        const item = itemMap[cell.itemId ?? cell.fieldId];
+        if (
+            !onlyRaw &&
+            isNumericItem(item) &&
+            cell.raw !== null &&
+            cell.raw !== undefined &&
+            String(cell.raw).trim() !== '' &&
+            isNumber(cell.raw)
+        ) {
+            return Number(cell.raw);
+        }
+
+        return cell.formatted;
+    }
+
+    private static applyPivotNumberFormats(
+        excelRow: Excel.Row,
+        pivotRow: PivotResultsDataCell[],
+        itemMap: ItemsMap,
+        onlyRaw: boolean,
+    ) {
+        if (onlyRaw) return;
+
+        pivotRow.forEach((cell, colIndex) => {
+            const excelCell = excelRow.getCell(colIndex + 1);
+            if (typeof excelCell.value !== 'number') return;
+
+            const formatExpression = getExcelFormatExpression(
+                itemMap[cell.itemId ?? cell.fieldId],
+            );
+
+            if (formatExpression) {
+                excelCell.numFmt = formatExpression;
+            }
         });
     }
 
@@ -409,6 +451,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         enableImprovedExcelDates = false,
         timezone,
     }: {
@@ -420,6 +463,7 @@ export class ExcelService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         enableImprovedExcelDates?: boolean;
         timezone?: string;
     }): Promise<Excel.Buffer> {
@@ -429,10 +473,16 @@ export class ExcelService {
             );
         }
 
+        const pivotValuesColumnsMap = Object.fromEntries(
+            pivotDetails.valuesColumns?.map((column) => [
+                column.pivotColumnName,
+                column,
+            ]) ?? [],
+        );
         const formattedRows = formatRows(
             rows,
             itemMap,
-            undefined,
+            pivotValuesColumnsMap,
             undefined,
             timezone,
         );
@@ -447,6 +497,7 @@ export class ExcelService {
                 pivotDetails,
                 warehouseRowTotals,
                 warehouseColumnTotals,
+                warehouseGrandTotals,
                 timezone,
             });
         }
@@ -460,6 +511,7 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
         });
 
         // Build date column metadata: for each data column, determine if
@@ -516,7 +568,7 @@ export class ExcelService {
             }
         });
 
-        // Add data rows — use raw values for date columns, formatted for everything else
+        // Add data rows with native date/number values and Excel formats.
         pivotData.dataRows.forEach((row) => {
             const excelRow = row.map((cell, colIndex) => {
                 const dateFmt = dateColumnFormats.get(colIndex);
@@ -533,9 +585,15 @@ export class ExcelService {
                             : m.toDate();
                     }
                 }
-                return cell.formatted;
+                return ExcelService.convertPivotCellToExcel(
+                    cell,
+                    itemMap,
+                    onlyRaw,
+                );
             });
             const wsRow = worksheet.addRow(excelRow);
+
+            ExcelService.applyPivotNumberFormats(wsRow, row, itemMap, onlyRaw);
 
             // Apply numFmt to date cells in this row
             dateColumnFormats.forEach(({ numFmt }, colIndex) => {
@@ -580,6 +638,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         timezone,
     }: {
         formattedRows: ResultRow[];
@@ -590,9 +649,10 @@ export class ExcelService {
         pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         timezone?: string;
     }): Promise<Excel.Buffer> {
-        const csvResults = pivotResultsAsCsv({
+        const pivotData = pivotResultsAsData({
             pivotConfig,
             rows: formattedRows,
             itemMap,
@@ -601,16 +661,43 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
         });
+        const csvResults = [
+            ...pivotData.headers,
+            ...pivotData.dataRows.map((row) =>
+                row.map((cell) => cell.formatted),
+            ),
+        ];
 
         const workbook = new Excel.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Table');
 
         csvResults.forEach((row, index) => {
-            const excelRow = row.map((value) =>
+            const pivotRow =
+                pivotData.dataRows[index - pivotData.headers.length];
+            const rowValues = pivotRow
+                ? pivotRow.map((cell) =>
+                      ExcelService.convertPivotCellToExcel(
+                          cell,
+                          itemMap,
+                          onlyRaw,
+                      ),
+                  )
+                : row;
+            const excelRow = rowValues.map((value) =>
                 ExcelService.convertToExcelDate(value, timezone),
             );
-            worksheet.addRow(excelRow);
+            const wsRow = worksheet.addRow(excelRow);
+
+            if (pivotRow) {
+                ExcelService.applyPivotNumberFormats(
+                    wsRow,
+                    pivotRow,
+                    itemMap,
+                    onlyRaw,
+                );
+            }
 
             if (index === 0) {
                 const headerRow = worksheet.getRow(1);
@@ -656,6 +743,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         timezone,
         csvCellsLimit,
     }: {
@@ -667,6 +755,7 @@ export class ExcelService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -729,6 +818,7 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
             enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
             timezone,
         });
@@ -786,6 +876,7 @@ export class ExcelService {
         timezone?: string,
         conditionalFormattings?: ConditionalFormattingConfig[],
         minMaxMap?: ConditionalFormattingMinMaxMap,
+        columnTotals?: Record<string, number>,
     ): Promise<{ truncated: boolean }> {
         // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
@@ -873,6 +964,22 @@ export class ExcelService {
             maxLines: ExcelService.EXCEL_ROW_LIMIT,
         });
 
+        if (columnTotals && Object.keys(columnTotals).length > 0) {
+            const totalsRow: Record<string, string | number> = {};
+            sortedFieldIds.forEach((fieldId, colIndex) => {
+                const total = columnTotals[fieldId];
+                if (total !== undefined) {
+                    totalsRow[`col_${colIndex}`] = total;
+                }
+            });
+            // Label the row like the table footer does, as long as the first
+            // column has no total of its own to show.
+            if (totalsRow.col_0 === undefined) {
+                totalsRow.col_0 = 'Total';
+            }
+            worksheet.addRow(totalsRow).commit();
+        }
+
         // Commit Excel to temp file
         worksheet.commit();
         await workbook.commit();
@@ -899,6 +1006,8 @@ export class ExcelService {
             hiddenFields?: string[];
             attachmentDownloadName?: string;
             conditionalFormattings?: ConditionalFormattingConfig[];
+            // Warehouse-computed totals appended as a final row, keyed by field id
+            columnTotals?: Record<string, number>;
         } = {},
         timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
@@ -911,6 +1020,7 @@ export class ExcelService {
             hiddenFields = [],
             attachmentDownloadName,
             conditionalFormattings,
+            columnTotals,
         } = options;
 
         const { resultsStorageClient, exportsStorageClient } = clients;
@@ -958,6 +1068,7 @@ export class ExcelService {
                 timezone,
                 conditionalFormattings,
                 minMaxMap,
+                columnTotals,
             );
 
             // Generate filename with truncated flag

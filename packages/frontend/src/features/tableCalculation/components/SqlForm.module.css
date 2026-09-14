@@ -3,3 +3,15 @@
     pointer-events: none;
     transition: opacity 200ms ease;
 }
+
+.sqlEditor {
+    min-height: 250px;
+}
+
+.sqlEditor.sqlEditorFullScreen {
+    min-height: 100px;
+}
+
+.sqlEditor > :global(.ace_gutter) {
+    background-color: var(--ace-gutter-background);
+}

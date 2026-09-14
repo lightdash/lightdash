@@ -165,8 +165,8 @@ export const FUNCTION_DEFINITIONS = [
     { name: 'NTILE', description: 'Distribute rows into buckets', minArgs: 1, maxArgs: 1, category: 'window' },
     { name: 'FIRST', description: 'First value in window', minArgs: 1, maxArgs: 1, category: 'window' },
     { name: 'LAST', description: 'Last value in window', minArgs: 1, maxArgs: 1, category: 'window' },
-    { name: 'MOVING_SUM', description: 'Moving sum over preceding rows', minArgs: 2, maxArgs: 2, category: 'window' },
-    { name: 'MOVING_AVG', description: 'Moving average over preceding rows', minArgs: 2, maxArgs: 2, category: 'window' },
+    { name: 'MOVING_SUM', description: 'Moving sum; second argument counts preceding rows, current row always included (pass 2 for a trailing 3-row window)', minArgs: 2, maxArgs: 2, category: 'window' },
+    { name: 'MOVING_AVG', description: 'Moving average; second argument counts preceding rows, current row always included (pass 2 for a trailing 3-row window)', minArgs: 2, maxArgs: 2, category: 'window' },
 ] as const satisfies readonly FunctionDefinition[];
 
 export type FunctionDefinitionEntry = (typeof FUNCTION_DEFINITIONS)[number];

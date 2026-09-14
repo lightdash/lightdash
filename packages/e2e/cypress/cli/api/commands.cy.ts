@@ -13,7 +13,7 @@ describe('version', () => {
     it('Should get version', () => {
         cy.exec(`${cliCommand} --version`)
             .its('stdout')
-            .should('contain', '0.');
+            .should('match', /\d+\.\d+\.\d+/);
     });
 });
 

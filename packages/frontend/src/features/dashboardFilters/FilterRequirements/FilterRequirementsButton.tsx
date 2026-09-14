@@ -12,10 +12,10 @@ import {
     Stack,
     Text,
     Textarea,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
-import { clsx } from '@mantine/core';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
@@ -27,7 +27,7 @@ import { EventName } from '../../../types/Events';
 import classes from './FilterRequirements.module.css';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import { AndSeparator } from './RuleSeparators';
-import { useFilterableItemsMap } from './useFilterableItemsMap';
+import { useDashboardFilterField } from './useDashboardFilterField';
 import { useFilterBarPopovers } from './useFilterBarPopovers';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
 import {
@@ -103,7 +103,6 @@ const RuleCard: FC<RuleCardProps> = ({
             <Button
                 size="compact-xs"
                 variant="subtle"
-                color="ldGray.6"
                 ml="auto"
                 leftSection={<MantineIcon icon={IconTrash} />}
                 onClick={onDeleteRule}
@@ -115,9 +114,6 @@ const RuleCard: FC<RuleCardProps> = ({
 );
 
 const FilterRequirementsButton: FC = () => {
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
     const [isLocalPopoverOpen, { open: openLocal, close: closeLocal }] =
         useDisclosure(false);
     const popovers = useFilterBarPopovers();
@@ -160,18 +156,12 @@ const FilterRequirementsButton: FC = () => {
         [dashboardFilters],
     );
 
-    const fieldsMap = useFilterableItemsMap();
+    const getFilterItem = useDashboardFilterField();
 
     const getFilterLabel = useCallback(
         (filterRule: DashboardFilterRule) =>
-            getDashboardFilterRuleLabel(filterRule, fieldsMap),
-        [fieldsMap],
-    );
-
-    const getFilterItem = useCallback(
-        (filterRule: DashboardFilterRule) =>
-            fieldsMap[filterRule.target.fieldId],
-        [fieldsMap],
+            getDashboardFilterRuleLabel(filterRule, getFilterItem),
+        [getFilterItem],
     );
 
     // Saved filters with staged edits applied on top; drives the rule cards
@@ -202,8 +192,8 @@ const FilterRequirementsButton: FC = () => {
 
     const selectableFiltersFor = useCallback(
         (memberIds: string[]): SelectableFilter[] =>
-            getSelectableFilters(allFilterRules, memberIds, fieldsMap),
-        [allFilterRules, fieldsMap],
+            getSelectableFilters(allFilterRules, memberIds, getFilterItem),
+        [allFilterRules, getFilterItem],
     );
 
     const updateFilterRule = useUpdateDashboardFilterRule();
@@ -347,10 +337,6 @@ const FilterRequirementsButton: FC = () => {
     const requirementCount = savedRequirementRules.length;
     const hasRuleRows = requirementRules.length > 0 || draftRuleIds.length > 0;
 
-    if (!isFilterRequirementsEnabled) {
-        return null;
-    }
-
     return (
         <Popover
             position="bottom-start"
@@ -363,10 +349,8 @@ const FilterRequirementsButton: FC = () => {
             closeOnClickOutside={memberIdPendingRemoval === null}
             transitionProps={{ transition: 'pop-top-left' }}
             withArrow
-            shadow="md"
             offset={1}
             arrowOffset={14}
-            withinPortal
         >
             <Popover.Target>
                 <Button
@@ -397,12 +381,12 @@ const FilterRequirementsButton: FC = () => {
                         <Text size="sm" fw={600}>
                             Filter rules
                         </Text>
-                        <Text size="xs" c="ldGray.6">
+                        <Text size="xs" c="dimmed">
                             Dashboard won't load until all rules are met.
                         </Text>
                     </Stack>
                     {!hasRuleRows && (
-                        <Text size="xs" c="ldGray.6">
+                        <Text size="xs" c="dimmed">
                             Require viewers to set filters before the dashboard
                             loads, either individually or at least one from a
                             set.
@@ -451,7 +435,6 @@ const FilterRequirementsButton: FC = () => {
                     <Button
                         size="xs"
                         variant="subtle"
-                        color="blue"
                         fullWidth
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={handleAddRule}
@@ -480,17 +463,13 @@ const FilterRequirementsButton: FC = () => {
                         className={classes.saveBar}
                     >
                         <Group gap={6} wrap="nowrap">
-                            <MantineIcon
-                                icon={IconInfoCircle}
-                                color="ldGray.6"
-                            />
-                            <Text size="xs" c="ldGray.6">
+                            <MantineIcon icon={IconInfoCircle} color="dimmed" />
+                            <Text size="xs" c="dimmed">
                                 Tiles stay locked until every rule is satisfied.
                             </Text>
                         </Group>
                         <Button
                             size="xs"
-                            variant="filled"
                             disabled={!hasStagedChanges}
                             // Mouse saves on mousedown: with an inline dropdown
                             // open, Mantine's click-outside handling re-layouts

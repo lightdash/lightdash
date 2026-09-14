@@ -1,10 +1,10 @@
-import { Stack, Text } from '@mantine-8/core';
+import { Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 
 const InvalidSeriesConfiguration: FC<{ itemId: string }> = ({ itemId }) => {
     return (
         <Stack>
-            <Text c="ldGray.6">
+            <Text c="dimmed">
                 Tried to reference field with unknown id: {itemId}
             </Text>
         </Stack>

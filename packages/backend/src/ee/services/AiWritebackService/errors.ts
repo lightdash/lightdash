@@ -2,25 +2,16 @@ import {
     ForbiddenError,
     ParameterError,
     PullRequestProvider,
+    UnexpectedGitError,
 } from '@lightdash/common';
 
-/**
- * Thrown when a writeback cannot proceed because the project has no usable Git
- * connection — either the organization has not installed the GitHub/GitLab app,
- * or the project's dbt connection is not a GitHub/GitLab type. The `editDbtProject`
- * tool catches this specifically (via `instanceof`) and tags its result metadata
- * with a provider-specific `errorCode`, so the chat UI can render an actionable
- * "install the app" state instead of a generic failure.
- *
- * `provider` is the git host the project expects (GitHub/GitLab) when that is
- * known, or null when the project's dbt connection is not a Git type at all.
- */
+/** A missing Git app or project token needs provider-specific setup guidance. */
 export class WritebackGitNotConnectedError extends ForbiddenError {
     readonly provider: PullRequestProvider | null;
 
     constructor(
         provider: PullRequestProvider | null = null,
-        message = 'This project is not connected to a GitHub or GitLab repository',
+        message = 'This project is not connected to a supported Git repository',
     ) {
         super(message);
         this.provider = provider;
@@ -57,5 +48,30 @@ export class RepoTooLargeError extends ParameterError {
         super(
             `The repository ${repo} is too large to edit (${sizeMb} MB, limit is ${limitMb} MB). Tell the user the coding agent can't clone repositories above this size.`,
         );
+    }
+}
+
+/**
+ * Thrown by the pre-side-effect checkpoint in runCodingAgent when the run row
+ * went terminal (cancelled via tasks/cancel, or swept to error) while the
+ * agent was working. A deliberate abort, not a failure: callers log it at
+ * info and skip Sentry, error metrics, and failure analytics.
+ */
+export class WritebackRunAbortedError extends Error {
+    readonly runStatus: string;
+
+    constructor(runStatus: string) {
+        super(
+            `Writeback run is already in terminal status '${runStatus}' — aborting before any commit, push, or pull request is made`,
+        );
+        this.name = 'WritebackRunAbortedError';
+        this.runStatus = runStatus;
+    }
+}
+
+/** A sandbox with unremoved Git credentials must never be resumed. */
+export class WritebackCredentialCleanupError extends UnexpectedGitError {
+    constructor() {
+        super('Could not clear Bitbucket sandbox credentials');
     }
 }

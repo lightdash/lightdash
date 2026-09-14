@@ -4,7 +4,7 @@ import {
     PROJECT_TIMEZONE_SETTING,
     USER_TIMEZONE_SETTING,
 } from '@lightdash/common';
-import { ActionIcon, HoverCard, Text } from '@mantine-8/core';
+import { ActionIcon, HoverCard, Text } from '@mantine/core';
 import { IconWorld } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -44,21 +44,14 @@ const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
     }
 
     return (
-        <HoverCard
-            withArrow
-            withinPortal
-            shadow="md"
-            position="bottom-end"
-            offset={4}
-            arrowOffset={10}
-        >
+        <HoverCard withArrow position="bottom-end" offset={4} arrowOffset={10}>
             <HoverCard.Dropdown>
                 <Text size="sm" c="ldGray.7" maw={260}>
                     {getTimezoneSourceLabel(timezoneSetting, timezone)}
                 </Text>
             </HoverCard.Dropdown>
             <HoverCard.Target>
-                <ActionIcon size="sm" variant="subtle" color="gray">
+                <ActionIcon size="sm">
                     <MantineIcon icon={IconWorld} />
                 </ActionIcon>
             </HoverCard.Target>

@@ -2,17 +2,19 @@ import {
     assertUnreachable,
     ExploreType,
     getItemId,
+    getParsedReference,
     getPreAggregateExploreName,
     getPreAggregateMetricColumnName,
     getPreAggregateMetricComponentColumnName,
-    getSqlForTruncatedDate,
+    getReferencedDimension,
     lightdashVariablePattern,
     MetricType,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
+    preAggregateMaterialization,
     PreAggregateMetricRepresentationKind,
     preAggregateUtils,
     SupportedDbtAdapter,
-    timeFrameOrder,
+    timeFrameConfigs,
     type CompiledDimension,
     type CompiledMetric,
     type CompiledTable,
@@ -21,26 +23,17 @@ import {
     type FieldId,
     type PreAggregateDef,
     type TimeFrames,
+    type WeekDay,
 } from '@lightdash/common';
-import { assertDimensionEligibleForDirectMaterialization } from './eligibility';
-import {
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+
+const {
+    assertDimensionEligibleForDirectMaterialization,
     getDimensionsByReference,
     getMetricReferenceForDef,
     getSelectedDimension,
     selectPreAggregateMetrics,
-} from './shared';
-
-const isFinerGranularity = (
-    candidateGranularity: TimeFrames,
-    targetGranularity: TimeFrames,
-): boolean => {
-    const candidateIndex = timeFrameOrder.indexOf(candidateGranularity);
-    const targetIndex = timeFrameOrder.indexOf(targetGranularity);
-    if (candidateIndex === -1 || targetIndex === -1) {
-        return false;
-    }
-    return candidateIndex < targetIndex;
-};
+} = preAggregateMaterialization;
 
 const getMetricAggregateSql = (
     metricType: MetricType.SUM | MetricType.MIN | MetricType.MAX,
@@ -64,6 +57,7 @@ const getMetricAggregateSql = (
 const getAverageMetricAggregateSql = (
     tableName: string,
     fieldId: FieldId,
+    servingAdapter: SupportedDbtAdapter,
 ): string => {
     const sumColumnReference = `${tableName}.${getPreAggregateMetricComponentColumnName(
         fieldId,
@@ -74,18 +68,22 @@ const getAverageMetricAggregateSql = (
         'count',
     )}`;
 
+    const floatType =
+        warehouseSqlBuilderFromType(servingAdapter).getFloatingType();
     // Force floating-point division because both components are numeric aggregates.
-    return `CAST(SUM(${sumColumnReference}) AS DOUBLE) / CAST(NULLIF(SUM(${countColumnReference}), 0) AS DOUBLE)`;
+    return `CAST(SUM(${sumColumnReference}) AS ${floatType}) / CAST(NULLIF(SUM(${countColumnReference}), 0) AS ${floatType})`;
 };
 
 const getMetricSqlForPreAggregateExplore = ({
     metricType,
     tableName,
     fieldId,
+    servingAdapter,
 }: {
     metricType: MetricType;
     tableName: string;
     fieldId: FieldId;
+    servingAdapter: SupportedDbtAdapter;
 }): { sql: string; compiledSql: string } => {
     const representation =
         preAggregateUtils.getMetricRepresentation(metricType);
@@ -95,6 +93,7 @@ const getMetricSqlForPreAggregateExplore = ({
             const compiledSql = getAverageMetricAggregateSql(
                 tableName,
                 fieldId,
+                servingAdapter,
             );
             return {
                 sql: compiledSql,
@@ -113,6 +112,17 @@ const getMetricSqlForPreAggregateExplore = ({
                 ),
             };
         }
+        case PreAggregateMetricRepresentationKind.EXACT_ONLY: {
+            const metricColumnReference = `${tableName}.${getPreAggregateMetricColumnName(
+                fieldId,
+            )}`;
+            // MAX is exact: the matcher only serves exact-only metrics when
+            // each result group maps to a single materialization row.
+            return {
+                sql: metricColumnReference,
+                compiledSql: `MAX(${metricColumnReference})`,
+            };
+        }
         case PreAggregateMetricRepresentationKind.UNSUPPORTED:
             throw new Error(`Unsupported metric type "${metricType}"`);
         default:
@@ -128,6 +138,7 @@ const getNumberMetricSqlForPreAggregateExplore = ({
     metric,
     metricsByReference,
     cache,
+    servingAdapter,
 }: {
     sourceExplore: Explore;
     metric: CompiledMetric;
@@ -135,6 +146,7 @@ const getNumberMetricSqlForPreAggregateExplore = ({
         typeof preAggregateUtils.getMetricsByReference
     >;
     cache: Map<FieldId, string>;
+    servingAdapter: SupportedDbtAdapter;
 }): string => {
     const metricFieldId = getItemId(metric);
     const cachedSql = cache.get(metricFieldId);
@@ -163,6 +175,7 @@ const getNumberMetricSqlForPreAggregateExplore = ({
                     metric: metricLookup.metric,
                     metricsByReference,
                     cache,
+                    servingAdapter,
                 })})`;
             }
 
@@ -171,6 +184,7 @@ const getNumberMetricSqlForPreAggregateExplore = ({
                     metricType: metricLookup.metric.type,
                     tableName: sourceExplore.baseTable,
                     fieldId: metricLookup.fieldId,
+                    servingAdapter,
                 }).compiledSql
             })`;
         },
@@ -227,10 +241,14 @@ const buildDimensionSql = ({
     sourceExplore,
     dimension,
     preAggregateDef,
+    servingAdapter,
+    startOfWeek,
 }: {
     sourceExplore: Explore;
     dimension: CompiledDimension;
     preAggregateDef: PreAggregateDef;
+    servingAdapter: SupportedDbtAdapter;
+    startOfWeek: WeekDay | null;
 }): string => {
     const dimensionBaseName = preAggregateUtils.getDimensionBaseName(dimension);
     const materializedBaseColumnName = getMaterializedDimensionColumnName({
@@ -239,14 +257,10 @@ const buildDimensionSql = ({
         preAggregateDef,
     });
     const materializedBaseColumnReference = `${sourceExplore.baseTable}.${materializedBaseColumnName}`;
-    const timeDimensionReference =
-        preAggregateDef.timeDimension &&
-        dimensionBaseName === preAggregateDef.timeDimension
-            ? `CAST(${materializedBaseColumnReference} AS TIMESTAMP)`
-            : materializedBaseColumnReference;
+    const baseDimensionType = getBaseDimensionType(sourceExplore, dimension);
 
     if (!dimension.timeInterval) {
-        return timeDimensionReference;
+        return materializedBaseColumnReference;
     }
 
     if (
@@ -255,14 +269,15 @@ const buildDimensionSql = ({
         dimensionBaseName === preAggregateDef.timeDimension &&
         dimension.timeInterval === preAggregateDef.granularity
     ) {
-        return timeDimensionReference;
+        return materializedBaseColumnReference;
     }
 
-    return getSqlForTruncatedDate(
-        SupportedDbtAdapter.DUCKDB,
+    return timeFrameConfigs[dimension.timeInterval].getSql(
+        servingAdapter,
         dimension.timeInterval,
-        timeDimensionReference,
-        getBaseDimensionType(sourceExplore, dimension),
+        materializedBaseColumnReference,
+        baseDimensionType,
+        startOfWeek,
     );
 };
 
@@ -337,17 +352,66 @@ const getIncludedDimensions = (
         if (
             !preAggregateDef.timeDimension ||
             !preAggregateDef.granularity ||
-            dimensionBaseName !== preAggregateDef.timeDimension ||
-            !dimension.timeInterval
+            dimensionBaseName !== preAggregateDef.timeDimension
         ) {
             return true;
         }
 
-        return !isFinerGranularity(
-            dimension.timeInterval,
-            preAggregateDef.granularity,
+        return (
+            preAggregateUtils.getTimeFrameDerivability(
+                preAggregateUtils.getEffectiveDimensionTimeFrame(dimension),
+                preAggregateDef.granularity,
+            ) === preAggregateUtils.TimeFrameDerivability.DERIVABLE
         );
     });
+};
+
+// Recompile sql_filter onto materialized columns (${lightdash.*} kept for
+// query-time substitution); unresolved refs keep a missing column: fail closed.
+const rewriteSqlWhereForPreAggregate = ({
+    sourceExplore,
+    preAggregateDef,
+    servingAdapter,
+}: {
+    sourceExplore: Explore;
+    preAggregateDef: PreAggregateDef;
+    servingAdapter: SupportedDbtAdapter;
+}): string | undefined => {
+    const uncompiledSqlWhere =
+        sourceExplore.tables[sourceExplore.baseTable]?.uncompiledSqlWhere;
+    if (!uncompiledSqlWhere) {
+        return undefined;
+    }
+
+    const quoteChar =
+        warehouseSqlBuilderFromType(servingAdapter).getFieldQuoteChar();
+
+    return uncompiledSqlWhere.replace(
+        lightdashVariablePattern,
+        (_, ref: string) => {
+            if (ref === 'TABLE') {
+                return `${quoteChar}${sourceExplore.baseTable}${quoteChar}`;
+            }
+
+            const { refTable, refName } = getParsedReference(
+                ref,
+                sourceExplore.baseTable,
+            );
+            const dimension = getReferencedDimension<
+                CompiledTable,
+                CompiledDimension
+            >(refTable, refName, sourceExplore.tables);
+            const materializedColumnName = dimension
+                ? getMaterializedDimensionColumnName({
+                      sourceExplore,
+                      dimension,
+                      preAggregateDef,
+                  })
+                : getItemId({ table: refTable, name: refName });
+
+            return `${sourceExplore.baseTable}.${materializedColumnName}`;
+        },
+    );
 };
 
 const getEmptyTable = (
@@ -363,7 +427,16 @@ const getEmptyTable = (
 export const buildPreAggregateExplore = (
     sourceExplore: Explore,
     preAggregateDef: PreAggregateDef,
+    startOfWeek: WeekDay | null,
 ): Explore => {
+    // Managed pre-aggregates serve via DuckDB; external ones serve from the
+    // customer table on the project warehouse, so SQL is compiled in its dialect.
+    const servingAdapter = preAggregateDef.table
+        ? sourceExplore.targetDatabase
+        : SupportedDbtAdapter.DUCKDB;
+    const sqlTable =
+        preAggregateDef.table ?? PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER;
+
     const includedDimensions = getIncludedDimensions(
         sourceExplore,
         preAggregateDef,
@@ -390,18 +463,30 @@ export const buildPreAggregateExplore = (
                 `Pre-aggregate "${preAggregateDef.name}" references unknown table "${tableName}"`,
             );
         }
-        acc[tableName] = getEmptyTable(
-            sourceTable,
-            PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
-        );
+        acc[tableName] = getEmptyTable(sourceTable, sqlTable);
         return acc;
     }, {});
+
+    const rewrittenSqlWhere = rewriteSqlWhereForPreAggregate({
+        sourceExplore,
+        preAggregateDef,
+        servingAdapter,
+    });
+    if (rewrittenSqlWhere !== undefined) {
+        tables[sourceExplore.baseTable] = {
+            ...tables[sourceExplore.baseTable],
+            sqlWhere: rewrittenSqlWhere,
+            uncompiledSqlWhere: rewrittenSqlWhere,
+        };
+    }
 
     includedDimensions.forEach((dimension) => {
         const compiledSql = buildDimensionSql({
             sourceExplore,
             dimension,
             preAggregateDef,
+            servingAdapter,
+            startOfWeek,
         });
 
         tables[dimension.table].dimensions[dimension.name] = {
@@ -417,13 +502,22 @@ export const buildPreAggregateExplore = (
             metricType: metric.type,
             tableName: sourceExplore.baseTable,
             fieldId,
+            servingAdapter,
         });
+
+        // Hide exact-only metrics from the pre-aggregate explore preview:
+        // selecting them with fewer dimensions than the definition would
+        // re-aggregate a non-additive value into a wrong number.
+        const isExactOnly =
+            preAggregateUtils.getMetricRepresentation(metric.type).kind ===
+            PreAggregateMetricRepresentationKind.EXACT_ONLY;
 
         tables[metric.table].metrics[metric.name] = {
             ...metric,
             sql,
             compiledSql,
             tablesReferences: [sourceExplore.baseTable],
+            ...(isExactOnly ? { hidden: true } : {}),
         };
     });
 
@@ -435,6 +529,7 @@ export const buildPreAggregateExplore = (
             metric,
             metricsByReference,
             cache: numberMetricSqlCache,
+            servingAdapter,
         });
 
         tables[metric.table].metrics[metric.name] = {
@@ -455,6 +550,9 @@ export const buildPreAggregateExplore = (
         preAggregateSource: {
             sourceExploreName: sourceExplore.name,
             preAggregateName: preAggregateDef.name,
+            ...(preAggregateDef.table
+                ? { externalTable: preAggregateDef.table }
+                : {}),
         },
         joinedTables: [],
         tables,

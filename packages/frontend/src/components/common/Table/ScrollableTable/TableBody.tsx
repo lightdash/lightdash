@@ -14,8 +14,15 @@ import {
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
-import { Center, Group, Loader, Skeleton, Button } from '@mantine-8/core';
-import { Tooltip, useMantineColorScheme } from '@mantine/core';
+import {
+    Center,
+    Group,
+    Loader,
+    Skeleton,
+    Button,
+    Tooltip,
+    useComputedColorScheme,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -85,7 +92,7 @@ const TableRow: FC<TableRowProps> = ({
     minimal = false,
     rowSpanMergesByColumnId,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
     const rowFields = useMemo(
         () =>
             row
@@ -510,7 +517,6 @@ const VirtualizedTableBody: FC<{
                                   >
                                       <Center>
                                           <Tooltip
-                                              withinPortal
                                               position="top"
                                               label={`Loading more rows...`}
                                           >

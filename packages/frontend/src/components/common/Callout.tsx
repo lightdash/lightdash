@@ -1,4 +1,4 @@
-import { Alert, type AlertProps, type MantineColor } from '@mantine-8/core';
+import { Alert, type AlertProps, type MantineColor } from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangle,
@@ -73,8 +73,6 @@ const Callout: FC<CalloutProps> = ({
     return (
         <Alert
             color={config.color}
-            variant="light"
-            radius="md"
             icon={!hideIcon && resolvedIcon}
             title={title}
             {...alertProps}

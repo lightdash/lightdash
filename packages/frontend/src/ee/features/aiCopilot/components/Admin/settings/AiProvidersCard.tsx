@@ -4,6 +4,7 @@ import type {
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
     ByoAiProvider,
+    DataAppModelVisibility,
     UpdateAiProviderApiKeys,
 } from '@lightdash/common';
 import { BYO_AI_PROVIDERS, isByoAiProvider } from '@lightdash/common';
@@ -19,14 +20,17 @@ import {
     Switch,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { useState, type ComponentType, type FC, type SVGProps } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { filterDeprecatedModelsForPicker } from '../../../../../../components/common/ModelSelector/utils';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import AnthropicIcon from '../../../../../../svgs/anthropic.svg?react';
+import GeminiIcon from '../../../../../../svgs/gemini.svg?react';
 import OpenAiIcon from '../../../../../../svgs/openai.svg?react';
+import { AiDataAppModelToggles } from './AiDataAppModelToggles';
 
 const PROVIDER_META: Record<
     ByoAiProvider,
@@ -40,6 +44,11 @@ const PROVIDER_META: Record<
         label: 'Anthropic',
         icon: AnthropicIcon,
         placeholder: 'sk-ant-...',
+    },
+    google: {
+        label: 'Google Gemini',
+        icon: GeminiIcon,
+        placeholder: 'AIza...',
     },
     openai: { label: 'OpenAI', icon: OpenAiIcon, placeholder: 'sk-...' },
 };
@@ -56,6 +65,10 @@ type ProviderRowProps = {
     visibility: ProviderVisibility | undefined;
     locked: boolean;
     disabled: boolean;
+    dataAppModels: {
+        visibility: DataAppModelVisibility | null;
+        onUpdate: (value: DataAppModelVisibility) => void;
+    } | null;
     onSaveKey: (key: string) => void;
     onRemoveKey: () => void;
     onUpdateVisibility: (value: ProviderVisibility) => void;
@@ -71,6 +84,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
     visibility,
     locked,
     disabled,
+    dataAppModels,
     onSaveKey,
     onRemoveKey,
     onUpdateVisibility,
@@ -93,7 +107,6 @@ const ProviderRow: FC<ProviderRowProps> = ({
                     {isSet && (
                         <Badge
                             size="sm"
-                            variant="light"
                             color="green"
                             leftSection={
                                 <MantineIcon icon={IconKey} size={12} />
@@ -121,7 +134,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
 
             <Group gap="xs" wrap="nowrap" align="flex-end">
                 <PasswordInput
-                    style={{ flex: 1 }}
+                    flex={1}
                     size="xs"
                     aria-label={label}
                     value={value}
@@ -158,8 +171,8 @@ const ProviderRow: FC<ProviderRowProps> = ({
             {showAvailability && isEnabled && (
                 <MultiSelect
                     size="xs"
-                    label="Allowed models"
-                    aria-label={`${label} allowed models`}
+                    label="Ask AI models"
+                    aria-label={`${label} Ask AI models`}
                     placeholder={
                         visibility?.allowedModels?.length
                             ? undefined
@@ -177,12 +190,20 @@ const ProviderRow: FC<ProviderRowProps> = ({
                 />
             )}
 
+            {isSet && isEnabled && dataAppModels && (
+                <AiDataAppModelToggles
+                    dataAppModelVisibility={dataAppModels.visibility}
+                    disabled={disabled}
+                    onUpdateVisibility={dataAppModels.onUpdate}
+                />
+            )}
+
             {locked && (
                 <Text c="dimmed" fz="xs">
-                    Disabled while your organization uses its own Anthropic key
-                    — OpenAI models can&apos;t be selected, so AI agents never
-                    fall back to the instance&apos;s OpenAI key. Add your own
-                    OpenAI API key to make OpenAI models available.
+                    Disabled while your organization uses another provider key —{' '}
+                    {label} models can&apos;t be selected, so AI agents never
+                    fall back to the instance&apos;s {label} key. Add your own{' '}
+                    {label} API key to make these models available.
                 </Text>
             )}
 
@@ -203,9 +224,14 @@ type AiProvidersCardProps = {
     providerApiKeyHints: AiProviderApiKeyHints;
     modelVisibility: AiOrgModelVisibility | null;
     configurableModelOptions: AiModelOption[] | null;
+    // Null when Data Apps are disabled for this instance. Only ever rendered
+    // under Anthropic — the Claude CLI takes no other BYO provider.
+    dataAppModelVisibility: DataAppModelVisibility | null;
+    showDataAppModels: boolean;
     disabled: boolean;
     onUpdateKeys: (providerApiKeys: UpdateAiProviderApiKeys) => void;
     onUpdateVisibility: (modelVisibility: AiOrgModelVisibility) => void;
+    onUpdateDataAppVisibility: (visibility: DataAppModelVisibility) => void;
 };
 
 export const AiProvidersCard: FC<AiProvidersCardProps> = ({
@@ -213,28 +239,31 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     providerApiKeyHints,
     modelVisibility,
     configurableModelOptions,
+    dataAppModelVisibility,
+    showDataAppModels,
     disabled,
     onUpdateKeys,
     onUpdateVisibility,
+    onUpdateDataAppVisibility,
 }) => {
-    // Mirrors resolveEffectiveModelVisibility: a BYO Anthropic key with no
-    // OpenAI key hides OpenAI, and the admin can't re-enable it without a key.
+    const hasAnyByoKey = BYO_AI_PROVIDERS.some(
+        (provider) => providerApiKeysSet[provider],
+    );
+    // Mirrors resolveEffectiveModelVisibility: once an org supplies any key,
+    // providers without org keys are hidden to prevent instance-key fallback.
     const isLockedByByok = (provider: ByoAiProvider) =>
-        provider === 'openai' &&
-        providerApiKeysSet.anthropic &&
-        !providerApiKeysSet.openai;
-
-    const hasAnyByoKey =
-        providerApiKeysSet.anthropic || providerApiKeysSet.openai;
+        hasAnyByoKey && !providerApiKeysSet[provider];
+    const selectableModelOptions = filterDeprecatedModelsForPicker(
+        configurableModelOptions ?? [],
+        null,
+    );
 
     // modelVisibility is the EFFECTIVE visibility (implicit BYOK hiding merged
     // on the backend) and configurableModelOptions spans every provider the
     // instance runs, so full coverage here means no user-selectable model —
     // and no background AI task — can fall back to an instance key.
     const visibleProviders = [
-        ...new Set(
-            (configurableModelOptions ?? []).map((model) => model.provider),
-        ),
+        ...new Set(selectableModelOptions.map((model) => model.provider)),
     ].filter(
         (provider) =>
             !isByoAiProvider(provider) ||
@@ -258,12 +287,13 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                         AI providers &amp; models
                     </Title>
                     <Text c="dimmed" fz="xs">
-                        Use your organization&apos;s own Anthropic or OpenAI API
-                        key for AI features, and control which models users can
-                        pick. Keys are stored encrypted and never shown again
-                        after saving; when set, they take precedence over the
-                        instance-level keys. Agents already using a hidden model
-                        keep working — it just can&apos;t be selected again.
+                        Use your organization&apos;s own Anthropic, Google
+                        Gemini, or OpenAI API key for AI features, and control
+                        which models users can pick. Keys are stored encrypted
+                        and never shown again after saving; when set, they take
+                        precedence over the instance-level keys. Agents already
+                        using a hidden model keep working — it just can&apos;t
+                        be selected again.
                     </Text>
                 </Box>
 
@@ -294,12 +324,20 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                                 visibleProviders.includes(provider) &&
                                 usesInstanceKey(provider)
                             }
-                            providerModels={(
-                                configurableModelOptions ?? []
-                            ).filter((model) => model.provider === provider)}
+                            providerModels={selectableModelOptions.filter(
+                                (model) => model.provider === provider,
+                            )}
                             visibility={modelVisibility?.[provider]}
                             locked={isLockedByByok(provider)}
                             disabled={disabled}
+                            dataAppModels={
+                                showDataAppModels && provider === 'anthropic'
+                                    ? {
+                                          visibility: dataAppModelVisibility,
+                                          onUpdate: onUpdateDataAppVisibility,
+                                      }
+                                    : null
+                            }
                             onSaveKey={(key) =>
                                 onUpdateKeys({ [provider]: key })
                             }

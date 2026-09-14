@@ -1,4 +1,9 @@
-import { ProjectType, type AiAgentModelConfig } from '@lightdash/common';
+import {
+    MAX_RETENTION_WINDOW_HOURS,
+    MIN_RETENTION_WINDOW_HOURS,
+    ProjectType,
+    type AiAgentModelConfig,
+} from '@lightdash/common';
 import {
     AppShell,
     Box,
@@ -6,11 +11,12 @@ import {
     Container,
     Group,
     Paper,
+    ScrollArea,
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
 import {
     IconAdjustmentsAlt,
     IconArrowLeft,
@@ -18,7 +24,8 @@ import {
     IconCircleCheck,
     IconMessageCircleShare,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import {
     Link,
     useBlocker,
@@ -29,14 +36,18 @@ import {
 import { z } from 'zod';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import {
     BANNER_HEIGHT,
     NAVBAR_HEIGHT,
 } from '../../../components/common/Page/constants';
 import { useProjects } from '../../../hooks/useProjects';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { VerifiedArtifactDetail } from '../../features/aiCopilot/components/Admin/VerifiedArtifactDetail';
 import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
+import { AgentSettingsActionBar } from '../../features/aiCopilot/components/AgentSettingsActionBar';
+import { AgentSettingsSectionNav } from '../../features/aiCopilot/components/AgentSettingsSectionNav';
 import { AiAgentFormSetup } from '../../features/aiCopilot/components/AiAgentFormSetup';
 import { EvalDetail } from '../../features/aiCopilot/components/Evals/EvalDetail';
 import { EvalRunDetails } from '../../features/aiCopilot/components/Evals/EvalRunDetails';
@@ -49,7 +60,9 @@ import {
     useProjectUpdateAiAgentMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useAgentAiMcpServers } from '../../features/aiCopilot/hooks/useProjectAiMcpServers';
+import { resolveReturnTo } from '../../features/aiCopilot/utils/agentSettingsNavigation';
 import { EvalsSetup } from './EvalsSetup';
+import classes from './ProjectAiAgentEditPage.module.css';
 
 // Uploaded avatars open in upload mode (never expose the persistent file URL);
 // user-provided URLs open in link mode.
@@ -78,12 +91,12 @@ const useObjectUrl = (file: File | null): string | null => {
 };
 
 const formSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
     description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
-            channelId: z.string().min(1),
+            channelId: z.string().min(1, 'Channel is required'),
         }),
     ),
     tags: z.array(z.string()).nullable(),
@@ -97,9 +110,16 @@ const formSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
+    enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
+    threadRetentionHours: z
+        .number()
+        .int()
+        .min(MIN_RETENTION_WINDOW_HOURS)
+        .max(MAX_RETENTION_WINDOW_HOURS)
+        .nullable(),
 });
 
 type Props = {
@@ -108,25 +128,19 @@ type Props = {
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const navigate = useNavigate();
-    const { agentUuid, projectUuid, evalUuid, runUuid, artifactUuid } =
-        useParams<{
-            agentUuid: string;
-            projectUuid: string;
-            evalUuid?: string;
-            runUuid?: string;
-            artifactUuid?: string;
-        }>();
+    const { agentUuid, evalUuid, runUuid, artifactUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
     });
     const { data: projects } = useProjects();
-    const isCurrentProjectPreview = !!projects?.find(
-        (project) =>
-            project.projectUuid === projectUuid &&
-            project.type === ProjectType.PREVIEW,
+    const currentProject = projects?.find(
+        (project) => project.projectUuid === projectUuid,
     );
+    const isCurrentProjectPreview =
+        currentProject?.type === ProjectType.PREVIEW;
     const { user } = useApp();
 
     const actualAgentUuid = !isCreateMode && agentUuid ? agentUuid : undefined;
@@ -136,6 +150,15 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     );
     const { data: agentMcpServers, isFetched: isAgentMcpServersFetched } =
         useAgentAiMcpServers(projectUuid, actualAgentUuid);
+
+    // Where Back, Cancel and a successful save return to. Openers record their
+    // own location so admins land back on the table they came from.
+    const returnTo = resolveReturnTo(
+        location.state,
+        isCreateMode
+            ? `/projects/${projectUuid}/ai-agents`
+            : `/projects/${projectUuid}/ai-agents/${actualAgentUuid}`,
+    );
 
     const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
@@ -153,9 +176,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             enableSelfImprovement: false,
             enableContentTools: true,
             enableUserContext: false,
+            enableSqlMode: true,
             adminOnly: false,
             modelConfig: null,
             version: 2, // INFO: Default to v2 for now
+            threadRetentionHours: null,
         },
         validate: zodResolver(formSchema),
     });
@@ -187,9 +212,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     (agent.enableDataAccess ?? false) &&
                     (agent.enableContentTools ?? false),
                 enableUserContext: agent.enableUserContext ?? false,
+                enableSqlMode: agent.enableSqlMode ?? true,
                 adminOnly: agent.adminOnly ?? false,
                 modelConfig: agent.modelConfig ?? null,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
+                threadRetentionHours: agent.threadRetentionHours ?? null,
             };
             form.setValues(values);
             form.resetDirty(values);
@@ -213,6 +240,22 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         useProjectUpdateAiAgentMutation(projectUuid!);
     const { mutateAsync: uploadAgentAvatar, isLoading: isUploadingAvatar } =
         useProjectUploadAiAgentAvatarMutation(projectUuid!);
+
+    const isSaving = isCreatingAgent || isUpdatingAgent || isUploadingAvatar;
+
+    // Lets the intentional post-save navigation through the unsaved-changes
+    // blocker, whose captured state is a render behind resetDirty().
+    const isLeavingAfterSaveRef = useRef(false);
+
+    // Tab navigation carries returnTo forward, so Back and Save still know
+    // where the user came from after a detour through Evals.
+    const navigateWithinSettings = useCallback(
+        (path: string) => {
+            void navigate(path, { state: location.state });
+        },
+        [navigate, location.state],
+    );
+
     const handleSubmit = form.onSubmit(async (values) => {
         if (!projectUuid || !user?.data) {
             return;
@@ -223,26 +266,20 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 ...values,
                 projectUuid,
             });
-            let finalAgent = createdAgent;
 
             if (avatarFile) {
                 try {
-                    finalAgent = await uploadAgentAvatar({
+                    await uploadAgentAvatar({
                         agentUuid: createdAgent.uuid,
                         file: avatarFile,
                     });
                 } catch {
-                    finalAgent = createdAgent;
+                    // upload mutation already shows an error toast
                 }
             }
 
             setAvatarFile(null);
-            const nextValues = {
-                ...values,
-                imageUrl: finalAgent.imageUrl,
-            };
-            form.setValues(nextValues);
-            form.resetDirty(nextValues);
+            isLeavingAfterSaveRef.current = true;
             void navigate(
                 `/projects/${projectUuid}/ai-agents/${createdAgent.uuid}`,
             );
@@ -250,7 +287,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         }
 
         if (actualAgentUuid) {
-            let finalAgent = await updateAgent({
+            await updateAgent({
                 uuid: actualAgentUuid,
                 projectUuid,
                 ...values,
@@ -258,7 +295,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
 
             if (avatarFile) {
                 try {
-                    finalAgent = await uploadAgentAvatar({
+                    await uploadAgentAvatar({
                         agentUuid: actualAgentUuid,
                         file: avatarFile,
                     });
@@ -268,33 +305,19 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             }
 
             setAvatarFile(null);
-            const nextValues = {
-                ...values,
-                imageUrl: finalAgent.imageUrl,
-            };
-            form.setValues(nextValues);
-            form.resetDirty(nextValues);
+            isLeavingAfterSaveRef.current = true;
+            void navigate(returnTo);
         }
     });
 
-    const hasUnsavedChanges =
-        (form.isDirty() || !!avatarFile) &&
-        !isCreatingAgent &&
-        !isUpdatingAgent &&
-        !isUploadingAvatar;
+    const hasUnsavedChanges = (form.isDirty() || !!avatarFile) && !isSaving;
 
-    useBlocker(({ currentLocation, nextLocation }) => {
-        if (
-            !hasUnsavedChanges ||
-            currentLocation.pathname === nextLocation.pathname
-        ) {
-            return false;
-        }
-
-        return !window.confirm(
-            'You have unsaved changes to this agent. Are you sure you want to leave without saving?',
-        );
-    });
+    const blocker = useBlocker(
+        ({ currentLocation, nextLocation }) =>
+            !isLeavingAfterSaveRef.current &&
+            hasUnsavedChanges &&
+            currentLocation.pathname !== nextLocation.pathname,
+    );
 
     useEffect(() => {
         if (!canManageAgents) {
@@ -323,7 +346,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     <Paper
                         variant="dotted"
                         p="xl"
-                        shadow="subtle"
                         component={Stack}
                         gap="xxs"
                         align="center"
@@ -348,93 +370,80 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 width: 300,
                 breakpoint: 'sm',
             }}
-            bg="#fcfcfc"
+            bg="ldGray.0"
         >
             <AppShell.Navbar p="md">
-                <Stack gap="lg">
-                    <Stack gap="md" align="center">
-                        <Group justify="space-between" w="100%">
+                <AppShell.Section>
+                    <Stack gap="md" className={classes.navbarHeader}>
+                        <Button
+                            variant="subtle"
+                            color="ldGray.7"
+                            size="xs"
+                            justify="flex-start"
+                            leftSection={<MantineIcon icon={IconArrowLeft} />}
+                            onClick={() => {
+                                void navigate(returnTo);
+                            }}
+                        >
+                            Back
+                        </Button>
+                        <Stack gap="xs" align="center">
+                            <LightdashUserAvatar
+                                name={isCreateMode ? '+' : form.values.name}
+                                src={
+                                    !isCreateMode
+                                        ? (avatarPreviewUrl ??
+                                          form.values.imageUrl ??
+                                          undefined)
+                                        : (avatarPreviewUrl ?? undefined)
+                                }
+                                size={72}
+                            />
+                            <Stack gap={0} align="center">
+                                <Title order={5} ta="center" lineClamp={2}>
+                                    {isCreateMode
+                                        ? 'New agent'
+                                        : agent?.name || 'Agent'}
+                                </Title>
+                                {currentProject && (
+                                    <Text size="xs" c="dimmed" ta="center">
+                                        {currentProject.name}
+                                    </Text>
+                                )}
+                            </Stack>
+                        </Stack>
+                    </Stack>
+                </AppShell.Section>
+                <AppShell.Section grow component={ScrollArea} mt="lg">
+                    <Stack gap="xs">
+                        <Stack gap={4}>
                             <Button
-                                variant="subtle"
-                                color="ldGray.4"
-                                size="xs"
+                                variant={
+                                    activeTab === 'setup' ? 'light' : 'subtle'
+                                }
+                                fullWidth
+                                justify="flex-start"
                                 leftSection={
-                                    <MantineIcon icon={IconArrowLeft} />
+                                    <MantineIcon icon={IconAdjustmentsAlt} />
                                 }
                                 onClick={() => {
                                     if (isCreateMode) {
-                                        void navigate(
-                                            `/projects/${projectUuid}/ai-agents`,
-                                        );
-                                    } else {
-                                        void navigate(
-                                            `/projects/${projectUuid}/ai-agents/${actualAgentUuid}`,
-                                        );
+                                        // In create mode, we can't navigate to agent-specific routes
+                                        return;
                                     }
+                                    navigateWithinSettings(
+                                        `/projects/${projectUuid}/ai-agents/${actualAgentUuid}/edit`,
+                                    );
                                 }}
                             >
-                                Back
+                                Setup
                             </Button>
-                            {(form.isDirty() || !!avatarFile) && (
-                                <Button
-                                    size="xs"
-                                    disabled={
-                                        (!form.isDirty() && !avatarFile) ||
-                                        isCreatingAgent ||
-                                        isUpdatingAgent ||
-                                        isUploadingAvatar
-                                    }
-                                    loading={
-                                        isCreatingAgent ||
-                                        isUpdatingAgent ||
-                                        isUploadingAvatar
-                                    }
-                                    onClick={() => handleSubmit()}
-                                >
-                                    Save changes
-                                </Button>
+                            {activeTab === 'setup' && (
+                                <AgentSettingsSectionNav
+                                    mode={isCreateMode ? 'create' : 'edit'}
+                                />
                             )}
-                        </Group>
-                        <LightdashUserAvatar
-                            name={isCreateMode ? '+' : form.values.name}
-                            src={
-                                !isCreateMode
-                                    ? (avatarPreviewUrl ??
-                                      form.values.imageUrl ??
-                                      undefined)
-                                    : (avatarPreviewUrl ?? undefined)
-                            }
-                            size={80}
-                        />
-                        <Stack gap="xs" align="center">
-                            <Title order={4} ta="center" lineClamp={2}>
-                                {isCreateMode
-                                    ? 'New Agent'
-                                    : agent?.name || 'Agent'}
-                            </Title>
                         </Stack>
-                    </Stack>
-
-                    <Stack gap="xs">
-                        <Button
-                            variant={activeTab === 'setup' ? 'light' : 'subtle'}
-                            fullWidth
-                            justify="flex-start"
-                            leftSection={
-                                <MantineIcon icon={IconAdjustmentsAlt} />
-                            }
-                            onClick={() => {
-                                if (isCreateMode) {
-                                    // In create mode, we can't navigate to agent-specific routes
-                                    return;
-                                }
-                                void navigate(
-                                    `/projects/${projectUuid}/ai-agents/${actualAgentUuid}/edit`,
-                                );
-                            }}
-                        >
-                            Setup
-                        </Button>
                         {!isCreateMode && (
                             <Button
                                 variant={
@@ -444,7 +453,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 justify="flex-start"
                                 leftSection={<MantineIcon icon={IconBook2} />}
                                 onClick={() => {
-                                    void navigate(
+                                    navigateWithinSettings(
                                         `/projects/${projectUuid}/ai-agents/${actualAgentUuid}/edit/evals`,
                                     );
                                 }}
@@ -465,7 +474,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                     <MantineIcon icon={IconCircleCheck} />
                                 }
                                 onClick={() => {
-                                    void navigate(
+                                    navigateWithinSettings(
                                         `/projects/${projectUuid}/ai-agents/${actualAgentUuid}/edit/verified-artifacts`,
                                     );
                                 }}
@@ -490,104 +499,122 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             </Button>
                         )}
                     </Stack>
-                </Stack>
+                </AppShell.Section>
             </AppShell.Navbar>
-            <AppShell.Main
-                pt={0}
-                pr={0}
-                pb="emptySpace"
-                mih={`calc(100vh - ${navbarHeight}px)`}
-                bg="ldGray.0"
-            >
-                <Box>
-                    {activeTab === 'setup' && (
-                        <Box pt="sm" pr="sm">
-                            <AiAgentFormSetup
-                                mode={isCreateMode ? 'create' : 'edit'}
-                                agentUuid={actualAgentUuid}
-                                form={form}
-                                projectUuid={projectUuid!}
-                                isSavingAgent={
-                                    isCreatingAgent ||
-                                    isUpdatingAgent ||
-                                    isUploadingAvatar
-                                }
-                                persistedMcpServerUuids={agentMcpServers?.map(
-                                    (mcpServer) => mcpServer.uuid,
-                                )}
-                                avatarMode={avatarMode}
-                                avatarFileName={avatarFile?.name ?? null}
-                                onAvatarFileChange={(file) => {
-                                    setAvatarFile(file);
-                                    setAvatarMode('upload');
-                                }}
-                                onAvatarModeChange={(nextMode) => {
-                                    if (nextMode === 'link') {
+            <AppShell.Main pt={0} pr={0} pb={0}>
+                <Box
+                    className={classes.mainInner}
+                    data-with-banner={isCurrentProjectPreview}
+                >
+                    <Box className={classes.panel}>
+                        {activeTab === 'setup' && (
+                            <Box className={classes.content}>
+                                <AiAgentFormSetup
+                                    mode={isCreateMode ? 'create' : 'edit'}
+                                    agentUuid={actualAgentUuid}
+                                    form={form}
+                                    projectUuid={projectUuid!}
+                                    isSavingAgent={isSaving}
+                                    onSubmit={handleSubmit}
+                                    persistedMcpServerUuids={agentMcpServers?.map(
+                                        (mcpServer) => mcpServer.uuid,
+                                    )}
+                                    avatarMode={avatarMode}
+                                    avatarFileName={avatarFile?.name ?? null}
+                                    onAvatarFileChange={(file) => {
+                                        setAvatarFile(file);
+                                        setAvatarMode('upload');
+                                    }}
+                                    onAvatarModeChange={(nextMode) => {
+                                        if (nextMode === 'link') {
+                                            setAvatarFile(null);
+                                        }
+                                        setAvatarMode(nextMode);
+                                    }}
+                                    onAvatarRemove={() => {
                                         setAvatarFile(null);
+                                        form.setFieldValue('imageUrl', null);
+                                        setAvatarMode('upload');
+                                    }}
+                                    onAvatarRevert={
+                                        !isCreateMode &&
+                                        (!!avatarFile ||
+                                            (form.values.imageUrl ?? null) !==
+                                                (agent?.imageUrl ?? null))
+                                            ? () => {
+                                                  setAvatarFile(null);
+                                                  form.setFieldValue(
+                                                      'imageUrl',
+                                                      agent?.imageUrl ?? null,
+                                                  );
+                                                  setAvatarMode(
+                                                      getAvatarModeForAgent(
+                                                          agent,
+                                                      ),
+                                                  );
+                                              }
+                                            : null
                                     }
-                                    setAvatarMode(nextMode);
-                                }}
-                                onAvatarRemove={() => {
-                                    setAvatarFile(null);
-                                    form.setFieldValue('imageUrl', null);
-                                    setAvatarMode('upload');
-                                }}
-                                onAvatarRevert={
-                                    !isCreateMode &&
-                                    (!!avatarFile ||
-                                        (form.values.imageUrl ?? null) !==
-                                            (agent?.imageUrl ?? null))
-                                        ? () => {
-                                              setAvatarFile(null);
-                                              form.setFieldValue(
-                                                  'imageUrl',
-                                                  agent?.imageUrl ?? null,
-                                              );
-                                              setAvatarMode(
-                                                  getAvatarModeForAgent(agent),
-                                              );
-                                          }
-                                        : null
-                                }
-                            />
-                        </Box>
-                    )}
+                                />
+                            </Box>
+                        )}
 
-                    {activeTab === 'evals' && (
-                        <EvalSectionLayout>
-                            {runUuid ? (
-                                <EvalRunDetails
-                                    projectUuid={projectUuid!}
-                                    agentUuid={actualAgentUuid!}
-                                    evalUuid={evalUuid!}
-                                    runUuid={runUuid}
-                                />
-                            ) : evalUuid ? (
-                                <EvalDetail
-                                    projectUuid={projectUuid!}
-                                    agentUuid={actualAgentUuid!}
-                                    evalUuid={evalUuid}
-                                />
-                            ) : (
-                                <EvalsSetup
-                                    projectUuid={projectUuid!}
-                                    agentUuid={actualAgentUuid!}
-                                />
-                            )}
-                        </EvalSectionLayout>
-                    )}
+                        {activeTab === 'evals' && (
+                            <EvalSectionLayout>
+                                {runUuid ? (
+                                    <EvalRunDetails
+                                        projectUuid={projectUuid!}
+                                        agentUuid={actualAgentUuid!}
+                                        evalUuid={evalUuid!}
+                                        runUuid={runUuid}
+                                    />
+                                ) : evalUuid ? (
+                                    <EvalDetail
+                                        projectUuid={projectUuid!}
+                                        agentUuid={actualAgentUuid!}
+                                        evalUuid={evalUuid}
+                                    />
+                                ) : (
+                                    <EvalsSetup
+                                        projectUuid={projectUuid!}
+                                        agentUuid={actualAgentUuid!}
+                                    />
+                                )}
+                            </EvalSectionLayout>
+                        )}
 
-                    {activeTab === 'verified-artifacts' && (
-                        <>
-                            {artifactUuid ? (
+                        {activeTab === 'verified-artifacts' &&
+                            (artifactUuid ? (
                                 <VerifiedArtifactDetail />
                             ) : (
                                 <VerifiedArtifactsLayout />
-                            )}
-                        </>
+                            ))}
+                    </Box>
+
+                    {activeTab === 'setup' && (
+                        <AgentSettingsActionBar
+                            mode={isCreateMode ? 'create' : 'edit'}
+                            hasUnsavedChanges={hasUnsavedChanges}
+                            isSaving={isSaving}
+                            onSave={handleSubmit}
+                            onCancel={() => void navigate(returnTo)}
+                        />
                     )}
                 </Box>
             </AppShell.Main>
+
+            <MantineModal
+                opened={blocker.state === 'blocked'}
+                onClose={() => blocker.reset?.()}
+                title="Discard unsaved changes?"
+                icon={IconAdjustmentsAlt}
+                role="alertdialog"
+                size="md"
+                description="Your changes to this agent have not been saved. Leaving now will discard them."
+                confirmLabel="Discard changes"
+                onConfirm={() => blocker.proceed?.()}
+                cancelLabel="Keep editing"
+            />
         </AppShell>
     );
 };

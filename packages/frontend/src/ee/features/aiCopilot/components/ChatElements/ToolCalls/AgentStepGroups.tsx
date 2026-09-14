@@ -1,5 +1,5 @@
 import { type AiWritebackStep } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine-8/core';
+import { Box, Group, Stack, Text } from '@mantine/core';
 import {
     IconFileText,
     IconPencil,

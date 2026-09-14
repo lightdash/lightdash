@@ -1,4 +1,4 @@
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useEffect, type FC } from 'react';
 import { Panel, PanelGroup } from 'react-resizable-panels';

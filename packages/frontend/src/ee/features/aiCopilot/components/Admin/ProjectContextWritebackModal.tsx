@@ -1,6 +1,7 @@
-import { Loader, Stack, Text, ThemeIcon } from '@mantine-8/core';
+import { Loader, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconGitPullRequest, IconX } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import Callout from '../../../../../components/common/Callout';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import {
@@ -95,7 +96,7 @@ export const ProjectContextWritebackModal: FC<
                                 <MantineIcon icon={IconX} />
                             </ThemeIcon>
                             <Text fw={600}>Couldn&rsquo;t open the PR</Text>
-                            <Text fz="sm" c="ldGray.6" ta="center" maw={420}>
+                            <Text fz="sm" c="dimmed" ta="center" maw={420}>
                                 {tracked?.prWritebackMessage ??
                                     'The writeback failed. You can try again.'}
                             </Text>
@@ -111,7 +112,7 @@ export const ProjectContextWritebackModal: FC<
                                 <MantineIcon icon={IconCheck} />
                             </ThemeIcon>
                             <Text fw={600}>Pull request opened</Text>
-                            <Text fz="sm" c="ldGray.6" ta="center" maw={420}>
+                            <Text fz="sm" c="dimmed" ta="center" maw={420}>
                                 The project context change is ready to review on
                                 GitHub.
                             </Text>
@@ -140,7 +141,7 @@ export const ProjectContextWritebackModal: FC<
                             gap="sm"
                         >
                             <Loader size="md" color="gray" />
-                            <Text fz="sm" c="ldGray.6">
+                            <Text fz="sm" c="dimmed">
                                 Computing the change…
                             </Text>
                         </Stack>
@@ -153,6 +154,15 @@ export const ProjectContextWritebackModal: FC<
                         </Text>
                     )}
 
+                    {previewData?.available === true &&
+                        previewData.upgradesFileToV2 && (
+                            <Callout variant="info">
+                                This PR also upgrades your project context file
+                                to v2 — more performance improvements coming
+                                soon.
+                            </Callout>
+                        )}
+
                     {previewData?.available === true && (
                         <ProjectContextDiffPreview
                             fileName={previewData.fileName}
@@ -163,7 +173,7 @@ export const ProjectContextWritebackModal: FC<
                     )}
 
                     {previewData?.available === false && (
-                        <Text fz="sm" c="ldGray.6">
+                        <Text fz="sm" c="dimmed">
                             This change runs in a sandbox, so the diff shows up
                             on the pull request itself.
                         </Text>

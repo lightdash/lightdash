@@ -1,5 +1,7 @@
 ---
 name: har-replay
+metadata:
+  internal: true
 description: Replay a HAR file as a mock backend to reproduce frontend performance issues with production data. Use when asked to replay a HAR file, reproduce a dashboard with a HAR, or test frontend performance with captured traffic.
 ---
 

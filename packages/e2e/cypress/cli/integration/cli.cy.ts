@@ -63,8 +63,15 @@ describe('deploy', () => {
 describe('preview', () => {
     const previewName = `e2e preview ${new Date().getTime()}`;
 
+    after(() => {
+        cy.login();
+        cy.deleteProjectsByName([previewName]);
+    });
+
     it('Should start-preview', () => {
         cy.login();
+        // A failed attempt may have created the preview before timing out.
+        cy.deleteProjectsByName([previewName]);
         cy.getApiToken().then((apiToken) => {
             cy.exec(
                 `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
@@ -82,6 +89,30 @@ describe('preview', () => {
             )
                 .its('stderr')
                 .should('contain', 'New project created');
+        });
+    });
+
+    it('Should refresh warehouse credentials when re-running start-preview with the same name', () => {
+        cy.login();
+        cy.getApiToken().then((apiToken) => {
+            cy.exec(
+                `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
+                {
+                    failOnNonZeroExit: false,
+                    env: {
+                        CI: true,
+                        NODE_ENV: 'development',
+                        LIGHTDASH_API_KEY: apiToken,
+                        LIGHTDASH_URL: lightdashUrl,
+                        LIGHTDASH_PROJECT: SEED_PROJECT.project_uuid,
+                        ...databaseEnvVars,
+                    },
+                },
+            )
+                .its('stderr')
+                .should('contain', 'Updating preview project')
+                .and('contain', 'Warehouse credentials refreshed')
+                .and('contain', 'Project updated');
         });
     });
 

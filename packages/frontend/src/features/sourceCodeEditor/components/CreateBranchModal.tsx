@@ -1,4 +1,4 @@
-import { Button, Stack, TextInput, type ModalProps } from '@mantine-8/core';
+import { Button, Stack, TextInput, type ModalProps } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconGitBranch } from '@tabler/icons-react';
 import { type FC } from 'react';

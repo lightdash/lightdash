@@ -1,28 +1,15 @@
 import {
-    DimensionType,
     DownloadFileType,
     getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
-    isMomentInput,
     ItemsMap,
 } from '@lightdash/common';
-import moment, { MomentInput } from 'moment/moment';
-import { createInterface } from 'readline';
+import moment from 'moment/moment';
+import { validateHeaderValue } from 'node:http';
 import { Readable } from 'stream';
 import Logger from '../../logging/logger';
-
-export const isRowValueTimestamp = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.TIMESTAMP;
-
-export const isRowValueDate = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.DATE;
+import { splitJsonlStream } from '../streamUtils';
 
 export function sanitizeGenericFileName(name: string): string {
     return (
@@ -62,6 +49,32 @@ export function createContentDispositionHeader(filename: string): string {
 
     // Return both filename (ASCII fallback) and filename* (UTF-8 encoded)
     return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
+}
+
+/**
+ * Prefers the Content-Disposition stored on the object, which carries the
+ * friendly download name. Falls back to a header built from `fallbackFilename`
+ * when nothing is stored or when the stored value would make `setHeader` throw
+ * `ERR_INVALID_CHAR` — Node rejects NUL, DEL, CR/LF and any code point above
+ * U+00FF, and that throw would turn the download into a JSON error response.
+ */
+export function getSafeContentDispositionHeader(
+    storedContentDisposition: string | null,
+    fallbackFilename: string,
+): string {
+    if (storedContentDisposition !== null) {
+        try {
+            validateHeaderValue(
+                'Content-Disposition',
+                storedContentDisposition,
+            );
+            return storedContentDisposition;
+        } catch {
+            // Unusable stored header; fall through to the generated one.
+        }
+    }
+
+    return createContentDispositionHeader(fallbackFilename);
 }
 
 export function generateGenericFileId({
@@ -149,54 +162,42 @@ export async function streamJsonlData<T>({
     onComplete?: (results: T[], truncated: boolean) => void;
     maxLines?: number; // undefined = no limit (for CSV), number = limit (for Excel)
 }): Promise<{ results: T[]; truncated: boolean }> {
-    return new Promise((resolve, reject) => {
-        const lineReader = createInterface({
-            input: readStream,
-            crlfDelay: Infinity,
-        });
+    let lineCount = 0;
+    let truncated = false;
+    const results: T[] = [];
 
-        let lineCount = 0;
-        let truncated = false;
-        const results: T[] = [];
+    for await (const line of splitJsonlStream(readStream)) {
+        if (!line.trim()) {
+            // eslint-disable-next-line no-continue
+            continue;
+        }
 
-        lineReader.on('line', (line: string) => {
-            if (!line.trim()) return;
+        lineCount += 1;
 
-            lineCount += 1;
+        // Check if we've exceeded the line limit (only if maxLines is defined)
+        if (maxLines !== undefined && lineCount > maxLines) {
+            truncated = true;
+            readStream.destroy();
+            break;
+        }
 
-            // Check if we've exceeded the line limit (only if maxLines is defined)
-            if (maxLines !== undefined && lineCount > maxLines) {
-                truncated = true;
-                lineReader.close();
-                return;
-            }
-
-            try {
-                const parsedRow = JSON.parse(line);
-                if (onRow) {
-                    const result = onRow(parsedRow, lineCount);
-                    if (result !== undefined) {
-                        results.push(result);
-                    }
+        try {
+            const parsedRow = JSON.parse(line);
+            if (onRow) {
+                const result = onRow(parsedRow, lineCount);
+                if (result !== undefined) {
+                    results.push(result);
                 }
-            } catch (error) {
-                Logger.error(
-                    `Error parsing line ${lineCount}: ${getErrorMessage(
-                        error,
-                    )}`,
-                );
             }
-        });
+        } catch (error) {
+            Logger.error(
+                `Error parsing line ${lineCount}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
 
-        lineReader.on('close', async () => {
-            if (onComplete) {
-                await onComplete(results, truncated);
-            }
-            resolve({ results, truncated });
-        });
-
-        lineReader.on('error', (error) => {
-            reject(error);
-        });
-    });
+    if (onComplete) {
+        await onComplete(results, truncated);
+    }
+    return { results, truncated };
 }

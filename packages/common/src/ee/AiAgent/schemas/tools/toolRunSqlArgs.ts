@@ -1,48 +1,39 @@
 import { z } from 'zod';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
-    buildMcpQueryRunResponseDescription,
     buildMcpVisualizationFollowUpInstruction,
-    MCP_QUERY_COMMON_NOTES,
+    MCP_ARTIFACT_INTEGRATION_NOTE,
+    MCP_QUERY_ERROR_NOTE,
+    MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
 
 export const DEFAULT_RUN_SQL_LIMIT = 500;
 export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
 
+export const buildAgentRunSqlDescription = (
+    defaultLimit: number,
+    maxLimit: number,
+) => `Execute a read-only SQL query against the project's data warehouse. Prefer the semantic layer when it can answer the question; use SQL for ad-hoc analysis or queries the semantic layer cannot express.
+
+Use a valid SELECT statement in the connected warehouse's SQL dialect.
+The tool handles execution and returns a row/column summary, plus a CSV preview when data access is enabled. Empty results report zero rows. Correct validation or execution errors before retrying.
+
+The row limit defaults to ${defaultLimit}, max ${maxLimit}.
+Do not invent SQL Runner links.`;
+
 export const buildRunSqlDescription = (
     defaultLimit: number,
     maxLimit: number,
-) => `Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
+) => `Execute a read-only SQL query against the project's data warehouse. For running queries, follow the polling instructions in the response. Prefer run_metric_query when the semantic layer can answer the question; use SQL for ad-hoc analysis or queries outside modeled explores.
 
-Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
-This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
+Use a complete SELECT statement in the connected warehouse's SQL dialect. Lightdash applies the row limit (default ${defaultLimit}, max ${maxLimit}).
 ${buildMcpVisualizationFollowUpInstruction('run_sql')}
 
-The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
+Returns SQL data, not chart artifacts. The platform provides a query-specific SQL Runner action; do not add your own SQL Runner link in the final answer.
+${MCP_QUERY_RESULT_USAGE_NOTE}
+${MCP_QUERY_ERROR_NOTE}
 
-Parameters:
-- sql: The SQL query to execute. Must be a valid SELECT statement.
-- limit: Maximum number of rows to return (default ${defaultLimit}, max ${maxLimit}).
-
-${buildMcpQueryRunResponseDescription({
-    contentDescription:
-        'CSV with a header row plus data rows. Empty results return prose text like "Query returned 0 rows."',
-    completedResultShape: `    result: {
-      status: "done",
-      rows:     Array<Record<string, unknown>>,  // each row keyed by column name
-      columns:  string[],                        // column names in order
-      rowCount: number,                          // total rows returned
-      sqlRunnerUrl: string | null                // shareable URL to inspect/edit the SQL in SQL Runner
-    }`,
-})}
-
-Notes:
-${MCP_QUERY_COMMON_NOTES}
-- Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
-- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0, sqlRunnerUrl } — distinct from a parse failure.
-- Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
-- On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
-`;
+${MCP_ARTIFACT_INTEGRATION_NOTE}`;
 
 type CreateToolRunSqlArgsSchemaOptions = {
     maxLimit?: number;
@@ -60,7 +51,7 @@ export const createToolRunSqlArgsSchema = ({
                 .describe(
                     'The SQL query to execute against the data warehouse.',
                 ),
-            limit: z
+            limit: z.coerce
                 .number()
                 .int()
                 .positive()

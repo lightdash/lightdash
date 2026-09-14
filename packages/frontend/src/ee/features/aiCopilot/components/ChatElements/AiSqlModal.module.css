@@ -1,0 +1,22 @@
+.viewer {
+    /* Keep SQL's intrinsic width out of the modal's outer ScrollArea. */
+    contain: inline-size;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.lineNumbers {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-inline-end: 1px solid var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-dimmed);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: calc(0.8125rem * var(--mantine-scale));
+    line-height: 1.7;
+    text-align: end;
+    white-space: pre;
+    user-select: none;
+}

@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-5.4';
+export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+export const DEFAULT_OPENAI_FAST_MODEL_NAME = 'gpt-5.6-luna';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-6';
+export const DEFAULT_GOOGLE_MODEL_NAME = 'gemini-3.8-flash';
+export const DEFAULT_GOOGLE_FAST_MODEL_NAME = 'gemini-3.5-flash-lite';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
@@ -17,17 +21,35 @@ export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
  */
 export const DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS = 600;
 
-const customHeadersSchema = z.record(z.string()).default({});
+const customHeadersSchema = z.record(z.string(), z.string()).default({});
 
 // Capability of the gateway/endpoint the provider points at, not a feature
 // toggle — some LLM gateways don't support streaming (SSE) completions.
 const supportsStreamingSchema = z.boolean().default(true);
 
+export const AI_PROVIDER_KEYS = [
+    'openai',
+    'azure',
+    'anthropic',
+    'google',
+    'openrouter',
+    'bedrock',
+] as const;
+
 export const aiCopilotConfigSchema = z
     .object({
         defaultProvider: z
-            .enum(['openai', 'azure', 'anthropic', 'openrouter', 'bedrock'])
+            .enum(AI_PROVIDER_KEYS)
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
+        // Providers whose instance-level API key is Lightdash's own. Set by
+        // Lightdash infrastructure on Lightdash Cloud deployments; empty on
+        // self-hosted installs and on dedicated instances configured with a
+        // customer's key. Only affects the `keyManagement` dimension on AI
+        // usage analytics; org BYO keys are tracked separately at config
+        // resolution.
+        lightdashManagedProviders: z
+            .array(z.enum(AI_PROVIDER_KEYS))
+            .default([]),
         defaultEmbeddingModelProvider: z
             .enum(['openai', 'bedrock', 'azure'])
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
@@ -65,8 +87,18 @@ export const aiCopilotConfigSchema = z
                 .object({
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
+                    baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
                     customHeaders: customHeadersSchema,
+                    supportsStreaming: supportsStreamingSchema,
+                })
+                .optional(),
+            google: z
+                .object({
+                    apiKey: z.string(),
+                    modelName: z.string().default(DEFAULT_GOOGLE_MODEL_NAME),
+                    baseUrl: z.string().optional(),
+                    availableModels: z.array(z.string()).optional(),
                     supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),
@@ -77,13 +109,15 @@ export const aiCopilotConfigSchema = z
                     sortOrder: z
                         .enum(['price', 'throughput', 'latency'])
                         .default('latency'),
-                    /** @ref https://openrouter.ai/models */
-                    allowedProviders: z
-                        .array(z.enum(['anthropic', 'openai', 'google']))
-                        .default(['openai']),
+                    // Upstream slugs from https://openrouter.ai/api/v1/providers.
+                    // allowedProviders is a hard filter; providerOrder is a
+                    // preference that still falls back to the rest of the pool.
+                    allowedProviders: z.array(z.string()).default([]),
+                    providerOrder: z.array(z.string()).default([]),
                     modelName: z
                         .string()
                         .default(DEFAULT_OPENROUTER_MODEL_NAME),
+                    availableModels: z.array(z.string()).optional(),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
                 })
@@ -93,6 +127,8 @@ export const aiCopilotConfigSchema = z
                     z.object({
                         apiKey: z.string(),
                         region: z.string(),
+                        baseUrl: z.string().optional(),
+                        claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
                         modelName: z
                             .string()
@@ -109,6 +145,8 @@ export const aiCopilotConfigSchema = z
                         accessKeyId: z.string(),
                         secretAccessKey: z.string(),
                         sessionToken: z.string().optional(),
+                        baseUrl: z.string().optional(),
+                        claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
                         modelName: z
                             .string()
@@ -123,6 +161,8 @@ export const aiCopilotConfigSchema = z
                     z.object({
                         useDefaultCredentials: z.literal(true),
                         region: z.string(),
+                        baseUrl: z.string().optional(),
+                        claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
                         modelName: z
                             .string()
@@ -140,6 +180,7 @@ export const aiCopilotConfigSchema = z
         enabled: z.boolean(),
         requiresFeatureFlag: z.boolean(),
         telemetryEnabled: z.boolean(),
+        threadDumpEnabled: z.boolean(),
         debugLoggingEnabled: z.boolean(),
         askAiButtonEnabled: z.boolean(),
         embeddingEnabled: z.boolean(),
@@ -158,36 +199,38 @@ export const aiCopilotConfigSchema = z
             .positive()
             .default(DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS),
     })
-    .refine(
-        ({ providers, defaultProvider, enabled }) =>
-            !(enabled && providers[defaultProvider] === undefined),
-        ({ defaultProvider }) => ({
-            message: `Configuration for the default provider "${defaultProvider}" must be present`,
-            params: {
+    .superRefine(
+        (
+            {
+                providers,
                 defaultProvider,
+                enabled,
+                defaultEmbeddingModelProvider,
+                embeddingEnabled,
             },
-            path: ['providers'],
-        }),
-    )
-    .refine(
-        ({
-            providers,
-            defaultEmbeddingModelProvider,
-            enabled,
-            embeddingEnabled,
-        }) =>
-            !(
+            ctx,
+        ) => {
+            if (enabled && providers[defaultProvider] === undefined) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `Configuration for the default provider "${defaultProvider}" must be present`,
+                    params: { defaultProvider },
+                    path: ['providers'],
+                });
+            }
+            if (
                 enabled &&
                 embeddingEnabled &&
                 providers[defaultEmbeddingModelProvider] === undefined
-            ),
-        ({ defaultEmbeddingModelProvider }) => ({
-            message: `Configuration for the default embedding provider "${defaultEmbeddingModelProvider}" must be present`,
-            params: {
-                defaultEmbeddingModelProvider,
-            },
-            path: ['providers'],
-        }),
+            ) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `Configuration for the default embedding provider "${defaultEmbeddingModelProvider}" must be present`,
+                    params: { defaultEmbeddingModelProvider },
+                    path: ['providers'],
+                });
+            }
+        },
     );
 
 export type AiCopilotConfigSchemaType = z.infer<typeof aiCopilotConfigSchema>;

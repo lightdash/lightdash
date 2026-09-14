@@ -1,5 +1,5 @@
 import { type ResourceViewSpaceItem } from '@lightdash/common';
-import { Group, Text, Tooltip } from '@mantine-8/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -75,8 +75,6 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
 
     return (
         <Tooltip
-            withinPortal
-            withArrow
             position="top"
             // Hack the tooltip to never open when `withTooltip` is false
             opened={withTooltip ? undefined : false}

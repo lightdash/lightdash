@@ -3,7 +3,7 @@ import {
     type AiAgentChartTypeOption,
     type MetricQuery,
 } from '@lightdash/common';
-import { SegmentedControl } from '@mantine-8/core';
+import { SegmentedControl } from '@mantine/core';
 import {
     IconChartBar,
     IconChartLine,

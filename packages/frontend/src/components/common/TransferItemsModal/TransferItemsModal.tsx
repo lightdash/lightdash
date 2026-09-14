@@ -4,7 +4,7 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Button, LoadingOverlay, Text } from '@mantine-8/core';
+import { Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconFolderShare, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
@@ -24,8 +24,10 @@ type Props<T> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     description?: ReactNode;
     confirmLabel?: string;
     createSpaceConfirmLabel?: string;
-    /** Extra content rendered below the space selector — e.g. per-content-type
-     *  move options. Hidden while the create-space form is open. */
+    /** Extra content rendered in the modal's fixed footer bar, next to the
+     *  "New Space" button — e.g. per-content-type move options. Lives outside
+     *  the scrollable space list so it stays visible however many spaces there
+     *  are. Hidden while the create-space form is open. */
     footer?: ReactNode;
 };
 
@@ -145,21 +147,26 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
 
     return (
         <MantineModal
-            title={title ?? `Move ${getItemsText(items).type}`}
+            title={
+                title ?? `Move ${getItemsText(items).type.replace(/_/g, ' ')}`
+            }
             opened={opened}
             onClose={onClose}
             icon={IconFolderShare}
             size="xl"
             leftActions={
                 !isCreatingNewSpace ? (
-                    <Button
-                        variant="subtle"
-                        size="xs"
-                        onClick={openCreateSpaceForm}
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                    >
-                        New Space
-                    </Button>
+                    <Group gap="lg" wrap="nowrap">
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            onClick={openCreateSpaceForm}
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                        >
+                            New Space
+                        </Button>
+                        {footer}
+                    </Group>
                 ) : null
             }
             actions={
@@ -177,6 +184,9 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                             !selectedSpaceUuid && !allSelectedItemsAreSpaces
                         }
                         onClick={handleConfirm}
+                        // Anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="transfer-confirm"
+                        data-tour-hint="Confirm the move"
                     >
                         {confirmLabel}
                     </Button>
@@ -230,7 +240,6 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                             </Callout>
                         ) : null}
                     </SpaceSelector>
-                    {footer}
                 </>
             )}
         </MantineModal>

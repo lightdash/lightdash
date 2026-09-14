@@ -1,12 +1,12 @@
 import {
     isField,
+    isMetric,
     isRawResultRow,
     isResultValue,
     type ConditionalFormattingTextStyle,
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
-import { clsx } from '@mantine/core';
 import {
     getHotkeyHandler,
     useClipboard,
@@ -14,15 +14,16 @@ import {
     useTimeout,
 } from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
+import { clsx } from 'clsx';
 import {
     useCallback,
     useEffect,
     useMemo,
     useRef,
     useState,
+    type CSSProperties,
     type FC,
 } from 'react';
-import { type CSSProperties } from 'styled-components';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
@@ -175,6 +176,16 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     displayValue.includes('\n')
                 }
                 onClick={canHaveMenu ? toggleMenu : undefined}
+                // Walkthrough anchor (data-tour-via): a metric cell, whose
+                // menu can open the records behind the number. The name is
+                // computed, so the hint is declared here:
+                //   data-tour-anchor="results-metric-cell" data-tour-hint="Click a number in the results"
+                data-tour-anchor={
+                    canHaveMenu && isField(item) && isMetric(item)
+                        ? 'results-metric-cell'
+                        : undefined
+                }
+                data-tour-hint="Click a number in the results"
                 onMouseEnter={canHaveTooltip ? startTooltipTimer : undefined}
                 onMouseLeave={
                     canHaveTooltip

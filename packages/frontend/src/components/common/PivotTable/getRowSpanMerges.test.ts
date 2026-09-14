@@ -36,6 +36,22 @@ describe('getGroupedDimColumnIds', () => {
             ]),
         ).toEqual([]);
     });
+
+    it('does not treat pivot row metrics as grouping dimensions', () => {
+        const indexValueTypes: PivotData['indexValueTypes'] = [
+            { type: FieldType.DIMENSION, fieldId: 'month' },
+            { type: FieldType.METRIC, fieldId: 'cohort_size' },
+            { type: FieldType.DIMENSION, fieldId: 'tier' },
+        ];
+
+        expect(
+            getGroupedDimColumnIds(indexValueTypes, [
+                'month',
+                'cohort_size',
+                'tier',
+            ]),
+        ).toEqual(['month']);
+    });
 });
 
 describe('getRowSpanMerges', () => {

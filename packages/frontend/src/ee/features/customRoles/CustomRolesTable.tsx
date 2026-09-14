@@ -8,13 +8,13 @@ import {
     Table,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { CustomRolesDeleteModal } from './CustomRolesDeleteModal';
 
@@ -59,19 +59,15 @@ const TableRow: FC<{
                 </Tooltip>
             </Table.Td>
             <Table.Td>
-                <Badge variant="light" color="gray">
+                <Badge>
                     {level === 'organization' ? 'Organization' : 'Project'}
                 </Badge>
             </Table.Td>
             <Table.Td>{createdAt ? formatDate(createdAt) : '-'}</Table.Td>
             <Table.Td w="1%">
-                <Menu withinPortal position="bottom-end">
+                <Menu position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon
-                            variant="transparent"
-                            size="sm"
-                            color="ldGray.6"
-                        >
+                        <ActionIcon variant="transparent" size="sm">
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Menu.Target>
@@ -110,7 +106,6 @@ export const CustomRolesTable: FC<TableProps> = ({
     onEdit,
     isDeleting,
 }) => {
-    const { cx, classes } = useTableStyles();
     const [deleteOpened, { open: openDelete, close: closeDelete }] =
         useDisclosure(false);
     const [roleToDelete, setRoleToDelete] = useState<
@@ -137,8 +132,10 @@ export const CustomRolesTable: FC<TableProps> = ({
 
     return (
         <>
-            <Paper withBorder style={{ overflow: 'hidden' }}>
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+            <Paper className={tableStyles.paper}>
+                <Table
+                    className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
+                >
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th>Name</Table.Th>

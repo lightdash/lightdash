@@ -1,5 +1,7 @@
+import { type AnyValidateFunction } from 'ajv/dist/types';
 import { model } from '../compiler/translator.mock';
 import { DbtManifestVersion, type DbtRawModelNode } from '../types/dbt';
+import lightdashMetadataSchema from './schemas/lightdashMetadata.json';
 import { ManifestValidator } from './validation';
 
 const metadataSchemaId =
@@ -7,7 +9,6 @@ const metadataSchemaId =
 const defaultTimeDimensionValidator = ManifestValidator.getValidator(
     `${metadataSchemaId}#/definitions/DefaultTimeDimension`,
 );
-
 const withMeta = (meta: Record<string, unknown>): DbtRawModelNode =>
     ({ ...model, meta }) as unknown as DbtRawModelNode;
 
@@ -81,6 +82,69 @@ describe('DefaultTimeDimension metadata schema', () => {
     });
 });
 
+describe('pre-aggregate manifest validation boundary', () => {
+    test('keeps runtime parsing responsible while metadata schema omits pre-aggregates', () => {
+        expect(
+            lightdashMetadataSchema.definitions.LightdashModelMetadata
+                .properties,
+        ).not.toHaveProperty('pre_aggregates');
+    });
+});
+
+describe('AI hint manifest compatibility', () => {
+    test('does not invalidate an explore with malformed optional hints', () => {
+        const malformedHint = { Formula: 'clicks + keys' };
+        const modelWithMalformedHints = {
+            ...model,
+            meta: {
+                ai_hint: malformedHint,
+                group_details: {
+                    finance: {
+                        label: 'Finance',
+                        ai_hint: [malformedHint],
+                    },
+                },
+                metrics: {
+                    revenue: {
+                        type: 'sum',
+                        sql: '${TABLE}.revenue',
+                        ai_hint: [malformedHint],
+                    },
+                },
+            },
+            columns: {
+                myColumnName: {
+                    ...model.columns.myColumnName,
+                    config: {
+                        meta: {
+                            metrics: {
+                                revenue: {
+                                    type: 'sum',
+                                    ai_hint: [malformedHint],
+                                },
+                            },
+                            dimension: { ai_hint: [malformedHint] },
+                            additional_dimensions: {
+                                normalized_name: {
+                                    type: 'string',
+                                    sql: '${TABLE}.name',
+                                    ai_hint: [malformedHint],
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        } as unknown as DbtRawModelNode;
+
+        expect(
+            new ManifestValidator(DbtManifestVersion.V12).isModelValid(
+                modelWithMalformedHints,
+            ),
+        ).toEqual([true, undefined]);
+    });
+});
+
 describe('ManifestValidator default_time_dimension composition', () => {
     test.each(Object.values(DbtManifestVersion))(
         'validates the column metadata path for %s',
@@ -133,5 +197,68 @@ describe('ManifestValidator default_time_dimension composition', () => {
 
         expect(isValid).toBe(false);
         expect(error).toContain('must be string');
+    });
+});
+
+describe('ManifestValidator model error formatting', () => {
+    test('includes the model source through the model validation boundary', () => {
+        const invalidModel = {
+            ...withColumnMetricDefault(DbtManifestVersion.V12, {
+                created_at: null,
+            }),
+            lightdash_source_name: 'finance',
+        } as unknown as DbtRawModelNode;
+
+        const [isValid, error] = new ManifestValidator(
+            DbtManifestVersion.V12,
+        ).isModelValid(invalidModel);
+
+        expect(isValid).toBe(false);
+        expect(error).toContain(
+            'Model "myTable" from dbt source "finance": Field at',
+        );
+    });
+
+    test('names an unsupported root property and the dbt source', () => {
+        const validator = (() => false) as unknown as AnyValidateFunction;
+        validator.errors = [
+            {
+                instancePath: '',
+                schemaPath: '#/additionalProperties',
+                keyword: 'additionalProperties',
+                params: { additionalProperty: 'unsupported_property' },
+                message: 'must NOT have additional properties',
+            },
+        ];
+
+        expect(
+            ManifestValidator.formatAjvErrors(validator, {
+                modelName: 'payments',
+                sourceName: 'payments_source',
+            }),
+        ).toBe(
+            'Model "payments" from dbt source "payments_source": Property "unsupported_property" at model root is not allowed. Remove or update it in your dbt model, then deploy again.',
+        );
+    });
+
+    test('uses model root for an empty pointer and omits an unavailable source', () => {
+        const validator = (() => false) as unknown as AnyValidateFunction;
+        validator.errors = [
+            {
+                instancePath: '',
+                schemaPath: '#/type',
+                keyword: 'type',
+                params: { type: 'object' },
+                message: 'must be object',
+            },
+        ];
+
+        expect(
+            ManifestValidator.formatAjvErrors(validator, {
+                modelName: 'payments',
+            }),
+        ).toBe(
+            'Model "payments": Field at model root must be object. Update this field in your dbt model, then deploy again.',
+        );
     });
 });

@@ -11,11 +11,12 @@ import {
     Button,
     Anchor,
     Highlight,
+    MultiSelect,
     Radio,
     ScrollArea,
-} from '@mantine-8/core';
-import { MultiSelect } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { z } from 'zod';
@@ -32,7 +33,7 @@ import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 
 const validationSchema = z.object({
-    type: z.nativeEnum(TableSelectionType),
+    type: z.enum(TableSelectionType),
     tags: z.array(z.string()),
     names: z.array(z.string()),
 });
@@ -128,6 +129,11 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
         setTimeout(() => setSearch(() => ''), 0);
     }, [setSearch]);
 
+    const preserveSearchOnOptionSubmit = useCallback(() => {
+        const submittedSearch = search;
+        setTimeout(() => setSearch(submittedSearch), 0);
+    }, [search]);
+
     useEffect(() => {
         if (!tablesConfig) return;
 
@@ -187,7 +193,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
             <SettingsGridCard>
                 <div>
                     <Title order={5}>Table selection</Title>
-                    <Text c="ldGray.6" my={'xs'}>
+                    <Text size="sm" c="dimmed" my={'xs'}>
                         You have selected <b>{modelsIncluded.length}</b> models{' '}
                         {modelsIncluded.length > 0 && (
                             <Anchor
@@ -200,14 +206,15 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                             </Anchor>
                         )}
                     </Text>
-                    <Collapse in={isListOpen}>
+                    <Collapse expanded={isListOpen}>
                         <ScrollArea h={180}>
                             {modelsIncluded.map((name) => (
                                 <Text
                                     key={name}
                                     title={name}
                                     truncate
-                                    c="ldGray.6"
+                                    size="sm"
+                                    c="dimmed"
                                 >
                                     {name}
                                 </Text>
@@ -260,25 +267,28 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         }
                                         placeholder="e.g lightdash, prod"
                                         searchable
-                                        clearSearchOnChange={false}
+                                        maxDropdownHeight={220}
+                                        hidePickedOptions
                                         searchValue={search}
                                         onSearchChange={setSearch}
-                                        itemComponent={({ label, ...others }) =>
-                                            others.disabled ? (
-                                                <Text c="dimmed" {...others}>
-                                                    {label}
+                                        onOptionSubmit={
+                                            preserveSearchOnOptionSubmit
+                                        }
+                                        renderOption={({ option }) =>
+                                            option.disabled ? (
+                                                <Text c="dimmed">
+                                                    {option.label}
                                                 </Text>
                                             ) : (
                                                 <Highlight
                                                     highlight={search}
-                                                    {...others}
                                                     fz="sm"
                                                 >
-                                                    {label}
+                                                    {option.label}
                                                 </Highlight>
                                             )
                                         }
-                                        nothingFound={
+                                        nothingFoundMessage={
                                             isLoadingTablesConfig
                                                 ? 'Loading...'
                                                 : 'No results found'
@@ -326,25 +336,28 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         disabled={disabled}
                                         placeholder="e.g users, orders"
                                         searchable
-                                        clearSearchOnChange={false}
+                                        maxDropdownHeight={220}
+                                        hidePickedOptions
                                         searchValue={search}
                                         onSearchChange={setSearch}
-                                        itemComponent={({ label, ...others }) =>
-                                            others.disabled ? (
-                                                <Text c="dimmed" {...others}>
-                                                    {label}
+                                        onOptionSubmit={
+                                            preserveSearchOnOptionSubmit
+                                        }
+                                        renderOption={({ option }) =>
+                                            option.disabled ? (
+                                                <Text c="dimmed">
+                                                    {option.label}
                                                 </Text>
                                             ) : (
                                                 <Highlight
                                                     highlight={search}
-                                                    {...others}
                                                     fz="sm"
                                                 >
-                                                    {label}
+                                                    {option.label}
                                                 </Highlight>
                                             )
                                         }
-                                        nothingFound={
+                                        nothingFoundMessage={
                                             isLoadingTablesConfig
                                                 ? 'Loading...'
                                                 : 'No results found'

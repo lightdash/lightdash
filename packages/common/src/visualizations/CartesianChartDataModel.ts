@@ -22,6 +22,7 @@ import {
     formatNumberValue,
     getCustomFormatFromLegacy,
 } from '../utils/formatting';
+import { assignSeriesZByOrder } from './helpers/seriesZOrder';
 import {
     getAxisLabelStyle,
     getAxisLineStyle,
@@ -55,6 +56,7 @@ import {
     type AxisSide,
     type PivotChartData,
     type PivotChartLayout,
+    type PivotValuesColumn,
     type SqlRunnerEChartsSeries,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
@@ -413,6 +415,21 @@ export class CartesianChartDataModel {
         };
     }
 
+    static getOrderedSeries(
+        series: PivotValuesColumn[],
+        seriesOrder: string[] | undefined,
+    ): PivotValuesColumn[] {
+        if (!seriesOrder?.length) return series;
+        const positions = new Map(
+            seriesOrder.map((reference, index) => [reference, index]),
+        );
+        return [...series].sort(
+            (a, b) =>
+                (positions.get(a.pivotColumnName) ?? seriesOrder.length) -
+                (positions.get(b.pivotColumnName) ?? seriesOrder.length),
+        );
+    }
+
     static getDefaultColor(index: number, orgColors?: string[]) {
         const colorPalette = orgColors || ECHARTS_DEFAULT_COLORS;
         // This code assigns a color to a series in the chart
@@ -646,8 +663,17 @@ export class CartesianChartDataModel {
               )
             : undefined;
 
+        const originalSeriesIndices = new Map(
+            transformedData.valuesColumns.map((column, index) => [
+                column,
+                index,
+            ]),
+        );
         let series: SqlRunnerEChartsSeries[] =
-            transformedData.valuesColumns.map((seriesColumn, index) => {
+            CartesianChartDataModel.getOrderedSeries(
+                transformedData.valuesColumns,
+                display?.seriesOrder,
+            ).map((seriesColumn) => {
                 const seriesColumnId = seriesColumn.pivotColumnName;
 
                 // NOTE: seriesColumnId is the post pivoted column name and we now store the display based on that.
@@ -769,7 +795,7 @@ export class CartesianChartDataModel {
                     color:
                         seriesColor ||
                         CartesianChartDataModel.getDefaultColor(
-                            index,
+                            originalSeriesIndices.get(seriesColumn) ?? 0,
                             orgColors,
                         ),
                     ...(seriesType === 'bar' ? getBarStyle() : {}),
@@ -899,6 +925,9 @@ export class CartesianChartDataModel {
 
         // Show legend when there are multiple series
         const showLegend = transformedData.valuesColumns.length > 1;
+
+        // Series-list order controls paint order, same as explore charts
+        series = assignSeriesZByOrder(series);
 
         const spec = {
             // Snap time-axis ticks in UTC to match the UTC label formatter;
@@ -1039,6 +1068,8 @@ export class CartesianChartDataModel {
 }
 
 export type CartesianChartDisplay = {
+    // Pivot column names in back-to-front draw order.
+    seriesOrder?: string[];
     xAxis?: {
         label?: string;
         type?: VizIndexType;

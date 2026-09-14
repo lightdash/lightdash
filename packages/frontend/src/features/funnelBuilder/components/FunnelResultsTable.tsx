@@ -1,5 +1,5 @@
 import { friendlyName } from '@lightdash/common';
-import { Table, Text } from '@mantine-8/core';
+import { Table, Text } from '@mantine/core';
 import { Fragment, useMemo, type FC } from 'react';
 import { useAppSelector } from '../store';
 import { selectResults } from '../store/funnelBuilderSlice';

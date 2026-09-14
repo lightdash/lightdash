@@ -1,5 +1,5 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { ActionIcon, Group, Loader, Text } from '@mantine-8/core';
+import { ActionIcon, Group, Loader, Text } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC, type KeyboardEvent, type MouseEvent } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
@@ -60,8 +60,6 @@ export const DockTab: FC<Props> = ({
                     {item.title}
                 </Text>
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     size="xs"
                     onClick={handleClose}
                     aria-label="Close conversation"

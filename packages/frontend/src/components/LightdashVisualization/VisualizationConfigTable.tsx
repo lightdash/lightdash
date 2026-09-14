@@ -8,6 +8,8 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     resultsData,
     columnOrder,
     validPivotDimensions,
+    initialPivotRows,
+    onPivotRowsChange,
     initialChartConfig,
     onChartConfigChange,
     children,
@@ -20,6 +22,8 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
         itemsMap,
         columnOrder,
         validPivotDimensions,
+        initialPivotRows,
+        onPivotRowsChange,
         invalidateCache,
         parameters,
     );

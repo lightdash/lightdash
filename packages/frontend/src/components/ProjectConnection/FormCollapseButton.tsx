@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
@@ -12,7 +12,6 @@ const FormCollapseButton: FC<
     return (
         <Button
             variant="subtle"
-            color="ldGray.6"
             size="compact-sm"
             style={{
                 alignSelf: 'end',

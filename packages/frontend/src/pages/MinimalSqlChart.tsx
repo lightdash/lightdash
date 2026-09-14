@@ -1,26 +1,19 @@
 import {
     assertUnreachable,
+    isVizBigNumberConfig,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import { memo, type FC, type JSX } from 'react';
+import { Box } from '@mantine/core';
+import { memo, useEffect, type FC, type JSX } from 'react';
 import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
+import BigNumberView from '../components/DataViz/visualizations/BigNumberView';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
-
-const themeOverride: MantineThemeOverride = {
-    globalStyles: () => ({
-        'html, body': {
-            backgroundColor: 'white',
-        },
-    }),
-};
 
 const MinimalSqlChartContent = memo(
     ({
@@ -95,6 +88,16 @@ const MinimalSqlChartContent = memo(
                     />
                 </Box>
             );
+        } else if (isVizBigNumberConfig(chartData.config)) {
+            const { fieldConfig } = chartData.config;
+            visualization = (
+                <BigNumberView
+                    spec={chartResultsData.chartSpec}
+                    isLoading={isChartResultsFetching}
+                    error={undefined}
+                    hasValueField={!!fieldConfig?.y?.length}
+                />
+            );
         } else if (
             isVizCartesianChartConfig(chartData.config) ||
             isVizPieChartConfig(chartData.config)
@@ -122,7 +125,7 @@ const MinimalSqlChartContent = memo(
         }
 
         return (
-            <MantineProvider inherit theme={themeOverride}>
+            <>
                 <Box mih="inherit" h="100%" data-testid="visualization">
                     {visualization}
                 </Box>
@@ -135,7 +138,7 @@ const MinimalSqlChartContent = memo(
                         tilesErrored={hasError ? 1 : 0}
                     />
                 )}
-            </MantineProvider>
+            </>
         );
     },
 );
@@ -145,6 +148,12 @@ const MinimalSqlChart: FC = () => {
         projectUuid: string;
         savedSqlUuid: string;
     }>();
+
+    // White page background for screenshot/PDF exports, regardless of theme
+    useEffect(() => {
+        document.documentElement.style.backgroundColor = 'white';
+        document.body.style.backgroundColor = 'white';
+    }, []);
 
     if (!params.projectUuid || !params.savedSqlUuid) {
         return null;

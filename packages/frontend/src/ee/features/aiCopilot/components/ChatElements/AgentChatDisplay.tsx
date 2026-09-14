@@ -7,7 +7,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
     Fragment,
@@ -18,7 +18,8 @@ import {
     type PropsWithChildren,
 } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
-import { useDeepResearchThreadRuns } from '../../hooks/useDeepResearch';
+import { type DeepResearchRunRegistration } from '../../deepResearch/types';
+import { useDeepResearchThreadRunRegistrations } from '../../hooks/useDeepResearch';
 import { useAgentAiMcpServers } from '../../hooks/useProjectAiMcpServers';
 import { AddToEvalModal } from '../Admin/AddToEvalModal';
 import { DeepResearchThreadRuns } from '../DeepResearch/DeepResearchThreadRuns';
@@ -42,6 +43,10 @@ type Props = {
     renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
     onDashboardLinkClick?: (url: string) => void;
+    canRetryDeepResearch?: boolean;
+    onRunDeepResearchAgain?: (
+        registration: DeepResearchRunRegistration,
+    ) => void;
 };
 
 const CompactionDivider = () => (
@@ -69,15 +74,13 @@ const CompactionDivider = () => (
                 Summarized Conversation
             </Text>
             <Tooltip
-                withinPortal
                 maw={320}
-                multiline
                 label="Lightdash automatically summarizes earlier messages when a conversation gets long, so responses stay fast and relevant."
             >
                 <Box
                     component="span"
                     aria-label="About summarized conversations"
-                    style={{ display: 'inline-flex' }}
+                    display="inline-flex"
                 >
                     <IconInfoCircle
                         size={14}
@@ -101,6 +104,8 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     renderArtifactsInline = false,
     showAddToEvalsButton = false,
     onDashboardLinkClick,
+    canRetryDeepResearch = false,
+    onRunDeepResearchAgain,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
     const { data: mcpServers } = useAgentAiMcpServers(projectUuid, agentUuid, {
@@ -112,18 +117,31 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     // Deep research prompts never receive a chat response — the run card is
     // the response — so their assistant bubbles must not render (they would
     // show as failed generations).
-    const deepResearchRuns = useDeepResearchThreadRuns(
+    const deepResearchRegistrations = useDeepResearchThreadRunRegistrations({
         projectUuid,
-        thread.uuid,
+        threadUuid: thread.uuid,
+    });
+    const deepResearchRegistrationsByPromptUuid = useMemo(
+        () =>
+            deepResearchRegistrations.reduce(
+                (registrationsByPromptUuid, registration) => {
+                    const promptRegistrations =
+                        registrationsByPromptUuid.get(
+                            registration.promptUuid,
+                        ) ?? [];
+                    registrationsByPromptUuid.set(registration.promptUuid, [
+                        ...promptRegistrations,
+                        registration,
+                    ]);
+                    return registrationsByPromptUuid;
+                },
+                new Map<string, typeof deepResearchRegistrations>(),
+            ),
+        [deepResearchRegistrations],
     );
     const deepResearchPromptUuids = useMemo(
-        () =>
-            new Set(
-                (deepResearchRuns.data ?? []).flatMap((run) =>
-                    run.promptUuid ? [run.promptUuid] : [],
-                ),
-            ),
-        [deepResearchRuns.data],
+        () => new Set(deepResearchRegistrationsByPromptUuid.keys()),
+        [deepResearchRegistrationsByPromptUuid],
     );
     const compactionsByTriggeringPromptUuid = new Map(
         thread.compactions.map((compaction) => [
@@ -131,6 +149,35 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
             compaction,
         ]),
     );
+    // Hidden turns are answered by the agent but are not part of the visible
+    // conversation. Deep research assistant rows are replaced by run cards.
+    // A hidden user turn shares its uuid with the assistant reply, which may
+    // render it (e.g. a data app restore card).
+    const hiddenUserMessagesByUuid = new Map(
+        thread.messages.flatMap((message) =>
+            message.role === 'user' && message.hidden
+                ? [[message.uuid, message] as const]
+                : [],
+        ),
+    );
+    const visibleMessages = thread.messages.filter(
+        (message) =>
+            !(
+                (message.role === 'user' && message.hidden) ||
+                (message.role === 'assistant' &&
+                    deepResearchPromptUuids.has(message.uuid))
+            ),
+    );
+    const visibleUserPromptUuids = new Set(
+        visibleMessages.flatMap((message) =>
+            message.role === 'user' ? [message.uuid] : [],
+        ),
+    );
+    const unanchoredDeepResearchRegistrations =
+        deepResearchRegistrations.filter(
+            (registration) =>
+                !visibleUserPromptUuids.has(registration.promptUuid),
+        );
 
     return (
         <Flex
@@ -148,90 +195,95 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     px={ChatElementsUtils.centeredElementProps.px}
                     pb="md"
                     gap="xl"
-                    style={{ flexGrow: 1 }}
+                    flex={1}
                 >
-                    <Stack flex={1} style={{ flexGrow: 1 }}>
-                        {thread.messages
-                            // Hidden turns (e.g. the post-merge migration prompt)
-                            // are received and answered by the agent but never
-                            // rendered as a user bubble.
-                            .filter(
-                                (message) =>
-                                    !(
-                                        message.role === 'user' &&
-                                        message.hidden
-                                    ) &&
-                                    !(
-                                        message.role === 'assistant' &&
-                                        deepResearchPromptUuids.has(
-                                            message.uuid,
-                                        )
-                                    ),
-                            )
-                            .map((message, i, xs) => (
-                                <Fragment
-                                    key={`${message.role}-${message.uuid}`}
-                                >
-                                    {message.role === 'user' &&
-                                        compactionsByTriggeringPromptUuid.has(
-                                            message.uuid,
-                                        ) && <CompactionDivider />}
+                    <Stack flex={1}>
+                        {visibleMessages.map((message, i, xs) => (
+                            <Fragment key={`${message.role}-${message.uuid}`}>
+                                {message.role === 'user' &&
+                                    compactionsByTriggeringPromptUuid.has(
+                                        message.uuid,
+                                    ) && <CompactionDivider />}
 
-                                    {ChatElementsUtils.shouldRenderDivider(
-                                        message,
-                                        i,
-                                        xs,
-                                    ) && (
-                                        <Divider
-                                            label={
-                                                message.createdAt
-                                                    ? ChatElementsUtils.getDividerLabel(
-                                                          message.createdAt,
-                                                      )
-                                                    : undefined
-                                            }
-                                            labelPosition="center"
-                                            my="sm"
-                                        />
-                                    )}
+                                {ChatElementsUtils.shouldRenderDivider(
+                                    message,
+                                    i,
+                                    xs,
+                                ) && (
+                                    <Divider
+                                        label={
+                                            message.createdAt
+                                                ? ChatElementsUtils.getDividerLabel(
+                                                      message.createdAt,
+                                                  )
+                                                : undefined
+                                        }
+                                        labelPosition="center"
+                                        my="sm"
+                                    />
+                                )}
 
-                                    {message.role === 'user' ? (
-                                        <UserBubble
-                                            message={message}
-                                            projectUuid={projectUuid}
-                                        />
-                                    ) : (
-                                        <ErrorBoundary>
-                                            {projectUuid && agentUuid && (
-                                                <AssistantBubble
-                                                    message={message}
-                                                    debug={debug}
-                                                    projectUuid={projectUuid}
-                                                    agentUuid={agentUuid}
-                                                    onAddToEvals={
-                                                        setAddToEvalsPromptUuid
-                                                    }
-                                                    showAddToEvalsButton={
-                                                        showAddToEvalsButton
-                                                    }
-                                                    mcpServers={mcpServers}
-                                                    renderArtifactsInline={
-                                                        renderArtifactsInline
-                                                    }
-                                                    onDashboardLinkClick={
-                                                        onDashboardLinkClick
-                                                    }
-                                                />
-                                            )}
-                                        </ErrorBoundary>
-                                    )}
-                                </Fragment>
-                            ))}
+                                {message.role === 'user' ? (
+                                    <UserBubble
+                                        message={message}
+                                        projectUuid={projectUuid}
+                                        agentUuid={agentUuid}
+                                    />
+                                ) : (
+                                    <ErrorBoundary>
+                                        {projectUuid && agentUuid && (
+                                            <AssistantBubble
+                                                message={message}
+                                                hiddenSibling={
+                                                    hiddenUserMessagesByUuid.get(
+                                                        message.uuid,
+                                                    ) ?? null
+                                                }
+                                                isLastMessage={
+                                                    i === xs.length - 1
+                                                }
+                                                debug={debug}
+                                                projectUuid={projectUuid}
+                                                agentUuid={agentUuid}
+                                                onAddToEvals={
+                                                    setAddToEvalsPromptUuid
+                                                }
+                                                showAddToEvalsButton={
+                                                    showAddToEvalsButton
+                                                }
+                                                mcpServers={mcpServers}
+                                                renderArtifactsInline={
+                                                    renderArtifactsInline
+                                                }
+                                                onDashboardLinkClick={
+                                                    onDashboardLinkClick
+                                                }
+                                            />
+                                        )}
+                                    </ErrorBoundary>
+                                )}
 
-                        {projectUuid && (
+                                {message.role === 'user' && (
+                                    <DeepResearchThreadRuns
+                                        registrations={
+                                            deepResearchRegistrationsByPromptUuid.get(
+                                                message.uuid,
+                                            ) ?? []
+                                        }
+                                        canRetry={canRetryDeepResearch}
+                                        onRunAgain={onRunDeepResearchAgain}
+                                    />
+                                )}
+                            </Fragment>
+                        ))}
+
+                        {unanchoredDeepResearchRegistrations.length > 0 && (
                             <DeepResearchThreadRuns
-                                projectUuid={projectUuid}
-                                threadUuid={thread.uuid}
+                                registrations={
+                                    unanchoredDeepResearchRegistrations
+                                }
+                                canRetry={canRetryDeepResearch}
+                                onRunAgain={onRunDeepResearchAgain}
                             />
                         )}
                     </Stack>

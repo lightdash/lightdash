@@ -182,4 +182,118 @@ describe('SpacePermissionModel', () => {
             expect(databaseRaw).not.toHaveBeenCalled();
         });
     });
+
+    describe('access list query filters', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new SpacePermissionModel(database);
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        it('filters every access source by the requested user uuids', async () => {
+            const userUuids = ['user-a', 'user-b'];
+            tracker.on.select(/.*/).response([]);
+
+            await model.getDirectSpaceAccess(['space-uuid'], { userUuids });
+            const directSql = tracker.history.select[0].sql;
+            expect(directSql).toMatch(
+                /"space_user_access"\."user_uuid" in \(\$\d+, \$\d+\)/,
+            );
+            expect(directSql).toMatch(
+                /"users"\."user_uuid" in \(\$\d+, \$\d+\)/,
+            );
+
+            tracker.reset();
+            tracker.on.select(/.*/).response([]);
+            await model.getProjectSpaceAccess(['space-uuid'], { userUuids });
+            expect(tracker.history.select[0].sql).toMatch(
+                /"users"\."user_uuid" in \(\$\d+, \$\d+\)/,
+            );
+
+            tracker.reset();
+            tracker.on.select(/.*/).response([]);
+            await model.getOrganizationSpaceAccess(['space-uuid'], {
+                userUuids,
+            });
+            expect(tracker.history.select[0].sql).toMatch(
+                /"users"\."user_uuid" in \(\$\d+, \$\d+\)/,
+            );
+        });
+
+        it('escapes search metacharacters and orders paginated user metadata deterministically', async () => {
+            tracker.on.select(/.*/).responseOnce([
+                {
+                    userUuid: 'current-user',
+                    firstName: 'Alice',
+                    lastName: 'Admin',
+                    email: 'alice@example.com',
+                    isInternal: false,
+                    avatarGradient: null,
+                    avatarContentHash: null,
+                },
+            ]);
+
+            await expect(
+                model.getPaginatedUserMetadata(
+                    ['current-user', 'other-user'],
+                    undefined,
+                    {
+                        searchQuery: 'alice_%',
+                        currentUserUuidFirst: 'current-user',
+                    },
+                ),
+            ).resolves.toEqual({
+                data: [
+                    {
+                        userUuid: 'current-user',
+                        firstName: 'Alice',
+                        lastName: 'Admin',
+                        email: 'alice@example.com',
+                        isInternal: false,
+                        avatarUrl: null,
+                        avatarGradient: null,
+                    },
+                ],
+            });
+
+            const sql = tracker.history.select[0].sql.toLowerCase();
+            expect(sql).toMatch(/"users"\."user_uuid" in \(\$\d+, \$\d+\)/);
+            expect(sql).toContain('"users"."first_name" ~*');
+            expect(sql).toContain('"users"."last_name" ~*');
+            expect(sql).toContain('"emails"."email" ~*');
+            expect(tracker.history.select[0].bindings).toContain('alice_%');
+            expect(sql).toMatch(/\("users"\."user_uuid" = \$\d+\) desc/);
+            expect(sql).toContain('lower("users"."first_name")');
+            expect(sql).toContain('lower("users"."last_name")');
+            expect(sql).toMatch(
+                /"emails"\."email" asc, "users"\."user_uuid" asc$/,
+            );
+        });
+
+        it('does not query for empty paginated user metadata', async () => {
+            await expect(
+                model.getPaginatedUserMetadata(
+                    [],
+                    { page: 2, pageSize: 20 },
+                    {},
+                ),
+            ).resolves.toEqual({
+                data: [],
+                pagination: {
+                    page: 2,
+                    pageSize: 20,
+                    totalPageCount: 0,
+                    totalResults: 0,
+                },
+            });
+
+            expect(tracker.history.select).toHaveLength(0);
+        });
+    });
 });

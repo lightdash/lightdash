@@ -1,5 +1,5 @@
-import { SortField } from '@lightdash/common';
-import { Database } from 'duckdb-async';
+import { DuckDBInstance } from '@duckdb/node-api';
+import { PivotedResults, SortField } from '@lightdash/common';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
@@ -9,28 +9,17 @@ const getNullsFirstLast = (sort: SortField) => {
     return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
 };
 
+const quoteId = (id: string) => `"${id.replace(/"/g, '""')}"`;
+
 export const getPivotedResults = async (
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
     pivotFields: string[],
     metrics: string[],
     sorts: SortField[],
-) => {
+): Promise<PivotedResults> => {
     const fields = Object.keys(fieldsMap);
-    const tmpFile = path.join(
-        os.tmpdir(),
-        `lightdash_pivot_${Date.now()}_${Math.random().toString(36).slice(2)}.json`,
-    );
-    const db = await Database.create(':memory:');
-    try {
-        await fs.writeFile(tmpFile, JSON.stringify(rows));
-        await db.exec(
-            `CREATE TABLE results_data AS SELECT * FROM read_json_auto('${tmpFile}')`,
-        );
-    } finally {
-        await fs.unlink(tmpFile).catch(() => {});
-    }
-    const usingFields = metrics.map((metric) => `FIRST(${metric})`);
+    const usingFields = metrics.map((metric) => `FIRST(${quoteId(metric)})`);
 
     // Get the grouping columns (all non-pivot, non-metric fields)
     const groupByFields = fields.filter(
@@ -49,7 +38,7 @@ export const getPivotedResults = async (
         ? `ORDER BY ${validSorts
               .map(
                   (sort) =>
-                      `${sort.fieldId} ${
+                      `${quoteId(sort.fieldId)} ${
                           sort.descending ? 'DESC' : 'ASC'
                       }${getNullsFirstLast(sort)}`,
               )
@@ -58,21 +47,24 @@ export const getPivotedResults = async (
 
     // Build GROUP BY clause if we have grouping fields
     const groupByPart = groupByFields.length
-        ? `GROUP BY ${groupByFields.join(', ')}`
+        ? `GROUP BY ${groupByFields.map(quoteId).join(', ')}`
         : '';
 
     // For multiple pivot fields, create a composite key
     let query: string;
     if (pivotFields.length === 1) {
         query = `PIVOT results_data
-    ON ${pivotFields[0]}
+    ON ${quoteId(pivotFields[0])}
     USING ${usingFields.join(', ')}
     ${groupByPart}
     ${orderByPart}`;
     } else {
         // Create composite key by concatenating pivot fields with ' - ' separator
         const compositeKey = pivotFields
-            .map((field) => `COALESCE(CAST(${field} AS VARCHAR), 'NULL')`)
+            .map(
+                (field) =>
+                    `COALESCE(CAST(${quoteId(field)} AS VARCHAR), 'NULL')`,
+            )
             .join(" || ' - ' || ");
         query = `PIVOT (
         SELECT *, ${compositeKey} as __pivot_key__ FROM results_data
@@ -83,11 +75,54 @@ export const getPivotedResults = async (
     ${orderByPart}`;
     }
 
-    const pivoted = await db.all(query);
-    const fieldNames = Object.keys(pivoted[0]);
+    const instance = await DuckDBInstance.create(':memory:');
+    try {
+        const connection = await instance.connect();
+        try {
+            await connection.run('SET allow_community_extensions = false');
+            await connection.run('SET autoinstall_known_extensions = false');
+            await connection.run('SET autoload_known_extensions = false');
 
-    return {
-        results: pivoted,
-        metrics: fieldNames.filter((field) => !fields.includes(field)),
-    };
+            const tmpFile = path.join(
+                os.tmpdir(),
+                `lightdash_pivot_${Date.now()}_${Math.random()
+                    .toString(36)
+                    .slice(2)}.json`,
+            );
+            try {
+                await fs.writeFile(tmpFile, JSON.stringify(rows));
+                await connection.run(
+                    `CREATE TABLE results_data AS SELECT * FROM read_json_auto('${tmpFile}')`,
+                );
+            } finally {
+                await fs.unlink(tmpFile).catch(() => {});
+            }
+
+            await connection.run('SET enable_external_access = false');
+
+            const result = await connection.run(query);
+            // getRowObjectsJS keeps the JS value mapping the legacy duckdb client
+            // produced: Date for DATE/TIMESTAMP, bigint for BIGINT, number for DOUBLE.
+            const pivoted = await result.getRowObjectsJS();
+            const fieldNames = Object.keys(pivoted[0]);
+
+            return {
+                results: pivoted,
+                metrics: fieldNames.filter((field) => !fields.includes(field)),
+            };
+        } finally {
+            // Never let a close failure replace the in-flight error
+            try {
+                connection.closeSync();
+            } catch {
+                // best-effort cleanup
+            }
+        }
+    } finally {
+        try {
+            instance.closeSync();
+        } catch {
+            // best-effort cleanup
+        }
+    }
 };

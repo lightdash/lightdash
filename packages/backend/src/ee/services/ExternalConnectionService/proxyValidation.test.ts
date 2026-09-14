@@ -1,10 +1,13 @@
-import { ParameterError } from '@lightdash/common';
+import { CUSTOM_HEADER_LIMITS, ParameterError } from '@lightdash/common';
 import {
     assertSafeApiKeyHeaderName,
     buildOutboundUrl,
     computeMinuteWindow,
+    EXTERNAL_RESPONSE_HEADER_MAX_BYTES,
+    filterExternalResponseHeaders,
     normalizeAndValidatePath,
     serializeRequestBody,
+    validateCustomHeaders,
 } from './proxyValidation';
 
 describe('normalizeAndValidatePath', () => {
@@ -322,4 +325,135 @@ describe('assertSafeApiKeyHeaderName', () => {
             );
         },
     );
+});
+
+describe('validateCustomHeaders', () => {
+    it('accepts a valid header set', () => {
+        expect(() =>
+            validateCustomHeaders(
+                {
+                    'anthropic-version': '2023-06-01',
+                    Accept: 'application/vnd.github+json',
+                    'User-Agent': 'my-app/1.0',
+                },
+                null,
+            ),
+        ).not.toThrow();
+    });
+
+    it.each([['Authorization'], ['Host'], ['Content-Type'], ['X-Api-Key']])(
+        'rejects the forbidden header name %s (case-insensitive)',
+        (name) => {
+            expect(() => validateCustomHeaders({ [name]: 'v' }, null)).toThrow(
+                ParameterError,
+            );
+        },
+    );
+
+    it.each([['Bad Header'], ['häder'], ['a'.repeat(129)]])(
+        'rejects the invalid header name %j',
+        (name) => {
+            expect(() => validateCustomHeaders({ [name]: 'v' }, null)).toThrow(
+                ParameterError,
+            );
+        },
+    );
+
+    it.each([
+        ['CRLF injection', 'a\r\nX-Evil: 1'],
+        ['NUL', 'a\x00b'],
+        ['empty', ''],
+        ['over the length cap', 'v'.repeat(1025)],
+    ])('rejects a value with %s', (_label, value) => {
+        expect(() =>
+            validateCustomHeaders({ 'X-Custom': value }, null),
+        ).toThrow(ParameterError);
+    });
+
+    it('rejects case-insensitive duplicate names', () => {
+        expect(() =>
+            validateCustomHeaders({ 'X-Version': '1', 'x-version': '2' }, null),
+        ).toThrow(ParameterError);
+    });
+
+    it('rejects more than the header count cap', () => {
+        const headers = Object.fromEntries(
+            Array.from(
+                { length: CUSTOM_HEADER_LIMITS.maxCount + 1 },
+                (_, i) => [`X-H-${i}`, 'v'],
+            ),
+        );
+        expect(() => validateCustomHeaders(headers, null)).toThrow(
+            ParameterError,
+        );
+    });
+
+    it('rejects a collision with the api key header (case-insensitive)', () => {
+        expect(() =>
+            validateCustomHeaders({ 'x-service-key': 'v' }, 'X-Service-Key'),
+        ).toThrow(ParameterError);
+    });
+});
+
+describe('filterExternalResponseHeaders', () => {
+    const requestUrl = 'https://api.example.com/v1/items?page=1';
+
+    it('exposes supported cache, pagination, and rate-limit headers only', () => {
+        expect(
+            filterExternalResponseHeaders({
+                headers: {
+                    'Retry-After': '3',
+                    'X-RateLimit-Remaining': '9',
+                    ETag: '"abc"',
+                    'Set-Cookie': 'session=secret',
+                    Server: 'internal-proxy',
+                    'Content-Length': '123',
+                },
+                requestUrl,
+                queryApiKeyName: null,
+            }),
+        ).toEqual({
+            'retry-after': '3',
+            'x-ratelimit-remaining': '9',
+            etag: '"abc"',
+        });
+    });
+
+    it('removes an injected query API key from reusable Link targets', () => {
+        expect(
+            filterExternalResponseHeaders({
+                headers: {
+                    Link: '<https://api.example.com/v1/items?page=2&api_key=secret>; rel="next", <https://docs.example.com/items?api_key=secret>; rel="help"',
+                },
+                requestUrl: `${requestUrl}&api_key=secret`,
+                queryApiKeyName: 'api_key',
+            }),
+        ).toEqual({
+            link: '</v1/items?page=2>; rel="next", <https://docs.example.com/items>; rel="help"',
+        });
+    });
+
+    it('omits malformed Link values instead of exposing them unsanitized', () => {
+        expect(
+            filterExternalResponseHeaders({
+                headers: { Link: 'https://api.example.com/v1/items?page=2' },
+                requestUrl,
+                queryApiKeyName: 'api_key',
+            }),
+        ).toEqual({});
+    });
+
+    it('rejects exposed response metadata over the aggregate byte cap', () => {
+        expect(() =>
+            filterExternalResponseHeaders({
+                headers: {
+                    'Retry-After': '1'.repeat(
+                        EXTERNAL_RESPONSE_HEADER_MAX_BYTES,
+                    ),
+                },
+                requestUrl,
+                queryApiKeyName: null,
+            }),
+        ).toThrow(ParameterError);
+    });
 });

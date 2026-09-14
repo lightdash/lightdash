@@ -1,4 +1,4 @@
-import { Group } from '@mantine-8/core';
+import { Group } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';

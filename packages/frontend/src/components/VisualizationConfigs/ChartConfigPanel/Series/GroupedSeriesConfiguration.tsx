@@ -19,15 +19,20 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine-8/core';
+import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
-import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import {
+    SeriesDepthControl,
+    type SeriesDrawOrderControl,
+} from './SeriesDrawOrder';
+import drawOrderStyles from './seriesDrawOrder.module.css';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 const VALUE_LABELS_OPTIONS = [
@@ -66,7 +71,8 @@ type DraggablePortalHandlerProps = {
 const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };
 
@@ -77,6 +83,7 @@ type GroupedSeriesConfigurationProps = {
     items: Array<Field | TableCalculation | CustomDimension>;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
     isDragDisabled?: boolean;
+    drawOrder?: SeriesDrawOrderControl;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     series: Series[];
 } & Pick<
@@ -94,6 +101,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateAllGroupedSeries,
     dragHandleProps,
     isDragDisabled,
+    drawOrder,
     updateSeries,
     series,
 }) => {
@@ -153,7 +161,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     return (
         <Config>
             <Config.Section>
-                <Group wrap="nowrap" gap="two">
+                <Group
+                    wrap="nowrap"
+                    gap="two"
+                    className={drawOrderStyles.seriesHeader}
+                >
                     <GrabIcon
                         dragHandleProps={dragHandleProps}
                         disabled={isDragDisabled}
@@ -163,6 +175,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     <Config.Heading>
                         {getItemLabelWithoutTableName(item)} (grouped)
                     </Config.Heading>
+                    {drawOrder && <SeriesDepthControl control={drawOrder} />}
                 </Group>
                 <Stack gap="xs" ml="md">
                     <Group wrap="nowrap" gap="xs" align="start">
@@ -240,6 +253,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             : {
                                                   show: true,
                                                   position: value as any,
+                                                  showOverlappingLabels:
+                                                      seriesGroup[0].label
+                                                          ?.showOverlappingLabels ??
+                                                      false,
                                               },
                                 });
                             }}
@@ -250,9 +267,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     <Config.Label>Total</Config.Label>
                                     <Switch
                                         size="xs"
-                                        classNames={{
-                                            label: compactStyles.compactCheckboxLabel,
-                                        }}
                                         checked={
                                             seriesGroup[0].stackLabel?.show
                                         }
@@ -273,9 +287,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         <Group gap="xs">
                             <Checkbox
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 checked={Boolean(seriesGroup[0].showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
@@ -288,9 +299,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                             />
                             <Checkbox
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 checked={seriesGroup[0].smooth}
                                 label="Smooth"
                                 onChange={() => {

@@ -8,15 +8,8 @@ import {
     Text,
     Tooltip,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-    Editor,
-    type BeforeMount,
-    type EditorProps,
-    type Monaco,
-    type OnMount,
-} from '@monaco-editor/react';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type editor, type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -27,8 +20,14 @@ import { getLightdashMonacoTheme } from '../../../../features/sqlRunner/utils/mo
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    Editor,
+    type BeforeMount,
+    type EditorProps,
+    type Monaco,
+    type OnMount,
+} from '../../../MonacoEditor';
 import { Config } from '../../common/Config';
-import compactStyles from '../../mantineTheme.module.css';
 import styles from './TooltipConfig.module.css';
 import '../../../../styles/monaco.css';
 
@@ -263,10 +262,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
             <Group gap="xs" align="center">
                 <Config.Label>Custom</Config.Label>
                 <Tooltip
-                    withinPortal={true}
                     maw={350}
-                    variant="xs"
-                    multiline
                     label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
                                 Click here to read more about this on our docs."
                 >
@@ -275,32 +271,29 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                             window.open(
                                 'https://docs.lightdash.com/references/custom-tooltip',
                                 '_blank',
+                                'noopener,noreferrer',
                             );
                         }}
                         icon={IconHelpCircle}
                         size="md"
                         display="inline"
                         color="ldGray.5"
-                        style={{ cursor: 'pointer' }}
+                        className={styles.helpIcon}
                     />
                 </Tooltip>
                 <Switch
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     checked={show}
                     onChange={() => setShow(!show)}
                 />
             </Group>
 
-            <Collapse in={show}>
+            <Collapse expanded={show}>
                 {/* Monaco does not support placeholders, so this is a workaround to show the example tooltip
                 we show some text, by giving position absolute, it is placed on top of the editor*/}
                 <Paper
                     className={styles.editorWrapper}
                     radius="md"
-                    withBorder
                     pos="relative"
                 >
                     {tooltipValue?.length === 0 ? (

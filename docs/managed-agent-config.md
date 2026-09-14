@@ -1,4 +1,4 @@
-# Dash — Managed Agent Configuration
+# Autopilot Managed Agent Configuration
 
 Copy and paste the full YAML below into the Anthropic platform agent editor.
 
@@ -351,9 +351,32 @@ skills:
 metadata: {}
 ```
 
+## Project policy
+
+Autopilot behavior is tunable per project via the `policy` object on
+`managed_agent_settings` (Settings sidebar → Policy on the Autopilot page).
+Types and defaults live in `packages/common/src/ee/types/managedAgent.ts`
+(`ManagedAgentPolicy`, resolved by `resolveManagedAgentPolicy`); rendering into
+the agent config happens in
+`packages/backend/src/ee/services/ManagedAgentService/config/agent.ts`.
+
+| Field | Default | Effect |
+|---|---|---|
+| `stalenessChartDays` / `stalenessDashboardDays` | 90 / 90 | Staleness windows, enforced in the `get_stale_*` tool SQL |
+| `protectRecentDays` | 30 | Content created **or edited** within this window is never flagged/deleted (SQL filter + delete guard) |
+| `previewProjectDays` | 90 | Age threshold for `get_preview_projects` |
+| `slowQueryThresholdMs` | 2000 | Default threshold for `get_slow_queries` |
+| `escalationHours` | 24 | Viewed content must carry an unreversed flag this old before soft-delete (code-enforced) |
+| `aggression` | `cleanup` | `observe` (insights only) / `flag` (never deletes) / `cleanup` (flag then delete); lower levels strip the flag/delete tools from the agent config |
+| `audience` | `everyone` | `admins` creates the Agent Suggestions space without inherited permissions (applies at creation time only) |
+
+Policy is stored as sparse overrides and resolved against defaults, so
+untouched projects track default changes. Any policy change re-syncs the
+remote Anthropic agent via the config hash.
+
 ## Notes
 
 - Replace `https://analytics.lightdash.cloud/api/v1/mcp` with your instance URL for dev
 - Replace `skill_id` if using a different skill
 - The code injects today's date automatically in the session start message
-- Code-level guardrails block soft-deleting agent-created content (slug `agent-*`) and content < 30 days old regardless of what the prompt says
+- Code-level guardrails block soft-deleting agent-created content (slug `agent-*`) and content created or edited within `protectRecentDays`, and require the flag-escalation window for viewed content, regardless of what the prompt says

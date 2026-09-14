@@ -54,6 +54,9 @@ const getTablePivotConfig = (
     return {
         pivotDimensions: pivotConfig.columns,
         metricsAsRows: tableChartConfig.config?.metricsAsRows ?? false,
+        ...(pivotConfig.rows && {
+            rowFieldIds: pivotConfig.rows,
+        }),
         ...(hiddenMetrics.length > 0 && {
             hiddenMetricFieldIds: hiddenMetrics,
         }),

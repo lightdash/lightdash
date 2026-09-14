@@ -1,5 +1,5 @@
 import { FeatureFlags, type ResourceViewSpaceItem } from '@lightdash/common';
-import { Box, Flex, Group, Paper, Stack, Text } from '@mantine-8/core';
+import { Box, Flex, Group, Paper, Stack, Text } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import {
     IconAppWindow,
@@ -41,7 +41,6 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
             ref={ref}
             pos="relative"
             p={0}
-            withBorder
             className={classes.gridCard}
             h="100%"
         >

@@ -17,7 +17,7 @@ import {
     Stack,
     Text,
     ThemeIcon,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconCircleDashed } from '@tabler/icons-react';
 import {
     Fragment,
@@ -32,12 +32,16 @@ import { getConditionalRuleLabelFromItem } from '../../../components/common/Filt
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import classes from './GuidedFilterSetup.module.css';
 import OperatorPicker from './OperatorPicker';
 import { AndSeparator, OrSeparator } from './RuleSeparators';
-import { useFilterableItemsMap } from './useFilterableItemsMap';
+import {
+    useDashboardFilterField,
+    type DashboardFilterFieldResolver,
+} from './useDashboardFilterField';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
 import {
     getDashboardFilterRuleLabel,
@@ -126,11 +130,12 @@ const MemberInput: FC<MemberInputProps> = ({
 
 type RuleSummaryProps = {
     rule: FilterRequirementRule;
-    fieldsMap: Record<string, FilterableItem>;
+    getField: DashboardFilterFieldResolver;
     onChange: () => void;
 };
 
-const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
+const RuleSummary: FC<RuleSummaryProps> = ({ rule, getField, onChange }) => {
+    const getUiString = useUiStrings();
     // Same test as isRequirementRuleSatisfied, so the summary always shows
     // the member that actually satisfies the rule
     const setMember = rule.members.find(
@@ -138,7 +143,7 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
     );
     if (!setMember) return null;
 
-    const field = fieldsMap[setMember.target.fieldId];
+    const field = getField(setMember);
     const ruleLabels = field
         ? getConditionalRuleLabelFromItem(setMember, field)
         : undefined;
@@ -150,7 +155,7 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
         <Group gap="xs" wrap="nowrap" className={classes.summaryRow}>
             <RuleStatusIcon satisfied />
             <Text size="xs" fw={500} truncate>
-                {getDashboardFilterRuleLabel(setMember, fieldsMap)}
+                {getDashboardFilterRuleLabel(setMember, getField)}
             </Text>
             <Text size="xs" c="dimmed" truncate flex={1}>
                 {valueLabel}
@@ -162,7 +167,7 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
                 className={classes.buttonAnchor}
                 onClick={onChange}
             >
-                Change
+                {getUiString('filters.required.change')}
             </Anchor>
         </Group>
     );
@@ -207,7 +212,7 @@ const GuidedFilterSetup: FC<Props> = ({
     // summary line unless they're in here
     const [expandedRuleIds, setExpandedRuleIds] = useState<string[]>([]);
 
-    const fieldsMap = useFilterableItemsMap();
+    const getField = useDashboardFilterField();
 
     // Keep the first unmet rule in view as the viewer works down the list;
     // scrollIntoView targets the modal body's scroll area
@@ -256,17 +261,16 @@ const GuidedFilterSetup: FC<Props> = ({
                             isSatisfied && !expandedRuleIds.includes(rule.id);
                         const isMultiMember = rule.members.length > 1;
                         const firstMember = rule.members[0];
-                        const firstMemberField =
-                            fieldsMap[firstMember.target.fieldId];
+                        const firstMemberField = getField(firstMember);
 
                         return (
                             <Fragment key={rule.id}>
                                 {ruleIndex > 0 && <AndSeparator />}
                                 <Box data-rule-id={rule.id}>
-                                    <Collapse in={isCollapsed}>
+                                    <Collapse expanded={isCollapsed}>
                                         <RuleSummary
                                             rule={rule}
-                                            fieldsMap={fieldsMap}
+                                            getField={getField}
                                             onChange={() =>
                                                 setExpandedRuleIds(
                                                     (previous) => [
@@ -277,7 +281,7 @@ const GuidedFilterSetup: FC<Props> = ({
                                             }
                                         />
                                     </Collapse>
-                                    <Collapse in={!isCollapsed}>
+                                    <Collapse expanded={!isCollapsed}>
                                         <Stack gap={6}>
                                             <Group gap={6} wrap="nowrap">
                                                 <RuleStatusIcon
@@ -298,7 +302,7 @@ const GuidedFilterSetup: FC<Props> = ({
                                                             ? 'At least one of'
                                                             : getDashboardFilterRuleLabel(
                                                                   firstMember,
-                                                                  fieldsMap,
+                                                                  getField,
                                                               )}
                                                     </Text>
                                                     {!isMultiMember && (
@@ -313,7 +317,7 @@ const GuidedFilterSetup: FC<Props> = ({
                                                             member={firstMember}
                                                             label={getDashboardFilterRuleLabel(
                                                                 firstMember,
-                                                                fieldsMap,
+                                                                getField,
                                                             )}
                                                             onChange={
                                                                 handleChangeFilterRule
@@ -343,16 +347,12 @@ const GuidedFilterSetup: FC<Props> = ({
                                                             )}
                                                             <MemberInput
                                                                 member={member}
-                                                                field={
-                                                                    fieldsMap[
-                                                                        member
-                                                                            .target
-                                                                            .fieldId
-                                                                    ]
-                                                                }
+                                                                field={getField(
+                                                                    member,
+                                                                )}
                                                                 label={getDashboardFilterRuleLabel(
                                                                     member,
-                                                                    fieldsMap,
+                                                                    getField,
                                                                 )}
                                                                 showLabel={
                                                                     isMultiMember
@@ -393,13 +393,14 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
     rules,
     onDismiss,
 }) => {
+    const getUiString = useUiStrings();
     const satisfiedCount = rules.filter(isRequirementRuleSatisfied).length;
     const remainingCount = rules.length - satisfiedCount;
 
     return (
         <Stack gap={6}>
             <Group justify="space-between">
-                <Text size="xs" c="ldGray.6">
+                <Text size="xs" c="dimmed">
                     {satisfiedCount} of {rules.length} set
                 </Text>
                 <Text size="xs" c={remainingCount === 0 ? 'green' : 'ldGray.5'}>
@@ -419,13 +420,13 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
                 component="button"
                 type="button"
                 size="xs"
-                c="ldGray.6"
+                c="dimmed"
                 ta="center"
                 mt={4}
                 className={classes.buttonAnchor}
                 onClick={onDismiss}
             >
-                Set filters in the toolbar instead
+                {getUiString('filters.required.setInToolbar')}
             </Anchor>
         </Stack>
     );

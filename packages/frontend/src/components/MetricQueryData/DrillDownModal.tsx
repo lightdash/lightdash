@@ -1,140 +1,31 @@
 import {
     ChartType,
-    FilterOperator,
     getDimensions,
-    getFieldsFromMetricQuery,
     getItemId,
     hashFieldReference,
     isField,
-    normalizeCellRawForFilter,
     type CompiledDimension,
     type CreateSavedChartVersion,
-    type DashboardFilters,
     type Explore,
     type FieldId,
-    type FilterGroupItem,
-    type FilterRule,
     type Filters,
     type MetricQuery,
     type PivotReference,
     type ResultValue,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
-import { v4 as uuidv4 } from 'uuid';
+import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { combineFilters } from './combineFilters';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
-type CombineFiltersArgs = {
-    fieldValues: Record<string, ResultValue>;
-    metricQuery: MetricQuery;
-    pivotReference?: PivotReference;
-    dashboardFilters?: DashboardFilters;
-    extraFilters?: Filters;
-    explore?: Explore;
-    timezone?: string;
-};
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const combineFilters = ({
-    fieldValues,
-    metricQuery,
-    pivotReference,
-    dashboardFilters,
-    extraFilters,
-    explore,
-    timezone,
-}: CombineFiltersArgs): Filters => {
-    const combinedDimensionFilters: Array<FilterGroupItem> = [];
-    const combinedMetricFilters: Array<FilterGroupItem> = [];
-
-    if (metricQuery.filters.dimensions) {
-        combinedDimensionFilters.push(metricQuery.filters.dimensions);
-    }
-    if (metricQuery.filters.metrics) {
-        combinedMetricFilters.push(metricQuery.filters.metrics);
-    }
-    if (dashboardFilters) {
-        combinedDimensionFilters.push(...dashboardFilters.dimensions);
-        if (dashboardFilters.metrics?.length) {
-            combinedMetricFilters.push(...dashboardFilters.metrics);
-        }
-    }
-    if (pivotReference?.pivotValues) {
-        const pivotFilter: FilterRule[] = pivotReference.pivotValues.map(
-            (pivot) => ({
-                id: uuidv4(),
-                target: {
-                    fieldId: pivot.field,
-                },
-                operator: FilterOperator.EQUALS,
-                values: [pivot.value],
-            }),
-        );
-        combinedDimensionFilters.push(...pivotFilter);
-    }
-    if (extraFilters?.dimensions) {
-        combinedDimensionFilters.push(extraFilters.dimensions);
-    }
-    if (extraFilters?.metrics) {
-        combinedMetricFilters.push(extraFilters.metrics);
-    }
-
-    const itemsMap = explore
-        ? getFieldsFromMetricQuery(metricQuery, explore)
-        : undefined;
-
-    const dimensionFilters: FilterRule[] = metricQuery.dimensions.reduce<
-        FilterRule[]
-    >((acc, dimension) => {
-        const rowValue = fieldValues[dimension];
-        if (!rowValue) {
-            return acc;
-        }
-        const dimensionFilter: FilterRule = {
-            id: uuidv4(),
-            target: {
-                fieldId: dimension,
-            },
-            operator:
-                rowValue.raw === null
-                    ? FilterOperator.NULL
-                    : FilterOperator.EQUALS,
-            values:
-                rowValue.raw === null
-                    ? undefined
-                    : [
-                          normalizeCellRawForFilter(
-                              rowValue.raw,
-                              itemsMap?.[dimension],
-                              timezone,
-                          ),
-                      ],
-        };
-        return [...acc, dimensionFilter];
-    }, []);
-    combinedDimensionFilters.push(...dimensionFilters);
-
-    return {
-        dimensions: {
-            id: uuidv4(),
-            and: combinedDimensionFilters,
-        },
-        ...(combinedMetricFilters.length > 0 && {
-            metrics: {
-                id: uuidv4(),
-                and: combinedMetricFilters,
-            },
-        }),
-    };
-};
-
-type DrillDownExploreUrlArgs = {
+type DrillDownExploreArgs = {
     fieldValues: Record<string, ResultValue>;
     projectUuid: string;
     tableName: string;
@@ -147,7 +38,7 @@ type DrillDownExploreUrlArgs = {
     timezone?: string;
 };
 
-const drillDownExploreUrl = ({
+const getDrillDownExplore = ({
     fieldValues,
     projectUuid,
     tableName,
@@ -158,7 +49,7 @@ const drillDownExploreUrl = ({
     pivotReference,
     explore,
     timezone,
-}: DrillDownExploreUrlArgs) => {
+}: DrillDownExploreArgs) => {
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
         metricQuery: {
@@ -197,11 +88,18 @@ const drillDownExploreUrl = ({
         projectUuid,
         createSavedChartVersion,
     );
-    return `${pathname}?${search}`;
+    return {
+        chart: createSavedChartVersion,
+        url: `${pathname}?${search}`,
+    };
 };
 
-export const DrillDownModal: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+type DrillDownModalProps = {
+    onExplore?: (options: { chart: CreateSavedChartVersion }) => void;
+};
+
+export const DrillDownModal: FC<DrillDownModalProps> = ({ onExplore }) => {
+    const projectUuid = useProjectUuid();
 
     const [selectedDimension, setSelectedDimension] =
         useState<CompiledDimension>();
@@ -209,11 +107,18 @@ export const DrillDownModal: FC = () => {
     const {
         isDrillDownModalOpen,
         closeDrillDownModal,
-        explore,
-        metricQuery,
+        explore: contextExplore,
+        metricQuery: contextMetricQuery,
+        tableName,
         drillDownConfig,
         resolvedTimezone,
     } = useMetricQueryDataContext();
+    const source = drillDownConfig?.source;
+    const metricQuery = source?.metricQuery ?? contextMetricQuery;
+    const { data: sourceExplore } = useExplore(source?.tableName ?? tableName, {
+        refetchOnMount: false,
+    });
+    const explore = source ? sourceExplore : contextExplore;
 
     const dimensionsAvailable = useMemo(() => {
         if (!explore) return [];
@@ -231,7 +136,7 @@ export const DrillDownModal: FC = () => {
         }
     }, [drillDownConfig]);
 
-    const url = useMemo(() => {
+    const drillDownExplore = useMemo(() => {
         if (
             selectedDimension &&
             metricQuery &&
@@ -239,7 +144,7 @@ export const DrillDownModal: FC = () => {
             drillDownConfig &&
             projectUuid
         ) {
-            return drillDownExploreUrl({
+            return getDrillDownExplore({
                 projectUuid,
                 tableName: explore.name,
                 metricQuery,
@@ -273,16 +178,31 @@ export const DrillDownModal: FC = () => {
             size="md"
             icon={IconArrowBarToDown}
             actions={
-                <Button
-                    component="a"
-                    target="_blank"
-                    href={url}
-                    leftSection={<MantineIcon icon={IconExternalLink} />}
-                    disabled={!selectedDimension}
-                    onClick={() => setTimeout(onClose, 500)}
-                >
-                    Open in new tab
-                </Button>
+                onExplore ? (
+                    <Button
+                        leftSection={<MantineIcon icon={IconArrowBarToDown} />}
+                        disabled={!drillDownExplore}
+                        onClick={() => {
+                            if (drillDownExplore) {
+                                onExplore({ chart: drillDownExplore.chart });
+                                onClose();
+                            }
+                        }}
+                    >
+                        Drill down
+                    </Button>
+                ) : (
+                    <Button
+                        component="a"
+                        target="_blank"
+                        href={drillDownExplore?.url}
+                        leftSection={<MantineIcon icon={IconExternalLink} />}
+                        disabled={!drillDownExplore}
+                        onClick={() => setTimeout(onClose, 500)}
+                    >
+                        Open in new tab
+                    </Button>
+                )
             }
         >
             <FieldSelect

@@ -1,3 +1,15 @@
+{% if target.type == 'bigquery' %}
+    {{
+        config(
+            partition_by={
+                "field": "event_timestamp",
+                "data_type": "timestamp",
+                "granularity": "day"
+            }
+        )
+    }}
+{% endif %}
+
 select
     event_id,
     event_timestamp,

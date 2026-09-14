@@ -1,8 +1,14 @@
 import { validate as validateUuid } from 'uuid';
 
-export function setUuidParam(key: string, value?: string | null) {
-    if (value && validateUuid(value)) {
-        return `${key}=${value}`;
+export function appendUuidQueryParam(
+    url: string,
+    key: string,
+    value?: string | null,
+): string {
+    if (!value || !validateUuid(value)) {
+        return url;
     }
-    return '';
+    const parsed = new URL(url);
+    parsed.searchParams.set(key, value);
+    return parsed.toString();
 }

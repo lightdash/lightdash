@@ -15,6 +15,7 @@ import {
     MetricType,
     PivotSortAnchor,
     TableCalculationTemplate,
+    TableCalculationTotalMode,
     TableCalculationType,
     TimezoneSetting,
 } from '@lightdash/common';
@@ -23,25 +24,24 @@ import { Knex } from 'knex';
 export const SavedChartsTableName = 'saved_queries';
 export const SavedChartVersionsTableName = 'saved_queries_versions';
 
-type InsertChartInSpace = Pick<
+type InsertChartBase = Pick<
     DbSavedChart,
     | 'name'
     | 'description'
     | 'last_version_chart_kind'
     | 'last_version_updated_by_user_uuid'
     | 'slug'
-> & {
+> &
+    Pick<DbSavedChart, 'color_palette_uuid'>;
+
+type InsertChartInSpace = InsertChartBase & {
+    project_uuid: string;
     space_id: number;
     dashboard_uuid: null;
 };
 
-type InsertChartInDashboard = Pick<
-    DbSavedChart,
-    | 'name'
-    | 'description'
-    | 'last_version_chart_kind'
-    | 'last_version_updated_by_user_uuid'
-> & {
+type InsertChartInDashboard = InsertChartBase & {
+    project_uuid: string;
     space_id: null;
     dashboard_uuid: string;
 };
@@ -54,6 +54,7 @@ export type SavedChartTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbSavedChart,
+            | 'project_uuid'
             | 'space_id'
             | 'name'
             | 'description'
@@ -74,6 +75,7 @@ export type SavedChartTable = Knex.CompositeTableType<
 export type DbSavedChart = {
     saved_query_id: number;
     saved_query_uuid: string;
+    project_uuid: string;
     space_id: number | null;
     dashboard_uuid: string | null;
     name: string;
@@ -104,6 +106,7 @@ export type DbSavedChartVersion = {
     saved_query_id: number;
     chart_config: ChartConfig['config'] | null;
     pivot_dimensions: string[] | null;
+    pivot_rows: string[] | null;
     parameters: AnyType | null; // JSONB
     updated_by_user_uuid: string | null;
     timezone: TimezoneSetting;
@@ -124,6 +127,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'dimension_overrides'
     | 'chart_type'
     | 'pivot_dimensions'
+    | 'pivot_rows'
     | 'chart_config'
     | 'parameters'
     | 'updated_by_user_uuid'
@@ -190,6 +194,7 @@ export type DbSavedChartTableCalculation = {
     type?: TableCalculationType;
     template?: TableCalculationTemplate;
     formula?: string;
+    total_mode?: TableCalculationTotalMode;
 };
 
 export type DbSavedChartTableCalculationInsert = Omit<

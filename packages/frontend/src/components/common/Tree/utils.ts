@@ -1,4 +1,4 @@
-import { type TreeNodeData } from '@mantine-8/core';
+import { type TreeNodeData } from '@mantine/core';
 import { type NestableItem } from './types';
 
 export const convertNestableListToTree = (
@@ -67,3 +67,9 @@ export function getAllParentPaths(
         ...getAllParentPaths(node.children, rest.join('.'), level + 1),
     ];
 }
+
+export const collectTreeValues = (tree: TreeNodeData[]): string[] =>
+    tree.flatMap((node) => [
+        node.value,
+        ...collectTreeValues(node.children ?? []),
+    ]);

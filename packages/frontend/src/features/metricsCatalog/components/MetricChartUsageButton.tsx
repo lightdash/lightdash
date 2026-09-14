@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Text, Tooltip } from '@mantine-8/core';
+import { Button, Text, Tooltip } from '@mantine/core';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -48,8 +48,6 @@ export const MetricChartUsageButton = ({
 
     return (
         <Tooltip
-            withinPortal
-            variant="xs"
             disabled={!canViewChartUsage}
             openDelay={200}
             maw={250}
@@ -71,7 +69,6 @@ export const MetricChartUsageButton = ({
                 opacity={hasChartsUsage ? 1 : 0.8}
                 fz="sm"
                 c="ldGray.7"
-                fw={500}
                 className={styles.button}
             >
                 {row.original.chartUsage}

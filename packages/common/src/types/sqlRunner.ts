@@ -12,11 +12,7 @@ import {
     type AllVizChartConfig,
     type SortByDirection,
     type VizAggregationOptions,
-    type VizBaseConfig,
-    type VizCartesianChartConfig,
     type VizColumn,
-    type VizPieChartConfig,
-    type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
 import {
@@ -240,8 +236,7 @@ export type SqlChart = {
     slug: string;
     sql: string;
     limit: number;
-    config: VizBaseConfig &
-        (VizCartesianChartConfig | VizPieChartConfig | VizTableConfig);
+    config: AllVizChartConfig;
     chartKind: ChartKind;
     createdAt: Date;
     createdBy: Pick<
@@ -336,6 +331,13 @@ export type UpdateVirtualViewPayload = CreateVirtualViewPayload;
 export type ApiGithubDbtWriteBack = {
     status: 'ok';
     results: PullRequestCreated;
+};
+
+export type ApiCustomDimensionWriteBackPreview = {
+    status: 'ok';
+    results: {
+        yaml: string;
+    };
 };
 
 export type ApiGithubDbtWritePreview = {

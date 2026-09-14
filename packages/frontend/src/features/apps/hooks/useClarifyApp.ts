@@ -14,7 +14,9 @@ type ClarifyAppParams = {
     template?: DataAppTemplate;
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
-    imageIds?: string[];
+    fileIds?: string[];
+    /** Drops the request when the round it belongs to is abandoned. */
+    signal?: AbortSignal;
 };
 
 type ClarifyAppResult = ApiClarifyAppResponse['results'];
@@ -25,7 +27,8 @@ const clarifyApp = async ({
     template,
     charts,
     dashboard,
-    imageIds,
+    fileIds,
+    signal,
 }: ClarifyAppParams): Promise<ClarifyAppResult> =>
     lightdashApi<ClarifyAppResult>({
         method: 'POST',
@@ -35,8 +38,9 @@ const clarifyApp = async ({
             template,
             charts,
             dashboard,
-            imageIds,
+            fileIds,
         }),
+        signal,
     });
 
 export const useClarifyApp = () =>

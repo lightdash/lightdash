@@ -1,4 +1,4 @@
-import { Box, Button, Stack, TextInput } from '@mantine-8/core';
+import { Box, Button, Stack, TextInput } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import MantineIcon from '../MantineIcon';

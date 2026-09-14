@@ -12,12 +12,11 @@ import {
     Anchor,
     Select,
     PasswordInput,
-} from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+    Tooltip,
+} from '@mantine/core';
 import { IconCheck, IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
-import { v4 as uuidv4 } from 'uuid';
 import {
     useDatabricksLoginPopup,
     useIsDatabricksAuthenticated,
@@ -95,7 +94,7 @@ const DatabricksSSOInput: FC<{
 
     if (disabled && disabledTooltip) {
         return (
-            <Tooltip label={disabledTooltip} withArrow>
+            <Tooltip label={disabledTooltip}>
                 <div>{button}</div>
             </Tooltip>
         );
@@ -199,7 +198,6 @@ const DatabricksForm: FC<{
     const computes = form.values.warehouse?.compute ?? [];
     const addCompute = () => {
         form.insertListItem('warehouse.compute', {
-            key: uuidv4(),
             name: '',
             httpPath: '',
         });
@@ -210,7 +208,7 @@ const DatabricksForm: FC<{
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <TextInput
                     name="warehouse.serverHostName"
                     {...form.getInputProps('warehouse.serverHostName')}
@@ -379,7 +377,7 @@ const DatabricksForm: FC<{
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
-                    <Stack style={{ marginTop: '8px' }}>
+                    <Stack mt="xs">
                         <BooleanSwitch
                             name="warehouse.requireUserCredentials"
                             label="Require users to provide their own credentials"
@@ -406,17 +404,14 @@ const DatabricksForm: FC<{
                             </Stack>
                             <FormSection name="compute">
                                 <Stack>
-                                    {computes.map((field, index) => (
+                                    {computes.map((_, index) => (
                                         <Group
-                                            // @ts-expect-error
-                                            key={field.key}
+                                            key={index}
                                             wrap="nowrap"
                                             gap="xs"
                                         >
                                             <TextInput
-                                                style={{
-                                                    flexGrow: 1,
-                                                }}
+                                                flex={1}
                                                 size="xs"
                                                 {...form.getInputProps(
                                                     `warehouse.compute.${index}.name`,
@@ -425,9 +420,7 @@ const DatabricksForm: FC<{
                                                 required
                                             />
                                             <TextInput
-                                                style={{
-                                                    flexGrow: 1,
-                                                }}
+                                                flex={1}
                                                 size="xs"
                                                 {...form.getInputProps(
                                                     `warehouse.compute.${index}.httpPath`,
@@ -437,8 +430,6 @@ const DatabricksForm: FC<{
                                             />
                                             <Tooltip label="Remove compute">
                                                 <ActionIcon
-                                                    variant="subtle"
-                                                    color="gray"
                                                     size="sm"
                                                     onClick={() =>
                                                         removeCompute(index)

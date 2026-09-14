@@ -8,18 +8,24 @@ import type {
     ApiAgentOnboardingRunResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminEvalPromptsResponse,
+    ApiAiAgentAdminEvalsResponse,
+    ApiAiAgentAdminMemoriesResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentArtifactResponse,
+    ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
+    ApiAiAgentMemoryResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDumpResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
@@ -31,13 +37,13 @@ import type {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
+    ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
-    ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
-    ApiAiGetDashboardSummaryResponse,
+    ApiAiOrganizationRuntimeSettingsResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
@@ -45,8 +51,6 @@ import type {
     ApiAiRouterInstructionResponse,
     ApiAiRouterResponse,
     ApiAiRouterRouteResponse,
-    ApiAnnouncementCategoriesResponse,
-    ApiAnnouncementCategoryResponse,
     ApiAnnouncementResponse,
     ApiAnnouncementsResponse,
     ApiAppendInstructionResponse,
@@ -54,14 +58,22 @@ import type {
     ApiAppThumbnailUrlResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
+    ApiDataAppActivityResponse,
+    ApiDataAppVizPreviewTokenResponse,
+    ApiDataAppVizRenderMetadataResponse,
+    ApiExternalConnectionAsCodeListResponse,
+    ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
     ApiGetAppCodeResponse,
     ApiGetAppResponse,
+    ApiGetDataAppAuthoringContextResponse,
     ApiGetDataAppVizResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiHomepageLinkMetadataResponse,
     ApiHomepageViewAsResponse,
+    ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
+    ApiListRegistryChartTypesResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -71,9 +83,11 @@ import type {
     ApiOrganizationDesignFileResponse,
     ApiOrganizationDesignResponse,
     ApiOrganizationDesignsResponse,
+    ApiOrganizationHomepageSettingsResponse,
     ApiPreviewTokenResponse,
     ApiProjectHomepageOrNullResponse,
     ApiProjectHomepageResponse,
+    ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
     ApiResolvedHomepageResponse,
@@ -83,16 +97,23 @@ import type {
     DecodedEmbed,
     EmbedUrl,
     ExternalConnection,
+    ExternalConnectionLinkedApps,
     ExternalConnectionSample,
     ExternalFetchResponse,
 } from '../ee';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
+import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUserActivityDownloadCsv,
+    type QueryExecutionContext,
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
+import {
+    type AnalyticsProjectStatus,
+    type EnsureAnalyticsProjectResult,
+} from './analyticsProject';
 import { type AnyType } from './any';
 import {
     type ApiCreateComment,
@@ -100,6 +121,7 @@ import {
     type ApiGetComments,
 } from './api/comments';
 import { type Email } from './api/email';
+import type { ExecuteAsyncMergeQueryRequestParams } from './api/paginatedQuery';
 import {
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
@@ -128,6 +150,17 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodePullResponse,
+    type ApiContentAsCodeSettingsResponse,
+    type ApiContentAsCodeUploadAdvisoryResponse,
+    type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftRebaseResponse,
+    type ApiContentDraftReopenResponse,
+    type ApiContentDraftReviewResponse,
+    type ApiContentDraftsResponse,
+    type ApiContentDraftStalenessResponse,
+    type ApiContentDraftWriteBackResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeUpsertResponse,
@@ -144,14 +177,24 @@ import {
     type ApiContentResponse,
 } from './content';
 import {
+    type ContentReviewRequest,
+    type ContentReviewRequestDetail,
+    type ContentReviewRequestListItem,
+    type ContentReviewSettings,
+    type ContentReviewSimilarContentItem,
+} from './contentReviewRequests';
+import {
     type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
     type ApiVerifiedContentListResponse,
 } from './contentVerification';
 import {
+    type ApiReassignUserDashboardsResponse,
+    type ApiUserDashboardsSummaryResponse,
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
+    type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
     type DashboardVersion,
 } from './dashboard';
@@ -163,6 +206,11 @@ import {
     type ExploreError,
     type SummaryExplore,
 } from './explore';
+import {
+    type ExternalSource,
+    type ExternalSourceTablePreview,
+    type StagedExternalSourceUpload,
+} from './externalSources';
 import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
 import {
     type DimensionType,
@@ -189,6 +237,21 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import type {
+    JiraInstallation,
+    JiraInstallUrl,
+    JiraIssueType,
+    JiraProject,
+    JiraSite,
+} from './jira';
+import { type KnexPaginatedData } from './knex-paginate';
+import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
+import {
+    type ApiCompiledMergeQueryResults,
+    type MergeFieldOrigins,
+    type MergeQuery,
+    type MergeQueryError,
+} from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -200,6 +263,7 @@ import {
 } from './oauth';
 import {
     type DeleteOpenIdentity,
+    type OpenIdIdentityIssuerType,
     type OpenIdIdentitySummary,
 } from './openIdIdentity';
 import {
@@ -256,23 +320,45 @@ import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 import {
     DbtProjectType,
+    type CreateTrainingPreviewResults,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
+    type EnsurePlaygroundProjectResults,
     type Project,
     type WarehouseCredentials,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
-import { type QueryHistoryStatus } from './queryHistory';
+import {
+    type PreAggregateExecutionEngine,
+    type PreAggregateFallbackReason,
+    type QueryHistoryStatus,
+} from './queryHistory';
+import { type ApiQueryHistoryListResponse } from './queryHistoryList';
+import {
+    type ApiExecuteSourceQueriesResults,
+    type ApiGetSourceQueryStatusResults,
+    type ApiListQuerySourcesResults,
+    type ApiScanQuerySourceSchemaResults,
+} from './querySources';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
+import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
+import {
+    type ApiRoadmapFollowProjectResponse,
+    type ApiRoadmapProjectResponse,
+    type ApiRoadmapResponse,
+} from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
+    type ApiOrganizationRoleSetResponse,
+    type ApiProjectRoleSetResponse,
 } from './roles';
 import {
     type ApiCalculateSubtotalsResponse,
     type ApiCalculateTotalResponse,
+    type ChartConfig,
     type ChartHistory,
     type ChartVersion,
     type SavedChart,
@@ -293,10 +379,15 @@ import { type SearchResults } from './search';
 import { type ShareUrl } from './share';
 import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
-import { type ApiSpaceDeleteImpactResponse, type Space } from './space';
+import {
+    type ApiSpaceAccessListResponse,
+    type ApiSpaceDeleteImpactResponse,
+    type Space,
+} from './space';
 import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
+    type ApiCustomDimensionWriteBackPreview,
     type ApiGithubDbtWritePreview,
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
@@ -305,6 +396,7 @@ import {
     type SortBy,
 } from './sqlRunner';
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
+import { type WarehouseConnectionTestResults } from './sshTunnel';
 import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import { type ApiUpstreamDiffResults } from './upstreamDiff';
@@ -316,6 +408,7 @@ import {
     type UserAllowedOrganization,
 } from './user';
 import { type UserAvatarColorValue } from './userAvatars';
+import { type UserOnboarding } from './userOnboarding';
 import {
     type RedshiftAwsSsoCompleteResults,
     type RedshiftAwsSsoStartResults,
@@ -326,6 +419,7 @@ import {
     type ApiDashboardValidationResponse,
     type ApiPaginatedValidateResponse,
     type ApiSingleValidationResponse,
+    type ApiValidationSummaryResponse,
     type ValidationResponse,
 } from './validation';
 import {
@@ -399,6 +493,12 @@ export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
 export type ApiRefreshResults = {
     jobUuid: string;
+};
+
+// Optional so callers that send no body (the CLI, API clients) keep working
+export type ApiRefreshBody = {
+    // Run the content-as-code pull as a job step after compiling
+    syncContent?: boolean;
 };
 
 export type ApiCreatePreviewResults = {
@@ -492,15 +592,36 @@ export enum LightdashMode {
     DEV = 'development',
 }
 
+export type MigrationReadinessWarning =
+    | 'migration_parked'
+    | 'migration_ledger_unavailable';
+
 export type HealthState = {
     healthy: boolean;
+    requiresMigration: boolean;
+    migrationWarnings?: MigrationReadinessWarning[];
+    license?: {
+        hasLicenseKey: boolean;
+        valid: boolean;
+    };
     mode: LightdashMode;
     version: string;
+    mobile: {
+        minimumSupportedVersion: {
+            android: string | null;
+            ios: string | null;
+        };
+    };
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
+    /**
+     * Instance can provision the sample-data playground project (enterprise
+     * builds only).
+     */
+    hasPlaygroundProjects: boolean;
     /**
      * Instance has a Postmark account token, so email whitelabelling can be
      * offered (the org still needs the EmailWhitelabel feature flag).
@@ -560,6 +681,10 @@ export type HealthState = {
         databricks: {
             enabled: boolean;
         };
+        mobileLogin?: {
+            loginExperienceVersion: 1;
+            available: boolean;
+        };
     };
     siteUrl: string;
     intercom: {
@@ -605,6 +730,8 @@ export type HealthState = {
     hasSlack: boolean;
     hasGithub: boolean;
     hasGitlab: boolean;
+    hasJira: boolean;
+    hasLinear: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
@@ -632,6 +759,7 @@ export type HealthState = {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
+        threadDumpEnabled: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -657,6 +785,12 @@ export type HealthState = {
          * previews are served same-origin (dev / pre-cutover).
          */
         previewOrigin: string | null;
+        /**
+         * Whether app authors may attach chart row samples during app
+         * generation. When false the instance never runs sample queries and
+         * the frontend hides the per-chart "include sample data" opt-in.
+         */
+        sampleDataEnabled: boolean;
     };
 };
 
@@ -688,6 +822,7 @@ export type ApiStartDeploySessionResponse = {
 export type ApiAddDeployBatchRequest = {
     explores: (Explore | ExploreError)[];
     batchNumber: number;
+    complete?: boolean;
 };
 
 export type ApiAddDeployBatchResponse = {
@@ -745,6 +880,7 @@ export enum CreateProjectTableConfiguration {
 export type CreateProject = Omit<
     Project,
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'schedulerTimezone'
     | 'queryTimezone'
@@ -756,6 +892,8 @@ export type CreateProject = Omit<
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
     | 'expiresAt'
+    | 'provisioningSource'
+    | 'agentSqlScope'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -782,6 +920,7 @@ export const hasWarehouseCredentials = (
 export type UpdateProject = Omit<
     Project,
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'type'
     | 'schedulerTimezone'
@@ -794,6 +933,7 @@ export type UpdateProject = Omit<
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
     | 'expiresAt'
+    | 'agentSqlScope'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
@@ -832,11 +972,65 @@ export type ApiExecuteAsyncMetricQueryResults =
         warnings: QueryWarning[];
     };
 
+type ApiExecuteAsyncMergeQueryMetadata = {
+    parameterReferences: string[];
+    fieldOrigins: MergeFieldOrigins;
+};
+
+export type ApiExecuteAsyncMergeQueryResults =
+    | (ApiExecuteAsyncMergeQueryMetadata & {
+          outcome: 'started';
+          query: ApiExecuteAsyncMetricQueryResults;
+      })
+    | (ApiExecuteAsyncMergeQueryMetadata & {
+          outcome: 'refused';
+          errors: MergeQueryError[];
+      });
+
+export type MergeQueryExecutionMode =
+    | { type: 'interactive' }
+    | { type: 'export'; limit: number | null };
+
+export type MergeQueryChart = {
+    chartConfig: ChartConfig;
+    pivotConfig?: SavedChart['pivotConfig'];
+};
+
+/** One-call merge execution request. Derived pivot SQL remains server-owned. */
+export type ApiExecuteAsyncMergeQueryRequest = Omit<
+    ExecuteAsyncMergeQueryRequestParams,
+    'pivotConfiguration' | 'usePreAggregateCache'
+> & {
+    mode?: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
+};
+
+/**
+ * Merge execution request for the compose endpoint, which accepts the full
+ * MergeQuerySource union (including references to existing query results).
+ * A separate endpoint keeps the original merge-query contract untouched for
+ * existing clients while compose-only capabilities evolve on their own path.
+ */
+export type ApiExecuteAsyncComposeMergeQueryRequest = {
+    context?: QueryExecutionContext;
+    invalidateCache?: boolean;
+    parameters?: ParametersValuesMap;
+    mergeQuery: MergeQuery;
+    mode?: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
+};
+
 export type ApiExecuteAsyncDashboardChartQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         metricQuery: MetricQuery;
         fields: ItemsMap;
         appliedDashboardFilters: DashboardFilters;
+        /**
+         * For a merged chart, the applied filters keyed by the merge source
+         * they were pushed into (source ids match `fieldOrigins`). Absent on
+         * ordinary tiles.
+         */
+        appliedDashboardFiltersBySourceId?: Record<string, DashboardFilters>;
         dateZoomApplied: boolean;
     };
 
@@ -863,14 +1057,29 @@ export type QueryResultsPerformance = {
     queueTimeMs: number | null;
 };
 
+// Post-execution truth for pre-aggregate queries: which engine was planned and
+// whether execution failed and the results were served from the source warehouse.
+export type QueryResultsPreAggregate = {
+    execution: PreAggregateExecutionEngine;
+    fallbackReason: PreAggregateFallbackReason | null;
+};
+
 export type QueryResultsMetadata = {
     performance: QueryResultsPerformance;
+    preAggregate: QueryResultsPreAggregate | null;
 };
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
     columns: ResultColumns;
     rows: ResultRow[];
+    /**
+     * Resolved display timezone the query was built with (what execute
+     * responses return as `resolvedTimezone`); null for SQL queries and when
+     * timezone support is off. Temporal column formats cannot be rendered
+     * from the page without it.
+     */
+    resolvedTimezone?: string | null;
     metadata: QueryResultsMetadata;
     status: QueryHistoryStatus.READY;
     pivotDetails: {
@@ -979,6 +1188,7 @@ export type UpdateUserArgs = {
     timezone: string | null;
     /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
     avatarGradient: UserAvatarColorValue | null;
+    howDidYouHearAboutUs: string;
 };
 
 export type ApiUserAvatarResponse = {
@@ -1015,6 +1225,14 @@ export type InviteLink = {
     email: string;
     purpose: InviteLinkPurpose;
 };
+export type InviteLinkAuthenticationOptions = {
+    allowOneClickActivation: boolean;
+    allowPasswordSignup: boolean;
+    ssoProviders: OpenIdIdentityIssuerType[];
+};
+export interface InviteLinkWithAuthenticationOptions extends InviteLink {
+    authentication: InviteLinkAuthenticationOptions;
+}
 export type CreateInviteLink = {
     email: string;
     expiresAt?: Date;
@@ -1027,9 +1245,15 @@ export type ApiInviteLinkResponse = {
     results: InviteLink;
 };
 
+export type ApiGetInviteLinkResponse = {
+    status: 'ok';
+    results: InviteLinkWithAuthenticationOptions;
+};
+
 export type ApiCreateProjectResults = {
     project: Project;
     hasContentCopy: boolean;
+    accessCopyError?: string;
     contentCopyError?: string;
 };
 
@@ -1038,12 +1262,24 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ContentReviewRequest
+    | ContentReviewRequestDetail
+    | ContentReviewSettings
+    | ContentReviewSimilarContentItem[]
+    | KnexPaginatedData<ContentReviewRequestListItem[]>
     | BigqueryProjectRecommendation
+    | ApiScimRequestLogListResponse['results']
+    | EnsurePlaygroundProjectResults
+    | AnalyticsProjectStatus
+    | EnsureAnalyticsProjectResult
+    | CreateTrainingPreviewResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
+    | ApiCompiledMergeQueryResults
+    | ApiExecuteAsyncMergeQueryResults
     | ApiFormulaValidationResults
     | ApiExploresResults
     | ApiExploreResults
@@ -1051,6 +1287,7 @@ type ApiResults =
     | ApiRefreshResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
+    | WarehouseConnectionTestResults
     | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess
@@ -1113,9 +1350,14 @@ type ApiResults =
     | SchedulerWithLogs
     | ValidationResponse[]
     | ApiPaginatedValidateResponse['results']
+    | ApiValidationSummaryResponse['results']
+    | ApiRoadmapResponse['results']
+    | ApiRoadmapProjectResponse['results']
+    | ApiRoadmapFollowProjectResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
+    | DashboardCustomMetricUpdateResult
     | DashboardVersion
     | EmbedUrl
     | DecodedEmbed
@@ -1127,6 +1369,14 @@ type ApiResults =
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
+    | JiraInstallation
+    | JiraInstallUrl
+    | Array<JiraSite>
+    | Array<JiraProject>
+    | Array<JiraIssueType>
+    | LinearInstallation
+    | Array<LinearTeam>
+    | Array<LinearProject>
     | CiChecks
     | MergePullRequestResult
     | ClosePullRequestResult
@@ -1149,11 +1399,10 @@ type ApiResults =
     | ApiGetComments['results']
     | ApiDeleteComment
     | ApiUserAvatarResponse['results']
+    | UserOnboarding
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults
-    | ApiAiDashboardSummaryResponse['results']
-    | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
     | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']
@@ -1172,6 +1421,7 @@ type ApiResults =
     | ApiChartContentResponse['results']
     | ApiSqlRunnerJobStatusResponse['results']
     | ApiCreateVirtualView['results']
+    | ApiCustomDimensionWriteBackPreview['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']
@@ -1184,6 +1434,8 @@ type ApiResults =
     | ApiAgentAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiOrganizationRoleSetResponse['results']
+    | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']
     | ApiUserAsCodeUpsertResponse['results']
     | ApiAlertAsCodeListResponse['results']
@@ -1197,9 +1449,22 @@ type ApiResults =
     | ApiScheduledDeliveryAsCodeUpsertResponse['results']
     | ApiVirtualViewAsCodeListResponse['results']
     | ApiVirtualViewAsCodeUpsertResponse['results']
+    | ApiExternalConnectionAsCodeListResponse['results']
+    | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
+    | ApiContentAsCodeWritebacksResponse['results']
+    | ApiContentDraftsResponse['results']
+    | ApiContentDraftReviewResponse['results']
+    | ApiContentDraftRebaseResponse['results']
+    | ApiContentDraftStalenessResponse['results']
+    | ApiContentDraftReopenResponse['results']
+    | ApiContentDraftWriteBackResponse['results']
+    | ApiContentAsCodeProposeResponse['results']
+    | ApiContentAsCodePullResponse['results']
+    | ApiContentAsCodeSettingsResponse['results']
+    | ApiContentAsCodeUploadAdvisoryResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']
     | ApiGetMetricsTreesResponse['results']
@@ -1210,21 +1475,32 @@ type ApiResults =
     | ApiCalculateSubtotalsResponse['results']
     | ApiExecuteAsyncFieldValueSearchResults
     | ApiExecuteAsyncSqlQueryResults
+    | ApiExecuteSourceQueriesResults
+    | ApiGetSourceQueryStatusResults
+    | ApiListQuerySourcesResults
+    | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
     | ApiUserSchedulersSummaryResponse['results']
     | ApiReassignUserSchedulersResponse['results']
+    | ApiUserDashboardsSummaryResponse['results']
+    | ApiReassignUserDashboardsResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiRenameResponse['results']
     | ApiDownloadAsyncQueryResults
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
+    | ApiAiAgentMemoryResponse['results']
+    | ApiPromoteAiAgentMemoryResponse['results']
+    | ApiAiAgentUserMemoriesResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
+    | ApiAiAgentArtifactVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
@@ -1241,6 +1517,10 @@ type ApiResults =
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentThreadDumpResponse['results']
+    | ApiAiAgentAdminEvalPromptsResponse['results']
+    | ApiAiAgentAdminEvalsResponse['results']
+    | ApiAiAgentAdminMemoriesResponse['results']
     | ApiAiAgentAdminPromptActivityResponse['results']
     | ApiMcpActivityResponse['results']
     | ApiMcpActivityStatsResponse['results']
@@ -1259,6 +1539,7 @@ type ApiResults =
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
+    | ApiAiOrganizationRuntimeSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
@@ -1274,11 +1555,13 @@ type ApiResults =
     | ApiDashboardValidationResponse['results']
     | ApiToggleFavorite['results']
     | ApiSpaceDeleteImpactResponse['results']
+    | ApiSpaceAccessListResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
     | ApiGetPreAggregateMaterializationsResponse['results']
     | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
+    | ApiResultsCacheProjectSettingsResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
@@ -1288,10 +1571,16 @@ type ApiResults =
     | CreateOAuthClientResponse
     | ApiGenerateAppResponse['results']
     | ApiGetAppCodeResponse['results']
+    | ApiGetDataAppAuthoringContextResponse['results']
     | ApiGetAppResponse['results']
     | ApiListDataAppVizsResponse['results']
+    | ApiListRegistryChartTypesResponse['results']
+    | ApiInstallRegistryChartTypeResponse['results']
     | ApiGetDataAppVizResponse['results']
+    | ApiDataAppVizRenderMetadataResponse['results']
+    | ApiDataAppVizPreviewTokenResponse['results']
     | ApiMyAppsResponse['results']
+    | ApiDataAppActivityResponse['results']
     | ApiPromoteAppResponse['results']
     | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']
@@ -1302,11 +1591,10 @@ type ApiResults =
     | ApiOrganizationDesignFileResponse['results']
     | ApiProjectHomepageResponse['results']
     | ApiProjectHomepageOrNullResponse['results']
+    | ApiOrganizationHomepageSettingsResponse['results']
     | ApiResolvedHomepageResponse['results']
     | ApiAnnouncementsResponse['results']
     | ApiAnnouncementResponse['results']
-    | ApiAnnouncementCategoriesResponse['results']
-    | ApiAnnouncementCategoryResponse['results']
     | ApiHomepageViewAsResponse['results']
     | ApiHomepageLinkMetadataResponse['results']
     | ApiProjectColorPaletteResponse['results']
@@ -1319,11 +1607,16 @@ type ApiResults =
     | DashboardPreAggregateAudit
     | ExternalConnection
     | ExternalConnection[]
+    | ExternalConnectionLinkedApps
     | ExternalConnectionSample
     | ExternalConnectionSample[]
     | AppExternalConnectionLink
     | AppExternalConnectionLink[]
-    | ExternalFetchResponse;
+    | ExternalFetchResponse
+    | ExternalSource
+    | ExternalSource[]
+    | ExternalSourceTablePreview
+    | StagedExternalSourceUpload;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 
@@ -1336,7 +1629,7 @@ export type ApiErrorDetail = {
     name: string;
     statusCode: number;
     message: string;
-    data: { [key: string]: string };
+    data: { [key: string]: AnyType };
     sentryTraceId?: string;
     sentryEventId?: string;
 };

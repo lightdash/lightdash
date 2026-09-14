@@ -4,6 +4,8 @@ import {
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
+    type VizBigNumberConfig,
+    type VizBigNumberOptions,
     type VizPieChartConfig,
     type VizPieChartOptions,
     type VizSortBy,
@@ -26,6 +28,11 @@ type ChartTypeConfig = {
     [ChartKind.PIE]: {
         options: VizPieChartOptions;
         config: VizPieChartConfig;
+        errors: VizConfigErrors | undefined;
+    };
+    [ChartKind.BIG_NUMBER]: {
+        options: VizBigNumberOptions;
+        config: VizBigNumberConfig;
         errors: VizConfigErrors | undefined;
     };
     [ChartKind.TABLE]: {

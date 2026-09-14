@@ -1,5 +1,5 @@
 import { type AiAgentEvidenceExcerpt } from '@lightdash/common';
-import { Box, Text } from '@mantine-8/core';
+import { Box, Text } from '@mantine/core';
 import { Fragment, type FC } from 'react';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import {

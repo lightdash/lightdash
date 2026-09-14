@@ -5,8 +5,7 @@
 .card {
     position: relative;
     background: var(--mantine-color-body);
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     box-shadow: 0 1px 2px rgba(20, 22, 28, 0.04);
     width: 100%;
@@ -15,8 +14,7 @@
         box-shadow 120ms ease;
     overflow: hidden;
 }
-.card:has(.cardBody:hover),
-.card:has(.cardFooter:hover) {
+.card:has(.cardBody:hover) {
     border-color: var(--mantine-color-indigo-4);
     box-shadow: 0 4px 14px rgba(80, 60, 180, 0.1);
 }
@@ -25,8 +23,7 @@
 }
 .cardSkeleton {
     background: var(--mantine-color-body);
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     opacity: 0.7;
 }
@@ -36,55 +33,11 @@
     text-align: left;
     cursor: pointer;
 }
-/* Onboarding sample cards: muted, and their action stays visible (no hover)
-   so the tour spotlight always lands on something. */
-.cardExample {
-    opacity: 0.85;
-}
+/* Onboarding sample cards: inert, and their action stays visible (no hover)
+   so the tour spotlight always lands on something. The "Example" badge marks
+   them — don't dim the card, the tour spotlights it. */
 .cardExample .cardBody {
     cursor: default;
-}
-.cardExample .startAction {
-    opacity: 1;
-}
-.cardFooter {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-top: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
-    background: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-dark-6)
-    );
-    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
-    text-decoration: none;
-    transition: background 100ms ease;
-}
-.cardFooter:hover {
-    background: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-dark-5)
-    );
-}
-.startAction {
-    position: absolute;
-    top: var(--mantine-spacing-xs);
-    right: var(--mantine-spacing-xs);
-    opacity: 0;
-    transition:
-        opacity 120ms ease,
-        transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
-    background: var(--mantine-color-indigo-filled);
-    box-shadow: var(--mantine-shadow-sm);
-}
-.card:hover .startAction,
-.cardSelected .startAction {
-    opacity: 1;
-}
-.startAction:active {
-    transform: scale(0.96);
 }
 .assigneeUnassigned {
     opacity: 0.4;
@@ -115,8 +68,7 @@
         var(--mantine-color-gray-0),
         var(--mantine-color-dark-6)
     );
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     padding: var(--mantine-spacing-md);
     min-height: 0;
@@ -155,8 +107,7 @@
     flex: 1;
 }
 .emptyLane {
-    border: 1px dashed
-        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    border: 1px dashed var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-md);
     padding: var(--mantine-spacing-md);
     text-align: center;
@@ -214,5 +165,61 @@
     }
 }
 .assigneeTrigger {
+    display: inline-flex;
+    align-items: center;
     cursor: pointer;
+}
+/* Unset priority is the common case; keep the control reachable on hover
+   without every card announcing "No priority". */
+.priorityNone {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+.card:hover .priorityNone {
+    opacity: 1;
+}
+/* One step below the title so title, category, timestamp read as three levels. */
+.categoryLabel {
+    color: var(--mantine-color-ldGray-6);
+}
+/* Between the xs and sm steps: 12px felt small for the card's lead line, 14px
+   outweighed the rest of the card. */
+.cardTitle {
+    font-size: 13px;
+    line-height: 1.4;
+}
+/* Inline card actions (workspace link, start/retry) share the metadata row. */
+.inlineAction {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font: inherit;
+    color: var(--mantine-color-ldGray-7);
+    text-decoration: none;
+    transition: color 120ms ease;
+}
+.inlineAction:hover {
+    color: var(--mantine-color-text);
+}
+.inlineAction:disabled {
+    cursor: default;
+}
+.cardAction {
+    font-size: 11px;
+    font-weight: 500;
+}
+/* Nothing in flight: the primary action waits for hover so idle cards stay
+   quiet. Selected cards keep it visible so keyboard users can reach it. */
+.hoverAction {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+.card:hover .hoverAction,
+.cardSelected .hoverAction,
+.hoverAction:focus-visible {
+    opacity: 1;
+}
+
+.lastSeen {
+    white-space: nowrap;
 }

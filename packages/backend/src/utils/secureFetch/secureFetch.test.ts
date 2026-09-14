@@ -80,6 +80,14 @@ describe('secureFetch blocks private/internal resolved IPs', () => {
             'IPv4 192.0.2.1 reserved (TEST-NET)',
             { address: '192.0.2.1', family: 4 },
         ],
+        [
+            'IPv4 192.88.99.1 deprecated 6to4 relay',
+            { address: '192.88.99.1', family: 4 },
+        ],
+        [
+            'IPv4 198.18/15 benchmarking range',
+            { address: '198.18.0.1', family: 4 },
+        ],
         ['IPv6 ::1 loopback', { address: '::1', family: 6 }],
         ['IPv6 fc00::/7 unique-local', { address: 'fc00::1', family: 6 }],
         ['IPv6 fe80::/10 link-local', { address: 'fe80::1', family: 6 }],
@@ -95,6 +103,10 @@ describe('secureFetch blocks private/internal resolved IPs', () => {
         [
             'IPv6 NAT64 64:ff9b::7f00:1 (maps to 127.0.0.1)',
             { address: '64:ff9b::7f00:1', family: 6 },
+        ],
+        [
+            'IPv6 2001::/23 special-purpose range',
+            { address: '2001:2::1', family: 6 },
         ],
     ];
 
@@ -189,17 +201,27 @@ describe('secureFetch GET behavior', () => {
         );
     });
 
-    it('rejects a non-ok status (>=400) with reason request_failed', async () => {
+    it('returns the upstream response on a non-ok status (>=400)', async () => {
         mockedFetch.mockResolvedValue(jsonResponse('nope', { status: 503 }));
-        await expectReason(
-            secureFetch('https://example.com/x.json', BASE_OPTIONS),
-            'request_failed',
+        const result = await secureFetch(
+            'https://example.com/x.json',
+            BASE_OPTIONS,
         );
+        expect(result).toEqual({
+            status: 503,
+            contentType: 'application/json',
+            headers: { 'content-type': 'application/json' },
+            bodyText: 'nope',
+            truncated: false,
+        });
     });
 
     it('returns a SecureFetchResult on a happy-path GET', async () => {
         mockedFetch.mockResolvedValue(
-            jsonResponse('{"hello":"world"}', { status: 200 }),
+            jsonResponse('{"hello":"world"}', {
+                status: 200,
+                headers: { 'Retry-After': '3' },
+            }),
         );
         const result = await secureFetch(
             'https://example.com/x.json',
@@ -208,6 +230,10 @@ describe('secureFetch GET behavior', () => {
         expect(result).toEqual({
             status: 200,
             contentType: 'application/json',
+            headers: {
+                'content-type': 'application/json',
+                'retry-after': '3',
+            },
             bodyText: '{"hello":"world"}',
             truncated: false,
         });
@@ -243,6 +269,7 @@ describe('secureFetch POST behavior', () => {
         expect(result).toEqual({
             status: 200,
             contentType: 'application/json',
+            headers: { 'content-type': 'application/json' },
             bodyText: '{"accepted":true}',
             truncated: false,
         });
@@ -420,6 +447,21 @@ describe('secureFetch size and content-type', () => {
         );
     });
 
+    it('skips the content-type allowlist on error responses', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('<html>Bad gateway</html>', {
+                status: 502,
+                contentType: 'text/html',
+            }),
+        );
+        const result = await secureFetch(
+            'https://example.com/x.json',
+            BASE_OPTIONS,
+        );
+        expect(result.status).toBe(502);
+        expect(result.bodyText).toBe('<html>Bad gateway</html>');
+    });
+
     it('accepts an allowed content-type ignoring charset suffix', async () => {
         mockedFetch.mockResolvedValue(
             jsonResponse('{"ok":true}', {
@@ -490,6 +532,7 @@ describe('secureFetch size and content-type', () => {
             ok: true,
             headers: {
                 get: (name: string) => (name === 'content-type' ? null : null),
+                forEach: () => undefined,
             },
             text: vi.fn().mockResolvedValue('{}'),
         };

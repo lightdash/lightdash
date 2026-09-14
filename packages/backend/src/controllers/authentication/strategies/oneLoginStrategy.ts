@@ -1,6 +1,10 @@
 /// <reference path="../../../@types/passport-openidconnect.d.ts" />
 /// <reference path="../../../@types/express-session.d.ts" />
-import { OneLoginSsoConfig, OpenIdIdentityIssuerType } from '@lightdash/common';
+import {
+    OneLoginSsoConfig,
+    OpenIdIdentityIssuerType,
+    OrganizationSsoProvider,
+} from '@lightdash/common';
 import { Strategy as OpenIDConnectStrategy } from 'passport-openidconnect';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
@@ -13,6 +17,7 @@ import { genericOidcHandler } from './oidcStrategy';
  */
 export const createOneLoginStrategyForConfig = (
     config: OneLoginSsoConfig,
+    organizationUuid?: string,
 ): OpenIDConnectStrategy =>
     new OpenIDConnectStrategy(
         {
@@ -28,7 +33,16 @@ export const createOneLoginStrategyForConfig = (
             userInfoURL: new URL(`/oidc/2/me`, config.oauth2Issuer).href,
             passReqToCallback: true,
         },
-        genericOidcHandler(OpenIdIdentityIssuerType.ONELOGIN),
+        genericOidcHandler(
+            OpenIdIdentityIssuerType.ONELOGIN,
+            undefined,
+            organizationUuid
+                ? {
+                      organizationUuid,
+                      provider: OrganizationSsoProvider.ONELOGIN,
+                  }
+                : undefined,
+        ),
     );
 
 export const isOneLoginPassportStrategyAvailableToUse = !!(

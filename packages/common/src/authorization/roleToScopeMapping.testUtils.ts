@@ -85,6 +85,7 @@ export const extractRolePermissions = (
         rules: ability.rules.map((rule) => ({
             action: rule.action as string,
             subject: rule.subject as string,
+            // oxlint-disable-next-line typescript-eslint/no-unsafe-assignment -- CASL resolves this as an error type
             conditions: rule.conditions,
             inverted: rule.inverted,
             reason: rule.reason,

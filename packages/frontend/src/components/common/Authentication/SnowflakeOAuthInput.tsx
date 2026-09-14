@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor, Button, Text } from '@mantine-8/core';
+import { Anchor, Button, Text } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import {
@@ -66,7 +66,7 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
             color="ldGray"
             leftSection={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'xs')}
             rightSection={
-                <MantineIcon icon={IconExternalLink} color="ldGray.6" />
+                <MantineIcon icon={IconExternalLink} color="dimmed" />
             }
         >
             Sign in with Snowflake

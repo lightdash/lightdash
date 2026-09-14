@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     ForbiddenError,
     OssEmbed,
+    type UUID,
 } from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { BaseService } from '../BaseService';
@@ -20,8 +21,8 @@ export class PermissionsService extends BaseService {
     }
 
     private async checkEmbeddedDashboardPermission(
-        dashboardUuid: string,
-        savedChartUuid: string,
+        dashboardUuid: UUID,
+        savedChartUuid: UUID,
         embed: OssEmbed,
     ) {
         if (
@@ -47,7 +48,7 @@ export class PermissionsService extends BaseService {
     }
 
     private static checkEmbeddedChartPermissions(
-        savedChartUuid: string,
+        savedChartUuid: UUID,
         embed: OssEmbed,
     ) {
         if (
@@ -63,7 +64,7 @@ export class PermissionsService extends BaseService {
      */
     async checkEmbedPermissions(
         account: AnonymousAccount,
-        savedChartUuid: string,
+        savedChartUuid: UUID,
     ) {
         const { embed } = account;
         const { content } = account.access;
@@ -87,6 +88,11 @@ export class PermissionsService extends BaseService {
                     embed,
                 );
             case 'chart':
+                if (!content.chartUuids.includes(savedChartUuid)) {
+                    throw new ForbiddenError(
+                        `Chart ${savedChartUuid} is not authorized by this token`,
+                    );
+                }
                 return PermissionsService.checkEmbeddedChartPermissions(
                     savedChartUuid,
                     embed,

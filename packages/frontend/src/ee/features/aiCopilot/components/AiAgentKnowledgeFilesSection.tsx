@@ -21,7 +21,7 @@ import {
     Title,
     Tooltip,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconEye,
     IconFileText,
@@ -121,11 +121,14 @@ const getPendingActionModalConfig = (
 type Props = {
     agentUuid: string;
     projectUuid: string;
+    /** Set to false when the surrounding section already carries the heading. */
+    withHeading: boolean;
 };
 
 export const AiAgentKnowledgeFilesSection = ({
     agentUuid,
     projectUuid,
+    withHeading,
 }: Props) => {
     const { data, isLoading } = useAiAgentDocuments(projectUuid, agentUuid);
     const createDocument = useCreateAiAgentDocument(projectUuid, agentUuid);
@@ -289,39 +292,46 @@ export const AiAgentKnowledgeFilesSection = ({
 
     return (
         <Stack gap="md">
-            <Group justify="space-between" align="flex-start">
-                <Box style={{ flex: 1 }}>
-                    <Title order={6} c="ldGray.7" size="sm" fw={500}>
-                        Knowledge documents
-                    </Title>
-                    <Text c="dimmed" size="xs">
-                        Reference documents can be retrieved when relevant or
-                        always included in the agent context. A short summary is
-                        generated for each file.
-                    </Text>
-                </Box>
-                {!isEmpty && (
-                    <FileButton
-                        onChange={handleFiles}
-                        accept={ACCEPT_ATTR}
-                        multiple
-                    >
-                        {(props) => (
-                            <Button
-                                {...props}
-                                size="xs"
-                                leftSection={<MantineIcon icon={IconUpload} />}
-                            >
-                                Upload
-                            </Button>
-                        )}
-                    </FileButton>
-                )}
-            </Group>
+            {(withHeading || !isEmpty) && (
+                <Group justify="space-between" align="flex-start">
+                    {withHeading && (
+                        <Box flex={1}>
+                            <Title order={6} c="ldGray.7" size="sm" fw={500}>
+                                Knowledge documents
+                            </Title>
+                            <Text c="dimmed" size="xs">
+                                Reference documents can be retrieved when
+                                relevant or always included in the agent
+                                context. A short summary is generated for each
+                                file.
+                            </Text>
+                        </Box>
+                    )}
+                    {!isEmpty && (
+                        <FileButton
+                            onChange={handleFiles}
+                            accept={ACCEPT_ATTR}
+                            multiple
+                        >
+                            {(props) => (
+                                <Button
+                                    {...props}
+                                    size="xs"
+                                    ml="auto"
+                                    leftSection={
+                                        <MantineIcon icon={IconUpload} />
+                                    }
+                                >
+                                    Upload
+                                </Button>
+                            )}
+                        </FileButton>
+                    )}
+                </Group>
+            )}
 
             <Paper
                 p={0}
-                withBorder
                 variant={isLoading || isEmpty ? 'dotted' : undefined}
                 {...(!isEmpty && { h: 400 })}
             >
@@ -339,7 +349,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                 />
                             }
                             gap="xs"
-                            titleProps={{ order: 5 }}
+                            titleProps={{ order: 6 }}
                             title="No knowledge document yet"
                         >
                             <FileButton
@@ -366,13 +376,10 @@ export const AiAgentKnowledgeFilesSection = ({
                         <ScrollArea
                             h="100%"
                             type="hover"
-                            style={{ flex: '1 1 70%', minWidth: 0 }}
+                            flex="1 1 70%"
+                            miw={0}
                         >
-                            <Table
-                                stickyHeader
-                                verticalSpacing="sm"
-                                highlightOnHover
-                            >
+                            <Table stickyHeader highlightOnHover>
                                 <Table.Thead>
                                     <Table.Tr>
                                         <Table.Th
@@ -436,13 +443,11 @@ export const AiAgentKnowledgeFilesSection = ({
                                             contextIndicator: (
                                                 <Badge
                                                     size="xs"
-                                                    variant="light"
                                                     color={
                                                         doc.alwaysIncludeInContext
                                                             ? 'violet'
                                                             : 'gray'
                                                     }
-                                                    tt="none"
                                                 >
                                                     {doc.alwaysIncludeInContext
                                                         ? 'Always included'
@@ -480,16 +485,14 @@ export const AiAgentKnowledgeFilesSection = ({
                                                                     IconFileText
                                                                 }
                                                                 color="dimmed"
-                                                                style={{
-                                                                    flexShrink: 0,
-                                                                }}
+                                                                className={
+                                                                    styles.fileIcon
+                                                                }
                                                             />
                                                             <Stack
                                                                 gap={2}
-                                                                style={{
-                                                                    minWidth: 0,
-                                                                    flex: 1,
-                                                                }}
+                                                                miw={0}
+                                                                flex={1}
                                                             >
                                                                 <Text
                                                                     size="sm"
@@ -521,7 +524,6 @@ export const AiAgentKnowledgeFilesSection = ({
                         </ScrollArea>
                         {(selectedPending || selectedDocument) && (
                             <Paper
-                                withBorder
                                 m="-md"
                                 mr="-xxs"
                                 p="md"
@@ -536,7 +538,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                         justify="space-between"
                                         wrap="nowrap"
                                     >
-                                        <Stack gap={2} style={{ minWidth: 0 }}>
+                                        <Stack gap={2} miw={0}>
                                             <Text size="sm" fw={600} truncate>
                                                 {selectedPending
                                                     ? selectedPending.name
@@ -556,10 +558,8 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 <Tooltip
                                                     label="View and edit document"
                                                     position="left"
-                                                    withArrow
                                                 >
                                                     <ActionIcon
-                                                        variant="subtle"
                                                         onClick={() =>
                                                             setViewingDocument(
                                                                 selectedDocument,
@@ -574,10 +574,8 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 <Tooltip
                                                     label="Delete document"
                                                     position="left"
-                                                    withArrow
                                                 >
                                                     <ActionIcon
-                                                        variant="subtle"
                                                         color="red"
                                                         loading={
                                                             deleteDocument.isLoading &&

@@ -1,10 +1,7 @@
 import { type PreAggregateDailyStatResult } from '@lightdash/common';
-import { Anchor, Group, Text, useMantineTheme } from '@mantine-8/core';
+import { Anchor, Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconChartBar,
     IconClock,
     IconCube,
@@ -133,7 +130,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 160,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconTable} color="ldGray.6" />
+                        <MantineIcon icon={IconTable} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -150,7 +147,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 160,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconCube} color="ldGray.6" />
+                        <MantineIcon icon={IconCube} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -172,7 +169,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconChartBar} color="ldGray.6" />
+                        <MantineIcon icon={IconChartBar} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -200,7 +197,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                     <Group gap="two" align="flex-start">
                         <MantineIcon
                             icon={IconLayoutDashboard}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         {column.columnDef.header}
                     </Group>
@@ -208,7 +205,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 Cell: ({ row }) =>
                     row.original.dashboardUuid ? (
                         <Anchor
-                            href={`/projects/${projectUuid}/dashboards/${row.original.dashboardUuid}`}
+                            href={`/projects/${projectUuid}/dashboards/${row.original.dashboardSlug ?? row.original.dashboardUuid}`}
                             target="_blank"
                             size="xs"
                         >
@@ -228,12 +225,12 @@ const PreAggregateStatsTable: FC<Props> = ({
                 accessorFn: (row) => row.hitCount + row.missCount,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconTarget} color="ldGray.6" />
+                        <MantineIcon icon={IconTarget} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const { hitCount, missCount } = row.original;
+                    const { hitCount, missCount, fallbackCount } = row.original;
                     return (
                         <Group gap={8} wrap="nowrap">
                             <Text size="xs" c="green.7" ff="monospace">
@@ -250,6 +247,23 @@ const PreAggregateStatsTable: FC<Props> = ({
                             >
                                 {missCount} uncached
                             </Text>
+                            {fallbackCount > 0 && (
+                                <>
+                                    <Text size="xs" c="ldGray.4" ff="monospace">
+                                        /
+                                    </Text>
+                                    <Tooltip label="Matched a pre-aggregate but execution failed. Results were served from the warehouse">
+                                        <Text
+                                            size="xs"
+                                            ff="monospace"
+                                            c="red.7"
+                                            fw={500}
+                                        >
+                                            {fallbackCount} failed
+                                        </Text>
+                                    </Tooltip>
+                                </>
+                            )}
                         </Group>
                     );
                 },
@@ -262,10 +276,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon
-                            icon={IconAlertTriangle}
-                            color="ldGray.6"
-                        />
+                        <MantineIcon icon={IconAlertTriangle} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -285,12 +296,12 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 150,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         {new Date(row.original.updatedAt).toLocaleString()}
                     </Text>
                 ),
@@ -304,20 +315,11 @@ const PreAggregateStatsTable: FC<Props> = ({
         columns,
         data: filteredRows,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: true,
-        paginationDisplayMode: 'pages',
         initialState: {
             pagination: { pageIndex: 0, pageSize: 20 },
         },
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
         enableStickyHeader: true,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         enableMultiSort: false,
         enableTopToolbar: true,
@@ -340,21 +342,6 @@ const PreAggregateStatsTable: FC<Props> = ({
                 resetFilters={resetFilters}
             />
         ),
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 450px)' },
         },
@@ -390,27 +377,11 @@ const PreAggregateStatsTable: FC<Props> = ({
                 color: theme.colors.ldGray[7],
             },
         },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading,
             showAlertBanner: isError,
             density: 'md',
             sorting,
-        },
-        mantinePaginationProps: {
-            showRowsPerPage: false,
-            color: 'dark',
-            size: 'sm',
         },
         onSortingChange: setSorting,
     });

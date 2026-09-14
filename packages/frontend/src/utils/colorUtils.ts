@@ -3,7 +3,7 @@ import {
     type ConditionalFormattingColorRange,
 } from '@lightdash/common';
 import Color from 'colorjs.io';
-import { DARK_MODE_COLORS } from '../mantineTheme';
+import { DARK_MODE_COLORS } from '../theme';
 
 export { getColorFromRange };
 

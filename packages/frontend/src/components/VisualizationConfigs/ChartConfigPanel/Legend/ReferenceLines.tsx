@@ -9,7 +9,7 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Accordion } from '@mantine-8/core';
+import { Accordion } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useProject } from '../../../../hooks/useProject';

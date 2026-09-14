@@ -1,0 +1,17 @@
+.header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.header > svg {
+    flex: none;
+}
+
+.source {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+}

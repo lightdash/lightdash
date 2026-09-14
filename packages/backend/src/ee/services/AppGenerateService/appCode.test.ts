@@ -1,4 +1,5 @@
 import {
+    buildManifest,
     contentTypeForPath,
     relPathToS3Key,
     s3KeyToRelPath,
@@ -22,5 +23,22 @@ describe('appCode helpers', () => {
         expect(contentTypeForPath('index.html')).toBe('text/html');
         expect(contentTypeForPath('assets/x.js')).toMatch(/javascript/);
         expect(contentTypeForPath('source.tar')).toBe('application/x-tar');
+    });
+    it('includes the slug in the built manifest alongside the fixed code version', () => {
+        const manifest = buildManifest({
+            slug: 'my-app',
+            version: 1,
+            name: 'My App',
+            description: 'A test app',
+            template: null,
+            downloadedAt: '2024-01-01T00:00:00.000Z',
+        });
+
+        expect(manifest.slug).toBe('my-app');
+        expect(manifest.codeVersion).toBe(1);
+        // Identity is the slug; id-free manifests are portable across
+        // projects, so neither appUuid nor projectUuid is ever emitted.
+        expect(manifest.appUuid).toBeUndefined();
+        expect(manifest.projectUuid).toBeUndefined();
     });
 });

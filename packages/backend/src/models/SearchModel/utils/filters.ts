@@ -39,7 +39,7 @@ export function filterByCreatedAt<T extends {}, R>(
             throw new ParameterError('fromDate cannot be in the future');
         }
 
-        void filteredQuery.whereRaw('Date(:createdAtColumn:) >= :date', {
+        void filteredQuery.whereRaw(':createdAtColumn: >= :date', {
             createdAtColumn: `${tableName}.created_at`,
             date: fromDateObj.startOf('day').toDate(),
         });
@@ -54,9 +54,11 @@ export function filterByCreatedAt<T extends {}, R>(
             throw new ParameterError('toDate cannot be in the future');
         }
 
-        void filteredQuery.whereRaw('Date(:createdAtColumn:) <= :date', {
+        // Half-open bound on the raw column keeps the comparison sargable so the
+        // planner can use created_at statistics; equivalent to Date(col) <= toDate.
+        void filteredQuery.whereRaw(':createdAtColumn: < :date', {
             createdAtColumn: `${tableName}.created_at`,
-            date: toDateObj.endOf('day').toDate(),
+            date: toDateObj.add(1, 'day').startOf('day').toDate(),
         });
     }
 

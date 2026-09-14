@@ -1,5 +1,5 @@
 import { type ApiOrganizationDesign } from '@lightdash/common';
-import { Stack, Textarea, TextInput } from '@mantine-8/core';
+import { Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';

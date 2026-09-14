@@ -5,6 +5,7 @@ import {
     getAggregatedField,
     getItemId,
     getParsedReference,
+    getPivotValueColumnBaseName,
     hasPivotFunctions,
     isCustomBinDimension,
     isDimension,
@@ -14,6 +15,7 @@ import {
     normalizeIndexColumns,
     ParameterError,
     parseTableCalculationFunctions,
+    quoteFieldReference,
     renderFilterRuleSql,
     SortByDirection,
     SupportedDbtAdapter,
@@ -29,6 +31,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { prepareSqlForWrapping } from './sqlScript';
 import {
     applyLimitToSqlQuery,
     sortDayOfWeekName,
@@ -48,6 +51,13 @@ const DEFAULT_PIVOT_ROW_LIMIT = 500;
  */
 export class PivotQueryBuilder {
     private readonly sql: string;
+
+    /**
+     * Leading scripting statements (e.g. BigQuery `DECLARE`/`SET`) lifted out of
+     * the user's SQL, so the rest can be wrapped in a CTE. Emitted above the
+     * generated query, where the declared variables stay in scope.
+     */
+    private readonly scriptPrelude: string | null;
 
     private readonly pivotConfiguration: PivotConfiguration;
 
@@ -81,13 +91,27 @@ export class PivotQueryBuilder {
         limit?: number,
         itemsMap?: ItemsMap,
     ) {
-        this.sql = sql;
+        const script = prepareSqlForWrapping(sql);
+        this.sql = script.sql;
+        this.scriptPrelude = script.prelude;
         this.pivotConfiguration = pivotConfiguration;
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
         this.itemsMap = itemsMap ?? {};
         this.pivotTableCalculations = this.identifyPivotTableCalculations();
         this.implicitMetricReferences = this.getImplicitMetricReferences();
+    }
+
+    private quoteIdentifier(reference: string): string {
+        return quoteFieldReference(
+            reference,
+            this.warehouseSqlBuilder.getFieldQuoteChar(),
+            this.warehouseSqlBuilder.getAdapterType(),
+        );
+    }
+
+    private qualifyIdentifier(alias: string, reference: string): string {
+        return `${alias}.${this.quoteIdentifier(reference)}`;
     }
 
     /**
@@ -209,6 +233,27 @@ export class PivotQueryBuilder {
     }
 
     /**
+     * Unpinned sort-only (undisplayed) table-calc sorts use row-level
+     * semantics — MAX across all pivot columns — instead of the metric-sort
+     * anchor: anchoring a per-(index, group) calc to one group yields NULL for
+     * every index tuple absent from that group. Displayed table calcs, metrics
+     * and explicitly pinned sorts (`pivotValues`) keep anchor semantics;
+     * column ordering is not affected either way.
+     */
+    private isSortOnlyTableCalculation(reference: string): boolean {
+        const item = this.itemsMap[reference];
+        if (!item || !isTableCalculation(item)) return false;
+        const isSortOnly = (this.pivotConfiguration.sortOnlyColumns ?? []).some(
+            (col) => col.reference === reference,
+        );
+        if (!isSortOnly) return false;
+        const sort = this.pivotConfiguration.sortBy?.find(
+            (s) => s.reference === reference,
+        );
+        return !sort?.pivotValues?.length;
+    }
+
+    /**
      * Replaces `"reference"` with `alias."reference"` in a sort expression.
      * For custom bin dimensions, also replaces `"reference_order"` with `alias."reference_order"`.
      */
@@ -217,15 +262,15 @@ export class PivotQueryBuilder {
         reference: string,
         alias: string,
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         let result = sortExpr.replaceAll(
-            `${q}${reference}${q}`,
-            `${alias}.${q}${reference}${q}`,
+            this.quoteIdentifier(reference),
+            this.qualifyIdentifier(alias, reference),
         );
         if (isCustomBinDimension(this.itemsMap[reference])) {
+            const orderReference = `${reference}_order`;
             result = result.replaceAll(
-                `${q}${reference}_order${q}`,
-                `${alias}.${q}${reference}_order${q}`,
+                this.quoteIdentifier(orderReference),
+                this.qualifyIdentifier(alias, orderReference),
             );
         }
         return result;
@@ -254,7 +299,6 @@ export class PivotQueryBuilder {
         descending: boolean,
         nullsFirst?: boolean,
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const field = this.itemsMap[reference];
         const nullsClause = PivotQueryBuilder.getNullsFirstLast(nullsFirst);
 
@@ -266,32 +310,33 @@ export class PivotQueryBuilder {
                 (s) => s.reference === reference,
             );
             if (isSorted) {
-                return `${q}${reference}_order${q}${
+                return `${this.quoteIdentifier(`${reference}_order`)}${
                     descending ? ' DESC' : ' ASC'
                 }${nullsClause}`;
             }
         }
 
         if (!field || !isDimension(field)) {
-            return `${q}${reference}${q}${
+            return `${this.quoteIdentifier(reference)}${
                 descending ? ' DESC' : ' ASC'
             }${nullsClause}`;
         }
 
         const startOfWeek = this.warehouseSqlBuilder.getStartOfWeek();
+        const fieldSql = this.quoteIdentifier(getItemId(field));
 
         switch (field.timeInterval) {
             case TimeFrames.MONTH_NAME:
-                return sortMonthName(field, q, descending) + nullsClause;
+                return sortMonthName(fieldSql, descending) + nullsClause;
             case TimeFrames.DAY_OF_WEEK_NAME:
                 return (
-                    sortDayOfWeekName(field, startOfWeek, q, descending) +
+                    sortDayOfWeekName(fieldSql, startOfWeek, descending) +
                     nullsClause
                 );
             case TimeFrames.QUARTER_NAME:
-                return sortQuarterName(field, q, descending) + nullsClause;
+                return sortQuarterName(fieldSql, descending) + nullsClause;
             default:
-                return `${q}${reference}${q}${
+                return `${this.quoteIdentifier(reference)}${
                     descending ? ' DESC' : ' ASC'
                 }${nullsClause}`;
         }
@@ -371,7 +416,6 @@ export class PivotQueryBuilder {
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         passthroughDimensions: PivotConfiguration['passthroughDimensions'],
     ): string[] {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const names = [
             ...indexColumns.map((col) => col.reference),
             ...groupByColumns.map((col) => col.reference),
@@ -389,7 +433,7 @@ export class PivotQueryBuilder {
                 (tc) => `${tc.name}_any`,
             ),
         ];
-        return [...new Set(names)].map((name) => `${q}${name}${q}`);
+        return [...new Set(names)].map((name) => this.quoteIdentifier(name));
     }
 
     /**
@@ -414,25 +458,25 @@ export class PivotQueryBuilder {
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
         passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         const groupBySelectDimensions = [
-            ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
+            ...(groupByColumns || []).map((col) =>
+                this.quoteIdentifier(col.reference),
+            ),
             // Sort-only pivot dimensions must be in GROUP BY so their values
             // are available for column ORDER BY downstream. They are not
             // pivot-spread columns (not in groupByColumns), but they still
             // need to survive the aggregation pipeline.
-            ...(sortOnlyDimensions || []).map(
-                (col) => `${q}${col.reference}${q}`,
+            ...(sortOnlyDimensions || []).map((col) =>
+                this.quoteIdentifier(col.reference),
             ),
             // Passthrough dimensions: hidden non-sort pivot dims that need
             // to flow through to row data so cross-field templates can read
             // their values via row.<table>.<field>.raw. Like sortOnlyDimensions
             // they survive GROUP BY but do not affect any ORDER BY.
-            ...(passthroughDimensions || []).map(
-                (col) => `${q}${col.reference}${q}`,
+            ...(passthroughDimensions || []).map((col) =>
+                this.quoteIdentifier(col.reference),
             ),
-            ...indexColumns.map((col) => `${q}${col.reference}${q}`),
+            ...indexColumns.map((col) => this.quoteIdentifier(col.reference)),
         ];
 
         // Carry _order columns through for sorted custom bin dimensions.
@@ -445,7 +489,7 @@ export class PivotQueryBuilder {
             ...indexColumns,
         ]);
         for (const ref of sortedBinRefs) {
-            groupBySelectDimensions.push(`${q}${ref}_order${q}`);
+            groupBySelectDimensions.push(this.quoteIdentifier(`${ref}_order`));
         }
 
         const groupBySelectMetrics = (valuesColumns ?? []).map((col) => {
@@ -458,7 +502,7 @@ export class PivotQueryBuilder {
                 col.reference,
                 col.aggregation,
             );
-            return `${aggregationField} AS ${q}${fieldName}${q}`;
+            return `${aggregationField} AS ${this.quoteIdentifier(fieldName)}`;
         });
 
         // Carry implicit metrics through using ANY_VALUE — these are already
@@ -474,17 +518,23 @@ export class PivotQueryBuilder {
                           VizAggregationOptions.ANY,
                           ref,
                       );
-                      return `${passthrough} AS ${q}${ref}${q}`;
+                      return `${passthrough} AS ${this.quoteIdentifier(ref)}`;
                   })
                 : [];
 
+        const dedupedDimensions = Array.from(new Set(groupBySelectDimensions));
+
+        // With no dimensions at all the values collapse to a single aggregate
+        // row, so there is nothing to group by (big number charts).
+        const groupBy = dedupedDimensions.length
+            ? ` group by ${dedupedDimensions.join(', ')}`
+            : '';
+
         return `SELECT ${[
-            ...new Set(groupBySelectDimensions), // Remove duplicate columns
+            ...dedupedDimensions,
             ...groupBySelectMetrics,
             ...implicitMetricSelects,
-        ].join(', ')} FROM original_query group by ${Array.from(
-            new Set(groupBySelectDimensions),
-        ).join(', ')}`;
+        ].join(', ')} FROM original_query${groupBy}`;
     }
 
     /**
@@ -497,7 +547,7 @@ export class PivotQueryBuilder {
         reference: string,
         aggregation: string,
     ): string {
-        return `${reference}_${aggregation}`;
+        return getPivotValueColumnBaseName(reference, aggregation);
     }
 
     /**
@@ -508,7 +558,6 @@ export class PivotQueryBuilder {
      * @param valuesColumns - Value columns configuration
      * @param sortBy - Sort configuration for columns
      * @param metricFirstValueQueries - Map of CTE names to their definitions
-     * @param q - Quote character for field names
      * @param sortOnlyDimensions - Hidden pivot-column dims that drive column ORDER BY
      *   but are not pivot-spread columns. They participate in ORDER BY the same way
      *   as groupByColumns but are not included in the groupByColumns DISTINCT SELECT.
@@ -522,7 +571,6 @@ export class PivotQueryBuilder {
             string,
             { cteName: string; sql: string }
         >,
-        q: string,
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
         const orderByParts: string[] = [];
@@ -590,7 +638,10 @@ export class PivotQueryBuilder {
                         // The anchor value is folded into column_ranking's nested
                         // derived table (aliased `g`), so resolve against it.
                         acc.push(
-                            `g.${q}${colAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
+                            `${this.qualifyIdentifier(
+                                'g',
+                                `${colAnchorCteName}_value`,
+                            )}${sortDirection}${nullsClause}`,
                         );
                     }
                     return acc;
@@ -660,7 +711,9 @@ export class PivotQueryBuilder {
             // declared position when known (else original groupBy order).
             const dims = orderDimsByDeclaredPosition() ?? allOrderableDims;
             dims.forEach((col) => {
-                orderByParts.push(`g.${q}${col.reference}${q} ASC`);
+                orderByParts.push(
+                    `${this.qualifyIdentifier('g', col.reference)} ASC`,
+                );
             });
         }
 
@@ -676,7 +729,6 @@ export class PivotQueryBuilder {
      * @param valuesColumns - Value columns configuration
      * @param sortBy - Sort configuration for all columns
      * @param metricFirstValueQueries - Map of value column references to their CTE info
-     * @param q - Quote character for field names
      * @returns ORDER BY clause string for row index ordering
      */
     private buildRowIndexOrderBy(
@@ -687,12 +739,14 @@ export class PivotQueryBuilder {
             string,
             { cteName: string; sql: string }
         >,
-        q: string,
     ): string {
         if (!sortBy?.length) {
             // Default to all index columns with ASC direction
             return indexColumns
-                .map((col) => `g.${q}${col.reference}${q} ASC`)
+                .map(
+                    (col) =>
+                        `${this.qualifyIdentifier('g', col.reference)} ASC`,
+                )
                 .join(', ');
         }
 
@@ -722,7 +776,10 @@ export class PivotQueryBuilder {
                         sort.nullsFirst,
                     );
                     orderByParts.push(
-                        `g.${q}${rowAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
+                        `${this.qualifyIdentifier(
+                            'g',
+                            `${rowAnchorCteName}_value`,
+                        )}${sortDirection}${nullsClause}`,
                     );
                 }
             } else if (isIndexColumn) {
@@ -777,7 +834,6 @@ export class PivotQueryBuilder {
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
     ): Record<string, { cteName: string; sql: string }> {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const result: Record<string, { cteName: string; sql: string }> = {};
 
         if (!valuesColumns || !sortBy) {
@@ -802,10 +858,13 @@ export class PivotQueryBuilder {
 
             const colAnchorCteName = `${valCol.reference}_ca`;
             const groupColumnReferences = groupByColumns
-                .map((col) => `${q}${col.reference}${q}`)
+                .map((col) => this.quoteIdentifier(col.reference))
                 .join(', ');
 
-            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${colAnchorCteName}_value${q} FROM group_by_query`;
+            const quotedFieldName = this.quoteIdentifier(fieldName);
+            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
+                `${colAnchorCteName}_value`,
+            )} FROM group_by_query`;
 
             result[colAnchorCteName] = {
                 cteName: colAnchorCteName,
@@ -830,18 +889,16 @@ export class PivotQueryBuilder {
         sortBy: PivotConfiguration['sortBy'],
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         const groupColumnReferences = groupByColumns
-            .map((col) => `${q}${col.reference}${q}`)
+            .map((col) => this.quoteIdentifier(col.reference))
             .join(', ');
 
         // Dims the outer ORDER BY references: visible groupBys, sort-only dims,
         // and the _order companion of any sorted custom-bin dim among them.
         const dimSelects = [
-            ...groupByColumns.map((col) => `${q}${col.reference}${q}`),
-            ...(sortOnlyDimensions || []).map(
-                (col) => `${q}${col.reference}${q}`,
+            ...groupByColumns.map((col) => this.quoteIdentifier(col.reference)),
+            ...(sortOnlyDimensions || []).map((col) =>
+                this.quoteIdentifier(col.reference),
             ),
         ];
         const sortedBinRefs = this.getSortedBinDimensionReferences([
@@ -849,7 +906,7 @@ export class PivotQueryBuilder {
             ...(sortOnlyDimensions || []),
         ]);
         for (const ref of sortedBinRefs) {
-            dimSelects.push(`${q}${ref}_order${q}`);
+            dimSelects.push(this.quoteIdentifier(`${ref}_order`));
         }
 
         const firstValueSelects = (valuesColumns ?? []).reduce<string[]>(
@@ -871,8 +928,11 @@ export class PivotQueryBuilder {
                     sortConfig.nullsFirst,
                 );
                 const colAnchorCteName = `${valCol.reference}_ca`;
+                const quotedFieldName = this.quoteIdentifier(fieldName);
                 acc.push(
-                    `FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${colAnchorCteName}_value${q}`,
+                    `FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
+                        `${colAnchorCteName}_value`,
+                    )}`,
                 );
                 return acc;
             },
@@ -906,8 +966,6 @@ export class PivotQueryBuilder {
         columnAnchorCTEs: Record<string, { cteName: string; sql: string }>,
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         // DISTINCT SELECT contains only visible groupBy columns so that each
         // pivot column header combination maps to exactly one col_idx.
         // sortOnlyDimensions are NOT included here — they are helper dims that
@@ -916,7 +974,10 @@ export class PivotQueryBuilder {
         const groupByRefs = groupByColumns
             .map(
                 (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'g',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(col.reference)}`,
             )
             .join(', ');
 
@@ -928,7 +989,6 @@ export class PivotQueryBuilder {
             valuesColumns,
             sortBy,
             columnAnchorCTEs,
-            q,
             sortOnlyDimensions,
         );
 
@@ -947,7 +1007,9 @@ export class PivotQueryBuilder {
                   )}) g`
                 : 'group_by_query g';
 
-        return `SELECT DISTINCT ${groupByRefs}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}col_idx${q} FROM ${fromClause}`;
+        return `SELECT DISTINCT ${groupByRefs}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${this.quoteIdentifier(
+            'col_idx',
+        )} FROM ${fromClause}`;
     }
 
     /**
@@ -961,8 +1023,7 @@ export class PivotQueryBuilder {
         value: PivotSortAnchor['value'],
         alias: string = 'cr',
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-        const colSql = `${alias}.${q}${reference}${q}`;
+        const colSql = this.qualifyIdentifier(alias, reference);
 
         if (value === null) {
             return `(${colSql}) IS NULL`;
@@ -1015,8 +1076,7 @@ export class PivotQueryBuilder {
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         alias: string = 'cr',
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-        const fallback = `${q}col_idx${q} = 1`;
+        const fallback = `${this.quoteIdentifier('col_idx')} = 1`;
         if (!pivotValues?.length) return fallback;
 
         const pinByRef = new Map(pivotValues.map((pv) => [pv.reference, pv]));
@@ -1054,13 +1114,14 @@ export class PivotQueryBuilder {
         sortBy: PivotConfiguration['sortBy'],
         pivotValues?: VizSortBy['pivotValues'],
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         // Select each groupBy column with an alias for use in CROSS JOIN
         const selectParts = groupByColumns
             .map(
                 (col) =>
-                    `cr.${q}${col.reference}${q} AS ${q}anchor_${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'cr',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(`anchor_${col.reference}`)}`,
             )
             .join(', ');
 
@@ -1069,7 +1130,7 @@ export class PivotQueryBuilder {
             const sort = sortBy?.find((s) => s.reference === col.reference);
             const direction =
                 sort?.direction === SortByDirection.DESC ? 'DESC' : 'ASC';
-            return `cr.${q}${col.reference}${q} ${direction}`;
+            return `${this.qualifyIdentifier('cr', col.reference)} ${direction}`;
         });
 
         const whereClause = this.buildAnchorWhereClause(
@@ -1099,7 +1160,6 @@ export class PivotQueryBuilder {
         sortBy: PivotConfiguration['sortBy'],
         perMetricAnchorCte?: Map<string, string>,
     ): Record<string, { cteName: string; sql: string }> {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const result: Record<string, { cteName: string; sql: string }> = {};
 
         if (!valuesColumns || !sortBy || indexColumns.length === 0) {
@@ -1107,19 +1167,19 @@ export class PivotQueryBuilder {
         }
 
         const indexColumnRefs = indexColumns
-            .map((col) => `q.${q}${col.reference}${q}`)
+            .map((col) => this.qualifyIdentifier('q', col.reference))
             .join(', ');
 
         const indexColumnGroupBy = indexColumns
-            .map((col) => `q.${q}${col.reference}${q}`)
+            .map((col) => this.qualifyIdentifier('q', col.reference))
             .join(', ');
 
         // Build condition to match anchor column using CROSS JOIN alias.
         const anchorMatchConditions = groupByColumns
             .map((col) =>
                 this.warehouseSqlBuilder.getNullSafeEqualSql(
-                    `q.${q}${col.reference}${q}`,
-                    `ac.${q}anchor_${col.reference}${q}`,
+                    this.qualifyIdentifier('q', col.reference),
+                    this.qualifyIdentifier('ac', `anchor_${col.reference}`),
                 ),
             )
             .join(' AND ');
@@ -1136,16 +1196,36 @@ export class PivotQueryBuilder {
             );
 
             const rowAnchorCteName = `${valCol.reference}_ra`;
+
+            // Sort-only table calcs aggregate across ALL pivot columns — no anchor
+            if (this.isSortOnlyTableCalculation(valCol.reference)) {
+                result[rowAnchorCteName] = {
+                    cteName: rowAnchorCteName,
+                    sql: `SELECT ${indexColumnRefs}, MAX(${this.qualifyIdentifier(
+                        'q',
+                        fieldName,
+                    )}) AS ${this.quoteIdentifier(
+                        `${rowAnchorCteName}_value`,
+                    )} FROM group_by_query q GROUP BY ${indexColumnGroupBy}`,
+                };
+                return;
+            }
+
             const anchorCteName =
                 perMetricAnchorCte?.get(valCol.reference) ?? 'anchor_column';
             const anchorCteRef =
                 anchorCteName === 'anchor_column'
                     ? 'anchor_column'
-                    : `${q}${anchorCteName}${q}`;
+                    : this.quoteIdentifier(anchorCteName);
 
             // Use CROSS JOIN with anchor_column and conditional aggregation
             // MAX is used because there should be at most one value per (indexCols, anchorCol)
-            const rowAnchorSql = `SELECT ${indexColumnRefs}, MAX(CASE WHEN ${anchorMatchConditions} THEN q.${q}${fieldName}${q} END) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query q CROSS JOIN ${anchorCteRef} ac GROUP BY ${indexColumnGroupBy}`;
+            const rowAnchorSql = `SELECT ${indexColumnRefs}, MAX(CASE WHEN ${anchorMatchConditions} THEN ${this.qualifyIdentifier(
+                'q',
+                fieldName,
+            )} END) AS ${this.quoteIdentifier(
+                `${rowAnchorCteName}_value`,
+            )} FROM group_by_query q CROSS JOIN ${anchorCteRef} ac GROUP BY ${indexColumnGroupBy}`;
 
             result[rowAnchorCteName] = {
                 cteName: rowAnchorCteName,
@@ -1192,8 +1272,6 @@ export class PivotQueryBuilder {
             sortBy,
         );
 
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         // When sorting by a metric value, we need the column_ranking CTE so
         // that pivot_query can read col_idx from a precomputed scope instead
         // of emitting an inline Window ORDER BY that references the sibling
@@ -1202,8 +1280,15 @@ export class PivotQueryBuilder {
         // Row anchor CTEs (and the anchor_column CTE that feeds them) only
         // make sense when there are row dimensions to rank — without them
         // every row has row_index = 1.
-        const hasMetricSort = valuesColumns?.some((valCol) =>
+        const sortedValueColumns = (valuesColumns ?? []).filter((valCol) =>
             sortBy?.some((sort) => sort.reference === valCol.reference),
+        );
+        const hasMetricSort = sortedValueColumns.length > 0;
+        // Sort-only table-calc sorts use row-level semantics (MAX across all pivot
+        // columns), so they don't need the anchor_column CTE — only metric
+        // sorts anchored to the first pivot column do.
+        const hasAnchoredMetricSort = sortedValueColumns.some(
+            (valCol) => !this.isSortOnlyTableCalculation(valCol.reference),
         );
         // A sort-only dimension also drives the column ORDER BY, which means
         // we need column_ranking (for the precomputed ranking path) even when
@@ -1238,12 +1323,18 @@ export class PivotQueryBuilder {
                 const hasAnyPin =
                     sortBy?.some((s) => s.pivotValues?.length) ?? false;
 
-                if (hasAnyPin && valuesColumns) {
+                if (!hasAnchoredMetricSort) {
+                    // Only table-calc sorts: rows order by MAX across all pivot
+                    // columns, no anchor CTE needed.
+                } else if (hasAnyPin && valuesColumns) {
                     valuesColumns.forEach((valCol) => {
                         const sortConfig = sortBy?.find(
                             (s) => s.reference === valCol.reference,
                         );
                         if (!sortConfig) return;
+                        if (this.isSortOnlyTableCalculation(valCol.reference)) {
+                            return;
+                        }
                         const anchorCteName = `${valCol.reference}_anchor_column`;
                         const anchorSQL = this.getAnchorColumnSQL(
                             groupByColumns,
@@ -1251,7 +1342,7 @@ export class PivotQueryBuilder {
                             sortConfig.pivotValues,
                         );
                         anchorColumnCTEs.push(
-                            `${q}${anchorCteName}${q} AS (${anchorSQL})`,
+                            `${this.quoteIdentifier(anchorCteName)} AS (${anchorSQL})`,
                         );
                         perMetricAnchorCte.set(valCol.reference, anchorCteName);
                     });
@@ -1315,17 +1406,15 @@ export class PivotQueryBuilder {
         sortBy: PivotConfiguration['sortBy'],
         perMetricAnchorCte?: Map<string, string>,
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         // Index columns (and the _order companion of any sorted custom-bin index
         // dim) carried through both SELECT and GROUP BY.
-        const indexRefs = indexColumns.map(
-            (col) => `q.${q}${col.reference}${q}`,
+        const indexRefs = indexColumns.map((col) =>
+            this.qualifyIdentifier('q', col.reference),
         );
         const sortedBinRefs =
             this.getSortedBinDimensionReferences(indexColumns);
         for (const ref of sortedBinRefs) {
-            indexRefs.push(`q.${q}${ref}_order${q}`);
+            indexRefs.push(this.qualifyIdentifier('q', `${ref}_order`));
         }
         const indexSelect = indexRefs.join(', ');
 
@@ -1333,11 +1422,17 @@ export class PivotQueryBuilder {
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
 
+        // Sort-only table calcs aggregate across ALL pivot columns (row-level
+        // semantics) — only metric sorts need an anchor column.
+        const anchoredValueColumns = sortedValueColumns.filter(
+            (valCol) => !this.isSortOnlyTableCalculation(valCol.reference),
+        );
+
         // Each value column's anchor column (shared `anchor_column` or, for
         // pinned sorts, a per-metric `${ref}_anchor_column`). Distinct anchors
         // are CROSS JOINed once; a single anchor keeps the `ac` alias.
         const anchorByValCol = new Map<string, string>(
-            sortedValueColumns.map((valCol) => [
+            anchoredValueColumns.map((valCol) => [
                 valCol.reference,
                 perMetricAnchorCte?.get(valCol.reference) ?? 'anchor_column',
             ]),
@@ -1355,33 +1450,45 @@ export class PivotQueryBuilder {
                 const ref =
                     name === 'anchor_column'
                         ? 'anchor_column'
-                        : `${q}${name}${q}`;
-                return `CROSS JOIN ${ref} ${aliasByAnchor.get(name)}`;
+                        : this.quoteIdentifier(name);
+                return ` CROSS JOIN ${ref} ${aliasByAnchor.get(name)}`;
             })
-            .join(' ');
+            .join('');
 
         const maxCaseSelects = sortedValueColumns.map((valCol) => {
             const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                 valCol.reference,
                 valCol.aggregation,
             );
+            if (this.isSortOnlyTableCalculation(valCol.reference)) {
+                return `MAX(${this.qualifyIdentifier(
+                    'q',
+                    fieldName,
+                )}) AS ${this.quoteIdentifier(`${valCol.reference}_ra_value`)}`;
+            }
             const alias = aliasByAnchor.get(
                 anchorByValCol.get(valCol.reference)!,
             )!;
             const anchorMatch = groupByColumns
                 .map((col) =>
                     this.warehouseSqlBuilder.getNullSafeEqualSql(
-                        `q.${q}${col.reference}${q}`,
-                        `${alias}.${q}anchor_${col.reference}${q}`,
+                        this.qualifyIdentifier('q', col.reference),
+                        this.qualifyIdentifier(
+                            alias,
+                            `anchor_${col.reference}`,
+                        ),
                     ),
                 )
                 .join(' AND ');
-            return `MAX(CASE WHEN ${anchorMatch} THEN q.${q}${fieldName}${q} END) AS ${q}${valCol.reference}_ra_value${q}`;
+            return `MAX(CASE WHEN ${anchorMatch} THEN ${this.qualifyIdentifier(
+                'q',
+                fieldName,
+            )} END) AS ${this.quoteIdentifier(`${valCol.reference}_ra_value`)}`;
         });
 
         return `SELECT ${indexSelect}, ${maxCaseSelects.join(
             ', ',
-        )} FROM group_by_query q ${crossJoins} GROUP BY ${indexSelect}`;
+        )} FROM group_by_query q${crossJoins} GROUP BY ${indexSelect}`;
     }
 
     /**
@@ -1406,13 +1513,14 @@ export class PivotQueryBuilder {
         rowAnchorQueries: Record<string, { cteName: string; sql: string }>,
         perMetricAnchorCte?: Map<string, string>,
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         // Alias to bare names for downstream resolution (ClickHouse multi-join scoping).
         const indexRefs = indexColumns
             .map(
                 (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'g',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(col.reference)}`,
             )
             .join(', ');
 
@@ -1422,7 +1530,6 @@ export class PivotQueryBuilder {
             valuesColumns,
             sortBy,
             rowAnchorQueries,
-            q,
         );
 
         // The row source is aliased `g` — the same alias group_by_query carries
@@ -1441,7 +1548,9 @@ export class PivotQueryBuilder {
                   )}) g`
                 : 'group_by_query g';
 
-        return `SELECT DISTINCT ${indexRefs}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q} FROM ${fromClause}`;
+        return `SELECT DISTINCT ${indexRefs}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${this.quoteIdentifier(
+            'row_index',
+        )} FROM ${fromClause}`;
     }
 
     /**
@@ -1464,10 +1573,8 @@ export class PivotQueryBuilder {
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
         passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         const groupColumnReferences = groupByColumns
-            .map((col) => `${q}${col.reference}${q}`)
+            .map((col) => this.quoteIdentifier(col.reference))
             .join(', ');
 
         // Layer 1 — column anchor: FIRST_VALUE per sorted value column.
@@ -1490,8 +1597,11 @@ export class PivotQueryBuilder {
                     sortConfig.nullsFirst,
                 );
                 const colAnchorCteName = `${valCol.reference}_ca`;
+                const quotedFieldName = this.quoteIdentifier(fieldName);
                 acc.push(
-                    `FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${colAnchorCteName}_value${q}`,
+                    `FIRST_VALUE(${quotedFieldName}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${quotedFieldName} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${this.quoteIdentifier(
+                        `${colAnchorCteName}_value`,
+                    )}`,
                 );
                 return acc;
             },
@@ -1509,15 +1619,16 @@ export class PivotQueryBuilder {
             valuesColumns,
             sortBy,
             metricFirstValueQueries,
-            q,
             sortOnlyDimensions,
         );
-        const colIdxLayer = `SELECT g.*, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}col_idx${q} FROM (${columnAnchorLayer}) g`;
+        const colIdxLayer = `SELECT g.*, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${this.quoteIdentifier(
+            'col_idx',
+        )} FROM (${columnAnchorLayer}) g`;
 
         // Layer 3 — row anchor: metric value at each metric's anchor column
         // (col_idx = 1, or its rebased pin), constant per index combo.
         const indexPartition = indexColumns
-            .map((col) => `g.${q}${col.reference}${q}`)
+            .map((col) => this.qualifyIdentifier('g', col.reference))
             .join(', ');
         const maxCaseSelects = (valuesColumns ?? []).reduce<string[]>(
             (acc, valCol) => {
@@ -1530,13 +1641,30 @@ export class PivotQueryBuilder {
                     valCol.reference,
                     valCol.aggregation,
                 );
+                // Sort-only table calcs aggregate across ALL pivot columns — no anchor
+                if (this.isSortOnlyTableCalculation(valCol.reference)) {
+                    acc.push(
+                        `MAX(${this.qualifyIdentifier(
+                            'g',
+                            fieldName,
+                        )}) OVER (PARTITION BY ${indexPartition}) AS ${this.quoteIdentifier(
+                            `${valCol.reference}_ra_value`,
+                        )}`,
+                    );
+                    return acc;
+                }
                 const anchorPredicate = this.buildAnchorWhereClause(
                     sortConfig.pivotValues,
                     groupByColumns,
                     'g',
                 );
                 acc.push(
-                    `MAX(CASE WHEN ${anchorPredicate} THEN g.${q}${fieldName}${q} END) OVER (PARTITION BY ${indexPartition}) AS ${q}${valCol.reference}_ra_value${q}`,
+                    `MAX(CASE WHEN ${anchorPredicate} THEN ${this.qualifyIdentifier(
+                        'g',
+                        fieldName,
+                    )} END) OVER (PARTITION BY ${indexPartition}) AS ${this.quoteIdentifier(
+                        `${valCol.reference}_ra_value`,
+                    )}`,
                 );
                 return acc;
             },
@@ -1550,25 +1678,41 @@ export class PivotQueryBuilder {
         const selectReferences = [
             ...indexColumns.map(
                 (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'g',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(col.reference)}`,
             ),
             ...groupByColumns.map(
                 (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'g',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(col.reference)}`,
             ),
             ...(passthroughDimensions || []).map(
                 (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'g',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(col.reference)}`,
             ),
             ...(valuesColumns || []).map((col) => {
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                     col.reference,
                     col.aggregation,
                 );
-                return `g.${q}${fieldName}${q} AS ${q}${fieldName}${q}`;
+                return `${this.qualifyIdentifier(
+                    'g',
+                    fieldName,
+                )} AS ${this.quoteIdentifier(fieldName)}`;
             }),
             ...this.implicitMetricReferences.map(
-                (ref) => `g.${q}${ref}${q} AS ${q}${ref}${q}`,
+                (ref) =>
+                    `${this.qualifyIdentifier(
+                        'g',
+                        ref,
+                    )} AS ${this.quoteIdentifier(ref)}`,
             ),
         ];
         const rowIndexOrderBy = this.buildRowIndexOrderBy(
@@ -1576,12 +1720,16 @@ export class PivotQueryBuilder {
             valuesColumns,
             sortBy,
             metricFirstValueQueries,
-            q,
         );
 
         return `SELECT ${selectReferences.join(
             ', ',
-        )}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q}, g.${q}col_idx${q} AS ${q}column_index${q} FROM (${rowAnchorLayer}) g`;
+        )}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${this.quoteIdentifier(
+            'row_index',
+        )}, ${this.qualifyIdentifier(
+            'g',
+            'col_idx',
+        )} AS ${this.quoteIdentifier('column_index')} FROM (${rowAnchorLayer}) g`;
     }
 
     private getPivotQuerySQL(
@@ -1597,19 +1745,23 @@ export class PivotQueryBuilder {
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
         passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         // Alias to bare names so filtered_rows and the count subquery can
         // resolve them (ClickHouse exposes multi-join CTE columns only under
         // the `g.` qualifier).
         const selectReferences = [
             ...indexColumns.map(
                 (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'g',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(col.reference)}`,
             ),
             ...groupByColumns.map(
                 (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'g',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(col.reference)}`,
             ),
             // Passthrough dimensions: hidden non-sort pivot dims that need
             // to flow through to row data for cross-field richText/image
@@ -1618,18 +1770,28 @@ export class PivotQueryBuilder {
             // explicitly here so they reach the final SELECT.
             ...(passthroughDimensions || []).map(
                 (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+                    `${this.qualifyIdentifier(
+                        'g',
+                        col.reference,
+                    )} AS ${this.quoteIdentifier(col.reference)}`,
             ),
             ...(valuesColumns || []).map((col) => {
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                     col.reference,
                     col.aggregation,
                 );
-                return `g.${q}${fieldName}${q} AS ${q}${fieldName}${q}`;
+                return `${this.qualifyIdentifier(
+                    'g',
+                    fieldName,
+                )} AS ${this.quoteIdentifier(fieldName)}`;
             }),
             // Implicit metrics — carried under their original column name
             ...this.implicitMetricReferences.map(
-                (ref) => `g.${q}${ref}${q} AS ${q}${ref}${q}`,
+                (ref) =>
+                    `${this.qualifyIdentifier(
+                        'g',
+                        ref,
+                    )} AS ${this.quoteIdentifier(ref)}`,
             ),
         ];
 
@@ -1645,8 +1807,8 @@ export class PivotQueryBuilder {
                 const rowRankJoinConditions = indexColumns
                     .map((col) =>
                         this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
-                            `g.${q}${col.reference}${q}`,
-                            `rr.${q}${col.reference}${q}`,
+                            this.qualifyIdentifier('g', col.reference),
+                            this.qualifyIdentifier('rr', col.reference),
                         ),
                     )
                     .join(' AND ');
@@ -1658,8 +1820,8 @@ export class PivotQueryBuilder {
             const colRankJoinConditions = groupByColumns
                 .map((col) =>
                     this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
-                        `g.${q}${col.reference}${q}`,
-                        `cr.${q}${col.reference}${q}`,
+                        this.qualifyIdentifier('g', col.reference),
+                        this.qualifyIdentifier('cr', col.reference),
                     ),
                 )
                 .join(' AND ');
@@ -1672,9 +1834,18 @@ export class PivotQueryBuilder {
             }
 
             const rowIndexExpression =
-                indexColumns.length > 0 ? `rr.${q}row_index${q}` : '1';
+                indexColumns.length > 0
+                    ? this.qualifyIdentifier('rr', 'row_index')
+                    : '1';
 
-            return `SELECT ${selectReferences.join(', ')}, ${rowIndexExpression} AS ${q}row_index${q}, cr.${q}col_idx${q} AS ${q}column_index${q} FROM ${fromClause}`;
+            return `SELECT ${selectReferences.join(
+                ', ',
+            )}, ${rowIndexExpression} AS ${this.quoteIdentifier(
+                'row_index',
+            )}, ${this.qualifyIdentifier(
+                'cr',
+                'col_idx',
+            )} AS ${this.quoteIdentifier('column_index')} FROM ${fromClause}`;
         }
 
         // Original path: compute rankings inline with Window functions
@@ -1691,13 +1862,15 @@ export class PivotQueryBuilder {
                     const joinConditions = indexColumns
                         .map((col) =>
                             this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
-                                `g.${q}${col.reference}${q}`,
-                                `${q}${cteName}${q}.${q}${col.reference}${q}`,
+                                this.qualifyIdentifier('g', col.reference),
+                                `${this.quoteIdentifier(
+                                    cteName,
+                                )}.${this.quoteIdentifier(col.reference)}`,
                             ),
                         )
                         .join(' AND ');
                     joins.push(
-                        `LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`,
+                        `LEFT JOIN ${this.quoteIdentifier(cteName)} ON ${joinConditions}`,
                     );
                 }
             } else if (cteName.endsWith('_ca')) {
@@ -1705,12 +1878,16 @@ export class PivotQueryBuilder {
                 const joinConditions = groupByColumns
                     .map((col) =>
                         this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
-                            `g.${q}${col.reference}${q}`,
-                            `${q}${cteName}${q}.${q}${col.reference}${q}`,
+                            this.qualifyIdentifier('g', col.reference),
+                            `${this.quoteIdentifier(
+                                cteName,
+                            )}.${this.quoteIdentifier(col.reference)}`,
                         ),
                     )
                     .join(' AND ');
-                joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);
+                joins.push(
+                    `LEFT JOIN ${this.quoteIdentifier(cteName)} ON ${joinConditions}`,
+                );
             }
         });
 
@@ -1724,7 +1901,6 @@ export class PivotQueryBuilder {
             valuesColumns,
             sortBy,
             metricFirstValueQueries,
-            q,
         );
 
         const groupByOrderBy = this.buildGroupByOrderBy(
@@ -1732,7 +1908,6 @@ export class PivotQueryBuilder {
             valuesColumns,
             sortBy,
             metricFirstValueQueries,
-            q,
             sortOnlyDimensions,
         );
 
@@ -1743,7 +1918,11 @@ export class PivotQueryBuilder {
 
         return `SELECT ${selectReferences.join(
             ', ',
-        )}, ${rowIndexExpression} AS ${q}row_index${q}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}column_index${q} FROM ${fromClause}`;
+        )}, ${rowIndexExpression} AS ${this.quoteIdentifier(
+            'row_index',
+        )}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${this.quoteIdentifier(
+            'column_index',
+        )} FROM ${fromClause}`;
     }
 
     /**
@@ -1756,7 +1935,6 @@ export class PivotQueryBuilder {
             return undefined;
         }
 
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const compiler = new TableCalculationFunctionCompiler(
             this.warehouseSqlBuilder,
         );
@@ -1776,7 +1954,7 @@ export class PivotQueryBuilder {
                     this.replaceFieldReferencesWithAliases(processedSql);
 
                 pivotCalculations.push(
-                    `${processedSql} AS ${q}${tc.name}_any${q}`, // todo: can we handle dynamic aggregation? hardcode prefix for now.
+                    `${processedSql} AS ${this.quoteIdentifier(`${tc.name}_any`)}`, // todo: can we handle dynamic aggregation? hardcode prefix for now.
                 );
             }
         }
@@ -1796,8 +1974,6 @@ export class PivotQueryBuilder {
      * @returns SQL with field references replaced by their pivot_query aliases
      */
     private replaceFieldReferencesWithAliases(sql: string): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
         // Build a map of original field names to their aliased names
         const fieldAliasMap: Record<string, string> = {};
 
@@ -1842,7 +2018,7 @@ export class PivotQueryBuilder {
             const fieldId = getItemId({ table: refTable, name: refName });
             const alias = fieldAliasMap[fieldId] || fieldAliasMap[ref];
             if (alias) {
-                return `${q}${alias}${q}`;
+                return this.quoteIdentifier(alias);
             }
             return fullmatch;
         });
@@ -1871,7 +2047,6 @@ export class PivotQueryBuilder {
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
         passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
 
         // Exclude Pivot table calculations from valuesColumns - they are handled separately
@@ -1967,7 +2142,9 @@ export class PivotQueryBuilder {
                     this.pivotConfiguration.metricsAsRows,
                 );
 
-            columnIndexFilterSql = ` WHERE ${q}column_index${q} <= ${maxColumnsPerValueColumn}`;
+            columnIndexFilterSql = ` WHERE ${this.quoteIdentifier(
+                'column_index',
+            )} <= ${maxColumnsPerValueColumn}`;
         }
 
         // Build CTEs in correct dependency order:
@@ -2002,7 +2179,9 @@ export class PivotQueryBuilder {
         }
 
         ctes.push(
-            `filtered_rows AS (SELECT * FROM ${pivotTableRef} WHERE ${q}row_index${q} <= ${rowLimit})`,
+            `filtered_rows AS (SELECT * FROM ${pivotTableRef} WHERE ${this.quoteIdentifier(
+                'row_index',
+            )} <= ${rowLimit})`,
         );
 
         // total_columns is the distinct groupBy-combination count (× valuesCount
@@ -2018,7 +2197,7 @@ export class PivotQueryBuilder {
             : '';
 
         const groupByPartition = groupByColumns
-            .map((col) => `${q}${col.reference}${q}`)
+            .map((col) => this.quoteIdentifier(col.reference))
             .join(', ');
 
         const outputColumns = this.getPivotOutputColumns(
@@ -2041,7 +2220,14 @@ export class PivotQueryBuilder {
             adapterType === SupportedDbtAdapter.ATHENA
                 ? ''
                 : ` ORDER BY ${groupByPartition}`;
-        const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN p.${q}__grp_rn${q} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition}${grpRnOrderBy}) AS ${q}__grp_rn${q} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${q}row_index${q}, ${q}column_index${q}`;
+        const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN ${this.qualifyIdentifier(
+            'p',
+            '__grp_rn',
+        )} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition}${grpRnOrderBy}) AS ${this.quoteIdentifier(
+            '__grp_rn',
+        )} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${this.quoteIdentifier(
+            'row_index',
+        )}, ${this.quoteIdentifier('column_index')}`;
 
         return PivotQueryBuilder.assembleSqlParts([
             PivotQueryBuilder.buildCtesSQL(ctes),
@@ -2156,6 +2342,8 @@ export class PivotQueryBuilder {
             finalSql = this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);
         }
 
-        return finalSql;
+        return this.scriptPrelude
+            ? `${this.scriptPrelude}\n${finalSql}`
+            : finalSql;
     }
 }

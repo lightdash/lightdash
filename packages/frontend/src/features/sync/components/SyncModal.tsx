@@ -53,6 +53,7 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
             <>
                 <SyncModalView
                     schedulers={schedulers}
+                    resourceLabel="chart"
                     isFetchingNextPage={isFetchingNextPage}
                     onScrollBottom={handleScrollBottom}
                     onClose={onClose}
@@ -65,7 +66,7 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     if (action === SyncModalAction.CREATE || action === SyncModalAction.EDIT) {
         return (
             <SyncModalCreateOrEdit
-                chartUuid={chartUuid}
+                resource={{ type: 'chart', chartUuid }}
                 opened={opened}
                 onClose={onClose}
             />

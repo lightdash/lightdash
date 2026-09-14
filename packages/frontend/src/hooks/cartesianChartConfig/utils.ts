@@ -315,6 +315,20 @@ export const getSeriesGroupedByField = (series: Series[]) => {
     return Object.values(seriesGroupMap).sort((a, b) => a.index - b.index);
 };
 
+export type SeriesGroup = ReturnType<typeof getSeriesGroupedByField>[number];
+
+export const moveSeriesGroup = (
+    groups: SeriesGroup[],
+    from: number,
+    to: number,
+): SeriesGroup[] => {
+    if (from === to || from < 0 || from >= groups.length) return groups;
+    const next = [...groups];
+    const [moved] = next.splice(from, 1);
+    next.splice(Math.min(Math.max(to, 0), next.length), 0, moved);
+    return next;
+};
+
 export const sortDimensions = (
     dimensionIds: string[],
     itemsMap: ItemsMap | undefined,

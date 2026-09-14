@@ -2,6 +2,8 @@ import {
     FilterOperator,
     FilterType,
     getFilterRuleWithDefaultValue,
+    isRelativeDateFilterOperator,
+    isWithValueFilter,
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -12,23 +14,23 @@ import {
     ActionIcon,
     Box,
     Button,
-    Checkbox,
     Group,
     Stack,
     Text,
     Select,
     Switch,
-} from '@mantine-8/core';
-import { Tooltip, type PopoverProps } from '@mantine/core';
+    Tooltip,
+    type PopoverProps,
+} from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
-import { filterOperatorDescription } from '../../../components/common/Filters/FilterInputs/constants';
+import { filterOperatorDescriptionKey } from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
 
 interface FilterSettingsProps {
@@ -56,12 +58,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
+    const getUiString = useUiStrings();
 
     const [filterLabel, setFilterLabel] = useState<string>();
 
     const filterOperatorOptions = useMemo(
-        () => getFilterOperatorOptions(filterType, field),
-        [filterType, field],
+        () => getFilterOperatorOptions(filterType, field, getUiString),
+        [filterType, field, getUiString],
     );
 
     // Set default label when using revert (undo) button
@@ -72,32 +75,41 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     }, [filterLabel, filterRule.label, field?.label]);
 
     const handleChangeFilterOperator = (operator: FilterRule['operator']) => {
+        // Absolute date values are already normalized. Running them through
+        // the defaults again can shift timezones.
+        const shouldPreserveValues =
+            filterType === FilterType.DATE &&
+            (filterRule.values?.length ?? 0) > 0 &&
+            isWithValueFilter(filterRule.operator) &&
+            isWithValueFilter(operator) &&
+            !isRelativeDateFilterOperator(filterRule.operator) &&
+            !isRelativeDateFilterOperator(operator);
+
         onChangeFilterRule(
-            getFilterRuleWithDefaultValue(filterType, field, {
-                ...filterRule,
-                operator,
-            }),
+            shouldPreserveValues
+                ? {
+                      ...filterRule,
+                      operator,
+                      settings: undefined,
+                  }
+                : getFilterRuleWithDefaultValue(filterType, field, {
+                      ...filterRule,
+                      operator,
+                  }),
         );
     };
 
     const isFilterDisabled = !!filterRule.disabled;
 
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
-
     const hasRequirement =
-        !!filterRule.required ||
-        (isFilterRequirementsEnabled && !!filterRule.requiredGroupId);
+        !!filterRule.required || !!filterRule.requiredGroupId;
 
     const handleToggleRequired = (checked: boolean) => {
         // Toggling on restores the saved rule membership if there is one,
-        // otherwise it creates a one-member rule; off removes it from its
-        // rule. Flag off leaves group membership untouched (main parity).
-        const restoredGroupId =
-            checked && isFilterRequirementsEnabled
-                ? originalFilterRule?.requiredGroupId
-                : undefined;
+        // otherwise it creates a one-member rule; off removes it from its rule.
+        const restoredGroupId = checked
+            ? originalFilterRule?.requiredGroupId
+            : undefined;
 
         const newFilter: DashboardFilterRule = restoredGroupId
             ? {
@@ -110,9 +122,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
             : {
                   ...filterRule,
                   required: checked,
-                  requiredGroupId: isFilterRequirementsEnabled
-                      ? undefined
-                      : filterRule.requiredGroupId,
+                  requiredGroupId: undefined,
               };
 
         onChangeFilterRule(
@@ -172,7 +182,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
                 {isCreatingNew && !isEditMode && (
                     <Text size="xs" fw={500}>
-                        Value
+                        {getUiString('filters.config.valueLabel')}
                     </Text>
                 )}
 
@@ -191,18 +201,19 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     }
                     value={filterRule.operator}
                     renderOption={({ option }) => {
-                        const description =
-                            filterOperatorDescription[
+                        const descriptionKey =
+                            filterOperatorDescriptionKey[
                                 option.value as FilterOperator
                             ];
+                        const description = descriptionKey
+                            ? getUiString(descriptionKey)
+                            : undefined;
                         if (description) {
                             return (
                                 <Tooltip
                                     label={description}
                                     position="right"
-                                    multiline
                                     maw={300}
-                                    withinPortal
                                 >
                                     <div>{option.label}</div>
                                 </Tooltip>
@@ -226,7 +237,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 variant={'light'}
                                 rightSection={
                                     <Tooltip
-                                        variant="xs"
                                         label={
                                             filterRule.singleValue
                                                 ? 'Prevent selection of multiple values'
@@ -258,6 +268,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         disabled
                         size="xs"
                         placeholder={getPlaceholderByFilterTypeAndOperator({
+                            getUiString,
                             type: filterType,
                             operator: filterRule.operator,
                             disabled: true,
@@ -267,7 +278,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
                 {(showValueInput || hasRequirement) && (
                     <Group gap="xs" wrap="nowrap" align="flex-start">
-                        <Box style={{ flex: 1 }}>
+                        <Box flex={1}>
                             <FilterInputComponent
                                 popoverProps={popoverProps}
                                 filterType={filterType}
@@ -288,18 +299,16 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 FilterOperator.NOT_NULL,
                             ].includes(filterRule.operator) && (
                                 <Tooltip
-                                    label={
+                                    label={getUiString(
                                         filterRule.disabled
-                                            ? 'Already showing any value'
+                                            ? 'filters.config.alreadyAnyValue'
                                             : (filterRule.values?.length ??
                                                     0) === 0
-                                              ? 'No value to clear'
-                                              : 'Clear to any value'
-                                    }
+                                              ? 'filters.config.noValueToClear'
+                                              : 'filters.config.clearToAnyValue',
+                                    )}
                                 >
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         mt={4}
                                         disabled={
@@ -336,7 +345,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             )}
                         {!hasRequirement && (
                             <Tooltip
-                                withinPortal
                                 position="right"
                                 label={
                                     isFilterDisabled
@@ -367,11 +375,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                                             ? // If the filter is required and the user is disabling it, we should also disable the required flag
                                                               false
                                                             : filterRule.required,
-                                                    // Toggling a default value removes the filter from any requirement rule; flag off leaves it untouched
-                                                    requiredGroupId:
-                                                        isFilterRequirementsEnabled
-                                                            ? undefined
-                                                            : filterRule.requiredGroupId,
+                                                    // Toggling a default value removes the filter from any requirement rule
+                                                    requiredGroupId: undefined,
                                                 };
 
                                             onChangeFilterRule(
@@ -390,25 +395,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             </Tooltip>
                         )}
 
-                        {isFilterRequirementsEnabled ? (
-                            <RequiredFilterCard
-                                filterRule={filterRule}
-                                onToggleRequired={handleToggleRequired}
-                                onChangeFilterRule={onChangeFilterRule}
-                                onEditRules={onEditRequirementRules}
-                            />
-                        ) : (
-                            <Checkbox
-                                size="xs"
-                                checked={filterRule.required}
-                                onChange={(e) =>
-                                    handleToggleRequired(
-                                        e.currentTarget.checked,
-                                    )
-                                }
-                                label="Require viewers to pick a value to load the dashboard"
-                            />
-                        )}
+                        <RequiredFilterCard
+                            filterRule={filterRule}
+                            onToggleRequired={handleToggleRequired}
+                            onChangeFilterRule={onChangeFilterRule}
+                            onEditRules={onEditRequirementRules}
+                        />
                     </>
                 )}
             </Stack>

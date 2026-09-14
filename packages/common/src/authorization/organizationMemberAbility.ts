@@ -1,11 +1,16 @@
-import { type AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
-import { type MemberAbility } from './types';
+import { getPermissionsFromAbilityRules } from './abilityPermissions';
+import {
+    INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+    VIEWER_EMBED_SUBJECTS,
+    type MemberAbility,
+} from './types';
 
 const applyOrganizationMemberDynamicAbilities = ({
     role,
@@ -40,6 +45,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.member(member, { can });
+        VIEWER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                organizationUuid: member.organizationUuid,
+            });
+        });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -101,6 +111,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.viewer(member, { can });
+        INTERACTIVE_VIEWER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                organizationUuid: member.organizationUuid,
+            });
+        });
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
         can('view', 'UnderlyingData', {
@@ -214,10 +229,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             createdByUserUuid: member.userUuid,
         });
-        // View external connections to select and link them when building a
+        // View admin-enabled external connections to link them when building a
         // data app. Managing (create/edit/delete) stays admin-only.
         can('view', 'ExternalConnection', {
             organizationUuid: member.organizationUuid,
+            allowDataAppBuilderLinking: true,
         });
 
         can('manage', 'Space', {
@@ -274,6 +290,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'MetricsTree', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'ExternalSource', {
             organizationUuid: member.organizationUuid,
         });
         can('view', 'OrganizationWarehouseCredentials', {
@@ -387,6 +406,16 @@ export const applyOrganizationMemberStaticAbilities: Record<
             type: ProjectType.PREVIEW,
             createdByUserUuid: member.userUuid,
         });
+        can('create', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
+        can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
         can('view', 'JobStatus', {
             organizationUuid: member.organizationUuid,
         });
@@ -406,12 +435,24 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'ContentVerification', {
             organizationUuid: member.organizationUuid,
         });
+        // Paired with manage:ContentVerification: anyone who can unverify
+        // content can already bypass the edit lock, so grant it outright.
+        can('manage', 'VerifiedContent', {
+            organizationUuid: member.organizationUuid,
+        });
         can('create', 'AiDeepResearch', {
             organizationUuid: member.organizationUuid,
         });
     },
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });
+
+        can('view', 'Roadmap', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Roadmap', {
+            organizationUuid: member.organizationUuid,
+        });
 
         can('manage', 'DataApp', {
             organizationUuid: member.organizationUuid,
@@ -457,6 +498,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'OrganizationColorPalette', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'Analytics', {
             organizationUuid: member.organizationUuid,
         });
@@ -498,6 +542,22 @@ export const applyOrganizationMemberStaticAbilities: Record<
             isActive: true,
         });
     },
+};
+
+/** Canonical action/subject footprint emitted by a system organization role. */
+export const getOrganizationMemberRolePermissions = (
+    role: OrganizationMemberRole,
+): string[] => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyOrganizationMemberStaticAbilities[role](
+        {
+            organizationUuid: 'delegation-validation-organization',
+            userUuid: 'delegation-validation-user',
+        },
+        builder,
+    );
+
+    return getPermissionsFromAbilityRules(builder.rules);
 };
 
 export type OrganizationMemberAbilitiesArgs = {

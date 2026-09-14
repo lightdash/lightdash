@@ -1,4 +1,9 @@
-import { type EChartsSeries, type Series } from '@lightdash/common';
+import {
+    isDimension,
+    type EChartsSeries,
+    type ItemsMap,
+    type Series,
+} from '@lightdash/common';
 import { type SeriesLike } from './types';
 
 /**
@@ -68,4 +73,34 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
         }`,
         completeIdentifier,
     ];
+};
+
+/** Palette colors keyed by series identifier, walked in descending identifier order. */
+export const calculateFallbackSeriesColors = (
+    seriesList: SeriesLike[],
+    colorPalette: string[],
+): Record<string, string> => {
+    const sortedSeriesIdentifiers = seriesList
+        .map((series) => calculateSeriesLikeIdentifier(series).join('|'))
+        .sort((a, b) => b.localeCompare(a));
+
+    return Object.fromEntries(
+        sortedSeriesIdentifiers.map((identifier, i) => [
+            identifier,
+            colorPalette[i % colorPalette.length],
+        ]),
+    );
+};
+
+export const getDimensionValueColor = (
+    itemsMap: ItemsMap,
+    fieldId: string,
+    value: unknown,
+): string | undefined => {
+    const item = itemsMap[fieldId];
+    if (!item || !isDimension(item) || typeof value !== 'string') {
+        return undefined;
+    }
+
+    return item.colors?.[value];
 };

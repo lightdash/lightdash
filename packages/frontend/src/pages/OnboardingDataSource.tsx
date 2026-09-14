@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
@@ -29,6 +29,7 @@ import {
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
+import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import classes from './OnboardingDataSource.module.css';
@@ -61,19 +62,32 @@ const POPULAR_WAREHOUSES: { key: WarehouseTypes; subtitle: string }[] = [
     },
 ];
 
-const popularKeys: SelectedWarehouse[] = POPULAR_WAREHOUSES.map(
-    (warehouse) => warehouse.key,
+const popularKeys = new Set<SelectedWarehouse>(
+    POPULAR_WAREHOUSES.map((warehouse) => warehouse.key),
 );
 
-const popularWarehouses = POPULAR_WAREHOUSES.map(({ key, subtitle }) => {
-    const label = WarehouseTypeLabels.find(
-        (warehouse) => warehouse.key === key,
-    )?.label;
-    return label ? { key, subtitle, label } : undefined;
-}).filter((warehouse) => warehouse !== undefined);
+const BIGQUERY_SERVICE_ACCOUNT_SUBTITLE = 'Connect with a service account';
+
+const getPopularWarehouses = (isGoogleSsoAvailable: boolean) =>
+    POPULAR_WAREHOUSES.map(({ key, subtitle }) => {
+        const label = WarehouseTypeLabels.find(
+            (warehouse) => warehouse.key === key,
+        )?.label;
+        if (!label) {
+            return undefined;
+        }
+        return {
+            key,
+            label,
+            subtitle:
+                key === WarehouseTypes.BIGQUERY && !isGoogleSsoAvailable
+                    ? BIGQUERY_SERVICE_ACCOUNT_SUBTITLE
+                    : subtitle,
+        };
+    }).filter((warehouse) => warehouse !== undefined);
 
 const allWarehouses = orderedWarehouses.filter(
-    (warehouse) => !popularKeys.includes(warehouse.key),
+    (warehouse) => !popularKeys.has(warehouse.key),
 );
 
 const OTHER_ROUTE_PARAM = 'other';
@@ -105,6 +119,11 @@ const SectionHeader: FC<{ title: string; hint?: string }> = ({
 const DataSourcePicker: FC = () => {
     const navigate = useNavigate();
     const { track } = useTracking();
+    const { health } = useApp();
+    const { data: organization } = useOrganization();
+    const popularWarehouses = getPopularWarehouses(
+        health.data?.auth.google.enabled ?? false,
+    );
 
     const handleSelect = (
         key: SelectedWarehouse,
@@ -112,7 +131,12 @@ const DataSourcePicker: FC = () => {
     ) => {
         track({
             name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
-            properties: { warehouse: String(key), tier },
+            properties: {
+                organizationId: organization?.organizationUuid ?? null,
+                warehouse: String(key),
+                tier,
+                onboardingFlow: 'new',
+            },
         });
         void navigate(getWarehouseRoute(key));
     };
@@ -120,7 +144,7 @@ const DataSourcePicker: FC = () => {
     return (
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
-                <Title order={1} ta="center" fw={700}>
+                <Title order={1} ta="center">
                     Add a data source
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
@@ -134,7 +158,6 @@ const DataSourcePicker: FC = () => {
                     {popularWarehouses.map((warehouse) => (
                         <Paper
                             key={warehouse.key}
-                            withBorder
                             radius="md"
                             className={`${classes.heroCard} ${classes.warehouseCardEnabled}`}
                             onClick={() =>
@@ -161,7 +184,6 @@ const DataSourcePicker: FC = () => {
                     {allWarehouses.map((warehouse) => (
                         <Paper
                             key={warehouse.key}
-                            withBorder
                             radius="md"
                             className={`${classes.warehouseCard} ${classes.warehouseCardEnabled}`}
                             onClick={() =>
@@ -214,8 +236,9 @@ const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
                     warehouseOnly
                     onBack={() => void navigate('/onboarding/data-source')}
                     successRedirect={(projectUuid) =>
-                        `/onboarding/project-ready/${projectUuid}`
+                        `/projects/${projectUuid}/home`
                     }
+                    celebrateOnSuccess
                 />
             </ProjectFormProvider>
         </Box>
@@ -276,7 +299,7 @@ const OnboardingDataSource: FC = () => {
     );
 
     if (!canCreateProject) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/no-access" replace />;
     }
 
     return <OnboardingDataSourceContent key={guard.user.userUuid} />;

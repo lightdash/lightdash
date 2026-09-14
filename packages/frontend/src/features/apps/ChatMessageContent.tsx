@@ -12,9 +12,9 @@
  * Used in the data-app chat history so post-submit messages match the
  * pre-submit input editor visually.
  */
-import { Anchor } from '@mantine-8/core';
+import { Anchor } from '@mantine/core';
 import { Fragment, type FC } from 'react';
-import classes from './AppPromptEditor.module.css';
+import classes from './ChatMessageContent.module.css';
 
 // Capture: tag, optional "text", optional @loc.
 // Loc allows any char except `]` (which terminates the reference) so paths

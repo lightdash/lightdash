@@ -1,5 +1,5 @@
 import { type DashboardLoomTile } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -54,6 +54,7 @@ const LoomTile: FC<Props> = (props) => {
                 src={`https://www.loom.com/embed/${getLoomId(url)}`}
                 frameBorder="0"
                 allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
                 style={{
                     flex: 1,
                 }}

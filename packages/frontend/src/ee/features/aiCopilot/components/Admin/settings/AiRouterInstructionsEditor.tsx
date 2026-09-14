@@ -1,4 +1,4 @@
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
@@ -47,6 +47,9 @@ export const AiRouterInstructionsEditor: FC<Props> = ({
                 blockquote: false,
                 codeBlock: false,
                 horizontalRule: false,
+                link: false,
+                underline: false,
+                trailingNode: false,
             }),
             Placeholder.configure({
                 placeholder:

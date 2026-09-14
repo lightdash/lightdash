@@ -17,6 +17,7 @@ export type DbUser = {
     is_internal: boolean;
     timezone: string | null;
     avatar_gradient: string | null;
+    how_did_you_hear_about_us: string | null;
     updated_at: Date;
 };
 
@@ -41,6 +42,7 @@ export type DbUserUpdate = Partial<
         | 'is_active'
         | 'timezone'
         | 'avatar_gradient'
+        | 'how_did_you_hear_about_us'
         | 'updated_at'
     >
 >;

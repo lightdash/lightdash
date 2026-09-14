@@ -16,6 +16,8 @@ import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { IS_MOBILE } from '../../../../utils/isMobile';
+import { ANNOUNCEMENTS_QUERY_KEY } from './useAnnouncements';
+import { useOrgHomepageSettings } from './useOrgHomepageSettings';
 
 const PROJECT_HOMEPAGE_QUERY_KEY = 'project_homepage';
 
@@ -23,30 +25,6 @@ const getResolvedHomepage = async (projectUuid: string) =>
     lightdashApi<ResolvedHomepage | null>({
         url: `/projects/${projectUuid}/homepage`,
         method: 'GET',
-        body: undefined,
-    });
-
-const getPersonalHomepageApi = async (projectUuid: string) =>
-    lightdashApi<string | null>({
-        url: `/projects/${projectUuid}/homepage/personal-override`,
-        method: 'GET',
-        body: undefined,
-    });
-
-const setPersonalHomepageApi = async (
-    projectUuid: string,
-    dashboardUuid: string,
-) =>
-    lightdashApi<undefined>({
-        url: `/projects/${projectUuid}/homepage/personal-override`,
-        method: 'PATCH',
-        body: JSON.stringify({ dashboardUuid }),
-    });
-
-const clearPersonalHomepageApi = async (projectUuid: string) =>
-    lightdashApi<undefined>({
-        url: `/projects/${projectUuid}/homepage/personal-override`,
-        method: 'DELETE',
         body: undefined,
     });
 
@@ -101,12 +79,11 @@ const publishHomepageApi = async (
     projectUuid: string,
     homepageUuid: string,
     audience: HomepageAudience,
-    allowPersonal: boolean,
 ) =>
     lightdashApi<ProjectHomepage>({
         url: `/projects/${projectUuid}/homepage/${homepageUuid}/publish`,
         method: 'POST',
-        body: JSON.stringify({ audience, allowPersonal }),
+        body: JSON.stringify({ audience }),
     });
 
 const discardHomepageDraftApi = async (
@@ -149,12 +126,20 @@ const updateGroupPrioritiesApi = async (
     });
 
 export const useHomepageBuilderFlag = () => {
-    const { data: flag, isLoading } = useServerFeatureFlag(
+    const { data: flag, isLoading: isFlagLoading } = useServerFeatureFlag(
         CommercialFeatureFlags.HomepageBuilder,
     );
+    // Homepage v2 is on when the org opted in via settings OR the commercial
+    // flag is set — the flag remains as the legacy path/kill-switch while the
+    // opt-in flow rolls out. Must match the backend rule in
+    // ProjectHomepageService.isHomepageEnabled.
+    const settings = useOrgHomepageSettings();
     // The homepage builder / new onboarding surfaces are desktop-only for now,
     // so fall back to the classic homepage on mobile.
-    return { isEnabled: !IS_MOBILE && !!flag?.enabled, isLoading };
+    return {
+        isEnabled: !IS_MOBILE && (!!flag?.enabled || !!settings.data?.enabled),
+        isLoading: isFlagLoading || settings.isInitialLoading,
+    };
 };
 
 export const useResolvedHomepage = (
@@ -166,66 +151,6 @@ export const useResolvedHomepage = (
         queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'resolved'],
         queryFn: () => getResolvedHomepage(projectUuid!),
     });
-
-export const usePersonalHomepage = (
-    projectUuid: string | undefined,
-    { enabled = true }: { enabled?: boolean } = {},
-) =>
-    useQuery<string | null, ApiError>({
-        enabled: !!projectUuid && enabled,
-        queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'personal'],
-        queryFn: () => getPersonalHomepageApi(projectUuid!),
-    });
-
-export const useSetPersonalHomepage = (projectUuid: string) => {
-    const { showToastSuccess, showToastApiError } = useToaster();
-    const queryClient = useQueryClient();
-    return useMutation<undefined, ApiError, string>(
-        (dashboardUuid) => setPersonalHomepageApi(projectUuid, dashboardUuid),
-        {
-            mutationKey: ['set_personal_homepage'],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    PROJECT_HOMEPAGE_QUERY_KEY,
-                    projectUuid,
-                ]);
-                showToastSuccess({
-                    title: 'This dashboard is now your homepage',
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: 'Failed to set your homepage',
-                    apiError: error,
-                });
-            },
-        },
-    );
-};
-
-export const useClearPersonalHomepage = (projectUuid: string) => {
-    const { showToastSuccess, showToastApiError } = useToaster();
-    const queryClient = useQueryClient();
-    return useMutation<undefined, ApiError, void>(
-        () => clearPersonalHomepageApi(projectUuid),
-        {
-            mutationKey: ['clear_personal_homepage'],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    PROJECT_HOMEPAGE_QUERY_KEY,
-                    projectUuid,
-                ]);
-                showToastSuccess({ title: 'Homepage reset to default' });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: 'Failed to reset your homepage',
-                    apiError: error,
-                });
-            },
-        },
-    );
-};
 
 export const useHomepageForBuilder = (
     projectUuid: string | undefined,
@@ -450,21 +375,23 @@ export const usePublishHomepage = (
     return useMutation<
         ProjectHomepage,
         ApiError,
-        { audience: HomepageAudience; allowPersonal: boolean }
+        { audience: HomepageAudience }
     >(
-        ({ audience, allowPersonal }) =>
-            publishHomepageApi(
-                projectUuid,
-                homepageUuid!,
-                audience,
-                allowPersonal,
-            ),
+        ({ audience }) =>
+            publishHomepageApi(projectUuid, homepageUuid!, audience),
         {
             mutationKey: ['publish_project_homepage'],
             onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    PROJECT_HOMEPAGE_QUERY_KEY,
-                    projectUuid,
+                await Promise.all([
+                    queryClient.invalidateQueries([
+                        PROJECT_HOMEPAGE_QUERY_KEY,
+                        projectUuid,
+                    ]),
+                    // Publishing also flips draft announcements to published.
+                    queryClient.invalidateQueries([
+                        ANNOUNCEMENTS_QUERY_KEY,
+                        projectUuid,
+                    ]),
                 ]);
                 showToastSuccess({ title: 'Homepage published' });
             },

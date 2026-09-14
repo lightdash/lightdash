@@ -1,5 +1,5 @@
 import { type Comment } from '@lightdash/common';
-import { Box, Button, Collapse, Divider, Stack } from '@mantine-8/core';
+import { Box, Button, Collapse, Divider, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useCallback, useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
@@ -124,7 +124,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                         }
                     />
 
-                    <Collapse in={isRepliesOpen}>
+                    <Collapse expanded={isRepliesOpen}>
                         <Stack gap="xs">
                             {comment.replies.map((reply) => (
                                 <CommentDetail
@@ -147,7 +147,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                 </Box>
             )}
 
-            <Collapse in={!isResolved && !!isReplyingTo} ml="lg">
+            <Collapse expanded={!isResolved && !!isReplyingTo} ml="lg">
                 <CommentForm
                     userName={user.data?.firstName + ' ' + user.data?.lastName}
                     onSubmit={(

@@ -8,7 +8,7 @@ import {
     type ContentVerificationInfo,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconAppWindow,
@@ -26,11 +26,14 @@ import {
     ResourceInfoPopup,
     ResourceInfoPopupContent,
 } from '../ResourceInfoPopup/ResourceInfoPopup';
+import ViewsCountPopover from '../ViewsCountPopover';
+import DataAppBuildStatus from './DataAppBuildStatus';
 import AttributeCount from './ResourceAttributeCount';
 import {
     getResourceTypeName,
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
+    getViewStatsResourceType,
 } from './resourceUtils';
 
 type ResourceValidationErrorIndicatorProps = {
@@ -119,8 +122,6 @@ const ResourceVerifiedInlineBadge = ({
 
     return (
         <Tooltip
-            withinPortal
-            multiline
             maw={300}
             position="bottom"
             label={
@@ -140,13 +141,17 @@ const ResourceVerifiedInlineBadge = ({
 type InfiniteResourceTableColumnNameProps = {
     item: ResourceViewItem;
     projectUuid: string;
+    projectUrlIdentifier: string;
     canUserManageValidation: boolean;
+    showDataAppVersionStatus: boolean;
 };
 
 const InfiniteResourceTableColumnName = ({
     item,
     projectUuid,
+    projectUrlIdentifier,
     canUserManageValidation,
+    showDataAppVersionStatus,
 }: InfiniteResourceTableColumnNameProps) => {
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
@@ -190,7 +195,7 @@ const InfiniteResourceTableColumnName = ({
             component={Link}
             c="unset"
             underline="never"
-            to={getResourceUrl(projectUuid, item)}
+            to={getResourceUrl(projectUuid, item, projectUrlIdentifier)}
             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                 e.stopPropagation()
             }
@@ -233,20 +238,38 @@ const InfiniteResourceTableColumnName = ({
                         )}
                     </Group>
                     {showTypeAndViews && (
-                        <Text fz={12} c="ldGray.6">
-                            {getResourceTypeName(item)} •{' '}
-                            <Tooltip
-                                position="top-start"
-                                disabled={
-                                    !item.data.views || !item.data.firstViewedAt
-                                }
-                                label={getResourceViewsSinceWhenDescription(
-                                    item,
+                        <Group gap="xs" wrap="nowrap">
+                            <Text fz="xs" c="dimmed">
+                                {getResourceTypeName(item)} •{' '}
+                                <ViewsCountPopover
+                                    resourceType={getViewStatsResourceType(
+                                        item,
+                                    )}
+                                    resourceUuid={item.data.uuid}
+                                    projectUuid={projectUuid}
+                                    views={item.data.views}
+                                    fallbackTooltip={getResourceViewsSinceWhenDescription(
+                                        item,
+                                    )}
+                                >
+                                    {item.data.views || '0'} views
+                                </ViewsCountPopover>
+                            </Text>
+                            {showDataAppVersionStatus &&
+                                isResourceViewDataAppItem(item) && (
+                                    <DataAppBuildStatus
+                                        latestVersionNumber={
+                                            item.data.latestVersionNumber
+                                        }
+                                        latestVersionStatus={
+                                            item.data.latestVersionStatus
+                                        }
+                                        latestReadyVersionNumber={
+                                            item.data.latestReadyVersionNumber
+                                        }
+                                    />
                                 )}
-                            >
-                                <span>{item.data.views || '0'} views</span>
-                            </Tooltip>
-                        </Text>
+                        </Group>
                     )}
                     {isSpace && item.data.parentSpaceUuid && (
                         <Group gap="xs" wrap="nowrap">
@@ -289,10 +312,7 @@ const InfiniteResourceTableColumnName = ({
                 projectUuid={projectUuid}
                 appUuid={item.data.uuid}
                 appName={appName}
-                hasReadyVersion={
-                    item.data.latestVersionStatus === 'ready' &&
-                    !!item.data.latestVersionNumber
-                }
+                hasReadyVersion={item.data.latestReadyVersionNumber !== null}
                 activateOnClosestRow
                 infoContent={
                     showResourceInfo ? (

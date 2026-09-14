@@ -1,17 +1,18 @@
 import {
+    buildPivotRowTotalKey,
     formatItemValue,
     getSubtotalKey,
     isCustomDimension,
     isDimension,
     isField,
-    isNumericItem,
     normalizePivotMatchRaw,
     type ItemsMap,
+    type GroupedPivotRowSubtotals,
     type ParametersValuesMap,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { Skeleton, Text } from '@mantine-8/core';
+import { Skeleton, Text } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
 import {
@@ -19,11 +20,13 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../../components/common/Table/Table.styles';
+import TotalCalculationErrorCell from '../../components/common/Table/TotalCalculationErrorCell';
 import {
     columnHelper,
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
+import { canHaveWarehouseTotal } from '../../utils/canHaveWarehouseTotal';
 import { getFormattedValueCell } from '../useColumns';
 
 type Args = {
@@ -37,13 +40,15 @@ type Args = {
     columnOrder: string[];
     totals?: Record<string, number>;
     totalsLoading?: boolean;
+    totalsError?: unknown;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
     subtotalsLoading?: boolean;
+    subtotalsError?: unknown;
     parameters?: ParametersValuesMap;
 };
 
 export function getGroupingValuesAndSubtotalKey(
-    info: CellContext<ResultRow, ResultRow[string]>,
+    info: Pick<CellContext<ResultRow, unknown>, 'row' | 'table'>,
 ) {
     const groupingDimensions = info.table
         .getState()
@@ -120,6 +125,30 @@ export function getSubtotalValueFromGroup(
     return subtotal[columnId] ?? undefined;
 }
 
+export function getRowSubtotalValue(
+    groupedRowSubtotals: GroupedPivotRowSubtotals | undefined,
+    subtotalGroupKey: string,
+    groupingValues: Record<string, { value: ResultValue } | undefined>,
+    metricFieldId: string | undefined,
+): number | null | undefined {
+    if (!groupedRowSubtotals || !metricFieldId) return undefined;
+
+    const subtotalRow =
+        groupedRowSubtotals[subtotalGroupKey]?.[
+            buildPivotRowTotalKey(
+                Object.entries(groupingValues).map(([fieldId, value]) => [
+                    fieldId,
+                    value?.value.raw,
+                ]),
+            )
+        ];
+    if (!subtotalRow) return undefined;
+
+    const total =
+        subtotalRow[`${metricFieldId}_any`] ?? subtotalRow[metricFieldId];
+    return typeof total === 'number' ? total : null;
+}
+
 const getImageSize = (item: ItemsMap[string] | undefined) => {
     if (isDimension(item) && item.image?.url) {
         const defaultWidth = 100;
@@ -160,8 +189,10 @@ const getDataAndColumns = ({
     columnOrder,
     totals,
     totalsLoading,
+    totalsError,
     groupedSubtotals,
     subtotalsLoading,
+    subtotalsError,
     parameters,
 }: Args): Array<TableHeader | TableColumn> => {
     // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
@@ -237,7 +268,14 @@ const getDataAndColumns = ({
                                 parameters,
                             );
                         }
-                        if (totalsLoading && isNumericItem(item)) {
+                        if (totalsError && canHaveWarehouseTotal(item)) {
+                            return (
+                                <TotalCalculationErrorCell
+                                    error={totalsError}
+                                />
+                            );
+                        }
+                        if (totalsLoading && canHaveWarehouseTotal(item)) {
                             return (
                                 <Skeleton
                                     height={16}
@@ -296,8 +334,20 @@ const getDataAndColumns = ({
 
                             if (
                                 subtotalValue === undefined &&
+                                subtotalsError &&
+                                canHaveWarehouseTotal(item)
+                            ) {
+                                return (
+                                    <TotalCalculationErrorCell
+                                        error={subtotalsError}
+                                    />
+                                );
+                            }
+
+                            if (
+                                subtotalValue === undefined &&
                                 subtotalsLoading &&
-                                isNumericItem(item)
+                                canHaveWarehouseTotal(item)
                             ) {
                                 return (
                                     <Skeleton
@@ -309,7 +359,7 @@ const getDataAndColumns = ({
                             }
 
                             return (
-                                <Text span fw={600}>
+                                <Text span inherit fw={600}>
                                     {formatItemValue(
                                         item,
                                         subtotalValue,

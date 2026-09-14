@@ -1,4 +1,5 @@
 import {
+    buildSafeDbtEnvironmentVariables,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
     SupportedDbtVersions,
@@ -23,10 +24,13 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     warehouseCredentials: CreateWarehouseCredentials;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    environmentVariableAllowlist: string[];
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    gitConfigGlobalPath?: string;
+    dbtDepsErrorHint?: string;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -38,10 +42,13 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         warehouseCredentials,
         targetName,
         environment,
+        environmentVariableAllowlist,
         cachedWarehouse,
         dbtVersion,
         selector,
         analytics,
+        gitConfigGlobalPath,
+        dbtDepsErrorHint,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = fs.mkdtempSync('/tmp/local_');
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
@@ -61,15 +68,17 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             });
         }
         writeFileSync(profilesFilename, profile);
-        const e = (environment || []).reduce<Record<string, string>>(
-            (previousValue, { key, value }) => ({
-                ...previousValue,
-                ...(key.length > 0 ? { [key]: value } : {}), // ignore empty strings
-            }),
-            {},
-        );
+        const { environment: safeEnvironment, blockedKeys } =
+            buildSafeDbtEnvironmentVariables(environment);
+        if (blockedKeys.length > 0) {
+            Logger.warn(
+                `Ignoring unsafe dbt environment variables: ${blockedKeys.join(
+                    ', ',
+                )}`,
+            );
+        }
         const updatedEnvironment = {
-            ...e,
+            ...safeEnvironment,
             ...injectedEnvironment,
         };
         super({
@@ -79,10 +88,13 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             profilesDir,
             projectDir,
             environment: updatedEnvironment,
+            environmentVariableAllowlist,
             cachedWarehouse,
             dbtVersion,
             selector,
             analytics,
+            gitConfigGlobalPath,
+            dbtDepsErrorHint,
         });
         this.profilesDir = profilesDir;
     }

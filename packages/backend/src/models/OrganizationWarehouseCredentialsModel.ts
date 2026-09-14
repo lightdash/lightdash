@@ -37,7 +37,9 @@ export class OrganizationWarehouseCredentialsModel {
     private static stringifyCredentials(
         credentials: CreateWarehouseCredentials,
     ): string {
-        return JSON.stringify(credentials);
+        // Normalize on write too, so stored blobs never hold legacy values
+        // that violate the credentials types
+        return JSON.stringify(normalizeWarehouseCredentials(credentials));
     }
 
     // eslint-disable-next-line class-methods-use-this

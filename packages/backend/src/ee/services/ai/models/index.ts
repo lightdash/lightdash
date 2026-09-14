@@ -7,29 +7,81 @@ import {
     type ByoAiProvider,
 } from '@lightdash/common';
 import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
+import type { AiKeyManagement } from '../../../../analytics/aiUsage';
+import {
+    DEFAULT_GOOGLE_FAST_MODEL_NAME,
+    DEFAULT_OPENAI_FAST_MODEL_NAME,
+} from '../../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
 import { getAnthropicModel } from './anthropic-claude';
 import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getBedrockModel } from './bedrock';
+import { getGoogleGeminiModel } from './google-gemini';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 import {
+    customGatewayPreset,
     keyGrantsModel,
     matchesPreset,
     MODEL_PRESETS,
     ModelPreset,
     ModelPresetProvider,
+    openRouterPreset,
+    SelectableModelProvider,
 } from './presets';
 import { AiModel, AiProvider } from './types';
 
 export { MODEL_PRESETS };
 
+/**
+ * Copilot config as consumed by the model builders. `byoProviders` is stamped
+ * by the resolver (OrgAiCopilotConfigResolver) listing the providers whose
+ * apiKey came from the org's own key entered in the UI; absent/empty when the
+ * org falls through to the instance config. Whether an instance key is
+ * Lightdash's is declared by Lightdash infrastructure via
+ * `lightdashManagedProviders` (AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS); any
+ * key not declared there is the customer's.
+ */
+export type CopilotConfigForModel = LightdashConfig['ai']['copilot'] & {
+    byoProviders?: ByoAiProvider[];
+};
+
+/**
+ * Who pays for the key that serves a call. A key the org entered in the UI is
+ * always the customer's. An instance key is Lightdash's only when Lightdash
+ * infrastructure has declared the provider in `lightdashManagedProviders`;
+ * otherwise (self-hosted installs, dedicated instances running on a
+ * customer's key) it is the customer's. The default therefore errs towards
+ * self-managed: a missing declaration under-reports Lightdash's spend, which
+ * the console reconciliation catches, rather than silently billing customers'
+ * usage to Lightdash.
+ */
+export const resolveKeyManagement = (
+    config: CopilotConfigForModel,
+    provider: AiProvider,
+): AiKeyManagement =>
+    !(
+        isByoAiProvider(provider) &&
+        (config.byoProviders ?? []).includes(provider)
+    ) && (config.lightdashManagedProviders ?? []).includes(provider)
+        ? 'lightdash-managed'
+        : 'self-managed';
+
+const withKeyManagement = <P extends AiProvider>(
+    modelProperties: AiModel<P>,
+    keyManagement: AiKeyManagement,
+): AiModel<P> & { keyManagement: AiKeyManagement } => ({
+    ...modelProperties,
+    keyManagement,
+});
+
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
 const FAST_MODELS: Record<ModelPresetProvider, string> = {
-    openai: 'gpt-5-mini',
+    openai: DEFAULT_OPENAI_FAST_MODEL_NAME,
     anthropic: 'claude-haiku-4-5',
+    google: DEFAULT_GOOGLE_FAST_MODEL_NAME,
     bedrock: 'claude-haiku-4-5',
 };
 
@@ -101,50 +153,94 @@ export const getDefaultModel = (
 
 export const getAvailableModels = (
     config: LightdashConfig['ai']['copilot'],
-): ModelPreset<'openai' | 'anthropic' | 'bedrock'>[] => {
+): ModelPreset<SelectableModelProvider>[] => {
     const { defaultProvider, providers } = config;
 
-    if (['azure', 'openrouter'].includes(defaultProvider)) {
+    if (defaultProvider === 'azure') {
         return [];
     }
 
-    const configuredProviders = ['openai', 'anthropic', 'bedrock'] as const;
+    const configuredProviders = [
+        'openai',
+        'anthropic',
+        'google',
+        'openrouter',
+        'bedrock',
+    ] as const;
+    return configuredProviders.flatMap<ModelPreset<SelectableModelProvider>>(
+        (provider) => {
+            const providerConfig = providers[provider];
+            if (!providerConfig) return [];
 
-    return configuredProviders.flatMap((provider) => {
-        const providerConfig = providers[provider];
-        if (!providerConfig) return [];
+            if (provider === 'openrouter') {
+                return [
+                    ...new Set([
+                        providerConfig.modelName,
+                        ...(providerConfig.availableModels ?? []),
+                    ]),
+                ].map(openRouterPreset);
+            }
 
-        const { availableModels, modelName } = providerConfig;
+            const { availableModels, modelName } = providerConfig;
 
-        const providerPresets = MODEL_PRESETS[provider];
+            const providerPresets = MODEL_PRESETS[provider];
 
-        // Filter by availableModels if specified, otherwise include all
-        const filteredPresets =
-            availableModels && availableModels.length > 0
-                ? providerPresets.filter((preset) =>
-                      availableModels.some((model) =>
-                          matchesPreset(preset, model),
-                      ),
-                  )
-                : providerPresets;
+            const allowCustomModels =
+                provider === 'openai' && !!providers.openai?.baseUrl;
 
-        return filteredPresets;
-    });
+            // Filter by availableModels if specified, otherwise include all
+            if (availableModels && availableModels.length > 0) {
+                const matchedPresets = providerPresets.filter((preset) =>
+                    availableModels.some((model) =>
+                        matchesPreset(preset, model),
+                    ),
+                );
+                const customPresets = allowCustomModels
+                    ? availableModels
+                          .filter(
+                              (model) =>
+                                  !providerPresets.some((preset) =>
+                                      matchesPreset(preset, model),
+                                  ),
+                          )
+                          .map(customGatewayPreset)
+                    : [];
+                return [...matchedPresets, ...customPresets];
+            }
+
+            // Surface the configured default model first so preset fallbacks
+            // resolve to it rather than to an arbitrary preset the gateway may
+            // not serve
+            if (
+                allowCustomModels &&
+                !providerPresets.some((preset) =>
+                    matchesPreset(preset, modelName),
+                )
+            ) {
+                return [customGatewayPreset(modelName), ...providerPresets];
+            }
+
+            return providerPresets;
+        },
+    );
 };
 
 export const presetToModelOption = (
-    preset: ModelPreset<'openai' | 'anthropic' | 'bedrock'>,
+    preset: ModelPreset<SelectableModelProvider>,
     defaultModel: { name: string; provider: string } | null,
 ): AiModelOption => ({
     name: preset.name,
+    modelId: preset.modelId,
     displayName: preset.displayName,
     description: preset.description,
     provider: preset.provider,
+    ...(preset.groupLabel ? { groupLabel: preset.groupLabel } : {}),
     default:
         defaultModel !== null &&
         preset.provider === defaultModel.provider &&
         matchesPreset(preset, defaultModel.name),
     supportsReasoning: preset.supportsReasoning,
+    deprecated: preset.deprecated ?? false,
 });
 
 export type OrgModelOverrides = {
@@ -161,9 +257,9 @@ export type OrgModelOverrides = {
  * keep working (grandfathered); they just can't be selected again.
  */
 export const filterModelsForOrg = (
-    presets: ModelPreset<'openai' | 'anthropic' | 'bedrock'>[],
+    presets: ModelPreset<SelectableModelProvider>[],
     overrides: OrgModelOverrides,
-): ModelPreset<'openai' | 'anthropic' | 'bedrock'>[] =>
+): ModelPreset<SelectableModelProvider>[] =>
     presets.filter((preset) => {
         // Only BYO-able providers can unlock hidden models or be restricted
         const byoProvider = isByoAiProvider(preset.provider)
@@ -191,7 +287,7 @@ export const filterModelsForOrg = (
         return true;
     });
 
-export const getModelPreset = <T extends 'openai' | 'anthropic' | 'bedrock'>(
+export const getModelPreset = <T extends ModelPresetProvider>(
     provider: T,
     config: LightdashConfig['ai']['copilot'],
     modelName?: string,
@@ -268,11 +364,13 @@ export const applyStreamingCapability = <P extends AiProvider>(
 };
 
 export const getModel = (
-    config: LightdashConfig['ai']['copilot'],
+    config: CopilotConfigForModel,
     options?: {
         enableReasoning?: boolean;
         modelName?: string;
         provider?: typeof config.defaultProvider;
+        /** Only server-generated immutable snapshots may pin non-preset names. */
+        trustPinnedModelName?: boolean;
         /**
          * Use a fast, cost-effective model for lightweight tasks
          * (text generation, summaries, simple structured output)
@@ -281,6 +379,7 @@ export const getModel = (
     },
 ) => {
     const provider = options?.provider ?? config.defaultProvider;
+    const keyManagement = resolveKeyManagement(config, provider);
 
     // Resolve model name: explicit > fast > default
     const resolveModelName = (
@@ -296,11 +395,14 @@ export const getModel = (
                 config,
                 resolveModelName('openai'),
             );
-            return applyStreamingCapability(
-                getOpenaiGptmodel(openaiConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                openaiConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getOpenaiGptmodel(openaiConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    openaiConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'azure': {
@@ -309,9 +411,17 @@ export const getModel = (
                 throw new ParameterError('Azure configuration is required');
             }
             // Azure doesn't use presets - uses deployment name directly
-            return applyStreamingCapability(
-                getAzureGpt41Model(azureConfig),
-                azureConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAzureGpt41Model({
+                        ...azureConfig,
+                        deploymentName: options?.trustPinnedModelName
+                            ? (options.modelName ?? azureConfig.deploymentName)
+                            : azureConfig.deploymentName,
+                    }),
+                    azureConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'anthropic': {
@@ -320,11 +430,30 @@ export const getModel = (
                 config,
                 resolveModelName('anthropic'),
             );
-            return applyStreamingCapability(
-                getAnthropicModel(anthropicConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                anthropicConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAnthropicModel(anthropicConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    anthropicConfig.supportsStreaming,
+                ),
+                keyManagement,
+            );
+        }
+        case 'google': {
+            const { config: googleConfig, preset } = getModelPreset(
+                'google',
+                config,
+                resolveModelName('google'),
+            );
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getGoogleGeminiModel(googleConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    googleConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'openrouter': {
@@ -334,23 +463,52 @@ export const getModel = (
                     'OpenRouter configuration is required',
                 );
             }
-            // OpenRouter doesn't use presets - uses model name directly
-            return applyStreamingCapability(
-                getOpenRouterModel(openrouterConfig),
-                openrouterConfig.supportsStreaming,
+            const requestedModelName = options?.modelName;
+            const configuredModelNames = new Set([
+                openrouterConfig.modelName,
+                ...(openrouterConfig.availableModels ?? []),
+            ]);
+            const canUseRequestedModel =
+                requestedModelName !== undefined &&
+                (options?.trustPinnedModelName === true ||
+                    configuredModelNames.has(requestedModelName));
+
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getOpenRouterModel({
+                        ...openrouterConfig,
+                        modelName: canUseRequestedModel
+                            ? requestedModelName
+                            : openrouterConfig.modelName,
+                    }),
+                    openrouterConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'bedrock': {
+            const requestedBedrockModel = resolveModelName('bedrock');
+            const bedrockModelName = requestedBedrockModel
+                ? (MODEL_PRESETS.bedrock.find(
+                      (preset) =>
+                          requestedBedrockModel === preset.name ||
+                          requestedBedrockModel === preset.modelId ||
+                          requestedBedrockModel.endsWith(`.${preset.modelId}`),
+                  )?.modelId ?? requestedBedrockModel)
+                : undefined;
             const { config: bedrockConfig, preset } = getModelPreset(
                 'bedrock',
                 config,
-                resolveModelName('bedrock'),
+                bedrockModelName,
             );
-            return applyStreamingCapability(
-                getBedrockModel(bedrockConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                bedrockConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getBedrockModel(bedrockConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    bedrockConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         default:
@@ -364,19 +522,25 @@ export const getModel = (
 // Otherwise fall back to the standard fast-model selection. Never resolves to a
 // provider the org didn't supply (defaultProvider is already switched upstream).
 export const getFastModelForAccessibleKey = (
-    config: LightdashConfig['ai']['copilot'],
+    config: CopilotConfigForModel,
     accessibleModelIds: string[] | null,
     options?: { enableReasoning?: boolean },
 ) => {
     const { anthropic } = config.providers;
-    if (anthropic?.apiKey) {
+    const byoProviders = config.byoProviders ?? [];
+    const anthropicAllowed =
+        byoProviders.length === 0 || byoProviders.includes('anthropic');
+    if (anthropic?.apiKey && anthropicAllowed) {
         const preset = pickAmbientAnthropicPreset(accessibleModelIds);
         if (preset) {
-            return applyStreamingCapability(
-                getAnthropicModel(anthropic, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                anthropic.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAnthropicModel(anthropic, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    anthropic.supportsStreaming,
+                ),
+                resolveKeyManagement(config, 'anthropic'),
             );
         }
     }
@@ -392,10 +556,9 @@ export const getCompactionModelMetadata = (
         modelName?: string;
         provider?: typeof config.defaultProvider;
     },
-): {
-    supportsCompaction: boolean;
-    contextWindowTokens: number | null;
-} => {
+):
+    | { supportsCompaction: true; contextWindowTokens: number }
+    | { supportsCompaction: false; contextWindowTokens: null } => {
     const provider = options?.provider ?? config.defaultProvider;
 
     if (provider === 'azure' || provider === 'openrouter') {
@@ -407,8 +570,13 @@ export const getCompactionModelMetadata = (
 
     const { preset } = getModelPreset(provider, config, options?.modelName);
 
-    return {
-        supportsCompaction: true,
-        contextWindowTokens: preset.contextWindowTokens,
-    };
+    return preset.contextWindowTokens !== null
+        ? {
+              supportsCompaction: true,
+              contextWindowTokens: preset.contextWindowTokens,
+          }
+        : {
+              supportsCompaction: false,
+              contextWindowTokens: null,
+          };
 };

@@ -1,57 +1,71 @@
 import {
     Alert,
-    Badge,
+    Box,
     Button,
     Collapse,
-    Divider,
     Group,
     Paper,
-    SimpleGrid,
     Stack,
     Text,
-    ThemeIcon,
-    Timeline,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAlertCircle,
     IconCheck,
-    IconClock,
-    IconFileSearch,
+    IconChevronDown,
     IconPlayerStop,
     IconPlugConnected,
-    IconReportSearch,
+    IconTelescope,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
-import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
-    DEEP_RESEARCH_DEPTH_CONFIG,
+    useEffect,
+    useId,
+    useState,
+    type AnchorHTMLAttributes,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { Link } from 'react-router';
+import { type StreamdownProps } from 'streamdown';
+import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { DeepResearchBetaBadge } from '../../deepResearch/DeepResearchBetaBadge';
+import {
     getDeepResearchReportPreview,
     isDeepResearchRunTerminal,
 } from '../../deepResearch/runProgress';
 import { type DeepResearchRunView } from '../../deepResearch/types';
-import { useCancelDeepResearchMutation } from '../../hooks/useDeepResearch';
-import { DeepResearchReport } from './DeepResearchReport';
+import {
+    useCancelDeepResearchMutation,
+    useTrackDeepResearchReportEngagement,
+} from '../../hooks/useDeepResearch';
 import styles from './DeepResearchRunCard.module.css';
 
-const STATUS_CONFIG: Record<
-    DeepResearchRunView['status'],
-    { label: string; color: string }
-> = {
-    queued: { label: 'Queued', color: 'gray' },
-    running: { label: 'Running', color: 'indigo' },
-    waiting_for_permission: {
-        label: 'Waiting for permission',
-        color: 'yellow',
-    },
-    waiting_for_reconnection: {
-        label: 'Waiting for reconnection',
-        color: 'yellow',
-    },
-    completed: { label: 'Completed', color: 'green' },
-    partially_completed: { label: 'Partially completed', color: 'yellow' },
-    failed: { label: 'Failed', color: 'red' },
-    cancelled: { label: 'Cancelled', color: 'gray' },
+const PreviewLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
+    children,
+}) => <span>{children as ReactNode}</span>;
+
+const PREVIEW_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
+    a: PreviewLink as unknown as NonNullable<
+        StreamdownProps['components']
+    >['a'],
+    img: () => null,
 };
+
+const STATUS_CONFIG: Record<DeepResearchRunView['status'], { label: string }> =
+    {
+        queued: { label: 'Queued' },
+        running: { label: 'Running' },
+        waiting_for_permission: {
+            label: 'Permission required',
+        },
+        waiting_for_reconnection: {
+            label: 'Reconnect required',
+        },
+        completed: { label: 'Completed' },
+        partially_completed: { label: 'Partially completed' },
+        failed: { label: 'Couldn’t complete' },
+        cancelled: { label: 'Stopped' },
+    };
 
 const getElapsedLabel = (elapsedMs: number) => {
     const elapsedSeconds = Math.floor(Math.max(0, elapsedMs) / 1_000);
@@ -98,9 +112,69 @@ const useElapsedMs = (run: DeepResearchRunView, isTerminal: boolean) => {
     return elapsed.elapsedMs;
 };
 
+export const DeepResearchRunHeading = ({
+    statusLabel,
+    elapsedLabel,
+    action,
+}: {
+    statusLabel: string;
+    elapsedLabel?: string;
+    action?: ReactNode;
+}) => (
+    <Group
+        className={styles.header}
+        justify="space-between"
+        align="center"
+        wrap="nowrap"
+    >
+        <Stack className={styles.headingGroup}>
+            <Group className={styles.runMeta} gap="xs" wrap="wrap">
+                <MantineIcon
+                    icon={IconTelescope}
+                    size={16}
+                    stroke={1.8}
+                    color="currentColor"
+                    className={styles.metaText}
+                />
+                <Group gap="xs" align="baseline" wrap="nowrap">
+                    <Text
+                        size="xs"
+                        fw={600}
+                        ff="monospace"
+                        tt="uppercase"
+                        className={styles.eyebrow}
+                    >
+                        Deep research
+                    </Text>
+                    <DeepResearchBetaBadge />
+                </Group>
+                <Box className={styles.metaSeparator} />
+                <Group className={styles.statusMeta} gap={6} wrap="nowrap">
+                    <Text size="xs" className={styles.metaText}>
+                        {statusLabel}
+                    </Text>
+                    {elapsedLabel && (
+                        <>
+                            <Text size="xs" className={styles.metaText}>
+                                ·
+                            </Text>
+                            <Text size="xs" className={styles.metaText}>
+                                {elapsedLabel}
+                            </Text>
+                        </>
+                    )}
+                </Group>
+            </Group>
+        </Stack>
+        {action}
+    </Group>
+);
+
 type Props = {
     run: DeepResearchRunView;
     projectUuid: string;
+    canRunAgain?: boolean;
+    onRunAgain?: () => void;
     onReconnect?: (integrationName?: string) => void;
     onContinueWithoutSource?: (integrationName?: string) => void;
 };
@@ -108,14 +182,20 @@ type Props = {
 export const DeepResearchRunCard = ({
     run,
     projectUuid,
+    canRunAgain = false,
+    onRunAgain,
     onReconnect,
     onContinueWithoutSource,
 }: Props) => {
     const status = STATUS_CONFIG[run.status];
     const cancelMutation = useCancelDeepResearchMutation(projectUuid, run.uuid);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
-    const [isReportOpen, setIsReportOpen] = useState(false);
+    const activityId = useId();
+    const trackReportEngagement = useTrackDeepResearchReportEngagement();
     const [announcedStatus, setAnnouncedStatus] = useState(run.status);
+    const hasNoRelevantData =
+        run.status === 'failed' && run.terminalReason === 'no_relevant_data';
+    const statusLabel = hasNoRelevantData ? 'No relevant data' : status.label;
 
     useEffect(() => {
         if (announcedStatus !== run.status) {
@@ -124,6 +204,7 @@ export const DeepResearchRunCard = ({
     }, [announcedStatus, run.status]);
 
     const hasReport = !!run.resultMarkdown;
+    const isReportExpired = run.isReportExpired;
     const isTerminal = isDeepResearchRunTerminal(run.status);
     const elapsedMs = useElapsedMs(run, isTerminal);
     const isActionRequired = !!run.actionRequired;
@@ -131,6 +212,9 @@ export const DeepResearchRunCard = ({
         isActionRequired &&
         !!run.actionRequired &&
         !!(onReconnect || onContinueWithoutSource);
+    const elapsedLabel = getElapsedLabel(elapsedMs);
+    const isCompleted = run.status === 'completed';
+    const completedStatusLabel = `${status.label} in ${elapsedLabel} · ${run.queryCount} ${run.queryCount === 1 ? 'query' : 'queries'} · ${run.findingCount} ${run.findingCount === 1 ? 'finding' : 'findings'}`;
 
     return (
         <Paper
@@ -138,101 +222,81 @@ export const DeepResearchRunCard = ({
             p="lg"
             radius="md"
             aria-label="Deep research run"
+            // Walkthrough look at the run card once the thread opens.
+            data-tour-scope="create:AiDeepResearch"
+            data-tour-look="1"
+            data-tour-after='[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"]'
+            data-tour-label="The run card stays with the question"
+            data-tour-docs="agents/deep-research.mdx#follow-progress:1"
         >
             <Stack gap="md">
-                <Group justify="space-between" align="flex-start" wrap="nowrap">
-                    <Group align="flex-start" wrap="nowrap">
-                        <ThemeIcon color="indigo" variant="light" radius="md">
-                            <MantineIcon icon={IconReportSearch} size={18} />
-                        </ThemeIcon>
-                        <Stack gap={3}>
-                            <Group gap="xs">
-                                <Text
-                                    size="xs"
-                                    c="indigo"
-                                    fw={700}
-                                    tt="uppercase"
-                                >
-                                    Deep research
-                                </Text>
-                                <Badge
-                                    size="xs"
-                                    variant="light"
-                                    color="gray"
-                                    tt="none"
-                                >
-                                    {
-                                        DEEP_RESEARCH_DEPTH_CONFIG[run.depth]
-                                            .label
-                                    }
-                                </Badge>
-                            </Group>
-                            <Text fw={600}>{run.question}</Text>
-                        </Stack>
-                    </Group>
-                    <Badge
-                        color={status.color}
-                        variant="light"
-                        style={{ flexShrink: 0 }}
-                    >
-                        {status.label}
-                    </Badge>
-                </Group>
+                <DeepResearchRunHeading
+                    statusLabel={
+                        isCompleted ? completedStatusLabel : statusLabel
+                    }
+                    elapsedLabel={
+                        run.status === 'queued' || isCompleted
+                            ? undefined
+                            : elapsedLabel
+                    }
+                    action={
+                        !isTerminal ? (
+                            <Button
+                                className={styles.stopButton}
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                leftSection={<IconPlayerStop size={14} />}
+                                loading={cancelMutation.isLoading}
+                                onClick={() => cancelMutation.mutate()}
+                            >
+                                Stop research
+                            </Button>
+                        ) : undefined
+                    }
+                />
 
                 <Text className={styles.liveRegion} aria-live="polite">
-                    Research status changed to {status.label}
+                    Research status changed to {statusLabel}
                 </Text>
 
-                <Divider />
-
                 {run.phase && !isTerminal && (
-                    <Group gap="xs" wrap="nowrap">
-                        <ThemeIcon size="sm" color="indigo" variant="light">
-                            <MantineIcon icon={IconFileSearch} size={13} />
-                        </ThemeIcon>
-                        <Text size="sm" fw={600}>
+                    <Group gap="xs" wrap="nowrap" className={styles.phase}>
+                        <Box className={styles.phaseDot} />
+                        <Text size="sm" fw={500}>
                             {run.phase}
                         </Text>
                     </Group>
                 )}
 
-                <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
-                    <Stack gap={2}>
-                        <Text size="xs" c="dimmed">
-                            Elapsed
-                        </Text>
-                        <Group gap={5}>
-                            <IconClock size={13} />
-                            <Text size="sm" ff="monospace">
-                                {getElapsedLabel(elapsedMs)}
+                {!isCompleted && (
+                    <Group className={styles.metrics} gap="md" wrap="wrap">
+                        <Group gap={5} wrap="nowrap">
+                            <Text size="xs">Queries</Text>
+                            <Text size="sm" fw={600} ff="monospace">
+                                {run.queryCount}
                             </Text>
                         </Group>
-                    </Stack>
-                    <Stack gap={2}>
-                        <Text size="xs" c="dimmed">
-                            Sources
-                        </Text>
-                        <Text size="sm" fw={600}>
-                            {run.sourceCount ?? '—'}
-                        </Text>
-                    </Stack>
-                    <Stack gap={2}>
-                        <Text size="xs" c="dimmed">
-                            Queries
-                        </Text>
-                        <Text size="sm" fw={600}>
-                            {run.queryCount}
-                        </Text>
-                    </Stack>
-                    <Stack gap={2}>
-                        <Text size="xs" c="dimmed">
-                            Findings
-                        </Text>
-                        <Text size="sm" fw={600}>
-                            {run.findingCount}
-                        </Text>
-                    </Stack>
-                </SimpleGrid>
+                        <Group gap={5} wrap="nowrap">
+                            <Text size="xs">Sources</Text>
+                            <Text size="sm" fw={600} ff="monospace">
+                                {run.sourceCount ?? '—'}
+                            </Text>
+                        </Group>
+                        <Group gap={5} wrap="nowrap">
+                            <Text size="xs">Findings</Text>
+                            <Text size="sm" fw={600} ff="monospace">
+                                {run.findingCount}
+                            </Text>
+                        </Group>
+                    </Group>
+                )}
+
+                {!isTerminal && (
+                    <Text size="xs" c="dimmed">
+                        Research continues if you leave this page.
+                    </Text>
+                )}
 
                 {canShowActionRequired && run.actionRequired && (
                     <Alert
@@ -281,76 +345,181 @@ export const DeepResearchRunCard = ({
 
                 {run.status === 'failed' && (
                     <Alert color="red" icon={<IconAlertCircle size={16} />}>
-                        <Text size="sm">
-                            {run.errorMessage ??
-                                'The investigation stopped before a report could be completed.'}
-                        </Text>
-                        <Text size="sm" mt="xs">
-                            Completed queries and partial findings remain
-                            available below. You can rerun the question after
-                            resolving the issue.
-                        </Text>
+                        <Stack gap="sm">
+                            <Text size="sm">
+                                {run.errorMessage ??
+                                    'Research stopped before the report was ready.'}
+                            </Text>
+                            {hasNoRelevantData ? (
+                                <Text size="sm">
+                                    Try refining your question or choosing data
+                                    that covers the topic.
+                                </Text>
+                            ) : (
+                                <>
+                                    <Text size="sm">
+                                        Any completed queries and findings are
+                                        saved below.
+                                    </Text>
+                                    <Text size="sm">
+                                        Starting over creates a new research
+                                        run. Previous queries won&apos;t be
+                                        reused.
+                                    </Text>
+                                </>
+                            )}
+                            {canRunAgain && onRunAgain && (
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    w="fit-content"
+                                    onClick={onRunAgain}
+                                >
+                                    Start over
+                                </Button>
+                            )}
+                        </Stack>
                     </Alert>
                 )}
 
-                {run.status === 'partially_completed' && (
+                {run.status === 'partially_completed' && !isReportExpired && (
                     <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
-                        The report is incomplete, but all validated findings and
-                        completed queries have been preserved.
+                        This report is incomplete. Completed queries and
+                        available findings are saved below.
                     </Alert>
+                )}
+
+                {isReportExpired && (
+                    <Paper variant="dotted" p="md" radius="sm">
+                        <Stack gap="xs">
+                            <Text size="sm" fw={600}>
+                                This report is no longer available.
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                                Deep Research reports are available for 30 days.
+                            </Text>
+                            <Text size="sm">{run.question}</Text>
+                            {run.completedAt && (
+                                <Text size="xs" c="dimmed">
+                                    Completed{' '}
+                                    {new Date(
+                                        run.completedAt,
+                                    ).toLocaleDateString()}
+                                </Text>
+                            )}
+                            <Button
+                                size="xs"
+                                w="fit-content"
+                                disabled={!canRunAgain || !onRunAgain}
+                                onClick={onRunAgain}
+                            >
+                                Run research again
+                            </Button>
+                        </Stack>
+                    </Paper>
                 )}
 
                 {hasReport && (
-                    <Paper className={styles.answer} p="md" radius="sm">
-                        <Stack gap="xs">
+                    <Paper className={styles.answer} p="lg" radius="sm">
+                        <Stack gap="md">
                             <Group gap="xs">
                                 <MantineIcon
                                     icon={IconCheck}
                                     size={16}
-                                    color="green.6"
+                                    color="dimmed"
                                 />
-                                <Text size="sm" fw={700}>
-                                    Executive answer
+                                <Text size="sm" fw={600}>
+                                    Research summary
                                 </Text>
                             </Group>
-                            <Text size="sm" lineClamp={5}>
-                                {run.resultMarkdown
-                                    ? getDeepResearchReportPreview(
-                                          run.resultMarkdown,
-                                      )
-                                    : null}
-                            </Text>
+                            {run.resultMarkdown && (
+                                <AiMarkdown
+                                    className={styles.answerPreview}
+                                    components={PREVIEW_MARKDOWN_COMPONENTS}
+                                >
+                                    {getDeepResearchReportPreview(
+                                        run.resultMarkdown,
+                                    )}
+                                </AiMarkdown>
+                            )}
                             <Button
-                                variant="light"
+                                component={Link}
+                                to={`/projects/${run.projectUuid}/ai-agents/deep-research/${run.uuid}`}
+                                color="ldDark"
                                 size="xs"
                                 w="fit-content"
-                                onClick={() => setIsReportOpen(true)}
+                                // Anchor for scope walkthroughs (data-tour-via)
+                                data-tour-anchor="research-report-open"
+                                data-tour-hint="Open the full report"
+                                onClick={() => {
+                                    if (
+                                        run.status === 'completed' ||
+                                        run.status === 'partially_completed' ||
+                                        run.status === 'failed' ||
+                                        run.status === 'cancelled'
+                                    ) {
+                                        trackReportEngagement('opened', {
+                                            aiDeepResearchRunUuid: run.uuid,
+                                            projectUuid: run.projectUuid,
+                                            agentUuid: run.agentUuid,
+                                            aiThreadUuid: run.threadUuid,
+                                            status: run.status,
+                                            completedAt: run.completedAt,
+                                            updatedAt: run.updatedAt,
+                                        });
+                                    }
+                                }}
                             >
-                                Open full report
+                                View full report
                             </Button>
                         </Stack>
                     </Paper>
                 )}
 
                 {run.latestEvents.length > 0 && (
-                    <>
+                    <Stack
+                        gap="md"
+                        className={styles.activitySection}
+                        data-active={!isTerminal}
+                    >
                         <Button
-                            variant="subtle"
+                            className={styles.activityButton}
+                            variant="transparent"
+                            color="gray"
                             size="xs"
                             w="fit-content"
+                            px={0}
+                            rightSection={
+                                <MantineIcon
+                                    icon={IconChevronDown}
+                                    size={13}
+                                    className={styles.activityChevron}
+                                    data-open={isActivityOpen}
+                                />
+                            }
                             onClick={() => setIsActivityOpen((open) => !open)}
                             aria-expanded={isActivityOpen}
+                            aria-controls={activityId}
                         >
                             {isActivityOpen ? 'Hide activity' : 'View activity'}
                         </Button>
-                        <Collapse in={isActivityOpen}>
-                            <Timeline bulletSize={16} lineWidth={1}>
-                                {run.latestEvents.map((event) => (
-                                    <Timeline.Item
+                        <Collapse id={activityId} expanded={isActivityOpen}>
+                            <Box
+                                component="ul"
+                                className={styles.timeline}
+                                aria-label="Research activity"
+                            >
+                                {run.latestEvents.map((event, index) => (
+                                    <Box
+                                        component="li"
                                         key={event.uuid}
-                                        title={event.label}
+                                        className={styles.timelineItem}
+                                        data-current={
+                                            (isTerminal && index === 0) ||
+                                            undefined
+                                        }
                                     >
-                                        <Text size="xs" c="dimmed">
+                                        <Text className={styles.eventTime}>
                                             {new Date(
                                                 event.createdAt,
                                             ).toLocaleTimeString([], {
@@ -358,41 +527,17 @@ export const DeepResearchRunCard = ({
                                                 minute: '2-digit',
                                             })}
                                         </Text>
-                                    </Timeline.Item>
+                                        <Box className={styles.timelineNode} />
+                                        <Text className={styles.eventLabel}>
+                                            {event.label}
+                                        </Text>
+                                    </Box>
                                 ))}
-                            </Timeline>
+                            </Box>
                         </Collapse>
-                    </>
+                    </Stack>
                 )}
-
-                <Divider />
-
-                <Group justify="space-between" align="center">
-                    <Text size="xs" c="dimmed">
-                        {isTerminal
-                            ? 'This run is saved in this thread.'
-                            : 'You can leave this page while research continues.'}
-                    </Text>
-                    {!isTerminal && (
-                        <Button
-                            variant="subtle"
-                            color="red"
-                            size="xs"
-                            leftSection={<IconPlayerStop size={14} />}
-                            loading={cancelMutation.isLoading}
-                            onClick={() => cancelMutation.mutate()}
-                        >
-                            Stop research
-                        </Button>
-                    )}
-                </Group>
             </Stack>
-
-            <DeepResearchReport
-                run={run}
-                opened={isReportOpen}
-                onClose={() => setIsReportOpen(false)}
-            />
         </Paper>
     );
 };

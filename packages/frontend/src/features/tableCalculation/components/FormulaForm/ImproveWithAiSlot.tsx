@@ -1,5 +1,5 @@
 import { type Explore, type MetricQuery } from '@lightdash/common';
-import { ActionIcon, Box } from '@mantine-8/core';
+import { ActionIcon, Box } from '@mantine/core';
 import { IconArrowUp, IconSparkles, IconX } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -87,8 +87,6 @@ export const ImproveWithAiSlot: FC<Props> = ({
             rightSlot={
                 <ActionIcon
                     size="xs"
-                    variant="subtle"
-                    color="gray"
                     onClick={close}
                     aria-label="Close AI prompt"
                 >

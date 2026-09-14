@@ -8,6 +8,7 @@ import {
     getMetricOverridesWithPopInheritance,
     isCustomDimension,
     isDimension,
+    MERGE_TABLE_NAME,
     isField,
     isMetric,
     isNumericItem,
@@ -27,9 +28,8 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, Skeleton } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
-import { IconExclamationCircle } from '@tabler/icons-react';
+import { Group, Skeleton, Tooltip } from '@mantine/core';
+import { IconExclamationCircle, IconKey } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
 import { useMemo } from 'react';
@@ -49,6 +49,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
+import TotalCalculationErrorCell from '../components/common/Table/TotalCalculationErrorCell';
 import {
     columnHelper,
     type TableColumn,
@@ -64,6 +65,10 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
+import provenanceStyles from '../features/mergeQuery/components/MergeColumnProvenance.module.css';
+import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
+import { getMergeFieldProvenance } from '../features/mergeQuery/utils/getMergeFieldProvenance';
+import { canHaveWarehouseTotal } from '../utils/canHaveWarehouseTotal';
 import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
 import {
@@ -134,10 +139,7 @@ const getResultJsonCellValue = (
 ) => {
     if (!cellValue) return;
 
-    const rawJsonValue = getJsonCellValue(cellValue.value.raw);
-    if (rawJsonValue) return rawJsonValue;
-
-    return getJsonLikeString(cellValue.value.raw);
+    return getJsonCellValue(cellValue.value.raw);
 };
 
 const isBarDisplay = (
@@ -176,6 +178,10 @@ const formatBarDisplayCell = (
     const color =
         columnProperties?.[baseFieldId]?.color ??
         columnProperties?.[columnId]?.color;
+
+    const negativeColor =
+        columnProperties?.[baseFieldId]?.negativeColor ??
+        columnProperties?.[columnId]?.negativeColor;
 
     let formatted, value: number;
 
@@ -234,6 +240,7 @@ const formatBarDisplayCell = (
             min={minMax.min}
             max={minMax.max}
             color={color}
+            negativeColor={negativeColor}
         />
     );
 };
@@ -458,7 +465,7 @@ export const getValueCell = (
     }
 
     if (options?.enableJsonViewer) {
-        const jsonValue = getJsonCellValue(value) ?? getJsonLikeString(value);
+        const jsonValue = getJsonCellValue(value);
         if (jsonValue) {
             return <JsonCellPreview value={jsonValue} />;
         }
@@ -483,7 +490,7 @@ export const useColumns = (): TableColumn[] => {
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
     const {
-        activeFields,
+        activeFields: exploreActiveFields,
         query,
         queryResults,
         unpivotedQueryResults,
@@ -491,8 +498,34 @@ export const useColumns = (): TableColumn[] => {
         validQueryArgs,
         projectUuid,
     } = useExplorerQuery();
-    const resultsMetricQuery = query.data?.metricQuery;
-    const resultsFields = query.data?.fields;
+
+    // A merged result has no explore behind it, so its fields cannot be
+    // recovered from one. They arrive already described, and every one of them
+    // is active — a merge returns exactly the columns it was asked for.
+    const mergeResults = useMergeSafe()?.mergeResults ?? null;
+    const mergeSourceLabels = useMemo(() => {
+        if (!mergeResults) return {};
+
+        return Object.entries(mergeResults.fieldOrigins).reduce<
+            Record<string, string>
+        >((labels, [fieldId, origin]) => {
+            const item = mergeResults.fields[fieldId];
+            if (origin.kind === 'source' && isField(item)) {
+                labels[origin.sourceId] = item.tableLabel;
+            }
+            return labels;
+        }, {});
+    }, [mergeResults]);
+    const activeFields = useMemo(
+        () =>
+            mergeResults
+                ? new Set(mergeResults.columnOrder)
+                : exploreActiveFields,
+        [mergeResults, exploreActiveFields],
+    );
+    const resultsMetricQuery =
+        mergeResults?.metricQuery ?? query.data?.metricQuery;
+    const resultsFields = mergeResults?.fields ?? query.data?.fields;
 
     const parameters = useExplorerSelector(selectParameters);
     // Format temporal cells in the flag-gated resolved timezone (null when
@@ -508,7 +541,9 @@ export const useColumns = (): TableColumn[] => {
     // Split itemsMap into base map (rarely changes) and override layer (frequently changes)
     // This prevents full recalculation when only metricOverrides change
     const baseItemsMap = useMemo<ItemsMap | undefined>(() => {
-        if (!exploreData || hasNoActiveFields) return;
+        if (hasNoActiveFields) return;
+        if (mergeResults) return mergeResults.fields;
+        if (!exploreData) return;
 
         const baseFields = getItemMap(
             exploreData,
@@ -523,6 +558,7 @@ export const useColumns = (): TableColumn[] => {
         };
     }, [
         hasNoActiveFields,
+        mergeResults,
         resultsFields,
         exploreData,
         additionalMetrics,
@@ -612,17 +648,23 @@ export const useColumns = (): TableColumn[] => {
     // The results table has no explicit "Show column totals" setting, so the
     // `column_totals` project default decides whether the totals query runs
     const totalsEnabledByDefault = useColumnTotalsEnabledByDefault(projectUuid);
-    const { data: totals, isFetching: isCalculatingTotals } =
-        useAsyncCalculateTotal({
-            projectUuid,
-            sourceQueryUuid,
-            enabled:
-                isInitialQueryReady &&
-                !!sourceQueryUuid &&
-                hasMetricFields &&
-                totalsEnabledByDefault,
-            invalidateCache: validQueryArgs?.invalidateCache,
-        });
+    const {
+        data: totals,
+        error: totalsError,
+        isFetching: isCalculatingTotals,
+    } = useAsyncCalculateTotal({
+        projectUuid,
+        sourceQueryUuid,
+        enabled:
+            isInitialQueryReady &&
+            !!sourceQueryUuid &&
+            hasMetricFields &&
+            totalsEnabledByDefault &&
+            // Totals are recomputed from the metric query behind the source
+            // query, which a merged result does not have.
+            !mergeResults,
+        invalidateCache: validQueryArgs?.invalidateCache,
+    });
 
     return useMemo(() => {
         if (hasNoActiveFields) {
@@ -637,6 +679,15 @@ export const useColumns = (): TableColumn[] => {
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
             const fieldColors = getFieldColors(item);
+            const mergeOrigin = mergeResults?.fieldOrigins[fieldId];
+            // A merged result's dimensions are the join key; mark them so the
+            // shared columns read apart from each side's own.
+            const isMergeJoinKey =
+                !!mergeResults &&
+                isField(item) &&
+                item.table === MERGE_TABLE_NAME &&
+                isDimension(item);
+            const showTablePrefix = hasJoins || !!mergeResults;
             const column: TableColumn = columnHelper.accessor(
                 (row) => row[fieldId],
                 {
@@ -644,12 +695,34 @@ export const useColumns = (): TableColumn[] => {
                     header: () => (
                         <TableHeaderLabelContainer
                             color={fieldColors.columnHeaderColor}
+                            className={
+                                mergeResults
+                                    ? provenanceStyles.header
+                                    : undefined
+                            }
                         >
                             {isField(item) ? (
                                 <>
-                                    {hasJoins && (
+                                    {isMergeJoinKey && (
+                                        <MantineIcon
+                                            icon={IconKey}
+                                            size="sm"
+                                            color="gray.6"
+                                        />
+                                    )}
+                                    {showTablePrefix && !isMergeJoinKey && (
                                         <TableHeaderRegularLabel>
-                                            {item.tableLabel}{' '}
+                                            {mergeOrigin?.kind === 'source' ? (
+                                                <span
+                                                    className={
+                                                        provenanceStyles.source
+                                                    }
+                                                >
+                                                    {item.tableLabel}
+                                                </span>
+                                            ) : (
+                                                item.tableLabel
+                                            )}{' '}
                                         </TableHeaderRegularLabel>
                                     )}
 
@@ -696,7 +769,17 @@ export const useColumns = (): TableColumn[] => {
                                 timezone,
                             );
                         }
-                        if (isCalculatingTotals && isNumericItem(item)) {
+                        if (totalsError && canHaveWarehouseTotal(item)) {
+                            return (
+                                <TotalCalculationErrorCell
+                                    error={totalsError}
+                                />
+                            );
+                        }
+                        if (
+                            isCalculatingTotals &&
+                            canHaveWarehouseTotal(item)
+                        ) {
                             return (
                                 <Skeleton
                                     height={16}
@@ -712,6 +795,12 @@ export const useColumns = (): TableColumn[] => {
                         draggable: true,
                         frozen: false,
                         bgColor: fieldColors.bg,
+                        headerContext: mergeOrigin
+                            ? getMergeFieldProvenance(
+                                  mergeOrigin,
+                                  mergeSourceLabels,
+                              )
+                            : undefined,
                         sort: isFieldSorted
                             ? {
                                   sortIndex,
@@ -736,7 +825,6 @@ export const useColumns = (): TableColumn[] => {
                         header: () => (
                             <Group gap="two">
                                 <Tooltip
-                                    withinPortal
                                     label="This field was not found in the dbt project."
                                     position="top"
                                 >
@@ -772,9 +860,12 @@ export const useColumns = (): TableColumn[] => {
         invalidActiveItems,
         sorts,
         totals,
+        totalsError,
         isCalculatingTotals,
         exploreData,
         parameters,
         timezone,
+        mergeResults,
+        mergeSourceLabels,
     ]);
 };

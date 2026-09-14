@@ -1,15 +1,9 @@
 import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import {
-    TextInput,
-    Stack,
-    Anchor,
-    Select,
-    PasswordInput,
-} from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
+import { TextInput, Stack, Anchor, Select, PasswordInput } from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';

@@ -3,15 +3,18 @@ import {
     ExploreError,
     ExploreType,
     isExploreError,
+    type WeekDay,
 } from '@lightdash/common';
 import { generatePreAggregateExplores } from './generatePreAggregateExplores';
 
 export const enhanceExploresForPreAggregates = ({
     explores,
     enabled,
+    startOfWeek,
 }: {
     explores: (Explore | ExploreError)[];
     enabled: boolean;
+    startOfWeek: WeekDay | null;
 }): (Explore | ExploreError)[] => {
     if (!enabled) {
         return explores;
@@ -36,6 +39,7 @@ export const enhanceExploresForPreAggregates = ({
         const generatedExplores = generatePreAggregateExplores({
             compiledExplores: [explore],
             parsedPreAggregates: explore.preAggregates,
+            startOfWeek,
         });
 
         const enhancedSourceExplore =

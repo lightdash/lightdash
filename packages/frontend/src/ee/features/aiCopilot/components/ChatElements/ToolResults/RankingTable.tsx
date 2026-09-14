@@ -1,4 +1,4 @@
-import { ScrollArea, Table, Text } from '@mantine-8/core';
+import { ScrollArea, Table, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 import classes from './RankingTable.module.css';
 

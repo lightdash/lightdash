@@ -3,21 +3,8 @@ import {
     formatTimestamp,
     type ServiceAccount,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    CopyButton,
-    Group,
-    Paper,
-    Table,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
-import {
-    IconCheck,
-    IconCopy,
-    IconInfoCircle,
-    IconTrash,
-} from '@tabler/icons-react';
+import { ActionIcon, Group, Paper, Table, Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import {
     useEffect,
     useState,
@@ -25,9 +12,10 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
+import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
-import { useTableStyles } from '../../../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../../../hooks/styles/tableStyles.module.css';
 import {
     useDeleteScimToken,
     useScimTokenList,
@@ -56,7 +44,6 @@ const TokenItem: FC<{
                     </span>
                     {rotatedAt && (
                         <Tooltip
-                            withinPortal
                             position="top"
                             maw={350}
                             label={`Last rotated at ${formatTimestamp(
@@ -65,7 +52,7 @@ const TokenItem: FC<{
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
-                                color="ldGray.6"
+                                color="dimmed"
                                 size="md"
                             />
                         </Tooltip>
@@ -75,7 +62,6 @@ const TokenItem: FC<{
             <Table.Td>
                 {lastUsedAt ? (
                     <Tooltip
-                        withinPortal
                         position="top"
                         maw={350}
                         label={formatTimestamp(lastUsedAt)}
@@ -88,31 +74,17 @@ const TokenItem: FC<{
             </Table.Td>
             <Table.Td>
                 <Group gap="xs" wrap="nowrap">
-                    <Tooltip withinPortal position="top" maw={350} label={uuid}>
+                    <Tooltip position="top" maw={350} label={uuid}>
                         <Text fz="sm" className={classesModule.uuid}>
                             ...{uuid.slice(-8)}
                         </Text>
                     </Tooltip>
-                    <CopyButton value={uuid}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied' : 'Copy'}
-                                withArrow
-                                position="right"
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={copy}
-                                    variant="transparent"
-                                    color="ldGray.6"
-                                >
-                                    <MantineIcon
-                                        icon={copied ? IconCheck : IconCopy}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
+                    <CopyActionIcon
+                        value={uuid}
+                        tooltipPosition="right"
+                        size="xs"
+                        variant="transparent"
+                    />
                 </Group>
             </Table.Td>
             <Table.Td w="1%">
@@ -132,8 +104,6 @@ const TokenItem: FC<{
 export const TokensTable = () => {
     const { data } = useScimTokenList();
 
-    const { cx, classes } = useTableStyles();
-
     const [tokenToDelete, setTokenToDelete] = useState<
         ServiceAccount | undefined
     >();
@@ -147,8 +117,10 @@ export const TokensTable = () => {
 
     return (
         <>
-            <Paper withBorder style={{ overflow: 'hidden' }}>
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+            <Paper className={tableStyles.paper}>
+                <Table
+                    className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
+                >
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th className={classesModule.nameColumn}>

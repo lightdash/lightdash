@@ -1,5 +1,5 @@
 import { ContentType } from '@lightdash/common';
-import { Center, SegmentedControl, Text } from '@mantine-8/core';
+import { Center, SegmentedControl, Text } from '@mantine/core';
 import { type FC } from 'react';
 
 interface OptionProps {
@@ -43,7 +43,6 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     return (
         <SegmentedControl
             size="xs"
-            radius="md"
             value={value ?? 'all'}
             onChange={(newValue) =>
                 onChange(

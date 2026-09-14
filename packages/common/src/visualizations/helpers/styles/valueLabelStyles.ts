@@ -3,6 +3,16 @@ import { getReadableTextColor } from '../../../utils/colors';
 import { BACKGROUND, FOREGROUND } from './themeColors';
 
 /**
+ * Label positions ECharts can render. Stacked bars resolve the configured
+ * position to an `inside*` variant so a segment's label is painted on its own
+ * bar instead of underneath the segment stacked after it.
+ */
+export type EChartsLabelPosition =
+    | NonNullable<NonNullable<Series['label']>['position']>
+    | 'insideTop'
+    | 'insideRight';
+
+/**
  * Get value label styling for any chart series (line, bar, area, scatter, etc.)
  * Size: 11px
  * @param position - Label position relative to data point
@@ -10,11 +20,11 @@ import { BACKGROUND, FOREGROUND } from './themeColors';
  * @param backgroundColor - Optional series color
  */
 export const getValueLabelStyle = (
-    position: 'left' | 'right' | 'top' | 'bottom' | 'inside' | undefined,
+    position: EChartsLabelPosition | undefined,
     type: Series['type'],
     backgroundColor?: string,
 ) => {
-    const isInside = position === 'inside';
+    const isInside = position?.startsWith('inside') ?? false;
 
     const base = {
         fontSize: 11,

@@ -1,14 +1,30 @@
 import {
+    AlreadyExistsError,
+    ConflictError,
+    DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
+    generateSlug,
+    getAppDisplayName,
     NotFoundError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionLinkedApps,
+    type ExternalConnectionListItem,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
+    type ProjectType,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { AppsTableName } from '../../database/entities/apps';
+import {
+    AppsTableName,
+    type DbApp as DbDataApp,
+} from '../../database/entities/apps';
+import { SpaceTableName } from '../../database/entities/spaces';
+import {
+    normalizeCredentialUrlHref,
+    normalizeCredentialUrlOrigin,
+} from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AppExternalConnectionsTableName,
@@ -59,8 +75,11 @@ export class ExternalConnectionModel {
             projectUuid: row.project_uuid,
             organizationUuid: row.organization_uuid,
             name: row.name,
+            slug: row.slug,
             type: row.type,
             origin: row.origin,
+            allowBrowserImages: row.allow_browser_images,
+            allowDataAppBuilderLinking: row.allow_data_app_builder_linking,
             instructions: row.instructions,
             allowedPathPrefixes: row.allowed_path_prefixes,
             allowedMethods: row.allowed_methods,
@@ -72,6 +91,10 @@ export class ExternalConnectionModel {
             apiKeyName: row.api_key_name,
             apiKeyLocation: row.api_key_location,
             oauthScopes: row.oauth_scopes,
+            oauthTokenUrl: row.oauth_token_url,
+            oauthClientId: row.oauth_client_id,
+            oauthClientAuthMethod: row.oauth_client_auth_method,
+            customHeaders: row.custom_headers,
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -95,47 +118,116 @@ export class ExternalConnectionModel {
         };
     }
 
+    /**
+     * Slug uniqueness deliberately spans soft-deleted rows (no `deleted_at`
+     * filter) even though the DB index is partial — deleted connections could
+     * be restored, so their slugs stay reserved. Same house rule as charts
+     * (see generateUniqueSlugScopedToProject in utils/SlugUtils.ts).
+     */
+    private static async generateUniqueSlug(
+        trx: Knex,
+        projectUuid: string,
+        name: string,
+    ): Promise<string> {
+        const baseSlug = generateSlug(name);
+        const matchingSlugs: string[] = await trx(ExternalConnectionsTableName)
+            .where('project_uuid', projectUuid)
+            .where('slug', 'like', `${baseSlug}%`)
+            .pluck('slug');
+        let slug = baseSlug;
+        let inc = 0;
+        while (matchingSlugs.includes(slug)) {
+            inc += 1;
+            slug = `${baseSlug}-${inc}`;
+        }
+        return slug;
+    }
+
+    /**
+     * `options.slug` forces an exact slug (content-as-code create); without it
+     * a unique slug is generated from the name. Forced-slug inserts are
+     * race-safe via the partial unique index — a losing concurrent insert
+     * surfaces as AlreadyExistsError instead of a duplicate row.
+     */
     async create(
         projectUuid: string,
         organizationUuid: string,
         userUuid: string,
         data: CreateExternalConnection,
+        options?: { slug?: string },
     ): Promise<ExternalConnection> {
         return this.database.transaction(async (trx) => {
-            const [row] = await trx(ExternalConnectionsTableName)
-                .insert({
-                    project_uuid: projectUuid,
-                    organization_uuid: organizationUuid,
-                    name: data.name,
-                    type: data.type,
-                    origin: data.origin,
-                    instructions: data.instructions ?? null,
-                    allowed_path_prefixes: JSON.stringify(
-                        data.allowedPathPrefixes,
-                    ),
-                    allowed_methods: JSON.stringify(data.allowedMethods),
-                    allowed_content_types: JSON.stringify(
-                        data.allowedContentTypes,
-                    ),
-                    response_max_bytes:
-                        data.responseMaxBytes ??
-                        EXTERNAL_CONNECTION_DEFAULTS.responseMaxBytes,
-                    request_max_bytes:
-                        data.requestMaxBytes ??
-                        EXTERNAL_CONNECTION_DEFAULTS.requestMaxBytes,
-                    timeout_ms:
-                        data.timeoutMs ??
-                        EXTERNAL_CONNECTION_DEFAULTS.timeoutMs,
-                    rate_limit_per_minute: data.rateLimitPerMinute ?? null,
-                    api_key_name: data.apiKeyName ?? null,
-                    api_key_location: data.apiKeyLocation ?? null,
-                    oauth_scopes: data.oauthScopes?.length
-                        ? JSON.stringify(data.oauthScopes)
-                        : null,
-                    created_by_user_uuid: userUuid,
-                    updated_by_user_uuid: userUuid,
-                })
-                .returning('*');
+            const slug =
+                options?.slug ??
+                (await ExternalConnectionModel.generateUniqueSlug(
+                    trx,
+                    projectUuid,
+                    data.name,
+                ));
+            let row: DbExternalConnection;
+            try {
+                [row] = await trx(ExternalConnectionsTableName)
+                    .insert({
+                        project_uuid: projectUuid,
+                        organization_uuid: organizationUuid,
+                        name: data.name,
+                        slug,
+                        type: data.type,
+                        origin: data.origin,
+                        allow_browser_images: data.allowBrowserImages ?? false,
+                        allow_data_app_builder_linking:
+                            data.allowDataAppBuilderLinking ?? false,
+                        instructions: data.instructions ?? null,
+                        allowed_path_prefixes: JSON.stringify(
+                            data.allowedPathPrefixes,
+                        ),
+                        allowed_methods: JSON.stringify(data.allowedMethods),
+                        allowed_content_types: JSON.stringify(
+                            data.allowedContentTypes,
+                        ),
+                        response_max_bytes:
+                            data.responseMaxBytes ??
+                            EXTERNAL_CONNECTION_DEFAULTS.responseMaxBytes,
+                        request_max_bytes:
+                            data.requestMaxBytes ??
+                            EXTERNAL_CONNECTION_DEFAULTS.requestMaxBytes,
+                        timeout_ms:
+                            data.timeoutMs ??
+                            EXTERNAL_CONNECTION_DEFAULTS.timeoutMs,
+                        rate_limit_per_minute: data.rateLimitPerMinute ?? null,
+                        api_key_name: data.apiKeyName ?? null,
+                        api_key_location: data.apiKeyLocation ?? null,
+                        oauth_scopes: data.oauthScopes?.length
+                            ? JSON.stringify(data.oauthScopes)
+                            : null,
+                        oauth_token_url: data.oauthTokenUrl ?? null,
+                        oauth_client_id: data.oauthClientId ?? null,
+                        oauth_client_auth_method:
+                            data.oauthClientAuthMethod ?? null,
+                        custom_headers:
+                            data.customHeaders &&
+                            Object.keys(data.customHeaders).length
+                                ? JSON.stringify(data.customHeaders)
+                                : null,
+                        created_by_user_uuid: userUuid,
+                        updated_by_user_uuid: userUuid,
+                    })
+                    .returning('*');
+            } catch (e) {
+                if (
+                    e instanceof Error &&
+                    'code' in e &&
+                    e.code === '23505' &&
+                    'constraint' in e &&
+                    e.constraint ===
+                        'external_connections_project_uuid_slug_unique'
+                ) {
+                    throw new AlreadyExistsError(
+                        `An external connection with slug "${slug}" already exists in this project`,
+                    );
+                }
+                throw e;
+            }
 
             // Never store a secret for a no-auth connection, even if one is
             // supplied — it could only ever be dead weight or a leak risk.
@@ -182,8 +274,15 @@ export class ExternalConnectionModel {
                         project_uuid: targetProjectUuid,
                         organization_uuid: src.organization_uuid,
                         name: src.name,
+                        // Clones keep the source slug: the target preview
+                        // project starts with no connections, so per-project
+                        // uniqueness holds.
+                        slug: src.slug,
                         type: src.type,
                         origin: src.origin,
+                        allow_browser_images: src.allow_browser_images,
+                        allow_data_app_builder_linking:
+                            src.allow_data_app_builder_linking,
                         instructions: src.instructions,
                         allowed_path_prefixes: JSON.stringify(
                             src.allowed_path_prefixes,
@@ -200,6 +299,12 @@ export class ExternalConnectionModel {
                         api_key_location: src.api_key_location,
                         oauth_scopes: src.oauth_scopes
                             ? JSON.stringify(src.oauth_scopes)
+                            : null,
+                        oauth_token_url: src.oauth_token_url,
+                        oauth_client_id: src.oauth_client_id,
+                        oauth_client_auth_method: src.oauth_client_auth_method,
+                        custom_headers: src.custom_headers
+                            ? JSON.stringify(src.custom_headers)
                             : null,
                         created_by_user_uuid: src.created_by_user_uuid,
                         updated_by_user_uuid: src.updated_by_user_uuid,
@@ -253,12 +358,54 @@ export class ExternalConnectionModel {
     async list(
         projectUuid: string,
         organizationUuid: string,
-    ): Promise<ExternalConnection[]> {
+    ): Promise<ExternalConnectionListItem[]> {
+        const linkedDataAppCounts = this.database(
+            AppExternalConnectionsTableName,
+        )
+            .select(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+                // Chart types can link connections too — count them apart so
+                // the "linked apps" column doesn't lump them in as data apps.
+                this.database.raw(
+                    'COUNT(DISTINCT ??) FILTER (WHERE ??.template IS DISTINCT FROM ?) AS ??',
+                    [
+                        `${AppsTableName}.app_id`,
+                        AppsTableName,
+                        DATA_APP_VIZ_TEMPLATE,
+                        'linked_data_app_count',
+                    ],
+                ),
+                this.database.raw(
+                    'COUNT(DISTINCT ??) FILTER (WHERE ??.template = ?) AS ??',
+                    [
+                        `${AppsTableName}.app_id`,
+                        AppsTableName,
+                        DATA_APP_VIZ_TEMPLATE,
+                        'linked_chart_type_count',
+                    ],
+                ),
+            )
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppExternalConnectionsTableName}.app_id`,
+            )
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .groupBy(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .as('linked_data_app_counts');
+
         const rows = await this.database(ExternalConnectionsTableName)
             .leftJoin(
                 ExternalConnectionSecretsTableName,
                 `${ExternalConnectionSecretsTableName}.external_connection_uuid`,
                 `${ExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .leftJoin(
+                linkedDataAppCounts,
+                `${ExternalConnectionsTableName}.external_connection_uuid`,
+                'linked_data_app_counts.external_connection_uuid',
             )
             .where(`${ExternalConnectionsTableName}.project_uuid`, projectUuid)
             .where(
@@ -269,19 +416,115 @@ export class ExternalConnectionModel {
             .orderBy(`${ExternalConnectionsTableName}.created_at`, 'desc')
             .select<
                 Array<
-                    DbExternalConnection & { encrypted_payload: Buffer | null }
+                    DbExternalConnection & {
+                        encrypted_payload: Buffer | null;
+                        linked_data_app_count: string;
+                        linked_chart_type_count: string;
+                    }
                 >
             >(
                 `${ExternalConnectionsTableName}.*`,
                 `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+                this.database.raw('COALESCE(??, 0) AS ??', [
+                    'linked_data_app_counts.linked_data_app_count',
+                    'linked_data_app_count',
+                ]),
+                this.database.raw('COALESCE(??, 0) AS ??', [
+                    'linked_data_app_counts.linked_chart_type_count',
+                    'linked_chart_type_count',
+                ]),
             );
 
-        return rows.map((row) =>
-            ExternalConnectionModel.mapToExternalConnection(
+        return rows.map((row) => ({
+            ...ExternalConnectionModel.mapToExternalConnection(
                 row,
                 row.encrypted_payload !== null,
             ),
-        );
+            linkedDataAppCount: Number(row.linked_data_app_count),
+            linkedChartTypeCount: Number(row.linked_chart_type_count),
+        }));
+    }
+
+    async listLinkedApps(
+        externalConnectionUuid: string,
+    ): Promise<ExternalConnectionLinkedApps> {
+        const rows = await this.database(AppExternalConnectionsTableName)
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppExternalConnectionsTableName}.app_id`,
+            )
+            .leftJoin(SpaceTableName, function spaceJoin() {
+                void this.on(
+                    `${SpaceTableName}.space_uuid`,
+                    '=',
+                    `${AppsTableName}.space_uuid`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
+            .where(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+                externalConnectionUuid,
+            )
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                Array<{
+                    app_id: string;
+                    name: string;
+                    slug: string;
+                    template: DbDataApp['template'];
+                    space_uuid: string | null;
+                    space_name: string | null;
+                    alias: string;
+                }>
+            >(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.name`,
+                `${AppsTableName}.slug`,
+                `${AppsTableName}.template`,
+                `${AppsTableName}.space_uuid`,
+                `${SpaceTableName}.name as space_name`,
+                `${AppExternalConnectionsTableName}.alias`,
+            )
+            .orderBy(`${AppsTableName}.name`, 'asc')
+            .orderBy(`${AppExternalConnectionsTableName}.alias`, 'asc');
+
+        const linkedApps = new Map<
+            string,
+            ExternalConnectionLinkedApps['items'][number]
+        >();
+
+        rows.forEach((row) => {
+            const existing = linkedApps.get(row.app_id);
+            if (existing) {
+                existing.aliases.push(row.alias);
+                return;
+            }
+
+            linkedApps.set(row.app_id, {
+                appUuid: row.app_id,
+                name: row.name,
+                slug: row.slug,
+                kind:
+                    row.template === DATA_APP_VIZ_TEMPLATE
+                        ? 'project_chart_type'
+                        : 'data_app',
+                spaceUuid: row.space_uuid,
+                spaceName: row.space_name,
+                aliases: [row.alias],
+            });
+        });
+
+        const items = [...linkedApps.values()].sort((left, right) => {
+            if (left.kind !== right.kind) {
+                return left.kind === 'data_app' ? -1 : 1;
+            }
+
+            return getAppDisplayName(left.name, left.appUuid).localeCompare(
+                getAppDisplayName(right.name, right.appUuid),
+            );
+        });
+
+        return { items, total: items.length };
     }
 
     /**
@@ -305,6 +548,42 @@ export class ExternalConnectionModel {
         return row?.organization_uuid ?? null;
     }
 
+    async findProjectAbilityContext(projectUuid: string): Promise<{
+        organizationUuid: string;
+        projectType: ProjectType;
+        projectCreatedByUserUuid: string | null;
+        upstreamProjectUuid: string | null;
+    } | null> {
+        const row = await this.database('projects')
+            .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .first<
+                | {
+                      organization_uuid: string;
+                      project_type: ProjectType;
+                      created_by_user_uuid: string | null;
+                      copied_from_project_uuid: string | null;
+                  }
+                | undefined
+            >(
+                'organizations.organization_uuid',
+                'projects.project_type',
+                'projects.created_by_user_uuid',
+                'projects.copied_from_project_uuid',
+            );
+        if (!row) return null;
+        return {
+            organizationUuid: row.organization_uuid,
+            projectType: row.project_type,
+            projectCreatedByUserUuid: row.created_by_user_uuid,
+            upstreamProjectUuid: row.copied_from_project_uuid,
+        };
+    }
+
     /** Strips the secret — returns the READ shape only. */
     async findByUuid(uuid: string): Promise<ExternalConnection | undefined> {
         const row = await this.database(ExternalConnectionsTableName)
@@ -317,6 +596,42 @@ export class ExternalConnectionModel {
                 `${ExternalConnectionsTableName}.external_connection_uuid`,
                 uuid,
             )
+            .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
+            .first<
+                | (DbExternalConnection & { encrypted_payload: Buffer | null })
+                | undefined
+            >(
+                `${ExternalConnectionsTableName}.*`,
+                `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+            );
+
+        if (!row) {
+            return undefined;
+        }
+        return ExternalConnectionModel.mapToExternalConnection(
+            row,
+            row.encrypted_payload !== null,
+        );
+    }
+
+    /** Strips the secret — returns the READ shape only. Live rows only. */
+    async findBySlug(
+        projectUuid: string,
+        organizationUuid: string,
+        slug: string,
+    ): Promise<ExternalConnection | undefined> {
+        const row = await this.database(ExternalConnectionsTableName)
+            .leftJoin(
+                ExternalConnectionSecretsTableName,
+                `${ExternalConnectionSecretsTableName}.external_connection_uuid`,
+                `${ExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .where(`${ExternalConnectionsTableName}.project_uuid`, projectUuid)
+            .where(
+                `${ExternalConnectionsTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${ExternalConnectionsTableName}.slug`, slug)
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
             .first<
                 | (DbExternalConnection & { encrypted_payload: Buffer | null })
@@ -382,6 +697,11 @@ export class ExternalConnectionModel {
             if (data.name !== undefined) updatePayload.name = data.name;
             if (data.type !== undefined) updatePayload.type = data.type;
             if (data.origin !== undefined) updatePayload.origin = data.origin;
+            if (data.allowBrowserImages !== undefined)
+                updatePayload.allow_browser_images = data.allowBrowserImages;
+            if (data.allowDataAppBuilderLinking !== undefined)
+                updatePayload.allow_data_app_builder_linking =
+                    data.allowDataAppBuilderLinking;
             if (data.instructions !== undefined)
                 updatePayload.instructions = data.instructions;
             if (data.allowedPathPrefixes !== undefined)
@@ -412,23 +732,53 @@ export class ExternalConnectionModel {
                 updatePayload.oauth_scopes = data.oauthScopes?.length
                     ? JSON.stringify(data.oauthScopes)
                     : null;
+            if (data.oauthTokenUrl !== undefined)
+                updatePayload.oauth_token_url = data.oauthTokenUrl;
+            if (data.oauthClientId !== undefined)
+                updatePayload.oauth_client_id = data.oauthClientId;
+            if (data.oauthClientAuthMethod !== undefined)
+                updatePayload.oauth_client_auth_method =
+                    data.oauthClientAuthMethod;
+            if (data.customHeaders !== undefined)
+                updatePayload.custom_headers =
+                    data.customHeaders && Object.keys(data.customHeaders).length
+                        ? JSON.stringify(data.customHeaders)
+                        : null;
 
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .update(updatePayload);
 
             // Secret tri-state: `null` clears it, a non-empty string sets it,
-            // and undefined/blank leaves it unchanged. Switching to type
-            // 'none', or changing the auth type without supplying a new secret,
-            // also clears any stored secret so an old credential can never be
-            // reused by (or leaked through) the new auth method.
+            // and undefined/blank leaves it unchanged unless the credential's
+            // auth type or credential destination changes.
             const resultingType = data.type ?? existing.type;
             const typeChanged =
                 data.type !== undefined && data.type !== existing.type;
+            const originChanged =
+                data.origin !== undefined &&
+                normalizeCredentialUrlOrigin(data.origin) !==
+                    normalizeCredentialUrlOrigin(existing.origin);
+            const keepsOAuthClientCredentialsType =
+                existing.type === 'oauth_client_credentials' &&
+                resultingType === 'oauth_client_credentials';
+            const oauthTokenUrlChanged =
+                keepsOAuthClientCredentialsType &&
+                data.oauthTokenUrl !== undefined &&
+                normalizeCredentialUrlHref(data.oauthTokenUrl ?? '') !==
+                    normalizeCredentialUrlHref(existing.oauth_token_url ?? '');
+            const oauthClientIdChanged =
+                keepsOAuthClientCredentialsType &&
+                data.oauthClientId !== undefined &&
+                data.oauthClientId !== existing.oauth_client_id;
             if (
                 resultingType === 'none' ||
                 data.secret === null ||
-                (typeChanged && !data.secret)
+                ((typeChanged ||
+                    originChanged ||
+                    oauthTokenUrlChanged ||
+                    oauthClientIdChanged) &&
+                    !data.secret)
             ) {
                 await ExternalConnectionModel.deleteSecret(trx, uuid);
             } else if (data.secret) {
@@ -594,15 +944,71 @@ export class ExternalConnectionModel {
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
-        // Idempotent: re-linking the same alias (e.g. on iteration) is a no-op.
-        await this.database(AppExternalConnectionsTableName)
+        const inserted = await this.database(AppExternalConnectionsTableName)
             .insert({
                 app_id: appId,
                 external_connection_uuid: externalConnectionUuid,
                 alias,
             })
             .onConflict(['app_id', 'alias'])
-            .ignore();
+            .ignore()
+            .returning('external_connection_uuid');
+
+        if (inserted.length > 0) return;
+
+        const existing = await this.database(AppExternalConnectionsTableName)
+            .where('app_id', appId)
+            .where('alias', alias)
+            .first<{ external_connection_uuid: string } | undefined>(
+                'external_connection_uuid',
+            );
+
+        // Preserve idempotency for retries of the same link, but never report
+        // success when this alias points at a different connection.
+        if (existing?.external_connection_uuid === externalConnectionUuid) {
+            return;
+        }
+
+        throw new ConflictError(
+            `Alias "${alias}" is already linked to another external connection for this app`,
+        );
+    }
+
+    /**
+     * Reconciles an app's links to exactly match `links`: removes links whose
+     * alias is absent, and upserts the rest — repointing an existing alias to
+     * a different connection, unlike `linkToApp`'s conflict-ignore.
+     */
+    async replaceAppLinks(
+        appId: string,
+        links: Array<{ externalConnectionUuid: string; alias: string }>,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(AppExternalConnectionsTableName)
+                .where('app_id', appId)
+                .modify((query) => {
+                    if (links.length > 0) {
+                        void query.whereNotIn(
+                            'alias',
+                            links.map((link) => link.alias),
+                        );
+                    }
+                })
+                .delete();
+            if (links.length > 0) {
+                await trx(AppExternalConnectionsTableName)
+                    .insert(
+                        links.map((link) => ({
+                            app_id: appId,
+                            external_connection_uuid:
+                                link.externalConnectionUuid,
+                            alias: link.alias,
+                        })),
+                    )
+                    .onConflict(['app_id', 'alias'])
+                    .merge(['external_connection_uuid']);
+            }
+        });
     }
 
     async unlinkFromApp(appId: string, alias: string): Promise<void> {
@@ -651,6 +1057,28 @@ export class ExternalConnectionModel {
                 row.encrypted_payload !== null,
             ),
         }));
+    }
+
+    /**
+     * Exact public HTTPS origins a linked app may use in browser image tags.
+     * Authentication is deliberately excluded: browser requests bypass the
+     * external-fetch proxy and therefore cannot safely carry stored secrets.
+     */
+    async getBrowserImageOrigins(appId: string): Promise<string[]> {
+        const origins = await this.database(AppExternalConnectionsTableName)
+            .innerJoin(
+                ExternalConnectionsTableName,
+                `${ExternalConnectionsTableName}.external_connection_uuid`,
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .where(`${AppExternalConnectionsTableName}.app_id`, appId)
+            .where(`${ExternalConnectionsTableName}.allow_browser_images`, true)
+            .where(`${ExternalConnectionsTableName}.type`, 'none')
+            .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
+            .distinct<string[]>(`${ExternalConnectionsTableName}.origin`)
+            .pluck(`${ExternalConnectionsTableName}.origin`);
+
+        return origins.sort();
     }
 
     /** Returns the connection if it is linked to the app under `alias` and not soft-deleted. */

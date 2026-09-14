@@ -146,6 +146,57 @@ describe('content as code terminal output', () => {
         vi.restoreAllMocks();
     });
 
+    it('pauses the spinner around a prompt and resumes with progress text', async () => {
+        const originalIsTTY = process.stderr.isTTY;
+        Object.defineProperty(process.stderr, 'isTTY', {
+            configurable: true,
+            value: true,
+        });
+        vi.stubEnv('CI', 'false');
+        vi.stubEnv('TERM', 'xterm');
+        vi.stubEnv('NO_UNICODE', 'false');
+        const spinner = {
+            text: '',
+            start: vi.fn(),
+            succeed: vi.fn(),
+            warn: vi.fn(),
+            stop: vi.fn(),
+            fail: vi.fn(),
+        };
+        vi.spyOn(GlobalState, 'startSpinner').mockReturnValue(spinner as never);
+
+        const output = createContentAsCodeOutput({
+            operation: 'upload',
+            scope: 'project',
+        });
+        output.startItem('Data apps');
+
+        // The spinner must be stopped BEFORE the prompt runs (a spinning
+        // repaint hides the prompt and the command looks hung).
+        const answer = await output.promptWhilePaused(() => {
+            expect(spinner.stop).toHaveBeenCalledOnce();
+            expect(spinner.start).not.toHaveBeenCalled();
+            return Promise.resolve('yes');
+        });
+
+        expect(answer).toBe('yes');
+        expect(spinner.start).toHaveBeenCalledOnce();
+        expect(String(spinner.start.mock.calls[0][0])).toContain('Data apps');
+
+        // A rejecting prompt still resumes the spinner.
+        await expect(
+            output.promptWhilePaused(() => Promise.reject(new Error('nope'))),
+        ).rejects.toThrow('nope');
+        expect(spinner.start).toHaveBeenCalledTimes(2);
+
+        Object.defineProperty(process.stderr, 'isTTY', {
+            configurable: true,
+            value: originalIsTTY,
+        });
+        vi.unstubAllEnvs();
+        vi.restoreAllMocks();
+    });
+
     it('updates the active tree item with resource progress', () => {
         const originalIsTTY = process.stderr.isTTY;
         Object.defineProperty(process.stderr, 'isTTY', {

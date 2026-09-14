@@ -1,26 +1,41 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Anchor, Stack, Text, Title } from '@mantine-8/core';
-import { useMemo, type FC } from 'react';
+import { Stack, Text, Title } from '@mantine/core';
+import {
+    useMemo,
+    type FC,
+    type PropsWithChildren,
+    type ReactNode,
+} from 'react';
 import {
     matchPath,
     Navigate,
     useLocation,
-    useParams,
     useRoutes,
     type RouteObject,
 } from 'react-router';
+import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { ContentReviewSettingsPanel } from '../../ee/features/contentReview';
+import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
+import ContentReviewPage from '../../features/contentAsCode/components/ContentReviewPage';
+import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import {
+    SettingsPage,
+    SettingsPageContainer,
+    SettingsPageDocumentationLink,
+} from '../common/Settings/SettingsPage';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CompilationHistory from '../CompilationHistory';
 import { DataOps } from '../DataOps';
@@ -33,7 +48,9 @@ import ProjectAppearance from '../ProjectAppearance/ProjectAppearance';
 import { UpdateProjectConnection } from '../ProjectConnection';
 import ProjectParameters from '../ProjectParameters';
 import ProjectPreviewExpiration from '../ProjectPreviewExpiration';
+import ProjectResultsCache from '../ProjectResultsCache';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
+import SettingsAgentDataScope from '../SettingsAgentDataScope';
 import SettingsQueryTimezone from '../SettingsQueryTimezone';
 import SettingsScheduler from '../SettingsScheduler';
 import SettingsUsageAnalytics from '../SettingsUsageAnalytics';
@@ -43,10 +60,27 @@ import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 import DataAppConnectionsPanel from './DataAppConnectionsPanel';
 import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
 
-const ProjectSettings: FC = () => {
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+type ProjectSettingsPageProps = PropsWithChildren<{
+    title: string;
+    description: string;
+    actions?: ReactNode;
+}>;
+
+const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
+    title,
+    description,
+    actions,
+    children,
+}) => (
+    <SettingsPage title={title} description={description} actions={actions}>
+        {children}
+    </SettingsPage>
+);
+
+const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
+    externalSourcesEnabled,
+}) => {
+    const projectUuid = useProjectUuid();
     const location = useLocation();
 
     const { health, user } = useApp();
@@ -55,6 +89,11 @@ const ProjectSettings: FC = () => {
     const { data: organization } = useOrganization();
 
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    const isAiCopilotEnabledOrTrial =
+        aiOrganizationSettingsQuery.isSuccess &&
+        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
+            aiOrganizationSettingsQuery.data.isTrial);
     const isPgWireEnabled = organization?.pgWire?.enabled ?? false;
     // Only relevant when the project's code lives in a Git provider, since the
     // section lists PRs opened against that repo.
@@ -62,6 +101,9 @@ const ProjectSettings: FC = () => {
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageExternalConnections =
         isDataAppsEnabled &&
@@ -75,6 +117,31 @@ const ProjectSettings: FC = () => {
         ) ??
             false);
 
+    const canManageExternalSources =
+        externalSourcesEnabled &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('ExternalSource', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
+    const contentReviewAvailability = useContentReviewAvailability();
+    const canViewContentReviewSettings =
+        contentReviewAvailability.isAvailable &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
             return [];
@@ -82,29 +149,92 @@ const ProjectSettings: FC = () => {
         return [
             {
                 path: `/settings`,
-                element: <UpdateProjectConnection projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Connection settings"
+                        description="Manage this project's warehouse and semantic layer connections."
+                    >
+                        <UpdateProjectConnection projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/tablesConfiguration`,
                 element: (
-                    <ProjectTablesConfiguration projectUuid={projectUuid} />
+                    <ProjectSettingsPage
+                        title="Tables configuration"
+                        description="Choose which dbt models are available in this project."
+                    >
+                        <ProjectTablesConfiguration projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
                 ),
             },
             {
                 path: `/projectAccess`,
-                element: <ProjectUserAccess projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Project access"
+                        description="Manage who can access this project and what they can do."
+                        actions={
+                            <SettingsPageDocumentationLink
+                                href="https://docs.lightdash.com/references/roles"
+                                label="Roles documentation"
+                            />
+                        }
+                    >
+                        <ProjectUserAccess projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/appearance`,
-                element: <ProjectAppearance projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Appearance"
+                        description="Customize colors and chart styling for this project."
+                    >
+                        <ProjectAppearance projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
+            ...(canManageExternalSources
+                ? [
+                      {
+                          path: `/externalSources`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="External sources"
+                                  description="Upload files to query them alongside your warehouse."
+                              >
+                                  <ExternalSourcesSettingsPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/usageAnalytics`,
-                element: <SettingsUsageAnalytics projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Usage analytics"
+                        description="Review how people use this project's content."
+                    >
+                        <SettingsUsageAnalytics projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/scheduledDeliveries`,
-                element: <SettingsScheduler projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Syncs & scheduled deliveries"
+                        description="Configure delivery defaults and manage this project's schedules."
+                    >
+                        <SettingsScheduler projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/validator`,
@@ -112,37 +242,128 @@ const ProjectSettings: FC = () => {
             },
             {
                 path: `/verifiedContent`,
-                element: <VerifiedContentPanel projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Verified content"
+                        description="Review verified charts and dashboards in this project."
+                    >
+                        <VerifiedContentPanel projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
+            ...(canViewContentReviewSettings
+                ? [
+                      {
+                          path: `/reviewRequests`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Review requests"
+                                  description="Who reviews content submitted from personal spaces, and what happens on approval."
+                              >
+                                  <ContentReviewSettingsPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/dataOps`,
-                element: <DataOps projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Data ops"
+                        description="Configure workflows for promoting content between projects."
+                    >
+                        <DataOps projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/defaultUserSpaces`,
-                element: <DefaultUserSpaces projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Default user spaces"
+                        description="Choose whether project members receive a personal space automatically."
+                    >
+                        <DefaultUserSpaces projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             ...(isSoftDeleteEnabled
                 ? [
                       {
                           path: `/recentlyDeleted`,
                           element: (
-                              <RecentlyDeletedPage projectUuid={projectUuid} />
+                              <ProjectSettingsPage
+                                  title="Recently deleted"
+                                  description="Review and restore recently deleted project content."
+                              >
+                                  <RecentlyDeletedPage
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
                 : []),
             {
                 path: `/parameters`,
-                element: <ProjectParameters projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Parameters"
+                        description="Review reusable values defined for project queries and content."
+                        actions={
+                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters" />
+                        }
+                    >
+                        <ProjectParameters projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
+            // Only registered when the instance has AI agents at all — same
+            // gate as the AI agents navigation section.
+            ...(isAiCopilotEnabledOrTrial
+                ? [
+                      {
+                          path: `/agentDataScope`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Agent data scope"
+                                  description="Limit which schemas an AI agent can read when it writes raw SQL."
+                              >
+                                  <SettingsAgentDataScope
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/queryTimezone`,
-                element: <SettingsQueryTimezone projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Project time zone"
+                        description="Set the default time zone used by this project."
+                        actions={
+                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/developer/timezones" />
+                        }
+                    >
+                        <SettingsQueryTimezone projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/previewsConfig`,
-                element: <ProjectPreviewExpiration projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Preview settings"
+                        description="Configure preview project expiration and cleanup."
+                    >
+                        <ProjectPreviewExpiration projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/compilationHistory`,
@@ -153,9 +374,14 @@ const ProjectSettings: FC = () => {
                       {
                           path: `/semanticLayer`,
                           element: (
-                              <SemanticLayerConnectionPanel
-                                  projectUuid={projectUuid}
-                              />
+                              <ProjectSettingsPage
+                                  title="Semantic layer"
+                                  description="Configure this project's semantic layer connection."
+                              >
+                                  <SemanticLayerConnectionPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -165,7 +391,46 @@ const ProjectSettings: FC = () => {
                       {
                           path: `/pullRequests`,
                           element: (
-                              <PullRequestsPage projectUuid={projectUuid} />
+                              <ProjectSettingsPage
+                                  title="Pull requests"
+                                  description="Review pull requests opened for this project's code."
+                              >
+                                  <PullRequestsPage projectUuid={projectUuid} />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
+            ...(isGitProject
+                ? [
+                      {
+                          path: `/contentReview`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Content review"
+                                  description="Unpublished changes made in this project, awaiting a reviewer to write them back to the repo."
+                              >
+                                  <ContentReviewPage
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
+            ...(isResultsCacheEnabled
+                ? [
+                      {
+                          path: `/caching`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Results caching"
+                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                              >
+                                  <ProjectResultsCache
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -204,18 +469,36 @@ const ProjectSettings: FC = () => {
             },
             {
                 path: '/embed', // commercial route
-                element: <SettingsEmbed projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Embed configuration"
+                        description="Configure embedded access for this project."
+                    >
+                        <SettingsEmbed projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             ...(user.data?.ability.can('manage', 'Organization')
                 ? [
                       {
                           path: '/embed/cors',
                           element: (
-                              <Stack gap="xl">
+                              <ProjectSettingsPage
+                                  title="CORS"
+                                  description="Control which external browser origins can call the Lightdash API."
+                                  actions={
+                                      <SettingsPageDocumentationLink
+                                          href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
+                                          label="Embedding documentation"
+                                      />
+                                  }
+                              >
                                   <SettingsGridCard>
                                       <Stack gap="xs">
-                                          <Title order={4}>CORS</Title>
-                                          <Text c="ldGray.6" fz="xs">
+                                          <Title order={5}>
+                                              Allowed origins
+                                          </Title>
+                                          <Text c="dimmed" fz="xs">
                                               CORS controls which external
                                               browser origins can call the
                                               Lightdash API. Add exact origins
@@ -224,24 +507,10 @@ const ProjectSettings: FC = () => {
                                               *.example.com. Use regex only for
                                               advanced patterns.
                                           </Text>
-                                          <Text c="ldGray.6" fz="xs">
-                                              This is commonly needed for
-                                              embedding Lightdash in another
-                                              application.{' '}
-                                              <Anchor
-                                                  inherit
-                                                  href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
-                                                  target="_blank"
-                                                  rel="noreferrer"
-                                              >
-                                                  Read the embedding docs
-                                              </Anchor>
-                                              .
-                                          </Text>
                                       </Stack>
                                       <CorsSettingsPanel />
                                   </SettingsGridCard>
-                              </Stack>
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -264,8 +533,12 @@ const ProjectSettings: FC = () => {
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
+        isResultsCacheEnabled,
         user.data?.ability,
         canManageExternalConnections,
+        canManageExternalSources,
+        canViewContentReviewSettings,
+        isAiCopilotEnabledOrTrial,
     ]);
     const routesElements = useRoutes(routes);
 
@@ -283,12 +556,26 @@ const ProjectSettings: FC = () => {
             '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
             location.pathname,
         );
+    const isAwaitingCachingRoute =
+        isResultsCacheFlagLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/caching',
+            location.pathname,
+        );
+    const isAwaitingReviewRequestsRoute =
+        contentReviewAvailability.isLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/reviewRequests',
+            location.pathname,
+        );
 
     if (
         isInitialLoading ||
         !project ||
         !projectUuid ||
-        isAwaitingDataAppConnectionsRoute
+        isAwaitingDataAppConnectionsRoute ||
+        isAwaitingCachingRoute ||
+        isAwaitingReviewRequestsRoute
     ) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -302,18 +589,20 @@ const ProjectSettings: FC = () => {
             <DocumentTitle title="Project Settings" />
 
             <Stack gap="xl">
-                <PageBreadcrumbs
-                    items={[
-                        {
-                            title: 'All projects',
-                            to: '/generalSettings/projectManagement',
-                        },
-                        {
-                            title: project.name,
-                            active: true,
-                        },
-                    ]}
-                />
+                <SettingsPageContainer>
+                    <PageBreadcrumbs
+                        items={[
+                            {
+                                title: 'All projects',
+                                to: '/generalSettings/projectManagement',
+                            },
+                            {
+                                title: project.name,
+                                active: true,
+                            },
+                        ]}
+                    />
+                </SettingsPageContainer>
                 {routesElements}
             </Stack>
         </>

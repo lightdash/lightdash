@@ -3,9 +3,9 @@ import {
     getDefaultMetricTreeNodeDateRange,
     getRollingPeriodDates,
 } from '@lightdash/common';
-import { Group, Select, Text } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+import { Group, Select, Text } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -81,7 +81,7 @@ export const CanvasTimeFramePicker: FC<Props> = ({
                     leftSection={
                         <MantineIcon
                             icon={IconCalendar}
-                            color="ldGray.6"
+                            color="dimmed"
                             size={14}
                         />
                     }
@@ -105,7 +105,7 @@ export const CanvasTimeFramePicker: FC<Props> = ({
                     {dateRanges.currentRange}
                 </Text>
             </Group>
-            <Text c="ldGray.6" fz={14} fw={500}>
+            <Text c="dimmed" fz="sm" fw={500}>
                 compared to
             </Text>
             <Text

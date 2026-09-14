@@ -3,26 +3,33 @@ import {
     ApiColorPalettesResponse,
     ApiCreatedColorPaletteResponse,
     ApiCreateGroupResponse,
+    ApiEnableLearnResponse,
+    ApiEnsurePlaygroundProjectResponse,
     ApiErrorPayload,
     ApiGroupListResponse,
     ApiImpersonationOrganizationSettingsResponse,
+    ApiLearnAccessResponse,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationBrandResponse,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiOrganizationProjects,
+    ApiReassignUserDashboardsResponse,
     ApiReassignUserSchedulersResponse,
     ApiSuccessEmpty,
+    ApiUserDashboardsSummaryResponse,
     ApiUserSchedulersSummaryResponse,
     assertRegisteredAccount,
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
+    EnsurePlaygroundProjectRequest,
     getRequestMethod,
     KnexPaginateArgs,
     LightdashRequestMethodHeader,
     OrganizationMemberProfileUpdate,
+    ReassignUserDashboardsRequest,
     ReassignUserSchedulersRequest,
     SaveOrganizationBrandRequest,
     UpdateAllowedEmailDomains,
@@ -508,6 +515,62 @@ export class OrganizationController extends BaseController {
     }
 
     /**
+     * Gets a summary of dashboards owned by a user across all projects
+     * @summary Get user dashboards
+     * @param req express request
+     * @param userUuid the uuid of the user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/user/{userUuid}/dashboards-summary')
+    @OperationId('GetUserDashboardsSummary')
+    async getUserDashboardsSummary(
+        @Request() req: express.Request,
+        @Path() userUuid: UUID,
+    ): Promise<ApiUserDashboardsSummaryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getUserDashboardsSummary(toSessionUser(req.account), userUuid),
+        };
+    }
+
+    /**
+     * Transfers ownership of all dashboards from one user to another
+     * @summary Reassign dashboards
+     * @param req express request
+     * @param userUuid the uuid of the user whose dashboards will be reassigned
+     * @param body the new owner details
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('/user/{userUuid}/reassign-dashboards')
+    @OperationId('ReassignUserDashboards')
+    async reassignUserDashboards(
+        @Request() req: express.Request,
+        @Path() userUuid: UUID,
+        @Body() body: ReassignUserDashboardsRequest,
+    ): Promise<ApiReassignUserDashboardsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .reassignUserDashboards(
+                    toSessionUser(req.account),
+                    userUuid,
+                    body.newOwnerUserUuid,
+                ),
+        };
+    }
+
+    /**
      * Gets the allowed email domains for the current user's organization
      * @summary List allowed email domains
      * @param req express request
@@ -777,6 +840,80 @@ export class OrganizationController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Return the organization's existing project or provision its sample-data
+     * playground when the new onboarding flow is available.
+     * @summary Ensure playground project
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/playground-projects/ensure')
+    @OperationId('EnsurePlaygroundProject')
+    async ensurePlaygroundProject(
+        @Request() req: express.Request,
+        @Body() body?: EnsurePlaygroundProjectRequest,
+    ): Promise<ApiEnsurePlaygroundProjectResponse> {
+        assertRegisteredAccount(req.account);
+        const user = toSessionUser(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .ensurePlaygroundProject(user, body?.trigger),
+        };
+    }
+
+    /**
+     * Enable Learn for the current organization: create the training project
+     * with the caller as its admin. Org admins only. Idempotent.
+     * @summary Enable Learn
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/training-project')
+    @OperationId('EnableLearn')
+    async enableLearn(
+        @Request() req: express.Request,
+    ): Promise<ApiEnableLearnResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .enableLearn(toSessionUser(req.account)),
+        };
+    }
+
+    /**
+     * Everything the caller can do, anywhere: the scopes they hold through
+     * their organization role, any organization-level custom roles, and
+     * every project role they hold directly or through a group. The Learn
+     * library shows those features and keeps the rest behind a toggle.
+     * @summary Get Learn access
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/training-project/access')
+    @OperationId('GetLearnAccess')
+    async getLearnAccess(
+        @Request() req: express.Request,
+    ): Promise<ApiLearnAccessResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getRolesService()
+                .getLearnAccess(toSessionUser(req.account)),
         };
     }
 

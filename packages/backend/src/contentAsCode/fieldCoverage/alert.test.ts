@@ -6,6 +6,7 @@ describeContentAsCodeSchemaContract({
     documentSchema: 'AlertAsCode',
     skippedModelFields: [
         'appName',
+        'appState',
         'appUuid',
         'createdAt',
         'createdBy',

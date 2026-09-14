@@ -1,4 +1,4 @@
-import { Group, Loader, Select, Stack, Text } from '@mantine-8/core';
+import { Group, Loader, Select, Stack, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -23,6 +23,7 @@ type UserSelectProps = {
     label?: string;
     placeholder?: string;
     disabled?: boolean;
+    clearable?: boolean;
     /** When true, only shows users with an active Google connection (refresh token) */
     requireGoogleToken?: boolean;
     projectUuid?: string;
@@ -35,6 +36,7 @@ export const UserSelect: FC<UserSelectProps> = ({
     label,
     placeholder = 'Search for a user...',
     disabled = false,
+    clearable = false,
     requireGoogleToken = false,
     projectUuid,
 }) => {
@@ -148,6 +150,7 @@ export const UserSelect: FC<UserSelectProps> = ({
             }
             maxDropdownHeight={250}
             disabled={disabled}
+            clearable={clearable}
             rightSection={
                 isLoadingUsers || isFetchingUsers ? <Loader size="xs" /> : null
             }

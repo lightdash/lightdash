@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';

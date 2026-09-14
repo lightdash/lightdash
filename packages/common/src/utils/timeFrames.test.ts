@@ -11,6 +11,7 @@ import {
     getSqlForTruncatedDate,
     getTimeFramesWithProjectDefaults,
     isSubDayGranularity,
+    isTimezoneRoundTripNoOp,
     SUB_DAY_GRANULARITIES,
     timeFrameConfigs,
     WeekDay,
@@ -501,6 +502,27 @@ describe('TimeFrames', () => {
         });
     });
 
+    describe('getSqlForDatePartName - DuckDB', () => {
+        const col = '${TABLE}.created';
+        const dt = DimensionType.DATE;
+
+        test.each([
+            [TimeFrames.DAY_OF_WEEK_NAME, `strftime(${col}, '%A')`],
+            [TimeFrames.MONTH_NAME, `strftime(${col}, '%B')`],
+            [TimeFrames.QUARTER_NAME, `'Q' || quarter(${col})`],
+        ])('%s uses DuckDB-supported SQL', (timeFrame, expected) => {
+            expect(
+                timeFrameConfigs[timeFrame].getSql(
+                    SupportedDbtAdapter.DUCKDB,
+                    timeFrame,
+                    col,
+                    dt,
+                    WeekDay.MONDAY,
+                ),
+            ).toEqual(expected);
+        });
+    });
+
     describe('getSqlForDatePartName - ClickHouse', () => {
         const col = '${TABLE}.created';
         const dt = DimensionType.DATE;
@@ -789,6 +811,7 @@ describe('TimeFrames', () => {
                     null,
                     tz,
                     undefined,
+                    undefined,
                     true, // castDayOrCoarserToDate
                 ),
             ).toEqual(
@@ -808,6 +831,7 @@ describe('TimeFrames', () => {
                     null,
                     tz,
                     undefined,
+                    undefined,
                     true, // castDayOrCoarserToDate — ignored for sub-day
                 ),
             ).toEqual(
@@ -826,6 +850,7 @@ describe('TimeFrames', () => {
                     DimensionType.TIMESTAMP,
                     null,
                     'UTC',
+                    undefined,
                     undefined,
                     true, // castDayOrCoarserToDate
                 ),
@@ -847,11 +872,182 @@ describe('TimeFrames', () => {
                     null,
                     tz,
                     undefined,
+                    undefined,
                     true, // castDayOrCoarserToDate
                 ),
             ).toEqual(
                 `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}), '${tz}'), DAY) AS DATE)`,
             );
+        });
+
+        // GLITCH-628: on the UTC (no-wrap) path BigQuery must truncate via
+        // functions its partition pruner understands — DATE(col) /
+        // DATE_TRUNC(DATE(col), part). CAST(TIMESTAMP_TRUNC(col, part) AS DATE)
+        // full-scans DATETIME-partitioned tables.
+        describe('BigQuery prunable day-or-coarser trunc (GLITCH-628)', () => {
+            const bqTrunc = (
+                timeFrame: TimeFrames,
+                startOfWeek: WeekDay | null = null,
+            ) =>
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    timeFrame,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    startOfWeek,
+                    'UTC',
+                    undefined,
+                    undefined,
+                    true, // castDayOrCoarserToDate
+                );
+
+            test('day grain emits DATE()', () => {
+                expect(bqTrunc(TimeFrames.DAY)).toEqual(`DATE(${col})`);
+            });
+
+            test('month/quarter/year grains emit DATE_TRUNC(DATE(...))', () => {
+                expect(bqTrunc(TimeFrames.MONTH)).toEqual(
+                    `DATE_TRUNC(DATE(${col}), MONTH)`,
+                );
+                expect(bqTrunc(TimeFrames.QUARTER)).toEqual(
+                    `DATE_TRUNC(DATE(${col}), QUARTER)`,
+                );
+                expect(bqTrunc(TimeFrames.YEAR)).toEqual(
+                    `DATE_TRUNC(DATE(${col}), YEAR)`,
+                );
+            });
+
+            test('week grain keeps the custom start of week', () => {
+                expect(bqTrunc(TimeFrames.WEEK, WeekDay.TUESDAY)).toEqual(
+                    `DATE_TRUNC(DATE(${col}), WEEK(TUESDAY))`,
+                );
+            });
+
+            test('sub-day grain keeps the bare TIMESTAMP_TRUNC', () => {
+                expect(bqTrunc(TimeFrames.HOUR)).toEqual(
+                    `TIMESTAMP_TRUNC(${col}, HOUR)`,
+                );
+            });
+
+            test('tz-wrapped path with unknown domain keeps the DATETIME round-trip', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.BIGQUERY,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        undefined,
+                        undefined,
+                        true,
+                    ),
+                ).toEqual(
+                    `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}), '${tz}'), DAY) AS DATE)`,
+                );
+            });
+
+            test('other adapters keep the generic CAST on the no-wrap path', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.SNOWFLAKE,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        'UTC',
+                        undefined,
+                        undefined,
+                        true,
+                    ),
+                ).toEqual(`CAST(DATE_TRUNC('DAY', ${col}) AS DATE)`);
+            });
+        });
+
+        // Wrapped aware path: DATE(ts, tz) replaces the DATETIME round-trip
+        // with the same value in a form the partition pruner can see through.
+        describe('BigQuery prunable tz-wrapped trunc for known-aware columns', () => {
+            const bqAwareTrunc = (
+                timeFrame: TimeFrames,
+                startOfWeek: WeekDay | null = null,
+            ) =>
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    timeFrame,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    startOfWeek,
+                    tz,
+                    undefined,
+                    'aware',
+                    true, // castDayOrCoarserToDate
+                );
+
+            test('day grain emits DATE(col, tz)', () => {
+                expect(bqAwareTrunc(TimeFrames.DAY)).toEqual(
+                    `DATE(${col}, '${tz}')`,
+                );
+            });
+
+            test('month/quarter/year grains emit DATE_TRUNC(DATE(col, tz), part)', () => {
+                expect(bqAwareTrunc(TimeFrames.MONTH)).toEqual(
+                    `DATE_TRUNC(DATE(${col}, '${tz}'), MONTH)`,
+                );
+                expect(bqAwareTrunc(TimeFrames.QUARTER)).toEqual(
+                    `DATE_TRUNC(DATE(${col}, '${tz}'), QUARTER)`,
+                );
+                expect(bqAwareTrunc(TimeFrames.YEAR)).toEqual(
+                    `DATE_TRUNC(DATE(${col}, '${tz}'), YEAR)`,
+                );
+            });
+
+            test('week grain keeps the custom start of week', () => {
+                expect(bqAwareTrunc(TimeFrames.WEEK, WeekDay.TUESDAY)).toEqual(
+                    `DATE_TRUNC(DATE(${col}, '${tz}'), WEEK(TUESDAY))`,
+                );
+            });
+
+            test('sub-day grain keeps the DATETIME round-trip', () => {
+                expect(bqAwareTrunc(TimeFrames.HOUR)).toEqual(
+                    `TIMESTAMP(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}), '${tz}'), HOUR), '${tz}')`,
+                );
+            });
+
+            test('naive domain keeps the rebased round-trip', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.BIGQUERY,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        'Asia/Tokyo',
+                        'naive',
+                        true,
+                    ),
+                ).toEqual(
+                    `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}, 'Asia/Tokyo'), '${tz}'), DAY) AS DATE)`,
+                );
+            });
+
+            test('non-BigQuery adapters keep the generic wrapped cast', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.POSTGRES,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        undefined,
+                        'aware',
+                        true,
+                    ),
+                ).toEqual(
+                    `CAST(DATE_TRUNC('DAY', (${col})::timestamptz AT TIME ZONE '${tz}') AS DATE)`,
+                );
+            });
         });
 
         test('TIMESTAMP dimension with timezone still gets tz round-trip (Snowflake)', () => {
@@ -1564,6 +1760,575 @@ describe('TimeFrames', () => {
                 const { toProjectTz, castToInstant } =
                     dateTruncTimezoneConversions[adapter];
                 expect(toProjectTz(sql, tz)).toEqual(outer(castToInstant(sql)));
+            });
+        });
+    });
+
+    describe('castNaiveToInstant (known-naive timestamp domain)', () => {
+        const col = 'event_ts';
+        const z = 'Asia/Tokyo';
+        const tz = 'America/New_York';
+
+        test('castNaiveAggregateToInstant matches castNaiveToInstant except on Snowflake', () => {
+            Object.values(SupportedDbtAdapter).forEach((adapter) => {
+                const conversions = dateTruncTimezoneConversions[adapter];
+                if (adapter === SupportedDbtAdapter.SNOWFLAKE) {
+                    // Dim path stays on the compile-time wrap; aggregates see
+                    // the bare column and rebase explicitly (NTZ-only input)
+                    expect(conversions.castNaiveToInstant).toBeNull();
+                    expect(
+                        conversions.castNaiveAggregateToInstant?.(col, z),
+                    ).toEqual(`CONVERT_TIMEZONE('${z}', 'UTC', ${col})`);
+                } else if (conversions.castNaiveToInstant === null) {
+                    expect(conversions.castNaiveAggregateToInstant).toBeNull();
+                } else {
+                    expect(
+                        conversions.castNaiveAggregateToInstant?.(col, z),
+                    ).toEqual(conversions.castNaiveToInstant(col, z));
+                }
+            });
+        });
+
+        test('per-adapter explicit rebase from the data timezone', () => {
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.POSTGRES
+                ].castNaiveToInstant?.(col, z),
+            ).toEqual(`((${col}) AT TIME ZONE '${z}')`);
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.REDSHIFT
+                ].castNaiveToInstant?.(col, z),
+            ).toEqual(`((${col}) AT TIME ZONE '${z}')`);
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.DUCKDB
+                ].castNaiveToInstant?.(col, z),
+            ).toEqual(`((${col}) AT TIME ZONE '${z}')`);
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.BIGQUERY
+                ].castNaiveToInstant?.(col, z),
+            ).toEqual(`TIMESTAMP(${col}, '${z}')`);
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.DATABRICKS
+                ].castNaiveToInstant?.(col, z),
+            ).toEqual(
+                `CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ)`,
+            );
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.SPARK
+                ].castNaiveToInstant?.(col, z),
+            ).toEqual(
+                `CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ)`,
+            );
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.TRINO
+                ].castNaiveToInstant?.(col, z),
+            ).toEqual(
+                `CAST(with_timezone(${col}, '${z}') AT TIME ZONE 'UTC' AS timestamp)`,
+            );
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.ATHENA
+                ].castNaiveToInstant?.(col, z),
+            ).toEqual(
+                `CAST(with_timezone(${col}, '${z}') AT TIME ZONE 'UTC' AS timestamp)`,
+            );
+        });
+
+        test('never fires for Snowflake (compile-time wrap) or ClickHouse (no naive columns)', () => {
+            expect(
+                dateTruncTimezoneConversions[SupportedDbtAdapter.SNOWFLAKE]
+                    .castNaiveToInstant,
+            ).toBeNull();
+            expect(
+                dateTruncTimezoneConversions[SupportedDbtAdapter.CLICKHOUSE]
+                    .castNaiveToInstant,
+            ).toBeNull();
+        });
+
+        describe('truncated frames substitute the naive rebase for the inner castToInstant', () => {
+            test('Postgres day grain', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.POSTGRES,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `(DATE_TRUNC('DAY', ((${col}) AT TIME ZONE '${z}') AT TIME ZONE '${tz}')) AT TIME ZONE '${tz}'`,
+                );
+            });
+
+            test('Postgres hour grain', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.POSTGRES,
+                        TimeFrames.HOUR,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `(DATE_TRUNC('HOUR', ((${col}) AT TIME ZONE '${z}') AT TIME ZONE '${tz}')) AT TIME ZONE '${tz}'`,
+                );
+            });
+
+            test('BigQuery day grain', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.BIGQUERY,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `TIMESTAMP(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}, '${z}'), '${tz}'), DAY), '${tz}')`,
+                );
+            });
+
+            test('BigQuery hour grain', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.BIGQUERY,
+                        TimeFrames.HOUR,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `TIMESTAMP(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}, '${z}'), '${tz}'), HOUR), '${tz}')`,
+                );
+            });
+
+            test('Trino day grain', () => {
+                const naiveUtc = `CAST(with_timezone(${col}, '${z}') AT TIME ZONE 'UTC' AS timestamp)`;
+                const input = `CAST(with_timezone(${naiveUtc}, 'UTC') AT TIME ZONE '${tz}' AS timestamp)`;
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.TRINO,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `CAST(with_timezone(DATE_TRUNC('DAY', ${input}), '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
+                );
+            });
+
+            test('Trino hour grain', () => {
+                const naiveUtc = `CAST(with_timezone(${col}, '${z}') AT TIME ZONE 'UTC' AS timestamp)`;
+                const input = `CAST(with_timezone(${naiveUtc}, 'UTC') AT TIME ZONE '${tz}' AS timestamp)`;
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.TRINO,
+                        TimeFrames.HOUR,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `CAST(with_timezone(DATE_TRUNC('HOUR', CAST(${input} AS TIMESTAMP)), '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
+                );
+            });
+
+            test('Databricks day grain', () => {
+                const input = `from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ), '${tz}')`;
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.DATABRICKS,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `CAST(to_utc_timestamp(DATE_TRUNC('DAY', ${input}), '${tz}') AS TIMESTAMP_NTZ)`,
+                );
+            });
+
+            test('Databricks hour grain', () => {
+                const input = `from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ), '${tz}')`;
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.DATABRICKS,
+                        TimeFrames.HOUR,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `CAST(to_utc_timestamp(DATE_TRUNC('HOUR', ${input}), '${tz}') AS TIMESTAMP_NTZ)`,
+                );
+            });
+        });
+
+        // The wider target == source skip is only valid for aware/unknown
+        // columns — a known-naive column still needs the rebase.
+        test('Trino/Databricks naive at display == data timezone still applies the rebase', () => {
+            const naiveUtc = `CAST(with_timezone(${col}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`;
+            const trinoInput = `CAST(with_timezone(${naiveUtc}, 'UTC') AT TIME ZONE '${tz}' AS timestamp)`;
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.TRINO,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    tz,
+                    'naive',
+                ),
+            ).toEqual(
+                `CAST(with_timezone(DATE_TRUNC('DAY', ${trinoInput}), '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
+            );
+            const databricksInput = `from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${tz}') AS TIMESTAMP_NTZ), '${tz}')`;
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.DATABRICKS,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    tz,
+                    'naive',
+                ),
+            ).toEqual(
+                `CAST(to_utc_timestamp(DATE_TRUNC('DAY', ${databricksInput}), '${tz}') AS TIMESTAMP_NTZ)`,
+            );
+        });
+
+        test('naive at all-UTC still short-circuits (no wrap)', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'UTC',
+                    'UTC',
+                    'naive',
+                ),
+            ).toEqual(`DATE_TRUNC('DAY', ${col})`);
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.TRINO,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'UTC',
+                    'UTC',
+                    'naive',
+                ),
+            ).toEqual(`DATE_TRUNC('DAY', ${col})`);
+        });
+
+        test('aware and unknown domains stay byte-identical to today', () => {
+            (
+                [
+                    SupportedDbtAdapter.POSTGRES,
+                    SupportedDbtAdapter.BIGQUERY,
+                    SupportedDbtAdapter.TRINO,
+                    SupportedDbtAdapter.SNOWFLAKE,
+                ] as const
+            ).forEach((adapter) => {
+                const unknown = getSqlForTruncatedDate(
+                    adapter,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    z,
+                );
+                expect(
+                    getSqlForTruncatedDate(
+                        adapter,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'aware',
+                    ),
+                ).toEqual(unknown);
+            });
+            // Aware/unknown on the equal-zones adapters keep the skip.
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.TRINO,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    tz,
+                    'aware',
+                ),
+            ).toEqual(`DATE_TRUNC('DAY', ${col})`);
+        });
+
+        test('Snowflake is excluded — naive emits exactly the legacy wrap', () => {
+            const legacy = getSqlForTruncatedDate(
+                SupportedDbtAdapter.SNOWFLAKE,
+                TimeFrames.DAY,
+                col,
+                DimensionType.TIMESTAMP,
+                null,
+                tz,
+                z,
+            );
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    z,
+                    'naive',
+                ),
+            ).toEqual(legacy);
+        });
+
+        describe('EXTRACT frames substitute the naive rebase in the input wrap', () => {
+            test.each([
+                [
+                    SupportedDbtAdapter.POSTGRES,
+                    `DATE_PART('MONTH', ((${col}) AT TIME ZONE '${z}') AT TIME ZONE '${tz}')`,
+                ],
+                [
+                    SupportedDbtAdapter.BIGQUERY,
+                    `EXTRACT(MONTH FROM TIMESTAMP(${col}, '${z}') AT TIME ZONE '${tz}')`,
+                ],
+                [
+                    SupportedDbtAdapter.TRINO,
+                    `EXTRACT(MONTH FROM CAST(with_timezone(CAST(with_timezone(${col}, '${z}') AT TIME ZONE 'UTC' AS timestamp), 'UTC') AT TIME ZONE '${tz}' AS timestamp))`,
+                ],
+                [
+                    SupportedDbtAdapter.DATABRICKS,
+                    `DATE_PART('MONTH', from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ), '${tz}'))`,
+                ],
+            ])('%s: MONTH_NUM naive', (adapter, expected) => {
+                expect(
+                    getSqlForDatePart(
+                        adapter,
+                        TimeFrames.MONTH_NUM,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(expected);
+            });
+
+            test('naive at display == data timezone still rebases on Trino/Databricks', () => {
+                expect(
+                    getSqlForDatePart(
+                        SupportedDbtAdapter.TRINO,
+                        TimeFrames.MONTH_NUM,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        tz,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `EXTRACT(MONTH FROM CAST(with_timezone(CAST(with_timezone(${col}, '${tz}') AT TIME ZONE 'UTC' AS timestamp), 'UTC') AT TIME ZONE '${tz}' AS timestamp))`,
+                );
+                expect(
+                    getSqlForDatePart(
+                        SupportedDbtAdapter.DATABRICKS,
+                        TimeFrames.MONTH_NUM,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        tz,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `DATE_PART('MONTH', from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${tz}') AS TIMESTAMP_NTZ), '${tz}'))`,
+                );
+            });
+
+            test('Name variants: BigQuery coerces the naive column with the zoned TIMESTAMP overload', () => {
+                expect(
+                    getSqlForDatePartName(
+                        SupportedDbtAdapter.BIGQUERY,
+                        TimeFrames.MONTH_NAME,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `FORMAT_TIMESTAMP('%B', TIMESTAMP(${col}, '${z}'), '${tz}')`,
+                );
+            });
+
+            test('Name variants: Postgres rebases the naive column before TO_CHAR', () => {
+                expect(
+                    getSqlForDatePartName(
+                        SupportedDbtAdapter.POSTGRES,
+                        TimeFrames.MONTH_NAME,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'naive',
+                    ),
+                ).toEqual(
+                    `TO_CHAR(((${col}) AT TIME ZONE '${z}') AT TIME ZONE '${tz}', 'FMMonth')`,
+                );
+            });
+
+            test('aware/unknown EXTRACT stays byte-identical to today', () => {
+                const unknown = getSqlForDatePart(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.MONTH_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    z,
+                );
+                expect(
+                    getSqlForDatePart(
+                        SupportedDbtAdapter.POSTGRES,
+                        TimeFrames.MONTH_NUM,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        z,
+                        'aware',
+                    ),
+                ).toEqual(unknown);
+            });
+        });
+
+        describe('isTimezoneRoundTripNoOp is domain-scoped', () => {
+            const ny = 'America/New_York';
+
+            test('known-naive: no-op only when both zones are UTC', () => {
+                expect(
+                    isTimezoneRoundTripNoOp(
+                        SupportedDbtAdapter.TRINO,
+                        ny,
+                        ny,
+                        'naive',
+                    ),
+                ).toBe(false);
+                expect(
+                    isTimezoneRoundTripNoOp(
+                        SupportedDbtAdapter.DATABRICKS,
+                        ny,
+                        ny,
+                        'naive',
+                    ),
+                ).toBe(false);
+                expect(
+                    isTimezoneRoundTripNoOp(
+                        SupportedDbtAdapter.POSTGRES,
+                        'UTC',
+                        'UTC',
+                        'naive',
+                    ),
+                ).toBe(true);
+                expect(
+                    isTimezoneRoundTripNoOp(
+                        SupportedDbtAdapter.TRINO,
+                        'UTC',
+                        undefined,
+                        'naive',
+                    ),
+                ).toBe(true);
+            });
+
+            test('known-aware and unknown keep the per-adapter legacy predicate', () => {
+                expect(
+                    isTimezoneRoundTripNoOp(
+                        SupportedDbtAdapter.TRINO,
+                        ny,
+                        ny,
+                        'aware',
+                    ),
+                ).toBe(true);
+                expect(
+                    isTimezoneRoundTripNoOp(SupportedDbtAdapter.TRINO, ny, ny),
+                ).toBe(true);
+                expect(
+                    isTimezoneRoundTripNoOp(
+                        SupportedDbtAdapter.POSTGRES,
+                        ny,
+                        ny,
+                        'aware',
+                    ),
+                ).toBe(false);
+            });
+
+            test('excluded adapters treat naive like unknown', () => {
+                // Snowflake keeps the legacy both-UTC predicate even for naive.
+                expect(
+                    isTimezoneRoundTripNoOp(
+                        SupportedDbtAdapter.SNOWFLAKE,
+                        'UTC',
+                        'UTC',
+                        'naive',
+                    ),
+                ).toBe(true);
+                expect(
+                    isTimezoneRoundTripNoOp(
+                        SupportedDbtAdapter.SNOWFLAKE,
+                        ny,
+                        ny,
+                        'naive',
+                    ),
+                ).toBe(false);
             });
         });
     });

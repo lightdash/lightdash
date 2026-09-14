@@ -13,6 +13,7 @@ import {
     type Filters,
     type NotificationFrequency,
     type ParametersValuesMap,
+    type SchedulerAppState,
     type SchedulerFormat,
     type ThresholdOptions,
 } from '@lightdash/common';
@@ -46,12 +47,14 @@ export type SchedulerDb = {
     options: Record<string, AnyType>;
     filters: DashboardFilterRule[] | Filters | null;
     parameters: ParametersValuesMap | null;
+    app_state: SchedulerAppState | null;
     custom_viewport_width: number | null;
     thresholds: ThresholdOptions[] | null;
     enabled: boolean;
     notification_frequency: NotificationFrequency | null;
     selected_tabs: string[] | null;
     include_links: boolean;
+    plain_text_email: boolean;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
 };
@@ -62,6 +65,7 @@ export type ChartSchedulerDb = SchedulerDb & {
     saved_sql_uuid: null;
     app_uuid: null;
     filters: Filters | null;
+    app_state: null;
 };
 export type DashboardSchedulerDB = SchedulerDb & {
     saved_chart_uuid: null;
@@ -69,18 +73,21 @@ export type DashboardSchedulerDB = SchedulerDb & {
     saved_sql_uuid: null;
     app_uuid: null;
     filters: DashboardFilterRule[] | null;
+    app_state: null;
 };
 export type SqlChartSchedulerDb = SchedulerDb & {
     saved_chart_uuid: null;
     dashboard_uuid: null;
     saved_sql_uuid: string;
     app_uuid: null;
+    app_state: null;
 };
 export type AppSchedulerDb = SchedulerDb & {
     saved_chart_uuid: null;
     dashboard_uuid: null;
     saved_sql_uuid: null;
     app_uuid: string;
+    filters: null;
 };
 
 // Discriminate a scheduler row by its resource FK. Generic so callers keep the
@@ -138,6 +145,7 @@ type SchedulerJsonWrite = {
     filters: string | null;
     parameters: string | null;
     thresholds: string | null;
+    app_state: string | null;
 };
 
 export type SchedulerInsert = Omit<
@@ -152,6 +160,7 @@ export type SchedulerInsert = Omit<
     | 'filters'
     | 'parameters'
     | 'thresholds'
+    | 'app_state'
 > &
     SchedulerJsonWrite;
 
@@ -171,6 +180,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'notification_frequency'
           | 'selected_tabs'
           | 'include_links'
+          | 'plain_text_email'
       > &
           SchedulerJsonWrite)
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>

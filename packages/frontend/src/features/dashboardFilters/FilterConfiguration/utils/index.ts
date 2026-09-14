@@ -2,11 +2,13 @@ import {
     assertUnreachable,
     FilterOperator,
     getItemId,
+    isDashboardDataAppTileType,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
+    type FilterRule,
 } from '@lightdash/common';
 import { produce } from 'immer';
 import isEqual from 'lodash/isEqual';
@@ -99,6 +101,8 @@ export const doesFilterApplyToTile = (
 
     switch (relation) {
         case 'auto':
+            if (isDashboardDataAppTileType(tile)) return true;
+
             // Filter automatically applies to tiles that have the field
             return tileHasFilterField(
                 filterRule,
@@ -236,8 +240,12 @@ export const isFilterEnabled = (
     return hasFilterValueSet(filterRule);
 };
 
+// Dashboard rules and chart rules share the fields a saved-value comparison
+// reads, so scheduler overrides on either resource reuse these helpers.
+type RevertableFilterRule = FilterRule & { label?: string };
+
 export const getFilterRuleRevertableObject = (
-    filterRule: DashboardFilterRule,
+    filterRule: RevertableFilterRule,
 ) => {
     return {
         disabled: filterRule.disabled,
@@ -249,8 +257,8 @@ export const getFilterRuleRevertableObject = (
 };
 
 export const hasSavedFilterValueChanged = (
-    originalFilterRule: DashboardFilterRule,
-    filterRule: DashboardFilterRule,
+    originalFilterRule: RevertableFilterRule,
+    filterRule: RevertableFilterRule,
 ) => {
     if (originalFilterRule.disabled && filterRule.values === undefined) {
         return false;

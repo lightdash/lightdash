@@ -1,16 +1,18 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
-import { type Table } from '../types/explore';
+import { InlineErrorType, type Table } from '../types/explore';
 import {
     DimensionType,
     FieldType,
     friendlyName,
     MetricType,
+    type CompiledDimension,
 } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
 import {
     ExploreCompiler,
+    getTableColumnReferences,
     parseAllReferences,
     sqlAggregationWrapsReferences,
     sqlContainsAggregation,
@@ -83,6 +85,20 @@ import {
 
 const compiler = new ExploreCompiler(warehouseClientMock);
 
+describe('custom model metadata', () => {
+    test.each([undefined, {}])(
+        'omits absent or empty custom metadata (%j)',
+        (customMeta) => {
+            const compiled = compiler.compileExplore({
+                ...exploreOneEmptyTable,
+                customMeta,
+            });
+
+            expect(compiled).not.toHaveProperty('customMeta');
+        },
+    );
+});
+
 test('Should throw when required/default filters reference a hidden dimension', () => {
     const exploreWithHiddenRequiredFilter = createExploreWithRequiredFilters([
         {
@@ -147,6 +163,57 @@ test('Should throw error when missing base table', () => {
     expect(() => compiler.compileExplore(exploreMissingBaseTable)).toThrowError(
         CompileError,
     );
+});
+
+test('Missing joins explain model selection and identify the alias', () => {
+    const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+        allowPartialCompilation: true,
+    });
+    const result = partialCompiler.compileExplore({
+        ...exploreMissingJoinTable,
+        joinedTables: [{ table: 'b', alias: 'account', sqlOn: '' }],
+    });
+
+    expect(result.joinedTables).toEqual([]);
+    expect(result.warnings).toEqual([
+        {
+            type: InlineErrorType.MISSING_TABLE,
+            message:
+                'Join "account" to table "b" was skipped because the model is not available in this Lightdash project. Check that the model exists, is included by the project\'s tags/selector, and compiles successfully, then refresh the project.',
+        },
+    ]);
+});
+
+test('Dependent joins point to the skipped alias and its unavailable model', () => {
+    const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+        allowPartialCompilation: true,
+    });
+    const result = partialCompiler.compileExplore({
+        ...simpleJoinedExplore,
+        joinedTables: [
+            {
+                table: 'accounts',
+                alias: 'account',
+                sqlOn: '${a.dim1} = ${account.dim1}',
+            },
+            {
+                table: 'b',
+                alias: 'details',
+                sqlOn: '${account.dim1} = ${details.dim1}',
+            },
+        ],
+    });
+
+    expect(result.joinedTables).toEqual([]);
+    expect(Object.keys(result.tables)).toEqual(['a']);
+    expect(result.warnings).toEqual([
+        expect.objectContaining({ type: InlineErrorType.MISSING_TABLE }),
+        {
+            type: InlineErrorType.SKIPPED_JOIN,
+            message:
+                'Join "details" was skipped because it depends on skipped join "account" (table "accounts"). Resolve the missing-table warning for that join, then refresh the project.',
+        },
+    ]);
 });
 
 test('Should throw error when missing joined table', () => {
@@ -620,6 +687,45 @@ describe('Parse dimension reference', () => {
             { refName: 'TABLE', refTable: 'table' },
         ]);
     });
+    test('should keep the first segment as the table and the rest as a nested field name', () => {
+        expect(
+            parseAllReferences('${orders.customer.address.city}', 'table'),
+        ).toStrictEqual([
+            { refName: 'customer.address.city', refTable: 'orders' },
+        ]);
+        // Two segments keep today's meaning: a nested field on the current
+        // table needs its table prefix.
+        expect(parseAllReferences('${customer.city}', 'orders')).toStrictEqual([
+            { refName: 'city', refTable: 'customer' },
+        ]);
+    });
+    test('should parse unquoted TABLE column references', () => {
+        expect(
+            getTableColumnReferences(
+                'SUM(${TABLE}.amount) + ${TABLE}."Order Total" + ${TABLE}.`tax``rate` + ${TABLE}.some_other_name + ${TABLE}.amount',
+            ),
+        ).toStrictEqual(['amount', 'some_other_name']);
+        expect(
+            getTableColumnReferences(
+                '${TABLE}.address.city + ${amount} + ${orders.shipping_cost}',
+            ),
+        ).toStrictEqual(['address']);
+    });
+    test('should not swallow adjacent references when parsing unquoted TABLE column references', () => {
+        expect(getTableColumnReferences('${TABLE}.a${amount}')).toStrictEqual([
+            'a',
+        ]);
+    });
+    test('should parse unquoted TABLE column references with legacy \\w+ semantics', () => {
+        expect(
+            getTableColumnReferences('${TABLE}.payment_count_30d'),
+        ).toStrictEqual(['payment_count_30d']);
+        expect(getTableColumnReferences('${TABLE}.2024_revenue')).toStrictEqual(
+            ['2024_revenue'],
+        );
+        expect(getTableColumnReferences('${TABLE}.a$b')).toStrictEqual(['a']);
+        expect(getTableColumnReferences('${TABLE}."a$b"')).toStrictEqual([]);
+    });
     test('should not parse lightdash attribute', () => {
         expect(
             parseAllReferences('${lightdash.attribute.country}', 'table'),
@@ -822,6 +928,33 @@ describe('Compiled custom dimensions', () => {
                 [],
             ),
         ).toStrictEqual(expectedCompiledCustomSqlDimensionWithReferences);
+    });
+
+    test('should preserve precompiled joined dimension table references', () => {
+        expect(
+            compiler.compileCustomDimension(
+                customSqlDimensionWithReferences,
+                {
+                    ...simpleJoinedExplore.tables,
+                    b: {
+                        ...simpleJoinedExplore.tables.b,
+                        dimensions: {
+                            dim1: {
+                                ...simpleJoinedExplore.tables.b.dimensions.dim1,
+                                sql: '"a".b_dim1',
+                                compiledSql: '"a".b_dim1',
+                                tablesReferences: ['a'],
+                            } as CompiledDimension,
+                        },
+                    },
+                },
+                [],
+            ),
+        ).toStrictEqual({
+            ...expectedCompiledCustomSqlDimensionWithReferences,
+            compiledSql: '("a".dim1) + ("a".b_dim1)',
+            tablesReferences: ['a'],
+        });
     });
 });
 
@@ -1846,5 +1979,341 @@ describe('relative date metric filters are baked at compile time', () => {
         expect(stored.id).toBe('f1');
         expect(compiled.compiledSql).toContain(stored.compiledSql);
         expect(stored.compiledSql).toContain("'2026-05-05");
+    });
+});
+
+describe('absolute timestamp metric filters are recorded for query-time re-rendering', () => {
+    const buildTable = (
+        dimensionType: DimensionType,
+        filter: Record<string, unknown>,
+    ): Record<string, Table> => ({
+        table1: {
+            name: 'table1',
+            label: 'table1',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."table1"',
+            sqlWhere: undefined,
+            dimensions: {
+                created_at: {
+                    type: dimensionType,
+                    name: 'created_at',
+                    label: 'created_at',
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.created_at',
+                    hidden: false,
+                },
+            },
+            metrics: {
+                filtered_count: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    name: 'filtered_count',
+                    label: 'filtered_count',
+                    sql: '${TABLE}.created_at',
+                    hidden: false,
+                    filters: [filter as never],
+                },
+            },
+            lineageGraph: {},
+            groupLabel: undefined,
+        },
+    });
+
+    const compileFor = (
+        dimensionType: DimensionType,
+        filter: Record<string, unknown>,
+    ) => {
+        const tables = buildTable(dimensionType, filter);
+        return compiler.compileMetric(
+            tables.table1.metrics.filtered_count,
+            tables,
+            [],
+        );
+    };
+
+    test('an absolute TIMESTAMP predicate is recorded with its swap anchor', () => {
+        const compiled = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.EQUALS,
+            values: ['2024-01-14T17:00:00.000Z'],
+        });
+        expect(compiled.compiledTimestampFilters).toHaveLength(1);
+        const [stored] = compiled.compiledTimestampFilters!;
+        expect(stored.id).toBe('f1');
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+        expect(compiled.compiledRelativeDateFilters).toBeUndefined();
+    });
+
+    test('a relative operator stays in the relative list only', () => {
+        const compiled = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.IN_THE_PAST,
+            values: [30],
+            settings: { unitOfTime: UnitOfTime.days, completed: false },
+        });
+        expect(compiled.compiledRelativeDateFilters).toHaveLength(1);
+        expect(compiled.compiledTimestampFilters).toBeUndefined();
+    });
+
+    const withDerivedMetric = (tables: Record<string, Table>) => {
+        // eslint-disable-next-line no-param-reassign
+        tables.table1.metrics.derived = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'table1',
+            tableLabel: 'table1',
+            name: 'derived',
+            label: 'derived',
+            sql: '${table1.filtered_count}',
+            hidden: false,
+        };
+        return tables;
+    };
+
+    test('a derived metric carries the referenced metric recorded timestamp filters', () => {
+        const tables = withDerivedMetric(
+            buildTable(DimensionType.TIMESTAMP, {
+                id: 'f1',
+                target: { fieldRef: 'created_at' },
+                operator: FilterOperator.EQUALS,
+                values: ['2024-01-14T17:00:00.000Z'],
+            }),
+        );
+        const compiled = compiler.compileMetric(
+            tables.table1.metrics.derived,
+            tables,
+            [],
+        );
+        expect(compiled.compiledTimestampFilters).toHaveLength(1);
+        const [stored] = compiled.compiledTimestampFilters!;
+        expect(stored.id).toBe('f1');
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+    });
+
+    test('a derived metric carries the referenced metric recorded relative date filters', () => {
+        const tables = withDerivedMetric(
+            buildTable(DimensionType.TIMESTAMP, {
+                id: 'f1',
+                target: { fieldRef: 'created_at' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [30],
+                settings: { unitOfTime: UnitOfTime.days, completed: false },
+            }),
+        );
+        const compiled = compiler.compileMetric(
+            tables.table1.metrics.derived,
+            tables,
+            [],
+        );
+        expect(compiled.compiledRelativeDateFilters).toHaveLength(1);
+        const [stored] = compiled.compiledRelativeDateFilters!;
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+    });
+
+    test('DATE targets and value-less operators are not recorded', () => {
+        const onDate = compileFor(DimensionType.DATE, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.EQUALS,
+            values: ['2024-01-14'],
+        });
+        expect(onDate.compiledTimestampFilters).toBeUndefined();
+
+        const nullCheck = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.NOT_NULL,
+            values: [],
+        });
+        expect(nullCheck.compiledTimestampFilters).toBeUndefined();
+    });
+});
+
+describe('show_underlying_values validation', () => {
+    const makeDimension = (table: string, name: string, index: number) => ({
+        fieldType: FieldType.DIMENSION as const,
+        type: DimensionType.STRING,
+        name,
+        label: friendlyName(name),
+        table,
+        tableLabel: friendlyName(table),
+        sql: `\${TABLE}.${name}`,
+        hidden: false,
+        index,
+    });
+
+    const makeExplores = (
+        showUnderlyingValues: string[],
+        sets?: Table['sets'],
+    ): { standalone: UncompiledExplore; joined: UncompiledExplore } => {
+        const spine: Table = {
+            name: 'spine',
+            label: 'Spine',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.spine',
+            dimensions: {
+                week_number: makeDimension('spine', 'week_number', 0),
+                farm: makeDimension('spine', 'farm', 1),
+                farm_region: makeDimension('spine', 'farm_region', 2),
+            },
+            metrics: {},
+            lineageGraph: {},
+        };
+        const sales: Table = {
+            name: 'sales',
+            label: 'Sales',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.sales',
+            dimensions: {
+                week_number: makeDimension('sales', 'week_number', 0),
+                farm: makeDimension('sales', 'farm', 1),
+            },
+            metrics: {
+                total_sales: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total_sales',
+                    label: 'Total sales',
+                    table: 'sales',
+                    tableLabel: 'Sales',
+                    sql: '${TABLE}.amount',
+                    hidden: false,
+                    showUnderlyingValues,
+                },
+            },
+            lineageGraph: {},
+            ...(sets ? { sets } : {}),
+        };
+        const base = {
+            label: 'Test',
+            tags: [],
+            groupLabel: undefined,
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+            meta: {},
+        };
+        return {
+            standalone: {
+                ...base,
+                name: 'sales',
+                baseTable: 'sales',
+                joinedTables: [],
+                // Mirrors production: UncompiledExplore.tables is always the
+                // full project lookup, even when nothing is joined.
+                tables: { spine, sales },
+            },
+            joined: {
+                ...base,
+                name: 'spine',
+                baseTable: 'spine',
+                joinedTables: [
+                    {
+                        table: 'sales',
+                        sqlOn: '${spine.farm} = ${sales.farm}',
+                    },
+                ],
+                tables: { spine, sales },
+            },
+        };
+    };
+
+    it('warns and drops an unknown own-table ref even when no set ref is present', () => {
+        const { standalone } = makeExplores(['week_number', 'does_not_exist']);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('does_not_exist'),
+            },
+        ]);
+    });
+
+    it('keeps cross-table refs where the table is joined and skips them silently elsewhere', () => {
+        const sets = { sales_dims: { fields: ['week_number', 'farm'] } };
+        const { standalone, joined } = makeExplores(
+            ['sales_dims*', 'spine.farm_region'],
+            sets,
+        );
+
+        const joinedResult = compiler.compileExplore(joined);
+        expect(
+            joinedResult.tables.sales.metrics.total_sales.showUnderlyingValues,
+        ).toEqual(['week_number', 'farm', 'spine.farm_region']);
+        expect(joinedResult.warnings).toBeUndefined();
+
+        const standaloneResult = compiler.compileExplore(standalone);
+        const metric = standaloneResult.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number', 'farm']);
+        expect(standaloneResult.warnings).toBeUndefined();
+    });
+
+    it('warns and drops a ref to a missing field on a joined table', () => {
+        const { joined } = makeExplores([
+            'week_number',
+            'spine.does_not_exist',
+        ]);
+        const result = compiler.compileExplore(joined);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('spine.does_not_exist'),
+            },
+        ]);
+    });
+
+    it('warns and drops a cross-table ref whose table exists in no explore', () => {
+        const { standalone } = makeExplores([
+            'week_number',
+            'spien.farm_region',
+        ]);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('spien'),
+            },
+        ]);
+    });
+
+    it('warns and drops an unknown set ref but keeps the metric and remaining refs', () => {
+        const { standalone } = makeExplores([
+            'nonexistent_set*',
+            'week_number',
+        ]);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('nonexistent_set'),
+            },
+        ]);
     });
 });

@@ -1,6 +1,8 @@
 import {
     getItemId,
+    interpolateUiString,
     isDashboardChartTileType,
+    isDashboardDataAppTileType,
     isDashboardFieldTarget,
     isDashboardSqlChartTile,
     matchFieldByType,
@@ -23,13 +25,19 @@ import {
     ActionIcon,
     Checkbox,
     Select,
-} from '@mantine-8/core';
-import { Tooltip, type PopoverProps } from '@mantine/core';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+    Tooltip,
+    type PopoverProps,
+} from '@mantine/core';
+import {
+    IconAppWindow,
+    IconChevronDown,
+    IconChevronRight,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
@@ -65,6 +73,26 @@ type TileWithTargetColumns = {
     hasExactMatch: boolean;
 };
 
+type DataAppTileTarget = {
+    targetType: 'dataApp';
+    key: string;
+    label: string;
+    checked: boolean;
+    disabled: false;
+    invalidField: undefined;
+    tileUuid: string;
+    tileChartKind: undefined;
+    sortedFilters: undefined;
+    selectedField: undefined;
+    tabUuid: string | null;
+    hasExactMatch: true;
+};
+
+type TileTarget =
+    | TileWithTargetFields
+    | TileWithTargetColumns
+    | DataAppTileTarget;
+
 type Props = {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
@@ -90,6 +118,7 @@ const TileFilterConfiguration: FC<Props> = ({
     onChange,
     onToggleAll,
 }) => {
+    const getUiString = useUiStrings();
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
@@ -302,7 +331,30 @@ const TileFilterConfiguration: FC<Props> = ({
             [],
         );
 
-        return [...tileWithTargetFields, ...tileWithTargetColumns];
+        const dataAppTileTargets = tiles
+            .filter(isDashboardDataAppTileType)
+            .map<DataAppTileTarget>((tile) => ({
+                targetType: 'dataApp',
+                key: tile.uuid,
+                label: tile.properties.title,
+                checked:
+                    getFilterTileRelation(filterRule, tile.uuid).relation !==
+                    'disabled',
+                disabled: false,
+                invalidField: undefined,
+                tileUuid: tile.uuid,
+                tileChartKind: undefined,
+                sortedFilters: undefined,
+                selectedField: undefined,
+                tabUuid: tile.tabUuid ?? null,
+                hasExactMatch: true,
+            }));
+
+        return [
+            ...tileWithTargetFields,
+            ...tileWithTargetColumns,
+            ...dataAppTileTargets,
+        ];
     }, [
         sortedTileWithFilters,
         sqlChartTilesMetadata,
@@ -323,7 +375,7 @@ const TileFilterConfiguration: FC<Props> = ({
         label,
         disabled,
     }: {
-        tileList: Array<TileWithTargetFields | TileWithTargetColumns>;
+        tileList: TileTarget[];
         tabUuid: string;
         tabName: string;
         label: string;
@@ -341,7 +393,7 @@ const TileFilterConfiguration: FC<Props> = ({
         const selectedCount = tileList.filter((tile) => tile.checked).length;
 
         const getTooltipLabel = () => {
-            if (disabled) return 'No chart tiles in this tab';
+            if (disabled) return 'No tiles in this tab';
             if (!hasAnyExactMatch && !shouldBeChecked)
                 return 'No tiles in this tab have an exact field match';
             if (shouldBeChecked)
@@ -359,11 +411,13 @@ const TileFilterConfiguration: FC<Props> = ({
         return (
             <Flex align="center" gap="xxs">
                 <ActionIcon
-                    color="gray"
                     size="xs"
-                    variant="subtle"
                     onClick={toggleCollapse}
-                    aria-label={isCollapsed ? 'Expand tab' : 'Collapse tab'}
+                    aria-label={getUiString(
+                        isCollapsed
+                            ? 'filters.config.expandTab'
+                            : 'filters.config.collapseTab',
+                    )}
                 >
                     <MantineIcon
                         icon={isCollapsed ? IconChevronRight : IconChevronDown}
@@ -388,7 +442,10 @@ const TileFilterConfiguration: FC<Props> = ({
                                     )}
                                 </Group>
                             }
-                            classNames={{ label: classes.checkboxLabel }}
+                            classNames={{
+                                body: classes.checkboxBody,
+                                label: classes.checkboxLabel,
+                            }}
                             onChange={() => {
                                 if (isIndeterminate) {
                                     onToggleAll(false, tileUuids);
@@ -413,7 +470,7 @@ const TileFilterConfiguration: FC<Props> = ({
         tileList,
         isNested = false,
     }: {
-        tileList: Array<TileWithTargetFields | TileWithTargetColumns>;
+        tileList: TileTarget[];
         isNested?: boolean;
     }) => {
         if (tileList.length === 0) {
@@ -424,7 +481,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     mt={isNested ? 'lg' : undefined}
                     ml={isNested ? 22 : undefined}
                 >
-                    No chart tiles in this tab
+                    {getUiString('filters.config.noTilesInTab')}
                 </Text>
             );
         }
@@ -447,8 +504,15 @@ const TileFilterConfiguration: FC<Props> = ({
                             <Tooltip
                                 label={
                                     value.invalidField
-                                        ? `The selected field '${value.invalidField}' is not available in this chart`
-                                        : 'No fields matching filter type'
+                                        ? interpolateUiString(
+                                              getUiString(
+                                                  'filters.config.fieldNotAvailableInChart',
+                                              ),
+                                              { field: value.invalidField },
+                                          )
+                                        : getUiString(
+                                              'filters.config.noFieldsMatchingType',
+                                          )
                                 }
                                 position="top-start"
                                 disabled={
@@ -465,9 +529,14 @@ const TileFilterConfiguration: FC<Props> = ({
                                             <Flex align="center" gap="xxs">
                                                 <MantineIcon
                                                     color="blue.6"
-                                                    icon={getChartIcon(
-                                                        value.tileChartKind,
-                                                    )}
+                                                    icon={
+                                                        value.targetType ===
+                                                        'dataApp'
+                                                            ? IconAppWindow
+                                                            : getChartIcon(
+                                                                  value.tileChartKind,
+                                                              )
+                                                    }
                                                 />
                                                 <Text
                                                     fz="sm"
@@ -483,6 +552,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                             </Flex>
                                         }
                                         classNames={{
+                                            body: classes.checkboxBody,
                                             label: classes.checkboxLabel,
                                         }}
                                         checked={value.checked}
@@ -522,8 +592,11 @@ const TileFilterConfiguration: FC<Props> = ({
                                             item={value.selectedField}
                                             items={value.sortedFilters ?? []}
                                             comboboxProps={{
-                                                withinPortal:
-                                                    popoverProps?.withinPortal,
+                                                withinPortal: false,
+                                                classNames: {
+                                                    dropdown:
+                                                        classes.inlineDropdown,
+                                                },
                                             }}
                                             onDropdownOpen={
                                                 popoverProps?.onOpen
@@ -557,8 +630,11 @@ const TileFilterConfiguration: FC<Props> = ({
                                             leftSection={undefined}
                                             allowDeselect={false}
                                             comboboxProps={{
-                                                withinPortal:
-                                                    popoverProps?.withinPortal,
+                                                withinPortal: false,
+                                                classNames: {
+                                                    dropdown:
+                                                        classes.inlineDropdown,
+                                                },
                                             }}
                                             onDropdownOpen={
                                                 popoverProps?.onOpen
@@ -617,7 +693,7 @@ const TileFilterConfiguration: FC<Props> = ({
                             disabled={tabTiles.length === 0}
                         />
 
-                        <Collapse in={!isCollapsed}>
+                        <Collapse expanded={!isCollapsed}>
                             <StackSubComponent
                                 tileList={tabTiles}
                                 isNested={true}
@@ -642,11 +718,14 @@ const TileFilterConfiguration: FC<Props> = ({
                         {isIndeterminate
                             ? ` (${
                                   tileTargetList.filter((v) => v.checked).length
-                              } charts selected)`
+                              } tiles selected)`
                             : ''}
                     </Text>
                 }
-                classNames={{ label: classes.checkboxLabel }}
+                classNames={{
+                    body: classes.checkboxBody,
+                    label: classes.checkboxLabel,
+                }}
                 onChange={() => {
                     const tileUuids = tileTargetList.map((v) => v.tileUuid);
                     if (isIndeterminate) {

@@ -1,5 +1,5 @@
 import { type GitBranch } from '@lightdash/common';
-import { Box, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import BranchSelector from './BranchSelector';
 import FileTree from './FileTree';
@@ -30,8 +30,8 @@ const SourceCodeSidebar: FC<SourceCodeSidebarProps> = ({
     <Box className={styles.sidebar}>
         <Stack gap="xs" className={styles.header}>
             <Title order={5}>Source Code</Title>
-            <Text fz="xs" c="ldGray.6">
-                Browse and edit your dbt project files
+            <Text fz="xs" c="dimmed">
+                Browse and edit your project files
             </Text>
             <BranchSelector
                 branches={branches}

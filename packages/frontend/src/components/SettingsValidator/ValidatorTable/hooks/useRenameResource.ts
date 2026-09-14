@@ -87,7 +87,11 @@ export const useRenameChart = () => {
                     children: 'Open',
                     icon: IconArrowRight,
                     onClick: () => {
-                        window.open(resourceUrl, '_blank');
+                        window.open(
+                            resourceUrl,
+                            '_blank',
+                            'noopener,noreferrer',
+                        );
                     },
                 },
             });
@@ -233,7 +237,11 @@ export const useRenameDashboard = () => {
                     children: 'Open',
                     icon: IconArrowRight,
                     onClick: () => {
-                        window.open(resourceUrl, '_blank');
+                        window.open(
+                            resourceUrl,
+                            '_blank',
+                            'noopener,noreferrer',
+                        );
                     },
                 },
             });

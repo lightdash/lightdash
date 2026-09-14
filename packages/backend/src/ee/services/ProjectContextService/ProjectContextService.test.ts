@@ -3,6 +3,7 @@ import {
     DbtProjectType,
     ForbiddenError,
     NotFoundError,
+    ParseError,
     type MemberAbility,
     type ProjectContextEntry,
     type SessionUser,
@@ -64,12 +65,33 @@ const existingEntries = (): ProjectContextEntry[] => [
     },
 ];
 
-const userWithIngestAccess = (canManage: boolean = true): SessionUser => {
+const userWithProjectContextAccess = ({
+    canCompile = true,
+    canViewSourceCode = true,
+    canManageSourceCode = true,
+}: {
+    canCompile?: boolean;
+    canViewSourceCode?: boolean;
+    canManageSourceCode?: boolean;
+} = {}): SessionUser => {
     const { build, can, rules } = new AbilityBuilder<MemberAbility>(Ability);
-    if (canManage) {
+    if (canCompile) {
         can('manage', 'CompileProject', {
             organizationUuid: ORG_UUID,
             projectUuid: PROJECT_UUID,
+        });
+    }
+    if (canViewSourceCode) {
+        can('view', 'SourceCode', {
+            organizationUuid: ORG_UUID,
+            projectUuid: PROJECT_UUID,
+        });
+    }
+    if (canManageSourceCode) {
+        can('manage', 'SourceCode', {
+            organizationUuid: ORG_UUID,
+            projectUuid: PROJECT_UUID,
+            isProtectedBranch: false,
         });
     }
 
@@ -93,6 +115,10 @@ const makeService = (overrides: {
     let cachedEntries = overrides.initialEntries ?? existingEntries();
     const projectModel = {
         get: vi.fn().mockResolvedValue(overrides.project ?? githubProject),
+        getDbtSourceIdentity: vi.fn().mockResolvedValue({
+            dbtSourceUuid: PROJECT_UUID,
+            dbtSourceName: 'primary',
+        }),
         getSummary: vi.fn().mockResolvedValue(
             overrides.projectSummary ?? {
                 organizationUuid: ORG_UUID,
@@ -147,10 +173,26 @@ describe('ProjectContextService.ingestProjectContext', () => {
 
         await expect(
             service.ingestProjectContext(
-                userWithIngestAccess(false),
+                userWithProjectContextAccess({ canCompile: false }),
                 PROJECT_UUID,
             ),
         ).rejects.toThrow(ForbiddenError);
+        expect(getCachedEntries()).toEqual(existingEntries());
+    });
+
+    test('requires view source-code access', async () => {
+        const { service, getCachedEntries } = makeService({});
+
+        await expect(
+            service.ingestProjectContext(
+                userWithProjectContextAccess({
+                    canViewSourceCode: false,
+                    canManageSourceCode: false,
+                }),
+                PROJECT_UUID,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(mockGetInstallationToken).not.toHaveBeenCalled();
         expect(getCachedEntries()).toEqual(existingEntries());
     });
 
@@ -162,7 +204,7 @@ describe('ProjectContextService.ingestProjectContext', () => {
             },
         });
         const result = await service.ingestProjectContext(
-            userWithIngestAccess(),
+            userWithProjectContextAccess(),
             PROJECT_UUID,
         );
         expect(result).toEqual({
@@ -177,7 +219,7 @@ describe('ProjectContextService.ingestProjectContext', () => {
             installationId: undefined,
         });
         const result = await service.ingestProjectContext(
-            userWithIngestAccess(),
+            userWithProjectContextAccess(),
             PROJECT_UUID,
         );
         expect(result).toEqual({
@@ -191,7 +233,7 @@ describe('ProjectContextService.ingestProjectContext', () => {
         mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
         const { service, getCachedEntries } = makeService({});
         const result = await service.ingestProjectContext(
-            userWithIngestAccess(),
+            userWithProjectContextAccess(),
             PROJECT_UUID,
         );
         expect(result).toEqual({ ingested: true, entryCount: 0 });
@@ -210,7 +252,7 @@ describe('ProjectContextService.ingestProjectContext', () => {
         });
         const { service, getCachedEntries } = makeService({});
         const result = await service.ingestProjectContext(
-            userWithIngestAccess(),
+            userWithProjectContextAccess(),
             PROJECT_UUID,
         );
         expect(result).toEqual({ ingested: true, entryCount: 1 });
@@ -229,9 +271,40 @@ describe('ProjectContextService.ingestProjectContext', () => {
         mockGetFileContent.mockRejectedValue(new Error('500 from GitHub'));
         const { service, getCachedEntries } = makeService({});
         await expect(
-            service.ingestProjectContext(userWithIngestAccess(), PROJECT_UUID),
+            service.ingestProjectContext(
+                userWithProjectContextAccess(),
+                PROJECT_UUID,
+            ),
         ).rejects.toThrow('500 from GitHub');
         expect(getCachedEntries()).toEqual(existingEntries());
+    });
+});
+
+describe('ProjectContextService.previewWriteback', () => {
+    const judgeEntry = {
+        op: 'create' as const,
+        id: null,
+        kind: 'definition' as const,
+        content: '"HR" = high-risk cohort.',
+        terms: ['HR'],
+        objects: [],
+    };
+
+    test('requires view source-code access before reading the file', async () => {
+        const { service } = makeService({});
+
+        await expect(
+            service.previewWriteback({
+                user: userWithProjectContextAccess({
+                    canViewSourceCode: false,
+                    canManageSourceCode: false,
+                }),
+                projectUuid: PROJECT_UUID,
+                entry: judgeEntry,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(mockGetInstallationToken).not.toHaveBeenCalled();
+        expect(mockGetFileContent).not.toHaveBeenCalled();
     });
 });
 
@@ -258,11 +331,51 @@ describe('ProjectContextService.writebackEntry', () => {
         });
     });
 
+    test('drops persisted legacy string refs instead of failing', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({});
+
+        const result = await service.writebackEntry({
+            user: userWithProjectContextAccess(),
+            projectUuid: PROJECT_UUID,
+            entry: { ...judgeEntry, objects: ['orders'] },
+            branchTimestamp: 1000,
+            sourceThread: null,
+        });
+
+        expect(result).toMatchObject({ op: 'create', entryId: 'hr' });
+        const commitArgs = mockCreateSignedCommitOnBranch.mock.calls[0][0];
+        const written = Buffer.from(
+            commitArgs.fileChanges.additions[0].contents,
+            'base64',
+        ).toString('utf8');
+        expect(written).toContain('objects: []');
+        expect(written).not.toContain('orders');
+    });
+
+    test('rejects an entry that is invalid beyond legacy refs', async () => {
+        const { service } = makeService({});
+
+        const error = await service
+            .writebackEntry({
+                user: userWithProjectContextAccess(),
+                projectUuid: PROJECT_UUID,
+                entry: { ...judgeEntry, op: 'update' as const, id: null },
+                branchTimestamp: 1000,
+                sourceThread: null,
+            })
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(ParseError);
+        expect(mockGetFileContent).not.toHaveBeenCalled();
+    });
+
     test('creates the file and opens a PR when it does not yet exist', async () => {
         mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
         const { service } = makeService({});
 
         const result = await service.writebackEntry({
+            user: userWithProjectContextAccess(),
             projectUuid: PROJECT_UUID,
             entry: judgeEntry,
             branchTimestamp: 1000,
@@ -307,6 +420,7 @@ describe('ProjectContextService.writebackEntry', () => {
         const { service } = makeService({});
 
         const result = await service.writebackEntry({
+            user: userWithProjectContextAccess(),
             projectUuid: PROJECT_UUID,
             entry: { ...judgeEntry, op: 'update', id: 'hr' },
             branchTimestamp: 2000,
@@ -325,10 +439,79 @@ describe('ProjectContextService.writebackEntry', () => {
         expect(updated).not.toContain('content: old');
     });
 
+    test('bounds long context branch names without changing entry IDs or colliding on shared prefixes', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({});
+        const entries = ['first', 'second'].map((suffix) => ({
+            ...judgeEntry,
+            content: `${'Native context definition '.repeat(16)}${suffix}`,
+            terms: [],
+        }));
+        for await (const entry of entries) {
+            const result = await service.writebackEntry({
+                user: userWithProjectContextAccess(),
+                projectUuid: PROJECT_UUID,
+                entry,
+                branchTimestamp: 1000,
+                sourceThread: null,
+            });
+            expect(result.entryId.length).toBeGreaterThan(255);
+            const commit = mockCreateSignedCommitOnBranch.mock.lastCall![0];
+            const written = Buffer.from(
+                commit.fileChanges.additions[0].contents,
+                'base64',
+            ).toString('utf8');
+            expect(written).toContain(`id: ${result.entryId}`);
+            expect(
+                Buffer.byteLength(`refs/heads/${commit.branch}`, 'utf8'),
+            ).toBeLessThanOrEqual(255);
+        }
+        expect(
+            new Set(mockCreateBranch.mock.calls.map(([args]) => args.branch))
+                .size,
+        ).toBe(2);
+    });
+
+    test('writes native project context beside config on the configured branch', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({
+            project: {
+                ...githubProject,
+                dbtConnection: {
+                    ...githubProject.dbtConnection,
+                    semanticLayer: 'lightdash',
+                    branch: 'release',
+                    project_sub_path: '/native',
+                },
+            },
+        });
+        await service.writebackEntry({
+            user: userWithProjectContextAccess(),
+            projectUuid: PROJECT_UUID,
+            entry: judgeEntry,
+            branchTimestamp: 1000,
+            sourceThread: null,
+        });
+        expect(mockGetFileContent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fileName: 'native/lightdash.project_context.yml',
+                branch: 'release',
+            }),
+        );
+        expect(
+            mockCreateSignedCommitOnBranch.mock.calls[0][0].fileChanges
+                .additions[0].path,
+        ).toBe('native/lightdash.project_context.yml');
+        expect(mockCreatePullRequest).toHaveBeenCalledWith(
+            expect.objectContaining({ base: 'release' }),
+        );
+    });
+
     test('throws when the project has no GitHub access', async () => {
         const { service } = makeService({ installationId: undefined });
         await expect(
             service.writebackEntry({
+                user: userWithProjectContextAccess(),
                 projectUuid: PROJECT_UUID,
                 entry: judgeEntry,
                 branchTimestamp: 1,
@@ -337,11 +520,31 @@ describe('ProjectContextService.writebackEntry', () => {
         ).rejects.toThrow(NotFoundError);
     });
 
+    test('returns a clear limitation for an explicitly selected additional dbt source', async () => {
+        const { service } = makeService({});
+
+        await expect(
+            service.writebackEntry({
+                user: userWithProjectContextAccess(),
+                projectUuid: PROJECT_UUID,
+                dbtSourceUuid: '00000000-0000-0000-0000-000000000099',
+                entry: judgeEntry,
+                branchTimestamp: 1,
+                sourceThread: null,
+            }),
+        ).rejects.toThrow(
+            'Project context writeback currently supports only the primary dbt source',
+        );
+        expect(mockGetInstallationToken).not.toHaveBeenCalled();
+        expect(mockCreateBranch).not.toHaveBeenCalled();
+    });
+
     test('links the originating agent thread in the PR body', async () => {
         mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
         const { service } = makeService({});
 
         await service.writebackEntry({
+            user: userWithProjectContextAccess(),
             projectUuid: PROJECT_UUID,
             entry: judgeEntry,
             branchTimestamp: 1000,
@@ -358,5 +561,23 @@ describe('ProjectContextService.writebackEntry', () => {
             'https://app.lightdash.com/projects/p/ai-agents/a/threads/t',
         );
         expect(body).toContain('prompt-123');
+    });
+
+    test('requires manage source-code access before creating a branch', async () => {
+        const { service } = makeService({});
+
+        await expect(
+            service.writebackEntry({
+                user: userWithProjectContextAccess({
+                    canManageSourceCode: false,
+                }),
+                projectUuid: PROJECT_UUID,
+                entry: judgeEntry,
+                branchTimestamp: 1000,
+                sourceThread: null,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(mockGetInstallationToken).not.toHaveBeenCalled();
+        expect(mockCreateBranch).not.toHaveBeenCalled();
     });
 });

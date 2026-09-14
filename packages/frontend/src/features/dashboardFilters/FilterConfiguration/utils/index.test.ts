@@ -46,6 +46,21 @@ const createMockTile = (uuid: string, tabUuid?: string): DashboardTile =>
         },
     }) satisfies DashboardTile;
 
+const createMockDataAppTile = (uuid: string, tabUuid?: string): DashboardTile =>
+    ({
+        uuid,
+        type: DashboardTileTypes.DATA_APP,
+        x: 0,
+        y: 0,
+        h: 1,
+        w: 1,
+        tabUuid,
+        properties: {
+            appUuid: 'app-1',
+            title: `Data App ${uuid}`,
+        },
+    }) satisfies DashboardTile;
+
 // Helper to create mock filterable fields
 const createMockFilterableField = (
     fieldId: string,
@@ -123,6 +138,13 @@ describe('getFilterTileRelation', () => {
 describe('doesFilterApplyToTile', () => {
     const tile1 = createMockTile('tile-1', 'tab-1');
     const tile2 = createMockTile('tile-2', 'tab-2');
+
+    it('applies auto-targeted filters to Data App tiles with runtime query fields', () => {
+        const filterRule = createMockFilterRule({ tileTargets: undefined });
+        const dataAppTile = createMockDataAppTile('data-app-1', 'tab-1');
+
+        expect(doesFilterApplyToTile(filterRule, dataAppTile, {})).toBe(true);
+    });
 
     it('should return true when no tileTargets and tile has the filter field', () => {
         const filterRule = createMockFilterRule({ tileTargets: undefined });
@@ -268,6 +290,30 @@ describe('getTabsForFilterRule', () => {
         // tile-1 has field (tab-1), tile-3 has field (tab-2)
         // tile-2, tile-4 don't have field so tab-3 is excluded
         expect(result).toEqual(['tab-1', 'tab-2']);
+    });
+
+    it('includes a Data App tab by default and removes it when explicitly excluded', () => {
+        const dataAppTile = createMockDataAppTile('data-app-1', 'tab-2');
+
+        expect(
+            getTabsForFilterRule(
+                createMockFilterRule({ tileTargets: undefined }),
+                [dataAppTile],
+                sortedTabUuids,
+                {},
+            ),
+        ).toEqual(['tab-2']);
+
+        expect(
+            getTabsForFilterRule(
+                createMockFilterRule({
+                    tileTargets: { 'data-app-1': false },
+                }),
+                [dataAppTile],
+                sortedTabUuids,
+                {},
+            ),
+        ).toEqual([]);
     });
 
     it('should return empty when no tileTargets and no tiles have the field', () => {

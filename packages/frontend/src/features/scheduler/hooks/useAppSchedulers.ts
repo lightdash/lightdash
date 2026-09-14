@@ -23,9 +23,19 @@ type AppSchedulersPage = KnexPaginatedData<SchedulerAndTargets[]>;
 const getAppSchedulers = async (
     projectUuid: string,
     appUuid: string,
+    includeLatestRun?: boolean,
 ): Promise<AppSchedulersPage> => {
+    const params = new URLSearchParams();
+
+    if (includeLatestRun) {
+        params.set('includeLatestRun', 'true');
+    }
+
+    const queryString = params.toString();
     const results = await lightdashApi<ApiAppSchedulersResponse['results']>({
-        url: `/ee/projects/${projectUuid}/apps/${appUuid}/schedulers`,
+        url: `/ee/projects/${projectUuid}/apps/${appUuid}/schedulers${
+            queryString ? `?${queryString}` : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
@@ -43,15 +53,17 @@ const getAppSchedulers = async (
 export type UseAppSchedulersParams = {
     projectUuid: string;
     appUuid: string;
+    includeLatestRun?: boolean;
 };
 
 export const useAppSchedulers = ({
     projectUuid,
     appUuid,
+    includeLatestRun,
 }: UseAppSchedulersParams) =>
     useInfiniteQuery<AppSchedulersPage, ApiError>({
-        queryKey: ['app_schedulers', appUuid],
-        queryFn: () => getAppSchedulers(projectUuid, appUuid),
+        queryKey: ['app_schedulers', appUuid, includeLatestRun],
+        queryFn: () => getAppSchedulers(projectUuid, appUuid, includeLatestRun),
         getNextPageParam: () => undefined, // single-page wrapper
         keepPreviousData: true,
         refetchOnWindowFocus: false,

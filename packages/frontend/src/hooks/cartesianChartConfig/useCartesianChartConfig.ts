@@ -1,12 +1,17 @@
 import {
     assertUnreachable,
     CartesianSeriesType,
+    DimensionType,
+    getItemType,
     getSeriesId,
     hashFieldReference,
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
+    isUnambiguousTemporalString,
+    MetricType,
     StackType,
+    TableCalculationType,
     XAxisSort,
     XAxisSortType,
     type CartesianChart,
@@ -63,6 +68,9 @@ type Args = {
     cartesianType: CartesianTypeOptions | undefined;
     colorPalette: string[];
     tableCalculationsMetadata?: TableCalculationMetadata[];
+    /** The not-yet-run metric query; its fields count as valid layout
+     *  references so a just-added field survives until results land. */
+    unsavedMetricQuery?: MetricQuery;
 };
 
 const getReferenceLineKey = ({ fieldId, fieldRef, data }: ReferenceLineField) =>
@@ -128,14 +136,78 @@ const dedupeReferenceLines = (referenceLines: ReferenceLineField[]) => {
     });
 };
 
-const applyReferenceLines = (
+const isTemporalReferenceField = (
+    item: ItemsMap[string] | undefined,
+): boolean => {
+    if (!item) return false;
+    const type = getItemType(item);
+    return [
+        DimensionType.DATE,
+        DimensionType.TIMESTAMP,
+        MetricType.DATE,
+        MetricType.TIMESTAMP,
+        TableCalculationType.DATE,
+        TableCalculationType.TIMESTAMP,
+    ].includes(type);
+};
+
+const resolveReferenceLineFieldId = (
+    referenceLine: ReferenceLineField,
+    dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
+    mappingContext:
+        | {
+              itemsMap: ItemsMap | undefined;
+              resolvedTimezone: string | undefined;
+          }
+        | undefined,
+): string | undefined => {
+    const fieldId = getReferenceFieldId(referenceLine);
+    if (
+        mappingContext?.resolvedTimezone === undefined ||
+        referenceLine.fieldRef ||
+        !fieldId
+    ) {
+        return fieldId;
+    }
+    const timeFieldId = dirtyLayout?.xField;
+    if (!timeFieldId || timeFieldId === fieldId || !mappingContext.itemsMap) {
+        return fieldId;
+    }
+    const timeField = mappingContext.itemsMap[timeFieldId];
+    const attributedField = mappingContext.itemsMap[fieldId];
+    if (
+        !isTemporalReferenceField(timeField) ||
+        !isNumericItem(attributedField)
+    ) {
+        return fieldId;
+    }
+    const raw = referenceLine.data.xAxis ?? referenceLine.data.yAxis;
+    return isUnambiguousTemporalString(raw) ? timeFieldId : fieldId;
+};
+
+export const applyReferenceLines = (
     series: Series[],
     dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
     referenceLines: ReferenceLineField[],
+    mappingContext?: {
+        itemsMap: ItemsMap | undefined;
+        resolvedTimezone: string | undefined;
+    },
 ): Series[] => {
     // Track which reference lines have been applied to visible series
     let appliedReferenceLines: string[] = [];
-    const uniqueReferenceLines = dedupeReferenceLines(referenceLines);
+    const uniqueReferenceLines = dedupeReferenceLines(referenceLines).map(
+        (referenceLine) => {
+            const fieldId = resolveReferenceLineFieldId(
+                referenceLine,
+                dirtyLayout,
+                mappingContext,
+            );
+            return fieldId === getReferenceFieldId(referenceLine)
+                ? referenceLine
+                : { ...referenceLine, fieldId };
+        },
+    );
 
     return series.map((serie) => {
         // If series is filtered out or hidden, ensure it has no markLine
@@ -253,6 +325,7 @@ const useCartesianChartConfig = ({
     stacking,
     cartesianType,
     tableCalculationsMetadata,
+    unsavedMetricQuery,
 }: Args) => {
     const [columnLimit, setColumnLimit] = useState<number | undefined>(
         initialChartConfig?.columnLimit,
@@ -633,6 +706,15 @@ const useCartesianChartConfig = ({
             };
         });
     }, []);
+    const setXAxisTreatAsCategory = useCallback((treatAsCategory: boolean) => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, treatAsCategory }, ...axes],
+            };
+        });
+    }, []);
     const setDataZoomAnchor = useCallback((dataZoomAnchor: 'start' | 'end') => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];
@@ -896,6 +978,22 @@ const useCartesianChartConfig = ({
             ];
         }, [resultsData, sortedDimensions]);
 
+    // `availableFields` only knows the last run; a field just added from a
+    // config picker must not be stripped before its results land.
+    const pendingFieldIds = useMemo(
+        () =>
+            unsavedMetricQuery
+                ? new Set([
+                      ...unsavedMetricQuery.dimensions,
+                      ...unsavedMetricQuery.metrics,
+                      ...unsavedMetricQuery.tableCalculations.map(
+                          ({ name }) => name,
+                      ),
+                  ])
+                : undefined,
+        [unsavedMetricQuery],
+    );
+
     /**
      * Is valid when the field is a table calculation in the metadata with the current name
      */
@@ -971,18 +1069,17 @@ const useCartesianChartConfig = ({
                 const xField = getXField(prev?.xField);
                 const yFields = getYFields(prev?.yField);
 
+                const isValidFieldReference = (fieldId: string) =>
+                    availableFields.includes(fieldId) ||
+                    isFieldValidTableCalculation(fieldId) ||
+                    pendingFieldIds?.has(fieldId) === true;
+
                 const isCurrentXFieldValid: boolean =
                     xField === EMPTY_X_AXIS ||
-                    (!!xField &&
-                        (availableFields.includes(xField) ||
-                            isFieldValidTableCalculation(xField)));
+                    (!!xField && isValidFieldReference(xField));
 
                 const currentValidYFields = yFields
-                    ? yFields.filter(
-                          (y) =>
-                              availableFields.includes(y) ||
-                              isFieldValidTableCalculation(y),
-                      )
+                    ? yFields.filter(isValidFieldReference)
                     : [];
 
                 const isCurrentYFieldsValid: boolean =
@@ -1118,6 +1215,7 @@ const useCartesianChartConfig = ({
         getXField,
         getYFields,
         isFieldValidTableCalculation,
+        pendingFieldIds,
         itemsMap,
     ]);
 
@@ -1230,6 +1328,10 @@ const useCartesianChartConfig = ({
                     newSeries,
                     dirtyLayout,
                     referenceLines,
+                    {
+                        itemsMap,
+                        resolvedTimezone: resultsData.resolvedTimezone,
+                    },
                 );
 
                 return {
@@ -1464,6 +1566,7 @@ const useCartesianChartConfig = ({
         setXAxisSort,
         setXAxisLabelRotation,
         setScrollableChart,
+        setXAxisTreatAsCategory,
         setDataZoomAnchor,
         setDataZoomItemCount,
         updateSeries,

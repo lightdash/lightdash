@@ -1,6 +1,10 @@
 import {
+    assertUnreachable,
     extractableTimeFrames,
+    isCalendarValueItem,
     isDimension,
+    parseCalendarValueUTC,
+    parseTimestampValueUTC,
     shouldShiftItemTimezone,
     TimeFrames,
     type CartesianChart,
@@ -82,9 +86,9 @@ const detectTimezoneShiftedField = ({
         return undefined;
     }
     const flipAxes = !!validCartesianConfig.layout?.flipAxes;
-    const timeFieldId = flipAxes
-        ? validCartesianConfig.layout?.yField?.[0]
-        : validCartesianConfig.layout?.xField;
+    // xField is the semantic time dimension even when flipped: series encoding
+    // and getEchartAxes both move it to the physical Y axis, keyed by fieldId.
+    const timeFieldId = validCartesianConfig.layout?.xField;
     if (!timeFieldId) return undefined;
     const field = itemsMap[timeFieldId];
     if (!field || !isDimension(field)) return undefined;
@@ -132,6 +136,130 @@ export const resolveAxisTimezone = (params: {
         timeAxisField: undefined,
         axisTimezone: params.resolvedTimezone,
         axisDisplayTimezone: undefined,
+    };
+};
+
+// Same shape the option walker consumes, but for a calendar value the 'UTC'
+// target is a zero-offset transport anchor, not a timezone conversion — the
+// DATE itself is never shifted.
+export type CalendarTimeAxisField = TimezoneShiftedField;
+
+// A calendar DATE (plain DATE column, DATE metric/table calc, or a
+// day-or-coarser TIMESTAMP trunc, which compiles to a real DATE) carries no
+// instant. ECharts parses a bare `YYYY-MM-DD` on a `time` axis as
+// browser-LOCAL midnight, so with `useUTC: true` positive-offset browsers
+// label it one day early. Encoding the plotted coordinate as UTC midnight
+// keeps the calendar day fixed for every viewer.
+//
+// Gated on the response's resolvedTimezone: only flag-on results emit bare
+// calendar values (flag-off keeps full ISO strings and must stay untouched).
+// The timezone string is only the mode signal and is never applied to the
+// DATE. physicalAxisType must come from the axis actually built for the
+// field (xAxis[0], or yAxis[0] when flipped) so reference-line-forced time
+// axes on coarse grains are covered and category axes are left alone.
+export const detectCalendarTimeAxisField = ({
+    validCartesianConfig,
+    itemsMap,
+    resolvedTimezone,
+    physicalAxisType,
+}: {
+    validCartesianConfig: CartesianChart | undefined;
+    itemsMap: ItemsMap | undefined;
+    resolvedTimezone: string | undefined;
+    physicalAxisType: string | undefined;
+}): CalendarTimeAxisField | undefined => {
+    if (!resolvedTimezone || physicalAxisType !== 'time') return undefined;
+    if (!validCartesianConfig || !itemsMap) return undefined;
+    // xField is the semantic dimension; flipAxes only moves it to physical Y.
+    const fieldId = validCartesianConfig.layout?.xField;
+    if (!fieldId) return undefined;
+    const field = itemsMap[fieldId];
+    if (!field || !isCalendarValueItem(field)) return undefined;
+    return {
+        fieldId,
+        timezone: 'UTC',
+        flipAxes: !!validCartesianConfig.layout?.flipAxes,
+    };
+};
+
+// The single descriptor for how the physical time axis plots its coordinates.
+// undefined means no time axis or timezone support off — no rewrite at all.
+export type TimeAxisMode =
+    | {
+          // Instant values rewritten to project-tz wall-clock; ref-line
+          // instants get the same shift.
+          kind: 'instant-shifted';
+          fieldId: string;
+          timezone: string;
+          flipAxes: boolean;
+      }
+    | {
+          // Calendar DATEs anchored to UTC midnight; the date itself is
+          // never shifted.
+          kind: 'calendar';
+          fieldId: string;
+          flipAxes: boolean;
+      }
+    | {
+          // Time axis whose coordinates stay raw (e.g. UTC project);
+          // ref lines still need the browser-independent parse.
+          kind: 'plain';
+          flipAxes: boolean;
+          // When the raw coordinate is formatted into a timezone, authored
+          // wall-clock values must map back to the corresponding raw instant.
+          wallClockTimezone?: string;
+      };
+
+// physicalAxisType must come from the axis actually built for the field
+// (xAxis[0], or yAxis[0] when flipped). Requiring `time` here is safe for the
+// instant path too: shiftable instants are DATE/TIMESTAMP fields whose grains
+// are excluded from the category-axis downgrade, so they always build a
+// `time` axis.
+export const detectTimeAxisMode = ({
+    validCartesianConfig,
+    itemsMap,
+    resolvedTimezone,
+    physicalAxisType,
+    plainWallClockTimezone,
+}: {
+    validCartesianConfig: CartesianChart | undefined;
+    itemsMap: ItemsMap | undefined;
+    resolvedTimezone: string | undefined;
+    physicalAxisType: string | undefined;
+    plainWallClockTimezone?: string;
+}): TimeAxisMode | undefined => {
+    if (!resolvedTimezone || physicalAxisType !== 'time') return undefined;
+    const flipAxes = !!validCartesianConfig?.layout?.flipAxes;
+    const shifted = detectTimezoneShiftedField({
+        validCartesianConfig,
+        itemsMap,
+        resolvedTimezone,
+    });
+    if (shifted) {
+        return {
+            kind: 'instant-shifted',
+            fieldId: shifted.fieldId,
+            timezone: shifted.timezone,
+            flipAxes,
+        };
+    }
+    const calendar = detectCalendarTimeAxisField({
+        validCartesianConfig,
+        itemsMap,
+        resolvedTimezone,
+        physicalAxisType,
+    });
+    if (calendar) {
+        return {
+            kind: 'calendar',
+            fieldId: calendar.fieldId,
+            flipAxes,
+        };
+    }
+    return {
+        kind: 'plain',
+        flipAxes,
+        wallClockTimezone: plainWallClockTimezone,
     };
 };
 
@@ -277,7 +405,9 @@ const shiftBareArraySeriesData = (
     });
 };
 
-// Run last on the built echarts options — the rest of the pipeline stays in UTC.
+// Run last on the built echarts options — the rest of the pipeline stays in
+// UTC. Dataset and encode rewrite only; markLine values are handled by the
+// separate normalizeMarkLineTimeValues pass.
 export const applyTimezoneShiftToEchartsOptions = <
     O extends EchartsOptionsShape,
 >(
@@ -295,4 +425,162 @@ export const applyTimezoneShiftToEchartsOptions = <
         dataset: shiftDatasetSources(options.dataset, shifted, shiftedDim),
         series: shiftBareArraySeriesData(renamedSeries, shifted),
     };
+};
+
+// A reference line's stored value aimed at the time axis is one of exactly two
+// things. A number, Date, or datetime string with an explicit zone
+// (parseTimestampValueUTC hasZone) is an instant: parsed, then given the same
+// transform as the data points (wall-clock shift on shifted axes, identity
+// otherwise). An offset-less string — a datetime without a zone, or a
+// calendar value in the canonical picker formats (parseCalendarValueUTC) — is
+// a wall-clock position on the axis as the viewer sees it: parsed naive as
+// UTC, plotted directly, no offset. Both reads are browser-independent by
+// construction. Other inputs are left untouched rather than leniently
+// coerced. Axis ownership is resolved earlier while field identity is still
+// available; this pass never infers it from the value's shape.
+export type MarkLineTimeNormalization = {
+    flipAxes: boolean;
+    // Zone the axis's plotted coordinates are wall-clock-shifted to; undefined
+    // means instants plot at their raw epoch (unshifted or UTC-anchored axis).
+    instantTimezone: string | undefined;
+    wallClockTimezone?: string;
+};
+
+const parseTimeAxisMarkLineValue = (
+    raw: unknown,
+    {
+        instantTimezone,
+        wallClockTimezone,
+    }: Pick<MarkLineTimeNormalization, 'instantTimezone' | 'wallClockTimezone'>,
+): number | undefined => {
+    const toShiftedInstant = (ms: number): number | undefined =>
+        Number.isFinite(ms)
+            ? ms +
+              (instantTimezone ? getTimezoneOffsetMs(ms, instantTimezone) : 0)
+            : undefined;
+    const toRawWallClockCoordinate = (ms: number): number =>
+        wallClockTimezone
+            ? dayjs.utc(ms).tz(wallClockTimezone, true).valueOf()
+            : ms;
+    if (typeof raw === 'number') return toShiftedInstant(raw);
+    if (raw instanceof Date) return toShiftedInstant(raw.getTime());
+    if (typeof raw !== 'string') return undefined;
+    const value = raw.trim();
+    const timestamp = parseTimestampValueUTC(value);
+    if (timestamp) {
+        const ms = timestamp.date.getTime();
+        return timestamp.hasZone
+            ? toShiftedInstant(ms)
+            : toRawWallClockCoordinate(ms);
+    }
+    const calendarMs = parseCalendarValueUTC(value)?.getTime();
+    return calendarMs === undefined
+        ? undefined
+        : toRawWallClockCoordinate(calendarMs);
+};
+
+// After numericizing, default labels would echo the epoch ms: ECharts' own
+// default label formatter echoes the value, and the reference-line style
+// formatter renders `name || value`. Keep the author's text by naming
+// unnamed entries and providing a plain formatter where none exists.
+const authoredLabelProps = (
+    entry: Record<string, unknown>,
+    text: string,
+): Record<string, unknown> => {
+    const props: Record<string, unknown> = {};
+    const hasAuthoredName =
+        typeof entry.name === 'string' && entry.name.trim() !== '';
+    if (!hasAuthoredName) {
+        props.name = text;
+    }
+    const label = isPlainObject(entry.label) ? entry.label : undefined;
+    if (label?.formatter === undefined) {
+        props.label = {
+            ...label,
+            formatter: hasAuthoredName ? entry.name : text,
+        };
+    }
+    return props;
+};
+
+// Runs on the final options for every physical time axis when timezone
+// support is on (shifted or not): reference lines carry user-authored strings
+// that ECharts would otherwise parse browser-locally. Series-relative marks
+// (type 'average' etc.) carry no axis position and are skipped, including any
+// stale slot values on them.
+export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
+    options: O,
+    normalization: MarkLineTimeNormalization,
+): O => {
+    if (!options.series) return options;
+    const timeSlot = normalization.flipAxes ? 'yAxis' : 'xAxis';
+    const series = options.series.map((s) => {
+        const markLine = s.markLine;
+        if (!isPlainObject(markLine) || !Array.isArray(markLine.data)) {
+            return s;
+        }
+        let mutated = false;
+        const newData = markLine.data.map((entry) => {
+            if (!isPlainObject(entry) || entry.type !== undefined) return entry;
+            const raw = entry[timeSlot];
+            if (raw === undefined || raw === null) return entry;
+            const ms = parseTimeAxisMarkLineValue(raw, normalization);
+            if (ms === undefined) return entry;
+            mutated = true;
+            return {
+                ...entry,
+                ...(typeof raw === 'string'
+                    ? authoredLabelProps(entry, raw.trim())
+                    : {}),
+                [timeSlot]: ms,
+            };
+        });
+        return mutated ? { ...s, markLine: { ...markLine, data: newData } } : s;
+    });
+    return { ...options, series };
+};
+
+// The one entry point the chart hook calls on its built options: applies the
+// coordinate rewrite the mode calls for, then the ref-line normalization
+// every time axis needs. No mode, no rewrite — flag-off options pass through
+// untouched.
+export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
+    options: O,
+    mode: TimeAxisMode | undefined,
+): O => {
+    if (!mode) return options;
+    switch (mode.kind) {
+        case 'instant-shifted': {
+            const shifted = applyTimezoneShiftToEchartsOptions(options, {
+                fieldId: mode.fieldId,
+                timezone: mode.timezone,
+                flipAxes: mode.flipAxes,
+            });
+            return normalizeMarkLineTimeValues(shifted, {
+                flipAxes: mode.flipAxes,
+                instantTimezone: mode.timezone,
+            });
+        }
+        case 'calendar': {
+            // The 'UTC' target is a zero-offset transport anchor encoding the
+            // calendar day as UTC midnight, not a timezone conversion.
+            const anchored = applyTimezoneShiftToEchartsOptions(options, {
+                fieldId: mode.fieldId,
+                timezone: 'UTC',
+                flipAxes: mode.flipAxes,
+            });
+            return normalizeMarkLineTimeValues(anchored, {
+                flipAxes: mode.flipAxes,
+                instantTimezone: undefined,
+            });
+        }
+        case 'plain':
+            return normalizeMarkLineTimeValues(options, {
+                flipAxes: mode.flipAxes,
+                instantTimezone: undefined,
+                wallClockTimezone: mode.wallClockTimezone,
+            });
+        default:
+            return assertUnreachable(mode, 'Unknown time axis mode');
+    }
 };

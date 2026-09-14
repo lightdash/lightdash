@@ -3,7 +3,7 @@ import {
     isApiError,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
-import { Box, LoadingOverlay, Stack, Text, Title } from '@mantine-8/core';
+import { Box, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -65,8 +65,8 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoadingProject} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Settings</Title>
-                    <Text c="ldGray.6" fz="sm">
+                    <Title order={5}>Delivery defaults</Title>
+                    <Text c="dimmed" fz="sm">
                         Default settings applied to all of this project's
                         scheduled deliveries. Owners can override these
                         per-delivery when creating or editing a scheduler.

@@ -9,17 +9,8 @@
       "outputs": ["dist/**", "build/**", "src/grammar/parser.js", "src/generated/routes.ts", "src/generated/swagger.json"],
       "cache": true
     },
-    "build:fast": {
-      "dependsOn": ["^build:fast"],
-      "outputs": ["dist/**", "build/**", "src/grammar/parser.js", "src/generated/routes.ts", "src/generated/swagger.json"],
-      "cache": true
-    },
     "typecheck": {
       "dependsOn": ["^build"],
-      "cache": true
-    },
-    "typecheck:fast": {
-      "dependsOn": ["^build:fast"],
       "cache": true
     },
     "lint": {

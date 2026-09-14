@@ -1,5 +1,5 @@
 import { type RoleLevel } from '@lightdash/common';
-import { Center, Loader, Stack } from '@mantine-8/core';
+import { Center, Loader, Stack } from '@mantine/core';
 import { useNavigate, useParams } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';

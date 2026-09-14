@@ -4,22 +4,25 @@ import {
     FunnelChartDataInput,
     type FunnelChartConfig,
 } from '../../../../../../types/savedCharts';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import { type ToolRunQueryArgsTransformedBuiltinChart } from '../../../../schemas';
+import { isMetricsOnlyFunnel } from '../../../shared/isMetricsOnlyFunnel';
 
 export const getFunnelChartConfig = ({
     queryTool,
     metricQuery,
 }: {
-    queryTool: ToolRunQueryArgsTransformed;
+    queryTool: ToolRunQueryArgsTransformedBuiltinChart;
     metricQuery: MetricQuery;
 }): FunnelChartConfig => {
     const { metrics } = metricQuery;
     const { chartConfig } = queryTool;
 
-    let dataInput = FunnelChartDataInput.COLUMN;
-    if (chartConfig?.funnelDataInput === 'row') {
-        dataInput = FunnelChartDataInput.ROW;
-    }
+    // FunnelChartDataInput.ROW means stages across the metric columns of a
+    // single row; COLUMN means one stage per row. The query shape fully
+    // determines which applies, so it is derived rather than model-chosen.
+    const dataInput = isMetricsOnlyFunnel(metricQuery)
+        ? FunnelChartDataInput.ROW
+        : FunnelChartDataInput.COLUMN;
 
     return {
         type: ChartType.FUNNEL,

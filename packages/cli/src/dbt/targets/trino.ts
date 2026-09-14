@@ -3,8 +3,8 @@ import {
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import { JSONSchemaType } from 'ajv';
-import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../ajv';
 import { Target } from '../types';
 
@@ -19,7 +19,7 @@ export type TrinoTarget = {
     http_scheme: string;
 };
 
-export const trinoSchema: JSONSchemaType<TrinoTarget> = {
+const trinoSchema: JSONSchemaType<TrinoTarget> = {
     type: 'object',
     properties: {
         type: {

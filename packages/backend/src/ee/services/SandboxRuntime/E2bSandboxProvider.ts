@@ -1,5 +1,17 @@
-import { ALL_TRAFFIC, CommandExitError, Sandbox, TimeoutError } from 'e2b';
-import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import {
+    ALL_TRAFFIC,
+    CommandExitError,
+    Sandbox,
+    SandboxError,
+    SandboxNotFoundError,
+    TimeoutError,
+} from 'e2b';
+import {
+    SandboxCommandError,
+    SandboxConnectionError,
+    SandboxNotRunningError,
+    SandboxTimeoutError,
+} from './errors';
 import {
     type CommandResult,
     type GitAddTarget,
@@ -27,8 +39,8 @@ const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer =>
         bytes.byteOffset + bytes.byteLength,
     ) as ArrayBuffer;
 
-/** Rethrow E2B's command/timeout errors as vendor-neutral ones. */
-const normalizeError = (error: unknown): never => {
+/** Rethrow E2B errors as vendor-neutral ones. */
+export const normalizeError = (error: unknown): never => {
     if (error instanceof CommandExitError) {
         throw new SandboxCommandError(
             error.exitCode,
@@ -38,6 +50,17 @@ const normalizeError = (error: unknown): never => {
     }
     if (error instanceof TimeoutError) {
         throw new SandboxTimeoutError(error.message);
+    }
+    if (error instanceof SandboxNotFoundError) {
+        throw new SandboxNotRunningError(error.message);
+    }
+    if (
+        (error instanceof SandboxError &&
+            error.name === 'SandboxError' &&
+            /^\d+: \[\w+\] /.test(error.message)) ||
+        (error instanceof TypeError && error.message.includes('fetch failed'))
+    ) {
+        throw new SandboxConnectionError(error.message);
     }
     throw error;
 };
@@ -74,26 +97,44 @@ class E2bSandboxHandle implements SandboxHandle {
     };
 
     readonly files = {
-        read: (path: string): Promise<string> => this.sandbox.files.read(path),
+        read: async (path: string): Promise<string> => {
+            try {
+                return await this.sandbox.files.read(path);
+            } catch (error) {
+                return normalizeError(error);
+            }
+        },
         readBytes: async (path: string): Promise<Buffer> => {
-            const bytes = await this.sandbox.files.read(path, {
-                format: 'bytes',
-            });
-            return Buffer.from(bytes);
+            try {
+                const bytes = await this.sandbox.files.read(path, {
+                    format: 'bytes',
+                });
+                return Buffer.from(bytes);
+            } catch (error) {
+                return normalizeError(error);
+            }
         },
         write: async (
             path: string,
             contents: string | Uint8Array,
         ): Promise<void> => {
-            await this.sandbox.files.write(
-                path,
-                typeof contents === 'string'
-                    ? contents
-                    : toArrayBuffer(contents),
-            );
+            try {
+                await this.sandbox.files.write(
+                    path,
+                    typeof contents === 'string'
+                        ? contents
+                        : toArrayBuffer(contents),
+                );
+            } catch (error) {
+                normalizeError(error);
+            }
         },
         remove: async (path: string): Promise<void> => {
-            await this.sandbox.files.remove(path);
+            try {
+                await this.sandbox.files.remove(path);
+            } catch (error) {
+                normalizeError(error);
+            }
         },
     };
 

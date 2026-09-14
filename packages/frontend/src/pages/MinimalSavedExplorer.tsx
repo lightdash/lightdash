@@ -1,6 +1,13 @@
-import { ChartType } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
+import {
+    applyChartFilterOverridesToMetricQuery,
+    ChartType,
+    isChartScheduler,
+    SessionStorageKeys,
+    type Filters,
+    type ParametersValuesMap,
+} from '@lightdash/common';
+import { Box } from '@mantine/core';
+import { useSessionStorage } from '@mantine/hooks';
 import {
     memo,
     useCallback,
@@ -12,6 +19,7 @@ import {
 } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
+import { validate as isUuidString } from 'uuid';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import LightdashVisualization from '../components/LightdashVisualization';
@@ -25,21 +33,19 @@ import {
     selectSavedChart,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useProject } from '../hooks/useProject';
+import { ProjectRouteContext } from '../hooks/useProjectRoute';
+import { useProjects } from '../hooks/useProjects';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useSavedQuery } from '../hooks/useSavedQuery';
+import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
-
-const themeOverride: MantineThemeOverride = {
-    globalStyles: () => ({
-        'html, body': {
-            backgroundColor: 'white',
-        },
-    }),
-};
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 
 type Props = {
     savedQueryUuid?: string;
@@ -143,6 +149,7 @@ const MinimalExplorerContent = memo(() => {
                 minimal
                 chartConfig={savedChart.chartConfig}
                 initialPivotDimensions={savedChart.pivotConfig?.columns}
+                initialPivotRows={savedChart.pivotConfig?.rows}
                 resultsData={resultsData}
                 isLoading={isLoadingQueryResults}
                 columnOrder={savedChart.tableConfig.columnOrder}
@@ -152,18 +159,16 @@ const MinimalExplorerContent = memo(() => {
                 containerWidth={containerWidth}
                 containerHeight={containerHeight}
             >
-                <MantineProvider inherit theme={themeOverride}>
-                    <Box mih="inherit" h="100%">
-                        <LightdashVisualization
-                            ref={measureRef}
-                            // get rid of the classNames once you remove analytics providers
-                            className="sentry-block ph-no-capture"
-                            data-testid="visualization"
-                            onScreenshotReady={handleChartScreenshotReady}
-                            onScreenshotError={handleChartScreenshotError}
-                        />
-                    </Box>
-                </MantineProvider>
+                <Box mih="inherit" h="100%">
+                    <LightdashVisualization
+                        ref={measureRef}
+                        // get rid of the classNames once you remove analytics providers
+                        className="sentry-block ph-no-capture"
+                        data-testid="visualization"
+                        onScreenshotReady={handleChartScreenshotReady}
+                        onScreenshotError={handleChartScreenshotError}
+                    />
+                </Box>
 
                 <ScreenshotProgressIndicator
                     expectedTileUuids={[savedChart.uuid]}
@@ -199,38 +204,122 @@ const MinimalSavedExplorer: FC<Props> = ({
         projectUuid: string;
     }>();
     const savedQueryUuid = queryUuidProps || params.savedQueryUuid!;
-    const projectUuid = useProjectUuid();
+    const projectIdentifier = useProjectUuid();
+    const isProjectUuid = isUuidString(projectIdentifier ?? '');
+    const projectsQuery = useProjects({
+        enabled: !!projectIdentifier && !isProjectUuid,
+    });
+    const projectUuid = isProjectUuid
+        ? projectIdentifier
+        : projectsQuery.data?.find(
+              (project) => project.slug === projectIdentifier,
+          )?.projectUuid;
+    const projectQuery = useProject(projectUuid);
+    const projectRouteContext = useMemo(
+        () =>
+            projectUuid && projectQuery.data
+                ? {
+                      project: projectQuery.data,
+                      projectUuid,
+                      projectUrlIdentifier: getProjectUrlIdentifier(
+                          projectQuery.data,
+                      ),
+                  }
+                : null,
+        [projectQuery.data, projectUuid],
+    );
 
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         uuidOrSlug: savedQueryUuid,
         projectUuid,
     });
 
+    // Scheduled deliveries render with the delivery's filter and parameter
+    // overrides: saved schedulers pass their uuid, send-now seeds session
+    // storage. Read synchronously so the first query already carries them.
+    const schedulerUuid = useSearchParams('schedulerUuid');
+    const [sendNowSchedulerChartFilters] = useSessionStorage<
+        Filters | undefined
+    >({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_CHART_FILTERS,
+        getInitialValueInEffect: false,
+    });
+    const [sendNowSchedulerParameters] = useSessionStorage<
+        ParametersValuesMap | undefined
+    >({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS,
+        getInitialValueInEffect: false,
+    });
+    const { data: scheduler, isInitialLoading: isLoadingScheduler } =
+        useScheduler(schedulerUuid, {
+            enabled: !!schedulerUuid && !sendNowSchedulerChartFilters,
+        });
+    const chartScheduler =
+        schedulerUuid && scheduler && isChartScheduler(scheduler)
+            ? scheduler
+            : undefined;
+    const schedulerFilters = chartScheduler
+        ? chartScheduler.filters
+        : sendNowSchedulerChartFilters;
+    const schedulerParameters = chartScheduler
+        ? chartScheduler.parameters
+        : sendNowSchedulerParameters;
+
+    const savedChart = useMemo(() => {
+        if (!data) return undefined;
+        if (!schedulerFilters && !schedulerParameters) return data;
+        return {
+            ...data,
+            metricQuery: schedulerFilters
+                ? applyChartFilterOverridesToMetricQuery(
+                      data.metricQuery,
+                      schedulerFilters,
+                  )
+                : data.metricQuery,
+            parameters: schedulerParameters
+                ? { ...data.parameters, ...schedulerParameters }
+                : data.parameters,
+        };
+    }, [data, schedulerFilters, schedulerParameters]);
+
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
 
-    // Reset store state when data changes
+    // White page background for screenshot/PDF exports, regardless of theme
     useEffect(() => {
-        if (!data) return;
+        document.documentElement.style.backgroundColor = 'white';
+        document.body.style.backgroundColor = 'white';
+    }, []);
+
+    // Reset store state when data changes. With overrides the chart runs as an
+    // edited query so the overridden metric query is what gets executed.
+    useEffect(() => {
+        if (!savedChart) return;
 
         const initialState = buildInitialExplorerState({
-            savedChart: data,
+            savedChart,
             minimal: true,
+            isEditMode: savedChart !== data,
             expandedSections: [ExplorerSection.VISUALIZATION],
         });
 
         store.dispatch(explorerActions.reset(initialState));
-    }, [data, store]);
+    }, [savedChart, data, store]);
 
-    // Early return if no data yet
-    if (isInitialLoading || !data) {
-        return null;
-    }
-
-    if (isError) {
+    if (
+        projectsQuery.isError ||
+        projectQuery.isError ||
+        isError ||
+        (!projectUuid && !projectsQuery.isInitialLoading)
+    ) {
         return (
             <>
-                <span>{error.error.message}</span>
+                <span>
+                    {projectsQuery.error?.error.message ??
+                        projectQuery.error?.error.message ??
+                        error?.error.message ??
+                        `Cannot find project: ${projectIdentifier}`}
+                </span>
                 <ScreenshotReadyIndicator
                     tilesTotal={1}
                     tilesReady={0}
@@ -240,12 +329,24 @@ const MinimalSavedExplorer: FC<Props> = ({
         );
     }
 
+    // Early return if no data yet
+    if (
+        projectsQuery.isInitialLoading ||
+        projectQuery.isInitialLoading ||
+        isInitialLoading ||
+        isLoadingScheduler ||
+        !projectRouteContext ||
+        !data
+    ) {
+        return null;
+    }
+
     return (
-        <Provider store={store} key={`minimal-${savedQueryUuid}`}>
-            <MantineProvider inherit theme={themeOverride}>
+        <ProjectRouteContext.Provider value={projectRouteContext}>
+            <Provider store={store} key={`minimal-${savedQueryUuid}`}>
                 <MinimalExplorerContent />
-            </MantineProvider>
-        </Provider>
+            </Provider>
+        </ProjectRouteContext.Provider>
     );
 };
 

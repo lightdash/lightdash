@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const meta: Meta<typeof Button> = {
@@ -7,8 +7,8 @@ const meta: Meta<typeof Button> = {
     argTypes: {
         variant: {
             control: 'select',
-            options: ['dark', 'default'],
-            defaultValue: 'dark',
+            options: ['filled', 'default'],
+            defaultValue: 'filled',
         },
         loading: {
             control: 'boolean',
@@ -32,7 +32,7 @@ type Story = StoryObj<typeof Button>;
 export const PrimaryButton: Story = {
     args: {
         children: 'Primary Button',
-        variant: 'dark',
+        variant: 'filled',
         radius: 'md',
         loading: false,
         disabled: false,

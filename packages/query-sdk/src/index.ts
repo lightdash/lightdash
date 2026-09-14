@@ -18,10 +18,22 @@ export { LightdashProvider, useLightdashClient } from './LightdashProvider';
 export { createApiTransport, type FetchAdapter } from './apiTransport';
 export { createPostMessageTransport } from './postMessageTransport';
 
+// Feature manifest (also exported via the "./features" subpath for hosts)
+export {
+    SDK_FEATURES,
+    SDK_FEATURE_KEYS,
+    SDK_FEATURE_TARGETS,
+    SDK_MANIFEST_MESSAGE_TYPE,
+    type SdkFeature,
+    type SdkFeatureTarget,
+    type SdkManifestMessage,
+} from './features';
+
 // Types
 export type {
     AdditionalMetric,
     Column,
+    ColumnType,
     CustomDimension,
     DownloadResultsFileType,
     DownloadResultsLimit,
@@ -72,6 +84,10 @@ export type {
     InspectSelectedMessage,
 } from './inspector';
 
+// Scheduled-delivery declarations (data apps)
+export { useDelivery } from './delivery';
+export type { DeliveryQuery } from './delivery';
+
 // Google Sheets export (data apps)
 export { exportToSheets } from './exportToSheets';
 export type {
@@ -79,20 +95,38 @@ export type {
     ExportToSheetsResult,
 } from './exportToSheets';
 
-// Data app viz render context (host-pushed rows + field mapping)
+// Data app viz render context (host-pushed rows + field mapping + config options)
 export {
     VizContextProvider,
     useVizContext,
     getFormatted,
     getRaw,
+    resolveSeriesColor,
+    resolveValueColor,
 } from './vizContext';
 export type {
     VizContext,
     VizContextCell,
+    VizContextOptionValue,
+    VizContextPivotDetails,
     VizContextRow,
+    VizUnderlyingData,
+    VizDrillDown,
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';
+
+// Host light/dark mode (seeded from the iframe URL, updated by the host)
+export { useColorScheme } from './colorScheme';
+export type {
+    HostColorScheme,
+    HostColorSchemeMessage,
+    HostColorSchemeRequestMessage,
+} from './colorScheme';
+
+// Delivery/preview capture flag (true when the host is capturing this render
+// for a scheduled delivery or its preview, not an interactive load)
+export { isDeliveryRender, useDeliveryRender } from './deliveryRender';
 
 // Shareable URL state (seeded from and written back to the host page URL)
 export { useUrlState } from './urlState';

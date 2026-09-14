@@ -1,7 +1,22 @@
+import {
+    JWT_HEADER_NAME,
+    LightdashAppPreviewTokenHeader,
+    LightdashAppUuidHeader,
+    LightdashBuildHashHeader,
+    LightdashCliVersionHeader,
+    LightdashMode,
+    LightdashRequestMethodHeader,
+    LightdashSdkVersionHeader,
+    LightdashSignedDownloadHeader,
+    LightdashVersionHeader,
+} from '@lightdash/common';
+import type { NextFunction, Request, Response } from 'express';
 import { vi } from 'vitest';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { AuditLogEvent } from './auditLog';
 import {
+    expressWinstonMiddleware,
+    expressWinstonPreResponseMiddleware,
     formatAuditAction,
     formatAuditActor,
     formatAuditMessage,
@@ -9,6 +24,119 @@ import {
     logAuditEvent,
     winstonLogger,
 } from './winston';
+
+describe('request logging', () => {
+    const originalMode = lightdashConfig.mode;
+    const secretValues = [
+        'ApiKey ldpat_secret',
+        'connect.sid=session_secret',
+        'embed_token_secret',
+        'preview_token_secret',
+    ];
+
+    const createRequest = (): Request => {
+        const headers: Request['headers'] = {
+            authorization: secretValues[0],
+            cookie: secretValues[1],
+            [JWT_HEADER_NAME]: secretValues[2],
+            [LightdashAppPreviewTokenHeader.toLowerCase()]: secretValues[3],
+            host: 'lightdash.example.com',
+            'user-agent': 'logging-test',
+            'x-request-id': 'request-id',
+            [LightdashAppUuidHeader.toLowerCase()]: 'app-uuid',
+            [LightdashBuildHashHeader.toLowerCase()]: 'build-hash',
+            [LightdashCliVersionHeader.toLowerCase()]: '1.2.3',
+            [LightdashRequestMethodHeader.toLowerCase()]: 'CLI',
+            [LightdashSdkVersionHeader.toLowerCase()]: '4.5.6',
+            [LightdashSignedDownloadHeader.toLowerCase()]: 'true',
+            [LightdashVersionHeader.toLowerCase()]: '7.8.9',
+        };
+
+        return {
+            method: 'GET',
+            url: '/api/v1/user',
+            headers,
+            header: (name: string) => {
+                const value = headers[name.toLowerCase()];
+                return Array.isArray(value) ? value[0] : value;
+            },
+            session: {},
+        } as unknown as Request;
+    };
+
+    const createResponse = (): Response =>
+        ({
+            statusCode: 200,
+            end: vi.fn(),
+        }) as unknown as Response;
+
+    afterEach(() => {
+        lightdashConfig.mode = originalMode;
+        vi.restoreAllMocks();
+    });
+
+    it('omits headers from pre-response logs', () => {
+        const logSpy = vi
+            .spyOn(winstonLogger, 'log')
+            .mockImplementation(() => winstonLogger);
+        lightdashConfig.mode = LightdashMode.DEFAULT;
+
+        expressWinstonPreResponseMiddleware(
+            createRequest(),
+            createResponse(),
+            vi.fn() as NextFunction,
+        );
+
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                req: {
+                    method: 'GET',
+                    url: '/api/v1/user',
+                },
+            }),
+        );
+        const serializedLog = JSON.stringify(logSpy.mock.calls[0][0]);
+        secretValues.forEach((secret) => {
+            expect(serializedLog).not.toContain(secret);
+        });
+    });
+
+    it('only includes allowlisted headers in completed request logs', () => {
+        const logSpy = vi
+            .spyOn(winstonLogger, 'log')
+            .mockImplementation(() => winstonLogger);
+        const request = createRequest();
+        const response = createResponse();
+
+        expressWinstonMiddleware(request, response, vi.fn() as NextFunction);
+        response.end();
+
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                req: {
+                    method: 'GET',
+                    url: '/api/v1/user',
+                    headers: {
+                        host: 'lightdash.example.com',
+                        'user-agent': 'logging-test',
+                        'x-request-id': 'request-id',
+                        [LightdashAppUuidHeader.toLowerCase()]: 'app-uuid',
+                        [LightdashBuildHashHeader.toLowerCase()]: 'build-hash',
+                        [LightdashCliVersionHeader.toLowerCase()]: '1.2.3',
+                        [LightdashRequestMethodHeader.toLowerCase()]: 'CLI',
+                        [LightdashSdkVersionHeader.toLowerCase()]: '4.5.6',
+                        [LightdashSignedDownloadHeader.toLowerCase()]: 'true',
+                        [LightdashVersionHeader.toLowerCase()]: '7.8.9',
+                    },
+                },
+            }),
+        );
+        const serializedLog = JSON.stringify(logSpy.mock.calls[0][0]);
+        secretValues.forEach((secret) => {
+            expect(serializedLog).not.toContain(secret);
+        });
+    });
+});
 
 describe('formatAuditAction', () => {
     it('converts known actions to past tense', () => {
@@ -118,6 +246,23 @@ describe('formatAuditResource', () => {
             }),
         ).toBe(
             'Dashboard -> dashboardUuid: dash-uuid, dashboardName: Sales Overview',
+        );
+    });
+
+    it('renders bulk resource metadata as JSON', () => {
+        expect(
+            formatAuditResource({
+                type: 'Space',
+                metadata: {
+                    resources: [
+                        { spaceUuid: 'space-1', spaceName: 'First' },
+                        { spaceUuid: 'space-2', spaceName: 'Second' },
+                    ],
+                },
+                organizationUuid: 'org-uuid',
+            }),
+        ).toBe(
+            'Space -> resources: [{"spaceUuid":"space-1","spaceName":"First"},{"spaceUuid":"space-2","spaceName":"Second"}]',
         );
     });
 

@@ -21,12 +21,13 @@ vi.mock('ai', () => ({
 
 // Mock appAuthz so permission checks are controllable in tests
 vi.mock('./appAuthz', () => ({
-    assertCanViewApp: vi.fn().mockResolvedValue(undefined),
+    assertCanViewApp: vi.fn().mockResolvedValue({ directOnly: false } as never),
 }));
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const APP_UUID = 'app-uuid-1234';
+const APP_SLUG = 'my-app-slug';
 const PROJECT_UUID = 'project-uuid-5678';
 const ORG_UUID = 'org-uuid-abcd';
 const VERSION = 3;
@@ -68,6 +69,7 @@ async function buildSourceTar(): Promise<Buffer> {
 
 const fakeApp = {
     app_id: APP_UUID,
+    slug: APP_SLUG,
     project_uuid: PROJECT_UUID,
     organization_uuid: ORG_UUID,
     space_uuid: null,
@@ -155,7 +157,8 @@ function buildService(overrides: {
     projectModel?: Record<string, unknown>;
     projectParametersModel?: Record<string, unknown>;
     organizationDesignModel?: Record<string, unknown>;
-    customDependenciesEnabled?: boolean;
+    externalConnectionModel?: Record<string, unknown>;
+    spaceModel?: Record<string, unknown>;
 }): AppGenerateService {
     const {
         appModel = {},
@@ -163,7 +166,8 @@ function buildService(overrides: {
         projectModel = {},
         projectParametersModel = {},
         organizationDesignModel = {},
-        customDependenciesEnabled = true,
+        externalConnectionModel = {},
+        spaceModel = {},
     } = overrides;
 
     // Default mocks for context-assembly methods so existing tests don't break
@@ -171,11 +175,13 @@ function buildService(overrides: {
         getAppWithVersions: vi
             .fn()
             .mockResolvedValue({ versions: [], hasMore: false }),
+        hasAppSlug: vi.fn().mockResolvedValue(false),
         ...appModel,
     };
 
     const fullProjectModel = {
         getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+        getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG_UUID }),
         ...projectModel,
     };
 
@@ -189,36 +195,53 @@ function buildService(overrides: {
         ...organizationDesignModel,
     };
 
+    const fullExternalConnectionModel = {
+        listAppLinks: vi.fn().mockResolvedValue([]),
+        ...externalConnectionModel,
+    };
+
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({}),
     };
 
     const svc = new AppGenerateService({
-        lightdashConfig: {
-            appRuntime: { customDependenciesEnabled },
-        } as never,
+        lightdashConfig: {} as never,
         analytics: { track: analyticsTrackSpy } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: fullAppModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: fullOrganizationDesignModel as never,
         pinnedListModel: {} as never,
         projectModel: fullProjectModel as never,
         projectParametersModel: fullProjectParametersModel as never,
-        spaceModel: {} as never,
+        spaceModel: spaceModel as never,
+        savedChartModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
-        externalConnectionModel: {} as never,
+        externalConnectionModel: fullExternalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
+    });
+
+    vi.spyOn(
+        svc as unknown as { createAuditedAbility: () => unknown },
+        'createAuditedAbility',
+    ).mockReturnValue({
+        can: () => true,
+        cannot: () => false,
     });
 
     if (s3ClientOverride) {
@@ -241,14 +264,16 @@ describe('AppGenerateService.getAppCode', () => {
     });
 
     beforeEach(() => {
-        vi.mocked(assertCanViewApp).mockResolvedValue(undefined);
+        vi.mocked(assertCanViewApp).mockResolvedValue({
+            directOnly: false,
+        } as never);
         analyticsTrackSpy.mockClear();
     });
 
     it('returns a DataAppCode with manifest and extracted source files for the latest ready version', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
         };
 
@@ -256,15 +281,20 @@ describe('AppGenerateService.getAppCode', () => {
 
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
-        // manifest fields
-        expect(result.manifest.appUuid).toBe(APP_UUID);
-        expect(result.manifest.projectUuid).toBe(PROJECT_UUID);
+        // manifest fields — identity is the slug; ids are never emitted
+        expect(result.manifest.appUuid).toBeUndefined();
+        expect(result.manifest.slug).toBe(APP_SLUG);
+        expect(result.manifest.projectUuid).toBeUndefined();
         expect(result.manifest.version).toBe(VERSION);
         expect(result.manifest.name).toBe('My App');
         expect(result.manifest.description).toBe('A test app');
         expect(result.manifest.template).toBeNull();
         expect(typeof result.manifest.downloadedAt).toBe('string');
         expect(result.manifest.codeVersion).toBe(1);
+        // No links → the key is omitted so link-less manifests stay unchanged
+        expect(result.manifest).not.toHaveProperty('externalConnections');
+        // Personal app → no spaceSlug key
+        expect(result.manifest).not.toHaveProperty('spaceSlug');
 
         // files — exactly the two source entries
         expect(result.files).toHaveLength(2);
@@ -299,6 +329,79 @@ describe('AppGenerateService.getAppCode', () => {
         });
     });
 
+    it('emits spaceSlug as a content-as-code path for an in-space app', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi
+                .fn()
+                .mockResolvedValue({ ...fakeApp, space_uuid: 'space-uuid-1' }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+        const spaceModel = {
+            getSpaceSummary: vi
+                .fn()
+                .mockResolvedValue({ path: 'sales.q3_reports' }),
+        };
+
+        const svc = buildService({
+            appModel,
+            spaceModel,
+            s3ClientOverride: fakeS3,
+        });
+
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(spaceModel.getSpaceSummary).toHaveBeenCalledWith('space-uuid-1');
+        expect(result.manifest.spaceSlug).toBe('sales/q3-reports');
+    });
+
+    it('resolves the app via the uuid-or-slug lookup when given a slug', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const getAppByUuidOrSlugSpy = vi.fn().mockResolvedValue(fakeApp);
+        const appModel = {
+            getAppByUuidOrSlug: getAppByUuidOrSlugSpy,
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_SLUG);
+
+        expect(getAppByUuidOrSlugSpy).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            APP_SLUG,
+        );
+        expect(result.manifest.slug).toBe(APP_SLUG);
+        expect(result.files).toHaveLength(2);
+    });
+
+    it('uses the resolved app_id — never the raw uuid-or-slug ref — for the S3 source key', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_SLUG);
+
+        expect(fakeS3.send).toHaveBeenCalledWith(
+            expect.objectContaining({
+                input: expect.objectContaining({
+                    Key: `apps/${APP_UUID}/versions/${VERSION}/source.tar`,
+                }),
+            }),
+        );
+
+        const [[sentCommand]] = fakeS3.send.mock.calls as [
+            [{ input: { Key: string } }],
+        ];
+        expect(sentCommand.input.Key).not.toContain(APP_SLUG);
+
+        expect(result.manifest.appUuid).toBeUndefined();
+    });
+
     it('includes the version viz schema in the manifest for a data app viz', async () => {
         const vizSchema = {
             fields: [
@@ -319,7 +422,7 @@ describe('AppGenerateService.getAppCode', () => {
         };
         const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
-            getApp: vi
+            getAppByUuidOrSlug: vi
                 .fn()
                 .mockResolvedValue({ ...fakeApp, template: 'data_app_viz' }),
             getLatestReadyVersion: vi.fn().mockResolvedValue({
@@ -338,7 +441,7 @@ describe('AppGenerateService.getAppCode', () => {
     it('omits vizSchema from the manifest when the version has no schema', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi
                 .fn()
                 .mockResolvedValue({ ...fakeAppVersion, viz_schema: null }),
@@ -350,12 +453,100 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.manifest).not.toHaveProperty('vizSchema');
     });
 
+    it('includes the app icon in the manifest for a chart type', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({
+                ...fakeApp,
+                template: 'data_app_viz',
+                icon: 'chart-sankey',
+            }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest.icon).toBe('chart-sankey');
+    });
+
+    it('normalizes an icon retired from the curated set to null in the manifest', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({
+                ...fakeApp,
+                template: 'data_app_viz',
+                icon: 'a-retired-icon',
+            }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest.icon).toBeNull();
+    });
+
+    it('omits icon from the manifest for a non-chart-type app', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi
+                .fn()
+                .mockResolvedValue({ ...fakeApp, icon: 'chart-sankey' }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest).not.toHaveProperty('icon');
+    });
+
+    it('emits app external-connection links as {alias, connectionSlug} in the manifest', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+        const listAppLinks = vi.fn().mockResolvedValue([
+            {
+                alias: 'stripe',
+                connection: {
+                    externalConnectionUuid: 'conn-uuid-1',
+                    slug: 'stripe-api',
+                    name: 'Stripe API',
+                },
+            },
+            {
+                alias: 'crm',
+                connection: {
+                    externalConnectionUuid: 'conn-uuid-2',
+                    slug: 'hubspot',
+                    name: 'HubSpot',
+                },
+            },
+        ]);
+
+        const svc = buildService({
+            appModel,
+            s3ClientOverride: fakeS3,
+            externalConnectionModel: { listAppLinks },
+        });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(listAppLinks).toHaveBeenCalledWith(APP_UUID);
+        expect(result.manifest.externalConnections).toEqual([
+            { alias: 'stripe', connectionSlug: 'stripe-api' },
+            { alias: 'crm', connectionSlug: 'hubspot' },
+        ]);
+    });
+
     it('uses the provided version number instead of latest ready', async () => {
         const EXPLICIT_VERSION = 7;
         const fakeS3 = makeFakeS3(sourceTarBuffer, EXPLICIT_VERSION);
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn(),
             getVersion: vi.fn().mockResolvedValue({
                 ...fakeAppVersion,
@@ -387,35 +578,9 @@ describe('AppGenerateService.getAppCode', () => {
         );
     });
 
-    it('refuses to download an app with custom deps when the kill-switch is off', async () => {
-        const fakeS3 = makeFakeS3(sourceTarBuffer, 3);
-        const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
-            getLatestReadyVersion: vi.fn(),
-            getVersion: vi.fn().mockResolvedValue({
-                ...fakeAppVersion,
-                version: 3,
-                dependencies: {
-                    custom: [{ name: 'deck.gl', version: '9.3.5' }],
-                    lockfileHash: 'abc',
-                },
-            }),
-        };
-
-        const svc = buildService({
-            appModel,
-            s3ClientOverride: fakeS3,
-            customDependenciesEnabled: false,
-        });
-
-        await expect(
-            svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID, 3),
-        ).rejects.toThrow('LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED');
-    });
-
     it('throws NotFoundError when no ready version exists and version is omitted', async () => {
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(null),
         };
 
@@ -440,7 +605,7 @@ describe('AppGenerateService.getAppCode', () => {
         const fakeS3 = { client: { send } as never, bucket: 'test-bucket' };
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
         };
 
@@ -459,7 +624,7 @@ describe('AppGenerateService.getAppCode', () => {
         );
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
         };
 
         const svc = buildService({
@@ -476,7 +641,7 @@ describe('AppGenerateService.getAppCode', () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
             getAppWithVersions: vi
                 .fn()
@@ -503,7 +668,7 @@ describe('AppGenerateService.getAppCode', () => {
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
         // Core deliverables are intact
-        expect(result.manifest.appUuid).toBe(APP_UUID);
+        expect(result.manifest.slug).toBe(APP_SLUG);
         expect(result.manifest.version).toBe(VERSION);
         expect(result.files).toHaveLength(2);
 
@@ -517,6 +682,7 @@ describe('AppGenerateService.getAppCode', () => {
             'base64',
         ).toString('utf8');
         expect(semanticContent).toContain('# Semantic layer unavailable');
+        expect(result.context.semanticLayerFiles).toEqual([]);
     });
 
     it('passes limit: 100 to getAppWithVersions when assembling prompt history', async () => {
@@ -527,7 +693,7 @@ describe('AppGenerateService.getAppCode', () => {
             .mockResolvedValue({ versions: [], hasMore: false });
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
             getAppWithVersions: getAppWithVersionsSpy,
         };
@@ -581,7 +747,9 @@ describe('AppGenerateService.getAppCode', () => {
         ];
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue({ ...fakeApp, version: VERSION }),
+            getAppByUuidOrSlug: vi
+                .fn()
+                .mockResolvedValue({ ...fakeApp, version: VERSION }),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
             getAppWithVersions: vi
                 .fn()
@@ -604,10 +772,19 @@ describe('AppGenerateService.getAppCode', () => {
 
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
-        // semantic layer context file is always present
+        // semantic layer: sharded model files plus a pointer at the legacy path
         expect(result.context.semanticLayer.path).toBe(
             '.lightdash/context/semantic-layer.yml',
         );
+        expect(
+            Buffer.from(
+                result.context.semanticLayer.contentBase64,
+                'base64',
+            ).toString('utf8'),
+        ).toContain('models/_index.md');
+        expect(
+            result.context.semanticLayerFiles?.map((file) => file.path),
+        ).toEqual(['.lightdash/context/models/_index.md']);
 
         // empty parameters → null
         expect(result.context.parameters).toBeNull();
@@ -624,5 +801,101 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.context.theme.skippedAssetCount).toBe(0);
         expect(result.context.theme.assets).toHaveLength(0);
         expect(result.context.theme.instructions).toBeNull();
+    });
+});
+
+describe('AppGenerateService.getDataAppAuthoringContext', () => {
+    it('returns project context with empty prompt history for a new local app', async () => {
+        const getAppWithVersions = vi.fn();
+        const hasAppSlug = vi.fn().mockResolvedValue(false);
+        const svc = buildService({
+            appModel: { getAppWithVersions, hasAppSlug },
+            projectModel: {
+                getAllExploresFromCache: vi.fn().mockResolvedValue({
+                    'explore-uuid': {
+                        name: 'orders',
+                        baseTable: 'orders',
+                        joinedTables: [],
+                        tables: {
+                            orders: {
+                                metrics: {},
+                                dimensions: {
+                                    status: { name: 'status', type: 'string' },
+                                },
+                            },
+                        },
+                    },
+                }),
+            },
+        });
+
+        const context = await svc.getDataAppAuthoringContext(
+            fakeUser,
+            PROJECT_UUID,
+            'revenue-explorer',
+            null,
+        );
+
+        expect(hasAppSlug).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'revenue-explorer',
+        );
+        expect(getAppWithVersions).not.toHaveBeenCalled();
+        expect(context.semanticLayer.path).toBe(
+            '.lightdash/context/semantic-layer.yml',
+        );
+        expect(
+            context.semanticLayerFiles?.map((file) => file.path).sort(),
+        ).toEqual([
+            '.lightdash/context/models/_index.md',
+            '.lightdash/context/models/orders.yml',
+        ]);
+        expect(
+            Buffer.from(
+                context.semanticLayerFiles!.find((file) =>
+                    file.path.endsWith('orders.yml'),
+                )!.contentBase64,
+                'base64',
+            ).toString('utf8'),
+        ).toContain('name: orders');
+        expect(context.parameters).toBeNull();
+        expect(
+            Buffer.from(context.promptHistory.contentBase64, 'base64').toString(
+                'utf8',
+            ),
+        ).toContain('No previous versions');
+        expect(context.theme).toEqual({
+            instructions: null,
+            assets: [],
+            skippedAssetCount: 0,
+        });
+    });
+
+    it('rejects a slug already reserved in the project', async () => {
+        const svc = buildService({
+            appModel: { hasAppSlug: vi.fn().mockResolvedValue(true) },
+        });
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                APP_SLUG,
+                null,
+            ),
+        ).rejects.toThrow(`A data app with slug "${APP_SLUG}" already exists`);
+    });
+
+    it('rejects an invalid local app slug', async () => {
+        const svc = buildService({});
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                '../invalid',
+                null,
+            ),
+        ).rejects.toThrow('Invalid data app slug');
     });
 });

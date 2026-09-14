@@ -10,7 +10,7 @@ import {
     TextInput,
     useMantineColorScheme,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconChevronDown,
@@ -152,14 +152,13 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
 
                 <Button
                     variant="subtle"
-                    color="blue"
                     size="compact-xs"
                     onClick={() => setShowAllColors(!showAllColors)}
                     rightSection={
                         <MantineIcon icon={IconChevronDown} size="xs" />
                     }
                     fullWidth
-                    style={{ alignSelf: 'flex-end' }}
+                    className={classes.toggleColorsButton}
                 >
                     {showAllColors ? 'Show fewer colors' : 'Show all colors'}
                 </Button>

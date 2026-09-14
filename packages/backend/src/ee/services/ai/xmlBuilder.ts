@@ -1,5 +1,14 @@
 import { AnyType } from '@lightdash/common';
 
+export const escapeXmlText = (value: string): string =>
+    value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
+export const escapeXmlAttribute = (value: string): string =>
+    escapeXmlText(value).replaceAll('"', '&quot;').replaceAll("'", '&apos;');
+
 function buildXml(
     tag: string,
     props: Record<string, string | number | boolean | null | undefined> | null,
@@ -12,7 +21,10 @@ function buildXml(
     const attributes = props
         ? Object.entries(props)
               .filter(([, value]) => value !== null && value !== undefined)
-              .map(([key, value]) => `${key}="${value}"`)
+              .map(
+                  ([key, value]) =>
+                      `${key}="${escapeXmlAttribute(String(value))}"`,
+              )
               .join(' ')
         : '';
 

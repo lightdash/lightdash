@@ -109,11 +109,54 @@ export const loadTemplateDependencies = (
 /**
  * Reads vendored template, excluding sandbox-only entries (skill.md, scripts/, src/).
  */
-export const loadVendoredTemplate = (): DataAppCodeFile[] => {
+const loadVendoredTemplate = (): DataAppCodeFile[] => {
     const { templateDir } = resolveVendorDirs();
     const SKIP = new Set(['skill.md', 'scripts', 'src']);
     return walkDir(templateDir, templateDir, SKIP);
 };
+
+export const loadVendoredBuildScaffold = (
+    sdkVersion: string,
+): DataAppCodeFile[] =>
+    loadVendoredTemplate().map((file) =>
+        file.path === 'package.json'
+            ? {
+                  ...file,
+                  contentBase64: Buffer.from(
+                      rewriteWorkspaceDeps(
+                          Buffer.from(file.contentBase64, 'base64').toString(
+                              'utf-8',
+                          ),
+                          sdkVersion,
+                      ),
+                  ).toString('base64'),
+              }
+            : file,
+    );
+
+export const loadVendoredStarterSource = (): DataAppCodeFile[] => {
+    const { templateDir } = resolveVendorDirs();
+    return walkDir(path.join(templateDir, 'src'), templateDir, new Set());
+};
+
+/**
+ * The chart-type starter component: replaces the template's src/App.jsx when
+ * scaffolding a custom chart type (data_app_viz). The rest of the starter
+ * source (main.jsx already mounts VizContextProvider, lib/, css) is shared
+ * with data apps.
+ */
+export const loadChartTypeStarterApp = (): DataAppCodeFile => {
+    const { authoringDir } = resolveVendorDirs();
+    return {
+        path: 'src/App.jsx',
+        contentBase64: readFileSync(
+            path.join(authoringDir, 'chart-type', 'App.jsx'),
+        ).toString('base64'),
+    };
+};
+
+/** Which scaffold is being assembled: a data app or a custom chart type. */
+export type AuthoringFlavor = 'app' | 'chart-type';
 
 /**
  * Assembles static authoring files (configs, skills, templates) to deploy alongside a data app.
@@ -121,56 +164,82 @@ export const loadVendoredTemplate = (): DataAppCodeFile[] => {
 export const buildStaticAuthoringFiles = (args: {
     appName: string;
     sdkVersion: string;
+    flavor?: AuthoringFlavor;
 }): DataAppCodeFile[] => {
-    const { appName, sdkVersion } = args;
+    const { appName, sdkVersion, flavor = 'app' } = args;
     const { templateDir, authoringDir } = resolveVendorDirs();
+    const isChartType = flavor === 'chart-type';
 
     const files: DataAppCodeFile[] = [];
 
     // 1. Template scaffold files (src/, scripts/, skill.md excluded)
-    for (const file of loadVendoredTemplate()) {
-        if (file.path === 'package.json') {
-            const rewritten = rewriteWorkspaceDeps(
-                Buffer.from(file.contentBase64, 'base64').toString('utf-8'),
-                sdkVersion,
-            );
-            files.push({
-                path: 'package.json',
-                contentBase64: Buffer.from(rewritten).toString('base64'),
-            });
-        } else {
-            files.push(file);
-        }
+    for (const file of loadVendoredBuildScaffold(sdkVersion)) {
+        files.push(file);
     }
 
-    // 2. skill.md → .claude/skills/lightdash-data-app/SKILL.md
-    files.push({
-        path: '.claude/skills/lightdash-data-app/SKILL.md',
-        contentBase64: readFileSync(
-            path.join(templateDir, 'skill.md'),
-        ).toString('base64'),
-    });
+    // 2+3. Flavor-specific skills. A chart type must not query through the
+    // SDK, so the app-building skills would only mislead — it gets the local
+    // chart-type workflow skill instead, with the viz contract shipping via
+    // the template's .claude/skills/reusable-visualization (step 1).
+    if (isChartType) {
+        files.push({
+            path: '.claude/skills/developing-chart-types-locally/SKILL.md',
+            contentBase64: readFileSync(
+                path.join(
+                    authoringDir,
+                    'developing-chart-types-locally',
+                    'SKILL.md',
+                ),
+            ).toString('base64'),
+        });
+        // Starter fixture for the SDK's dev-only preview fallback: open the dev
+        // server with `?vizFixture=/viz-fixture.json` to render the chart
+        // without the Lightdash host (see developing-chart-types-locally).
+        files.push({
+            path: 'viz-fixture.json',
+            contentBase64: readFileSync(
+                path.join(authoringDir, 'chart-type', 'viz-fixture.json'),
+            ).toString('base64'),
+        });
+    }
+    if (!isChartType) {
+        // skill.md → .claude/skills/lightdash-data-app/SKILL.md
+        files.push({
+            path: '.claude/skills/lightdash-data-app/SKILL.md',
+            contentBase64: readFileSync(
+                path.join(templateDir, 'skill.md'),
+            ).toString('base64'),
+        });
 
-    // 3. authoring/developing-data-apps-locally/SKILL.md
-    //    → .claude/skills/developing-data-apps-locally/SKILL.md
-    files.push({
-        path: '.claude/skills/developing-data-apps-locally/SKILL.md',
-        contentBase64: readFileSync(
-            path.join(authoringDir, 'developing-data-apps-locally', 'SKILL.md'),
-        ).toString('base64'),
-    });
+        // authoring/developing-data-apps-locally/SKILL.md
+        //    → .claude/skills/developing-data-apps-locally/SKILL.md
+        files.push({
+            path: '.claude/skills/developing-data-apps-locally/SKILL.md',
+            contentBase64: readFileSync(
+                path.join(
+                    authoringDir,
+                    'developing-data-apps-locally',
+                    'SKILL.md',
+                ),
+            ).toString('base64'),
+        });
+    }
+
+    const flavorDir = isChartType
+        ? path.join(authoringDir, 'chart-type')
+        : authoringDir;
 
     // 4. AGENTS.md.tmpl → AGENTS.md
     files.push({
         path: 'AGENTS.md',
         contentBase64: readFileSync(
-            path.join(authoringDir, 'AGENTS.md.tmpl'),
+            path.join(flavorDir, 'AGENTS.md.tmpl'),
         ).toString('base64'),
     });
 
     // 5. README.md.tmpl → README.md  (substitute {{APP_NAME}})
     const readme = readFileSync(
-        path.join(authoringDir, 'README.md.tmpl'),
+        path.join(flavorDir, 'README.md.tmpl'),
         'utf-8',
     ).replace(/\{\{APP_NAME\}\}/g, appName);
     files.push({

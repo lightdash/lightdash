@@ -1,12 +1,17 @@
 import { type AiAgentVerifiedArtifact } from '@lightdash/common';
-import { Box, Stack, Text, useMantineTheme } from '@mantine-8/core';
+import { Box, Stack, Text, useMantineTheme } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
+import {
+    clearPreview,
+    selectArtifactPreview,
+    setPreview,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -17,17 +22,17 @@ import { VerifiedArtifactsTable } from './VerifiedArtifactsTable';
 
 export const VerifiedArtifactsLayout: FC = () => {
     const theme = useMantineTheme();
-    const { projectUuid, agentUuid } = useParams();
+    const { agentUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const artifact = useAiAgentStoreSelector(selectArtifactPreview);
 
     const handleArtifactSelect = (
         selectedArtifact: AiAgentVerifiedArtifact,
     ) => {
         dispatch(
-            setArtifact({
+            setPreview({
+                type: 'artifact',
                 projectUuid: projectUuid!,
                 agentUuid: agentUuid!,
                 artifactUuid: selectedArtifact.artifactUuid,
@@ -40,7 +45,7 @@ export const VerifiedArtifactsLayout: FC = () => {
 
     useEffect(() => {
         return () => {
-            dispatch(clearArtifact());
+            dispatch(clearPreview());
         };
     }, [dispatch]);
 

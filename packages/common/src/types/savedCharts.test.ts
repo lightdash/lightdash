@@ -158,6 +158,7 @@ describe('ChartType.DATA_APP_VIZ variant', () => {
         config: {
             dataAppVizUuid: 'data-app-viz-1',
             fieldMapping: { category: 'orders_status', value: 'orders_count' },
+            optionValues: { showLegend: false, barColor: '#ff0000' },
         },
     };
 
@@ -174,6 +175,15 @@ describe('ChartType.DATA_APP_VIZ variant', () => {
         expect(isDataAppVizChart(dataAppVizConfig.config)).toBe(true);
         expect(isDataAppVizChart({ spec: {} })).toBe(false);
         expect(isDataAppVizChart(undefined)).toBe(false);
+    });
+
+    it('isDataAppVizChart still matches charts saved without optionValues', () => {
+        expect(
+            isDataAppVizChart({
+                dataAppVizUuid: 'data-app-viz-1',
+                fieldMapping: {},
+            }),
+        ).toBe(true);
     });
 
     it('is not misclassified as a table config', () => {

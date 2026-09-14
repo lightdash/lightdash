@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     type AiArtifact,
     type Dashboard,
-    type ToolDashboardArgs,
+    type ToolDashboardV2Args,
 } from '@lightdash/common';
 import {
     Button,
@@ -10,7 +10,7 @@ import {
     Stack,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -52,7 +52,7 @@ interface Props extends Omit<MantineModalProps, 'children' | 'title'> {
     artifactData: AiArtifact;
     projectUuid: string;
     agentUuid: string;
-    dashboardConfig: ToolDashboardArgs;
+    dashboardConfig: ToolDashboardV2Args;
     onSuccess?: (dashboard: Dashboard) => void;
 }
 
@@ -85,6 +85,14 @@ export const AiDashboardSaveModal: FC<Props> = ({
         artifactData.versionUuid,
     );
 
+    const validate = useMemo(
+        () => ({
+            dashboardName: (value: string) =>
+                value.length === 0 ? 'Dashboard name is required' : null,
+        }),
+        [],
+    );
+
     const form = useForm<FormValues>({
         initialValues: {
             dashboardName: dashboardConfig.title,
@@ -92,10 +100,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
             spaceUuid: null,
             newSpaceName: null,
         },
-        validate: {
-            dashboardName: (value: string) =>
-                value.length === 0 ? 'Dashboard name is required' : null,
-        },
+        validate,
     });
 
     const spaceManagement = useSpaceManagement({

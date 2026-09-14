@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent skills
+
+### Issue tracker
+
+Linear (internal, default) + GitHub Issues (public, customer-facing). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a multi-context repository rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
+
 ## Formula Package Development
 
 The `packages/formula/` package contains a Peggy-based parser that compiles Google Sheets-like formulas to SQL for each warehouse dialect (Postgres, BigQuery, Snowflake, DuckDB).
@@ -9,7 +23,7 @@ The `packages/formula/` package contains a Peggy-based parser that compiles Goog
 **Never read files in `packages/formula-tests/`.** This package contains black-box integration tests. Use the following commands for feedback:
 
 ```bash
-pnpm formula:test:fast     # DuckDB only — sub-second feedback loop
+pnpm formula:test:duckdb   # DuckDB only — sub-second feedback loop
 pnpm formula:test:tier1    # DuckDB + Postgres
 pnpm formula:test:tier2    # BigQuery + Snowflake
 pnpm formula:test:all      # Everything
@@ -18,7 +32,7 @@ pnpm formula:test:all      # Everything
 The development loop is:
 1. Edit code in `packages/formula/`
 2. `pnpm formula:build`
-3. `pnpm formula:test:fast` (or tier1/tier2) — read the feedback output
+3. `pnpm formula:test:duckdb` (or tier1/tier2) — read the feedback output
 4. Fix issues and repeat
 
 Unit tests in `packages/formula/tests/` CAN be read and edited (grammar and AST tests).
@@ -50,9 +64,16 @@ The backend uses two S3 endpoint settings:
 
 When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
 
+## Domain Glossaries
+
+`CONTEXT-MAP.md` lists per-feature glossaries of canonical domain terms (e.g.
+pre-aggregates). Before writing code, docs, or UI copy for a feature area that
+has a glossary, read it and use the canonical terms — never the `_Avoid_`
+aliases.
+
 ## Common Development Commands
 
--   Assume the dev-server is always running
+-   Assume the dev-server is always running and watching source files; a separate `api-routes-watch` process regenerates TSOA routes when controllers change, so backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
 
 **Code Quality:**
@@ -62,12 +83,9 @@ pnpm -F common lint
 pnpm -F backend lint
 pnpm -F frontend lint
 pnpm -F common typecheck
-pnpm -F common typecheck:fast # common is heavy; use this faster typecheck there
 pnpm -F backend typecheck
-pnpm -F backend typecheck:fast
 pnpm -F frontend typecheck
-pnpm -F frontend typecheck:fast
-pnpm -F warehouses typecheck:fast
+pnpm -F warehouses typecheck
 ```
 
 **Testing:**
@@ -76,6 +94,24 @@ pnpm -F warehouses typecheck:fast
 pnpm -F common test
 pnpm -F backend test:dev:nowatch # runs only tests for modified files
 ```
+
+When running a specific Vitest file in any package, pass the path directly to
+the package test script:
+
+```bash
+pnpm -F <package> test path/to/file.test.ts
+```
+
+Never insert `--` before the file path. Vitest can ignore the file filter and
+run the entire package test suite:
+
+```bash
+# Wrong — can run every test in the package
+pnpm -F <package> test -- path/to/file.test.ts
+```
+
+For a single-file run, verify the Vitest summary reports one test file. If
+unrelated test files appear, stop the command immediately and correct it.
 
 **API Generation:**
 
@@ -96,13 +132,7 @@ local generated routes are stale:
 pnpm generate-api
 ```
 
-The generated files (`packages/backend/src/generated/*`) are regenerated on main per build, so the committed `routes.ts` may be stale after you pull or rebase main — it can still import controllers that main has already deleted. If the backend crash-loops with `MODULE_NOT_FOUND` pointing at `generated/routes.ts`, regenerate and restart:
-
-```bash
-pnpm generate-api
-# processes are named <LD_INSTANCE_ID>-api / -scheduler (LD_INSTANCE_ID defaults to "lightdash")
-pm2 restart "${LD_INSTANCE_ID:-lightdash}-api" "${LD_INSTANCE_ID:-lightdash}-scheduler"
-```
+The generated files (`packages/backend/src/generated/*`) are regenerated on main per build, so the committed `routes.ts` may be stale after you pull or rebase main — it can still import controllers that main has already deleted. If the backend crash-loops with `MODULE_NOT_FOUND` pointing at `generated/routes.ts`, run `pnpm generate-api` and restart the dev-server.
 
 Chart-as-code JSON schema is generated from backend OpenAPI:
 
@@ -110,6 +140,23 @@ Chart-as-code JSON schema is generated from backend OpenAPI:
 pnpm generate:chart-as-code-schema
 pnpm check:chart-as-code-schema
 ```
+
+**MCP Tool Snapshot:**
+
+The committed `packages/common/src/schemas/json/mcp-tools-1.0.json` snapshot
+represents the stable/default MCP tool surface used by release-safety checks.
+Run the generator and commit the snapshot whenever a change affects an MCP
+tool's membership, name, title, description, annotations, input schema, or
+output schema, including changes to imported schemas:
+
+```bash
+pnpm generate:mcp-tools-snapshot
+```
+
+Do not regenerate it solely for a temporary runtime-selected rollout variant.
+Regenerate it when that variant becomes the default contract. If unsure whether
+a change affects the snapshot, run `pnpm check:mcp-tools-snapshot`. Running
+`pnpm generate-api` also regenerates the MCP tool snapshot through its post-hook.
 
 **Database Migrations:**
 
@@ -124,12 +171,50 @@ pnpm -F backend migrate
 pnpm -F backend rollback-last
 ```
 
+## Feature flags
+
+Before adding or changing a feature flag, read [docs/feature-flags.md](docs/feature-flags.md).
+Use `FeatureFlagModel.get` / `FeatureFlagService.get` in backend services and
+`useServerFeatureFlag` in the frontend. Do not create an ENV-only or `NODE_ENV`
+rollout gate: the shared resolver supports Console database overrides and
+self-hosted ENV configuration. Keep resource authorization separate.
+Verify Console-only enablement with ENV enable unset and preview defaults off,
+including the backend action, not just UI visibility. Document scope, precedence,
+refresh/restart behavior, and remove temporary ENV overrides after rollout.
+
 ## Development Workflow
 
-1. **Package Management**: Use `pnpm` (v9.15.5+) - never use npm or yarn
+1. **Package Management**: Use `pnpm` (pinned via `packageManager` in the root `package.json`, which pnpm reads directly). Install pnpm directly; do not use Corepack, npm, or yarn for workspace commands.
 2. **Database**: Uses Knex.js for migrations and query building
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
+
+## Release-safety declarations
+
+`Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
+
+- For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
+- For API or type breaks, add a stable ID to `release-safety.declarations.json` with `reason` and `requiredStop`. The reason must be at least 24 characters, use more than one word, describe what breaks and for whom, and not use placeholder text. Omit `migration` for these entries.
+
+A declaration is active only for a Git range that adds its ID. The release generator compares the last release tag with the target ref. The pull request preview compares the merge base with the head. This makes the declaration expire after the release that first contains it. Do not remove it after release.
+
+The registry is append-only. Never edit, remove, rename, or reuse an existing ID. Add a new ID for every new break, even when it affects the same file or has similar reason text. A release may add `releasedIn` for documentation, but that value never controls activation.
+
+Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. The declaration does not reactivate in later Git ranges.
+
+## Merge Freeze — Holding `main` While a Release Is Cut
+
+`release.yml` fires on every push to `main`, so the release that goes out is whatever `main` contains at that moment. When something needs to reach a release on its own — a fix someone is waiting on — hold merges rather than asking people in Slack not to merge:
+
+-   **Freeze**: `gh workflow run merge-freeze.yml -f action=freeze`. This adds a `merge-freeze` required status check to the `main` ruleset. Nothing ever reports that check, so merges into `main` are blocked for everyone without a ruleset bypass.
+-   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry. Repeat unfreeze to refresh stale PR checks even when the ruleset is already open. In `#engineering`, ask `@Cloudy unfreeze merges to lightdash`.
+-   **Any verified Lightdash employee can unfreeze through Cloudy in Slack.** Direct Actions dispatch remains available to the recorded owner. A repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
+-   **There is no free-text reason, deliberately** — this repo is public, and a reason box invites someone to name a customer in it. Blocked PRs show who froze it so people know who to ask, and `#engineering` gets the same on both directions. Say why in Slack.
+-   **Only `main` is affected.** Stacked PRs merging into their parent branch are untouched.
+-   **Check the current state**: the `MERGE_FREEZE` repo variable (`true`/`false`), and `MERGE_FREEZE_ACTOR` for who froze it — `gh variable list -R lightdash/lightdash`. The authority is the ruleset itself: `merge-freeze` in the `main` ruleset's required status checks (`gh api repos/lightdash/lightdash/rulesets`). The variables are a mirror, so trust the ruleset if they ever disagree.
+-   **Agents: never freeze or unfreeze on your own initiative.** It blocks every engineer in the repo. Ask, and let a human dispatch it.
+
+Freezing analytics/customer *deployments* is a different mechanism in a different repo — see the `lightdash-cloud` CLAUDE.md.
 
 ## Package-Specific Notes
 
@@ -241,12 +326,12 @@ This applies to any install Claude runs in this repo — lockfile regeneration, 
 
 ### Dependency Install Scripts — Blocked by Default
 
-Dependency lifecycle scripts (`preinstall`/`install`/`postinstall`) are blocked by pnpm and enforced in CI via `strictDepBuilds: true` in `pnpm-workspace.yaml`. With it set, `pnpm install` (which every CI job runs) **fails** if any dependency has a build script that isn't reviewed in one of two lists in `pnpm-workspace.yaml`:
+Dependency lifecycle scripts (`preinstall`/`install`/`postinstall`) are blocked by pnpm and enforced in CI via `strictDepBuilds: true` in `pnpm-workspace.yaml`. With it set, `pnpm install` (which every CI job runs) **fails** if any dependency has a build script that isn't reviewed in the `allowBuilds` map in `pnpm-workspace.yaml`:
 
-- `onlyBuiltDependencies` — packages allowed to run their build scripts (native addons we depend on).
-- `ignoredBuiltDependencies` — packages whose build scripts we intentionally do NOT run (each entry documents why).
+- `allowBuilds: { <package>: true }` — allowed to run its build script (native addons we depend on).
+- `allowBuilds: { <package>: false }` — build script we intentionally do NOT run (each entry documents why).
 
-This matters because these scripts also run on `npm install` for downstream consumers of our published packages (e.g. `@lightdash/cli`). When CI fails with `ERR_PNPM_IGNORED_BUILDS`, either remove/replace the dependency, add it to `ignoredBuiltDependencies` (with a reason) if its script is safe to skip, or `onlyBuiltDependencies` if the script must run. (pnpm 11 replaces these three settings with a single `allowBuilds` map.)
+This matters because these scripts also run on `npm install` for downstream consumers of our published packages (e.g. `@lightdash/cli`). When CI fails on an unreviewed build script, either remove/replace the dependency, add it as `false` (with a reason) if its script is safe to skip, or `true` if the script must run.
 
 ### Warehouse Credentials Protection
 
@@ -299,34 +384,27 @@ export const sensitiveCredentialsFieldNames = [
 -   `ProjectModel.get()` filters credentials using this array before returning to API controllers
 -   `ProjectModel.getWithSensitiveFields()` returns unfiltered data for internal use only
 
-## Slugs — Not Unique Identifiers
+### LIGHTDASH_SECRET-Derived State Must Register for Rotation
 
-**WARNING: Slugs are NOT guaranteed to be unique.** Do not treat them as reliable identifiers for lookups, deduplication, or foreign key relationships. Always use UUIDs for uniqueness guarantees.
+Anything persisted or verified using `LIGHTDASH_SECRET` must be covered by the `rotate-lightdash-secret` maintenance command (`packages/backend/src/scripts/rotate-lightdash-secret/`), or secret rotation strands it. When adding:
 
-Slugs are human-readable URL identifiers for charts, dashboards, and spaces (e.g., `weekly-sales-report`). They are generated from the entity name via `generateSlug()` (`packages/common/src/utils/slugs.ts`), and uniqueness is enforced at creation time by `generateUniqueSlug*` functions (`packages/backend/src/utils/SlugUtils.ts`). However, **multiple code paths bypass these uniqueness checks**, resulting in duplicate slugs in production.
+-   **A new encrypted DB column** (`EncryptionUtil` ciphertext): add it to `CIPHERTEXT_REGISTRY` in `registry.ts` (table, primary key column, column) so the command re-encrypts it.
+-   **A new deterministic token-hash table** (`hashWithSecret`): add it to `TOKEN_HASH_TABLES` in `rotation.ts` so hashes are classified and reported as removal blockers. Token hashes are one-way and can never be migrated by the command: lookup verifies against every configured secret, but a credential hashed under a fallback must be reissued or revoked before that fallback is removed.
+-   **A new signed or secret-derived artifact** (JWT, HMAC, signed cookie): sign with `lightdashConfig.lightdashSecrets.active`, verify against `lightdashSecrets.all`, and document its lifetime in the removal gates of `docs/lightdash-secret-rotation.md` (short-lived artifacts break once their signing secret leaves the configured secrets; the runbook's waiting periods must cover them).
 
-**How slugs get duplicated:**
+Tests in `rotation.test.ts` pin the registry contents — update them together with the registry.
 
-1. **Content-as-code (`lightdash upload`)**: The `CoderService` uses `forceSlug: true` when creating charts and dashboards, which skips the `generateUniqueSlug` call entirely and inserts the slug from the YAML file as-is. If two YAML files with the same slug are uploaded, or a slug already exists in the target project, duplicates are created.
+## Slugs — Project-Scoped Portable Identifiers
 
-2. **Promotion**: The `PromoteService` also uses `forceSlug: true` when creating content in the upstream project. Promoting the same content from multiple downstream projects, or re-promoting after manual creation in upstream, can create duplicates.
+Slugs are unique per project and resource type for charts, dashboards, SQL Runner charts, spaces, and data apps. Database constraints are authoritative and include soft-deleted rows, so a deleted resource reserves its slug for a safe restore. The same slug may be used in a different project.
 
-3. **Lossy slug generation**: `generateSlug()` strips all non-alphanumeric characters to hyphens, so different names produce identical slugs. Examples:
-   - `"Sales Report (2024)"` and `"Sales Report 2024"` → `sales-report-2024`
-   - `"Q1 / Q2 Summary"` and `"Q1 - Q2 Summary"` → `q1-q2-summary`
+Use `generateUniqueSlugScopedToProject()` (`packages/backend/src/utils/SlugUtils.ts`) for normal creation. It derives the base with `generateSlug()`, probes exact indexed candidates, and appends `-1`, `-2`, and so on for conflicts. Explicit slugs used by content-as-code and promotion must be inserted exactly; same-project conflicts return an actionable conflict or resolve the intended active upsert, never overwrite another resource.
 
-   The uniqueness check at creation time handles this by appending `-1`, `-2`, etc., but `forceSlug: true` paths bypass this.
+Content-as-code upserts address content by exact slug, so a soft-deleted chart or dashboard that owns the slug is revived in place with the uploaded content instead of blocking the upload. Space paths are not database-constrained: one active space and any number of deleted spaces may share a path, and restoring a deleted space is rejected while an active space holds its path.
 
-4. **Ltree path conversion is also lossy**: `getLtreePathFromSlug` converts hyphens to underscores, so `"my-space"` and `"my_space"` map to the same ltree path. This can cause space resolution collisions.
+UUIDs remain the canonical internal identity. Use them for foreign keys, durable relationships, and references without an explicit project scope. Slugs are appropriate for project-scoped URLs and portable content-as-code selectors.
 
-**No database-level uniqueness constraint** exists for slugs on `saved_queries`, `dashboards`, or `spaces` tables. Only `saved_sql` has a `UNIQUE(project_uuid, slug)` DB constraint. All other uniqueness enforcement is application-level only.
-
-**What this means in practice:**
-
-- **API resolution picks first match**: `getByIdOrSlug()` queries use `LIMIT 1` — when duplicates exist, the result is non-deterministic. No error is thrown.
-- **Promotion fails on duplicates**: `PromoteService` throws an explicit error (`"There are multiple charts with the same identifier {slug}"`) when it finds duplicate slugs in the upstream project.
-- **Never use slugs as unique keys** in new code. Use UUIDs for any operation that requires uniqueness. Slugs are for URL display only.
-- **A REPL script exists** to fix duplicates: `packages/backend/src/ee/repl/scripts/fixDuplicateSlugs.ts`
+`getLtreePathFromSlug` is lossy: hyphens and underscores map to the same ltree label. Space hierarchy and access logic must use `parent_space_uuid`; path-based resolution must reject ambiguity rather than selecting an arbitrary row.
 
 ### Make uuid vs uuid-or-slug explicit (endpoints & service args)
 
@@ -345,6 +423,26 @@ the contract explicit instead of relying on the name:
 - **Service args** mirror the same names: a `UuidOrSlug` arg must be resolved to
   `entity.uuid` (via `getByIdOrSlug`) before being used as a key, FK, or in any
   comparison — never pass the raw arg downstream.
+
+## Translation — deliberately limited to embeds
+
+There is no i18n framework and no full-app localization (that is PROD-3774,
+not built). Two embed-scoped mechanisms exist, with a strict boundary:
+
+-   **Content** (chart/dashboard names, tile titles, labels): `LanguageMap` /
+    the SDK `contentOverrides` prop — slug-keyed, schema-derived.
+-   **UI chrome** (filter operators/inputs, date zoom, tile menus, filter
+    bar): the SDK `uiOverrides` prop — a flat key→string map. The registry
+    `DEFAULT_UI_STRINGS` in `packages/common/src/utils/i18n/uiStrings.ts` is
+    the single source of truth; components render `override ?? English
+    default` via `useUiStrings()`. Shipped keys are a public SDK contract:
+    additive only, never rename or remove.
+
+When adding user-visible strings to embed-reachable surfaces (anything a
+dashboard viewer sees), follow the mandate in
+`packages/frontend/src/components/common/Filters/CLAUDE.md` — it generalizes
+beyond filters. English strings for those surfaces live only in the registry,
+never inline. Do not add an i18n framework; host apps own locale state.
 
 ## Development Troubleshooting
 

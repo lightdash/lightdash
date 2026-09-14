@@ -103,7 +103,6 @@ describe('GitlabProvider.openPullRequest', () => {
             description: 'Adds revenue.',
             user: { userUuid: 'u1' } as never,
             setStage: vi.fn(),
-            denyCiPaths: false,
         });
 
         expect(result.prUrl).toBe(
@@ -149,7 +148,6 @@ describe('GitlabProvider.openPullRequest', () => {
                 email: 'jane@acme.com',
             } as never,
             setStage: vi.fn(),
-            denyCiPaths: false,
         });
 
         expect(sandbox.git.commit).toHaveBeenCalledWith(
@@ -159,7 +157,7 @@ describe('GitlabProvider.openPullRequest', () => {
         );
     });
 
-    it('rejects a CI-touching commit (general agent) without pushing or opening an MR', async () => {
+    it('rejects a CI-touching commit without pushing or opening an MR', async () => {
         const sandbox = fakeSandbox();
         // The denied-path gate probes staged paths with `--name-status -z`;
         // return a CI/workflow path for that call, empty for everything else.
@@ -178,7 +176,6 @@ describe('GitlabProvider.openPullRequest', () => {
                 description: 'Adds CI.',
                 user: { userUuid: 'u1' } as never,
                 setStage: vi.fn(),
-                denyCiPaths: true,
             }),
         ).rejects.toBeInstanceOf(DeniedPathError);
 

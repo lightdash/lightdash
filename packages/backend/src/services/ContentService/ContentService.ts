@@ -5,12 +5,16 @@ import {
     assertUnreachable,
     BulkActionable,
     ChartSourceType,
+    ContentActionDelete,
     ContentActionMove,
+    ContentBulkDeleteResults,
     ContentType,
     DeletedContentFilters,
     DeletedContentItem,
     DeletedContentWithDescendants,
+    DirectAccessResourceType,
     ForbiddenError,
+    getErrorMessage,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -30,9 +34,11 @@ import {
 } from '../../models/ContentModel/ContentModelTypes';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -48,6 +54,8 @@ type ContentServiceArguments = {
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
     spacePermissionService: SpacePermissionService;
+    directAccessService: DirectAccessService;
+    validationModel: ValidationModel;
     appMoveService: BulkActionable<Knex> | undefined;
     appGenerateService: AppGenerateService | undefined;
 };
@@ -71,6 +79,10 @@ export class ContentService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    directAccessService: DirectAccessService;
+
+    validationModel: ValidationModel;
+
     appMoveService: BulkActionable<Knex> | undefined;
 
     appGenerateService: AppGenerateService | undefined;
@@ -88,6 +100,8 @@ export class ContentService extends BaseService {
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
         this.spacePermissionService = args.spacePermissionService;
+        this.directAccessService = args.directAccessService;
+        this.validationModel = args.validationModel;
         this.appMoveService = args.appMoveService;
         this.appGenerateService = args.appGenerateService;
     }
@@ -117,33 +131,58 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
         const auditedAbility = this.createAuditedAbility(user);
-        const projectUuids = (
-            await wrapSentryTransaction(
-                'ContentService.find.getAllByOrganizationUuid',
-                { organizationUuid },
-                async () =>
-                    this.projectModel.getAllByOrganizationUuid(
-                        organizationUuid,
-                    ),
-            )
-        )
-            .filter((project) =>
-                auditedAbility.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid,
+        const projects = await wrapSentryTransaction(
+            'ContentService.find.getAllByOrganizationUuid',
+            { organizationUuid },
+            async () =>
+                this.projectModel.getAllByOrganizationUuid(organizationUuid),
+        );
+        const projectAccessResults = auditedAbility.canBulk(
+            'view',
+            projects.map((project) =>
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata: {
                         projectUuid: project.projectUuid,
-                        metadata: {
-                            projectUuid: project.projectUuid,
-                            projectName: project.name,
-                        },
-                    }),
-                ),
-            )
-            .map((p) => p.projectUuid);
-        const allowedProjectUuids = filters.projectUuids
+                        projectName: project.name,
+                    },
+                }),
+            ),
+        );
+        const projectUuids = projects
+            .filter((_, index) => projectAccessResults[index])
+            .map((project) => project.projectUuid);
+        let allowedProjectUuids = filters.projectUuids
             ? intersection(filters.projectUuids, projectUuids)
             : projectUuids; // todo: move this filter to project model query
+
+        // The vizs-only listing skips space scoping entirely, so gate it on
+        // the same permission as the viz library: chart builders only.
+        if (filters.dataAppVizsFilter === 'only') {
+            const accessResults = auditedAbility.canBulk(
+                'manage',
+                allowedProjectUuids.map((projectUuid) =>
+                    subject('Explore', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: { projectUuid },
+                    }),
+                ),
+            );
+            allowedProjectUuids = allowedProjectUuids.filter(
+                (_, index) => accessResults[index],
+            );
+        }
+
+        if (filters.sharedWithMe === true) {
+            return this.findSharedWithMe(
+                user,
+                { ...filters, projectUuids: allowedProjectUuids },
+                queryArgs,
+                paginateArgs,
+            );
+        }
 
         const spaces = await this.spaceModel.find({
             projectUuids: allowedProjectUuids,
@@ -169,18 +208,23 @@ export class ContentService extends BaseService {
             !isInsideSpace &&
             (!filters.contentTypes ||
                 filters.contentTypes.includes(ContentType.DATA_APP));
+        const personalDataAppAccessResults = includePersonalDataApps
+            ? auditedAbility.canBulk(
+                  'manage',
+                  allowedProjectUuids.map((projectUuid) =>
+                      subject('DataApp', {
+                          organizationUuid,
+                          projectUuid,
+                          metadata: { projectUuid },
+                      }),
+                  ),
+              )
+            : [];
         const dataApps = includePersonalDataApps
             ? {
                   personalForUserUuid: user.userUuid,
                   personalAdminProjectUuids: allowedProjectUuids.filter(
-                      (projectUuid) =>
-                          auditedAbility.can(
-                              'manage',
-                              subject('DataApp', {
-                                  organizationUuid,
-                                  projectUuid,
-                              }),
-                          ),
+                      (_, index) => personalDataAppAccessResults[index],
                   ),
               }
             : undefined;
@@ -235,16 +279,205 @@ export class ContentService extends BaseService {
 
         return {
             ...results,
-            data: results.data.map((item): SummaryContent => {
-                if (item.contentType !== ContentType.SPACE) {
-                    return item;
-                }
-                return {
-                    ...item,
-                    access: directAccessMap[item.uuid] ?? [],
-                };
-            }),
+            data: await this.withDirectAccessRoles(
+                user,
+                results.data.map((item): SummaryContent => {
+                    if (item.contentType !== ContentType.SPACE) {
+                        return item;
+                    }
+                    return {
+                        ...item,
+                        access: directAccessMap[item.uuid] ?? [],
+                    };
+                }),
+            ),
         };
+    }
+
+    /**
+     * Shared with me: only resources directly granted to the caller or their
+     * groups, hydrated through the ordinary content configurations so parent
+     * metadata, filters, sorting, pagination, and counts behave exactly like
+     * the default listing. Never unions ordinary space-accessible content.
+     */
+    /**
+     * Attaches the viewer's direct-grant roles to each row. Space-derived
+     * access already reaches the client through the space list; grants do not,
+     * so without this the client cannot tell a granted resource it may manage
+     * from one it may only view.
+     */
+    private async withDirectAccessRoles(
+        user: SessionUser,
+        rows: SummaryContent[],
+    ): Promise<SummaryContent[]> {
+        if (rows.length === 0 || user.organizationUuid === undefined) {
+            return rows;
+        }
+        const uuidsByType = rows.reduce<
+            Record<DirectAccessResourceType, string[]>
+        >(
+            (acc, row) => {
+                switch (row.contentType) {
+                    case ContentType.DASHBOARD:
+                        acc[DirectAccessResourceType.DASHBOARD].push(row.uuid);
+                        break;
+                    case ContentType.CHART:
+                        acc[
+                            row.source === ChartSourceType.SQL
+                                ? DirectAccessResourceType.SQL_CHART
+                                : DirectAccessResourceType.CHART
+                        ].push(row.uuid);
+                        break;
+                    case ContentType.DATA_APP:
+                        acc[DirectAccessResourceType.APP].push(row.uuid);
+                        break;
+                    default:
+                        break;
+                }
+                return acc;
+            },
+            {
+                [DirectAccessResourceType.DASHBOARD]: [],
+                [DirectAccessResourceType.CHART]: [],
+                [DirectAccessResourceType.SQL_CHART]: [],
+                [DirectAccessResourceType.APP]: [],
+            },
+        );
+
+        const rolesByUuid = await this.directAccessService.findGrantedRoles(
+            {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+            Object.entries(uuidsByType).map(([resourceType, uuids]) => ({
+                resourceType: resourceType as DirectAccessResourceType,
+                uuids,
+            })),
+        );
+        if (Object.keys(rolesByUuid).length === 0) {
+            return rows;
+        }
+
+        return rows.map((row) => {
+            const roles = rolesByUuid[row.uuid];
+            if (roles === undefined || row.contentType === ContentType.SPACE) {
+                return row;
+            }
+            return { ...row, directAccessRoles: roles };
+        });
+    }
+
+    private async findSharedWithMe(
+        user: SessionUser,
+        filters: ContentFilters & { projectUuids: string[] },
+        queryArgs: ContentArgs,
+        paginateArgs: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SummaryContent[]>> {
+        const emptyPage: KnexPaginatedData<SummaryContent[]> = {
+            data: [],
+            pagination: {
+                ...paginateArgs,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        };
+        // Spaces cannot receive direct grants.
+        const grantableTypes = [
+            ContentType.DASHBOARD,
+            ContentType.CHART,
+            ContentType.DATA_APP,
+        ];
+        const contentTypes = filters.contentTypes
+            ? filters.contentTypes.filter((contentType) =>
+                  grantableTypes.includes(contentType),
+              )
+            : grantableTypes;
+        if (contentTypes.length === 0 || user.organizationUuid === undefined) {
+            return emptyPage;
+        }
+
+        const { uuidsByType: granted, rolesByType } =
+            await this.directAccessService.findSharedWithMeAccess(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+                filters.projectUuids,
+            );
+        const grantedUuids = [
+            ...(contentTypes.includes(ContentType.DASHBOARD)
+                ? granted[DirectAccessResourceType.DASHBOARD]
+                : []),
+            ...(contentTypes.includes(ContentType.CHART)
+                ? [
+                      ...granted[DirectAccessResourceType.CHART],
+                      ...granted[DirectAccessResourceType.SQL_CHART],
+                  ]
+                : []),
+            ...(contentTypes.includes(ContentType.DATA_APP)
+                ? granted[DirectAccessResourceType.APP]
+                : []),
+        ];
+        // Caller-provided uuid/space filters restrict the granted set —
+        // they never widen it into ordinary space-accessible content.
+        const requestedUuids = filters.uuids ? new Set(filters.uuids) : null;
+        const uuids = requestedUuids
+            ? grantedUuids.filter((uuid) => requestedUuids.has(uuid))
+            : grantedUuids;
+        if (uuids.length === 0) {
+            return emptyPage;
+        }
+
+        const results = await this.contentModel.findSummaryContents(
+            {
+                projectUuids: filters.projectUuids,
+                uuids,
+                spaceUuids: filters.spaceUuids,
+                contentTypes,
+                search: filters.search,
+                dataAppVizsFilter: filters.dataAppVizsFilter,
+                sharedWithMe: true,
+            },
+            queryArgs,
+            paginateArgs,
+        );
+        return {
+            ...results,
+            // Spaces are excluded from grantable content types above, so no
+            // row needs the SpaceContent access enrichment.
+            data: results.data
+                .filter(
+                    (item): item is Exclude<SummaryContent, SpaceContentBase> =>
+                        item.contentType !== ContentType.SPACE,
+                )
+                .map((item) => ({
+                    ...item,
+                    directAccessRoles:
+                        rolesByType[
+                            ContentService.getDirectAccessResourceType(item)
+                        ][item.uuid] ?? [],
+                })),
+        };
+    }
+
+    private static getDirectAccessResourceType(
+        item: Exclude<SummaryContent, SpaceContentBase>,
+    ): DirectAccessResourceType {
+        switch (item.contentType) {
+            case ContentType.DASHBOARD:
+                return DirectAccessResourceType.DASHBOARD;
+            case ContentType.DATA_APP:
+                return DirectAccessResourceType.APP;
+            case ContentType.CHART:
+                return item.source === ChartSourceType.SQL
+                    ? DirectAccessResourceType.SQL_CHART
+                    : DirectAccessResourceType.CHART;
+            default:
+                return assertUnreachable(
+                    item,
+                    'Unsupported direct access content type',
+                );
+        }
     }
 
     async bulkMove(
@@ -430,6 +663,135 @@ export class ContentService extends BaseService {
         }
     }
 
+    private async assertProjectViewAccess(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        if (user.organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    // Per-item permission checks, analytics, soft/permanent-delete branching
+    // and cascades all live in each service's delete()
+    private async deleteContentItem(
+        user: SessionUser,
+        projectUuid: string,
+        item: ApiContentActionBody<ContentActionDelete>['item'],
+    ): Promise<void> {
+        switch (item.contentType) {
+            case ContentType.CHART:
+                switch (item.source) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        await this.savedChartService.delete(user, item.uuid, {
+                            projectUuid,
+                        });
+                        // Clear the chart's validation errors so the Validator
+                        // list updates without waiting for the next run
+                        await this.validationModel.deleteChartValidations(
+                            item.uuid,
+                            projectUuid,
+                        );
+                        return;
+                    case ChartSourceType.SQL:
+                        await this.savedSqlService.delete(user, item.uuid);
+                        return;
+                    default:
+                        return assertUnreachable(
+                            item.source,
+                            `Unknown chart source in content delete: ${item.source}`,
+                        );
+                }
+            case ContentType.DASHBOARD:
+                await this.dashboardService.delete(user, item.uuid, {
+                    projectUuid,
+                });
+                await this.validationModel.deleteDashboardValidations(
+                    item.uuid,
+                    projectUuid,
+                );
+                return;
+            case ContentType.SPACE:
+                await this.spaceService.delete(user, item.uuid);
+                return;
+            case ContentType.DATA_APP:
+                throw new ParameterError(
+                    'Data apps cannot be deleted via content actions',
+                );
+            default:
+                return assertUnreachable(item, 'Unknown content type');
+        }
+    }
+
+    async delete(
+        user: SessionUser,
+        projectUuid: string,
+        item: ApiContentActionBody<ContentActionDelete>['item'],
+    ): Promise<void> {
+        await this.assertProjectViewAccess(user, projectUuid);
+        await this.deleteContentItem(user, projectUuid, item);
+    }
+
+    async bulkDelete(
+        user: SessionUser,
+        projectUuid: string,
+        content: ApiContentBulkActionBody<ContentActionDelete>['content'],
+    ): Promise<ContentBulkDeleteResults> {
+        await this.assertProjectViewAccess(user, projectUuid);
+
+        const skipped: ContentBulkDeleteResults['skipped'] = [];
+        let deletedCount = 0;
+
+        // Sequential on purpose: deletes cascade (spaces delete their charts
+        // and dashboards), so parallel deletes over overlapping trees race
+        for (const item of content) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.deleteContentItem(user, projectUuid, item);
+                deletedCount += 1;
+            } catch (error: unknown) {
+                skipped.push({
+                    uuid: item.uuid,
+                    contentType: item.contentType,
+                    reason:
+                        error instanceof ForbiddenError &&
+                        error.data.contentAsCodeManaged !== true
+                            ? 'You do not have permission to delete this content'
+                            : getErrorMessage(error),
+                });
+            }
+        }
+
+        this.analytics.track({
+            event: 'content.bulk_delete',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                contentCount: content.length,
+                deletedCount,
+                skippedCount: skipped.length,
+            },
+        });
+
+        return { deletedCount, skipped };
+    }
+
     /**
      * Find deleted content in a project using the ContentModel UNION approach.
      */
@@ -438,8 +800,7 @@ export class ContentService extends BaseService {
         filters: DeletedContentFilters,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<DeletedContentWithDescendants[]>> {
-        const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
+        if (user.organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
         }
 
@@ -448,7 +809,7 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Project UUID is required');
         }
 
-        const { name: projectName } =
+        const { name: projectName, organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
 
@@ -468,7 +829,7 @@ export class ContentService extends BaseService {
 
         // Non-admins can only see their own deleted content
         // (data-scoping decision, not a permission gate — intentionally unaudited)
-        // eslint-disable-next-line no-direct-ability-check
+        // eslint-disable-next-line lightdash/no-direct-ability-check
         const isAdmin = user.ability.can(
             'manage',
             subject('DeletedContent', { organizationUuid, projectUuid }),
@@ -490,6 +851,7 @@ export class ContentService extends BaseService {
                 contentTypes,
                 search: filters.search,
                 deletedByUserUuids,
+                dataAppVizsFilter: filters.dataAppVizsFilter,
             },
             paginateArgs,
         );

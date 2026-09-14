@@ -7,6 +7,7 @@ import {
 import { KnownBlock } from '@slack/web-api';
 import { IncomingHttpHeaders } from 'http';
 import { nanoid } from 'nanoid';
+import { validate as isUuid } from 'uuid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
@@ -197,17 +198,25 @@ export class SupportService extends BaseService {
         const organization = await this.organizationModel.get(
             user.organizationUuid!,
         );
-        // Extract /project/<uuid> from referer
-        const projectUuid = headers.referer
+        const projectIdentifier = headers.referer
             ?.split('/projects/')[1]
             ?.split('/')[0];
+        let projectUuid: string | undefined;
+        if (projectIdentifier) {
+            projectUuid = isUuid(projectIdentifier)
+                ? projectIdentifier
+                : await this.projectModel.getUuidBySlug(
+                      user.organizationUuid!,
+                      decodeURIComponent(projectIdentifier),
+                  );
+        }
         const project = projectUuid
             ? await this.projectModel.get(projectUuid)
             : undefined;
 
         const url = headers.referer;
         const parsedUrl = url
-            ? await this.unfurlService.parseUrl(url)
+            ? await this.unfurlService.parseUrl(url, user.organizationUuid)
             : undefined;
 
         const namespace = this.lightdashConfig.k8s.podNamespace || 'unknown';

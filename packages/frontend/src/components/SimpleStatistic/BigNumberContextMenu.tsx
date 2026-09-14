@@ -1,5 +1,5 @@
 import { type ResultValue } from '@lightdash/common';
-import { Menu, Text } from '@mantine-8/core';
+import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
@@ -107,8 +107,6 @@ const BigNumberContextMenu: FC<
     return (
         <Menu
             withArrow
-            withinPortal
-            shadow="md"
             position="bottom"
             closeOnItemClick
             closeOnEscape

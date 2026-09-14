@@ -1,47 +1,5 @@
+/* The header sits at the top of a flex column (viewer page / builder preview
+   panel) and must keep its fixed height when the content below grows. */
 .header {
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-md);
-    border-bottom: 1px solid;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border-color: var(--mantine-color-ldGray-2);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-7);
-        border-color: var(--mantine-color-ldDark-4);
-    }
-}
-
-.info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-}
-
-.titleRow {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    min-width: 0;
-}
-
-/* The title is the primary element: it takes the free space and truncates. */
-.title {
-    min-width: 0;
-    flex: 1 1 auto;
-}
-
-/* The space chip is secondary context, so it yields width before the title
-   collapses: it can shrink (and its label truncates) on a narrow header. */
-.chipSlot {
-    min-width: 0;
-    flex: 0 1 auto;
-    display: flex;
-    align-items: center;
 }

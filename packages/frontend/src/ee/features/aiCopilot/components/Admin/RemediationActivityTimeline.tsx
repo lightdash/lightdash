@@ -4,7 +4,7 @@ import {
     type AiAgentReviewRemediationEvent,
     type AiAgentReviewRemediationLiveState,
 } from '@lightdash/common';
-import { Anchor, Box } from '@mantine-8/core';
+import { Anchor, Box } from '@mantine/core';
 import dayjs from 'dayjs';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';

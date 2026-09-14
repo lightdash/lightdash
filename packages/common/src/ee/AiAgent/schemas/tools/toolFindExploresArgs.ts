@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
+export const TOOL_FIND_EXPLORES_DESCRIPTION = ({
+    toolName,
+}: ToolDescriptionContext): string => `Tool: ${toolName}
 
 Purpose:
 Returns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
@@ -101,7 +104,7 @@ export const findExploresRequiredFilterSchema = z.object({
 
 export const findExploresRelevantVerifiedAnswerSchema = z.object({
     artifactVersionUuid: z.string(),
-    chartConfig: z.record(z.unknown()),
+    chartConfig: z.record(z.string(), z.unknown()),
     artifactType: z.enum(['chart', 'dashboard']),
     verifiedQuestion: z.string().nullable(),
     title: z.string().nullable(),

@@ -3,30 +3,36 @@ import {
     assertUnreachable,
     friendlyName,
     GoogleChatError,
+    MAX_DELIVERY_QUERIES,
     operatorActionValue,
     PartialFailureType,
     sanitizeHtml,
     ThresholdOptions,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
+import { postSchedulerWebhook } from '../../utils/schedulerWebhookValidation';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
+
+// Google Chat renders a subset of HTML in textParagraph.text, and app delivery
+// labels/errors are authored by app code, so strip markup before interpolating.
+const stripMarkup = (text: string): string =>
+    sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} });
 
 /* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
     private async sendWebhook(webhookUrl: string, payload: AnyType) {
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=UTF-8',
-            },
-            body: JSON.stringify(payload),
-        });
+        const response = await postSchedulerWebhook(
+            webhookUrl,
+            payload,
+            'application/json; charset=UTF-8',
+        );
 
-        if (!response.ok) {
-            const responseText = await response.text();
+        if (response.status < 200 || response.status >= 300) {
             Logger.error(
-                `Google Chat webhook returned an error: ${response.status} ${responseText}`,
+                `Google Chat webhook returned an error: ${response.status} ${response.bodyText}`,
             );
             Logger.debug(
                 `Google Chat webhook payload ${JSON.stringify(
@@ -231,6 +237,7 @@ export class GoogleChatClient {
         csvUrls,
         footer,
         failures,
+        notices,
     }: {
         webhookUrl: string;
         title: string;
@@ -240,6 +247,7 @@ export class GoogleChatClient {
         csvUrls: AttachmentUrl[];
         footer: string;
         failures?: PartialFailure[];
+        notices?: DeliveryNotice[];
     }): Promise<void> {
         Logger.info('Sending dashboard CSVs to Google Chat via webhook');
 
@@ -279,6 +287,16 @@ export class GoogleChatClient {
                             return `- <b>No targets found for this scheduled delivery</b>`;
                         case PartialFailureType.AI_AUGMENTATION:
                             return `- <b>AI summary could not be generated</b>`;
+                        case PartialFailureType.APP_QUERY:
+                            return `- <b>${stripMarkup(
+                                f.label,
+                            )}:</b> ${stripMarkup(f.error)}`;
+                        case PartialFailureType.APP_QUERY_MISSING:
+                            return `- <b>${stripMarkup(
+                                f.label,
+                            )}:</b> did not run in this delivery`;
+                        case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                            return `- <b>${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})</b>`;
                         default:
                             return assertUnreachable(
                                 f,
@@ -297,10 +315,30 @@ export class GoogleChatClient {
             } else {
                 widgets.push({
                     textParagraph: {
-                        text: `⚠️ <b>Warning:</b> ${failures.length} chart(s) failed to export\n${failureLines}`,
+                        text: `⚠️ <b>Warning:</b> ${buildFailureCountPhrase(
+                            failures,
+                        )} failed to export\n${failureLines}`,
                     },
                 });
             }
+        }
+
+        if (notices && notices.length > 0) {
+            const noticeLines = notices
+                .map(
+                    (notice) =>
+                        `- ${stripMarkup(
+                            notice.label,
+                        )} reached its query limit; additional rows may exist (${
+                            notice.rowCount
+                        } rows delivered)`,
+                )
+                .join('\n');
+            widgets.push({
+                textParagraph: {
+                    text: `ℹ️ ${noticeLines}`,
+                },
+            });
         }
 
         widgets.push({
@@ -349,20 +387,11 @@ export class GoogleChatClient {
         contentName: string | null;
         contactSentence: string | null;
     }): Promise<void> {
-        // Google Chat renders a subset of HTML in textParagraph.text, so
-        // strip any markup from admin-supplied strings before interpolating
-        // into the template (which uses static <b> tags around contentName).
-        const safeContentName = contentName
-            ? sanitizeHtml(contentName, {
-                  allowedTags: [],
-                  allowedAttributes: {},
-              })
-            : null;
+        // The template wraps contentName in static <b> tags, so admin-supplied
+        // strings must not carry markup of their own.
+        const safeContentName = contentName ? stripMarkup(contentName) : null;
         const safeContactSentence = contactSentence
-            ? sanitizeHtml(contactSentence, {
-                  allowedTags: [],
-                  allowedAttributes: {},
-              })
+            ? stripMarkup(contactSentence)
             : null;
         const baseSentence = safeContentName
             ? `The scheduled delivery for <b>"${safeContentName}"</b> failed to run, and the delivery owner has been notified.`

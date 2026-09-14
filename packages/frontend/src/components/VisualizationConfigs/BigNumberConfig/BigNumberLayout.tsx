@@ -1,5 +1,5 @@
 import { getItemId, type CompactOrAlias } from '@lightdash/common';
-import { ActionIcon, Group, Select, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Group, Select, Tooltip } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,
@@ -89,7 +89,6 @@ export const Layout: FC = () => {
 
                     <Group gap={4} wrap="nowrap" mt={25}>
                         <Tooltip
-                            withinPortal
                             label={
                                 bigNumberLabel
                                     ? 'Clear custom label to toggle table names'
@@ -99,7 +98,6 @@ export const Layout: FC = () => {
                             }
                         >
                             <ActionIcon
-                                variant="subtle"
                                 onClick={() => {
                                     if (!bigNumberLabel) {
                                         setShowTableNamesInLabel(
@@ -119,7 +117,6 @@ export const Layout: FC = () => {
                             </ActionIcon>
                         </Tooltip>
                         <ActionIcon
-                            variant="subtle"
                             onClick={() => {
                                 setShowBigNumberLabel(!showBigNumberLabel);
                             }}

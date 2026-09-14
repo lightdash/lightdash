@@ -10,7 +10,8 @@ import {
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
-    retargetManifest,
+    readManifestFromDir,
+    resolveAppFolderName,
     writeBundleToDir,
     writeContextToDir,
 } from './appCodeFiles';
@@ -92,6 +93,19 @@ describe('buildImportBody', () => {
         });
         expect(body.targetAppUuid).toBeUndefined();
     });
+
+    it('includes createNew: true in the body when the flag is set', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        const body = buildImportBody(code, 'proj-uuid-1', { createNew: true });
+        expect(body.createNew).toBe(true);
+        expect(body.targetAppUuid).toBeUndefined();
+    });
+
+    it('omits the createNew key entirely when the flag is not set', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        const body = buildImportBody(code, 'proj-uuid-1', {});
+        expect('createNew' in body).toBe(false);
+    });
 });
 
 const bundle = {
@@ -116,6 +130,13 @@ const bundle = {
         },
     ],
 };
+
+it('readManifestFromDir returns just the manifest', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+    await writeBundleToDir(dir, bundle);
+    const manifest = await readManifestFromDir(dir);
+    expect(manifest).toEqual(bundle.manifest);
+});
 
 it('writes then reads back an identical bundle', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
@@ -161,29 +182,16 @@ it('upload reads back only src/ files, ignoring scaffolding and context', async 
         'models: []',
     );
     await fs.writeFile(path.join(dir, '.claude/skills/x/SKILL.md'), '# skill');
+    await fs.writeFile(
+        path.join(dir, '.env.local'),
+        'VITE_LIGHTDASH_API_KEY=secret',
+    );
     const read = await readBundleFromDir(dir);
     expect(read.files.every((f) => f.path.startsWith('src/'))).toBe(true);
+    expect(read.files.map((f) => f.path)).not.toContain('.env.local');
     expect(read.files.map((f) => f.path).sort()).toEqual(
         bundle.files.map((f) => f.path).sort(),
     );
-});
-
-describe('retargetManifest', () => {
-    it('rewrites appUuid, projectUuid and version, preserving other fields', async () => {
-        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
-        await writeBundleToDir(dir, bundle);
-        await retargetManifest(dir, {
-            appUuid: 'new-app-uuid',
-            projectUuid: 'new-proj-uuid',
-            version: 1,
-        });
-        const read = await readBundleFromDir(dir);
-        expect(read.manifest.appUuid).toBe('new-app-uuid');
-        expect(read.manifest.projectUuid).toBe('new-proj-uuid');
-        expect(read.manifest.version).toBe(1);
-        expect(read.manifest.name).toBe('N');
-        expect(read.manifest.downloadedAt).toBe('2026-06-30T00:00:00.000Z');
-    });
 });
 
 it('throws a clear error when the manifest is not valid YAML', async () => {
@@ -234,6 +242,60 @@ it('writes context files under .lightdash/context and skips null parameters', as
     await expect(
         fs.access(path.join(dir, '.lightdash/context/parameters.yml')),
     ).rejects.toThrow();
+});
+
+it('writes sharded semantic layer files and clears the previous context snapshot', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-ctx-'));
+    await fs.mkdir(path.join(dir, '.lightdash/context/models'), {
+        recursive: true,
+    });
+    await fs.writeFile(
+        path.join(dir, '.lightdash/context/models/deleted_model.yml'),
+        'models: []',
+    );
+    await fs.writeFile(
+        path.join(dir, '.lightdash/context/parameters.yml'),
+        'parameters: {}',
+    );
+    await fs.mkdir(path.join(dir, 'src'), { recursive: true });
+    await fs.writeFile(path.join(dir, 'src/App.tsx'), '// keep');
+
+    await writeContextToDir(dir, {
+        semanticLayer: {
+            path: '.lightdash/context/semantic-layer.yml',
+            contentBase64: Buffer.from('# see models/').toString('base64'),
+        },
+        semanticLayerFiles: [
+            {
+                path: '.lightdash/context/models/orders.yml',
+                contentBase64: Buffer.from('models: []').toString('base64'),
+            },
+        ],
+        parameters: null,
+        promptHistory: {
+            path: '.lightdash/context/prompt-history.md',
+            contentBase64: Buffer.from('# prompts').toString('base64'),
+        },
+        theme: { instructions: null, assets: [], skippedAssetCount: 0 },
+    });
+
+    expect(
+        await fs.readFile(
+            path.join(dir, '.lightdash/context/models/orders.yml'),
+            'utf-8',
+        ),
+    ).toBe('models: []');
+    await expect(
+        fs.access(
+            path.join(dir, '.lightdash/context/models/deleted_model.yml'),
+        ),
+    ).rejects.toThrow();
+    await expect(
+        fs.access(path.join(dir, '.lightdash/context/parameters.yml')),
+    ).rejects.toThrow();
+    expect(await fs.readFile(path.join(dir, 'src/App.tsx'), 'utf-8')).toBe(
+        '// keep',
+    );
 });
 
 describe('appFolderName', () => {
@@ -304,6 +366,59 @@ describe('appFolderName', () => {
     });
 });
 
+describe('resolveAppFolderName', () => {
+    it('uses the manifest slug when present', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: 'sales-app' },
+                new Set(),
+            ),
+        ).toBe('sales-app');
+    });
+
+    it('falls back to appFolderName when the manifest has no slug', () => {
+        const uuid = 'abcd1234-ef56-7890-ab12-cdef01234567';
+        const code = makeCode(uuid, 'proj-uuid-1');
+        expect(resolveAppFolderName(code.manifest, new Set())).toBe(
+            appFolderName(code.manifest.name, uuid, new Set()),
+        );
+    });
+
+    it('uses the slug for uuid-free manifests (slug-aware servers)', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, appUuid: undefined, slug: 'sales-app' },
+                new Set(),
+            ),
+        ).toBe('sales-app');
+    });
+
+    // Defense-in-depth: a tampered manifest (or a server of unknown version)
+    // must not be able to steer the write path via an invalid slug.
+    it('falls back to appFolderName when the slug is a path-traversal attempt', () => {
+        const uuid = 'abcd1234-ef56-7890-ab12-cdef01234567';
+        const code = makeCode(uuid, 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: '../../../../tmp/evil' },
+                new Set(),
+            ),
+        ).toBe(appFolderName(code.manifest.name, uuid, new Set()));
+    });
+
+    it('still uses a valid manifest slug (unaffected by the new validation)', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: 'sales-app-2' },
+                new Set(),
+            ),
+        ).toBe('sales-app-2');
+    });
+});
+
 // ─── readDependenciesFromDir ──────────────────────────────────────────────────
 
 const makePackageJson = (deps: Record<string, string> = {}): string =>
@@ -333,6 +448,7 @@ describe('readDependenciesFromDir', () => {
         expect(result).not.toBeNull();
         expect(result?.packageJson).toBe(makePackageJson());
         expect(result?.lockfile).toBe(LOCKFILE_CONTENT);
+        expect(result?.hasNpmLockfile).toBe(false);
     });
 
     // The download scaffold always writes package.json but never a lockfile,
@@ -351,6 +467,14 @@ describe('readDependenciesFromDir', () => {
         await expect(readDependenciesFromDir(dir)).rejects.toThrow(
             /package\.json/,
         );
+    });
+
+    it('flags a stray package-lock.json when the pnpm lockfile is absent', async () => {
+        await fs.writeFile(path.join(dir, 'package.json'), makePackageJson());
+        await fs.writeFile(path.join(dir, 'package-lock.json'), '{}');
+        const result = await readDependenciesFromDir(dir);
+        expect(result?.lockfile).toBeNull();
+        expect(result?.hasNpmLockfile).toBe(true);
     });
 });
 

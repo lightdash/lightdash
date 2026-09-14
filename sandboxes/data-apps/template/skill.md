@@ -2,6 +2,8 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
+**Building a single reusable chart rather than an app?** Use the `reusable-visualization` skill before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies. It says nothing about light/dark mode, and silence is not an override: **following the host's colour scheme is a platform contract that applies to a reusable visualization exactly as it does to an app** — see "Visual Design".
+
 ## Iteration mindset
 
 This pipeline is built for iteration — the user refines the app with follow-up prompts, and you have the full conversation history on every iteration. **Favor a responsive first build over upfront perfection.** Hit the core ask and ship; let the user tell you what to add.
@@ -47,7 +49,17 @@ Available at `@/components/ui/<name>`:
 
 ## Semantic Layer (dbt models)
 
-The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, join, and parameter available to you. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`** — one file per model, plus an index. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+
+### Finding the right models
+
+Projects range from a handful of models to well over a thousand, so the directory is indexed rather than inlined:
+
+1. **Read `/tmp/dbt-repo/models/_index.md` first.** It lists every model, most-queried first, with its file name, dimension/metric counts, joined tables, and description.
+2. **Read only the model files the app actually needs**, e.g. `Read /tmp/dbt-repo/models/orders.yml`. Each file holds that model's complete dimensions, metrics, joins, parameters, and model-level filters.
+3. **Grep when the index isn't enough.** If you know a field name but not its model, `Grep` the directory for it. A wide model may be split across `<name>.yml`, `<name>.part2.yml`, … — the last line of each part points at the next.
+
+**Never read every model file, and never page through a file with `offset`/`limit`** — pick the model from the index and read that one file whole.
 
 ### Reading dbt YAML
 
@@ -123,11 +135,21 @@ query('orders')
 | Base explore (`orders`) | `'status'` | `orders_status` |
 | Joined table (`customers`) | `'customers.name'` | `customers_name` |
 
-**This also applies to `.filters()` and `.sorts()`** — any `field` value can use dot notation.
+**This also applies to `.filters()`, `.metricFilters()`, and `.sorts()`** — any `field` value can use dot notation.
 
 **Never prefix joined table fields with the base explore name.** `'customers.name'` is correct. `'name'` alone would resolve to `orders_name` which doesn't exist.
 
 Each entry under `meta.joins` may carry a `relationship` (`one-to-many`, `many-to-one`, `one-to-one`, `many-to-many`) and a `sql_on` condition — either can be absent. When a `relationship` is present, use it to reason about grain and fan-out: joining a `one-to-many` table multiplies base rows, so aggregating a base metric across that join can double-count — prefer a metric defined on the "many" side, or aggregate before joining.
+
+### Model-level filters — check before querying
+
+Some models declare filters in their `meta:` block (the index marks them with `filters=…`). They change what every query against that model returns, so account for them when writing queries:
+
+- **`required_filters`** — the backend force-ANDs each of these onto every query against the model, **unless your query has its own filter on the same field** (another time interval of the same date field also counts: filtering `order_date_month` overrides a required filter on `order_date`). If the user asks for a range that conflicts with a required filter (e.g. "last 90 days" but the model requires the last 4 weeks), you MUST add your own filter on that field — without one, the backend's filter silently caps your results.
+- **`default_filters`** — NOT enforced by the backend, but Lightdash's own Explore UI pre-applies them. Apply them in your queries by default so the app's numbers match what users see in Lightdash; drop or replace one only when the user's request conflicts with it.
+- **`sql_filter`** — a raw SQL condition ANDed onto every query against the model. It cannot be overridden or removed. Factor it into naming and copy — a model filtered to `status = 'completed'` must not be labelled "all orders" — and consider it when results look narrower than expected.
+
+Entries under `required_filters` / `default_filters` use the SDK `Filter` shape (`field`, `operator`, `value`, `unit`) — pass them to `.filters([...])` as-is.
 
 ### Understanding data grain
 
@@ -147,6 +169,10 @@ These metrics are **not additive over time**. A balance on Monday plus the balan
 ## Referenced metric queries
 
 If the prompt lists referenced charts (files under `/tmp/metric-queries/*.json`), read `/app/references/chart-references.md` before writing any query code — it defines the JSON shape, linked-vs-copied chart semantics (`savedChart`), and the field-id mapping rules.
+
+## Attached dashboard blueprint
+
+If the prompt announces an attached dashboard (blueprint at `/tmp/dashboard/blueprint.json`), read `/app/references/dashboard-blueprint.md` before designing any layout — the blueprint defines the dashboard's tabs, tile grid, and filters, and it is the layout spec to recreate unless the user asks for a different design.
 
 ## Linked external connections
 
@@ -180,13 +206,13 @@ const revenueQuery = query('orders')
     .limit(10);
 
 export function RevenueBySegment() {
-    const { data, format, loading, error } = useLightdash(revenueQuery);
+    const { data, format, loading, error, lineage } = useLightdash(revenueQuery);
 
     if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
     if (error) return <p className="text-sm text-destructive">Error: {error.message}</p>;
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-2" {...lineage}>
             {data.map((row, i) => (
                 <div key={i} className="flex justify-between">
                     <span>{format(row, 'customer_segment')}</span>
@@ -200,7 +226,11 @@ export function RevenueBySegment() {
 
 ### Field names
 
-Use **short names** like `total_revenue`, not qualified names like `orders_total_revenue`. The SDK qualifies them automatically. For joined table fields, use **dot notation** like `customers.name` (see "Joined table fields" above).
+Use **short names** like `total_revenue` for base-explore fields; the SDK qualifies them automatically. Already-qualified base field IDs such as `orders_total_revenue` are also accepted.
+
+There is one important ambiguity: if a base field's short name already begins with the explore name and an underscore, keep its **fully qualified ID**. For example, the `custom_roles_created` metric on the `custom_roles` explore must be passed as `custom_roles_custom_roles_created`. Passing the short name would be mistaken for an already-qualified ID and sent to the API unchanged. Query result keys match the identifier passed to the builder, so use that same fully qualified ID when reading rows or calling `format`.
+
+For joined table fields, use **dot notation** like `customers.name` (see "Joined table fields" above).
 
 ### Query builder
 
@@ -211,6 +241,10 @@ const base = query('orders').metrics(['total_revenue']);
 const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment']);
 const byRegion = base.label('Revenue by Region').dimensions(['region']);
 ```
+
+**Every field in `.sorts()` must also be selected by the query** — include it in `.dimensions()` or `.metrics()`, or define it as a table calculation. The backend sorts by the selected output alias, so sorting by an unselected field produces an invalid query. A field used only for ordering can stay selected in the query while being omitted from the rendered UI.
+
+**Sharing the explore-name constant:** define it in the component that uses it, or in its own module (e.g. `src/lib/constants.js`). Never export it from a component file that imports its consumers — that circular import evaluates the consumer first, the constant is `undefined` when a module-scope `query(...)` runs, and the app crashes on load.
 
 KPI cards — metrics without dimensions gives a single aggregated row:
 ```ts
@@ -293,6 +327,7 @@ If the dbt YAML declares a `parameters:` block (under a model's `meta:` / `confi
 | `totalResults` | `number \| null` | Total rows returned by the loaded source query. Use for export labels/counts. |
 | `loading` | `boolean` | True while query is in flight. |
 | `error` | `Error \| null` | Query error. |
+| `lineage` | `LineageProps` | **Spread on the root element of every rendered query block** (`<div {...lineage}>`). Stamps the block so the host's Inspect data button can trace it back to this query — without it that button stays disabled. |
 | `refetch` | `() => void` | Re-run the query on demand. |
 | `queryUuid` | `string \| null` | The async Lightdash query UUID for the loaded source query. Rarely needed directly. |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<{ rows, columns, format, queryUuid }>` | Fetch raw rows behind an aggregated metric value. Call from a user action, never on initial render. |
@@ -423,7 +458,9 @@ When the user asks for "Open in Google Sheets" (or any Sheets destination), read
 
 ### Client-side PDF downloads
 
-For PDF Report templates, or whenever the user asks for a PDF download, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
+A PDF or printable report app always includes a visible **Download PDF** button — the export action is part of the report shape, not an optional extra, and `window.print()` is only ever a secondary Print action. This applies whenever the app is report-shaped, whatever the request's wording: the PDF Report starter template, a "printable" / "document" / "report to share" ask, or an app that already renders `.pdf-page` sections. On edit turns, keep the existing Download PDF button working — an edit that removes it is a regression.
+
+Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
 
 ### Underlying data
 
@@ -542,6 +579,12 @@ const dateCol = getColumn(columns, 'order_date_month');
 <YAxis tickFormatter={(v) => formatNumber(v, 'axis')} />
 ```
 
+#### Recharts 3 interactions and shapes
+
+This template uses Recharts 3. Use item-level event handlers (for example, `<Bar onClick={...}>`) when you need the clicked row; they receive the rendered item, its index, and the native React event. Do not read `activePayload` from a chart-level event — Recharts 3 exposes `activeTooltipIndex` there instead.
+
+Do not use the removed `activeIndex` prop to control highlighting; configure `<Tooltip>` with `defaultIndex`, `active`, `content`, or `cursor`. Do not generate `<Cell>` elements; use the parent graphical element's `shape` or `content` prop instead.
+
 **Self-check before declaring done:** grep the generated app for `<XAxis` and `<YAxis`. Every match must have a `tickFormatter` prop. If any axis is missing one, fix it before reporting the build complete — claiming "all axes formatted" without verifying is the most common way this lands broken.
 
 #### Chart value labels
@@ -575,9 +618,23 @@ For the action-menu label and clipboard copy on a cell, the same helper applies 
 
 ### Filters
 
-Filter syntax for the `.filters([...])` builder method. For how filters propagate across the app (global filter context, "Filter by &lt;value&gt;" interactions), see [Global filters](#global-filters).
+Use `.filters([...])` for dimension/WHERE filters and `.metricFilters([...])`
+for metric/HAVING filters. A metric used only in `.metricFilters()` does not
+need to appear in `.metrics()`. Passing a metric to `.filters()` or a dimension
+to `.metricFilters()` fails semantic validation. Both methods use the same rule
+syntax below. For how dimension filters propagate across the app (global filter
+context, "Filter by &lt;value&gt;" interactions), see [Global filters](#global-filters).
 
 ```ts
+query('orders')
+    .metrics(['total_revenue'])
+    .filters([
+        { field: 'order_date', operator: 'inThePast', value: 90, unit: 'days' },
+    ])
+    .metricFilters([
+        { field: 'order_count', operator: 'greaterThanOrEqual', value: 2 },
+    ]);
+
 type Filter = {
     field: string;
     operator: FilterOperator;
@@ -636,50 +693,97 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 ## Visual Design
 
-**Invoke the `frontend-design` skill before writing any UI code** (auto-loaded from `.claude/skills/frontend-design/`). It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
+**Use the `frontend-design` skill before writing any UI code.** It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
+
+One environment constraint overrides `frontend-design`'s typography advice: **webfonts cannot load in the app iframe.** The runtime CSP blocks external stylesheets — a Google Fonts `@import` or `<link>` fails at the console and silently falls back, so it only adds noise. Never emit one. Distinctive typography here comes from expressive *system-stack* pairings (`ui-serif`/Georgia display over a sans body, `ui-monospace` for data, small-caps, letter-spacing, weight contrast) — a Georgia-headline-over-monospace-labels pairing reads as designed, not generic.
+
+Express that direction **through the theme tokens, in both modes**. "Distinctive" is never a licence to pin one colour scheme: the viewer's Lightdash decides light or dark, and an app that ignores it reads as broken for half its audience. If a look only works on a dark background, it is not a look you can ship — rebuild it so the same design resolves correctly in both.
 
 Lightdash-specific constraints that apply on top of `frontend-design`'s direction:
 
 - **Chart series colors must come from `CHART_COLORS` in `@/lib/theme`** — the canonical Lightdash palette, so generated apps' charts visually match native Lightdash dashboards. Cycle by index for multi-series (`CHART_COLORS[i % CHART_COLORS.length]`). `frontend-design`'s chosen accent/background/typography colors are independent of this.
 - **Use semantic shadcn tokens for UI chrome** — `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `text-destructive`, `border`, etc. Don't hardcode hex values for surfaces, text, or borders. (`frontend-design` may direct you to redefine the underlying CSS variables for a chosen theme — that's fine; the rule is no inline hex, not "use only the default token values".)
-- **Commit to one theme; don't design for dark while rendering light.** The template's `:root` defaults to white (light tokens). If your design needs a dark background, you must do *one* of: (a) apply `className="dark"` to your top-level `<div>` so Tailwind activates the dark token values, or (b) override the CSS variables on `:root` directly to match your chosen theme. **Never** author colors that assume a dark background without ensuring the page actually loads dark — the symptom is invisible secondary text (faint red/gray on white). Before declaring done, check: does the page background actually look the way you described it? If not, you have a theme-wiring bug.
+- **Follow the host's light/dark mode; never pin one.** Lightdash tells the app which mode the viewer is in — as the app boots, and again whenever they toggle — by putting the `dark` class on `<html>`. Your job is to make both modes correct: define **complete** light values on `:root` and **complete** dark values on `.dark` (the template already does for every default token; keep both in step for any token you add or redefine), then style everything through those tokens. **Never** hard-code `className="dark …"` on the app shell, add `dark` to `<html>` yourself, or put dark values in `:root` — each of those pins the app to one mode and it will read as broken for half the viewers. **A literal colour in an inline `style={{ background: '#0f0d17', color: '#f4f1ff' }}` pins it just as hard** — inline styles are the most common way this rule gets broken, because they bypass Tailwind and the tokens without looking like a theme decision. Write `var(--background)` / `var(--foreground)` there instead, or use the utility classes. This applies to a reusable visualization too: it has no page shell to carry `bg-background text-foreground`, so put the tokens on the chart's own root element. Nor should you branch surfaces, text or borders on the mode in JS (`scheme === 'dark' ? '#12101a' : '#faf9fc'`) — that is a token's job, and hand-rolling it is how apps end up half-following the host. Before declaring done, check in both modes: text stays legible, surfaces keep their contrast, and no colour is invisible against the other mode's background.
+- **Redefine tokens in `src/index.css`, not a new stylesheet.** `:root` and `.dark` have equal specificity, so the one emitted *last* wins. `index.css` is imported before `./App` in `main.jsx`, which means a `styles/theme.css` you import from a component lands after it and overrides it — but only for the selectors you actually restate. Split your light values into that file and leave `.dark` in `index.css` (or vice versa) and the two sets end up in the wrong order, pinning the app to one mode with no error anywhere. Edit the `:root` and `.dark` blocks that are already in `index.css` and keep both complete. If you genuinely need a separate file, restate **both** blocks there and never reorder the imports in `main.jsx`.
 - **Theme CSS variables hold complete raw colors, consumed as `var(--x)`.** The template's tokens are `oklch(…)` values, and everything — Tailwind utilities, the floating-surface chrome, your own CSS — reads them with plain `var(--x)`. When overriding on `:root`, write full CSS colors (`--background: oklch(0.14 0.005 286);` — any valid color works). **Never write bare `H S% L%` triplets and never wrap a variable in `hsl(var(--x))`** — both come from a different shadcn convention this template does not use; they produce invalid CSS that browsers silently drop, which breaks text colors or turns popovers/tooltips transparent.
-- **Leave a gutter at the bottom of the page.** Don't let the last card, chart, or footer sit flush against the iframe's bottom edge — it reads as clipped. Add bottom padding (`pb-8` or similar) on your page's top-level themed wrapper so the gutter inherits the theme's background. Don't push the gutter onto `#root` or `body` instead — those sit outside your theme, so any space below the wrapper falls back to the template default and shows as a mismatched strip.
+- **The page background must reach the bottom of the iframe.** Viewers render the app in an iframe as tall as their browser window, and app content is routinely shorter than that. So structure every page as a **full-height themed shell** (theme class, background, `text-foreground`, `min-h-screen`) wrapping a **content-sized inner wrapper** that owns the padding — see the example in the next section. Putting the background on a content-sized element instead leaves everything below it painting the template default: a hard edge across the page where your theme stops, and the single most common way a generated app reads as broken. Never paint the page background on `#root` or `body` instead; they sit outside your theme.
+- **Leave a gutter at the bottom of the content.** Don't let the last card, chart, or footer sit flush against the bottom edge — it reads as clipped. Put the bottom padding (`pb-8` or similar) on the inner wrapper, so the gutter sits inside both the theme and the screenshot bounds.
 
 ### Sizing for scheduled-delivery screenshots
 
-Scheduled deliveries (Slack/email) render the app inside a tall **1400×4000** iframe and screenshot from the top down to the deepest visible element. If the app stretches to fill that height — via viewport-relative heights or full-bleed decorative backgrounds — the delivered image is mostly empty space around a small island of content.
+Scheduled deliveries (Slack/email) render the app inside a tall **1400×4000** iframe and screenshot from the top down to the bottom of the content. If the *content* stretches to fill that height — via viewport-relative heights or full-bleed decorative layers in the flow — the delivered image is mostly empty space around a small island of content.
 
-
-**Mark the content extent with `data-screenshot-bounds`.** Put the attribute on your top-level themed wrapper — the same element that carries the background and bottom gutter from the rule above. The delivery pipeline uses that element's bottom edge as the image height and crops anything below it. Without the attribute it falls back to a best-effort measurement that the patterns below easily inflate, so set it.
+**Mark the content extent with `data-screenshot-bounds`.** Put the attribute on the inner content wrapper from the rule above — **not** on the full-height shell. The delivery pipeline uses that element's bottom edge as the image height and crops everything below it, which is exactly why the shell may fill the iframe for free: the shell's `min-h-screen` never reaches the delivered image, and the crop still lands just under your last row. Without the attribute the pipeline falls back to a best-effort measurement that the patterns below easily inflate, so set it.
 
 ```tsx
-<div data-screenshot-bounds className="dark bg-background p-8 pb-12">
-
-  <Header />
-  <ChartGrid />
-  <Footer />
+<div className="bg-background text-foreground min-h-screen">        {/* fills the viewport, not measured */}
+    <div data-screenshot-bounds className="p-8 pb-12">             {/* measured: crop lands here */}
+        <Header />
+        <ChartGrid />
+        <Footer />
+    </div>
 </div>
 ```
 
-Then keep the layout from inflating the canvas:
+`bg-background text-foreground` on the shell is not optional: switching modes re-points the theme variables but not the `color` already inherited from `<body>`, so without them every bare `<h1>`/`<p>`/`<div>` keeps the other mode's ink.
 
-- **No viewport-relative heights on root or near-root containers** — avoid `min-h-screen`, `h-screen`, `h-[100vh]`, or `min-height: 100vh` on the page wrapper; let it size to its content. A nested component that genuinely needs a fixed height (e.g. a resizable panel) may still use one, as long as it lives inside `data-screenshot-bounds`.
-- **Don't vertically center variable-height content in a viewport-height parent** — `h-screen flex items-center justify-center` around a short widget parks it in the middle of a 4000px-tall screenshot.
-- **Keep decorative backgrounds within the content area** — themed sprites, gradients, particle layers, and landscape art paint on the `data-screenshot-bounds` element itself, never on a separate 100vh layer that extends past the content.
+Then keep the content from inflating the canvas:
+
+- **No viewport-relative heights inside the bounds element** — avoid `min-h-screen`, `h-screen`, `h-[100vh]`, or `min-height: 100vh` on the content wrapper or anything in its flow; let it size to its content. A nested component that genuinely needs a fixed height (e.g. a resizable panel) may still use one. The page's only viewport height belongs to the shell, outside `data-screenshot-bounds`.
+- **Don't vertically center variable-height content in a viewport-height parent** — `min-h-screen flex items-center justify-center` around a short widget parks it in the middle of a 4000px-tall canvas, and the crop keeps every empty pixel above it. Top-align content in the shell and let the shell grow.
+- **Keep decorative backgrounds out of the flow** — themed sprites, gradients, particle layers, and landscape art paint on the shell itself or on a `fixed inset-0 -z-10` layer, never as an in-flow 100vh element inside the bounds.
 
 Avoid — each of these inflates the screenshot:
 
 ```tsx
-// min-h-screen blows up to 4000px in the delivery iframe
-<div className="min-h-screen bg-blue-400">…</div>
+// crop marker on a viewport-height element → 4000px of empty canvas
+<div data-screenshot-bounds className="min-h-screen bg-blue-400">…</div>
 
 // a short widget centered in 100vh ends up mid-screenshot
-<div className="h-screen flex items-center justify-center"><SmallWidget /></div>
+<div className="min-h-screen flex items-center justify-center"><SmallWidget /></div>
 
-// a decorative background filling 100vh past the real content
-<div className="h-screen bg-[url('/sky.png')] bg-cover"><Dashboard /></div>
+// an in-flow decorative layer that outgrows the real content
+<div data-screenshot-bounds>
+    <div className="h-screen bg-[url('/sky.png')] bg-cover" />
+    <Dashboard />
+</div>
 ```
+
+### Tabs and scheduled-delivery capture
+
+A tabbed layout normally mounts each tab's data-fetching hooks lazily — only the active tab queries. Scheduled deliveries (and their preview) capture the whole app in one headless pass with no user to click through tabs first, so a lazily-mounted tab ships with no data in the delivered screenshot.
+
+Use `useDeliveryRender()` from `@lightdash/query-sdk` to mount every tab's data hooks during a capture render, while still showing only the active tab's UI:
+
+```tsx
+import { useDeliveryRender } from '@lightdash/query-sdk';
+
+function AppTabs() {
+    const [activeTab, setActiveTab] = useUrlState('tab', 'overview');
+    const deliveryRender = useDeliveryRender();
+
+    return (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="details">Details</TabsTrigger>
+            </TabsList>
+            {/* Each panel's useLightdash() calls run whenever it mounts — hidden
+                panels stay mounted in a capture render via forceMount. */}
+            <TabsContent value="overview" forceMount={deliveryRender || undefined}>
+                <OverviewPanel />
+            </TabsContent>
+            <TabsContent value="details" forceMount={deliveryRender || undefined}>
+                <DetailsPanel />
+            </TabsContent>
+        </Tabs>
+    );
+}
+```
+
+**Never mount every tab unconditionally** — that runs every tab's queries on every interactive load, wasting warehouse spend for users who only ever open one tab. Gate the extra mounting strictly on `useDeliveryRender()`.
+
+The same rule applies one level up: if the app opens on a landing, intro, or "press start" screen that mounts no data (slideshows, wizards, empty states), a capture render of the default view captures zero queries and the delivery fails. In a delivery render, mount the data-bearing components from the app's entry state — `useDeliveryRender()` must bypass any screen that gates data behind user interaction.
 
 ### Organization themes
 
@@ -707,10 +811,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function RevenueCard() {
-    const { data, format, loading, error } = useLightdash(revenueQuery);
+    const { data, format, loading, error, lineage } = useLightdash(revenueQuery);
 
     return (
-        <Card>
+        <Card {...lineage}>
             <CardHeader>
                 <CardTitle>Revenue</CardTitle>
             </CardHeader>
@@ -782,8 +886,8 @@ export function RevenueBySegment() {
         () => baseRevenueQuery.filters(filtersFor(EXPLORE)),
         [filtersFor],
     );
-    const { data, format, loading } = useLightdash(q);
-    // ...
+    const { data, format, loading, lineage } = useLightdash(q);
+    // ...spread {...lineage} on the block's root element
 }
 ```
 
@@ -847,14 +951,33 @@ Action menus and dialogs use shadcn's components as-is — no className needed f
 </DropdownMenuContent>
 ```
 
-**One scope rule still matters:** if you toggle dark mode via the `.dark` class, set it on `<html>`, never on a wrapper `<div>`. Radix portals into `document.body`, so `<div className="dark">` inside `<App />` doesn't contain portaled menus/dialogs/popovers — floating surfaces leak out to light scope. Either:
+**One scope rule still matters:** the `dark` class belongs on `<html>`, and Lightdash is what puts it there. Radix portals into `document.body`, so `<div className="dark">` inside `<App />` doesn't contain portaled menus/dialogs/popovers — floating surfaces would leak out to the other mode. Do not write `<div className="dark">` anywhere, and do not set or remove the class yourself.
 
-```js
-// main.jsx — set once at boot, applies to <html> and every portal
-document.documentElement.classList.add('dark');
+For the rare colour that can't be expressed in CSS — a charting library's theme object, a light/dark logo swap — read the current mode instead:
+
+```jsx
+import { useColorScheme } from '@lightdash/query-sdk';
+
+const colorScheme = useColorScheme(); // 'light' | 'dark', re-renders on host toggle
 ```
 
-…or skip `.dark` entirely and put dark values directly in `:root`. Do not write `<div className="dark">` anywhere.
+`useColorScheme()` is the **only** supported way to read the mode in JS. Never
+derive it from the DOM yourself:
+
+```jsx
+// ✗ Broken. Correct on first paint, permanently stale afterwards.
+const colorScheme = document.documentElement.classList.contains('dark')
+    ? 'dark'
+    : 'light';
+```
+
+That reads the right value while the app is mounting, so the app looks correct
+and the bug survives review — but it subscribes to nothing. When the viewer
+toggles, Lightdash updates `<html>` and React never re-renders, so every colour
+you derived stays on the old mode. `useColorScheme()` subscribes to the same
+change and re-renders. The same applies to `matchMedia('(prefers-color-scheme)')`:
+that reports the viewer's *operating system*, not the Lightdash mode, so it is
+wrong from the first frame.
 
 ### Data interactions — action menu
 
@@ -869,9 +992,10 @@ Additional contextual options can be added when useful:
 Use the `DropdownMenu` component. The menu opens on click; each option triggers its respective action.
 
 ```tsx
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
+import { Bar, BarChart } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useGlobalFilters } from '@/lib/filters';
 
@@ -893,26 +1017,23 @@ function RevenueChart() {
     const [menuState, setMenuState] = useState(null); // { row, x, y }
     const [drillState, setDrillState] = useState(null); // { query, title }
     const [underlyingState, setUnderlyingState] = useState(null); // { title, row, metric, promise }
-    // Capture click position on pointerdown — this fires BEFORE Recharts'
-    // onClick, so the coordinates are ready when the chart handler runs.
-    // Recharts onClick does NOT expose the native MouseEvent.
-    const lastClick = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
     return (
         <>
-            <div onPointerDown={(e) => { lastClick.current = { x: e.clientX, y: e.clientY }; }}>
-            <BarChart data={data} onClick={(e) => {
-                if (e?.activePayload?.[0]) {
-                    setMenuState({
-                        row: e.activePayload[0].payload,
-                        x: lastClick.current.x,
-                        y: lastClick.current.y,
-                    });
-                }
-            }}>
-                {/* ... bars, axes, etc. */}
+            <BarChart data={data}>
+                {/* ... axes, etc. */}
+                <Bar
+                    dataKey="total_revenue"
+                    onClick={(item, _index, event) => {
+                        if (!item.payload) return;
+                        setMenuState({
+                            row: item.payload,
+                            x: event.clientX,
+                            y: event.clientY,
+                        });
+                    }}
+                />
             </BarChart>
-            </div>
 
             {/* Portal the menu to document.body: any animated/transformed
                 ancestor (fade-in cards, slide-in sections) becomes the
@@ -1097,6 +1218,15 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
 </ScrollArea>
 ```
 
+### Table and query performance
+
+Treat Safari/WebKit as the constrained target for layout-heavy apps. Test dense tables and filter interactions in Safari: an app that is smooth there will generally be smooth in Chrome, but the reverse is not guaranteed.
+
+- **Bound data-derived columns.** Pivot-style tables that derive columns from dates, categories, or other result values must cap the rendered window. Paginate the column range or virtualize it horizontally; never render an unbounded `dates.map(...)` or equivalent column set.
+- **Keep sticky positioning to headers.** Never apply `position: sticky` to body cells. If a pinned first column is essential, render it as a separate fixed pane synchronized with the scrollable data pane.
+- **Virtualize individual rows, not multi-row groups.** For large tables, avoid mounting virtualized rows inside one shared `<table>` layout where scroll-driven row changes can relayout the whole table. Prefer block or grid rows with fixed column widths, and make each virtual item one row rather than a group containing many rows and cells.
+- **Batch filter-driven queries.** When a control change would refetch multiple queries, debounce the committed filter value or require an Apply action. Do not fire the full query fan-out on every date, granularity, or filter input change.
+
 ### Resizable panels
 
 Only when the user asks for adjustable panel sizing (or two sibling areas genuinely benefit from rebalancing), read `/app/references/resizable-panels.md` and use the pre-installed shadcn `Resizable`. Otherwise use fixed flex/grid proportions — don't reach for it by default.
@@ -1109,7 +1239,7 @@ Only when the user asks for adjustable panel sizing (or two sibling areas genuin
 
 If a Recharts component covers it, **use Recharts** — even if a D3 version would be marginally prettier. The cost of D3 is more code, more chances for memory leaks, and harder integration with the action menu.
 
-When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, four worked examples (bar, sankey, sunburst, word cloud), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
+When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, five worked examples (bar, sankey, sunburst, word cloud, geo choropleth/globe), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
 
 ## `drillDown()` Reference
 
@@ -1122,10 +1252,11 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
-| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render |
+| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render or require for sorting; hidden sort fields stay selected but can be omitted from the UI |
+| Sorting by a field that is not selected | The backend orders by a missing output alias → query fails | Include every `.sorts()` field in `.dimensions()` or `.metrics()`, even when you do not render it |
 | Querying hidden fields (`customer_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
 | Calling `createClient()` in app code | Not needed — client is set up in `main.jsx` | `import { query, useLightdash } from '@lightdash/query-sdk'` |
-| Qualified names like `orders_total_revenue` | Double-qualified → unknown field | Short names only |
+| Short base field name starts with the explore prefix: `query('custom_roles').metrics(['custom_roles_created'])` | Mistaken for an already-qualified ID → unknown field | Preserve the full ID: `custom_roles_custom_roles_created` |
 | Joined table field without dot notation: `customer_name` | Resolves to `orders_customer_name` → unknown field | Use `customers.customer_name` for joined tables |
 | `value: '2025'` for a number column | String won't match number | `value: 2025` |
 | Not filtering on grain dimensions you don't render | Duplicates, mixed data, wrong totals | Identify the grain, filter dimensions you don't display |
@@ -1133,6 +1264,8 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | `.limit()` too low | Silently truncates rows — charts end early, tables incomplete | Estimate row count from the grain, set limit above that |
 | Building queries inside render | Infinite re-fetching | Define queries at module scope or memoize them |
 | Forgetting to apply global filters to a query | Chart shows unfiltered data while the rest of the page is filtered → contradictory results | Every `useLightdash()` call must pass `filtersFor(EXPLORE)` into `.filters([...])` via `useMemo` |
+| Forgetting to spread `lineage` on a query block | The host's Inspect data button stays disabled for that block | Destructure `lineage` from `useLightdash()` and spread it on the block's root element |
+| Spreading `lineage` onto a component that swallows unknown props | The stamp never reaches the DOM, so the block looks wired but Inspect data still can't trace it | Spread onto a plain element (`<div {...lineage}>`) or a component that forwards rest props to its root element (all `@/components/ui` primitives do) |
 | Calling `addFilter` without an `explore` tag | Filter has no explore → the `filtersFor(otherExplore)` lookup never returns it, or (worse) you broadcast it everywhere → `FieldReferenceError` like `regional_sales_status` not found | Always include `explore: EXPLORE` on every `addFilter` call |
 | Using `filters` (raw) instead of `filtersFor(EXPLORE)` | Sends filters from other explores into this query → SDK qualifies the field name to the wrong explore → `FieldReferenceError` | Always select via `filtersFor(EXPLORE)`; never pass `allFilters` into `.filters()` |
 | Hard-coding the explore string in two places | Chart and its action menu disagree → filter sets but never applies | Define `const EXPLORE = '...'` at the top of the file and reuse it for both `query(EXPLORE)` and `addFilter({ ..., explore: EXPLORE })` |
@@ -1150,6 +1283,6 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Applying `.parameters()` at module scope for a UI-driven value | Value never updates when the control changes | Apply `.parameters()` in a `useMemo` keyed on the state value; keep the base query at module scope |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
-| Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
+| Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Use `clientX`/`clientY` from the native React event passed to a Recharts 3 item-level handler (the third argument to `<Bar onClick>`) |
 | Action menu opens far below/right of the click | An animated/transformed ancestor (fade-in card, slide-in section) is the containing block for the `position: fixed` trigger — "fixed" coords resolve inside the card, not the viewport | `createPortal(<DropdownMenu …>, document.body)` around the menu block, exactly as in the action-menu example — never render the fixed trigger inside the component tree |
 | Combining a direction word with a contradictory sign in narrative copy (`down +12%`, `up -4%`) | Sign and verb disagree → reads as a self-contradiction, looks like a platform bug | Pick one convention per report and stick to it: either signed deltas with no direction word (`+12%`, `−4%`), or direction word with unsigned magnitude (`up 12%`, `down 4%`). Never mix. |

@@ -15,20 +15,15 @@ import {
     Stack,
     Text,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { useDashboardSchedulers } from '../../features/scheduler/hooks/useDashboardSchedulers';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import classes from './DeleteTabModal.module.css';
 
 type DeleteProps = ModalProps & {
     tab: DashboardTab;
@@ -67,26 +62,11 @@ export const TabDeleteModal: FC<DeleteProps> = ({
         isFetchingNextPage,
     } = useDashboardSchedulers({ dashboardUuid });
 
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-    // Callback to fetch more data when scrolling near the bottom
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                // Load more when within 200px of the bottom
-                if (
-                    scrollHeight - scrollTop - clientHeight < 200 &&
-                    !isFetchingNextPage &&
-                    hasNextPage
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetchingNextPage, hasNextPage],
-    );
+    const { containerRef: scrollContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching: isFetchingNextPage,
+        hasMore: hasNextPage ?? false,
+    });
 
     // Flatten all pages into a single array of schedulers
     const schedulers = useMemo(
@@ -277,12 +257,8 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                             <Box
                                 ref={scrollContainerRef}
                                 mah={150}
-                                style={{ overflowY: 'auto' }}
-                                onScroll={(e) =>
-                                    fetchMoreOnBottomReached(
-                                        e.target as HTMLDivElement,
-                                    )
-                                }
+                                className={classes.schedulerList}
+                                onScroll={onScroll}
                             >
                                 <List size="sm">
                                     {affectedSchedulers.map((scheduler) => (

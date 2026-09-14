@@ -7,22 +7,26 @@ import {
     Group,
     JsonInput,
     MultiSelect,
-    NumberInput,
     PasswordInput,
     Select,
     Stack,
+    Switch,
     TagsInput,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC, useState } from 'react';
+import { BuilderLinkingField } from '../../../features/externalConnections/components/BuilderLinkingField';
+import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
 import { SUGGESTED_GOOGLE_SCOPES } from '../../../features/externalConnections/constants';
+import { type CustomHeaderRow } from '../../../features/externalConnections/utils/customHeaders';
 import {
     type PathMode,
     type PathPrefix,
 } from '../../../features/externalConnections/utils/pathRules';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../../ProjectConnection/FormCollapseButton';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
 
@@ -31,10 +35,16 @@ export type ExternalConnectionFormValues = {
     origin: string;
     instructions: string;
     type: ExternalConnectionAuthType;
+    allowBrowserImages: boolean;
+    allowDataAppBuilderLinking: boolean;
     secret: string;
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
     oauthScopes: string[];
+    oauthTokenUrl: string;
+    oauthClientId: string;
+    oauthClientAuthMethod: 'basic' | 'body';
+    customHeaders: CustomHeaderRow[];
     allowedMethods: ExternalConnectionMethod[];
     pathMode: PathMode;
     allowedPathPrefixes: PathPrefix[];
@@ -52,6 +62,10 @@ const CONTENT_TYPE_OPTIONS = [
     'text/csv',
     'text/plain',
     'text/tab-separated-values',
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
 ];
 
 type Props = {
@@ -106,17 +120,65 @@ export const ExternalConnectionForm: FC<Props> = ({
                         value: 'google_service_account',
                         label: 'Google service account',
                     },
+                    {
+                        value: 'oauth_client_credentials',
+                        label: 'OAuth 2.0 client credentials',
+                    },
                 ]}
                 {...form.getInputProps('type')}
             />
 
-            {type !== 'none' && type !== 'google_service_account' && (
+            {(type === 'api_key' || type === 'bearer_token') && (
                 <PasswordInput
                     label={type === 'api_key' ? 'API key' : 'Bearer token'}
                     placeholder={secretPlaceholder}
                     disabled={disabled}
                     {...form.getInputProps('secret')}
                 />
+            )}
+
+            {type === 'oauth_client_credentials' && (
+                <>
+                    <TextInput
+                        required
+                        label="Token URL"
+                        description="The OAuth server endpoint used to obtain access tokens"
+                        placeholder="https://api.example.com/oauth/token"
+                        disabled={disabled}
+                        {...form.getInputProps('oauthTokenUrl')}
+                    />
+                    <TextInput
+                        required
+                        label="Client ID"
+                        placeholder="Your OAuth client ID"
+                        disabled={disabled}
+                        {...form.getInputProps('oauthClientId')}
+                    />
+                    <PasswordInput
+                        label="Client secret"
+                        placeholder={secretPlaceholder}
+                        disabled={disabled}
+                        {...form.getInputProps('secret')}
+                    />
+                    <Select
+                        required
+                        allowDeselect={false}
+                        label="Send client credentials as"
+                        data={[
+                            { value: 'basic', label: 'Authorization header' },
+                            { value: 'body', label: 'Request body' },
+                        ]}
+                        disabled={disabled}
+                        {...form.getInputProps('oauthClientAuthMethod')}
+                    />
+                    <TagsInput
+                        label="OAuth scopes (optional)"
+                        description="Sent as a space-separated token request parameter"
+                        placeholder="Add a scope"
+                        disabled={disabled}
+                        {...form.getInputProps('oauthScopes')}
+                    />
+                </>
             )}
 
             {type === 'google_service_account' && (
@@ -165,6 +227,14 @@ export const ExternalConnectionForm: FC<Props> = ({
                 </Group>
             )}
 
+            <CustomHeadersField
+                label="Custom headers"
+                value={form.values.customHeaders}
+                onChange={(value) => form.setFieldValue('customHeaders', value)}
+                error={form.errors.customHeaders}
+                disabled={disabled}
+            />
+
             <Divider label="Request policy" labelPosition="left" />
 
             <MethodsField
@@ -178,7 +248,7 @@ export const ExternalConnectionForm: FC<Props> = ({
             />
 
             <PathRulesField
-                label="Allowed paths"
+                label="Which paths can apps call?"
                 mode={form.values.pathMode}
                 onModeChange={(mode) => form.setFieldValue('pathMode', mode)}
                 prefixes={form.values.allowedPathPrefixes}
@@ -187,6 +257,26 @@ export const ExternalConnectionForm: FC<Props> = ({
                 }
                 error={form.errors.allowedPathPrefixes}
                 disabled={disabled}
+            />
+
+            <BuilderLinkingField
+                value={form.values.allowDataAppBuilderLinking}
+                onChange={(value) =>
+                    form.setFieldValue('allowDataAppBuilderLinking', value)
+                }
+                disabled={disabled}
+            />
+
+            <Switch
+                label="Allow public images in linked apps"
+                description="Linked apps and chart types can load public images from this origin. Enable only for trusted public image or tile hosts."
+                disabled={
+                    disabled ||
+                    (type !== 'none' && !form.values.allowBrowserImages)
+                }
+                {...form.getInputProps('allowBrowserImages', {
+                    type: 'checkbox',
+                })}
             />
 
             <FormSection name="advanced" isOpen={isAdvancedOpen}>

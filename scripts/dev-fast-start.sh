@@ -42,12 +42,16 @@ SHARED_BASE_VOLUME="ld-shared_postgres_base"
 # the core base, which must stay core-only for non-EE instances.
 EE_BASE_VOLUME="ld-shared_postgres_base_ee"
 
+. "$REPO_ROOT/scripts/dev-instance-lib.sh"
+
 fail() { echo "FAIL: $1 -- $2" >&2; exit 1; }
 step() { echo "STEP: $1"; }
 
-instance_pm2_names() {
-    for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
-        echo "${LD_INSTANCE_ID}-${suffix}"
+# One name per call: `pm2 delete a b c` aborts at the first name it cannot
+# find, silently leaving every later one running.
+delete_instance_pm2() {
+    for name in $(instance_pm2_names); do
+        pm2 delete "$name" >/dev/null 2>&1 || true
     done
 }
 
@@ -100,6 +104,27 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+step "Ensure Maple tracing CLI"
+# Maple local mode receives OTLP traces from the API and scheduler (see
+# ecosystem.config.js). It is a standalone binary, not a node_modules bin.
+# Non-fatal: without it the stack runs fine, just untraced.
+if command -v maple >/dev/null 2>&1; then
+    echo "SKIP: maple present ($(command -v maple))"
+else
+    if [ ! -x "$HOME/.maple/bin/maple" ]; then
+        curl -fsSL https://maple.dev/cli/install | sh >/dev/null 2>&1 || true
+    fi
+    if [ -x "$HOME/.maple/bin/maple" ]; then
+        # ecosystem.config.js resolves `maple` off PATH, and PM2 inherits this
+        # shell's PATH, so exporting it here is what makes the sidecar start.
+        export PATH="$HOME/.maple/bin:$PATH"
+        echo "OK: maple available at $HOME/.maple/bin/maple"
+    else
+        echo "SKIP: maple unavailable — stack will run without local tracing"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 step "Ensure Python/dbt venv"
 # The dbt venv is identical across worktrees, so build it ONCE in a shared cache
 # (~/.lightdash/dev-venv) and symlink each worktree's ./venv at it. Saves the
@@ -126,6 +151,27 @@ else
         || fail "venv" "pip install dbt failed"
     ln -sf dbt venv/bin/dbt1.7
     echo "OK: venv ready"
+fi
+
+# The seed deploys the demo project with the backend's default dbt version
+# (currently v1.12, which needs Python >=3.10), so a dbt1.12 binary must be on
+# PATH alongside dbt1.7. Build it in its own shared venv (one dbt-core version
+# per venv) and shim it into the shared venv's bin.
+SHARED_VENV_112="${HOME}/.lightdash/dev-venv-1.12"
+if ! test -x venv/bin/dbt1.12; then
+    if ! test -f "$SHARED_VENV_112/bin/dbt"; then
+        PY310=""
+        for p in python3.13 python3.12 python3.11 python3.10; do
+            command -v "$p" >/dev/null 2>&1 && PY310="$p" && break
+        done
+        [ -n "$PY310" ] || fail "venv" "dbt 1.12 needs Python >=3.10 but none found (install e.g. brew install python@3.12)"
+        "$PY310" -m venv "$SHARED_VENV_112" || fail "venv" "$PY310 -m venv (dbt 1.12 cache) failed"
+        "$SHARED_VENV_112/bin/pip" install 'dbt-core~=1.12.0' dbt-postgres >/dev/null 2>&1 \
+            || fail "venv" "pip install dbt 1.12 into shared cache failed"
+    fi
+    ln -sf "$SHARED_VENV_112/bin/dbt" "$SHARED_VENV/bin/dbt1.12" 2>/dev/null || ln -sf "$SHARED_VENV_112/bin/dbt" venv/bin/dbt1.12
+    test -x venv/bin/dbt1.12 || fail "venv" "dbt1.12 shim is broken"
+    echo "OK: dbt1.12 available ($SHARED_VENV_112)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -169,7 +215,10 @@ if test -f .env.development.local; then
     reconcile_env SCHEDULER_PORT "${SCHEDULER_PORT}"
     reconcile_env DEBUG_PORT "${DEBUG_PORT}"
     reconcile_env SDK_TEST_PORT "${SDK_TEST_PORT}"
-    reconcile_env SPOTLIGHT_PORT "${SPOTLIGHT_PORT}"
+    reconcile_env MAPLE_PORT "${MAPLE_PORT}"
+    # The maple CLI defaults to port 4318; point it at this instance so a
+    # `source .env.development.local` shell can query the right server.
+    reconcile_env MAPLE_LOCAL_URL "http://127.0.0.1:${MAPLE_PORT}"
     reconcile_env LIGHTDASH_PROMETHEUS_PORT "${LIGHTDASH_PROMETHEUS_PORT}"
     reconcile_env SITE_URL "http://localhost:${FE_PORT}"
     reconcile_env INTERNAL_LIGHTDASH_HOST "http://localhost:${FE_PORT}"
@@ -215,7 +264,8 @@ FE_PORT=${FE_PORT}
 SCHEDULER_PORT=${SCHEDULER_PORT}
 DEBUG_PORT=${DEBUG_PORT}
 SDK_TEST_PORT=${SDK_TEST_PORT}
-SPOTLIGHT_PORT=${SPOTLIGHT_PORT}
+MAPLE_PORT=${MAPLE_PORT}
+MAPLE_LOCAL_URL=http://127.0.0.1:${MAPLE_PORT}
 LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
 SITE_URL=http://localhost:${FE_PORT}
 S3_ENDPOINT=http://localhost:9000
@@ -327,6 +377,33 @@ else
 fi
 docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" --env-file .env.development up -d \
     || fail "docker-instance" "could not start per-instance PostgreSQL"
+
+# ---------------------------------------------------------------------------
+# The Docker sandbox provider launches agent containers from local images that
+# are built once per machine, never pulled. A missing image only surfaces later
+# as a runtime 404 ("No such image: lightdash-agent-onboarding:local") when a
+# sandbox-backed feature first runs, so build any that are absent now. Env
+# overrides mean the operator points at their own image — leave those alone.
+if grep -q "^SANDBOX_PROVIDER=docker" .env.development.local 2>/dev/null; then
+    step "Ensure local sandbox images"
+    ensure_sandbox_image() {
+        SANDBOX_IMAGE="$1"; SANDBOX_BUILD_SCRIPT="$2"; SANDBOX_OVERRIDE_VAR="$3"
+        if grep -q "^${SANDBOX_OVERRIDE_VAR}=" .env.development.local 2>/dev/null; then
+            echo "OK: ${SANDBOX_OVERRIDE_VAR} is overridden; skipping ${SANDBOX_IMAGE}"
+            return 0
+        fi
+        if docker image inspect "$SANDBOX_IMAGE" >/dev/null 2>&1; then
+            echo "OK: ${SANDBOX_IMAGE} present"
+            return 0
+        fi
+        echo "Building ${SANDBOX_IMAGE} (one-time per machine; several minutes)"
+        "$SANDBOX_BUILD_SCRIPT" \
+            || fail "sandbox-images" "failed to build ${SANDBOX_IMAGE} via ${SANDBOX_BUILD_SCRIPT}"
+    }
+    ensure_sandbox_image lightdash-sandbox:local ./sandboxes/data-apps/build-local-image.sh SANDBOX_DOCKER_IMAGE
+    ensure_sandbox_image lightdash-ai-writeback:local ./sandboxes/ai-writeback/build-local-image.sh SANDBOX_AI_WRITEBACK_DOCKER_IMAGE
+    ensure_sandbox_image lightdash-agent-onboarding:local ./sandboxes/agent-onboarding/build-local-image.sh SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE
+fi
 
 step "Wait for PostgreSQL"
 PG_READY=false
@@ -475,6 +552,17 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# The shared base snapshot stores the absolute dbt path of whichever worktree
+# built it, so a bootstrapped instance compiles against a directory that may no
+# longer exist and refresh fails on `dbt deps`.
+step "Reconcile local dbt project path"
+if ./scripts/dev-reconcile.sh local-dbt-path-fix 2>&1; then
+    :
+else
+    echo "WARN: local-dbt-path-fix reported an issue (non-fatal) — refreshing the dbt project may fail until fixed"
+fi
+
+# ---------------------------------------------------------------------------
 step "Ensure instance snapshot"
 if docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/null 2>&1; then
     echo "SKIP: snapshot exists"
@@ -509,8 +597,8 @@ else
     if [ -n "$STALE_IMPORTS" ]; then
         echo "Stale imports in routes.ts:$STALE_IMPORTS"
         echo "Regenerating API artifacts..."
-        pnpm generate-api:fast >/dev/null 2>&1 \
-            || fail "generate-api" "pnpm generate-api:fast failed while regenerating stale routes.ts"
+        pnpm generate-api >/dev/null 2>&1 \
+            || fail "generate-api" "pnpm generate-api failed while regenerating stale routes.ts"
         echo "OK: regenerated API artifacts"
     else
         echo "OK: generated routes resolve"
@@ -519,6 +607,15 @@ fi
 
 # ---------------------------------------------------------------------------
 step "Start PM2"
+# The God Daemon keeps running after a worktree is deleted, and it forks every
+# child through ITS OWN pm2 install. When that install is a different version
+# (or its node_modules are gone) children die with ERR_MODULE_NOT_FOUND on
+# ProcessContainerFork.js, which surfaces only as a health timeout. Recycling
+# the daemon is safe: processes are re-added from the ecosystem config below.
+if pm2 list 2>&1 | grep -q "In-memory PM2 is out-of-date"; then
+    echo "PM2 daemon version differs from this worktree's — restarting the daemon"
+    pm2 kill >/dev/null 2>&1 || true
+fi
 RUNNING_CWD="$(pm2 jlist 2>/dev/null | INSTANCE="$LD_INSTANCE_ID" python3 -c "
 import sys, json, os
 inst = os.environ['INSTANCE']
@@ -532,17 +629,32 @@ if mine:
     root = cwd.rsplit('/packages/', 1)[0] if '/packages/' in cwd else cwd
     print(root)
 " 2>/dev/null || true)"
+API_RELOAD_READY="$(pm2 jlist 2>/dev/null | INSTANCE="$LD_INSTANCE_ID" python3 -c "
+import sys, json, os
+inst = os.environ['INSTANCE']
+try:
+    procs = json.load(sys.stdin)
+except Exception:
+    procs = []
+api = next((p for p in procs if p.get('name') == inst + '-api'), None)
+env = api.get('pm2_env', {}) if api else {}
+script = env.get('pm_exec_path', '')
+watch = env.get('watch') or []
+ready = script.endswith('/src/index.ts') and isinstance(watch, list) and 'src' in watch
+print('true' if ready else 'false')
+" 2>/dev/null || true)"
 if [ -n "$RUNNING_CWD" ] && [ "$RUNNING_CWD" != "$(pwd)" ]; then
     echo "Instance PM2 was running from $RUNNING_CWD — switching to this worktree"
-    # shellcheck disable=SC2046
-    pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
+    delete_instance_pm2
+elif [ -n "$RUNNING_CWD" ] && [ "$API_RELOAD_READY" != true ]; then
+    echo "PM2 API predates automatic route reload — recycling instance processes"
+    delete_instance_pm2
 elif [ "${ENV_PORTS_CHANGED:-0}" = 1 ]; then
     # Ports were reconciled but procs may already be online with the stale env.
     # PM2 caches env at spawn time, so delete+start is required (restart --update-env
     # only inherits the current shell, not the .env file).
     echo "Env ports changed — recycling PM2 so the new env is picked up"
-    # shellcheck disable=SC2046
-    pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
+    delete_instance_pm2
 fi
 if [ "$SDK_TEST_MODE" = true ]; then
     export LD_ENABLE_SDK_TEST=true
@@ -561,4 +673,21 @@ done
 [ "$HEALTH" = "200" ] || fail "health" "backend /api/v1/health returned '${HEALTH:-no response}' after 120s (check 'pm2 logs ${LD_INSTANCE_ID}-api --lines 80 --nostream')"
 
 echo "OK: backend healthy"
-echo "READY: instance=$LD_INSTANCE_ID frontend=http://localhost:${FE_PORT} api=http://localhost:${PORT} spotlight=http://localhost:${SPOTLIGHT_PORT}"
+
+# Maple is optional, so only advertise it once its liveness route answers.
+MAPLE_READY=""
+if command -v maple >/dev/null 2>&1; then
+    for _ in $(seq 1 15); do
+        MAPLE_READY="$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${MAPLE_PORT}/health" 2>/dev/null || true)"
+        [ "$MAPLE_READY" = "200" ] && break
+        sleep 1
+    done
+fi
+if [ "$MAPLE_READY" = "200" ]; then
+    echo "OK: maple tracing on http://localhost:${MAPLE_PORT}"
+    MAPLE_READY_FRAGMENT=" maple=http://localhost:${MAPLE_PORT}"
+else
+    echo "SKIP: maple not serving on ${MAPLE_PORT} — traces unavailable (pnpm pm2:logs:maple)"
+    MAPLE_READY_FRAGMENT=""
+fi
+echo "READY: instance=$LD_INSTANCE_ID frontend=http://localhost:${FE_PORT} api=http://localhost:${PORT}${MAPLE_READY_FRAGMENT}"

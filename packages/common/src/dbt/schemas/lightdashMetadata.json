@@ -58,6 +58,22 @@
                 "label_dimension": {
                     "type": "string",
                     "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                },
+                "options_from_dimension": {
+                    "type": "object",
+                    "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
+                    "properties": {
+                        "model": {
+                            "type": "string"
+                        },
+                        "dimension": {
+                            "type": "string"
+                        },
+                        "label_dimension": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["model", "dimension"]
                 }
             }
         },
@@ -229,6 +245,11 @@
                     "type": "boolean",
                     "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
                 },
+                "timestamp_domain": {
+                    "type": "string",
+                    "enum": ["aware", "naive"],
+                    "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
+                },
                 "hidden": {
                     "type": "boolean"
                 },
@@ -289,6 +310,11 @@
                 "convert_timezone": {
                     "type": "boolean",
                     "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
+                },
+                "timestamp_domain": {
+                    "type": "string",
+                    "enum": ["aware", "naive"],
+                    "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
                 },
                 "hidden": {
                     "type": "boolean"

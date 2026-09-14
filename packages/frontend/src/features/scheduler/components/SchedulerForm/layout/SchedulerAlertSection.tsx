@@ -10,7 +10,7 @@ import {
     type ParametersValuesMap,
     type TableCalculation,
 } from '@lightdash/common';
-import { Checkbox, Divider, Group, Select, Stack, Text } from '@mantine-8/core';
+import { Checkbox, Divider, Group, Select, Stack, Text } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldSelect from '../../../../../components/common/FieldSelect';
@@ -136,7 +136,7 @@ export const SchedulerAlertSection: FC<Props> = ({
                 {'notificationFrequency' in form.values &&
                     form.values.notificationFrequency ===
                         NotificationFrequency.ALWAYS && (
-                        <Text size="xs" c="ldGray.6" fs="italic">
+                        <Text size="xs" c="dimmed" fs="italic">
                             You will be notified at the specified frequency
                             whenever the threshold conditions are met
                         </Text>

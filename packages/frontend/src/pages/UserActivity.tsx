@@ -1,5 +1,7 @@
 import {
     type ActivityViews,
+    type ChartActivityViews,
+    type DashboardActivityViews,
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
@@ -12,11 +14,12 @@ import {
     Button,
     Anchor,
     Card,
-} from '@mantine-8/core';
-import { Table, Tooltip } from '@mantine/core';
+    Table,
+    Tooltip,
+} from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -29,6 +32,7 @@ import {
 } from '../hooks/analytics/useUserActivity';
 import useHealth from '../hooks/health/useHealth';
 import { useProject } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import classes from './UserActivity.module.css';
 
@@ -42,11 +46,7 @@ const VisualizationCard = ({
     children: React.ReactNode;
 }) => {
     return (
-        <Card
-            className={classes.visualizationCard}
-            style={{ gridArea: grid }}
-            withBorder
-        >
+        <Card className={classes.visualizationCard} style={{ gridArea: grid }}>
             <Text style={{ float: 'left' }} fw={600} mb={10}>
                 {description}
             </Text>
@@ -71,58 +71,53 @@ const BigNumberVis: FC<{ value: number | string; label: string }> = ({
     );
 };
 
-const getDashboardLink = (projectUuid: string, dashboardUuid: string) =>
-    `/projects/${projectUuid}/dashboards/${dashboardUuid}`;
+const getDashboardLink = (projectUuid: string, dashboardSlug: string) =>
+    `/projects/${projectUuid}/dashboards/${dashboardSlug}`;
 
-const getChartLink = (projectUuid: string, chartUuid: string) =>
-    `/projects/${projectUuid}/saved/${chartUuid}`;
+const getChartLink = (projectUuid: string, chartSlug: string) =>
+    `/projects/${projectUuid}/saved/${chartSlug}`;
 
-const showTableViews = ({
+const showTableViews = <T extends ActivityViews>({
     key,
-    projectUuid,
-    type,
     views,
+    getLink,
 }: {
     key: string;
-    projectUuid: string;
-    type: 'chart' | 'dashboard';
-    views: ActivityViews[];
+    views: T[];
+    getLink: (view: T) => string;
 }) => {
     return (
-        <tbody>
+        <Table.Tbody>
             {views.map((view) => {
-                const to =
-                    type === 'dashboard'
-                        ? getDashboardLink(projectUuid, view.uuid)
-                        : getChartLink(projectUuid, view.uuid);
+                const to = getLink(view);
                 return (
-                    <tr key={`${key}-${view.uuid}`}>
-                        <td>
+                    <Table.Tr key={`${key}-${view.uuid}`}>
+                        <Table.Td>
                             <Anchor inherit component={Link} to={to}>
                                 {view.name}
                             </Anchor>
-                        </td>
-                        <td>{view.count}</td>
-                    </tr>
+                        </Table.Td>
+                        <Table.Td>{view.count}</Table.Td>
+                    </Table.Tr>
                 );
             })}
-        </tbody>
+        </Table.Tbody>
     );
 };
 
 const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
     return (
-        <tbody>
+        <Table.Tbody>
             {userList.map((user) => {
                 return (
-                    <tr key={`${key}-${user.userUuid}`}>
-                        <td>{user.firstName} </td>
-                        <td>{user.lastName}</td>
-                        <td>{user.count}</td>
-                    </tr>
+                    <Table.Tr key={`${key}-${user.userUuid}`}>
+                        <Table.Td>{user.firstName} </Table.Td>
+                        <Table.Td>{user.lastName}</Table.Td>
+                        <Table.Td>{user.count}</Table.Td>
+                    </Table.Tr>
                 );
             })}
-        </tbody>
+        </Table.Tbody>
     );
 };
 
@@ -207,15 +202,14 @@ const chartWeeklyAverageQueries = (
 });
 
 const UserActivity: FC = () => {
-    const params = useParams<{ projectUuid: string }>();
-    const { data: project } = useProject(params.projectUuid);
+    const projectUuid = useProjectUuid();
+    const { data: project } = useProject(projectUuid);
     const { user: sessionUser } = useApp();
     const { data: health } = useHealth();
     const { mutateAsync: downloadCsv, isLoading: isDownloadingCsv } =
         useDownloadUserActivityCsv();
 
-    const { data, isInitialLoading } = useUserActivity(params.projectUuid);
-    const projectUuid = params.projectUuid;
+    const { data, isInitialLoading } = useUserActivity(projectUuid);
     if (sessionUser.data?.ability?.cannot('view', 'Analytics')) {
         return <ForbiddenPanel />;
     }
@@ -235,7 +229,7 @@ const UserActivity: FC = () => {
                     items={[
                         {
                             title: 'Usage analytics',
-                            to: `/generalSettings/projectManagement/${params.projectUuid}/usageAnalytics`,
+                            to: `/generalSettings/projectManagement/${projectUuid}/usageAnalytics`,
                         },
                         {
                             title: (
@@ -259,8 +253,8 @@ const UserActivity: FC = () => {
                         variant="outline"
                         disabled={isDownloadingCsv}
                         onClick={() => {
-                            if (params.projectUuid)
-                                downloadCsv(params.projectUuid)
+                            if (projectUuid)
+                                downloadCsv(projectUuid)
                                     .then((url) => {
                                         if (url) {
                                             // If the file takes a while to download,
@@ -372,13 +366,13 @@ const UserActivity: FC = () => {
                         days?"
                 >
                     <Table withColumnBorders ta="left">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Number of Queries</th>
-                            </tr>
-                        </thead>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>First Name</Table.Th>
+                                <Table.Th>Last Name</Table.Th>
+                                <Table.Th>Number of Queries</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
                         {showTableBodyWithUsers(
                             'users-most-queries',
                             data.tableMostQueries,
@@ -392,13 +386,13 @@ const UserActivity: FC = () => {
                         last 7 days? (top 10)"
                 >
                     <Table withColumnBorders ta="left">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Number of chart updates</th>
-                            </tr>
-                        </thead>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>First Name</Table.Th>
+                                <Table.Th>Last Name</Table.Th>
+                                <Table.Th>Number of chart updates</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
                         {showTableBodyWithUsers(
                             'users-created-most-charts',
                             data.tableMostCreatedCharts,
@@ -410,13 +404,13 @@ const UserActivity: FC = () => {
                     description="Which users have not run queries in the last 90 days?"
                 >
                     <Table withColumnBorders ta="left">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Days since last query</th>
-                            </tr>
-                        </thead>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>First Name</Table.Th>
+                                <Table.Th>Last Name</Table.Th>
+                                <Table.Th>Days since last query</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
                         {showTableBodyWithUsers(
                             'users-not-logged-in',
                             data.tableNoQueries,
@@ -429,40 +423,40 @@ const UserActivity: FC = () => {
                     description="User's most viewed dashboard"
                 >
                     <Table withColumnBorders ta="left">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Dashboard name</th>
-                                <th>Number of views</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>First Name</Table.Th>
+                                <Table.Th>Last Name</Table.Th>
+                                <Table.Th>Dashboard name</Table.Th>
+                                <Table.Th>Number of views</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
                             {data.userMostViewedDashboards.map((user) => {
                                 return (
-                                    <tr
+                                    <Table.Tr
                                         key={`user-most-viewed-${user.userUuid}`}
                                     >
-                                        <td>{user.firstName} </td>
-                                        <td>{user.lastName}</td>
-                                        <td>
+                                        <Table.Td>{user.firstName} </Table.Td>
+                                        <Table.Td>{user.lastName}</Table.Td>
+                                        <Table.Td>
                                             <Anchor
                                                 inherit
                                                 component={Link}
                                                 to={getDashboardLink(
                                                     projectUuid,
-                                                    user.dashboardUuid,
+                                                    user.dashboardSlug,
                                                 )}
                                             >
                                                 {user.dashboardName}
                                             </Anchor>
-                                        </td>
+                                        </Table.Td>
 
-                                        <td>{user.count}</td>
-                                    </tr>
+                                        <Table.Td>{user.count}</Table.Td>
+                                    </Table.Tr>
                                 );
                             })}
-                        </tbody>
+                        </Table.Tbody>
                     </Table>
                 </VisualizationCard>
                 {health?.hasExtendedUsageAnalytics ? (
@@ -472,17 +466,20 @@ const UserActivity: FC = () => {
                             description="Dashboard views (top 20)"
                         >
                             <Table withColumnBorders ta="left">
-                                <thead>
-                                    <tr>
-                                        <th>Dashboard name</th>
-                                        <th>Views</th>
-                                    </tr>
-                                </thead>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Dashboard name</Table.Th>
+                                        <Table.Th>Views</Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
                                 {showTableViews({
                                     key: 'dashboard-views',
-                                    projectUuid,
-                                    type: 'dashboard',
                                     views: data.dashboardViews,
+                                    getLink: (view: DashboardActivityViews) =>
+                                        getDashboardLink(
+                                            projectUuid,
+                                            view.slug,
+                                        ),
                                 })}
                             </Table>
                         </VisualizationCard>
@@ -491,17 +488,17 @@ const UserActivity: FC = () => {
                             description="Chart views (top 20)"
                         >
                             <Table withColumnBorders ta="left">
-                                <thead>
-                                    <tr>
-                                        <th>Chart name</th>
-                                        <th>Views</th>
-                                    </tr>
-                                </thead>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Chart name</Table.Th>
+                                        <Table.Th>Views</Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
                                 {showTableViews({
                                     key: 'chart-views',
-                                    projectUuid,
-                                    type: 'chart',
                                     views: data.chartViews,
+                                    getLink: (view: ChartActivityViews) =>
+                                        getChartLink(projectUuid, view.slug),
                                 })}
                             </Table>
                         </VisualizationCard>

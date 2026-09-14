@@ -2,12 +2,12 @@ import {
     type ApiErrorDetail,
     type QueryHistoryStatus,
 } from '@lightdash/common';
-import { Anchor, Text } from '@mantine-8/core';
+import { Anchor, Text } from '@mantine/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
-import { LD_FIELD_COLORS } from '../../../mantineTheme';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
+import { LD_FIELD_COLORS } from '../../../theme';
 import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
@@ -183,7 +183,7 @@ export const ExploreErrorState = ({
         title="Error loading results"
         description={
             <Fragment>
-                <Text style={{ whiteSpace: 'pre-wrap' }}>
+                <Text className={classes.errorMessage}>
                     {errorDetail?.message ||
                         'There was an error loading the results'}
                 </Text>

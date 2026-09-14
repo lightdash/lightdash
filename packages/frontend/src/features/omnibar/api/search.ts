@@ -16,7 +16,12 @@ export const getSearchResults = async ({
 }) => {
     const sanitisedFilters = omitBy(filters, isNil);
     const params = new URLSearchParams({
-        ...(sanitisedFilters || {}),
+        ...Object.fromEntries(
+            Object.entries(sanitisedFilters).map(([key, value]) => [
+                key,
+                String(value),
+            ]),
+        ),
         source,
     });
 

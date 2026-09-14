@@ -1,5 +1,11 @@
-import { TextInput, Button, Flex, Stack, ActionIcon } from '@mantine-8/core';
-import { Input } from '@mantine/core';
+import {
+    TextInput,
+    Button,
+    Flex,
+    Stack,
+    ActionIcon,
+    InputWrapper,
+} from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import get from 'lodash/get';
 import { useState, type ReactNode } from 'react';
@@ -42,7 +48,7 @@ export const MultiKeyValuePairsInput = ({
     const [isLabelInfoOpen, setIsLabelInfoOpen] = useState<boolean>(false);
 
     return (
-        <Input.Wrapper
+        <InputWrapper
             styles={{
                 label: {
                     display: 'flex',
@@ -61,8 +67,6 @@ export const MultiKeyValuePairsInput = ({
 
                     {labelHelp && (
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             onClick={(
                                 e: React.MouseEvent<HTMLButtonElement>,
                             ) => {
@@ -94,8 +98,6 @@ export const MultiKeyValuePairsInput = ({
                         />
 
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             onClick={() => removeValue(index)}
                             disabled={disabled}
                         >
@@ -113,6 +115,6 @@ export const MultiKeyValuePairsInput = ({
                     Add variable
                 </Button>
             </Stack>
-        </Input.Wrapper>
+        </InputWrapper>
     );
 };

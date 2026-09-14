@@ -1,10 +1,12 @@
 import {
+    DetailedViewStatistics,
     OrganizationMemberRole,
     UnusedContent,
     UnusedContentItem,
+    UnusedContentOptions,
+    UnusedContentReason,
     UserActivity,
     UserWithCount,
-    ViewStatistics,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -16,11 +18,8 @@ import {
 } from '../database/entities/analytics';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
-import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
-import { SpaceTableName } from '../database/entities/spaces';
-import { UserTableName } from '../database/entities/users';
 import { traceSpan } from '../tracing/tracing';
 import {
     chartViewsSql,
@@ -35,6 +34,7 @@ import {
     unusedDashboardsSql,
     userMostViewedDashboardSql,
     usersInProjectSql,
+    viewsRawDataSql,
 } from './AnalyticsModelSql';
 
 type DbUserWithCountArguments = {
@@ -55,40 +55,77 @@ export class AnalyticsModel {
         this.database = args.database;
     }
 
-    async getChartViewStats(chartUuid: string): Promise<ViewStatistics> {
+    async getChartViewStats(
+        chartUuid: string,
+    ): Promise<DetailedViewStatistics> {
         return traceSpan(
             {
                 op: 'AnalyticsModel.getChartStats',
                 name: 'AnalyticsModel.getChartStats',
             },
-            async () => {
-                const stats = await this.database(AnalyticsChartViewsTableName)
-                    .count({ views: '*' })
-                    .min({
-                        first_viewed_at: 'timestamp',
-                    })
-                    .where('chart_uuid', chartUuid)
-                    .first();
-
-                return {
-                    views:
-                        typeof stats?.views === 'number'
-                            ? stats.views
-                            : parseInt(stats?.views ?? '0', 10),
-                    firstViewedAt: stats?.first_viewed_at ?? new Date(),
-                };
-            },
+            () =>
+                this.getViewStats(
+                    AnalyticsChartViewsTableName,
+                    'chart_uuid',
+                    chartUuid,
+                ),
         );
+    }
+
+    async getDashboardViewStats(
+        dashboardUuid: string,
+    ): Promise<DetailedViewStatistics> {
+        return traceSpan(
+            {
+                op: 'AnalyticsModel.getDashboardViewStats',
+                name: 'AnalyticsModel.getDashboardViewStats',
+            },
+            () =>
+                this.getViewStats(
+                    AnalyticsDashboardViewsTableName,
+                    'dashboard_uuid',
+                    dashboardUuid,
+                ),
+        );
+    }
+
+    private async getViewStats(
+        tableName: string,
+        uuidColumn: 'chart_uuid' | 'dashboard_uuid',
+        uuid: string,
+    ): Promise<DetailedViewStatistics> {
+        const stats = await this.database(tableName)
+            .count({ views: '*' })
+            .countDistinct({ unique_viewer_count: 'user_uuid' })
+            .count({
+                anonymous_view_count: this.database.raw(
+                    'CASE WHEN user_uuid IS NULL THEN 1 END',
+                ),
+            })
+            .min({ first_viewed_at: 'timestamp' })
+            .where(uuidColumn, uuid)
+            .first();
+
+        return {
+            views: Number(stats?.views ?? 0),
+            firstViewedAt: stats?.first_viewed_at ?? null,
+            uniqueViewerCount: Number(stats?.unique_viewer_count ?? 0),
+            anonymousViewCount: Number(stats?.anonymous_view_count ?? 0),
+        };
     }
 
     async addChartViewEvent(
         chartUuid: string,
         userUuid: string | null,
+        /** Set when the chart was rendered as a dashboard tile rather than
+         * opened on its own — recently-viewed excludes those. */
+        context?: { source: 'dashboard'; dashboardUuid: string },
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await trx(AnalyticsChartViewsTableName).insert({
                 chart_uuid: chartUuid,
                 user_uuid: userUuid,
+                context: context ?? null,
             });
             await trx(SavedChartsTableName)
                 .update({
@@ -108,11 +145,7 @@ export class AnalyticsModel {
         userUuid: string,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            // TODO add sql views table for tracking user views
-            /*  await trx(AnalyticsSqlChartViewsTableName).insert({
-                chart_uuid: chartUuid,
-                user_uuid: userUuid,
-            }); */
+            // TODO: persist per-user SQL chart views once a views table exists
             await trx(SavedSqlTableName)
                 .update({
                     views_count: trx.raw(
@@ -186,55 +219,13 @@ export class AnalyticsModel {
         organizationUuid: string,
     ): Promise<UserActivity> {
         const usersInProjectQuery = await this.database.raw(
-            usersInProjectSql(projectUuid, organizationUuid),
+            usersInProjectSql(),
+            { projectUuid, organizationUuid },
         );
         const usersInProject: { user_uuid: string; role: string }[] =
             usersInProjectQuery.rows;
         const userUuids = usersInProject.map((user) => user.user_uuid);
-
-        const numberWeeklyQueryingUsersQuery = await this.database.raw(
-            numberWeeklyQueryingUsersSql(userUuids, projectUuid),
-        );
-        const numberWeeklyQueryingUsers: number = parseInt(
-            numberWeeklyQueryingUsersQuery.rows[0].count,
-            10,
-        );
-
-        const tableMostQueries = await this.database.raw(
-            tableMostQueriesSql(userUuids, projectUuid),
-        );
-
-        const tableMostCreatedCharts = await this.database.raw(
-            tableMostCreatedChartsSql(userUuids, projectUuid),
-        );
-
-        const tableNoQueries = await this.database.raw(
-            tableNoQueriesSql(userUuids, projectUuid),
-        );
-
-        const chartWeeklyQueryingUsers = await this.database.raw(
-            chartWeeklyQueryingUsersSql(userUuids, projectUuid),
-        );
-
-        const chartWeeklyAverageQueries = await this.database.raw(
-            chartWeeklyAverageQueriesSql(userUuids, projectUuid),
-        );
-
-        const dashboardViews = await this.database.raw(
-            dashboardViewsSql(projectUuid),
-        );
-
-        const userMostViewedDashboards = await this.database.raw<{
-            rows: {
-                user_uuid: string;
-                first_name: string;
-                last_name: string;
-                dashboard_uuid: string;
-                dashboard_name: string;
-                count: number;
-            }[];
-        }>(userMostViewedDashboardSql(projectUuid));
-        const chartViews = await this.database.raw(chartViewsSql(projectUuid));
+        const activityBindings = { projectUuid, userUuids };
         const parseUsersWithCount = (
             userData: DbUserWithCount,
         ): UserWithCount => ({
@@ -242,6 +233,76 @@ export class AnalyticsModel {
             firstName: userData.first_name,
             lastName: userData.last_name,
             count: userData.count || undefined,
+        });
+        let numberWeeklyQueryingUsers = 0;
+        let tableMostQueries: UserWithCount[] = [];
+        let tableMostCreatedCharts: UserWithCount[] = [];
+        let tableNoQueries: UserWithCount[] = [];
+        let chartWeeklyQueryingUsers: UserActivity['chartWeeklyQueryingUsers'] =
+            [];
+        let chartWeeklyAverageQueries: UserActivity['chartWeeklyAverageQueries'] =
+            [];
+
+        if (userUuids.length > 0) {
+            const numberWeeklyQueryingUsersQuery = await this.database.raw(
+                numberWeeklyQueryingUsersSql(),
+                activityBindings,
+            );
+            numberWeeklyQueryingUsers = parseInt(
+                numberWeeklyQueryingUsersQuery.rows[0].count,
+                10,
+            );
+
+            const tableMostQueriesQuery = await this.database.raw(
+                tableMostQueriesSql(),
+                activityBindings,
+            );
+            tableMostQueries =
+                tableMostQueriesQuery.rows.map(parseUsersWithCount);
+
+            const tableMostCreatedChartsQuery = await this.database.raw(
+                tableMostCreatedChartsSql(),
+                activityBindings,
+            );
+            tableMostCreatedCharts =
+                tableMostCreatedChartsQuery.rows.map(parseUsersWithCount);
+
+            const tableNoQueriesQuery = await this.database.raw(
+                tableNoQueriesSql(),
+                activityBindings,
+            );
+            tableNoQueries = tableNoQueriesQuery.rows.map(parseUsersWithCount);
+
+            const chartWeeklyQueryingUsersQuery = await this.database.raw(
+                chartWeeklyQueryingUsersSql(),
+                activityBindings,
+            );
+            chartWeeklyQueryingUsers = chartWeeklyQueryingUsersQuery.rows;
+
+            const chartWeeklyAverageQueriesQuery = await this.database.raw(
+                chartWeeklyAverageQueriesSql(),
+                activityBindings,
+            );
+            chartWeeklyAverageQueries = chartWeeklyAverageQueriesQuery.rows;
+        }
+
+        const dashboardViews = await this.database.raw(dashboardViewsSql(), {
+            projectUuid,
+        });
+
+        const userMostViewedDashboards = await this.database.raw<{
+            rows: {
+                user_uuid: string;
+                first_name: string;
+                last_name: string;
+                dashboard_uuid: string;
+                dashboard_slug: string;
+                dashboard_name: string;
+                count: number;
+            }[];
+        }>(userMostViewedDashboardSql(), { projectUuid });
+        const chartViews = await this.database.raw(chartViewsSql(), {
+            projectUuid,
         });
 
         return {
@@ -262,12 +323,11 @@ export class AnalyticsModel {
                 (user) => user.role === OrganizationMemberRole.ADMIN,
             ).length,
             numberWeeklyQueryingUsers,
-            tableMostQueries: tableMostQueries.rows.map(parseUsersWithCount),
-            tableMostCreatedCharts:
-                tableMostCreatedCharts.rows.map(parseUsersWithCount),
-            tableNoQueries: tableNoQueries.rows.map(parseUsersWithCount),
-            chartWeeklyQueryingUsers: chartWeeklyQueryingUsers.rows,
-            chartWeeklyAverageQueries: chartWeeklyAverageQueries.rows,
+            tableMostQueries,
+            tableMostCreatedCharts,
+            tableNoQueries,
+            chartWeeklyQueryingUsers,
+            chartWeeklyAverageQueries,
             dashboardViews: dashboardViews.rows,
             userMostViewedDashboards: userMostViewedDashboards.rows.map(
                 (row) => ({
@@ -276,6 +336,7 @@ export class AnalyticsModel {
                     lastName: row.last_name,
                     count: row.count,
                     dashboardUuid: row.dashboard_uuid,
+                    dashboardSlug: row.dashboard_slug,
                     dashboardName: row.dashboard_name,
                 }),
             ),
@@ -297,98 +358,23 @@ export class AnalyticsModel {
             timestamp: string; // Convert to ISO string in database
             uuid: string;
             name: string;
-            user_uuid: string;
-            user_first_name: string;
-            user_last_name: string;
+            user_uuid: string | null;
+            user_first_name: string | null;
+            user_last_name: string | null;
             space_name: string;
         };
-        const results = await this.database.transaction(async (trx) => {
-            const chartViews = trx
-                .select<RawViewType[]>(
-                    this.database.raw(`'chart' as type`),
-                    this.database.raw(
-                        `to_char(${AnalyticsChartViewsTableName}.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as timestamp`,
-                    ),
-                    `${SavedChartsTableName}.saved_query_uuid as uuid`,
-                    `${SavedChartsTableName}.name as name`,
-                    `${UserTableName}.user_uuid as user_uuid`,
-                    `${UserTableName}.first_name as user_first_name`,
-                    `${UserTableName}.last_name as user_last_name`,
-                    `${SpaceTableName}.name as space_name`,
-                )
-                .from(AnalyticsChartViewsTableName)
-                .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
-                    this.on(
-                        `${SavedChartsTableName}.saved_query_uuid`,
-                        '=',
-                        `${AnalyticsChartViewsTableName}.chart_uuid`,
-                    ).andOnNull(`${SavedChartsTableName}.deleted_at`);
-                })
-                .leftJoin(
-                    UserTableName,
-                    `${UserTableName}.user_uuid`,
-                    `${AnalyticsChartViewsTableName}.user_uuid`,
-                )
-                .leftJoin(
-                    SpaceTableName,
-                    `${SpaceTableName}.space_id`,
-                    `${SavedChartsTableName}.space_id`,
-                )
-                .leftJoin(
-                    ProjectTableName,
-                    `${ProjectTableName}.project_id`,
-                    `${SpaceTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid)
-                .whereNull(`${SpaceTableName}.deleted_at`);
-
-            const dashboardViews = trx
-                .select<RawViewType[]>(
-                    this.database.raw(`'dashboard' as type`),
-                    this.database.raw(
-                        `to_char(${AnalyticsDashboardViewsTableName}.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as timestamp`,
-                    ),
-                    `${DashboardsTableName}.dashboard_uuid as uuid`,
-                    `${DashboardsTableName}.name as name`,
-                    `${UserTableName}.user_uuid as user_uuid`,
-                    `${UserTableName}.first_name as user_first_name`,
-                    `${UserTableName}.last_name as user_last_name`,
-                    `${SpaceTableName}.name as space_name`,
-                )
-                .from(AnalyticsDashboardViewsTableName)
-                .leftJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${AnalyticsDashboardViewsTableName}.dashboard_uuid`,
-                )
-                .leftJoin(
-                    UserTableName,
-                    `${UserTableName}.user_uuid`,
-                    `${AnalyticsDashboardViewsTableName}.user_uuid`,
-                )
-                .leftJoin(
-                    SpaceTableName,
-                    `${SpaceTableName}.space_id`,
-                    `${DashboardsTableName}.space_id`,
-                )
-                .leftJoin(
-                    ProjectTableName,
-                    `${ProjectTableName}.project_id`,
-                    `${SpaceTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid)
-                .whereNull(`${SpaceTableName}.deleted_at`);
-
-            return chartViews
-                .union(dashboardViews)
-                .orderBy('timestamp', 'desc')
-                .limit(100000); // hard limit to avoid memory issues
-        });
-
-        return results;
+        // Deduplicate and limit event keys before joining metadata or formatting dates.
+        const result = await this.database.raw<{ rows: RawViewType[] }>(
+            viewsRawDataSql(),
+            { projectUuid },
+        );
+        return result.rows;
     }
 
-    async getUnusedContent(projectUuid: string): Promise<UnusedContent> {
+    async getUnusedContent(
+        projectUuid: string,
+        options: UnusedContentOptions,
+    ): Promise<UnusedContent> {
         return traceSpan(
             {
                 op: 'AnalyticsModel.getUnusedContent',
@@ -399,8 +385,20 @@ export class AnalyticsModel {
                 const dashboardsQuery = unusedDashboardsSql();
 
                 const [chartsResults, dashboardsResults] = await Promise.all([
-                    this.database.raw(chartsQuery, [projectUuid]),
-                    this.database.raw(dashboardsQuery, [projectUuid]),
+                    this.database.raw(chartsQuery, [
+                        projectUuid,
+                        options.stalenessChartDays,
+                        options.stalenessChartDays,
+                        options.protectRecentDays,
+                        options.limit,
+                    ]),
+                    this.database.raw(dashboardsQuery, [
+                        projectUuid,
+                        options.stalenessDashboardDays,
+                        options.stalenessDashboardDays,
+                        options.protectRecentDays,
+                        options.limit,
+                    ]),
                 ]);
 
                 const charts: UnusedContentItem[] = chartsResults.rows.map(
@@ -422,7 +420,9 @@ export class AnalyticsModel {
                         contentUuid: String(row.content_uuid || ''),
                         contentName: String(row.content_name || ''),
                         contentType: 'chart' as const,
+                        spaceUuid: String(row.space_uuid || ''),
                         viewsCount: Number(row.views_count) || 0,
+                        reason: row.reason as UnusedContentReason,
                     }),
                 );
 
@@ -444,7 +444,9 @@ export class AnalyticsModel {
                             contentUuid: String(row.content_uuid || ''),
                             contentName: String(row.content_name || ''),
                             contentType: 'dashboard' as const,
+                            spaceUuid: String(row.space_uuid || ''),
                             viewsCount: Number(row.views_count) || 0,
+                            reason: row.reason as UnusedContentReason,
                         }),
                     );
 

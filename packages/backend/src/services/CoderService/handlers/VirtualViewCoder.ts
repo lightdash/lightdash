@@ -41,7 +41,12 @@ export class VirtualViewCoder extends BaseService {
 
     private static transform(virtualView: Explore): VirtualViewAsCode | null {
         const table = virtualView.tables[virtualView.baseTable];
-        const dimensions = table ? Object.values(table.dimensions) : [];
+        // Generated time interval dimensions aren't real SQL columns
+        const dimensions = table
+            ? Object.values(table.dimensions).filter(
+                  ({ timeInterval }) => timeInterval === undefined,
+              )
+            : [];
         const dimensionNames = dimensions.map(({ name }) => name);
         if (
             !virtualView.name?.trim() ||

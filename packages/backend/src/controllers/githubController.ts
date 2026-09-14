@@ -231,7 +231,8 @@ export class GithubInstallController extends BaseController {
     }
 
     /**
-     * List GitHub repositories accessible via the installed app
+     * List GitHub repositories accessible via the installed app. Requires
+     * permission to manage the organization's Git integration.
      * @summary List GitHub repositories
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])

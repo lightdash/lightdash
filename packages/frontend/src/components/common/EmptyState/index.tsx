@@ -5,7 +5,7 @@ import {
     type StackProps,
     type TextProps,
     type TitleProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 
 type EmptyStateProps = Omit<StackProps, 'title'> & {

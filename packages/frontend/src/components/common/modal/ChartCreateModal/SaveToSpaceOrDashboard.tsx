@@ -22,13 +22,15 @@ import {
     Text,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
+import SaveChartSuggestions from '../../../../ee/features/contentReview/components/SaveChartSuggestions';
 import {
     appendNewTilesToBottom,
     useCreateMutation as useCreateDashboardMutation,
@@ -39,6 +41,7 @@ import {
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
 import { useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import {
@@ -62,13 +65,16 @@ import {
 
 const saveToSpaceOrDashboardSchema = z
     .object({
-        name: z.string().min(1),
+        name: z.string().min(1, 'Name is required'),
         description: z.string().nullable(),
     })
     // for saving to the dashboard
     .merge(saveToDashboardSchema)
     // for saving to the space
     .merge(saveToSpaceSchema);
+const saveToSpaceOrDashboardResolver = zodResolver(
+    saveToSpaceOrDashboardSchema,
+);
 
 type FormValues = z.infer<typeof saveToSpaceOrDashboardSchema>;
 
@@ -95,11 +101,14 @@ type Props = {
     chartMetadata?: ChartMetadata;
     redirectOnSuccess?: boolean;
     showViewChartAction?: boolean;
+    /** Chart-level palette chosen before the first save. */
+    colorPaletteUuid?: string | null;
 };
 
 export const SaveToSpaceOrDashboard: FC<Props> = ({
     projectUuid,
     savedData,
+    colorPaletteUuid,
     defaultSpaceUuid,
     onConfirm,
     onClose,
@@ -110,6 +119,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     redirectOnSuccess = true,
     showViewChartAction = true,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { user } = useApp();
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
@@ -148,7 +160,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     } = spaceManagement;
 
     const form = useForm<FormValues>({
-        validate: zodResolver(saveToSpaceOrDashboardSchema),
+        validate: saveToSpaceOrDashboardResolver,
     });
 
     // Check if the chart has unused dimensions that may cause incorrect results
@@ -351,6 +363,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
+                    colorPaletteUuid,
                     spaceUuid: forcedSpaceUuid,
                     dashboardUuid: undefined,
                 });
@@ -372,6 +385,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
+                    colorPaletteUuid,
                     dashboardUuid: originatingDashboard.dashboardUuid,
                 };
                 savedQuery = await createChart(newChartInDashboard);
@@ -404,8 +418,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 );
                 void navigate(
                     activeTabUuid
-                        ? `/projects/${projectUuid}/dashboards/${originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
-                        : `/projects/${projectUuid}/dashboards/${originatingDashboard.dashboardUuid}/edit`,
+                        ? `/projects/${projectUrlIdentifier}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
+                        : `/projects/${projectUrlIdentifier}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit`,
                 );
                 showToastSuccess({
                     title: `Success! ${values.name} was added to ${originatingDashboard.dashboardName}`,
@@ -456,6 +470,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
+                    colorPaletteUuid,
                     dashboardUuid: destinationDashboard.uuid,
                 });
                 const firstTab = destinationDashboard.tabs?.[0];
@@ -519,6 +534,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
+                    colorPaletteUuid,
                     spaceUuid,
                     dashboardUuid: undefined,
                 });
@@ -542,6 +558,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             selectedDashboard,
             createChart,
             savedData,
+            colorPaletteUuid,
             updateDashboard,
             handleCreateNewSpace,
             onConfirm,
@@ -550,6 +567,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             originatingDashboard,
             originatingDashboardData,
             projectUuid,
+            projectUrlIdentifier,
             navigate,
             showToastSuccess,
             getUnsavedDashboardTiles,
@@ -632,6 +650,10 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             {...form.getInputProps('description')}
                             value={form.values.description ?? ''}
                         />
+                        <SaveChartSuggestions
+                            projectUuid={projectUuid ?? null}
+                            name={form.values.name ?? ''}
+                        />
 
                         {!forcedSpaceUuid && (
                             <Stack gap="sm" mt="sm">
@@ -649,6 +671,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                         <Radio
                                             value={SaveDestination.Space}
                                             label="Space"
+                                            // Anchor for scope walkthroughs
+                                            data-tour-anchor="chart-save-to-space"
+                                            data-tour-hint="Choose to save it in a space"
                                             disabled={
                                                 !spaces || isLoadingSpaces
                                             }
@@ -813,6 +838,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                     }}
                                     disabled={!form.values.name}
                                     type="button"
+                                    data-tour-anchor="chart-save-next"
+                                    data-tour-hint="Click Next to accept the suggested name"
                                 >
                                     Next
                                 </Button>
@@ -824,6 +851,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 Back
                             </Button>
                             <Button
+                                data-tour-anchor="chart-save-submit"
+                                data-tour-hint="Save the chart"
                                 type="submit"
                                 loading={
                                     isSavingChart ||

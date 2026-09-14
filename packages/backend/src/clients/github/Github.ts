@@ -249,32 +249,6 @@ export const getOrRefreshToken = async (
     };
 };
 
-export const getLastCommit = async ({
-    owner,
-    repo,
-    branch,
-    installationId,
-    token,
-}: {
-    owner: string;
-    repo: string;
-    branch: string;
-    installationId?: string;
-    token?: string;
-}) => {
-    const { octokit, headers } = getOctokit(installationId, token);
-    // GitHub API uses `sha` param to filter by branch
-    // @see https://docs.github.com/en/rest/commits/commits#list-commits
-    const response = await octokit.rest.repos.listCommits({
-        owner,
-        repo,
-        sha: branch,
-        headers,
-    });
-
-    return response.data[0];
-};
-
 /**
  * True when a thrown octokit error is a rate-limit response. GitHub signals it
  * two ways: a primary limit (403 with `x-ratelimit-remaining: 0`) and a
@@ -322,6 +296,54 @@ const logGithubRateLimit = (error: unknown, context: string): void => {
             reset: responseHeaders['x-ratelimit-reset'],
         },
     );
+};
+
+export const getLastCommit = async ({
+    owner,
+    repo,
+    branch,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    installationId?: string;
+    token?: string;
+}) => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        // GitHub API uses `sha` param to filter by branch
+        // @see https://docs.github.com/en/rest/commits/commits#list-commits
+        const response = await octokit.rest.repos.listCommits({
+            owner,
+            repo,
+            sha: branch,
+            headers,
+        });
+        const [lastCommit] = response.data;
+        if (!lastCommit) {
+            throw new NotFoundError(
+                `No commits found on branch "${branch}" in ${owner}/${repo}`,
+            );
+        }
+        return lastCommit;
+    } catch (error) {
+        if (error instanceof LightdashError) {
+            throw error;
+        }
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            throw new NotFoundError(
+                `Branch "${branch}" not found in ${owner}/${repo}. It may have been deleted or renamed, or the GitHub integration may not have access to this repository.`,
+            );
+        }
+        logGithubRateLimit(error, `listCommits ${owner}/${repo}@${branch}`);
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
 };
 
 export const getFileContent = async ({
@@ -452,6 +474,8 @@ export type GithubCodeSearchMatch = {
     fragments: string[];
 };
 
+const githubCodeSearchScopeQualifier = /(^|[^A-Za-z0-9_])(repo|org|user):/i;
+
 export const searchRepoCode = async ({
     owner,
     repo,
@@ -467,6 +491,11 @@ export const searchRepoCode = async ({
     token?: string;
     maxResults?: number;
 }): Promise<GithubCodeSearchMatch[]> => {
+    if (githubCodeSearchScopeQualifier.test(query)) {
+        throw new ParameterError(
+            'Code search terms cannot contain repository scope qualifiers',
+        );
+    }
     const { octokit, headers } = getOctokit(installationId, token);
     const scope = repo ? `repo:${owner}/${repo}` : `user:${owner}`;
     try {
@@ -476,14 +505,25 @@ export const searchRepoCode = async ({
             mediaType: { format: 'text-match' },
             headers,
         });
-        return response.data.items.slice(0, maxResults).map((item) => ({
-            owner: item.repository.owner.login,
-            repo: item.repository.name,
-            path: item.path,
-            fragments: (item.text_matches ?? [])
-                .map((match) => match.fragment ?? '')
-                .filter((fragment) => fragment.length > 0),
-        }));
+        const normalizedRepository = repo
+            ? `${owner}/${repo}`.toLowerCase()
+            : null;
+        return response.data.items
+            .filter(
+                (item) =>
+                    normalizedRepository === null ||
+                    `${item.repository.owner.login}/${item.repository.name}`.toLowerCase() ===
+                        normalizedRepository,
+            )
+            .slice(0, maxResults)
+            .map((item) => ({
+                owner: item.repository.owner.login,
+                repo: item.repository.name,
+                path: item.path,
+                fragments: (item.text_matches ?? [])
+                    .map((match) => match.fragment ?? '')
+                    .filter((fragment) => fragment.length > 0),
+            }));
     } catch (error) {
         if ((error as { status?: number } | null)?.status === 422) {
             return [];
@@ -1150,6 +1190,39 @@ export const getPullRequest = async ({
             deletions: response.data.deletions,
             changedFiles: response.data.changed_files,
         };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+export const findOpenPullRequestByHead = async ({
+    owner,
+    repo,
+    head,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    head: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{ number: number; url: string } | null> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.list({
+            owner,
+            repo,
+            state: 'open',
+            head: `${owner}:${head}`,
+            per_page: 1,
+            headers,
+        });
+        const pullRequest = response.data[0];
+        return pullRequest
+            ? { number: pullRequest.number, url: pullRequest.html_url }
+            : null;
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));
     }

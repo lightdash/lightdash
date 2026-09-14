@@ -16,7 +16,7 @@ import type {
  *
  * CRITICAL: this mirrors the ENTIRE chainable `QueryBuilder` surface. Generated
  * apps chain builder methods on every query (`.dimensions().metrics().filters()
- * .sorts().label().limit()…`); calling a method that doesn't exist on a plain
+ * .metricFilters().sorts().label().limit()…`); calling a method that doesn't exist on a plain
  * object throws `TypeError: X is not a function` and crashes the whole app. So a
  * linked chart must be exactly as crash-safe as a normal query — every method
  * below exists and is chainable.
@@ -55,6 +55,7 @@ export type SavedChartQuery = {
     tableCalculations: (calcs: TableCalculation[]) => SavedChartQuery;
     additionalMetrics: (metrics: AdditionalMetric[]) => SavedChartQuery;
     customDimensions: (dims: CustomDimension[]) => SavedChartQuery;
+    metricFilters: (filters: Filter[]) => SavedChartQuery;
 };
 
 type SavedChartState = {
@@ -101,6 +102,7 @@ export function savedChart(chartUuid: string, label?: string): SavedChartQuery {
             tableCalculations: () => self,
             additionalMetrics: () => self,
             customDimensions: () => self,
+            metricFilters: () => self,
         };
         return self;
     };

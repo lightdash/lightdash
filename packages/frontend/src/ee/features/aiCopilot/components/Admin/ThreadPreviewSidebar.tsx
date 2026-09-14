@@ -1,3 +1,4 @@
+import { getLinearIssueIdentifier } from '@lightdash/common'; // pragma: allowlist secret
 import {
     ActionIcon,
     Badge,
@@ -14,7 +15,7 @@ import {
     Tooltip,
     UnstyledButton,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconArrowRight,
     IconChevronDown,
@@ -81,16 +82,15 @@ const ReviewMetadataField = ({
     tooltip?: string;
 }) => (
     <Stack gap={2} className={styles.metaField}>
-        <Text fz={10} fw={700} c="dimmed" tt="uppercase" lts={0.4}>
+        <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
             {label}
         </Text>
         <Tooltip
             label={tooltip ?? value}
-            withArrow
             openDelay={250}
             disabled={!tooltip && value.length < 28}
         >
-            <Text fz="sm" fw={500} c="ldGray.9" lineClamp={1}>
+            <Text fz="sm" fw={500} lineClamp={1}>
                 {value}
             </Text>
         </Tooltip>
@@ -230,15 +230,13 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
 
             <Group justify="space-between" align="flex-start" p="sm">
                 <Group gap="xs">
-                    <Title order={5} fw={600}>
+                    <Title order={5}>
                         {selectedReviewItem
                             ? 'Review details'
                             : 'Thread preview'}
                     </Title>
-                    <Tooltip label="Open Thread" variant="xs" position="right">
+                    <Tooltip label="Open Thread" position="right">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             aria-label="Open full thread"
                             component={Link}
                             target="_blank"
@@ -256,14 +254,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                             variant="pill"
                         />
                     )}
-                    <Tooltip
-                        label="Open Agent Settings"
-                        variant="xs"
-                        position="right"
-                    >
+                    <Tooltip label="Open Agent Settings" position="right">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             aria-label="Open agent settings"
                             component={Link}
                             target="_blank"
@@ -288,7 +280,10 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
             <Divider />
 
             {threadData && (
-                <Box mah="calc(100vh - 150px)" style={{ overflowY: 'auto' }}>
+                <Box
+                    mah="calc(100vh - 150px)"
+                    className={styles.scrollableBody}
+                >
                     {selectedReviewItem ? (
                         <>
                             <Stack p="md" gap="md">
@@ -331,7 +326,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 />
                                             </Group>
 
-                                            <Title order={5} fw={600}>
+                                            <Title order={5}>
                                                 {getCompactIssueTitle(
                                                     selectedReviewItem,
                                                 )}
@@ -419,7 +414,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         )}
                                     </Group>
 
-                                    <Collapse in={showDetails}>
+                                    <Collapse expanded={showDetails}>
                                         <Stack gap="sm" pt="xs">
                                             <Group
                                                 gap="lg"
@@ -460,11 +455,11 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         </Stack>
                                     </Collapse>
 
-                                    <Collapse in={showWhy}>
+                                    <Collapse expanded={showWhy}>
                                         <Stack gap="xs" pt="xs">
                                             <Text
                                                 fz="xs"
-                                                fw={700}
+                                                fw={600}
                                                 tt="uppercase"
                                                 lts={0.4}
                                                 c="ldGray.7"
@@ -482,7 +477,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                     </Collapse>
 
                                     {previewProjectUuid && (
-                                        <Collapse in={showValidation}>
+                                        <Collapse expanded={showValidation}>
                                             <ReviewValidationList
                                                 previewProjectUuid={
                                                     previewProjectUuid
@@ -494,7 +489,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                     <Stack gap={6} pt="xs">
                                         <Text
                                             size="10px"
-                                            fw={700}
+                                            fw={600}
                                             tt="uppercase"
                                             lts={0.4}
                                             c="ldGray.7"
@@ -560,10 +555,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         justify="space-between"
                                         align="center"
                                     >
-                                        <Title order={6} fw={600}>
-                                            Issues
-                                        </Title>
-                                        <Badge variant="light" color="violet">
+                                        <Title order={6}>Issues</Title>
+                                        <Badge color="violet">
                                             {reviewSummary.findingCount}
                                         </Badge>
                                     </Group>
@@ -619,7 +612,6 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                         }
                                                     />
                                                     <Badge
-                                                        variant="light"
                                                         color={
                                                             threadReviewStatusColors[
                                                                 reviewItem
@@ -640,7 +632,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                     </Text>
                                                     <Text
                                                         fz="xs"
-                                                        c="ldGray.6"
+                                                        c="dimmed"
                                                         lineClamp={2}
                                                     >
                                                         {reviewItem.description}
@@ -700,6 +692,35 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                         View issue
                                                     </Button>
 
+                                                    {reviewItem.linkedIssueUrl && (
+                                                        <Button
+                                                            component="a"
+                                                            href={
+                                                                reviewItem.linkedIssueUrl
+                                                            }
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            size="compact-xs"
+                                                            variant="subtle"
+                                                            color="gray"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconExternalLink
+                                                                    }
+                                                                    size="xs"
+                                                                />
+                                                            }
+                                                            onClick={(event) =>
+                                                                event.stopPropagation()
+                                                            }
+                                                        >
+                                                            {getLinearIssueIdentifier(
+                                                                reviewItem.linkedIssueUrl,
+                                                            ) ?? 'Linear'}
+                                                        </Button>
+                                                    )}
+
                                                     {reviewItem.linkedPrUrl && (
                                                         <Button
                                                             component="a"
@@ -754,7 +775,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                         >
                             <Text
                                 size="10px"
-                                fw={700}
+                                fw={600}
                                 tt="uppercase"
                                 lts={0.4}
                                 c="ldGray.7"
@@ -770,7 +791,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                 size="xs"
                             />
                         </UnstyledButton>
-                        <Collapse in={showConversation}>
+                        <Collapse expanded={showConversation}>
                             <AgentChatDisplay
                                 thread={threadData}
                                 projectUuid={projectUuid}

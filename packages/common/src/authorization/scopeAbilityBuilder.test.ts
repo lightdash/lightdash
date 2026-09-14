@@ -19,6 +19,57 @@ describe('scopeAbilityBuilder', () => {
         organizationUuid: 'org-123',
     };
 
+    it('grants organization roadmap management through a custom scope', () => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        buildAbilityFromScopes(
+            {
+                ...baseContextWithOrg,
+                isEnterprise: true,
+                scopes: ['manage:Roadmap'],
+            },
+            builder,
+        );
+        const ability = builder.build();
+        expect(
+            ability.can(
+                'manage',
+                subject('Roadmap', { organizationUuid: 'org-123' }),
+            ),
+        ).toBe(true);
+        expect(
+            ability.can(
+                'view',
+                subject('Roadmap', { organizationUuid: 'org-123' }),
+            ),
+        ).toBe(true);
+        expect(
+            ability.can(
+                'manage',
+                subject('Roadmap', { organizationUuid: 'different-org' }),
+            ),
+        ).toBe(false);
+    });
+
+    it('keeps roadmap view-only scopes read-only', () => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        buildAbilityFromScopes(
+            {
+                ...baseContextWithOrg,
+                isEnterprise: true,
+                scopes: ['view:Roadmap'],
+            },
+            builder,
+        );
+        expect(
+            builder
+                .build()
+                .can(
+                    'manage',
+                    subject('Roadmap', { organizationUuid: 'org-123' }),
+                ),
+        ).toBe(false);
+    });
+
     it('should build ability with organization view permissions', () => {
         const builder = new AbilityBuilder<MemberAbility>(Ability);
         buildAbilityFromScopes(
@@ -2901,6 +2952,185 @@ describe('scopeAbilityBuilder', () => {
                 ),
             ).toBe(false);
             expect(ability.rules.length).toBe(0);
+        });
+    });
+    describe('data app preview scopes', () => {
+        const buildDataAppAbility = (scopes: string[]) => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes({ ...baseContext, scopes }, builder);
+            return builder.build();
+        };
+
+        const ownPreviewFromDirectProject = {
+            organizationUuid: 'org-123',
+            projectUuid: 'project-123',
+            upstreamProjectUuid: 'upstream-project',
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: 'user1',
+        };
+        const ownPreviewFromUpstreamProject = {
+            organizationUuid: 'org-123',
+            projectUuid: 'preview-123',
+            upstreamProjectUuid: 'project-123',
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: 'user1',
+        };
+        const ownProduction = {
+            organizationUuid: 'org-123',
+            projectUuid: 'project-123',
+            upstreamProjectUuid: null,
+            projectType: ProjectType.DEFAULT,
+            projectCreatedByUserUuid: 'user1',
+        };
+        const othersPreview = {
+            organizationUuid: 'org-123',
+            projectUuid: 'preview-123',
+            upstreamProjectUuid: 'project-123',
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: 'another-user',
+        };
+
+        it('create:DataApp@preview only reaches previews the user created', () => {
+            const ability = buildDataAppAbility(['create:DataApp@preview']);
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', ownPreviewFromDirectProject),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', ownPreviewFromUpstreamProject),
+                ),
+            ).toBe(true);
+
+            expect(
+                ability.can('create', subject('DataApp', ownProduction)),
+            ).toBe(false);
+            expect(
+                ability.can('create', subject('DataApp', othersPreview)),
+            ).toBe(false);
+        });
+
+        it('manage:DataApp@preview lets the user iterate on apps inside their own preview', () => {
+            const ability = buildDataAppAbility(['manage:DataApp@preview']);
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', {
+                        ...ownPreviewFromDirectProject,
+                        createdByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(true);
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', {
+                        ...ownProduction,
+                        createdByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', {
+                        ...othersPreview,
+                        createdByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('keeps project ownership separate from app ownership', () => {
+            const ability = buildDataAppAbility(['manage:DataApp@self']);
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', ownPreviewFromDirectProject),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DataApp', {
+                        ...ownPreviewFromDirectProject,
+                        createdByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(true);
+        });
+
+        it('the preview scopes do not grant the production create/manage rules', () => {
+            const ability = buildDataAppAbility([
+                'create:DataApp@preview',
+                'manage:DataApp@preview',
+            ]);
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('create:DataApp still covers production and previews alike', () => {
+            const ability = buildDataAppAbility(['create:DataApp']);
+
+            expect(
+                ability.can('create', subject('DataApp', ownProduction)),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', ownPreviewFromDirectProject),
+                ),
+            ).toBe(true);
+        });
+
+        it('grants nothing for org-level assignments outside the user own previews', () => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContextWithOrg,
+                    scopes: ['create:DataApp@preview'],
+                },
+                builder,
+            );
+            const ability = builder.build();
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'preview-123',
+                        projectType: ProjectType.PREVIEW,
+                        projectCreatedByUserUuid: 'user1',
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('DataApp', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'preview-123',
+                        projectType: ProjectType.PREVIEW,
+                        projectCreatedByUserUuid: 'another-user',
+                    }),
+                ),
+            ).toBe(false);
         });
     });
 });

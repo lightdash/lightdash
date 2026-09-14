@@ -123,10 +123,14 @@ export const useDashboardChartReadyQuery = (
             ?.join(',') || '';
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const includeUnpublishedDraft = useDashboardContext(
+        (c) => c.includeUnpublishedDraft,
+    );
     const sessionTimezone = useSessionTimezone();
     const chartQuery = useSavedQuery({
         uuidOrSlug: chartUuid ?? undefined,
         projectUuid,
+        includeUnpublishedDraft,
     });
 
     const { data: explore, error: exploreError } = useExplore(
@@ -326,6 +330,9 @@ export const useDashboardChartReadyQuery = (
                           invalidateCache,
                           parameters: parameterValues,
                           pivotResults: true,
+                          ...(includeUnpublishedDraft && {
+                              includeUnpublishedDraft: true,
+                          }),
                       },
                   );
 

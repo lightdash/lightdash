@@ -14,8 +14,10 @@ export type DbSlackAuthTokens = {
     app_profile_photo_url: string | null;
     ai_thread_access_consent: boolean;
     ai_require_oauth: boolean;
+    ai_links_only: boolean;
     ai_multi_agent_channel_id: string | null;
     unfurls_enabled: boolean;
+    ai_agents_enabled: boolean;
     // Channel sync status
     channels_last_sync_at: Date | null;
     channels_sync_started_at: Date | null;
@@ -36,8 +38,10 @@ export type UpdateDbSlackAuthTokens = Partial<
         | 'app_profile_photo_url'
         | 'ai_thread_access_consent'
         | 'ai_require_oauth'
+        | 'ai_links_only'
         | 'ai_multi_agent_channel_id'
         | 'unfurls_enabled'
+        | 'ai_agents_enabled'
         | 'channels_last_sync_at'
         | 'channels_sync_started_at'
         | 'channels_sync_status'

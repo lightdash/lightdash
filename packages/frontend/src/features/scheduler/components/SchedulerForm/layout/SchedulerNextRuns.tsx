@@ -1,4 +1,4 @@
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { getNextRuns } from './nextRuns';

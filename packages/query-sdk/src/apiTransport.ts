@@ -28,7 +28,10 @@ import type {
     Transport,
     UnderlyingDataOptions,
     UnderlyingDataResult,
+    VizDrillDownIntent,
+    VizUnderlyingDataIntent,
 } from './types';
+import { VIZ_DRILL_DOWN_PATH, VIZ_UNDERLYING_DATA_PATH } from './types';
 
 // Mirrors the explorer's `useInfiniteQueryResults` polling rhythm so the
 // SDK behaves like a normal Lightdash chart: 500-row pages, exponential
@@ -125,29 +128,47 @@ export type FetchAdapter = <T>(
 ) => Promise<T>;
 
 /**
- * Convert SDK filter definitions into the Lightdash API filter format.
- * The API expects { dimensions: { id, and: [...rules] } }
+ * Convert SDK dimension and metric filter definitions into the Lightdash API
+ * filter format.
  */
-function buildApiFilters(filters: InternalFilterDefinition[]): ApiFilters {
-    if (filters.length === 0) {
-        return {};
-    }
-
-    // For now, all filters are AND-ed on dimensions.
-    // TODO: support metric filters and OR groups
-    const rules = filters.map((f, i) => ({
-        id: `sdk-filter-${i}`,
-        target: { fieldId: f.fieldId },
-        operator: f.operator,
-        values: f.values,
-        ...(f.settings ? { settings: f.settings } : {}),
-    }));
+function buildApiFilters(
+    dimensionFilters: InternalFilterDefinition[],
+    metricFilters: InternalFilterDefinition[] = [],
+): ApiFilters {
+    const buildGroup = (
+        filters: InternalFilterDefinition[],
+        rootId: string,
+        ruleIdPrefix: string,
+    ) => ({
+        id: rootId,
+        and: filters.map((filter, index) => ({
+            id: `${ruleIdPrefix}-${index}`,
+            target: { fieldId: filter.fieldId },
+            operator: filter.operator,
+            values: filter.values,
+            ...(filter.settings ? { settings: filter.settings } : {}),
+        })),
+    });
 
     return {
-        dimensions: {
-            id: 'sdk-root',
-            and: rules,
-        },
+        ...(dimensionFilters.length > 0
+            ? {
+                  dimensions: buildGroup(
+                      dimensionFilters,
+                      'sdk-root',
+                      'sdk-filter',
+                  ),
+              }
+            : {}),
+        ...(metricFilters.length > 0
+            ? {
+                  metrics: buildGroup(
+                      metricFilters,
+                      'sdk-metric-root',
+                      'sdk-metric-filter',
+                  ),
+              }
+            : {}),
     };
 }
 
@@ -258,6 +279,10 @@ function buildMetricQueryBody(
             metrics: query.metrics.map(qualify),
             filters: buildApiFilters(
                 query.filters.map((f) => ({
+                    ...f,
+                    fieldId: qualify(f.fieldId),
+                })),
+                (query.metricFilters ?? []).map((f) => ({
                     ...f,
                     fieldId: qualify(f.fieldId),
                 })),
@@ -1136,6 +1161,76 @@ export function createApiTransport(
             // to resolve. Only the in-iframe postMessage transport supports it.
             throw new Error(
                 'externalFetch is only available inside a data app preview',
+            );
+        },
+
+        async getVizUnderlyingData(
+            intent: VizUnderlyingDataIntent,
+        ): Promise<UnderlyingDataResult> {
+            const execResult = await fetchFn<AsyncQueryResponse>(
+                'POST',
+                VIZ_UNDERLYING_DATA_PATH,
+                intent,
+            );
+
+            const { firstReadyPage, apiRows } = await pollQueryRows(
+                fetchFn,
+                config.projectUuid,
+                execResult.queryUuid,
+            );
+
+            const fieldIds = [
+                ...Object.keys(execResult.fields),
+                ...Object.keys(firstReadyPage.columns).filter(
+                    (fieldId) => !(fieldId in execResult.fields),
+                ),
+            ];
+
+            return {
+                ...mapApiRowsToQueryResult({
+                    apiRows,
+                    columns: firstReadyPage.columns,
+                    fields: execResult.fields,
+                    fieldIds,
+                    fieldNameForId: (fieldId) => fieldId,
+                }),
+                queryUuid: execResult.queryUuid,
+            };
+        },
+
+        async downloadVizUnderlyingData(
+            intent: Omit<VizUnderlyingDataIntent, 'limit'>,
+            options: DownloadResultsOptions = {},
+        ): Promise<DownloadResultsResult> {
+            const execResult = await fetchFn<AsyncQueryResponse>(
+                'POST',
+                VIZ_UNDERLYING_DATA_PATH,
+                {
+                    ...intent,
+                    limit: getUnderlyingDownloadLimit(options.limit),
+                },
+            );
+
+            await pollQueryReady(
+                fetchFn,
+                config.projectUuid,
+                execResult.queryUuid,
+                1,
+            );
+
+            return scheduleDownloadForQuery({
+                fetchFn,
+                projectUuid: config.projectUuid,
+                queryUuid: execResult.queryUuid,
+                options,
+            });
+        },
+
+        async openVizDrillDown(intent: VizDrillDownIntent): Promise<void> {
+            await fetchFn<Record<string, never>>(
+                'POST',
+                VIZ_DRILL_DOWN_PATH,
+                intent,
             );
         },
     };

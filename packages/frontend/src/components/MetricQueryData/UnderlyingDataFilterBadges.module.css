@@ -1,0 +1,5 @@
+.target {
+    vertical-align: middle;
+    margin-left: var(--mantine-spacing-xs);
+    cursor: default;
+}

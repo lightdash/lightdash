@@ -1,12 +1,14 @@
 import { OrganizationProject, ProjectType } from '@lightdash/common';
-import inquirer from 'inquirer';
-import type { Mocked, MockedFunction } from 'vitest';
+import type { MockedFunction } from 'vitest';
 import { setProject as setProjectConfig } from '../config';
 import GlobalState from '../globalState';
+import { promptFuzzySearch } from '../prompts/fuzzySearchPrompt';
 import { lightdashApi } from './dbt/apiClient';
 import { setProjectCommand } from './setProject';
 
-vi.mock('inquirer');
+vi.mock('../prompts/fuzzySearchPrompt', () => ({
+    promptFuzzySearch: vi.fn(),
+}));
 vi.mock('../analytics/analytics');
 vi.mock('./dbt/apiClient', () => ({
     lightdashApi: vi.fn(),
@@ -18,7 +20,9 @@ vi.mock('../config', () => ({
 }));
 
 const mockLightdashApi = lightdashApi as MockedFunction<typeof lightdashApi>;
-const mockInquirer = inquirer as Mocked<typeof inquirer>;
+const mockPromptFuzzySearch = promptFuzzySearch as MockedFunction<
+    typeof promptFuzzySearch
+>;
 const mockSetProjectConfig = setProjectConfig as MockedFunction<
     typeof setProjectConfig
 >;
@@ -54,17 +58,12 @@ describe('setProjectCommand', () => {
 
     it('does not offer preview projects in the interactive list', async () => {
         mockLightdashApi.mockResolvedValueOnce(buildProjects() as never);
-        const promptMock = vi
-            .fn()
-            .mockResolvedValueOnce({ project: MAIN_UUID });
-        mockInquirer.prompt = promptMock as never;
+        mockPromptFuzzySearch.mockResolvedValueOnce(MAIN_UUID as never);
 
         await setProjectCommand();
 
-        const promptArgs = promptMock.mock.calls[0][0];
-        const choices = promptArgs[0].choices.map(
-            (c: { name: string; value: string }) => c.value,
-        );
+        const promptArgs = mockPromptFuzzySearch.mock.calls[0][0];
+        const choices = promptArgs.choices.map((c) => c.value);
         expect(choices).toContain(MAIN_UUID);
         expect(choices).not.toContain(PREVIEW_UUID);
         expect(mockSetProjectConfig).toHaveBeenCalledWith(

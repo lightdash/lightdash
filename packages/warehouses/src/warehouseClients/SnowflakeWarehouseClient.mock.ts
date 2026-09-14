@@ -129,9 +129,12 @@ class ColumnMock {
 
     private readonly type: string;
 
-    constructor(name: string, type: string) {
+    private readonly scale: number;
+
+    constructor(name: string, type: string, scale: number = 0) {
         this.name = name;
         this.type = type;
+        this.scale = scale;
     }
 
     getName() {
@@ -140,6 +143,10 @@ class ColumnMock {
 
     getType() {
         return this.type;
+    }
+
+    getScale() {
+        return this.scale;
     }
 }
 
@@ -165,6 +172,12 @@ export const expectedWarehouseSchema = {
                 MYARRAYCOLUMN: DimensionType.STRING,
                 MYOBJECTCOLUMN: DimensionType.STRING,
             },
+        },
+    },
+    // TIMESTAMP_NTZ in the catalog carries the naive domain
+    __lightdashTimestampDomains: {
+        myDatabase: {
+            mySchema: { myTable: { MYTIMESTAMPCOLUMN: 'naive' } },
         },
     },
 };

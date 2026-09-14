@@ -1,0 +1,43 @@
+name: Release-safety script tests
+
+# SPK-859: the release-safety scripts carry a self-contained node:assert test
+# suite (scripts/*.test.ts) that pins the marker's verdict-precedence rules.
+# They are deliberately outside the jest/vitest project config, so no other CI
+# job runs them — this workflow is their only harness.
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'package.json'
+      - '.github/workflows/release-safety-tests.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  release-safety-tests:
+    name: Run scripts/*.test.ts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          cache: true
+          install: false
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile --filter . --network-concurrency=16
+
+      - name: Run release-safety script tests
+        run: pnpm test:release-safety

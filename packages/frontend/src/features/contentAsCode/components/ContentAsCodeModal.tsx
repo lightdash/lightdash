@@ -1,6 +1,6 @@
 import { type ApiError } from '@lightdash/common';
-import { Button, Code, Stack, Text } from '@mantine-8/core';
-import { useClipboard } from '@mantine-8/hooks';
+import { Button, Code, Stack, Text } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import { IconCheck, IconCode, IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';

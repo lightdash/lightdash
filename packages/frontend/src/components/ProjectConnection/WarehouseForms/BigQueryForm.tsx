@@ -19,8 +19,8 @@ import {
     Text,
     Select,
     Switch,
-} from '@mantine-8/core';
-import { NumberInput, Tooltip } from '@mantine/core';
+    Tooltip,
+} from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import {
@@ -34,7 +34,6 @@ import {
 } from 'react';
 import { useToggle } from 'react-use';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
-import useHealth from '../../../hooks/health/useHealth';
 import {
     useBigqueryDatasets,
     useBigqueryProjectRecommendation,
@@ -42,9 +41,11 @@ import {
     useIsBigQueryAuthenticated,
 } from '../../../hooks/useBigquerySSO';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -52,7 +53,10 @@ import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import classes from './BigQueryForm.module.css';
-import { largestDatasetName } from './bigQuerySso';
+import {
+    getBigqueryDefaultAuthenticationType,
+    largestDatasetName,
+} from './bigQuerySso';
 import DataTimezoneField from './DataTimezoneField';
 import { BigQueryDefaultValues } from './defaultValues';
 
@@ -187,12 +191,7 @@ export const BigQuerySchemaInput: FC<{
                         {option.value}
                     </Text>
                     {option.value === recommendedDataset ? (
-                        <Badge
-                            size="xs"
-                            color="green"
-                            variant="light"
-                            radius="sm"
-                        >
+                        <Badge size="xs" color="green">
                             Recommended · largest
                         </Badge>
                     ) : null}
@@ -264,8 +263,9 @@ const BigQueryForm: FC<{
     const hasAppliedProjectRecommendation = useRef(false);
     const [debouncedProject] = useDebouncedValue(project.value, 300);
     const { savedProject } = useProjectFormContext();
-    const health = useHealth();
+    const { health } = useApp();
     const isAdcEnabled = health.data?.auth.google?.enableGCloudADC;
+    const isGoogleSsoAvailable = health.data?.auth.google?.enabled ?? false;
     // Fetching databases can only happen if user is authenticated
     // if user authenticates, and change to private_key
     // We will not make any queries, in case private_key is different
@@ -318,13 +318,16 @@ const BigQueryForm: FC<{
         !isSso || isAuthenticated || isSavedBigquerySsoProject;
 
     // savedProject might not be loaded when the form is rendered, so we need to set the defaultValue also on a hook
-    const defaultAuthenticationType = BigqueryAuthenticationType.SSO;
+    const defaultAuthenticationType =
+        getBigqueryDefaultAuthenticationType(isGoogleSsoAvailable);
 
     const warehouseConnectFlag = useServerFeatureFlag(
         FeatureFlags.NewOnboarding,
     );
     const shouldDefaultToSso =
-        !savedProject && (warehouseConnectFlag.data?.enabled ?? false);
+        !savedProject &&
+        (warehouseConnectFlag.data?.enabled ?? false) &&
+        isGoogleSsoAvailable;
     useEffect(() => {
         if (shouldDefaultToSso && !form.isTouched()) {
             form.setFieldValue(
@@ -427,7 +430,7 @@ const BigQueryForm: FC<{
             value: BigqueryAuthenticationType.PRIVATE_KEY,
             label: 'Service Account (JSON key file)',
         },
-        {
+        (isGoogleSsoAvailable || isSavedBigquerySsoProject) && {
             value: BigqueryAuthenticationType.SSO,
             label: 'User Account (Sign in with Google)',
         },
@@ -561,8 +564,6 @@ const BigQueryForm: FC<{
                                                     <Badge
                                                         size="xs"
                                                         color="green"
-                                                        variant="light"
-                                                        radius="sm"
                                                     >
                                                         Recommended · largest
                                                     </Badge>
@@ -713,7 +714,7 @@ const BigQueryForm: FC<{
                                         if (!file) {
                                             form.setFieldValue(
                                                 'warehouse.keyfileContents',
-                                                null,
+                                                BigQueryDefaultValues.keyfileContents,
                                             );
                                             return;
                                         }
@@ -741,13 +742,13 @@ const BigQueryForm: FC<{
 
                                                     form.setFieldValue(
                                                         'warehouse.keyfileContents',
-                                                        null,
+                                                        BigQueryDefaultValues.keyfileContents,
                                                     );
                                                 }
                                             } else {
                                                 form.setFieldValue(
                                                     'warehouse.keyfileContents',
-                                                    null,
+                                                    BigQueryDefaultValues.keyfileContents,
                                                 );
                                                 setTemporaryFile(null);
                                             }

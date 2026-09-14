@@ -15,7 +15,7 @@ import {
     Group,
     Stack,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconMoon, IconPlus, IconSun } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';

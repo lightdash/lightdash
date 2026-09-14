@@ -105,6 +105,7 @@ export interface SectionContext {
     itemsMap: Record<string, NodeItem>;
     nodeMap: NodeMap; // Pre-computed node hierarchy
     missingCustomMetrics?: AdditionalMetric[];
+    dashboardMetricIds?: Set<string>;
     missingCustomDimensions?: CustomDimension[];
     itemsAlerts?: {
         [id: string]: {
@@ -177,6 +178,7 @@ export interface FlattenTreeOptions {
     customDimensions?: CustomDimension[];
     missingCustomMetrics: AdditionalMetric[];
     missingCustomDimensions: CustomDimension[];
+    dashboardMetricIds?: Set<string>;
     missingFieldIds: string[];
 
     // Selected fields (for determining if missing field is dimension or metric)

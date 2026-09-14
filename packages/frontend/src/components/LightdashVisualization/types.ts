@@ -2,6 +2,8 @@ import {
     ChartType,
     type CustomDimension,
     type DashboardFilters,
+    type DataAppVizChart,
+    type DataAppVizChartConfig,
     type DateZoom,
     type Dimension,
     type ItemsMap,
@@ -87,6 +89,7 @@ export type VisualizationCartesianConfigProps =
         >;
         colorPalette: string[];
         tableCalculationsMetadata?: TableCalculationMetadata[];
+        unsavedMetricQuery?: MetricQuery;
     };
 
 // Funnel
@@ -132,6 +135,7 @@ export type VisualizationConfigPieProps =
         itemsMap: ItemsMap | undefined;
         colorPalette: string[];
         tableCalculationsMetadata?: TableCalculationMetadata[];
+        unsavedMetricQuery?: MetricQuery;
     };
 
 // Table
@@ -152,6 +156,8 @@ export type VisualizationTableConfigProps =
         itemsMap: ItemsMap | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
+        initialPivotRows: string[] | undefined;
+        onPivotRowsChange?: (value: string[] | undefined) => void;
         savedChartUuid: string | undefined;
         dashboardFilters: DashboardFilters | undefined;
         invalidateCache: boolean | undefined;
@@ -213,10 +219,16 @@ export const isDataAppVizVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.DATA_APP_VIZ;
 };
 
-export type VisualizationDataAppVizConfigProps =
-    VisualizationConfigCommon<VisualizationConfigDataAppViz> & {
-        itemsMap?: ItemsMap | undefined;
-    };
+// Local state is null while the chart points at no viz; the saved chart
+// carries that as an absent config, so the two sides are typed apart.
+export type VisualizationDataAppVizConfigProps = Omit<
+    VisualizationConfigCommon<VisualizationConfigDataAppViz>,
+    'initialChartConfig' | 'onChartConfigChange'
+> & {
+    initialChartConfig: DataAppVizChart | undefined;
+    onChartConfigChange?: (chartConfig: DataAppVizChartConfig) => void;
+    itemsMap?: ItemsMap | undefined;
+};
 
 // Gauge
 

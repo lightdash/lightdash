@@ -4,10 +4,13 @@ import {
     ContentAsCodeType,
     DashboardAsCode,
     LightdashError,
+    PromotionAction,
     SpaceAsCodeAction,
     SpaceMemberRole,
+    type AnyType,
     type CartesianChartConfig,
     type ChartAsCode,
+    type DataAppManifest,
     type Series,
     type SpaceAsCode,
 } from '@lightdash/common';
@@ -15,32 +18,278 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { vi } from 'vitest';
+import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
-import { lightdashApi } from './dbt/apiClient';
-import { downloadContent, testHelpers } from './download';
+import {
+    getDataAppUploadFilter,
+    uploadFilterMatches,
+} from './apps/appsDownload';
+import {
+    getContentAsCodeUploadPermissions,
+    lightdashApi,
+} from './dbt/apiClient';
+import {
+    downloadContent,
+    downloadHandler,
+    getExternalConnectionSecretEnvVar,
+    testHelpers,
+    uploadHandler,
+    type DownloadHandlerOptions,
+} from './download';
+import { logUploadChanges } from './spacesAsCode';
+
+vi.mock('../analytics/analytics', () => ({
+    LightdashAnalytics: {
+        track: vi.fn(),
+    },
+}));
+
+vi.mock('../config', () => ({
+    getConfig: vi.fn().mockResolvedValue({
+        user: {
+            userUuid: 'user-uuid',
+            organizationUuid: 'organization-uuid',
+        },
+        context: {
+            apiKey: 'api-key',
+            serverUrl: 'http://lightdash.test',
+            project: 'project-uuid',
+            projectName: 'Test project',
+        },
+        answers: {
+            metadataFileGitignoreNoticeShown: true,
+        },
+    }),
+    setAnswer: vi.fn(),
+}));
 
 vi.mock('./dbt/apiClient', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./dbt/apiClient')>()),
+    getContentAsCodeUploadPermissions: vi.fn(),
     lightdashApi: vi.fn(),
 }));
 
 const {
     assertUniqueSpacePaths,
+    downloadLinkedVirtualViews,
     downloadSpaces,
+    extractChartTableNames,
+    extractChartTypeRefsFromCharts,
+    getDashboardAppSlugs,
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
+    hasContentFilters,
+    isAiAgentsUnavailableError,
+    isExternalConnectionsUnavailableError,
+    isVirtualViewsUnavailableError,
+    countChangeDelta,
+    downloadAiAgents,
+    isFilteredWithNoDashboards,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
+    reportOpenDraftsForUpload,
     sanitizeChartForDownload,
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
     summarizeUploadChanges,
+    upsertAiAgents,
+    upsertExternalConnections,
+    upsertResources,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
     writeSpaceFiles,
 } = testHelpers;
+
+describe('reportOpenDraftsForUpload', () => {
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('stays quiet when the project has no open drafts', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            openDraftCount: 0,
+        } as never);
+
+        await reportOpenDraftsForUpload('project-uuid');
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'GET',
+            url: '/api/v1/projects/project-uuid/code/upload-advisory',
+            body: undefined,
+        });
+        expect(GlobalState.log).not.toHaveBeenCalled();
+    });
+
+    it('warns without blocking when the project has multiple open drafts', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            openDraftCount: 3,
+        } as never);
+
+        await expect(
+            reportOpenDraftsForUpload('project-uuid'),
+        ).resolves.toBeUndefined();
+
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('3 open content drafts'),
+        );
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Upload will continue'),
+        );
+    });
+
+    it('warns without blocking when the draft count cannot be loaded', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new Error('draft table unavailable'),
+        );
+
+        await expect(
+            reportOpenDraftsForUpload('project-uuid'),
+        ).resolves.toBeUndefined();
+
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Could not check for open content drafts'),
+        );
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Upload will continue'),
+        );
+    });
+});
+
+const makeDownloadHandlerOptions = (
+    overrides: Partial<DownloadHandlerOptions> = {},
+): DownloadHandlerOptions => ({
+    verbose: false,
+    charts: [],
+    dashboards: [],
+    alerts: [],
+    agents: [],
+    googleSheets: [],
+    scheduledDeliveries: [],
+    virtualViews: [],
+    externalConnections: [],
+    apps: [],
+    includeAgents: false,
+    includeApps: false,
+    force: false,
+    languageMap: false,
+    skipSpaceCreate: false,
+    public: false,
+    includeCharts: false,
+    nested: false,
+    rootSpaces: false,
+    skipSpaces: true,
+    skipCharts: true,
+    skipDashboards: true,
+    skipAlerts: false,
+    skipAgents: false,
+    skipGoogleSheets: false,
+    skipScheduledDeliveries: false,
+    skipVirtualViews: false,
+    skipExternalConnections: false,
+    includeAlerts: false,
+    includeGoogleSheets: false,
+    includeScheduledDeliveries: false,
+    includeVirtualViews: false,
+    includeExternalConnections: false,
+    includeAll: false,
+    stripPivotSeries: false,
+    concurrency: 1,
+    organization: false,
+    ...overrides,
+});
+
+const makeContentFilterOptions = (
+    overrides: Partial<Parameters<typeof hasContentFilters>[0]> = {},
+): Parameters<typeof hasContentFilters>[0] => ({
+    spacesOnly: false,
+    charts: [],
+    dashboards: [],
+    agents: [],
+    alerts: [],
+    googleSheets: [],
+    scheduledDeliveries: [],
+    virtualViews: [],
+    externalConnections: [],
+    apps: [],
+    ...overrides,
+});
+
+describe('hasContentFilters', () => {
+    it('treats explicit apps as a filtered download and upload', () => {
+        expect(
+            hasContentFilters(
+                makeContentFilterOptions({ apps: ['app-reference'] }),
+            ),
+        ).toBe(true);
+    });
+
+    it('treats explicit external connections as a filtered upload', () => {
+        expect(
+            hasContentFilters(
+                makeContentFilterOptions({ externalConnections: ['stripe'] }),
+            ),
+        ).toBe(true);
+    });
+
+    it('keeps an unfiltered content operation unfiltered', () => {
+        expect(hasContentFilters(makeContentFilterOptions())).toBe(false);
+    });
+
+    it('does not treat content selections as filters in spaces-only mode', () => {
+        expect(
+            hasContentFilters(
+                makeContentFilterOptions({
+                    spacesOnly: true,
+                    apps: ['app-reference'],
+                }),
+            ),
+        ).toBe(false);
+    });
+});
+
+describe('data app upload loop filter wiring', () => {
+    const makeManifest = (
+        overrides: Partial<DataAppManifest> = {},
+    ): DataAppManifest => ({
+        codeVersion: 1 as const,
+        appUuid: 'app-uuid-unmatched',
+        projectUuid: 'proj-uuid-1',
+        version: 1,
+        name: 'App',
+        description: '',
+        template: null,
+        downloadedAt: '2026-06-25T00:00:00.000Z',
+        ...overrides,
+    });
+
+    it('skips a folder matching neither slug nor uuid, and uploads one matched by slug', () => {
+        // Mirrors the --apps <appReferences...> wiring in the upload loop:
+        // the filter is built once from the CLI-supplied references, then
+        // matched per folder via uploadFilterMatches.
+        const uploadFilter = getDataAppUploadFilter(['sales-app'], false);
+
+        const unmatchedFolder = makeManifest({
+            appUuid: 'other-uuid',
+            slug: 'other-slug',
+        });
+        const matchedBySlugFolder = makeManifest({
+            appUuid: 'matched-uuid',
+            slug: 'sales-app',
+        });
+
+        expect(uploadFilterMatches(uploadFilter, unmatchedFolder)).toBe(false);
+        expect(uploadFilterMatches(uploadFilter, matchedBySlugFolder)).toBe(
+            true,
+        );
+    });
+});
 
 type LooseDashboard = DashboardAsCode & { needsUpdating: boolean };
 
@@ -69,6 +318,34 @@ const writeFolderDashboard = async (
             (s) =>
                 `  - properties:\n      chartSlug: ${s}\n    type: saved_chart`,
         )
+        .join('\n');
+    const yaml = `contentType: dashboard\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntiles:\n${tilesYaml}\nversion: 1\n`;
+    await fs.writeFile(path.join(baseDir, 'dashboards', `${slug}.yml`), yaml);
+};
+
+const makeLooseAppDashboard = (
+    slug: string,
+    appSlugs: (string | null)[],
+): LooseDashboard =>
+    ({
+        slug,
+        name: slug,
+        spaceSlug: 'test-space',
+        version: 1,
+        tiles: appSlugs.map((appSlug) => ({
+            type: 'data_app',
+            properties: { appSlug },
+        })),
+        needsUpdating: false,
+    }) as unknown as LooseDashboard;
+
+const writeFolderAppDashboard = async (
+    baseDir: string,
+    slug: string,
+    appSlugs: string[],
+) => {
+    const tilesYaml = appSlugs
+        .map((s) => `  - properties:\n      appSlug: ${s}\n    type: data_app`)
         .join('\n');
     const yaml = `contentType: dashboard\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntiles:\n${tilesYaml}\nversion: 1\n`;
     await fs.writeFile(path.join(baseDir, 'dashboards', `${slug}.yml`), yaml);
@@ -155,6 +432,92 @@ const makeChart = (series: Series[]): ChartAsCode =>
         dashboardSlug: undefined,
     }) as ChartAsCode;
 
+const writeFolderChart = async (baseDir: string, slug: string) => {
+    const yaml = `contentType: chart\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntableName: orders\nversion: 1\n`;
+    await fs.writeFile(path.join(baseDir, 'charts', `${slug}.yml`), yaml);
+};
+
+describe('upload summary counts', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
+        vi.spyOn(GlobalState, 'debug').mockImplementation(() => undefined);
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'download-test-'));
+        await fs.mkdir(path.join(tmpDir, 'charts'));
+        await fs.mkdir(path.join(tmpDir, 'dashboards'));
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('counts only the uploaded type, not the spaces and tiles echoed by the API', async () => {
+        await writeFolderChart(tmpDir, 'chart-a');
+        await writeFolderChart(tmpDir, 'chart-b');
+        await writeFolderDashboard(tmpDir, 'dash', ['chart-a', 'chart-b']);
+        const noChanges = { action: PromotionAction.NO_CHANGES };
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+            url.includes('/code/charts/')
+                ? ({
+                      charts: [{ action: PromotionAction.UPDATE }],
+                      spaces: [noChanges],
+                      dashboards: [],
+                  } as never)
+                : ({
+                      dashboards: [{ action: PromotionAction.UPDATE }],
+                      charts: [noChanges, noChanges],
+                      spaces: [noChanges],
+                  } as never),
+        );
+        const summarySpy = vi
+            .spyOn(console, 'info')
+            .mockImplementation(() => undefined);
+
+        const changes: Record<string, number> = {};
+        const chartsResult = await upsertResources<ChartAsCode>(
+            'charts',
+            'project-uuid',
+            changes,
+            false,
+            [],
+            true,
+            tmpDir,
+        );
+        const afterCharts = { ...chartsResult.changes };
+        expect(summarizeUploadChanges({}, afterCharts).detail).toBe(
+            '2 updated',
+        );
+
+        const dashboardsResult = await upsertResources<DashboardAsCode>(
+            'dashboards',
+            'project-uuid',
+            changes,
+            false,
+            [],
+            true,
+            tmpDir,
+        );
+        expect(
+            summarizeUploadChanges(afterCharts, dashboardsResult.changes)
+                .detail,
+        ).toBe('1 updated');
+        expect(lightdashApi).toHaveBeenCalledTimes(3);
+        expect(dashboardsResult.changes).toEqual({
+            'charts updated': 2,
+            'dashboards updated': 1,
+        });
+
+        logUploadChanges(dashboardsResult.changes);
+        expect(summarySpy.mock.calls.map(([message]) => message)).toEqual([
+            'Total charts updated: 2 ',
+            'Total dashboards updated: 1 ',
+        ]);
+    });
+});
+
 describe('getDashboardChartSlugs', () => {
     let tmpDir: string;
 
@@ -229,6 +592,214 @@ describe('getDashboardChartSlugs', () => {
     });
 });
 
+describe('extractAppSlugsFromDashboards', () => {
+    const dashboard = (tiles: AnyType[]): AnyType => ({ slug: 'd', tiles });
+
+    it('collects app slugs and ignores other tile types', () => {
+        expect(
+            testHelpers.extractAppSlugsFromDashboards([
+                dashboard([
+                    {
+                        type: 'data_app',
+                        properties: { appSlug: 'revenue-explorer' },
+                    },
+                    {
+                        type: 'saved_chart',
+                        properties: { chartSlug: 'a-chart' },
+                    },
+                    { type: 'markdown', properties: { content: 'hi' } },
+                ]),
+            ]),
+        ).toEqual(['revenue-explorer']);
+    });
+
+    it('dedupes and drops null slugs', () => {
+        expect(
+            testHelpers.extractAppSlugsFromDashboards([
+                dashboard([
+                    { type: 'data_app', properties: { appSlug: 'one' } },
+                    { type: 'data_app', properties: { appSlug: 'one' } },
+                    { type: 'data_app', properties: { appSlug: null } },
+                ]),
+            ]),
+        ).toEqual(['one']);
+    });
+});
+
+describe('extractChartTableNames', () => {
+    const chart = (tableName: string | undefined): AnyType => ({
+        slug: 'a-chart',
+        tableName,
+    });
+
+    it('dedupes table names across charts', () => {
+        expect(
+            extractChartTableNames([
+                chart('orders'),
+                chart('customers'),
+                chart('orders'),
+            ]),
+        ).toEqual(['orders', 'customers']);
+    });
+
+    it('drops missing table names (e.g. SQL charts)', () => {
+        expect(
+            extractChartTableNames([chart(undefined), chart(''), chart('one')]),
+        ).toEqual(['one']);
+    });
+});
+
+describe('extractChartTypeRefsFromCharts', () => {
+    const vizChart = (config: AnyType): AnyType => ({
+        slug: 'a-chart',
+        chartConfig: { type: 'data_app_viz', config },
+    });
+
+    it('collects slugs from viz charts, deduped, ignoring other chart types', () => {
+        expect(
+            extractChartTypeRefsFromCharts([
+                vizChart({ dataAppVizSlug: 'heatmap', fieldMapping: {} }),
+                vizChart({ dataAppVizSlug: 'heatmap', fieldMapping: {} }),
+                {
+                    slug: 'bar-chart',
+                    chartConfig: { type: 'cartesian', config: {} },
+                } as AnyType,
+            ]),
+        ).toEqual(['heatmap']);
+    });
+
+    it('falls back to the legacy uuid and skips configless charts', () => {
+        expect(
+            extractChartTypeRefsFromCharts([
+                vizChart({ dataAppVizUuid: 'viz-uuid', fieldMapping: {} }),
+                vizChart(undefined),
+            ]),
+        ).toEqual(['viz-uuid']);
+    });
+});
+
+describe('selectVirtualViewCandidates', () => {
+    const chart = (slug: string, tableName: string | undefined): AnyType => ({
+        slug,
+        tableName,
+    });
+
+    it('collects table names of explicitly selected charts', () => {
+        expect(
+            testHelpers.selectVirtualViewCandidates({
+                chartItems: [
+                    chart('wanted', 'my_virtual_view'),
+                    chart('other', 'other_view'),
+                ],
+                chartSlugs: ['wanted'],
+                dashboardItems: [],
+                dashboardSlugs: [],
+            }),
+        ).toEqual(['my_virtual_view']);
+    });
+
+    it('collects table names of the selected dashboards charts only', () => {
+        expect(
+            testHelpers.selectVirtualViewCandidates({
+                chartItems: [
+                    chart('dash-chart', 'my_virtual_view'),
+                    chart('other-dash-chart', 'other_view'),
+                ],
+                chartSlugs: [],
+                dashboardItems: [
+                    makeLooseDashboard('wanted-dash', ['dash-chart']),
+                    makeLooseDashboard('other-dash', ['other-dash-chart']),
+                ],
+                dashboardSlugs: ['wanted-dash'],
+            }),
+        ).toEqual(['my_virtual_view']);
+    });
+
+    it('ignores dashboards entirely when none are selected', () => {
+        expect(
+            testHelpers.selectVirtualViewCandidates({
+                chartItems: [chart('dash-chart', 'my_virtual_view')],
+                chartSlugs: [],
+                dashboardItems: [
+                    makeLooseDashboard('some-dash', ['dash-chart']),
+                ],
+                dashboardSlugs: [],
+            }),
+        ).toEqual([]);
+    });
+
+    it('dedupes across sources and drops charts without a table name', () => {
+        expect(
+            testHelpers.selectVirtualViewCandidates({
+                chartItems: [
+                    chart('a-chart', 'shared_view'),
+                    chart('b-chart', 'shared_view'),
+                    chart('sql-chart', undefined),
+                ],
+                chartSlugs: ['a-chart', 'sql-chart'],
+                dashboardItems: [makeLooseDashboard('dash', ['b-chart'])],
+                dashboardSlugs: ['dash'],
+            }),
+        ).toEqual(['shared_view']);
+    });
+});
+
+describe('getDashboardAppSlugs', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'download-test-'));
+        await fs.mkdir(path.join(tmpDir, 'dashboards'));
+    });
+
+    afterEach(async () => {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('extracts app slugs from folder dashboards', async () => {
+        await writeFolderAppDashboard(tmpDir, 'folder-dash', [
+            'app-a',
+            'app-b',
+        ]);
+        const slugs = await getDashboardAppSlugs([], tmpDir);
+        expect(slugs.sort()).toEqual(['app-a', 'app-b']);
+    });
+
+    it('filters to the selected dashboards only', async () => {
+        await writeFolderAppDashboard(tmpDir, 'wanted', ['wanted-app']);
+        const loose = makeLooseAppDashboard('other', ['other-app']);
+        const slugs = await getDashboardAppSlugs(['wanted'], tmpDir, [loose]);
+        expect(slugs).toEqual(['wanted-app']);
+    });
+
+    it('dedupes across dashboards and drops null slugs', async () => {
+        await writeFolderAppDashboard(tmpDir, 'folder-dash', ['shared-app']);
+        const loose = makeLooseAppDashboard('loose-dash', ['shared-app', null]);
+        const slugs = await getDashboardAppSlugs([], tmpDir, [loose]);
+        expect(slugs).toEqual(['shared-app']);
+    });
+
+    it('returns an empty array when no dashboard has an app tile', async () => {
+        await writeFolderDashboard(tmpDir, 'chart-only', ['chart-a']);
+        const slugs = await getDashboardAppSlugs([], tmpDir);
+        expect(slugs).toEqual([]);
+    });
+});
+
+describe('isFilteredWithNoDashboards', () => {
+    it('is true for a filtered upload that selects no dashboards (e.g. --charts only)', () => {
+        expect(isFilteredWithNoDashboards(true, [])).toBe(true);
+    });
+
+    it('is false for an unfiltered upload even with no dashboard slugs', () => {
+        expect(isFilteredWithNoDashboards(false, [])).toBe(false);
+    });
+
+    it('is false once dashboard slugs are provided', () => {
+        expect(isFilteredWithNoDashboards(true, ['my-dashboard'])).toBe(false);
+    });
+});
+
 describe('sanitizeChartForDownload', () => {
     it('preserves per-value pivot series customizations by default', () => {
         const chart = makeChart([
@@ -286,6 +857,125 @@ describe('sanitizeChartForDownload', () => {
             xRef: { field: 'events_date_day' },
             yRef: { field: 'orders_count' },
         });
+    });
+});
+
+describe('downloadLinkedVirtualViews', () => {
+    let tmpDir: string;
+    const virtualViewDocument = (slug: string) => ({
+        contentType: ContentAsCodeType.VIRTUAL_VIEW,
+        version: 1,
+        slug,
+        name: slug,
+        sql: 'SELECT 1 AS order_id',
+        columns: [{ reference: 'order_id', type: 'number' }],
+        parameters: null,
+    });
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'linked-virtual-views-test-'),
+        );
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('writes matched virtual views and stays silent on regular dbt table names', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            virtualViews: [virtualViewDocument('my_virtual_view')],
+            skipped: [],
+            missingSlugs: ['orders', 'customers'],
+        } as never);
+
+        const count = await downloadLinkedVirtualViews(
+            'project-uuid',
+            ['my_virtual_view', 'orders', 'customers'],
+            tmpDir,
+        );
+
+        expect(count).toBe(1);
+        expect(lightdashApi).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                url: '/api/v1/projects/project-uuid/code/virtualViews?slugs=my_virtual_view&slugs=orders&slugs=customers',
+            }),
+        );
+        await expect(
+            fs.readFile(
+                path.join(tmpDir, 'virtual-views', 'my_virtual_view.yml'),
+                'utf-8',
+            ),
+        ).resolves.toContain('slug: my_virtual_view');
+        expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it('warns about skipped virtual views', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            virtualViews: [],
+            skipped: [{ slug: 'broken_view', reason: 'malformed' }],
+            missingSlugs: [],
+        } as never);
+
+        await expect(
+            downloadLinkedVirtualViews('project-uuid', ['broken_view'], tmpDir),
+        ).resolves.toBe(0);
+        expect(logSpy).toHaveBeenCalledExactlyOnceWith(
+            expect.stringContaining('Skipped virtual view "broken_view"'),
+        );
+    });
+
+    it('returns null when the server has no virtual views endpoint', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new LightdashError({
+                message: 'Not found',
+                name: 'NotFoundError',
+                statusCode: 404,
+                data: {},
+            }),
+        );
+
+        await expect(
+            downloadLinkedVirtualViews('project-uuid', ['orders'], tmpDir),
+        ).resolves.toBeNull();
+    });
+
+    it('rethrows unexpected errors', async () => {
+        const serverError = new LightdashError({
+            message: 'Boom',
+            name: 'UnexpectedServerError',
+            statusCode: 500,
+            data: {},
+        });
+        vi.mocked(lightdashApi).mockRejectedValueOnce(serverError);
+
+        await expect(
+            downloadLinkedVirtualViews('project-uuid', ['orders'], tmpDir),
+        ).rejects.toBe(serverError);
+    });
+
+    it('classifies permission and missing-route errors as unavailable', () => {
+        [403, 404].forEach((statusCode) => {
+            expect(
+                isVirtualViewsUnavailableError(
+                    new LightdashError({
+                        message: 'unavailable',
+                        name: 'TestError',
+                        statusCode,
+                        data: {},
+                    }),
+                ),
+            ).toBe(true);
+        });
+        expect(isVirtualViewsUnavailableError(new Error('nope'))).toBe(false);
     });
 });
 
@@ -390,6 +1080,568 @@ version: 1
             expect.stringContaining('Error uploading virtual views'),
         );
     });
+
+    it('uploads candidate matches only, silent on unmatched candidates', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'my_view.yml'),
+            virtualView('my_view'),
+        );
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'unrelated_view.yml'),
+            virtualView('unrelated_view'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'create',
+        } as never);
+
+        const changes = await upsertVirtualViews(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+            ['my_view', 'orders', 'customers'],
+        );
+
+        expect(changes).toEqual({ 'virtual views created': 1 });
+        expect(lightdashApi).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                url: expect.stringContaining('/code/virtualViews/my_view'),
+            }),
+        );
+        expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it('still warns about explicit slugs missing locally when candidates are present', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'my_view.yml'),
+            virtualView('my_view'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'update',
+        } as never);
+
+        const changes = await upsertVirtualViews(
+            'project-uuid',
+            ['missing_view'],
+            {},
+            false,
+            true,
+            tmpDir,
+            ['my_view'],
+        );
+
+        expect(changes).toEqual({ 'virtual views updated': 1 });
+        expect(logSpy).toHaveBeenCalledExactlyOnceWith(
+            expect.stringContaining(
+                'Virtual view "missing_view" was not found locally',
+            ),
+        );
+    });
+});
+
+describe('upsertExternalConnections', () => {
+    let tmpDir: string;
+    const externalConnectionYaml = (slug: string, extraLines: string[] = []) =>
+        [
+            'allowedContentTypes:',
+            '  - application/json',
+            'allowedMethods:',
+            '  - GET',
+            'allowedPathPrefixes: []',
+            'apiKeyLocation: header',
+            'apiKeyName: Authorization',
+            'authType: api_key',
+            'contentType: external_connection',
+            'customHeaders: null',
+            'instructions: null',
+            `name: ${slug}`,
+            'oauthScopes: null',
+            'origin: https://api.example.com',
+            'rateLimitPerMinute: null',
+            'requestMaxBytes: 262144',
+            'responseMaxBytes: 1048576',
+            `slug: ${slug}`,
+            'timeoutMs: 10000',
+            'version: 1',
+            ...extraLines,
+            '',
+        ].join('\n');
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'external-connections-test-'),
+        );
+        await fs.mkdir(path.join(tmpDir, 'external-connections'));
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('omits the secret from the request when the env var is unset', async () => {
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'no changes',
+        } as never);
+
+        const changes = await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({ 'external connections skipped': 1 });
+        const request = vi.mocked(lightdashApi).mock.calls[0][0];
+        expect(request.url).toContain(
+            '/code/externalConnections/stripe-api?force=false',
+        );
+        const body = JSON.parse(request.body as string);
+        expect(body).not.toHaveProperty('secret');
+        expect(body.connection.slug).toBe('stripe-api');
+    });
+
+    it('resolves the secret from LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>', async () => {
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api'),
+        );
+        vi.stubEnv('LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API', 'sk-123');
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'create',
+        } as never);
+
+        const changes = await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({ 'external connections created': 1 });
+        const body = JSON.parse(
+            vi.mocked(lightdashApi).mock.calls[0][0].body as string,
+        );
+        expect(body.secret).toBe('sk-123');
+        // The secret rides next to the document, never inside it
+        expect(body.connection).not.toHaveProperty('secret');
+    });
+
+    it('strips a secret authored into the YAML and warns', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api', ['secret: leaked-secret']),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'update',
+        } as never);
+
+        await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        const rawBody = vi.mocked(lightdashApi).mock.calls[0][0].body as string;
+        expect(rawBody).not.toContain('leaked-secret');
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining('secrets must never be stored in YAML'),
+        );
+    });
+
+    it('reports one category error without uploading when the caller lacks permission', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api'),
+        );
+
+        const changes = await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            false,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({});
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(logSpy).toHaveBeenCalledExactlyOnceWith(
+            expect.stringContaining('Error uploading external connections'),
+        );
+    });
+
+    it('appends the env-var hint when a secret-requiring create fails without the env var', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api'),
+        );
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new Error('type "api_key" requires a secret'),
+        );
+
+        const changes = await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({ 'external connections with errors': 1 });
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Set LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API',
+            ),
+        );
+    });
+});
+
+describe('getExternalConnectionSecretEnvVar', () => {
+    it('upper-snakes the slug', () => {
+        expect(getExternalConnectionSecretEnvVar('stripe-api-v2')).toBe(
+            'LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API_V2',
+        );
+    });
+});
+
+describe('isExternalConnectionsUnavailableError', () => {
+    const lightdashError = (statusCode: number) =>
+        new LightdashError({
+            message: 'nope',
+            name: 'TestError',
+            statusCode,
+            data: {},
+        });
+
+    it('classifies permission, missing-route and non-EE errors as unavailable', () => {
+        [403, 404, 422].forEach((statusCode) => {
+            expect(
+                isExternalConnectionsUnavailableError(
+                    lightdashError(statusCode),
+                ),
+            ).toBe(true);
+        });
+    });
+
+    it('keeps real failures fatal', () => {
+        expect(isExternalConnectionsUnavailableError(lightdashError(500))).toBe(
+            false,
+        );
+        expect(
+            isExternalConnectionsUnavailableError(new Error('network down')),
+        ).toBe(false);
+    });
+});
+
+describe('AI agent downloads', () => {
+    const unavailableError = new LightdashError({
+        message:
+            "Unable to initialize service 'aiAgentCoderService' - no factory or provider.",
+        name: 'MissingConfigError',
+        statusCode: 422,
+        data: {},
+    });
+
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+    });
+
+    it('classifies permission, missing-route and non-EE errors as unavailable', () => {
+        [403, 404, 422].forEach((statusCode) => {
+            expect(
+                isAiAgentsUnavailableError(
+                    new LightdashError({
+                        message: 'AI agents unavailable',
+                        name: 'TestError',
+                        statusCode,
+                        data: {},
+                    }),
+                ),
+            ).toBe(true);
+        });
+    });
+
+    it('skips unavailable AI agents when selected implicitly', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
+
+        await expect(downloadAiAgents('project-uuid', [], true)).resolves.toBe(
+            0,
+        );
+    });
+
+    it('keeps explicit AI agent downloads strict', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
+
+        await expect(downloadAiAgents('project-uuid', [], false)).rejects.toBe(
+            unavailableError,
+        );
+    });
+});
+
+describe('countChangeDelta', () => {
+    it('sums positive deltas across change keys', () => {
+        expect(
+            countChangeDelta(
+                { 'AI agents created': 1, 'charts skipped': 2 },
+                {
+                    'AI agents created': 3,
+                    'AI agents updated': 1,
+                    'charts skipped': 2,
+                },
+            ),
+        ).toBe(3);
+    });
+
+    it('returns 0 when nothing changed', () => {
+        expect(
+            countChangeDelta({ 'charts created': 1 }, { 'charts created': 1 }),
+        ).toBe(0);
+    });
+});
+
+describe('downloadHandler analytics', () => {
+    beforeEach(() => {
+        vi.mocked(LightdashAnalytics.track).mockClear();
+        vi.mocked(lightdashApi).mockReset();
+    });
+
+    it('records per-type counts on download.completed, including agents', async () => {
+        const tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'agents-download-analytics-'),
+        );
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.startsWith('/api/v1/health')) {
+                return { version: '0.0.0' } as never;
+            }
+            if (url === '/api/v1/projects/project-uuid') {
+                return { name: 'Test project' } as never;
+            }
+            if (url.includes('/code/aiAgents')) {
+                return {
+                    agents: [
+                        {
+                            contentType: ContentAsCodeType.AI_AGENT,
+                            version: 1,
+                            agentVersion: 2,
+                            slug: 'sales-agent',
+                            name: 'Sales agent',
+                            description: null,
+                            imageUrl: null,
+                            instruction: null,
+                            tags: null,
+                            enableDataAccess: true,
+                            enableSelfImprovement: false,
+                            enableContentTools: false,
+                            enableUserContext: false,
+                            modelConfig: null,
+                        },
+                    ],
+                    missingIds: [],
+                    offset: 1,
+                    total: 1,
+                } as never;
+            }
+            throw new Error(`Unexpected request: ${url}`);
+        });
+
+        try {
+            await downloadHandler(
+                makeDownloadHandlerOptions({
+                    includeAgents: true,
+                    skipAlerts: true,
+                    skipGoogleSheets: true,
+                    skipScheduledDeliveries: true,
+                    skipVirtualViews: true,
+                    skipExternalConnections: true,
+                    path: tmpDir,
+                }),
+            );
+
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.objectContaining({
+                        projectId: 'project-uuid',
+                        agentsNum: 1,
+                    }),
+                }),
+            );
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.not.objectContaining({
+                        chartsNum: expect.anything(),
+                        dashboardsNum: expect.anything(),
+                    }),
+                }),
+            );
+        } finally {
+            await fs.rm(tmpDir, { recursive: true, force: true });
+        }
+    });
+});
+
+describe('downloadHandler failures', () => {
+    const unavailableError = new LightdashError({
+        message:
+            "Unable to initialize service 'aiAgentCoderService' - no factory or provider.",
+        name: 'MissingConfigError',
+        statusCode: 422,
+        data: {},
+    });
+
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+    });
+
+    it('continues to scheduled content after implicitly skipping unavailable AI agents', async () => {
+        const tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'include-all-download-test-'),
+        );
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.startsWith('/api/v1/health')) {
+                return { version: '0.0.0' } as never;
+            }
+            if (url === '/api/v1/projects/project-uuid') {
+                return { name: 'Test project' } as never;
+            }
+            if (url.includes('/code/virtualViews')) {
+                return {
+                    virtualViews: [],
+                    skipped: [],
+                    missingSlugs: [],
+                } as never;
+            }
+            if (url.includes('/code/aiAgents')) {
+                throw unavailableError;
+            }
+            if (url.includes('/code/alerts')) {
+                return { alerts: [], skipped: [] } as never;
+            }
+            if (url.includes('/code/scheduledDeliveries')) {
+                return { scheduledDeliveries: [], skipped: [] } as never;
+            }
+            if (url.includes('/code/googleSheets')) {
+                return { googleSheetsSyncs: [], skipped: [] } as never;
+            }
+            if (url.includes('/code/externalConnections')) {
+                throw unavailableError;
+            }
+            if (url.includes('/ee/projects/project-uuid/apps')) {
+                throw unavailableError;
+            }
+            throw new Error(`Unexpected request: ${url}`);
+        });
+
+        try {
+            await expect(
+                downloadHandler(
+                    makeDownloadHandlerOptions({
+                        includeAll: true,
+                        path: tmpDir,
+                    }),
+                ),
+            ).resolves.toBeUndefined();
+
+            expect(vi.mocked(lightdashApi)).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: expect.stringContaining('/code/scheduledDeliveries'),
+                }),
+            );
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.objectContaining({
+                        agentsNum: 0,
+                        alertsNum: 0,
+                        scheduledDeliveriesNum: 0,
+                        googleSheetsNum: 0,
+                        virtualViewsNum: 0,
+                        externalConnectionsNum: 0,
+                        appsNum: 0,
+                    }),
+                }),
+            );
+        } finally {
+            await fs.rm(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('rethrows fatal project download errors', async () => {
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.startsWith('/api/v1/health')) {
+                return { version: '0.0.0' } as never;
+            }
+            if (url === '/api/v1/projects/project-uuid') {
+                return { name: 'Test project' } as never;
+            }
+            if (url.includes('/code/aiAgents')) {
+                throw unavailableError;
+            }
+            throw new Error(`Unexpected request: ${url}`);
+        });
+
+        await expect(
+            downloadHandler(
+                makeDownloadHandlerOptions({
+                    agents: ['sales-agent'],
+                }),
+            ),
+        ).rejects.toBe(unavailableError);
+    });
+});
+
+describe('uploadHandler failures', () => {
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.mocked(getContentAsCodeUploadPermissions).mockReset();
+    });
+
+    it('rethrows fatal project upload errors', async () => {
+        const fatalError = new Error('Failed to load dbt credentials');
+        vi.mocked(lightdashApi).mockResolvedValue({
+            version: '0.0.0',
+        } as never);
+        vi.mocked(getContentAsCodeUploadPermissions).mockRejectedValueOnce(
+            fatalError,
+        );
+
+        await expect(
+            uploadHandler(makeDownloadHandlerOptions({})),
+        ).rejects.toBe(fatalError);
+    });
 });
 
 describe('readAiAgentFiles', () => {
@@ -444,6 +1696,65 @@ describe('readAiAgentFiles', () => {
                 ],
             },
         ]);
+    });
+});
+
+describe('upsertAiAgents', () => {
+    let tmpDir: string;
+    const unavailableError = new LightdashError({
+        message:
+            "Unable to initialize service 'aiAgentCoderService' - no factory or provider.",
+        name: 'MissingConfigError',
+        statusCode: 422,
+        data: {},
+    });
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-upload-test-'));
+        await fs.mkdir(path.join(tmpDir, 'ai-agents'));
+        await fs.writeFile(
+            path.join(tmpDir, 'ai-agents', 'revenue-agent.yml'),
+            [
+                'contentType: ai_agent',
+                'version: 1',
+                'slug: revenue-agent',
+                '',
+            ].join('\n'),
+        );
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('skips unavailable AI agents when their upload is implicit', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
+
+        await expect(
+            upsertAiAgents('project-uuid', [], {}, false, tmpDir, true),
+        ).resolves.toStrictEqual({});
+
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Skipping AI agents'),
+        );
+    });
+
+    it('fails when unavailable AI agents were selected explicitly', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
+
+        await expect(
+            upsertAiAgents(
+                'project-uuid',
+                ['revenue-agent'],
+                {},
+                false,
+                tmpDir,
+                false,
+            ),
+        ).rejects.toBe(unavailableError);
     });
 });
 
@@ -1157,6 +2468,75 @@ version: 99
         logSpy.mockRestore();
     });
 
+    it('omits access and warns when skip-space-access is enabled', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: SpaceAsCodeAction.CREATE,
+        } as never);
+
+        await upsertSpaces(
+            'project-uuid',
+            [{ filePath: 'space.space.yml', space: accessSpace('finance') }],
+            {},
+            false,
+            true,
+            true,
+        );
+
+        const [request] = vi.mocked(lightdashApi).mock.calls[0];
+        expect(JSON.parse(String(request.body))).toEqual({
+            contentType: 'space',
+            version: 1,
+            spaceName: 'finance',
+            slug: 'finance',
+        });
+        expect(request.url).toContain('publicSpaceCreate=true');
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Existing destination access will be preserved',
+            ),
+        );
+        logSpy.mockRestore();
+    });
+
+    it.each([
+        'User example@lightdash.com is not a member of this organization',
+        'Group finance does not exist in this organization',
+    ])(
+        'suggests skip-space-access when a destination identity is missing: %s',
+        async (errorMessage) => {
+            const logSpy = vi
+                .spyOn(GlobalState, 'log')
+                .mockImplementation(() => undefined);
+            vi.mocked(lightdashApi).mockRejectedValueOnce(
+                new Error(errorMessage),
+            );
+
+            await expect(
+                upsertSpaces(
+                    'project-uuid',
+                    [
+                        {
+                            filePath: 'space.space.yml',
+                            space: accessSpace('finance'),
+                        },
+                    ],
+                    {},
+                    false,
+                    false,
+                ),
+            ).rejects.toThrow('content upload was not started');
+            expect(logSpy).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    'Hint: use --skip-space-access to upload the space without applying its access policy.',
+                ),
+            );
+            logSpy.mockRestore();
+        },
+    );
+
     it('treats missing spaces and descendants as nonfatal with skip-space-create', async () => {
         vi.mocked(lightdashApi)
             .mockRejectedValueOnce(
@@ -1238,5 +2618,39 @@ version: 99
             'Total spaces dependency skipped: 1 ',
         ]);
         summarySpy.mockRestore();
+    });
+});
+
+describe('parseContentFilters', () => {
+    const { parseContentFilters } = testHelpers;
+
+    it('passes slugs and uuids through untouched', () => {
+        expect(
+            parseContentFilters([
+                'sales-overview',
+                '00000000-0000-0000-0000-000000000001',
+            ]),
+        ).toBe('?ids=sales-overview&ids=00000000-0000-0000-0000-000000000001');
+    });
+
+    it('extracts uuids from legacy app urls', () => {
+        expect(
+            parseContentFilters([
+                'https://app.lightdash.cloud/projects/00000000-0000-0000-0000-0000000000aa/dashboards/00000000-0000-0000-0000-000000000001/view',
+                'https://app.lightdash.cloud/projects/00000000-0000-0000-0000-0000000000aa/saved/00000000-0000-0000-0000-000000000002',
+            ]),
+        ).toBe(
+            '?ids=00000000-0000-0000-0000-000000000001&ids=00000000-0000-0000-0000-000000000002',
+        );
+    });
+
+    it('extracts slugs from app urls that use project and content slugs', () => {
+        expect(
+            parseContentFilters([
+                'https://app.lightdash.cloud/projects/jaffle-shop/dashboards/daily-sales/view',
+                'https://app.lightdash.cloud/projects/jaffle-shop/saved/monthly-revenue/view?tab=1',
+                'https://app.lightdash.cloud/projects/jaffle-shop/dashboards/sales-overview/view/tabs/some-tab',
+            ]),
+        ).toBe('?ids=daily-sales&ids=monthly-revenue&ids=sales-overview');
     });
 });

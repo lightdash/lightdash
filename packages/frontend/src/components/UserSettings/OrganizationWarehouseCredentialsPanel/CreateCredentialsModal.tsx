@@ -4,7 +4,7 @@ import {
     type CreateOrganizationWarehouseCredentials,
     type OrganizationWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';

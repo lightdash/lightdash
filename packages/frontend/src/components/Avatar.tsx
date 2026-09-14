@@ -15,7 +15,7 @@ import {
     type HexColor,
     type UserAvatarColorValue,
 } from '@lightdash/common';
-import { Avatar, type AvatarProps } from '@mantine-8/core';
+import { Avatar, type AvatarProps } from '@mantine/core';
 import { forwardRef, Fragment } from 'react';
 import classes from './Avatar.module.css';
 

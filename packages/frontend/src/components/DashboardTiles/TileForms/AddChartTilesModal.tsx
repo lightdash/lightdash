@@ -8,22 +8,20 @@ import {
     type Dashboard,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
+    getDefaultZIndex,
     Group,
     Loader,
-    ScrollArea,
     Stack,
     Text,
     Tooltip,
-    type ScrollAreaProps,
-} from '@mantine-8/core';
-import { getDefaultZIndex, MultiSelect } from '@mantine/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartAreaLine } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import React, {
-    forwardRef,
     useEffect,
     useLayoutEffect,
     useMemo,
@@ -31,11 +29,12 @@ import React, {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineModal from '../../common/MantineModal';
+import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import { ChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
@@ -49,57 +48,42 @@ type Props = {
     maxSelectedValues?: number;
 };
 
-interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
+type ItemProps = {
     label: string;
     chartKind: ChartKind;
     tooltipLabel?: string;
     disabled?: boolean;
     selected?: boolean;
-}
+};
 
-const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    (
-        {
-            label,
-            tooltipLabel,
-            chartKind,
-            disabled,
-            selected,
-            ...others
-        }: ItemProps,
-        ref,
-    ) => (
-        <div ref={ref} {...others}>
-            <Stack gap="1">
-                <Tooltip
-                    label={tooltipLabel}
-                    disabled={!tooltipLabel}
-                    position="top-start"
-                    withinPortal
+const SelectItem: FC<ItemProps> = ({
+    label,
+    tooltipLabel,
+    chartKind,
+    disabled,
+    selected,
+}) => (
+    <Stack gap="1">
+        <Tooltip
+            label={tooltipLabel}
+            disabled={!tooltipLabel}
+            position="top-start"
+        >
+            <Group gap="xs">
+                <ChartIcon
+                    chartKind={chartKind ?? ChartKind.VERTICAL_BAR}
+                    color={disabled ? 'ldGray.5' : undefined}
+                />
+                <Text
+                    c={disabled ? 'dimmed' : selected ? 'ldGray.9' : 'ldGray.8'}
+                    fw={500}
+                    fz="xs"
                 >
-                    <Group gap="xs">
-                        <ChartIcon
-                            chartKind={chartKind ?? ChartKind.VERTICAL_BAR}
-                            color={disabled ? 'ldGray.5' : undefined}
-                        />
-                        <Text
-                            c={
-                                disabled
-                                    ? 'dimmed'
-                                    : selected
-                                      ? 'ldGray.0'
-                                      : 'ldGray.8'
-                            }
-                            fw={500}
-                            fz="xs"
-                        >
-                            {label}
-                        </Text>
-                    </Group>
-                </Tooltip>
-            </Stack>
-        </div>
-    ),
+                    {label}
+                </Text>
+            </Group>
+        </Tooltip>
+    </Stack>
 );
 
 const AddChartTilesModal: FC<Props> = ({
@@ -108,11 +92,7 @@ const AddChartTilesModal: FC<Props> = ({
     spaceUuid,
     maxSelectedValues,
 }) => {
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuidFromContext = useDashboardContext((c) => c.projectUuid);
-    const projectUuid = projectUuidFromParams ?? projectUuidFromContext;
+    const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const {
@@ -146,17 +126,13 @@ const AddChartTilesModal: FC<Props> = ({
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
 
-    const form = useForm({
+    const form = useForm<{ savedChartsUuids: string[] }>({
         initialValues: {
             savedChartsUuids: [],
         },
     });
 
-    // Stable refs so DropdownComponent can read latest values without needing
-    // to be memo-invalidated (which would remount the dropdown and reset scroll).
     const selectScrollRef = useRef<HTMLDivElement>(null);
-    const paginationRef = useRef({ hasNextPage, isFetching, fetchNextPage });
-    paginationRef.current = { hasNextPage, isFetching, fetchNextPage };
     const pendingScrollToEndRef = useRef(false);
 
     // When user clicks "Load more", scroll to the bottom of the dropdown after
@@ -169,49 +145,6 @@ const AddChartTilesModal: FC<Props> = ({
             pendingScrollToEndRef.current = false;
         }
     }, [savedQueries]);
-
-    // DropdownComponent is defined once (empty deps) so React never swaps its
-    // component type — this prevents the dropdown from unmounting/remounting on
-    // every modal re-render (e.g. when selecting an item), which would reset
-    // scrollTop to 0. Latest pagination state is read through paginationRef.
-    const DropdownComponent = useMemo(
-        () =>
-            forwardRef<HTMLDivElement, ScrollAreaProps>(
-                ({ children, ...rest }, _ref) => {
-                    const {
-                        hasNextPage: canLoadMore,
-                        isFetching: fetching,
-                        fetchNextPage: loadMore,
-                    } = paginationRef.current;
-                    return (
-                        <ScrollArea {...rest} viewportRef={selectScrollRef}>
-                            <>
-                                {children}
-                                {canLoadMore && (
-                                    <Button
-                                        size="xs"
-                                        variant="subtle"
-                                        fullWidth
-                                        onClick={async () => {
-                                            // Keep the new Load more button visible
-                                            // after appending the next page; the
-                                            // useLayoutEffect consumes this flag
-                                            // after the new items have rendered.
-                                            pendingScrollToEndRef.current = true;
-                                            await loadMore();
-                                        }}
-                                        disabled={fetching}
-                                    >
-                                        Load more
-                                    </Button>
-                                )}
-                            </>
-                        </ScrollArea>
-                    );
-                },
-            ),
-        [],
-    );
 
     const allSavedCharts = useMemo(() => {
         const reorderedCharts = [...savedQueries].sort((chartA, chartB) => {
@@ -252,6 +185,24 @@ const AddChartTilesModal: FC<Props> = ({
             };
         });
     }, [savedQueries, dashboard?.spaceUuid, dashboardTiles]);
+
+    const selectedChartUuids = form.values.savedChartsUuids as string[];
+    const filteredSavedCharts = useMemo(() => {
+        const normalizedSearch = searchQuery.trim().toLowerCase();
+        return allSavedCharts
+            .filter(
+                (chart) =>
+                    selectedChartUuids.includes(chart.value) ||
+                    chart.label.toLowerCase().includes(normalizedSearch),
+            )
+            .map((chart) => ({
+                ...chart,
+                disabled:
+                    !selectedChartUuids.includes(chart.value) &&
+                    maxSelectedValues !== undefined &&
+                    selectedChartUuids.length >= maxSelectedValues,
+            }));
+    }, [allSavedCharts, maxSelectedValues, searchQuery, selectedChartUuids]);
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(
@@ -319,69 +270,136 @@ const AddChartTilesModal: FC<Props> = ({
                         isInitialLoading ||
                         form.values.savedChartsUuids.length === 0
                     }
+                    data-tour-anchor="add-charts-submit"
+                    data-tour-hint="Click Add"
                 >
                     Add
                 </Button>
             }
         >
-            <form id="add-saved-charts-to-dashboard" onSubmit={handleSubmit}>
-                <MultiSelect
+            {/* Room for the open chart list, so it never covers Add. */}
+            <form
+                id="add-saved-charts-to-dashboard"
+                onSubmit={handleSubmit}
+                style={{ minHeight: 360 }}
+            >
+                <MultiSelectCombobox
                     radius="md"
-                    styles={(theme) => ({
-                        separator: {
-                            position: 'sticky',
-                            top: 0,
-                            backgroundColor:
-                                theme.colorScheme === 'dark'
-                                    ? 'var(--mantine-color-dark-6)'
-                                    : 'var(--mantine-color-white)',
-                            zIndex: getDefaultZIndex('modal'),
-                        },
-                        separatorLabel: {
-                            color: theme.colors.ldGray[6],
-                            fontWeight: 500,
-                            backgroundColor:
-                                theme.colorScheme === 'dark'
-                                    ? 'var(--mantine-color-dark-6)'
-                                    : 'var(--mantine-color-white)',
-                        },
-                        item: {
-                            paddingTop: 4,
-                            paddingBottom: 4,
-                        },
-                    })}
                     maw={550}
+                    data-tour-anchor="chart-picker"
+                    data-tour-hint="Open the chart list"
                     id="saved-charts"
                     label={`Select the charts you want to add to this dashboard`}
-                    data={allSavedCharts}
+                    options={filteredSavedCharts}
+                    filterOptions={false}
                     disabled={isInitialLoading}
-                    defaultValue={[]}
                     placeholder="Search..."
                     required
-                    searchable
-                    withinPortal
-                    itemComponent={SelectItem}
-                    nothingFound="No charts found"
-                    clearable
-                    clearSearchOnChange
-                    clearSearchOnBlur
+                    name="savedChartsUuids"
+                    nothingFoundMessage="No charts found"
                     searchValue={searchQuery}
                     onSearchChange={setSearchQuery}
                     maxDropdownHeight={300}
-                    maxSelectedValues={maxSelectedValues}
+                    maxValues={maxSelectedValues}
+                    value={selectedChartUuids}
+                    selectedValues={selectedChartUuids}
+                    onClear={() => {
+                        form.setFieldValue('savedChartsUuids', []);
+                        setSearchQuery('');
+                    }}
                     rightSection={
-                        isFetching && <Loader size="xs" color="gray" />
+                        isFetching ? (
+                            <Loader size="xs" color="gray" />
+                        ) : undefined
                     }
-                    dropdownComponent={DropdownComponent}
-                    filter={(searchString, selected, item) => {
-                        return Boolean(
-                            selected ||
-                            item.label
-                                ?.toLowerCase()
-                                .includes(searchString.toLowerCase()),
+                    rightSectionPointerEvents={isFetching ? 'none' : 'all'}
+                    comboboxProps={{
+                        withinPortal: true,
+                        zIndex: getDefaultZIndex('modal'),
+                        styles: {
+                            groupLabel: {
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: getDefaultZIndex('modal'),
+                                color: 'var(--mantine-color-ldGray-6)',
+                                fontWeight: 500,
+                                backgroundColor:
+                                    'light-dark(var(--mantine-color-white), var(--mantine-color-dark-6))',
+                            },
+                            option: {
+                                paddingTop: 4,
+                                paddingBottom: 4,
+                            },
+                        },
+                    }}
+                    scrollAreaProps={{ viewportRef: selectScrollRef }}
+                    footer={
+                        hasNextPage ? (
+                            <Button
+                                size="xs"
+                                variant="subtle"
+                                fullWidth
+                                onClick={async () => {
+                                    pendingScrollToEndRef.current = true;
+                                    await fetchNextPage();
+                                }}
+                                disabled={isFetching}
+                            >
+                                Load more
+                            </Button>
+                        ) : null
+                    }
+                    renderOption={(option, selected) => {
+                        const chart = allSavedCharts.find(
+                            (item) => item.value === option.value,
+                        );
+                        return (
+                            <Box
+                                // Walkthrough anchor, one chart by name.
+                                data-tour-anchor="chart-option"
+                                data-tour-hint="Choose {value}"
+                                data-tour-value={option.label}
+                            >
+                                <SelectItem
+                                    label={option.label}
+                                    chartKind={
+                                        chart?.chartKind ??
+                                        ChartKind.VERTICAL_BAR
+                                    }
+                                    tooltipLabel={chart?.tooltipLabel}
+                                    disabled={option.disabled}
+                                    selected={selected}
+                                />
+                            </Box>
                         );
                     }}
-                    {...form.getInputProps('savedChartsUuids')}
+                    onValueRemove={(chartUuid) => {
+                        form.setFieldValue(
+                            'savedChartsUuids',
+                            selectedChartUuids.filter(
+                                (value) => value !== chartUuid,
+                            ),
+                        );
+                    }}
+                    onOptionSubmit={(chartUuid) => {
+                        if (selectedChartUuids.includes(chartUuid)) {
+                            form.setFieldValue(
+                                'savedChartsUuids',
+                                selectedChartUuids.filter(
+                                    (value) => value !== chartUuid,
+                                ),
+                            );
+                        } else if (
+                            maxSelectedValues === undefined ||
+                            selectedChartUuids.length < maxSelectedValues
+                        ) {
+                            form.setFieldValue('savedChartsUuids', [
+                                ...selectedChartUuids,
+                                chartUuid,
+                            ]);
+                        }
+                    }}
+                    onDropdownClose={() => setSearchQuery('')}
                 />
             </form>
         </MantineModal>

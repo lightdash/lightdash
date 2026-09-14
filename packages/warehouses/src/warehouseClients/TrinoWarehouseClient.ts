@@ -2,15 +2,19 @@ import {
     AnyType,
     CreateTrinoCredentials,
     DimensionType,
+    getWarehouseTableType,
     Metric,
     MetricType,
     getErrorMessage as originalGetErrorMessage,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
+    type TimestampDomain,
 } from '@lightdash/common';
 import {
     BasicAuth,
@@ -21,6 +25,7 @@ import {
     Trino,
 } from 'trino-client';
 import { WarehouseCatalog } from '../types';
+import { coerceTagToString, DriftedTagValue } from '../utils/coerceTagToString';
 import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
@@ -31,10 +36,18 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
 const TRINO_CLIENT_TAGS_HEADER = 'X-Trino-Client-Tags';
 
+const removeNumericTypeParameters = (type: string): string =>
+    type.replace(/\(\s*\d+(?:\s*,\s*\d+)?\s*\)/, '');
+
 // Trino splits the header on commas and Node rejects non-latin1 header values,
 // so tag keys/values are restricted to a safe charset
-const sanitizeClientTag = (tag: string): string =>
-    tag.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 60);
+const sanitizeClientTag = (tag: DriftedTagValue): string =>
+    coerceTagToString(tag, {
+        caller: 'TrinoWarehouseClient.sanitizeClientTag',
+        key: null,
+    })
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .substring(0, 60);
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -92,11 +105,46 @@ const queryTableSchema = ({
                                                                       AND table_name = '${table}'
                                                                     ORDER BY 1, 2, 3, ordinal_position`;
 
+export const getTrinoTimestampDomain = (
+    type: TrinoTypes | string,
+): TimestampDomain | undefined => {
+    switch (removeNumericTypeParameters(type)) {
+        case TrinoTypes.TIMESTAMP:
+            return 'naive';
+        case TrinoTypes.TIMESTAMP_TZ:
+            return 'aware';
+        default:
+            return undefined;
+    }
+};
+
+// The column type string carries the decimal scale: decimal(p,s)
+export const getTrinoNumericKind = (
+    type: TrinoTypes | string,
+): ResultNumericKind | null => {
+    switch (removeNumericTypeParameters(type)) {
+        case TrinoTypes.TINYINT:
+        case TrinoTypes.SMALLINT:
+        case TrinoTypes.INTEGER:
+        case TrinoTypes.BIGINT:
+            return { kind: 'integer' };
+        case TrinoTypes.REAL:
+        case TrinoTypes.DOUBLE:
+            return { kind: 'float' };
+        case TrinoTypes.DECIMAL: {
+            const scale = type.match(/\(\s*\d+\s*,\s*(\d+)\s*\)/);
+            return scale ? { kind: 'decimal', scale: Number(scale[1]) } : null;
+        }
+        default:
+            return null;
+    }
+};
+
 const convertDataTypeToDimensionType = (
     type: TrinoTypes | string,
 ): DimensionType => {
-    const typeWithoutTimePrecision = type.replace(/\(\d\)/, '');
-    switch (typeWithoutTimePrecision) {
+    const typeWithoutParameters = removeNumericTypeParameters(type);
+    switch (typeWithoutParameters) {
         case TrinoTypes.BOOLEAN:
             return DimensionType.BOOLEAN;
         case TrinoTypes.TINYINT:
@@ -145,6 +193,14 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
                 warehouseCatalog[table_catalog][table_schema][table_name][
                     column_name
                 ] = convertDataTypeToDimensionType(data_type);
+                setCatalogTimestampDomain(
+                    warehouseCatalog,
+                    table_catalog,
+                    table_schema,
+                    table_name,
+                    column_name,
+                    getTrinoTimestampDomain(data_type),
+                );
             },
         );
     });
@@ -226,6 +282,15 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
         );
     }
 
+    castToTimestamp(date: Date): string {
+        // Trino rejects zone-suffixed strings cast to plain TIMESTAMP
+        return `TIMESTAMP '${date.toISOString().slice(0, 23).replace('T', ' ')}'`;
+    }
+
+    castToDate(date: Date): string {
+        return `DATE '${date.toISOString().slice(0, 10)}'`;
+    }
+
     getIntervalSql(value: number, unit: TimeIntervalUnit): string {
         // Trino uses INTERVAL with quoted value and separate unit keyword
         const unitStr = TrinoSqlBuilder.intervalUnitsSingular[unit];
@@ -291,8 +356,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         try {
             let alteredQuery = sql;
             if (options?.tags) {
+                // tags can carry BigInt values at runtime; plain
+                // JSON.stringify would throw without the app-level toJSON patch
                 alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
                     options?.tags,
+                    (_key, value) =>
+                        typeof value === 'bigint' ? value.toString() : value,
                 )}`;
             }
             if (options?.timezone) {
@@ -334,15 +403,22 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 type: string;
                 typeSignature: { rawType: string };
             }[] = queryResult.value.columns ?? [];
-            const fields = schema.reduce(
-                (acc, column) => ({
-                    ...acc,
-                    [normalizeColumnName(column.name)]: {
-                        type: convertDataTypeToDimensionType(
-                            column.typeSignature.rawType ?? TrinoTypes.VARCHAR,
-                        ),
-                    },
-                }),
+            const fields = schema.reduce<WarehouseResults['fields']>(
+                (acc, column) => {
+                    // The full type string carries the decimal scale that rawType drops
+                    const type =
+                        column.type ??
+                        column.typeSignature.rawType ??
+                        TrinoTypes.VARCHAR;
+                    const numericKind = getTrinoNumericKind(type);
+                    return {
+                        ...acc,
+                        [normalizeColumnName(column.name)]: {
+                            type: convertDataTypeToDimensionType(type),
+                            ...(numericKind ? { numericKind } : {}),
+                        },
+                    };
+                },
                 {},
             );
 
@@ -421,24 +497,6 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         );
     }
 
-    async getTables(
-        schema?: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
-        const query = `
-            SELECT table_catalog, table_schema, table_name
-            FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE' 
-            ${schemaFilter}
-            ORDER BY 1,2,3
-        `;
-        const { rows } = await this.runQuery(query, tags);
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
-    }
-
     async getFields(
         tableName: string,
         schema?: string,
@@ -466,7 +524,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         `;
         const { rows } = await this.runQuery(query, tags);
 
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getTrinoTimestampDomain,
+        );
     }
 
     async getAllTables() {
@@ -476,9 +538,9 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             : '';
         const filterSystemTables = `AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
         const query = `
-            SELECT table_catalog, table_schema, table_name
+            SELECT table_catalog, table_schema, table_name, table_type
             FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE'
+            WHERE table_type IN ('BASE TABLE', 'VIEW')
                 ${whereSql}
                 ${filterSystemTables}
             ORDER BY 1, 2, 3
@@ -488,6 +550,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 }

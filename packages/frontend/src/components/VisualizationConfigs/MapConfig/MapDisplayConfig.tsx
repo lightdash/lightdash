@@ -25,8 +25,8 @@ import {
     Stack,
     Switch,
     Text,
-} from '@mantine-8/core';
-import { useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
@@ -41,7 +41,6 @@ import {
 } from '../../SimpleMap/hexbin/zoomToResolution';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
-import compactStyles from '../mantineTheme.module.css';
 
 const findPresetIdxByResolution = (resolution: number): number => {
     const idx = HEXBIN_SIZE_PRESETS.findIndex(
@@ -360,7 +359,7 @@ export const Display: FC = memo(() => {
                                             }}
                                         />
                                     </Config.Group>
-                                    <Collapse in={isFieldBasis}>
+                                    <Collapse expanded={isFieldBasis}>
                                         <Stack gap="xs">
                                             <Group gap="xs" wrap="nowrap">
                                                 <Config.Label>
@@ -632,9 +631,6 @@ export const Display: FC = memo(() => {
                                         </Config.Label>
                                         <Switch
                                             size="xs"
-                                            classNames={{
-                                                label: compactStyles.compactCheckboxLabel,
-                                            }}
                                             checked={showEmpty}
                                             onChange={(e) =>
                                                 setHexbinConfig({
@@ -644,7 +640,7 @@ export const Display: FC = memo(() => {
                                             }
                                         />
                                     </Config.Group>
-                                    <Collapse in={showEmpty}>
+                                    <Collapse expanded={showEmpty}>
                                         <Config.Group my="xs">
                                             <Config.Label>
                                                 Empty cell fill
@@ -698,7 +694,7 @@ export const Display: FC = memo(() => {
                                             }
                                         />
                                     </Config.Group>
-                                    <Collapse in={isFixed}>
+                                    <Collapse expanded={isFixed}>
                                         <HexbinSizeSlider
                                             // Remount on external resolution
                                             // change so local draft state
@@ -858,9 +854,6 @@ export const Display: FC = memo(() => {
                         <Config.Label>Save current map extent</Config.Label>
                         <Switch
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             checked={validConfig.saveMapExtent}
                             onChange={(e) =>
                                 setSaveMapExtent(e.currentTarget.checked)
@@ -877,9 +870,6 @@ export const Display: FC = memo(() => {
                         <Config.Label>Show legend</Config.Label>
                         <Switch
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             checked={validConfig.showLegend ?? false}
                             onChange={(e) =>
                                 setShowLegend(e.currentTarget.checked)

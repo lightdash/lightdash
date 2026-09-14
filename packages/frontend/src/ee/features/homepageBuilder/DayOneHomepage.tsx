@@ -1,41 +1,134 @@
-import { type FavoriteItems, type PinnedItems } from '@lightdash/common';
-import { Box, Button, Group, Stack, Text } from '@mantine-8/core';
-import { IconSquareRoundedPlus } from '@tabler/icons-react';
+import { type PinnedItems } from '@lightdash/common';
+import { Box, Stack } from '@mantine/core';
+import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
-import FavoritesPanel from '../../../components/FavoritesPanel';
-import PinnedItemsPanel from '../../../components/PinnedItemsPanel';
-import useApp from '../../../providers/App/useApp';
-import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
+import { BlockHeader } from './blocks/BlockShell';
+import { ContentCard } from './blocks/ContentCard';
+import { PersonalFavoritesBar } from './blocks/FavoritesBlock';
+import { GreetingHero } from './blocks/GreetingHero';
+import { KeySpaces } from './blocks/KeySpaces';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
+import { RecentList } from './blocks/RecentBlock';
 import classes from './DayOneHomepage.module.css';
+import { DEFAULT_GREETING_SUBTITLE } from './greeting';
 import layout from './homepageLayout.module.css';
+import { useCollectionContent } from './hooks/useCollectionContent';
+import { useCollectionSourceContent } from './hooks/useCollectionSourceContent';
+import { useKeySpaces } from './hooks/useKeySpaces';
+import { useHomepageOpening } from './hooks/useOrgHomepageSettings';
+import { useRecentContents } from './hooks/useRecentContents';
 
 type Props = {
     projectUuid: string;
-    projectName: string;
     pinnedItems: PinnedItems;
-    favoriteItems: FavoriteItems;
-    pinnedIsEnabled: boolean;
 };
 
-export const DayOneHomepage: FC<Props> = ({
-    projectUuid,
-    projectName,
-    pinnedItems,
-    favoriteItems,
-    pinnedIsEnabled,
-}) => {
-    const { user } = useApp();
-    const isAiEnabled = useAiAgentButtonVisibility();
+/** Pinned content rendered in the same card language as the collection block,
+ * so day-0 doesn't mix a legacy panel in with the builder's blocks. */
+const PinnedCollection: FC<{
+    projectUuid: string;
+    pinnedItems: PinnedItems;
+}> = ({ projectUuid, pinnedItems }) => {
+    const uuids = pinnedItems.map((item) => item.data.uuid);
+    const { data: contents } = useCollectionContent(projectUuid, uuids);
+
+    if (!contents || contents.length === 0) return null;
+
+    return (
+        <Box
+            // Scope-tour marker: the same pinned surface as PinnedItemsPanel
+            // on the legacy homepage, so both mark step 1 of manage:PinnedItems
+            // (the generator treats agreeing markers as alternates).
+            data-tour-scope="manage:PinnedItems"
+            data-tour-step="1"
+            data-tour-route="/projects/:projectUuid/home"
+            data-tour-label="Pinned content appears on the homepage"
+            data-tour-docs="explore/homepage.mdx#pin-content:1"
+            data-tour-resultdocs="explore/homepage.mdx#pin-content:p2:1"
+        >
+            {/* Inner surface: the same block is the result of view:PinnedItems
+                (reading what was pinned), one scope per element. */}
+            <Box
+                data-tour-scope="view:PinnedItems"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/home"
+                data-tour-label="Pinned content is where your data team wants you to start"
+                data-tour-docs="explore/search.mdx#browsing-instead-of-searching:1-2"
+                data-tour-return='[data-tour-nav="home"]'
+                data-tour-resultdocs="explore/homepage.mdx#pin-content:1"
+            >
+                <BlockHeader icon={IconPin} title="Pinned" />
+                <Stack gap={8}>
+                    {contents.map((content) => (
+                        <ContentCard
+                            key={content.uuid}
+                            content={content}
+                            projectUuid={projectUuid}
+                            tourAnchor="pinned-item"
+                        />
+                    ))}
+                </Stack>
+            </Box>
+        </Box>
+    );
+};
+
+/** The project's most viewed content, resolved through the same live source
+ * the Collection block offers — day-0 shows what the org actually uses. */
+const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { items } = useCollectionSourceContent(projectUuid, {
+        title: 'Most popular',
+        source: 'most-viewed',
+        items: [],
+        limit: 4,
+    });
+
+    if (items.length === 0) return null;
+
+    return (
+        <Box>
+            <BlockHeader icon={IconFlame} title="Most popular" />
+            <Stack gap={8}>
+                {items.map((content) => (
+                    <ContentCard
+                        key={content.uuid}
+                        content={content}
+                        projectUuid={projectUuid}
+                    />
+                ))}
+            </Stack>
+        </Box>
+    );
+};
+
+// Four fits one grid row at the page's 3-column span, which is the point: a
+// starting set, not a directory.
+const MAX_KEY_SPACES = 4;
+
+export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
+    const { opening } = useHomepageOpening(projectUuid);
+    const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
+    const recent = useRecentContents(projectUuid);
+    // Keep the header while loading so the section doesn't pop in under the
+    // fold once it resolves.
+    const hasRecentlyViewed = recent.isLoading || recent.contents.length > 0;
 
     return (
         <div className={layout.page}>
-            <div className={layout.heroSection}>
-                {isAiEnabled ? (
+            {/* Same favourites strip the published homepage puts above its
+                blocks — day-0 opens the same way */}
+            <PersonalFavoritesBar projectUuid={projectUuid} />
+            {/* Body rows always follow — Recently viewed and Pinned are the
+                point of day-0 — so the hero stays compact and they're on
+                screen. Same shell for both the AI and non-AI openings. */}
+            <div
+                className={layout.heroSection}
+                data-presentation="shared"
+                data-density="compact"
+            >
+                {opening === 'ask-first' ? (
                     <div className={layout.hero}>
                         <AskAiHero
                             projectUuid={projectUuid}
@@ -44,57 +137,44 @@ export const DayOneHomepage: FC<Props> = ({
                         />
                     </div>
                 ) : (
-                    <div className={classes.welcome}>
-                        <Group
-                            justify="space-between"
-                            align="flex-end"
-                            wrap="nowrap"
-                            mb={26}
-                        >
-                            <Box>
-                                <Text
-                                    component="h1"
-                                    fz={30}
-                                    fw={600}
-                                    lts="-0.02em"
-                                    m={0}
-                                >
-                                    Welcome to {projectName},{' '}
-                                    {user.data?.firstName}
-                                </Text>
-                                <Text c="dimmed" fz={15} mt={6}>
-                                    Nothing’s here yet — start exploring, or
-                                    your data team can curate this page.
-                                </Text>
-                            </Box>
-                            <Button
-                                component={Link}
-                                to={`/projects/${projectUuid}/tables`}
-                                leftSection={
-                                    <MantineIcon icon={IconSquareRoundedPlus} />
-                                }
-                                flex="0 0 auto"
-                            >
-                                New
-                            </Button>
-                        </Group>
-                        <QuickActionCards
-                            actions={getDefaultQuickActions(false)}
-                            projectUuid={projectUuid}
-                        />
+                    // Same hero shell and type scale as the Ask AI variant, so
+                    // both day-0 openings sit identically in the fold
+                    <div className={layout.hero}>
+                        <GreetingHero subtitle={DEFAULT_GREETING_SUBTITLE}>
+                            <QuickActionCards
+                                actions={getDefaultQuickActions()}
+                                projectUuid={projectUuid}
+                            />
+                        </GreetingHero>
                     </div>
                 )}
             </div>
 
             <div className={classes.secondary}>
                 <Stack gap="xl">
-                    <FavoritesPanel
-                        favoriteItems={favoriteItems}
-                        showEmptyState
+                    {/* Spaces lead the body: they're the one section that has
+                        content in any real project. Recently viewed is empty
+                        for a first-time viewer and Pinned is empty until
+                        someone curates, so neither can be the thing a new
+                        viewer is sent to first. */}
+                    <KeySpaces
+                        spaces={keySpaces}
+                        projectUuid={projectUuid}
+                        title="Start here"
                     />
-                    <PinnedItemsPanel
+                    {hasRecentlyViewed && (
+                        <Box>
+                            <BlockHeader
+                                icon={IconClock}
+                                title="Recently viewed"
+                            />
+                            <RecentList projectUuid={projectUuid} />
+                        </Box>
+                    )}
+                    <MostPopularSection projectUuid={projectUuid} />
+                    <PinnedCollection
+                        projectUuid={projectUuid}
                         pinnedItems={pinnedItems}
-                        isEnabled={pinnedIsEnabled}
                     />
                 </Stack>
             </div>

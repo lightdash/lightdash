@@ -6,8 +6,9 @@ import {
     Button,
     ActionIcon,
     Highlight,
-} from '@mantine-8/core';
-import { getDefaultZIndex, Portal } from '@mantine/core';
+    getDefaultZIndex,
+    Portal,
+} from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
@@ -59,7 +60,7 @@ const SharedEmojiPicker = forwardRef(
                         zIndex: getDefaultZIndex('overlay'),
                     }}
                 >
-                    <Paper shadow="xs" withBorder pt="xs" px="two">
+                    <Paper shadow="xs" pt="xs" px="two">
                         {emoji && (
                             <Group justify="flex-end">
                                 <Button
@@ -208,7 +209,6 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                         ref={setIconRef}
                         variant="default"
                         size={28}
-                        radius="md"
                         disabled={!canManageTags}
                         onClick={handleIconClick}
                         className={styles.iconButton}

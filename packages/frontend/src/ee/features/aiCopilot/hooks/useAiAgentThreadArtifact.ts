@@ -1,10 +1,15 @@
 import { type AiAgentThread } from '@lightdash/common';
 import { useEffect, useMemo, useRef } from 'react';
-import { clearPreview, setArtifact } from '../store/aiArtifactSlice';
+import {
+    clearPreview,
+    selectArtifactPreview,
+    setPreview,
+} from '../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../store/hooks';
+import { useDeepResearchThreadRunRegistrationState } from './useDeepResearch';
 
 interface UseAiAgentThreadArtifactOptions {
     projectUuid: string | undefined;
@@ -20,8 +25,22 @@ export const useAiAgentThreadArtifact = ({
     thread,
 }: UseAiAgentThreadArtifactOptions) => {
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
+    const artifact = useAiAgentStoreSelector(selectArtifactPreview);
+    const {
+        registrations: deepResearchRegistrations,
+        isReady: isDeepResearchRegistrationLookupReady,
+    } = useDeepResearchThreadRunRegistrationState({
+        projectUuid: threadUuid ? projectUuid : undefined,
+        threadUuid: threadUuid ?? '',
+    });
+    const deepResearchPromptUuids = useMemo(
+        () =>
+            new Set(
+                deepResearchRegistrations.map(
+                    (registration) => registration.promptUuid,
+                ),
+            ),
+        [deepResearchRegistrations],
     );
 
     const lastHandledMessageUuidRef = useRef<string | null>(null);
@@ -41,11 +60,20 @@ export const useAiAgentThreadArtifact = ({
             !msg ||
             msg.role !== 'assistant' ||
             !msg.artifacts ||
-            msg.artifacts.length === 0
-        )
+            msg.artifacts.length === 0 ||
+            deepResearchPromptUuids.has(msg.uuid)
+        ) {
             return null;
+        }
+        if (!isDeepResearchRegistrationLookupReady) {
+            return null;
+        }
         return msg;
-    }, [thread]);
+    }, [
+        deepResearchPromptUuids,
+        isDeepResearchRegistrationLookupReady,
+        thread,
+    ]);
 
     // Track when user manually closes an artifact
     useEffect(() => {
@@ -77,7 +105,8 @@ export const useAiAgentThreadArtifact = ({
         const latestArtifact = latestAssistantMessage.artifacts?.at(-1);
         if (!latestArtifact) return;
         dispatch(
-            setArtifact({
+            setPreview({
+                type: 'artifact',
                 artifactUuid: latestArtifact.artifactUuid,
                 versionUuid: latestArtifact.versionUuid,
                 messageUuid: latestAssistantMessage.uuid,

@@ -1,22 +1,30 @@
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchRunCard } from './DeepResearchRunCard';
 
 const cancelRun = vi.fn();
+const trackReportEngagement = vi.fn();
 
 vi.mock('../../hooks/useDeepResearch', () => ({
     useCancelDeepResearchMutation: () => ({
         mutate: cancelRun,
         isLoading: false,
     }),
+    useTrackDeepResearchReportEngagement: () => trackReportEngagement,
 }));
+
+const renderRunCard = (card: ReactElement) =>
+    renderWithProviders(<MemoryRouter>{card}</MemoryRouter>);
 
 describe('DeepResearchRunCard', () => {
     beforeEach(() => {
         cancelRun.mockClear();
+        trackReportEngagement.mockClear();
     });
 
     afterEach(() => {
@@ -27,9 +35,9 @@ describe('DeepResearchRunCard', () => {
         ['queued', 'Queued'],
         ['running', 'Running'],
     ] as const)(
-        'renders the %s active state without fake progress',
+        'renders the %s active state with one beta label and without fake progress',
         (status, label) => {
-            renderWithProviders(
+            renderRunCard(
                 <DeepResearchRunCard
                     run={{
                         ...deepResearchRunFixture,
@@ -43,19 +51,18 @@ describe('DeepResearchRunCard', () => {
             );
 
             expect(screen.getByText(label)).toBeInTheDocument();
-            expect(screen.getByText('Medium')).toBeInTheDocument();
+            expect(screen.getAllByText('Beta')).toHaveLength(1);
             expect(screen.getByText(/leave this page/i)).toBeInTheDocument();
             expect(screen.queryByText(/%/)).not.toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Stop research' }),
             ).toBeInTheDocument();
-            expect(screen.getAllByRole('separator')).toHaveLength(2);
         },
     );
 
     it('updates elapsed time once per second without milliseconds', async () => {
         vi.useFakeTimers();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -78,7 +85,7 @@ describe('DeepResearchRunCard', () => {
 
     it('cancels an active run and exposes safe activity', async () => {
         const user = userEvent.setup();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -92,6 +99,9 @@ describe('DeepResearchRunCard', () => {
 
         await user.click(screen.getByRole('button', { name: 'View activity' }));
         expect(
+            await screen.findByRole('list', { name: 'Research activity' }),
+        ).toBeInTheDocument();
+        expect(
             screen.getByText('Executed a warehouse query'),
         ).toBeInTheDocument();
 
@@ -100,13 +110,13 @@ describe('DeepResearchRunCard', () => {
     });
 
     it.each([
-        ['completed', 'Completed'],
-        ['cancelled', 'Cancelled'],
-        ['failed', 'Failed'],
+        ['completed', /^Completed in/],
+        ['cancelled', 'Stopped'],
+        ['failed', 'Couldn’t complete'],
     ] as const)(
         'renders the %s terminal state without a stop action',
         (status, label) => {
-            renderWithProviders(
+            renderRunCard(
                 <DeepResearchRunCard
                     run={{
                         ...deepResearchRunFixture,
@@ -129,13 +139,56 @@ describe('DeepResearchRunCard', () => {
                 screen.queryByRole('button', { name: 'Stop research' }),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByText('This run is saved in this thread.'),
-            ).toBeInTheDocument();
+                screen.queryByText('Saved in this thread.'),
+            ).not.toBeInTheDocument();
+
+            if (status === 'completed') {
+                expect(
+                    screen.getByText(
+                        'Completed in 18m · 7 queries · 2 findings',
+                    ),
+                ).toBeInTheDocument();
+                expect(screen.queryByText('Sources')).not.toBeInTheDocument();
+                expect(
+                    screen.queryByText(deepResearchRunFixture.question),
+                ).not.toBeInTheDocument();
+            }
         },
     );
 
+    it('shows how to refine a question when no relevant data was found', () => {
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'failed',
+                    terminalReason: 'no_relevant_data',
+                    resultMarkdown: null,
+                    errorMessage:
+                        'Deep Research could not find relevant data for this question.',
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(screen.getByText('No relevant data')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Deep Research could not find relevant data for this question.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Try refining your question or choosing data that covers the topic.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/completed queries and findings are saved/i),
+        ).not.toBeInTheDocument();
+    });
+
     it('preserves partial findings and offers the report', () => {
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -148,20 +201,151 @@ describe('DeepResearchRunCard', () => {
         expect(screen.getByText('Partially completed')).toBeInTheDocument();
         expect(
             screen.getByText(
-                /findings and completed queries have been preserved/i,
+                /completed queries and available findings are saved below/i,
             ),
         ).toBeInTheDocument();
-        expect(screen.getByText('Executive answer')).toBeInTheDocument();
+        expect(screen.getByText('Research summary')).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Open full report' }),
+            screen.getByRole('link', { name: 'View full report' }),
         ).toBeInTheDocument();
+    });
+
+    it('replaces expired report content with a stable rerun action', async () => {
+        const user = userEvent.setup();
+        const onRunAgain = vi.fn();
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    resultMarkdown: null,
+                    findingCount: 0,
+                    isReportExpired: true,
+                    reportExpiredAt: '2026-07-30T09:18:00.000Z',
+                }}
+                projectUuid="project-1"
+                canRunAgain
+                onRunAgain={onRunAgain}
+            />,
+        );
+
+        expect(
+            screen.getByText('This report is no longer available.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Deep Research reports are available for 30 days.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(deepResearchRunFixture.question),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Research summary')).not.toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Run research again' }),
+        );
+        expect(onRunAgain).toHaveBeenCalledOnce();
+    });
+
+    it('tracks explicitly opening the full report', async () => {
+        const user = userEvent.setup();
+        renderRunCard(
+            <DeepResearchRunCard
+                run={deepResearchRunFixture}
+                projectUuid="project-1"
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('link', { name: 'View full report' }),
+        );
+
+        expect(
+            screen.getByRole('link', { name: 'View full report' }),
+        ).toHaveAttribute(
+            'href',
+            `/projects/${deepResearchRunFixture.projectUuid}/ai-agents/deep-research/${deepResearchRunFixture.uuid}`,
+        );
+        expect(trackReportEngagement).toHaveBeenCalledWith('opened', {
+            aiDeepResearchRunUuid: deepResearchRunFixture.uuid,
+            projectUuid: deepResearchRunFixture.projectUuid,
+            agentUuid: deepResearchRunFixture.agentUuid,
+            aiThreadUuid: deepResearchRunFixture.threadUuid,
+            status: deepResearchRunFixture.status,
+            completedAt: deepResearchRunFixture.completedAt,
+            updatedAt: deepResearchRunFixture.updatedAt,
+        });
+    });
+
+    it('renders the research summary as Markdown', () => {
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'completed',
+                    resultMarkdown: `# Executive summary
+
+This has **important context**, a [source](https://example.com), and \`inline code\`.
+
+- First finding
+- Second finding
+
+## Findings
+
+The full report continues here.`,
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(
+            screen.getByRole('heading', { name: 'Executive summary' }),
+        ).toBeInTheDocument();
+        expect(
+            screen
+                .getByText('important context')
+                .closest('[data-streamdown="strong"]'),
+        ).not.toBeNull();
+        expect(screen.getByText('source')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'source' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'source' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen
+                .getByText('inline code')
+                .closest('[data-streamdown="inline-code"]'),
+        ).not.toBeNull();
+        expect(screen.getByRole('list')).toBeInTheDocument();
+        expect(
+            screen.queryByText('The full report continues here.'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('does not render remote images in the research summary preview', () => {
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'completed',
+                    resultMarkdown:
+                        '# Summary\n\n![secret](https://attacker.example/collect)',
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(screen.queryByRole('img')).not.toBeInTheDocument();
+        expect(document.body.innerHTML).not.toContain('attacker.example');
     });
 
     it('offers reconnection and continue-without-source recovery', async () => {
         const user = userEvent.setup();
         const onReconnect = vi.fn();
         const onContinue = vi.fn();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -193,7 +377,7 @@ describe('DeepResearchRunCard', () => {
     it('offers a permission action without discarding findings', async () => {
         const user = userEvent.setup();
         const onReviewPermissions = vi.fn();
-        renderWithProviders(
+        renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
@@ -209,10 +393,36 @@ describe('DeepResearchRunCard', () => {
             />,
         );
 
-        expect(screen.getByText('Executive answer')).toBeInTheDocument();
+        expect(screen.getByText('Research summary')).toBeInTheDocument();
         await user.click(
             screen.getByRole('button', { name: 'Review permissions' }),
         );
         expect(onReviewPermissions).toHaveBeenCalledOnce();
+    });
+
+    it('explains that starting over does not reuse previous queries', async () => {
+        const user = userEvent.setup();
+        const onRunAgain = vi.fn();
+        renderRunCard(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'failed',
+                    resultMarkdown: null,
+                }}
+                projectUuid="project-1"
+                canRunAgain
+                onRunAgain={onRunAgain}
+            />,
+        );
+
+        expect(
+            screen.getByText(
+                "Starting over creates a new research run. Previous queries won't be reused.",
+            ),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Start over' }));
+        expect(onRunAgain).toHaveBeenCalledOnce();
     });
 });

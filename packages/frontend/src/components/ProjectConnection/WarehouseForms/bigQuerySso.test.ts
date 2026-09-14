@@ -1,4 +1,22 @@
-import { largestDatasetName } from './bigQuerySso';
+import { BigqueryAuthenticationType } from '@lightdash/common';
+import {
+    getBigqueryDefaultAuthenticationType,
+    largestDatasetName,
+} from './bigQuerySso';
+
+describe('getBigqueryDefaultAuthenticationType', () => {
+    it('defaults to SSO when the instance has google oauth configured', () => {
+        expect(getBigqueryDefaultAuthenticationType(true)).toBe(
+            BigqueryAuthenticationType.SSO,
+        );
+    });
+
+    it('defaults to a service account key when google oauth is missing', () => {
+        expect(getBigqueryDefaultAuthenticationType(false)).toBe(
+            BigqueryAuthenticationType.PRIVATE_KEY,
+        );
+    });
+});
 
 describe('largestDatasetName', () => {
     it('returns the largest dataset with a positive known size', () => {

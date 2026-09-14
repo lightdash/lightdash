@@ -1,14 +1,24 @@
 import {
     ForbiddenError,
     ParameterError,
+    ProjectType,
     type ExternalConnection,
-    type SessionUser,
 } from '@lightdash/common';
+import { fromJwt } from '../../../auth/account';
+import { buildAccount } from '../../../auth/account/account.mock';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
-vi.mock('../../../utils/secureFetch/secureFetch');
+// Keep SecureFetchError real: auto-mocking the class would stub its
+// constructor and drop the reason/message the service forwards.
+vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
+    const actual =
+        await importOriginal<
+            typeof import('../../../utils/secureFetch/secureFetch')
+        >();
+    return { ...actual, secureFetch: vi.fn() };
+});
 
 const mockSecureFetch = vi.mocked(secureFetchModule.secureFetch);
 
@@ -19,6 +29,7 @@ const baseConnection = (
     projectUuid: 'proj-1',
     organizationUuid: 'org-1',
     name: 'Weather API',
+    slug: 'weather-api',
     type: 'none',
     origin: 'https://api.example.com',
     instructions: null,
@@ -32,12 +43,14 @@ const baseConnection = (
     apiKeyName: null,
     apiKeyLocation: null,
     oauthScopes: null,
+    customHeaders: null,
     hasSecret: false,
     createdByUserUuid: 'user-1',
     updatedByUserUuid: 'user-1',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
+    allowBrowserImages: overrides.allowBrowserImages ?? false,
 });
 
 const baseApp = () => ({
@@ -48,11 +61,52 @@ const baseApp = () => ({
     organization_uuid: 'org-1',
 });
 
-const user = {
-    userUuid: 'user-1',
-    organizationUuid: 'org-1',
-    ability: { can: () => true },
-} as unknown as SessionUser;
+const user = buildAccount();
+
+const buildEmbeddedDashboardUser = (allowAllDashboards = false) => {
+    const base = buildAccount({ accountType: 'jwt' });
+    return fromJwt({
+        decodedToken: {
+            user: { externalId: 'dashboard-viewer' },
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'test-dashboard-uuid',
+                canViewDataApps: true,
+            },
+        },
+        embed: { ...base.embed, allowAllDashboards },
+        source: 'dashboard-embed-token',
+        content: {
+            type: 'dashboard',
+            dashboardUuid: 'test-dashboard-uuid',
+            chartUuids: [],
+            explores: [],
+        },
+        userAttributes: base.access.controls!,
+    });
+};
+
+const buildEmbeddedDataAppUser = (appUuid = 'app-1') => {
+    const base = buildAccount({ accountType: 'jwt' });
+    return fromJwt({
+        decodedToken: {
+            user: { externalId: 'data-app-viewer' },
+            content: { type: 'dataApp', appUuid },
+        },
+        embed: { ...base.embed, allowAllApps: true, appUuids: [appUuid] },
+        source: 'data-app-embed-token',
+        content: {
+            type: 'dataApp',
+            appUuid,
+            chartUuids: [],
+            explores: [],
+        },
+        userAttributes: base.access.controls!,
+    });
+};
+
+const embeddedDashboardUser = buildEmbeddedDashboardUser();
+const embeddedDataAppUser = buildEmbeddedDataAppUser();
 
 function buildService(opts: {
     connection?: ExternalConnection | undefined;
@@ -60,27 +114,47 @@ function buildService(opts: {
     canView?: boolean;
     rateCount?: number;
     googleToken?: string;
+    dashboardsContainingApp?: string[];
+    appExists?: boolean;
 }) {
     const externalConnectionModel = {
         resolveAppAlias: vi.fn().mockResolvedValue(opts.connection),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? null),
         incrementRateCounter: vi.fn().mockResolvedValue(opts.rateCount ?? 1),
+        findProjectAbilityContext: vi.fn().mockResolvedValue({
+            organizationUuid: 'org-1',
+            projectType: ProjectType.DEFAULT,
+            projectCreatedByUserUuid: null,
+            upstreamProjectUuid: null,
+        }),
     };
     const googleTokenProvider = {
         getAccessToken: vi
             .fn()
             .mockResolvedValue(opts.googleToken ?? 'test-access-token'),
     };
+    const oauthClientCredentialsTokenProvider = {
+        getAccessToken: vi.fn().mockResolvedValue('test-oauth-access-token'),
+        invalidateAccessToken: vi.fn(),
+    };
     const appModel = {
         getApp: vi.fn().mockResolvedValue(baseApp()),
+        findApp: vi
+            .fn()
+            .mockResolvedValue(
+                opts.appExists === false ? undefined : baseApp(),
+            ),
+        findDashboardsContainingApp: vi
+            .fn()
+            .mockResolvedValue(opts.dashboardsContainingApp ?? []),
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
     };
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({}),
     };
-    const analytics = { track: vi.fn() };
+    const analytics = { track: vi.fn(), trackAccount: vi.fn() };
 
     const service = new ExternalConnectionService({
         externalConnectionModel,
@@ -89,6 +163,7 @@ function buildService(opts: {
         spacePermissionService,
         analytics,
         googleTokenProvider,
+        oauthClientCredentialsTokenProvider,
     } as never);
 
     // Force the CASL view decision deterministically.
@@ -106,6 +181,7 @@ function buildService(opts: {
         appModel,
         analytics,
         googleTokenProvider,
+        oauthClientCredentialsTokenProvider,
     };
 }
 
@@ -114,12 +190,136 @@ beforeEach(() => {
     mockSecureFetch.mockResolvedValue({
         status: 200,
         contentType: 'application/json',
+        headers: {},
         bodyText: '{"ok":true}',
         truncated: false,
     });
 });
 
 describe('ExternalConnectionService.proxyFetch', () => {
+    it('allows a standalone embed JWT to use a connection linked to its app', async () => {
+        const { service, appModel, analytics } = buildService({
+            connection: baseConnection(),
+        });
+
+        await service.proxyFetch(embeddedDataAppUser, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/today',
+        });
+
+        expect(mockSecureFetch).toHaveBeenCalledTimes(1);
+        expect(appModel.findDashboardsContainingApp).not.toHaveBeenCalled();
+        expect(analytics.trackAccount).toHaveBeenCalledWith(
+            embeddedDataAppUser,
+            expect.not.objectContaining({ userId: expect.anything() }),
+        );
+    });
+
+    it('rejects a standalone embed JWT for a different app', async () => {
+        const { service } = buildService({ connection: baseConnection() });
+
+        await expect(
+            service.proxyFetch(
+                buildEmbeddedDataAppUser('another-app'),
+                'proj-1',
+                'app-1',
+                {
+                    connectionAlias: 'weather',
+                    path: '/v1/today',
+                },
+            ),
+        ).rejects.toThrow('This embed is not authorized for this data app');
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('allows a dashboard embed JWT only when the app is on an allowed dashboard', async () => {
+        const allowedDashboardUuid =
+            embeddedDashboardUser.access.content.dashboardUuid!;
+        const { service, appModel } = buildService({
+            connection: baseConnection(),
+            dashboardsContainingApp: [allowedDashboardUuid],
+        });
+
+        await service.proxyFetch(embeddedDashboardUser, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/today',
+        });
+
+        expect(appModel.findDashboardsContainingApp).toHaveBeenCalledWith(
+            'app-1',
+            'proj-1',
+            [allowedDashboardUuid],
+        );
+        expect(mockSecureFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a dashboard embed JWT when the app is not on an allowed dashboard', async () => {
+        const { service } = buildService({
+            connection: baseConnection(),
+            dashboardsContainingApp: ['another-dashboard'],
+        });
+
+        await expect(
+            service.proxyFetch(embeddedDashboardUser, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toThrow('Data app is not authorized by this embed');
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not authorize an app outside the JWT dashboard when all dashboards are embeddable', async () => {
+        const allowAllDashboardUser = buildEmbeddedDashboardUser(true);
+        const { service, appModel } = buildService({
+            connection: baseConnection(),
+            dashboardsContainingApp: ['another-dashboard'],
+        });
+
+        await expect(
+            service.proxyFetch(allowAllDashboardUser, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toThrow('Data app is not authorized by this embed');
+        expect(appModel.findDashboardsContainingApp).toHaveBeenCalledWith(
+            'app-1',
+            'proj-1',
+            ['test-dashboard-uuid'],
+        );
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('rejects an embed JWT denied by the DataApp ability', async () => {
+        const { service, appModel } = buildService({
+            connection: baseConnection(),
+            canView: false,
+        });
+
+        await expect(
+            service.proxyFetch(embeddedDashboardUser, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toThrow('Insufficient permissions to access this data app');
+        expect(appModel.findDashboardsContainingApp).not.toHaveBeenCalled();
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not reveal whether an app exists to an embed JWT', async () => {
+        const { service, externalConnectionModel } = buildService({
+            connection: baseConnection(),
+            appExists: false,
+        });
+
+        await expect(
+            service.proxyFetch(embeddedDashboardUser, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(externalConnectionModel.resolveAppAlias).not.toHaveBeenCalled();
+    });
+
     it('rejects when the alias is not linked to the app', async () => {
         const { service } = buildService({ connection: undefined });
         await expect(
@@ -216,6 +416,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(res).toEqual({
             status: 200,
             contentType: 'application/json',
+            headers: {},
             body: { ok: true },
             truncated: false,
         });
@@ -440,6 +641,168 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(mockSecureFetch).not.toHaveBeenCalled();
     });
 
+    const OAUTH_CONNECTION = baseConnection({
+        type: 'oauth_client_credentials',
+        oauthTokenUrl: 'https://auth.example.com/oauth/token',
+        oauthClientId: 'client-1',
+        oauthClientAuthMethod: 'basic',
+        oauthScopes: ['read:data'],
+    });
+
+    it('mints and injects an OAuth client-credentials access token', async () => {
+        const { service, oauthClientCredentialsTokenProvider } = buildService({
+            connection: OAUTH_CONNECTION,
+            secret: 'client-secret',
+        });
+
+        await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+
+        expect(
+            oauthClientCredentialsTokenProvider.getAccessToken,
+        ).toHaveBeenCalledWith(
+            {
+                tokenUrl: 'https://auth.example.com/oauth/token',
+                clientId: 'client-1',
+                clientAuthMethod: 'basic',
+                scopes: ['read:data'],
+            },
+            'client-secret',
+        );
+        expect(mockSecureFetch.mock.calls[0][1].headers!.Authorization).toBe(
+            'Bearer test-oauth-access-token',
+        );
+    });
+
+    it('redacts an OAuth access token echoed by the resource server', async () => {
+        mockSecureFetch.mockResolvedValue({
+            status: 200,
+            contentType: 'application/json',
+            headers: {},
+            bodyText:
+                '{"authenticated":true,"token":"test-oauth-access-token"}',
+            truncated: false,
+        });
+        const { service } = buildService({
+            connection: OAUTH_CONNECTION,
+            secret: 'client-secret',
+        });
+
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).resolves.toMatchObject({
+            body: { authenticated: true, token: '[REDACTED]' },
+        });
+    });
+
+    it('refreshes a rejected OAuth token and retries the resource request once', async () => {
+        const authorizations: Array<string | undefined> = [];
+        mockSecureFetch.mockImplementation(async (_url, options) => {
+            authorizations.push(options.headers?.Authorization);
+            return {
+                status: authorizations.length === 1 ? 401 : 200,
+                contentType: 'application/json',
+                headers: {},
+                bodyText: '{}',
+                truncated: false,
+            };
+        });
+        const { service, oauthClientCredentialsTokenProvider } = buildService({
+            connection: OAUTH_CONNECTION,
+            secret: 'client-secret',
+        });
+        oauthClientCredentialsTokenProvider.getAccessToken
+            .mockResolvedValueOnce('expired-token')
+            .mockResolvedValueOnce('fresh-token');
+
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).resolves.toMatchObject({ status: 200 });
+
+        expect(authorizations).toEqual([
+            'Bearer expired-token',
+            'Bearer fresh-token',
+        ]);
+        expect(
+            oauthClientCredentialsTokenProvider.invalidateAccessToken,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ clientId: 'client-1' }),
+            'client-secret',
+            'expired-token',
+        );
+        expect(mockSecureFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry a persistent OAuth 401 more than once', async () => {
+        mockSecureFetch.mockResolvedValue({
+            status: 401,
+            contentType: 'application/json',
+            headers: {},
+            bodyText: '{}',
+            truncated: false,
+        });
+        const { service } = buildService({
+            connection: OAUTH_CONNECTION,
+            secret: 'client-secret',
+        });
+
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).resolves.toMatchObject({ status: 401 });
+        expect(mockSecureFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('sends the connection custom headers alongside the injected auth', async () => {
+        const { service } = buildService({
+            connection: baseConnection({
+                type: 'bearer_token',
+                customHeaders: {
+                    'anthropic-version': '2023-06-01',
+                    Accept: 'application/json',
+                },
+            }),
+            secret: 'tok_abc',
+        });
+        await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        const [, opts] = mockSecureFetch.mock.calls[0];
+        expect(opts.headers!['anthropic-version']).toBe('2023-06-01');
+        expect(opts.headers!.Accept).toBe('application/json');
+        expect(opts.headers!.Authorization).toBe('Bearer tok_abc');
+    });
+
+    it('fails closed on a stored forbidden custom header (Content-Type)', async () => {
+        // Belt-and-braces: content-type is rejected at write time, but even a
+        // row that bypassed validation must fail closed rather than override.
+        const { service } = buildService({
+            connection: baseConnection({
+                customHeaders: { 'Content-Type': 'text/evil' },
+            }),
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                method: 'POST',
+                path: '/v1/echo',
+                body: {},
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
     it('rejects an api_key configured to inject a forbidden header (Host)', async () => {
         const { service } = buildService({
             connection: baseConnection({
@@ -474,9 +837,42 @@ describe('ExternalConnectionService.proxyFetch', () => {
             });
             await expect(promise).rejects.toBeInstanceOf(ParameterError);
             const err = await promise.catch((e) => e);
-            expect(err.message).not.toMatch(/10\.0\.0\.1/);
+            expect(err.message).toBe(
+                `Upstream request was blocked (${reason})`,
+            );
         },
     );
+
+    it('forwards an upstream error response (status + body) instead of throwing', async () => {
+        mockSecureFetch.mockResolvedValueOnce({
+            status: 400,
+            contentType: 'application/json',
+            headers: { 'retry-after': '5' },
+            bodyText: '{"error":"anthropic-version header is required"}',
+            truncated: false,
+        });
+        const { service, analytics } = buildService({
+            connection: baseConnection(),
+        });
+        const res = await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        expect(res.status).toBe(400);
+        expect(res.body).toEqual({
+            error: 'anthropic-version header is required',
+        });
+        expect(res.headers).toEqual({ 'retry-after': '5' });
+        expect(analytics.trackAccount).toHaveBeenCalledWith(
+            user,
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    status: 400,
+                    outcome: 'upstream_error',
+                }),
+            }),
+        );
+    });
 
     it('rate-limits the 2nd POST over the limit with a 429-class error', async () => {
         const { service } = buildService({
@@ -512,6 +908,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         mockSecureFetch.mockResolvedValueOnce({
             status: 200,
             contentType: 'text/plain',
+            headers: {},
             bodyText: 'plain text',
             truncated: false,
         });
@@ -531,6 +928,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         mockSecureFetch.mockResolvedValueOnce({
             status: 200,
             contentType: 'application/json',
+            headers: {},
             bodyText: 'not json{',
             truncated: false,
         });
@@ -546,6 +944,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         mockSecureFetch.mockResolvedValueOnce({
             status: 200,
             contentType: 'application/geo+json; charset=utf-8',
+            headers: {},
             bodyText: '{"type":"FeatureCollection","features":[]}',
             truncated: false,
         });
@@ -602,7 +1001,8 @@ describe('ExternalConnectionService.proxyFetch', () => {
             path: '/v1/x',
             body: { secret_payload: 'do-not-log' },
         });
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analytics.trackAccount).toHaveBeenCalledWith(
+            user,
             expect.objectContaining({
                 event: 'external_connection.fetch',
                 properties: expect.objectContaining({
@@ -613,7 +1013,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
                 }),
             }),
         );
-        const tracked = JSON.stringify(analytics.track.mock.calls);
+        const tracked = JSON.stringify(analytics.trackAccount.mock.calls);
         expect(tracked).not.toContain('tok_secret');
         expect(tracked).not.toContain('do-not-log');
     });

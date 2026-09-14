@@ -332,6 +332,14 @@ const credentialsTarget = (
                     },
                 };
             }
+            if (
+                credentials.connectionType === DuckdbConnectionType.EMBEDDED ||
+                credentials.connectionType === DuckdbConnectionType.ANALYTICS
+            ) {
+                throw new ParameterError(
+                    'Embedded DuckDB credentials cannot be used for dbt compilation',
+                );
+            }
             const alias = credentials.catalogAlias ?? 'ducklake';
             const extensions: string[] = ['ducklake'];
             const environment: Record<string, string> = {};

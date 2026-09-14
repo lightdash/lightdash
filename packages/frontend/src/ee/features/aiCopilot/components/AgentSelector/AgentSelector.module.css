@@ -53,6 +53,11 @@
     }
 }
 
+.settingsOptions {
+    max-height: rem(240px);
+    overflow-y: auto;
+}
+
 .compact {
     width: auto;
     height: rem(30px);

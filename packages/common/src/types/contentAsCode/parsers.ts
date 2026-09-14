@@ -146,6 +146,26 @@ const parseUserRole = (value: unknown, source: string): UserAsCodeRole => {
     } as UserAsCodeRole;
 };
 
+const parseAdditionalUserRoles = (
+    value: unknown,
+    source: string,
+): Extract<UserAsCodeRole, { type: 'custom' }>[] => {
+    if (!Array.isArray(value)) {
+        throw new ParameterError(
+            `Invalid user file "${source}": expected additionalRoles to be an array`,
+        );
+    }
+    return value.map((entry) => {
+        const role = parseUserRole(entry, source);
+        if (role.type !== 'custom') {
+            throw new ParameterError(
+                `Invalid user file "${source}": additionalRoles may only contain custom roles`,
+            );
+        }
+        return role;
+    });
+};
+
 export const parseUserAsCode = (input: unknown, source: string): UserAsCode => {
     const value = asCodeObject(input, 'user', source);
     requireVersionOne(value, 'user', source);
@@ -154,10 +174,15 @@ export const parseUserAsCode = (input: unknown, source: string): UserAsCode => {
             `Invalid user file "${source}": expected disabled to be a boolean`,
         );
     }
+    const additionalRoles =
+        value.additionalRoles === undefined
+            ? undefined
+            : parseAdditionalUserRoles(value.additionalRoles, source);
     return {
         version: CONTENT_AS_CODE_VERSION,
         email: requireString(value, 'email', 'user', source),
         disabled: value.disabled,
         role: parseUserRole(value.role, source),
+        ...(additionalRoles ? { additionalRoles } : {}),
     };
 };

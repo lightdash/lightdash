@@ -431,6 +431,19 @@
                 "apostrophePeriod"
             ]
         },
+        "aiHint": {
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            ]
+        },
         "filterItem": {
             "type": "object",
             "additionalProperties": {
@@ -528,23 +541,17 @@
                                     "type": "string"
                                 },
                                 "ai_hint": {
-                                    "oneOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            }
-                                        }
-                                    ],
+                                    "$ref": "#/$defs/aiHint",
                                     "description": "Hints inherited by fields in this group for AI-powered query generation"
                                 }
                             },
                             "required": ["label"]
                         }
                     }
+                },
+                "ai_hint": {
+                    "$ref": "#/$defs/aiHint",
+                    "description": "Hints for AI-powered query generation"
                 },
                 "metrics": {
                     "type": "object",
@@ -581,6 +588,10 @@
                                 "description": {
                                     "type": "string",
                                     "minLength": 1
+                                },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
                                 },
                                 "sql": {
                                     "type": "string",
@@ -865,6 +876,41 @@
                                     "type": "string"
                                 }
                             },
+                            "table": {
+                                "type": "string",
+                                "minLength": 1,
+                                "pattern": "^(?:[A-Za-z_][A-Za-z0-9_$]*|\"(?:\"\"|[^\"\\u0000-\\u001F])+\"|`[^`\\u0000-\\u001F]+`)(?:\\.(?:[A-Za-z_][A-Za-z0-9_$]*|\"(?:\"\"|[^\"\\u0000-\\u001F])+\"|`[^`\\u0000-\\u001F]+`))*$",
+                                "description": "External table: a qualified identifier for a customer-managed warehouse table or view that Lightdash does not create or refresh. It must expose the pre-aggregate's generated column names. When set, Lightdash never materializes this pre-aggregate; materialization keys (refresh, sorts, max_rows, materialization_role) are ignored."
+                            },
+                            "sorts": {
+                                "description": "Materialization sort order. When omitted, Lightdash automatically sorts the time dimension first and descending, then all remaining materialized dimensions ascending. Set to false or [] to disable sorting, or provide canonical query sort entries with a compiled Lightdash fieldId and explicit descending value. Compiled time-dimension IDs include granularity (for example, orders_order_date_day) and must be updated when granularity changes. Sort order determines which rows are retained when max_rows truncates results.",
+                                "oneOf": [
+                                    {
+                                        "const": false
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "fieldId": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "descending": {
+                                                    "description": "Whether to sort descending. Must be an unquoted YAML boolean.",
+                                                    "enum": [true, false]
+                                                }
+                                            },
+                                            "required": [
+                                                "fieldId",
+                                                "descending"
+                                            ],
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
                             "filters": {
                                 "type": "array",
                                 "items": {
@@ -1111,6 +1157,10 @@
                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
                     "items": { "$ref": "#/$defs/filterItem" }
                 },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "When true, no explore is generated for the model itself. The model is still available as a join target and as the base table for explores defined under `explores`."
+                },
                 "explores": {
                     "type": "object",
                     "description": "Defines custom explores for this model",
@@ -1127,6 +1177,20 @@
                                     "type": "array",
                                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
                                     "items": { "$ref": "#/$defs/filterItem" }
+                                },
+                                "tags": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    ],
+                                    "description": "Tags for organizing and filtering this explore. Overrides model tags when set."
                                 },
                                 "sql_filter": {
                                     "type": "string",
@@ -1194,6 +1258,10 @@
                                 "description": {
                                     "type": "string",
                                     "minLength": 1
+                                },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
                                 },
                                 "sql": {
                                     "type": "string",
@@ -1446,6 +1514,10 @@
                             "type": "string",
                             "minLength": 1
                         },
+                        "ai_hint": {
+                            "$ref": "#/$defs/aiHint",
+                            "description": "Hints for AI-powered query generation"
+                        },
                         "sql": {
                             "type": "string",
                             "minLength": 1
@@ -1453,6 +1525,11 @@
                         "convert_timezone": {
                             "type": "boolean",
                             "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
+                        },
+                        "timestamp_domain": {
+                            "type": "string",
+                            "enum": ["aware", "naive"],
+                            "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
                         },
                         "hidden": {
                             "type": "boolean"
@@ -1682,6 +1759,22 @@
                                 "label_dimension": {
                                     "type": "string",
                                     "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                                },
+                                "options_from_dimension": {
+                                    "type": "object",
+                                    "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
+                                    "properties": {
+                                        "model": {
+                                            "type": "string"
+                                        },
+                                        "dimension": {
+                                            "type": "string"
+                                        },
+                                        "label_dimension": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["model", "dimension"]
                                 }
                             }
                         }
@@ -1710,6 +1803,10 @@
                                 "description": {
                                     "type": "string",
                                     "minLength": 1
+                                },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
                                 },
                                 "sql": {
                                     "type": "string",
@@ -1763,6 +1860,11 @@
                                 "convert_timezone": {
                                     "type": "boolean",
                                     "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
+                                },
+                                "timestamp_domain": {
+                                    "type": "string",
+                                    "enum": ["aware", "naive"],
+                                    "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
                                 },
                                 "hidden": {
                                     "type": "boolean"
@@ -1929,6 +2031,22 @@
                                         "label_dimension": {
                                             "type": "string",
                                             "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                                        },
+                                        "options_from_dimension": {
+                                            "type": "object",
+                                            "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
+                                            "properties": {
+                                                "model": {
+                                                    "type": "string"
+                                                },
+                                                "dimension": {
+                                                    "type": "string"
+                                                },
+                                                "label_dimension": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["model", "dimension"]
                                         }
                                     }
                                 }

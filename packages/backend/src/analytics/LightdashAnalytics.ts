@@ -1,14 +1,19 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import {
     Account,
+    AdminNotificationType,
     AI_WRITEBACK_STAGES,
     AnyType,
     CacheMetadata,
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    ContentReviewContentType,
+    ContentReviewNotificationEvent,
     ContentType,
     DbtProjectType,
+    ExternalSourceScope,
+    ExternalSourceType,
     getRequestMethod,
     InviteLinkPurpose,
     LightdashInstallType,
@@ -16,6 +21,8 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    MergeJoinType,
+    MergeQueryErrorKind,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PinnedItem,
@@ -28,17 +35,36 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AiAgentMemoryConsolidationTrigger,
+    type AiAgentMemoryScope,
+    type AiAgentMemoryStatus,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackStrategy,
     type AiAgentRootCause,
+    type AiDeepResearchEntryPoint,
+    type AiDeepResearchFailureStage,
+    type AiDeepResearchTerminalReason,
+    type AiDeepResearchTerminalStatus,
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
     type AiWritebackFailureStage,
+    type AiWritebackWorkstream,
     type AppVersionDependencyEntry,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
+    type DataAppCodingAgent,
+    type DataAppCodingAgentModel,
+    type DataAppCreationExperience,
     type DataAppTemplate,
+    type FunnelChartDataInput,
+    type MapChartLocation,
+    type MapChartType,
+    type MapTileBackground,
+    type PersistentDownloadFileAccessMode,
+    type PlaygroundProjectTrigger,
     type PullRequestProvider,
+    type WarehousePhaseTimings,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -48,9 +74,17 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import Logger from '../logging/logger';
+import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
+import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
+import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
+import type {
+    UpgradeEventName,
+    UpgradeEventProperties,
+} from './upgradeTelemetryEvents';
 
 type Identify = {
     userId: string;
@@ -63,6 +97,7 @@ type Identify = {
     };
 };
 export type BaseTrack = Omit<AnalyticsTrack, 'context'>;
+export const ANONYMOUS_TRACKING_UUID = '00000000-0000-0000-0000-000000000000';
 export type OnboardingFlow = 'new' | 'legacy';
 export type OneTimePasscodePurpose =
     | 'signup_verification'
@@ -154,8 +189,13 @@ export type DeleteUserEvent = BaseTrack & {
         email: string | undefined;
         organizationId: string | undefined;
         deletedUserId: string;
+        isTrackingAnonymized: boolean;
     };
 };
+
+function isUserDeletedEvent(event: BaseTrack): event is DeleteUserEvent {
+    return event.event === 'user.deleted';
+}
 
 export type UpdateUserEvent = BaseTrack & {
     event: 'user.updated';
@@ -165,6 +205,17 @@ export type UpdateUserEvent = BaseTrack & {
         organizationId: string | undefined;
         jobTitle?: string;
         context: string; // context on where/why this user was updated
+    };
+};
+
+type HearAboutUsSubmittedEvent = BaseTrack & {
+    event: 'hear_about_us.submitted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        onboardingFlow: OnboardingFlow;
+        answered: boolean;
+        answer: string | null;
     };
 };
 
@@ -285,6 +336,15 @@ type UserJoinOrganizationEvent = BaseTrack & {
     };
 };
 
+type UserLeftOrganizationEvent = BaseTrack & {
+    event: 'user.left_organization';
+    userId: string;
+    properties: {
+        organizationId: string;
+        wasOrganizationAdmin: boolean;
+    };
+};
+
 export const getContextFromHeader = (req: Request) => {
     const method = getRequestMethod(req.header(LightdashRequestMethodHeader));
     switch (method) {
@@ -374,7 +434,11 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
-type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
+type QueryExecutionSource =
+    | 'warehouse'
+    | 'pre_aggregate_duckdb'
+    | 'pre_aggregate_warehouse'
+    | 'external_source_duckdb';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -423,6 +487,9 @@ export type QueryCompletedEvent = BaseTrack & {
         executionSource: QueryExecutionSource | null;
         warehouseType: WarehouseTypes | null;
         warehouseExecutionTimeMs: number | null;
+        // Phase breakdown of warehouseExecutionTimeMs. Absent phases mean the
+        // adapter does not report them.
+        warehousePhaseTimings: WarehousePhaseTimings | null;
         totalRowCount: number | null;
         columnsCount: number | null;
     };
@@ -527,6 +594,52 @@ type ResultsCacheDeleteEvent = BaseTrack & {
     };
 };
 
+/** The one engine merges run on; kept as a property so the event shape holds. */
+export type MergeEngine = 'compose';
+export type MergeSourceKind = 'metric' | 'result';
+/** The row cap has no compile-time kind: a leg is known to have reached it only once it has run. */
+export type MergeRefusalKind = MergeQueryErrorKind | 'row_cap';
+
+export type MergeQueryShapeProperties = {
+    organizationId: string;
+    projectId: string;
+    context: QueryExecutionContext;
+    joinType: MergeJoinType;
+    sourceKinds: MergeSourceKind[];
+    sourceCount: number;
+    joinKeyCount: number;
+    tableCalculationCount: number;
+};
+
+export type MergeQueryExecutedEvent = BaseTrack & {
+    event: 'merge_query.executed';
+    properties: MergeQueryShapeProperties & {
+        queryId: string;
+        engine: MergeEngine;
+        status: 'ready' | 'error';
+        /** Whether the merged result itself was served from cache. */
+        cacheHit: boolean;
+        /** Legs this merge ran; referenced results run nothing. */
+        legCount: number;
+        legCacheHitCount: number;
+        rowCount: number | null;
+        /** Submission to terminal state, including waiting on the legs. */
+        durationMs: number | null;
+        joinExecutionTimeMs: number | null;
+    };
+};
+
+export type MergeQueryRefusedEvent = BaseTrack & {
+    event: 'merge_query.refused';
+    properties: MergeQueryShapeProperties & {
+        kind: MergeRefusalKind;
+        kinds: MergeRefusalKind[];
+        refusalCount: number;
+        /** Set when the refusal arrived as the merged query's error, as the row cap does. */
+        queryId: string | null;
+    };
+};
+
 type SubtotalQueryEvent = BaseTrack & {
     event: 'query.subtotal';
     properties: {
@@ -606,6 +719,28 @@ type UpdateSavedChartEvent = BaseTrack & {
         savedQueryId: string;
         dashboardId: string | undefined;
         virtualViewId: string | undefined;
+        hasRowLimit: boolean;
+        rowLimitCount: number | null;
+        hasColumnLimit: boolean;
+        columnLimit: number | null;
+        customColumnWidthsCount: number;
+        tableCalculationFunctions: string[];
+        hasAverageDistinctAdditionalMetric: boolean;
+        numCustomGroupBinCustomDimensions: number;
+        // True when a direct dashboard grant was present in the authorizing
+        // context; grantOnly when it was the user's only access path.
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
+    };
+};
+
+type SavedChartExploreChangedEvent = BaseTrack & {
+    event: 'saved_chart.explore_changed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartId: string;
     };
 };
 type DeleteSavedChartEvent = BaseTrack & {
@@ -614,6 +749,8 @@ type DeleteSavedChartEvent = BaseTrack & {
         projectId: string;
         savedQueryId: string;
         softDelete: boolean;
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
     };
 };
 
@@ -737,6 +874,27 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         pie?: {
             isDonut: boolean;
         };
+        funnel?: {
+            dataInput: FunnelChartDataInput | undefined;
+        };
+        treemap?: {
+            visibleMin: number | undefined;
+            leafDepth: number | undefined;
+            dimensionCount: number;
+            startColor: string | undefined;
+            endColor: string | undefined;
+            useDynamicColors: boolean | undefined;
+            startColorThreshold: number | undefined;
+            endColorThreshold: number | undefined;
+        };
+        map?: {
+            mapType: MapChartLocation | undefined;
+            locationType: MapChartType | undefined;
+            hasCustomGeoJson: boolean;
+            tileBackground: MapTileBackground | null;
+            darkModeTileBackground: MapTileBackground | null;
+            savesMapExtent: boolean;
+        };
         table?: {
             conditionalFormattingRulesCount: number;
             hasMetricsAsRows: boolean;
@@ -750,11 +908,27 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
             size: number;
             type: string;
         };
+        // Join key linking a saved chart to its data app viz
+        dataAppViz?: {
+            dataAppVizUuid: string;
+            mappedFieldCount: number;
+            changedOptionCount: number;
+        };
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
+        numCustomGroupBinCustomDimensions: number;
         numCustomSqlDimensions: number;
         parametersCount: number;
+        hasRowLimit: boolean;
+        rowLimitCount: number | null;
+        hasColumnLimit: boolean;
+        columnLimit: number | null;
+        customColumnWidthsCount: number;
+        tableCalculationFunctions: string[];
+        hasAverageDistinctAdditionalMetric: boolean;
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
     };
 };
 
@@ -827,6 +1001,163 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         homepageUuid: string;
+        onboardingFlow: OnboardingFlow;
+        homepageBuilderEnablement: HomepageBuilderEnablement | null;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
+    };
+};
+
+type OrganizationHomepageSettingsUpdatedEvent = BaseTrack & {
+    event: 'organization_homepage_settings.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        enabled: boolean;
+        opening: 'ask-first' | 'content-first' | null;
+        previouslyEnabled: boolean;
+    };
+};
+
+type HomepagePublishedEvent = BaseTrack & {
+    event: 'homepage.published';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        homepageUuid: string;
+        audienceType: 'everyone' | 'groups' | 'roles';
+        blockTypeCounts: Record<string, number>;
+        openingBlockType: string | null;
+    };
+};
+
+export type OnboardingHomepageSkippedReason =
+    | 'new_onboarding_flag_disabled'
+    | 'homepage_builder_flag_disabled'
+    | 'not_first_project'
+    | 'homepage_already_exists';
+
+type OnboardingHomepageSkippedEvent = BaseTrack & {
+    event: 'onboarding_homepage.skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        onboardingFlow: OnboardingFlow;
+        homepageBuilderEnablement: HomepageBuilderEnablement | null;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
+        reason: OnboardingHomepageSkippedReason;
+    };
+};
+
+type OnboardingHomepageFailedEvent = BaseTrack & {
+    event: 'onboarding_homepage.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        onboardingFlow: OnboardingFlow;
+        homepageBuilderEnablement: HomepageBuilderEnablement | null;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
+        errorType: string;
+    };
+};
+
+type OnboardingOrgFlagsProvisionedEvent = BaseTrack & {
+    event: 'onboarding_org_flags.provisioned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        onboardingFlow: OnboardingFlow;
+        homepageBuilderEnablement: HomepageBuilderEnablement;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
+    };
+};
+
+export type HomepageBuilderEnablement =
+    | EnsureOrganizationOverrideOutcome
+    | 'failed';
+
+export type CodingAgentOnboardingEnablement =
+    | EnsureOrganizationOverrideOutcome
+    | 'failed';
+
+type PlaygroundProjectProvisionedEvent = BaseTrack & {
+    event: 'playground_project.provisioned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        trigger: PlaygroundProjectTrigger;
+        onboardingFlow: OnboardingFlow;
+        contentSeedErrorType: string | null;
+        catalogIndexErrorType: string | null;
+    };
+};
+
+export type PlaygroundProjectSkippedReason =
+    | 'new_onboarding_flag_disabled'
+    | 'playground_already_exists'
+    | 'organization_has_project'
+    | 'no_project_access'
+    | 'playground_previously_removed';
+
+type PlaygroundProjectSkippedEvent = BaseTrack & {
+    event: 'playground_project.skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        trigger: PlaygroundProjectTrigger;
+        onboardingFlow: OnboardingFlow;
+        reason: PlaygroundProjectSkippedReason;
+    };
+};
+
+type PlaygroundProjectFailedEvent = BaseTrack & {
+    event: 'playground_project.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        trigger: PlaygroundProjectTrigger;
+        onboardingFlow: OnboardingFlow;
+        errorType: string;
+    };
+};
+
+type TrainingProjectProvisionedEvent = BaseTrack & {
+    event: 'training_project.provisioned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentSeedErrorType: string | null;
+        catalogIndexErrorType: string | null;
+    };
+};
+
+export type TrainingProjectSkippedReason =
+    | 'learn_disabled'
+    | 'training_project_already_exists';
+
+type TrainingProjectSkippedEvent = BaseTrack & {
+    event: 'training_project.skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        reason: TrainingProjectSkippedReason;
+    };
+};
+
+type TrainingProjectFailedEvent = BaseTrack & {
+    event: 'training_project.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        errorType: string;
     };
 };
 
@@ -868,6 +1199,17 @@ type ProjectCompiledEvent = BaseTrack & {
         modelsWithSqlFiltersCount: number;
         columnAccessFiltersCount: number;
         additionalDimensionsCount: number;
+        dbtSourceCount: number;
+    };
+};
+
+type DbtSourceEvent = BaseTrack & {
+    event: 'dbt_source_added' | 'dbt_source_removed';
+    userId?: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        dbtSourceCount: number;
     };
 };
 
@@ -914,6 +1256,9 @@ type UpdatedDashboardEvent = BaseTrack & {
         markdownTilesCount: number;
         loomTilesCount: number;
         filtersCount: number;
+        dimensionFilterCount: number;
+        metricFilterCount: number;
+        lockedFilterCount: number;
     };
 };
 
@@ -925,6 +1270,8 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         projectId: string;
         dashboardId: string;
         filtersCount: number;
+        dimensionFilterCount: number;
+        metricFilterCount: number;
         tilesCount: number;
         chartTilesCount: number;
         sqlChartTilesCount: number;
@@ -1011,6 +1358,8 @@ type ProjectSearch = BaseTrack & {
         fieldsResultsCount: number;
         dashboardTabsResultsCount: number;
         source: 'omnibar' | 'ai_search_box';
+        verifiedOnly: boolean;
+        typeFilter: string | null;
     };
 };
 type DashboardUpdateMultiple = BaseTrack & {
@@ -1096,6 +1445,20 @@ type ShareSlack = BaseTrack & {
     };
 };
 
+// Incidence measure for the app screenshot ready-indicator wait in
+// UnfurlService: whether the indicator was detected before the timeout, and
+// how long the wait took.
+type AppReadyWaitEvent = BaseTrack & {
+    event: 'headless_browser.app_ready_wait';
+    anonymousId: string;
+    properties: {
+        ready: boolean;
+        waitMs: number;
+        context: string;
+        imageId: string;
+    };
+};
+
 type SavedChartView = BaseTrack & {
     event: 'saved_chart.view';
     userId?: string;
@@ -1104,6 +1467,7 @@ type SavedChartView = BaseTrack & {
         projectId: string;
         organizationId: string;
         parametersCount: number;
+        chartType: ChartType;
     };
 };
 
@@ -1191,6 +1555,10 @@ export type CreateSqlChartVersionEvent = BaseTrack & {
         pieChart?: {
             groupByCount: number;
         };
+        bigNumber?: {
+            hasComparison: boolean;
+            aggregationTypes: string[];
+        };
     };
 };
 
@@ -1272,6 +1640,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         }>;
         timeZone: string | undefined;
         includeLinks: boolean;
+        plainTextEmail: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {
@@ -1331,6 +1700,14 @@ export type SchedulerJobEvent = BaseTrack & {
         sendNow?: boolean;
         isThresholdAlert?: boolean;
         error?: string;
+        // App csv/xlsx deliveries only: shape of what the capture render
+        // produced and how much of it reached recipients.
+        capturedQueryCount?: number;
+        deliveredFileCount?: number;
+        renderFailureCount?: number;
+        downloadFailureCount?: number;
+        noticeCount?: number;
+        captureOverflow?: boolean;
     };
 };
 
@@ -1374,11 +1751,16 @@ export type DataAppCreatedEvent = BaseTrack & {
         version: number;
         promptLength: number;
         imageCount: number;
+        fileCount: number;
         template: DataAppTemplate | null;
-        claudeModel: DataAppClaudeModel;
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
         samplesRequested: number;
         samplesAvailable: number;
         clarificationCount: number;
+        claudeEffort: DataAppClaudeEffort;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
@@ -1393,13 +1775,36 @@ export type DataAppIteratedEvent = BaseTrack & {
         iterationNumber: number;
         promptLength: number;
         imageCount: number;
-        claudeModel: DataAppClaudeModel;
+        fileCount: number;
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
         themeChanged: boolean;
         designUuid: string | null;
+        claudeEffort: DataAppClaudeEffort;
         previousVersionStatus: string | null;
         msSinceLastVersion: number | null;
         samplesRequested: number;
         samplesAvailable: number;
+        creationExperience: DataAppCreationExperience | null;
+    };
+};
+
+export type DataAppUpgradeRequestedEvent = BaseTrack & {
+    event: 'data_app.upgrade_requested';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        /** What the app's bundle self-reported; null for older bundles. */
+        reportedSdkVersion: string | null;
+        reportedFeatureCount: number | null;
+        /** Feature keys the frontend computed as possibly-new — what this
+         *  upgrade can newly enable. Compare with the app's next
+         *  reportedFeatures to measure adoption. Null for older clients. */
+        candidateFeatureKeys: string[] | null;
     };
 };
 
@@ -1413,6 +1818,7 @@ export type DataAppVersionCancelledEvent = BaseTrack & {
         version: number;
         stageAtCancellation: string;
         msElapsedBeforeCancel: number;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
@@ -1425,9 +1831,13 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
-        claudeModel: DataAppClaudeModel;
-        claudeProvider: 'anthropic' | 'bedrock';
+        isUpgrade: boolean;
+        claudeModel?: DataAppClaudeModel;
+        codingAgent: DataAppCodingAgent;
+        codingAgentModel: DataAppCodingAgentModel;
+        claudeProvider: 'anthropic' | 'bedrock' | 'openai';
         schedulerWaitMs: number;
+        claudeEffort: DataAppClaudeEffort;
         wasResumed: boolean;
         totalDurationMs: number;
         sandboxMs?: number;
@@ -1442,7 +1852,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         buildFixAttempts: number;
         buildFixGenerationMs: number;
         toolCallCount: number;
-        // Token/turn/cost usage summed across every `claude` invocation and
+        // Token/turn/cost usage summed across every coding-agent invocation and
         // retry in the build (main generation + build-fix + metadata). Used
         // to decompose `generateMs` into output volume vs turn count and to
         // confirm prompt caching is landing (`cacheReadInputTokens > 0`).
@@ -1452,7 +1862,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         cacheCreationInputTokens: number;
         numTurns: number;
         durationApiMs: number;
-        totalCostUsd: number;
+        totalCostUsd: number | null;
         generationAttemptCount: number;
         // Latency shape of the logical main generation, including retries:
         // time-to-first-token and the slowest single turn. Not combined with
@@ -1465,6 +1875,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         catalogYamlBytes: number;
         distBytes: number;
         sourceBytes: number;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
@@ -1477,10 +1888,15 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
-        claudeModel: DataAppClaudeModel;
-        claudeProvider?: 'anthropic' | 'bedrock';
+        isUpgrade: boolean;
+        claudeModel?: DataAppClaudeModel;
+        codingAgent?: DataAppCodingAgent;
+        codingAgentModel?: DataAppCodingAgentModel;
+        claudeProvider?: 'anthropic' | 'bedrock' | 'openai';
         schedulerWaitMs?: number;
+        claudeEffort: DataAppClaudeEffort;
         failureStage:
+            | 'authorization'
             | 'sandbox'
             | 'catalog'
             | 'generating'
@@ -1510,20 +1926,23 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         cacheCreationInputTokens?: number;
         numTurns?: number;
         durationApiMs?: number;
-        totalCostUsd?: number;
+        totalCostUsd?: number | null;
         generationAttemptCount?: number;
         timeToFirstTokenMs?: number | null;
         slowestTurnMs?: number;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
-export type DataAppImageUploadedEvent = BaseTrack & {
-    event: 'data_app.image_uploaded';
+export type DataAppFileUploadedEvent = BaseTrack & {
+    event: 'data_app.file_uploaded';
     userId: string;
     properties: {
         organizationId: string;
         projectId: string;
         appUuid?: string;
+        fileId: string;
+        category: 'image' | 'pdf' | 'text';
         mimeType: string;
         sizeBytes?: number;
     };
@@ -1560,6 +1979,21 @@ export type DataAppDuplicatedEvent = BaseTrack & {
         appUuid: string;
         duplicatedFromAppUuid: string;
         duplicatedFromVersion: number;
+        // Non-null = fork of a registry-installed official chart type.
+        duplicatedFromRegistrySlug: string | null;
+    };
+};
+
+export type DataAppDeletedEvent = BaseTrack & {
+    event: 'data_app.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        softDelete: boolean;
+        // Non-null = uninstall of a registry-installed official chart type.
+        registrySlug: string | null;
     };
 };
 
@@ -1594,6 +2028,17 @@ export type DataAppDownloadedEvent = BaseTrack & {
     };
 };
 
+// How the upload was matched to an app: 'slug' (manifest slug, the current
+// path), 'uuid-fallback' (pre-slug bundle with targetAppUuid), 'none'
+// (pre-slug bundle with no target — fresh create), 'create-new' (--create-new).
+// 'uuid-fallback' + 'none' measure pre-slug bundle usage; the targetAppUuid
+// fallback can be removed once they decay to zero.
+export type DataAppUploadIdentitySource =
+    | 'slug'
+    | 'uuid-fallback'
+    | 'create-new'
+    | 'none';
+
 export type DataAppUploadedEvent = BaseTrack & {
     event: 'data_app.uploaded';
     userId: string;
@@ -1602,7 +2047,10 @@ export type DataAppUploadedEvent = BaseTrack & {
         projectId: string;
         appUuid: string;
         version: number;
-        action: 'create' | 'append';
+        // 'unchanged' = bundle matched the latest version; no build ran and
+        // `version` is the matched version, not a new one.
+        action: 'create' | 'append' | 'unchanged';
+        identitySource: DataAppUploadIdentitySource;
         template: Exclude<DataAppTemplate, 'custom'> | null;
         sourceFileCount: number;
         sourceBytes: number;
@@ -1625,7 +2073,6 @@ export type DataAppUploadRejectedEvent = BaseTrack & {
         reason:
             | 'dependency_validation'
             | 'insufficient_permissions'
-            | 'custom_dependencies_disabled_instance'
             | 'custom_dependencies_disabled_org'
             | 'min_release_age'
             | 'malware';
@@ -1635,20 +2082,37 @@ export type DataAppUploadRejectedEvent = BaseTrack & {
     };
 };
 
+export type DataAppRegistryInstalledEvent = BaseTrack & {
+    event: 'data_app.registry_installed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        chartSlug: string;
+        version: number;
+        registryVersion: string;
+        action: 'installed' | 'upgraded';
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
+    | DataAppUpgradeRequestedEvent
     | DataAppVersionCancelledEvent
     | DataAppVersionCompletedEvent
     | DataAppVersionFailedEvent
-    | DataAppImageUploadedEvent
+    | DataAppFileUploadedEvent
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
     | DataAppDuplicatedEvent
+    | DataAppDeletedEvent
     | DataAppPromotedEvent
     | DataAppDownloadedEvent
     | DataAppUploadedEvent
-    | DataAppUploadRejectedEvent;
+    | DataAppUploadRejectedEvent
+    | DataAppRegistryInstalledEvent;
 
 export type AiWritebackStartedEvent = BaseTrack & {
     event: 'ai_writeback.started';
@@ -1656,8 +2120,11 @@ export type AiWritebackStartedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
+        threadId: string | null;
+        promptId: string | null;
         owner: string;
         repo: string;
+        workstream: AiWritebackWorkstream;
         // Whether this turn resumed an existing conversation (and its sandbox)
         // rather than starting a fresh one.
         isResume: boolean;
@@ -1670,8 +2137,11 @@ export type AiWritebackCompletedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
+        threadId: string | null;
+        promptId: string | null;
         owner: string;
         repo: string;
+        workstream: AiWritebackWorkstream;
         isResume: boolean;
         exitCode: number;
         // Whether the agent changed any files. When false no PR is opened.
@@ -1690,6 +2160,9 @@ export type AiWritebackCompletedEvent = BaseTrack & {
         numTurns: number | null;
         // Time (ms) spent in LLM API calls — the rest is local tool execution.
         durationApiMs: number | null;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -1703,12 +2176,18 @@ export type AiWritebackFailedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
+        threadId: string | null;
+        promptId: string | null;
         owner: string;
         repo: string;
+        workstream: AiWritebackWorkstream;
         isResume: boolean;
         failureStage: AiWritebackFailureStage;
         errorMessage: string;
         totalDurationMs: number;
+        repoContextBytes: number | null;
+        repoContextCapped: boolean | null;
+        repoContextFileCount: number | null;
     };
 };
 
@@ -1722,6 +2201,8 @@ export type AiWritebackMergedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
+        threadId: string | null;
+        promptId: string | null;
         prUrl: string;
         // Parsed from the PR URL; null when it isn't a recognised
         // github.com/owner/repo/pull/N link (e.g. a GitLab MR).
@@ -1733,6 +2214,7 @@ export type AiWritebackMergedEvent = BaseTrack & {
         // Whether a dbt recompile was scheduled after the merge. Only
         // git-connected projects re-clone on compile, so others are skipped.
         compileScheduled: boolean;
+        workstream: AiWritebackWorkstream;
     };
 };
 
@@ -1867,6 +2349,79 @@ export type ManagedAgentEvent =
     | ManagedAgentRunCompletedEvent
     | ManagedAgentActionCreatedEvent;
 
+type AiDeepResearchRunDimensions = {
+    organizationId: string;
+    projectId: string;
+    runUuid: string;
+    threadId: string;
+    aiAgentId: string;
+    entryPoint: AiDeepResearchEntryPoint;
+    provider: string | null;
+    model: string | null;
+    keyManagement: 'lightdash-managed' | 'self-managed' | null;
+    attachedMcpServerCount: number;
+};
+
+export type AiDeepResearchRunStartedEvent = BaseTrack & {
+    event: 'ai_deep_research.run_started';
+    userId: string;
+    properties: AiDeepResearchRunDimensions;
+};
+
+export type AiDeepResearchRunCompletedEvent = BaseTrack & {
+    event: 'ai_deep_research.run_completed';
+    userId: string;
+    properties: AiDeepResearchRunDimensions & {
+        status: AiDeepResearchTerminalStatus;
+        /**
+         * Stable cohorting field for reliability reporting. A partial run is
+         * useful only when it produced a report; otherwise it is an empty
+         * failure from the user's perspective.
+         */
+        completionClass:
+            | 'strict_success'
+            | 'useful_partial'
+            | 'empty_failure'
+            | 'cancelled';
+        terminalReason: AiDeepResearchTerminalReason | null;
+        failureStage: AiDeepResearchFailureStage | null;
+        durationMs: number | null;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        cacheReadTokens: number | null;
+        cacheWriteTokens: number | null;
+        reasoningTokens: number | null;
+        totalTokens: number | null;
+        tokenUsageComplete: boolean | null;
+        toolCallCount: number | null;
+        toolErrorCount: number | null;
+        warehouseQueryCount: number | null;
+        findingsCount: number | null;
+        hasReport: boolean;
+        reportOutcome: 'report' | 'empty';
+        chartCount: number | null;
+        reportStructureValid: boolean;
+        reportEvidenceGrounded: boolean;
+        reportReproducible: boolean;
+        reportQualityClass: 'strong' | 'partial' | 'none';
+        failureCategory:
+            | 'none'
+            | 'user'
+            | 'budget'
+            | 'provider'
+            | 'data'
+            | 'internal';
+        warehouseLimitPreventedCount: number | null;
+        warehouseLimitRetryCount: number | null;
+        warehouseLimitRecoveredCount: number | null;
+        warehouseLimitUnrecoveredCount: number | null;
+    };
+};
+
+export type AiDeepResearchEvent =
+    | AiDeepResearchRunStartedEvent
+    | AiDeepResearchRunCompletedEvent;
+
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
 ) => {
@@ -1911,6 +2466,67 @@ export type DownloadCsv = BaseTrack & {
         numColumns?: number;
         error?: string;
         numPivotDimensions?: number;
+    };
+};
+
+export type PersistentFileGenerationRequestedEvent = BaseTrack & {
+    event: 'persistent_file.generation_requested';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        fileType: string;
+        source: PersistentDownloadFileSource;
+        accessMode: PersistentDownloadFileAccessMode;
+        expirationSeconds: number;
+    };
+};
+
+export type PersistentFileGenerationCompletedEvent = BaseTrack & {
+    event: 'persistent_file.generation_completed';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        fileType: string;
+        source: PersistentDownloadFileSource;
+        accessMode: PersistentDownloadFileAccessMode;
+        expirationSeconds: number;
+        durationMs: number;
+    };
+};
+
+export type PersistentFileUrlRequestedEvent = BaseTrack & {
+    event: 'persistent_file.url_requested';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        requestedByUserUuid: string | null;
+        accessMode: PersistentDownloadFileAccessMode;
+        source: 'api';
+    };
+};
+
+export type PersistentFileUrlRespondedEvent = BaseTrack & {
+    event: 'persistent_file.url_responded';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        requestedByUserUuid: string | null;
+        accessMode: PersistentDownloadFileAccessMode;
+        source: 'api';
+        statusCode: number;
+        responseMs: number;
     };
 };
 
@@ -2142,7 +2758,58 @@ export type AiAgentCreatedEvent = BaseTrack & {
         agentName: string;
         tagsCount: number;
         integrationsCount: number;
+        modelProvider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
         autoProvisioned?: boolean;
+    };
+};
+
+// Content-free audit trail for on-demand thread deletion.
+export type AiAgentThreadDeletedEvent = BaseTrack & {
+    event: 'ai_agent.thread_deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        threadId: string;
+        memoriesDeleted: number;
+        deletedVia: 'admin' | 'owner';
+    };
+};
+
+export type AiAgentThreadPinnedEvent = BaseTrack & {
+    event: 'ai_agent.thread_pinned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        threadId: string;
+        pinned: boolean;
+    };
+};
+
+export type AiAgentThreadRenamedEvent = BaseTrack & {
+    event: 'ai_agent.thread_renamed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        threadId: string;
+        titleLength: number;
+    };
+};
+
+export type AiAgentThreadsRetentionCleanedEvent = BaseTrack & {
+    event: 'ai_agent.threads_retention_cleaned';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        threadsDeleted: number;
+        memoriesDeleted: number;
     };
 };
 
@@ -2163,7 +2830,11 @@ export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         mcpServerId: string;
-        method: 'one_click' | 'one_click_reconnect';
+        method:
+            | 'one_click'
+            | 'one_click_reconnect'
+            | 'one_click_app'
+            | 'one_click_app_reconnect';
     };
 };
 
@@ -2188,6 +2859,9 @@ export type AiAgentUpdatedEvent = BaseTrack & {
         agentName: string | undefined;
         tagsCount: number;
         integrationsCount: number;
+        modelProvider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
     };
 };
 
@@ -2244,6 +2918,8 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         projectId: string;
         aiAgentId: string;
         threadId: string | undefined;
+        // Joins turn start to its steps, tool calls and response.
+        promptId: string;
         context: 'slack' | 'web_app';
         hasPinnedContext: boolean;
         pinnedContextCount: number;
@@ -2271,11 +2947,50 @@ export type AiAgentResponseStreamed = BaseTrack & {
         projectId: string;
         aiAgentId: string;
         agentName: string;
+        promptId: string;
+        threadId: string;
         usageTokensCount: number;
         stepsCount: number;
         model: string;
+        modelProvider: string | null;
         finishReason: string;
         stepCapReached: boolean;
+        timeToFirstTokenMs: number | null;
+        durationMs: number;
+    };
+};
+
+/**
+ * One row per iteration of the agent loop. `toolWallMs` is wall time, not the
+ * sum of the step's tool durations, so a concurrent fan-out counts once.
+ */
+export type AiAgentStepCompletedEvent = BaseTrack & {
+    event: 'ai_agent.step_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        promptId: string;
+        threadId: string;
+        stepIndex: number;
+        model: string;
+        modelProvider: string | null;
+        // Order steps by this, not event timestamps, which carry ingestion jitter.
+        stepOffsetMs: number;
+        stepTotalMs: number;
+        // Null when the transport hid the decide/execute boundary.
+        inferenceMs: number | null;
+        toolWallMs: number | null;
+        ttftMs: number | null;
+        toolCallCount: number;
+        reasoningChars: number;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        cacheReadTokens: number | null;
+        cacheWriteTokens: number | null;
+        reasoningTokens: number | null;
+        totalTokens: number | null;
     };
 };
 
@@ -2340,6 +3055,16 @@ export type RenameResourceEvent = BaseTrack & {
     };
 };
 
+type AdminNotificationSentEvent = BaseTrack & {
+    event: 'admin_notification.sent';
+    userId?: string;
+    properties: {
+        organizationId: string;
+        projectId: string | undefined;
+        notificationType: AdminNotificationType;
+    };
+};
+
 export type SupportShareEvent = BaseTrack & {
     event: 'support.share';
     userId: string;
@@ -2382,6 +3107,48 @@ export type AiAgentToolCallEvent = BaseTrack & {
         toolName: string;
         threadId: string;
         promptId: string;
+        toolCallId: string;
+        // Calls sharing a stepIndex ran concurrently; do not sum their durations.
+        stepIndex: number;
+    };
+};
+
+/**
+ * Its own event rather than a second `ai_agent_tool_call`, which stays
+ * one-row-per-call for the models that count it; join on `toolCallId`. A call
+ * that never returns has no row here, so left join, not inner.
+ */
+export type AiAgentToolCallCompletedEvent = BaseTrack & {
+    event: 'ai_agent.tool_call_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        toolName: string;
+        threadId: string;
+        promptId: string;
+        toolCallId: string;
+        stepIndex: number;
+        durationMs: number;
+        status: 'success' | 'error';
+    };
+};
+
+// A tool returned an error to the model. Most of these are the model's own
+// mistakes that it retries, so they are tracked here as a rate rather than
+// reported to Sentry.
+export type AiAgentToolCallFailedEvent = BaseTrack & {
+    event: 'ai_agent_tool_call_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        toolName: string;
+        threadId: string;
+        promptId: string;
     };
 };
 
@@ -2394,6 +3161,93 @@ export type ContentVerificationEvent = BaseTrack & {
         contentType: ContentType;
         contentId: string;
         source?: 'ai_artifact';
+    };
+};
+
+export type ContentReviewNotificationSentEvent = BaseTrack & {
+    event:
+        | 'content_review_notification.sent'
+        | 'content_review_notification.errored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        channel: 'email' | 'slack_channel' | 'slack_dm';
+        notificationEvent: ContentReviewNotificationEvent;
+        recipientCount: number;
+        error: string | undefined;
+    };
+};
+
+export type ContentReviewRequestEvent = BaseTrack & {
+    event:
+        | 'content_review_request.submitted'
+        | 'content_review_request.approved'
+        | 'content_review_request.rejected'
+        | 'content_review_request.cancelled';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentReviewContentType;
+        contentId: string;
+        targetSpaceId: string | null;
+        routedTo?: 'space_editors' | 'group';
+        reviewerCount?: number;
+        movedItemCount?: number;
+        similarContentShown?: number;
+        verified?: boolean;
+        turnaroundSeconds?: number;
+    };
+};
+
+export type ContentReviewSettingsUpdatedEvent = BaseTrack & {
+    event: 'content_review_settings.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        routedTo: 'space_editors' | 'group';
+        verifyOnApproveDefault: boolean;
+        slackNotificationsEnabled: boolean;
+    };
+};
+
+export type ContentReviewSimilarContentFoundEvent = BaseTrack & {
+    event: 'content_review_request.similar_content_found';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentReviewContentType;
+        contentId: string | null;
+        matchCount: number;
+        verifiedMatchCount: number;
+    };
+};
+
+/**
+ * The browser fetching an artifact's chart data. Runs after the turn closed,
+ * re-executing the query from the persisted config, so it is on the user's
+ * path to the chart but outside the turn's duration. `queryId` joins to
+ * `query.completed` for cache-hit and warehouse timings.
+ */
+export type AiAgentArtifactVizQueryEvent = BaseTrack & {
+    event: 'ai_agent.artifact_viz_query';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        agentName: string;
+        artifactId: string;
+        artifactVersionId: string;
+        vizType: string;
+        source: string;
+        // Null for artifacts persisted without a prompt.
+        promptId: string | null;
+        durationMs: number;
+        queryId: string | null;
     };
 };
 
@@ -2422,6 +3276,14 @@ export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentFindContentCoverage = {
+    searchQuery: string;
+    totalResultCount: number;
+    verifiedResultCount: number;
+    topResultVerified: boolean;
+    verifiedOnly: boolean;
+};
+
 export type AiAgentFindContentCoverageEvent = BaseTrack & {
     event: 'ai_agent.find_content_coverage';
     userId: string;
@@ -2432,11 +3294,7 @@ export type AiAgentFindContentCoverageEvent = BaseTrack & {
         agentName: string;
         threadId: string;
         promptId: string;
-        searchQuery: string;
-        totalResultCount: number;
-        verifiedResultCount: number;
-        topResultVerified: boolean;
-    };
+    } & AiAgentFindContentCoverage;
 };
 
 export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
@@ -2577,6 +3435,35 @@ export type AiAgentReviewItemWritebackFailedEvent = BaseTrack & {
     };
 };
 
+// Audit trail for conversation data leaving the instance as a debug dump.
+export type AiAgentThreadDumpDownloadedEvent = BaseTrack & {
+    event: 'ai_agent.thread_dump_downloaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        threadId: string;
+        agentId: string | null;
+        turnCount: number;
+    };
+};
+
+export type AiAgentPromptInputRequestClassifiedEvent = BaseTrack & {
+    event: 'ai_agent.prompt_input_request_classified';
+    userId: string;
+    properties: {
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        promptUuid: string;
+        gateFired: boolean;
+        classified: boolean | null;
+        model: string | null;
+        durationMs: number;
+    };
+};
+
 export type AiAgentReviewEvent =
     | AiAgentReviewItemsListedEvent
     | AiAgentReviewItemStatusChangedEvent
@@ -2584,6 +3471,153 @@ export type AiAgentReviewEvent =
     | AiAgentReviewItemWritebackPreviewViewedEvent
     | AiAgentReviewItemWritebackCompletedEvent
     | AiAgentReviewItemWritebackFailedEvent;
+
+export type AiAgentMemoryGeneratedEvent = BaseTrack & {
+    event: 'ai_agent_memory.generated';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        memoryId: string;
+        channel: 'web' | 'slack';
+        isRedistill: boolean;
+        scope: AiAgentMemoryScope;
+        objectCount: number;
+        unresolvedObjectCount: number;
+    };
+};
+
+export type AiAgentMemoryGenerationFailedEvent = BaseTrack & {
+    event: 'ai_agent_memory.generation_failed';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        channel: 'web' | 'slack';
+        failureStage: 'distillation' | 'persistence';
+        errorType: string;
+    };
+};
+
+export type AiAgentMemoryPromotionNominatedEvent = BaseTrack & {
+    event: 'ai_agent_memory.promotion_nominated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        memoryId: string;
+    };
+};
+
+export type AiAgentMemoryPromotionAuthoringFailedEvent = BaseTrack & {
+    event: 'ai_agent_memory.promotion_authoring_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        memoryId: string;
+        attempts: number;
+        reasons: string[];
+    };
+};
+
+export type AiAgentMemoryCitedEvent = BaseTrack & {
+    event: 'ai_agent_memory.cited';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        memoryId: string;
+        citationCount: number;
+        channel: 'web' | 'slack';
+    };
+};
+
+export type AiAgentMemoryViewedEvent = BaseTrack & {
+    event: 'ai_agent_memory.viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        memoryId: string;
+        status: AiAgentMemoryStatus;
+        provenanceType: 'source_thread' | 'consolidated';
+    };
+};
+
+/**
+ * The consolidation pass is scheduled work, so the organization is the actor.
+ * Memory text, titles, terms, object names, slugs and operation reasons never
+ * leave the process: only identifiers, counts and closed enumerations do.
+ */
+export type AiAgentMemoryConsolidatedEvent = BaseTrack & {
+    event: 'ai_agent_memory.consolidated';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        ownerUserId: string;
+        trigger: AiAgentMemoryConsolidationTrigger;
+        // `applied` is impossible on a dry run, so a query that counts curation
+        // stays correct even if it ignores `dryRun`.
+        outcome: 'applied' | 'proposed' | 'no_operations';
+        dryRun: boolean;
+        inputCount: number;
+        mergeCount: number;
+        promoteCount: number;
+        supersedeCount: number;
+        retireCount: number;
+        rejectedCount: number;
+        // Promotion nominations: how many `project`-scope rows curation saw, how
+        // many merges kept that scope, and how many merges silently dropped it.
+        projectScopeInputCount: number;
+        projectScopeMergeCount: number;
+        scopeDowngradedMergeCount: number;
+    };
+};
+
+export type AiAgentMemoryConsolidationFailedEvent = BaseTrack & {
+    event: 'ai_agent_memory.consolidation_failed';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        ownerUserId: string;
+        trigger: AiAgentMemoryConsolidationTrigger;
+        dryRun: boolean;
+        failureStage: 'selection' | 'consolidation' | 'persistence';
+        errorType: string;
+    };
+};
+
+/** A partition that never reached the curator, kept apart from an empty run. */
+export type AiAgentMemoryConsolidationSkippedEvent = BaseTrack & {
+    event: 'ai_agent_memory.consolidation_skipped';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        ownerUserId: string;
+        trigger: AiAgentMemoryConsolidationTrigger;
+        reason: 'clean' | 'catalog_unavailable' | 'objects_unresolved';
+        inputCount: number;
+    };
+};
+
+export type AiAgentMemoryEvent =
+    | AiAgentMemoryGeneratedEvent
+    | AiAgentMemoryGenerationFailedEvent
+    | AiAgentMemoryPromotionNominatedEvent
+    | AiAgentMemoryPromotionAuthoringFailedEvent
+    | AiAgentMemoryCitedEvent
+    | AiAgentMemoryViewedEvent
+    | AiAgentMemoryConsolidatedEvent
+    | AiAgentMemoryConsolidationFailedEvent
+    | AiAgentMemoryConsolidationSkippedEvent;
 
 export type AiRouterConfigUpdatedEvent = BaseTrack & {
     event: 'ai_router.config_updated';
@@ -2628,6 +3662,188 @@ export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     };
 };
 
+export type DashboardOwnershipReassignedEvent = BaseTrack & {
+    event: 'dashboard.ownership_reassigned';
+    properties: {
+        organizationId: string;
+        fromUserUuid: string;
+        newOwnerUserUuid: string;
+        reassignedCount: number;
+    };
+};
+
+type ContentAsCodeContentType = 'chart' | 'dashboard';
+
+type ContentDraftProperties = {
+    projectId: string;
+    draftId: string;
+    contentType: ContentAsCodeContentType;
+    contentId: string;
+};
+
+export type ContentDraftSavedEvent = BaseTrack & {
+    event: 'content_draft.saved';
+    userId: string;
+    properties: ContentDraftProperties & {
+        draftedFieldCount: number;
+    };
+};
+
+export type ContentDraftWrittenBackEvent = BaseTrack & {
+    event: 'content_draft.written_back';
+    userId: string;
+    properties: ContentDraftProperties & {
+        writebackId: string;
+        prNumber: number | null;
+    };
+};
+
+export type ContentDraftDismissedEvent = BaseTrack &
+    ({ userId: string } | { anonymousId: string }) & {
+        event: 'content_draft.dismissed';
+        properties: ContentDraftProperties & {
+            reason: 'reviewer' | 'pull_request_closed';
+        };
+    };
+
+export type ContentDraftReopenedEvent = BaseTrack & {
+    event: 'content_draft.reopened';
+    userId: string;
+    properties: ContentDraftProperties;
+};
+
+export type ContentDraftRebasedEvent = BaseTrack & {
+    event: 'content_draft.rebased';
+    userId: string;
+    properties: ContentDraftProperties & {
+        conflictingFieldCount: number;
+        keptLatestCount: number;
+        keptDraftCount: number;
+    };
+};
+
+export type ContentAsCodeProposedEvent = BaseTrack & {
+    event: 'content_as_code.proposed';
+    userId: string;
+    properties: {
+        projectId: string;
+        contentType: ContentAsCodeContentType;
+        contentId: string;
+        addToGit: boolean;
+        writebackId: string;
+        prNumber: number | null;
+    };
+};
+
+export type ContentAsCodeWritebackFailedEvent = BaseTrack & {
+    event: 'content_as_code_writeback.failed';
+    userId: string;
+    properties: {
+        projectId: string;
+        contentType: ContentAsCodeContentType;
+        contentId: string;
+        isDraft: boolean;
+        error: string;
+    };
+};
+
+export type ContentAsCodeWritebackPullRequestEvent = BaseTrack & {
+    event:
+        | 'content_as_code_writeback.pull_request_merged'
+        | 'content_as_code_writeback.pull_request_closed';
+    anonymousId: string;
+    properties: {
+        projectId: string;
+        writebackId: string;
+        contentType: ContentAsCodeContentType;
+        prNumber: number;
+        hadDraft: boolean;
+    };
+};
+
+export type ContentAsCodePulledFromGitEvent = BaseTrack & {
+    event: 'content_as_code.pulled_from_git';
+    userId: string;
+    properties: {
+        projectId: string;
+        chartsCount: number;
+        dashboardsCount: number;
+        failureCount: number;
+    };
+};
+
+export type ContentAsCodeSettingsStampedEvent = BaseTrack & {
+    event: 'content_as_code.settings_stamped';
+    userId: string;
+    properties: {
+        projectId: string;
+        syncEnabled: boolean;
+        pathConfigured: boolean;
+    };
+};
+
+export type ExternalSourceProperties = {
+    organizationId: string;
+    projectId: string;
+    externalSourceId: string;
+    sourceType: ExternalSourceType;
+    scope: ExternalSourceScope;
+};
+
+export type ExternalSourceStagedEvent = BaseTrack & {
+    event: 'external_source.staged';
+    userId: string;
+    properties: ExternalSourceProperties & {
+        fileSizeBytes: number;
+        columnCount: number;
+    };
+};
+
+export type ExternalSourceLifecycleEvent = BaseTrack & {
+    event:
+        | 'external_source.created'
+        | 'external_source.refreshed'
+        | 'external_source.reconnected'
+        | 'external_source.replaced'
+        | 'external_source.renamed'
+        | 'external_source.deleted';
+    userId: string;
+    properties: ExternalSourceProperties;
+};
+
+export type ExternalSourceIngestCompletedEvent = BaseTrack & {
+    event: 'external_source.ingest_completed';
+    anonymousId: string;
+    properties: ExternalSourceProperties & {
+        rowCount: number;
+        totalBytes: number;
+        columnCount: number;
+        durationMs: number;
+    };
+};
+
+export type ExternalSourceIngestFailedEvent = BaseTrack & {
+    event: 'external_source.ingest_failed';
+    anonymousId: string;
+    properties: ExternalSourceProperties & {
+        durationMs: number;
+        timedOut: boolean;
+        error: string;
+    };
+};
+
+export type DashboardOwnerAssignedEvent = BaseTrack & {
+    event: 'dashboard.owner_assigned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        dashboardId: string;
+        ownerUserUuid: string | null;
+        previousOwnerUserUuid: string | null;
+    };
+};
+
 export type ImpersonationEvent = BaseTrack & {
     event: 'user.impersonation_started' | 'user.impersonation_stopped';
     properties: {
@@ -2645,10 +3861,96 @@ export type PromptFetchedEvent = BaseTrack & {
     };
 };
 
+export type FeatureFlagCheckProcessType = 'api' | 'scheduler' | null;
+
+type UpgradeTelemetryAnalyticsEvent = BaseTrack & {
+    event: UpgradeEventName;
+    anonymousId: string;
+    properties: UpgradeEventProperties;
+};
+
+export type FeatureFlagCheckedAggregatedEvent = BaseTrack & {
+    event: 'feature_flag.checked_aggregated';
+    properties: {
+        flagId: string;
+        checkCount: number;
+        enabledCount: number;
+        disabledCount: number;
+        uniqueOrgCount: number;
+        orgUuids: string[];
+        orgUuidsTruncated: boolean;
+        windowStartAt: string;
+        windowEndAt: string;
+        processType: FeatureFlagCheckProcessType;
+    };
+};
+
+export type MobilePushNotificationEvent =
+    | (BaseTrack & {
+          event: 'mobile_push.installation_registered';
+          userId: string;
+          properties: {
+              organizationId: string;
+              installationId: string;
+              platform: 'ios' | 'android';
+              environment: 'sandbox' | 'production';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.live_activity_registered';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              platform: 'ios' | 'android';
+              environment: 'sandbox' | 'production';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.live_activity_delivery';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              platform: 'ios' | 'android';
+              environment: 'sandbox' | 'production';
+              state: 'working' | 'waiting_for_you' | 'idle';
+              activityEvent: 'update' | 'end';
+              outcome: 'sent' | 'invalid_token' | 'retryable' | 'failed';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.completion_alert_delivery';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              platform: 'ios' | 'android';
+              environment: 'sandbox' | 'production';
+              outcome: 'sent' | 'invalid_token' | 'retryable' | 'failed';
+          };
+      });
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent
+    | HearAboutUsSubmittedEvent
     | DeleteUserEvent
     | VerifiedUserEvent
     | OneTimePasscodeSentEvent
@@ -2656,6 +3958,7 @@ type TypedEvent =
     | OnboardingStepCompletedEvent
     | SetupInviteAcceptedEvent
     | UserJoinOrganizationEvent
+    | UserLeftOrganizationEvent
     | QueryExecutionEvent
     | QueryReadyEvent
     | QueryErrorEvent
@@ -2669,6 +3972,7 @@ type TypedEvent =
     | ResultsCacheDeleteEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
+    | SavedChartExploreChangedEvent
     | DeleteSavedChartEvent
     | RestoredSavedChartEvent
     | FormulaTableCalculationSavedEvent
@@ -2685,8 +3989,20 @@ type TypedEvent =
     | ApiErrorEvent
     | ProjectEvent
     | OnboardingHomepageProvisionedEvent
+    | OnboardingHomepageSkippedEvent
+    | OnboardingHomepageFailedEvent
+    | OrganizationHomepageSettingsUpdatedEvent
+    | HomepagePublishedEvent
+    | OnboardingOrgFlagsProvisionedEvent
+    | PlaygroundProjectProvisionedEvent
+    | PlaygroundProjectSkippedEvent
+    | PlaygroundProjectFailedEvent
+    | TrainingProjectProvisionedEvent
+    | TrainingProjectSkippedEvent
+    | TrainingProjectFailedEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
+    | DbtSourceEvent
     | UpdatedDashboardEvent
     | DeletedDashboardEvent
     | RestoredDashboardEvent
@@ -2717,6 +4033,7 @@ type TypedEvent =
     | ShareUrl
     | AiAgentThreadShareEvent
     | ShareSlack
+    | AppReadyWaitEvent
     | SavedChartView
     | DashboardView
     | PromoteContent
@@ -2742,6 +4059,7 @@ type TypedEvent =
     | GroupCreateAndUpdateEvent
     | GroupDeleteEvent
     | ConditionalFormattingRuleSavedEvent
+    | AdminNotificationSentEvent
     | ViewSqlChart
     | CreateSqlChartEvent
     | UpdateSqlChartEvent
@@ -2750,6 +4068,7 @@ type TypedEvent =
     | CreateSqlChartVersionEvent
     | CommentsEvent
     | ManagedAgentEvent
+    | AiDeepResearchEvent
     | VirtualViewEvent
     | GithubInstallEvent
     | GithubUserLinkEvent
@@ -2762,8 +4081,14 @@ type TypedEvent =
     | CategoriesAppliedEvent
     | CustomFieldsReplaced
     | SubtotalQueryEvent
+    | MergeQueryExecutedEvent
+    | MergeQueryRefusedEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
+    | AiAgentThreadDeletedEvent
+    | AiAgentThreadPinnedEvent
+    | AiAgentThreadRenamedEvent
+    | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent
@@ -2779,6 +4104,10 @@ type TypedEvent =
     | AiAgentEvalAppendedEvent
     | McpToolCallEvent
     | AiAgentToolCallEvent
+    | AiAgentToolCallCompletedEvent
+    | AiAgentToolCallFailedEvent
+    | AiAgentStepCompletedEvent
+    | AiAgentArtifactVizQueryEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
     | AiAgentFindContentCoverageEvent
@@ -2788,13 +4117,43 @@ type TypedEvent =
     | AiAgentSuggestionSubmitEvent
     | AiAgentPullRequestViewedEvent
     | AiAgentReviewEvent
+    | AiAgentThreadDumpDownloadedEvent
+    | AiAgentPromptInputRequestClassifiedEvent
+    | AiAgentMemoryEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
+    | ContentReviewRequestEvent
+    | ContentReviewSettingsUpdatedEvent
+    | ContentReviewSimilarContentFoundEvent
+    | ContentReviewNotificationSentEvent
     | SchedulerOwnershipReassignedEvent
+    | DashboardOwnershipReassignedEvent
+    | DashboardOwnerAssignedEvent
+    | ContentDraftSavedEvent
+    | ContentDraftWrittenBackEvent
+    | ContentDraftDismissedEvent
+    | ContentDraftReopenedEvent
+    | ContentDraftRebasedEvent
+    | ContentAsCodeProposedEvent
+    | ContentAsCodeWritebackFailedEvent
+    | ContentAsCodeWritebackPullRequestEvent
+    | ContentAsCodePulledFromGitEvent
+    | ContentAsCodeSettingsStampedEvent
+    | ExternalSourceStagedEvent
+    | ExternalSourceLifecycleEvent
+    | ExternalSourceIngestCompletedEvent
+    | ExternalSourceIngestFailedEvent
     | ImpersonationEvent
     | PromptFetchedEvent
+    | FeatureFlagCheckedAggregatedEvent
+    | MobilePushNotificationEvent
+    | PersistentFileGenerationRequestedEvent
+    | PersistentFileGenerationCompletedEvent
+    | PersistentFileUrlRequestedEvent
+    | PersistentFileUrlRespondedEvent
+    | UpgradeTelemetryAnalyticsEvent
     | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
@@ -2848,6 +4207,8 @@ export class LightdashAnalytics extends Analytics {
                 installType:
                     process.env.LIGHTDASH_INSTALL_TYPE ||
                     LightdashInstallType.UNKNOWN,
+                installChartVersion:
+                    process.env.LIGHTDASH_HELM_CHART_VERSION || null,
             },
         };
     }
@@ -2861,6 +4222,17 @@ export class LightdashAnalytics extends Analytics {
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
+    }
+
+    // RudderStack asserts that every event carries a userId or anonymousId.
+    // A system event that forgot its actor lands under the instance id
+    // instead of throwing inside the request that emitted it.
+    private static ensureActor<T extends BaseTrack>(payload: T): T {
+        if (payload.userId || payload.anonymousId) return payload;
+        Logger.warn(
+            `Analytics event ${payload.event} has no userId or anonymousId; using the instance anonymous id`,
+        );
+        return { ...payload, anonymousId: LightdashAnalytics.anonymousId };
     }
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
@@ -2887,7 +4259,7 @@ export class LightdashAnalytics extends Analytics {
             };
 
             super.track({
-                ...payload,
+                ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
                 context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
                 properties: payload.properties.isTrackingAnonymized
@@ -2903,7 +4275,7 @@ export class LightdashAnalytics extends Analytics {
         }
         if (isUserVerifiedEvent(payload)) {
             super.track({
-                ...payload,
+                ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
                 context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
                 properties: {
@@ -2915,9 +4287,32 @@ export class LightdashAnalytics extends Analytics {
             });
             return;
         }
+        if (isUserDeletedEvent(payload)) {
+            const basicEventProperties = {
+                context: payload.properties.context,
+                organizationId: payload.properties.organizationId,
+                deletedUserId: payload.properties.deletedUserId,
+                is_tracking_anonymized: payload.properties.isTrackingAnonymized,
+            };
+
+            super.track({
+                ...LightdashAnalytics.ensureActor(payload),
+                event: `${this.lightdashContext.app.name}.${payload.event}`,
+                context: { ...this.lightdashContext },
+                properties: payload.properties.isTrackingAnonymized
+                    ? basicEventProperties
+                    : {
+                          ...basicEventProperties,
+                          firstName: payload.properties.firstName,
+                          lastName: payload.properties.lastName,
+                          email: payload.properties.email,
+                      },
+            });
+            return;
+        }
 
         super.track({
-            ...payload,
+            ...LightdashAnalytics.ensureActor(payload),
             event: `${this.lightdashContext.app.name}.${payload.event}`,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
@@ -2929,6 +4324,45 @@ export class LightdashAnalytics extends Analytics {
         super.group({
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+        });
+    }
+
+    /**
+     * Drains queued events over the wire. track() only enqueues, so without
+     * this anything tracked during shutdown dies with the process. flush()
+     * sends at most `flushAt` events per call, hence the loop.
+     */
+    async flushEvents(timeoutMs: number = 5000): Promise<void> {
+        if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
+
+        const deadline = Date.now() + timeoutMs;
+        try {
+            do {
+                // eslint-disable-next-line no-await-in-loop
+                await this.flush();
+            } while (this.queue.length > 0 && Date.now() < deadline);
+            // track() auto-flushes on its own once the queue reaches flushAt,
+            // so an empty queue can still have requests in flight. Flushing an
+            // empty queue resolves only once that pending chain settles.
+            await this.flush();
+        } catch (e) {
+            Logger.warn(`Failed to flush analytics events: ${e}`);
+        }
+    }
+
+    trackFeatureFlagChecks(
+        entries: FeatureFlagCheckAggregateEntry[],
+        processType: FeatureFlagCheckProcessType,
+    ) {
+        entries.forEach((entry) => {
+            this.track({
+                event: 'feature_flag.checked_aggregated',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    ...entry,
+                    processType,
+                },
+            });
         });
     }
 

@@ -2,23 +2,6 @@
     border-radius: 100px !important;
 }
 
-/* Legacy required UX (feature flag off) */
-.unsetRequiredFilter {
-    border-style: solid;
-    border-width: '3px';
-}
-
-.indicator {
-    top: -5px;
-    left: 40px;
-    height: 13px;
-    &::before {
-        border-radius: 5px;
-        border-bottom-left-radius: 0px;
-        border-bottom-right-radius: 0px;
-    }
-}
-
 .requirementUnmet {
     border: 1px solid alpha(var(--mantine-color-yellow-6), 0.35);
 

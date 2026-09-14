@@ -30,7 +30,7 @@ export const usePromoteDashboardMutation = () => {
                         icon: IconArrowRight,
                         onClick: () => {
                             window.open(
-                                `/projects/${data.projectUuid}/dashboards/${data.uuid}`,
+                                `/projects/${data.projectUuid}/dashboards/${data.slug}`,
                                 '_blank',
                             );
                         },

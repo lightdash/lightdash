@@ -1,18 +1,21 @@
 import {
     AllChartsSearchResult,
+    assertUnreachable,
     ContentVerificationInfo,
     DashboardSearchResult,
     findContentToolDefinition,
+    getFindContentToolDescription,
     isSavedChartSearchResult,
     isSqlChartSearchResult,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
+import type { AiAgentFindContentCoverage } from '../../../../analytics/LightdashAnalytics';
 import type {
     FindContentChartResult,
     FindContentDashboardResult,
+    FindContentDataAppResult,
     FindContentFn,
-    FindContentResult,
     FindContentSpaceMetadata,
     FindContentSpaceResult,
 } from '../types/aiAgentDependencies';
@@ -33,12 +36,8 @@ type Dependencies = {
     findContent: FindContentFn;
     siteUrl: string;
     toolDescriptionMaxChars: number;
-    trackCoverage: (coverage: {
-        searchQuery: string;
-        totalResultCount: number;
-        verifiedResultCount: number;
-        topResultVerified: boolean;
-    }) => void;
+    trackCoverage: (coverage: AiAgentFindContentCoverage) => void;
+    dashboardDetailsToolName: 'getDashboardCharts' | 'readContent';
 };
 
 const toolDefinition = findContentToolDefinition.for('agent');
@@ -200,16 +199,39 @@ const renderDashboard = (
     </dashboard>
 );
 
-const isDashboardResult = (
-    content: FindContentResult,
-): content is FindContentDashboardResult => content.contentType === 'dashboard';
-
-const isSpaceResult = (
-    content: FindContentResult,
-): content is FindContentSpaceResult => content.contentType === 'space';
+const renderDataApp = (
+    dataApp: FindContentDataAppResult,
+    siteUrl: string,
+    toolDescriptionMaxChars: number,
+) => (
+    <dataApp
+        dataAppUuid={dataApp.uuid}
+        slug={dataApp.slug}
+        searchRank={dataApp.search_rank}
+        spaceUuid={dataApp.spaceUuid ?? undefined}
+        viewsCount={dataApp.viewsCount}
+        href={`${siteUrl}/projects/${dataApp.projectUuid}/apps/${dataApp.uuid}/view`}
+    >
+        <name>{dataApp.name}</name>
+        {dataApp.space && renderSpaceMetadata(dataApp.space)}
+        {dataApp.description && (
+            <description>
+                {truncate(dataApp.description, toolDescriptionMaxChars)}
+            </description>
+        )}
+        {dataApp.createdBy && (
+            <createdby>
+                {`${dataApp.createdBy.firstName} ${dataApp.createdBy.lastName}`}
+            </createdby>
+        )}
+    </dataApp>
+);
 
 const renderContent = (
-    args: Awaited<ReturnType<FindContentFn>> & { searchQuery: string },
+    args: Awaited<ReturnType<FindContentFn>> & {
+        searchQuery: string;
+        verifiedOnly: boolean;
+    },
     siteUrl: string,
     toolDescriptionMaxChars: number,
 ) => {
@@ -219,13 +241,37 @@ const renderContent = (
     );
     return (
         <searchresult searchQuery={args.searchQuery}>
+            {args.verifiedOnly && sortedContent.length === 0
+                ? 'No verified content matched this query. Verified content may still exist under other search terms; re-run with verifiedOnly=false only if unverified content is acceptable.'
+                : null}
             {sortedContent.map((content) => {
-                if (isSpaceResult(content)) {
-                    return renderSpace(content);
+                switch (content.contentType) {
+                    case 'space':
+                        return renderSpace(content);
+                    case 'data_app':
+                        return renderDataApp(
+                            content,
+                            siteUrl,
+                            toolDescriptionMaxChars,
+                        );
+                    case 'dashboard':
+                        return renderDashboard(
+                            content,
+                            siteUrl,
+                            toolDescriptionMaxChars,
+                        );
+                    case 'chart':
+                        return renderChart(
+                            content,
+                            siteUrl,
+                            toolDescriptionMaxChars,
+                        );
+                    default:
+                        return assertUnreachable(
+                            content,
+                            'Unknown content type',
+                        );
                 }
-                return isDashboardResult(content)
-                    ? renderDashboard(content, siteUrl, toolDescriptionMaxChars)
-                    : renderChart(content, siteUrl, toolDescriptionMaxChars);
             })}
         </searchresult>
     );
@@ -236,17 +282,25 @@ export const getFindContent = ({
     siteUrl,
     toolDescriptionMaxChars,
     trackCoverage,
+    dashboardDetailsToolName,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
+        description: getFindContentToolDescription({
+            toolName: toolDefinition.name,
+            dashboardDetailsToolName,
+        }),
         execute: async (args) => {
             try {
+                const verifiedOnly = args.verifiedOnly ?? false;
                 const searchQueryResults = await Promise.all(
                     args.searchQueries.map(async (searchQuery) => ({
                         searchQuery: searchQuery.label,
+                        verifiedOnly,
                         ...(await findContent({
                             searchQuery,
                             spaceSlug: args.spaceSlug ?? null,
+                            verifiedOnly,
                         })),
                     })),
                 );
@@ -264,6 +318,7 @@ export const getFindContent = ({
                         totalResultCount,
                         verifiedResultCount,
                         topResultVerified,
+                        verifiedOnly,
                     });
                 }
 

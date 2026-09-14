@@ -1,13 +1,15 @@
 import {
-    buildRunSqlDescription,
+    buildAgentRunSqlDescription,
     createToolRunSqlArgsSchema,
     isSlackPrompt,
     runSqlToolDefinition,
+    type AiSqlChartArtifactConfig,
     type AnyType,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import type {
+    CreateOrUpdateArtifactFn,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     RecordSqlApprovalFn,
@@ -19,6 +21,11 @@ import type {
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
+import {
+    findSqlScopeViolations,
+    formatSqlScopeError,
+    type SqlScope,
+} from '../utils/sqlScope';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
 
@@ -33,7 +40,11 @@ type Dependencies = {
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
     storeToolResults: StoreToolResultsFn;
+    createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxQueryLimit: number;
+    enableDataAccess: boolean;
+    slackLinksOnly: boolean;
+    sqlScope?: SqlScope | null;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -59,7 +70,7 @@ const PREVIEW_ROW_LIMIT = 50;
 const SLACK_INLINE_ROW_LIMIT = 10;
 const LARGE_RESULT_THRESHOLD = 25;
 
-const validateSelectOnly = (sql: string) => {
+export const validateSelectOnly = (sql: string) => {
     const stripped = stripCommentsAndStrings(sql);
     if (!STARTS_WITH_SELECT_OR_WITH.test(stripped)) {
         throw new Error('Only SELECT or WITH queries are allowed.');
@@ -92,7 +103,11 @@ export const getRunSql = ({
     recordSqlApproval,
     isThreadSqlAutoApproved,
     storeToolResults,
+    createOrUpdateArtifact,
     maxQueryLimit,
+    enableDataAccess,
+    slackLinksOnly,
+    sqlScope = null,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -117,7 +132,7 @@ export const getRunSql = ({
     };
 
     return tool({
-        description: buildRunSqlDescription(500, maxQueryLimit),
+        description: buildAgentRunSqlDescription(500, maxQueryLimit),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
@@ -177,6 +192,14 @@ export const getRunSql = ({
 
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
+            const scopeViolations = findSqlScopeViolations(sql, sqlScope);
+            if (scopeViolations.length > 0 && sqlScope) {
+                return persistResumeResult({
+                    result: formatSqlScopeError(scopeViolations, sqlScope),
+                    metadata: { status: 'error' },
+                });
+            }
+
             try {
                 validateSelectOnly(sql);
             } catch (e) {
@@ -257,10 +280,25 @@ export const getRunSql = ({
                     await updateProgress('Running SQL query...');
                 }
 
+                const effectiveLimit = Math.min(limit, maxQueryLimit);
                 const { rows, columns, rowCount } = await runSqlJob({
                     sql,
-                    limit: Math.min(limit, maxQueryLimit),
+                    limit: effectiveLimit,
                 });
+
+                if (!isSlack) {
+                    await createOrUpdateArtifact({
+                        threadUuid: prompt.threadUuid,
+                        promptUuid: prompt.promptUuid,
+                        artifactType: 'chart',
+                        title: 'SQL query results',
+                        vizConfig: {
+                            source: 'sql',
+                            sql,
+                            limit: effectiveLimit,
+                        } satisfies AiSqlChartArtifactConfig,
+                    });
+                }
 
                 if (rowCount === 0) {
                     await renderState({
@@ -315,7 +353,7 @@ export const getRunSql = ({
 
                     // chat.update can't attach files, so a full CSV for large
                     // results still goes as a separate message.
-                    if (rowCount > LARGE_RESULT_THRESHOLD) {
+                    if (rowCount > LARGE_RESULT_THRESHOLD && !slackLinksOnly) {
                         await sendFile({
                             channelId: prompt.slackChannelId,
                             threadTs: prompt.slackThreadTs,
@@ -326,6 +364,17 @@ export const getRunSql = ({
                             file: Buffer.from(csv, 'utf-8'),
                         });
                     }
+                }
+
+                const resultSummary = `${rowCount} rows. Columns: ${columns.join(
+                    ', ',
+                )}.`;
+
+                if (!enableDataAccess) {
+                    return await persistResumeResult({
+                        result: resultSummary,
+                        metadata: { status: 'success', rowCount },
+                    });
                 }
 
                 const previewRows = rows.slice(0, PREVIEW_ROW_LIMIT);
@@ -345,9 +394,10 @@ export const getRunSql = ({
                         : '';
 
                 return await persistResumeResult({
-                    result: `${rowCount} rows. Columns: ${columns.join(
-                        ', ',
-                    )}.${truncatedNote}\n${serializeData(previewCsv, 'csv')}`,
+                    result: `${resultSummary}${truncatedNote}\n${serializeData(
+                        previewCsv,
+                        'csv',
+                    )}`,
                     metadata: { status: 'success', rowCount },
                 });
             } catch (e) {

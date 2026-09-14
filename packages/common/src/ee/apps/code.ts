@@ -1,5 +1,7 @@
 import { parse as parseYaml } from 'yaml';
 import { type ApiSuccess } from '../../types/api/success';
+import { type ContentAsCodeDirectAccess } from '../../types/contentAsCode/directAccess';
+import { type ChartTypeIcon } from './chartTypeIcons';
 import { type DataAppTemplate, type DataAppVizSchema } from './types';
 
 export const currentDataAppCodeVersion = 1 as const;
@@ -7,13 +9,34 @@ export const currentDataAppCodeVersion = 1 as const;
 export const MAX_DECLARED_DEPENDENCIES = 60;
 export const MAX_LOCKFILE_BYTES = 2 * 1024 * 1024; // 2 MB
 
+// App↔connection link carried in the manifest. The connection is referenced
+// by its project-scoped slug (apps have no stable cross-instance identity, so
+// the app→connection direction is the only portable one).
+export type DataAppManifestExternalConnection = {
+    alias: string;
+    connectionSlug: string;
+};
+
 export type DataAppManifest = {
     codeVersion: 1;
-    appUuid: string;
-    projectUuid: string;
+    // Read but no longer written: pre-slug bundles carry both ids and uploads
+    // fall back to appUuid for identity. Slug-aware servers emit neither, so
+    // files stay portable across projects. NOTE: released (pre-slug) CLIs
+    // hard-fail their cross-project guard on a manifest without projectUuid —
+    // a deliberate beta-window break; the fix is upgrading the CLI.
+    appUuid?: string;
+    projectUuid?: string;
+    // Project-scoped identity used to match uploads to existing apps, the
+    // same pattern charts/dashboards-as-code use. Optional because bundles
+    // downloaded before slugs existed don't carry it (those fall back to
+    // appUuid matching); slug-aware servers always emit it.
+    slug?: string;
     version: number;
     name: string;
     description: string;
+    // Curated Tabler icon name of a custom chart type. Absent for non-viz
+    // apps and bundles downloaded before this field; null clears it.
+    icon?: ChartTypeIcon | null;
     // The app's stored template flavor (includes data_app_viz); null for
     // "Custom" or apps predating template persistence.
     template: Exclude<DataAppTemplate, 'custom'> | null;
@@ -22,6 +45,22 @@ export type DataAppManifest = {
     // re-emit it — without it the uploaded viz never appears in the viz picker.
     // Omitted for non-viz apps and bundles downloaded before this field.
     vizSchema?: DataAppVizSchema;
+    // External connection links, resolved by connectionSlug in the target
+    // project on upload. Present (including []) → the app's links are
+    // reconciled to match exactly; absent → existing links are left untouched
+    // (bundles downloaded before this field, or apps with no links).
+    externalConnections?: DataAppManifestExternalConnection[];
+    // Content-as-code path of the space the app lives in (same encoding as
+    // DashboardAsCode.spaceSlug). Present → upload reconciles placement,
+    // creating the space if missing; absent → personal app on download,
+    // placement left untouched on upload (also covers pre-field bundles).
+    spaceSlug?: string;
+    // Direct user/group grants on the app, referenced by organization email /
+    // group name (same portable identity as space access blocks). Present
+    // (including empty users+groups) → upload atomically replaces the app's
+    // direct policy; absent → the existing policy is left untouched (bundles
+    // downloaded before this field, or exports made while sharing is off).
+    access?: ContentAsCodeDirectAccess;
     downloadedAt: string; // ISO
     scaffoldingVersion?: string; // CLI/SDK version the vendored scaffolding came from (Phase 2)
 };
@@ -53,11 +92,16 @@ export type DataAppContextFile = {
 export type DataAppThemeContext = {
     instructions: DataAppContextFile | null;
     assets: DataAppContextFile[];
-    skippedAssetCount: number; // > 0 when assets were dropped by the cap
+    skippedAssetCount: number; // > 0 when assets were dropped by a safety policy
 };
 
 export type DataAppContext = {
+    // On current servers this is a pointer to `models/`; servers predating the
+    // sharded semantic layer send the whole layer as this one file.
     semanticLayer: DataAppContextFile;
+    // One YAML file per model plus `models/_index.md`. Absent only on
+    // responses from servers predating the sharded layout.
+    semanticLayerFiles?: DataAppContextFile[];
     parameters: DataAppContextFile | null;
     promptHistory: DataAppContextFile;
     theme: DataAppThemeContext;
@@ -67,17 +111,34 @@ export type DataAppCodeDownload = DataAppCode & { context: DataAppContext };
 
 export type ApiGetAppCodeResponse = ApiSuccess<DataAppCodeDownload>;
 
+export type ApiGetDataAppAuthoringContextResponse = ApiSuccess<DataAppContext>;
+
 export type ImportAppCodeRequestBody = {
     code: DataAppCode;
-    // when present and the app exists in the target project -> append a version; otherwise create a new app
+    // Legacy identity for pre-slug bundles and old CLIs: append when this app
+    // exists in the target project. Ignored when the manifest carries a slug.
     targetAppUuid?: string;
     spaceUuid?: string;
+    // Force-create a new app (with a fresh generated slug) even when the
+    // manifest slug matches an existing app in the target project (--create-new).
+    createNew?: boolean;
+    // Build a new version even when the bundle is identical to the app's
+    // latest version (--force). Servers predating the unchanged check ignore it.
+    force?: boolean;
 };
 
 export type ApiImportAppCodeResponse = ApiSuccess<{
     appUuid: string;
     version: number;
-    action: 'create' | 'append';
+    // 'unchanged' = the bundle matched the app's latest version, so no new
+    // version was created and no build ran; `version` is the matched version.
+    action: 'create' | 'append' | 'unchanged';
+    // The app's project-scoped slug, so the CLI can tell pre-slug bundles what to add.
+    slug: string;
+    // Non-fatal issues the CLI should surface (e.g. a manifest link whose
+    // connectionSlug does not exist in the target project was skipped).
+    // Optional for compatibility with servers predating link support.
+    warnings?: string[];
 }>;
 
 export type DataAppDepsValidationResult = {
@@ -223,14 +284,16 @@ export function extractLockfilePackages(lockfile: string): LockfilePackage[] {
 }
 
 /**
- * Returns `packageJson` with its `scripts` replaced by the trusted template
- * scripts. The build sandbox runs `pnpm build` against this file, and download
- * round-trips it to other developers' machines — in both places the script
- * commands must stay server-controlled, not uploader-controlled.
+ * Returns a minimal package.json containing only the metadata required by the
+ * build, with `scripts` and `devDependencies` replaced by trusted template
+ * values. The build sandbox runs `pnpm build` against this file, so package-
+ * manager inputs and executable dependency buckets must not remain uploader-
+ * controlled.
  */
 export function sanitizeAppPackageJsonScripts(
     packageJson: string,
     templateScripts: Record<string, string>,
+    templateDevDependencies: Record<string, string>,
 ): string {
     let parsed: Record<string, unknown>;
     try {
@@ -240,7 +303,13 @@ export function sanitizeAppPackageJsonScripts(
         return packageJson;
     }
     return JSON.stringify(
-        { ...parsed, scripts: templateScripts },
+        {
+            name: parsed.name,
+            version: parsed.version,
+            dependencies: parsed.dependencies,
+            devDependencies: templateDevDependencies,
+            scripts: templateScripts,
+        },
         null,
         4,
     ).concat('\n');
@@ -366,12 +435,34 @@ export function validateDataAppDependencies(
     for (const name of Object.keys(customDeps)) {
         if (!d.lockfile.includes(name)) {
             throw new Error(
-                `Invalid dependencies: "${name}" is declared in package.json but not found in pnpm-lock.yaml. Run 'pnpm install --lockfile-only' to update the lockfile, then upload again`,
+                `Invalid dependencies: "${name}" is declared in package.json but not found in pnpm-lock.yaml. The build sandbox installs with pnpm — run 'pnpm install --lockfile-only' to update the lockfile, then upload again`,
             );
         }
     }
 
     return { customDeps };
+}
+
+// Matches every generateSlug() output; also caps length defensively (the DB
+// unique index already rejects absurdly long values, but reject loudly here
+// instead of relying on that).
+const MAX_DATA_APP_SLUG_LENGTH = 255;
+const DATA_APP_SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * Validates a data app manifest slug's shape. The slug is used as a folder
+ * name client-side (CLI download) and a project-scoped lookup key
+ * server-side (upload identity resolution) — an unvalidated value (e.g. a
+ * hand-edited `../../etc` in lightdash-app.yml) must never be trusted for
+ * either of those uses.
+ */
+export function isValidDataAppSlug(slug: string): boolean {
+    return (
+        typeof slug === 'string' &&
+        slug.length > 0 &&
+        slug.length <= MAX_DATA_APP_SLUG_LENGTH &&
+        DATA_APP_SLUG_RE.test(slug)
+    );
 }
 
 const isSafeRelPath = (p: string): boolean => {

@@ -13,7 +13,7 @@ import {
     Title,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPoint, IconPointFilled, IconTarget } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
@@ -174,7 +174,7 @@ export const EvalRunDetails: FC<Props> = ({
                             result.assessment?.passed,
                         );
                         return isEvalRunning ? (
-                            <Badge w={68} variant="transparent" color="gray">
+                            <Badge w={68} variant="transparent">
                                 {result.status === 'assessing' ? (
                                     <Loader size={12} color="gray" />
                                 ) : (
@@ -199,7 +199,6 @@ export const EvalRunDetails: FC<Props> = ({
         columns,
         data: runData?.results ?? [],
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: false,
         enableTopToolbar: false,
@@ -265,11 +264,6 @@ export const EvalRunDetails: FC<Props> = ({
                 },
             };
         },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableBodyCellProps: () => {
             return {
                 h: 48,
@@ -325,12 +319,10 @@ export const EvalRunDetails: FC<Props> = ({
                     px="sm"
                 >
                     <Group gap="xs">
-                        <Paper p="xxs" withBorder radius="sm">
+                        <Paper p="xxs" radius="sm">
                             <MantineIcon icon={IconTarget} size="md" />
                         </Paper>
-                        <Title order={5} c="ldGray.9" fw={700}>
-                            Run Overview
-                        </Title>
+                        <Title order={5}>Run Overview</Title>
                     </Group>
 
                     <Group>
@@ -363,7 +355,6 @@ export const EvalRunDetails: FC<Props> = ({
                             color={evalStatus.color}
                             variant="dot"
                             size="lg"
-                            radius="sm"
                             c="ldGray.7"
                         >
                             {evalStatus.label}

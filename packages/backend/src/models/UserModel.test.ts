@@ -1,20 +1,39 @@
-import { subject, type AbilityBuilder, type RawRuleOf } from '@casl/ability';
 import {
+    Ability,
+    AbilityBuilder,
+    subject,
+    type RawRuleOf,
+} from '@casl/ability';
+import {
+    CommercialFeatureFlags,
+    FeatureFlags,
     LightdashMode,
     LightdashUser,
     MemberAbility,
     NotFoundError,
     OrganizationMemberRole,
+    PasswordLoginBlockedError,
     projectMemberAbilities,
     ProjectMemberRole,
+    ProjectType,
     ServiceAccountScope,
+    type SessionUser,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
-import { type Knex } from 'knex';
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { type LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';
+import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
+import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
+import { ProjectTableName } from '../database/entities/projects';
+import {
+    RolesTableName,
+    ScopedRolesTableName,
+} from '../database/entities/roles';
 import { UserTableName } from '../database/entities/users';
+import { hashWithSecret } from '../utils/hash';
 import { type FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import {
     mapDbUserDetailsToLightdashUser,
@@ -22,8 +41,27 @@ import {
     type DbUserDetails,
 } from './UserModel';
 
+vi.mock('../utils/hash', () => ({
+    hash: vi.fn(async (s: string) => `bcrypt:env:${s}`),
+    hashWithSecret: vi.fn(
+        async (s: string, secret: string) => `bcrypt:${secret}:${s}`,
+    ),
+    deprecatedHash: vi.fn((s: string) => `sha256:${s}`),
+}));
+
 type TestableUserModel = {
     hasAuthentication: (userUuid: string, trx?: Knex) => Promise<boolean>;
+    getTrainingProjects: (
+        organizationId: number,
+        userUuid: string,
+        trx?: Knex,
+    ) => Promise<
+        {
+            projectUuid: string;
+            projectType: ProjectType;
+            createdByUserUuid: string | null;
+        }[]
+    >;
     getUserProjectRoles: (
         userUuid: string,
         options?: { trx?: Knex },
@@ -34,22 +72,17 @@ type TestableUserModel = {
         userUuid: string,
         trx?: Knex,
     ) => Promise<never[]>;
-    findServiceAccountByUserUuid: (
-        userUuid: string,
-        options?: { trx?: Knex },
-    ) => Promise<
-        | {
-              uuid: string;
-              description: string;
-              scopes: ServiceAccountScope[];
-              organizationUuid: string;
-          }
-        | undefined
-    >;
+    getOrganizationExtraRoleUuids: (
+        userId: number,
+        organizationId: number,
+        trx?: Knex,
+    ) => Promise<string[]>;
+    findServiceAccountByUserUuid: UserModel['findServiceAccountByUserUuid'];
     customRoleScopes: (
         roleUuids: string[],
         trx?: Knex,
     ) => Promise<Record<string, string[]>>;
+    roleExists: (roleUuid: string, trx?: Knex) => Promise<boolean>;
     applyServiceAccountProjectMemberships: (
         userId: number,
         userUuid: string,
@@ -102,7 +135,7 @@ const userDetails: DbUserDetails = {
     updated_at: new Date('2024-01-01'),
 };
 
-const createUserModel = (): TestableUserModel => {
+const createUserModel = (projectCount = 125): TestableUserModel => {
     const model = new UserModel({
         database: vi.fn() as unknown as Knex,
         lightdashConfig,
@@ -111,30 +144,34 @@ const createUserModel = (): TestableUserModel => {
 
     model.hasAuthentication = vi.fn(async () => true);
     model.getUserProjectRoles = vi.fn(async () => []);
+    model.getTrainingProjects = vi.fn(async () => []);
     model.getUserGroupProjectRoles = vi.fn(async () => []);
+    model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
     model.findServiceAccountByUserUuid = vi.fn(async (userUuid) => ({
         uuid: 'service-account',
         description: 'Service account',
         scopes: [ServiceAccountScope.SYSTEM_MEMBER],
         organizationUuid: 'org-1',
+        expiresAt: null,
     }));
     model.customRoleScopes = vi.fn(async () => ({
         'custom-role': ['view:Dashboard'],
     }));
     model.applyServiceAccountProjectMemberships = vi.fn(
         async (_userId, userUuid, builder) => {
-            Array.from({ length: 125 }, (_, i) => `project-${i}`).forEach(
-                (projectUuid) => {
-                    projectMemberAbilities[ProjectMemberRole.ADMIN](
-                        {
-                            projectUuid,
-                            role: ProjectMemberRole.ADMIN,
-                            userUuid,
-                        },
-                        builder,
-                    );
-                },
-            );
+            Array.from(
+                { length: projectCount },
+                (_, i) => `project-${i}`,
+            ).forEach((projectUuid) => {
+                projectMemberAbilities[ProjectMemberRole.ADMIN](
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.ADMIN,
+                        userUuid,
+                    },
+                    builder,
+                );
+            });
         },
     );
 
@@ -163,11 +200,33 @@ const expectCollapsedDashboardProjectRule = (
         );
     }
 
-    expect(rules.length).toBeLessThan(100);
     expect(
         (dashboardRule.conditions as Record<string, { $in: string[] }>)
             .projectUuid.$in,
     ).toHaveLength(125);
+};
+
+const loadUserModelWithSessionUserCache = async () => {
+    const entries = new Map<string, SessionUser>();
+    const sessionUserCache = {
+        get: vi.fn((key: string) => entries.get(key)),
+        set: vi.fn((key: string, value: SessionUser) =>
+            entries.set(key, value),
+        ),
+        keys: vi.fn(() => Array.from(entries.keys())),
+        del: vi.fn((key: string) => entries.delete(key)),
+        flushAll: vi.fn(),
+    };
+
+    vi.resetModules();
+    vi.doMock('node-cache', () => ({
+        default: function NodeCache() {
+            return sessionUserCache;
+        },
+    }));
+
+    const { UserModel: CachedUserModel } = await import('./UserModel');
+    return { CachedUserModel, entries, sessionUserCache };
 };
 
 describe('UserModel', () => {
@@ -231,6 +290,7 @@ describe('UserModel', () => {
                 first_name: '',
                 last_name: '',
                 is_active: true,
+                is_setup_complete: true,
             }),
         );
         expect(insertEmail).toHaveBeenCalledWith({
@@ -330,6 +390,11 @@ describe('UserModel', () => {
             await model.generateUserAbilityBuilder(userDetails);
         const ability = abilityBuilder.build();
 
+        const singleProject =
+            await createUserModel(1).generateUserAbilityBuilder(userDetails);
+        expect(abilityBuilder.rules).toHaveLength(
+            singleProject.abilityBuilder.rules.length,
+        );
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
         expect(
             ability.can(
@@ -362,7 +427,640 @@ describe('UserModel', () => {
             expect.anything(),
         );
         expect(model.findServiceAccountByUserUuid).not.toHaveBeenCalled();
+        const singleProject = await createUserModel(
+            1,
+        ).generateUserAbilityBuilder({
+            ...userDetails,
+            role_uuid: 'custom-role',
+        });
+        expect(abilityBuilder.rules).toHaveLength(
+            singleProject.abilityBuilder.rules.length,
+        );
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
+    });
+
+    describe('extra custom roles (role sets)', () => {
+        const humanDetails: DbUserDetails = {
+            ...userDetails,
+            user_uuid: 'human-user',
+            is_internal: false,
+            role: OrganizationMemberRole.VIEWER,
+            role_uuid: undefined,
+        };
+
+        const createHumanModel = (learnEnabled = true) => {
+            const model = new UserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig: {
+                    ...lightdashConfig,
+                    customRoles: { enabled: true },
+                } as LightdashConfig,
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId === FeatureFlags.EnableLearn &&
+                                learnEnabled,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getTrainingProjects = vi.fn(async () => []);
+            model.getUserProjectRoles = vi.fn(async () => [
+                {
+                    projectUuid: 'project-1',
+                    role: ProjectMemberRole.VIEWER,
+                    userUuid: humanDetails.user_uuid,
+                    roleUuid: undefined,
+                    extraRoleUuids: ['project-extra'],
+                },
+            ]) as unknown as TestableUserModel['getUserProjectRoles'];
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => [
+                'org-extra',
+            ]);
+            model.customRoleScopes = vi.fn(async () => ({
+                'org-extra': ['manage:Organization'],
+                'project-extra': ['manage:SqlRunner'],
+            }));
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+            return model;
+        };
+
+        it('does not grant trainee scopes when the org Learn flag is off', async () => {
+            const model = createHumanModel(false);
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            expect(model.getTrainingProjects).not.toHaveBeenCalled();
+            expect(
+                abilityBuilder.build().can(
+                    'manage',
+                    subject('PinnedItems', {
+                        projectUuid: 'training-copy',
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('grants the trainee layer on the org training project only', async () => {
+            const model = createHumanModel();
+            model.getTrainingProjects = vi.fn(async () => [
+                {
+                    projectUuid: 'training-project',
+                    projectType: ProjectType.TRAINING,
+                    createdByUserUuid: 'someone-else',
+                },
+                {
+                    projectUuid: 'training-copy',
+                    projectType: ProjectType.PREVIEW,
+                    createdByUserUuid: humanDetails.user_uuid,
+                },
+            ]);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(model.getTrainingProjects).toHaveBeenCalledWith(
+                humanDetails.organization_id,
+                humanDetails.user_uuid,
+                expect.anything(),
+            );
+            // the learner's own copy of the training project gets the layer too
+            expect(
+                ability.can(
+                    'manage',
+                    subject('PinnedItems', { projectUuid: 'training-copy' }),
+                ),
+            ).toBe(true);
+            // a viewer can pin, save and run SQL in their own copy
+            (
+                [
+                    ['manage', 'PinnedItems'],
+                    ['manage', 'SavedChart'],
+                    ['manage', 'SqlRunner'],
+                    ['manage', 'Validation'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect(
+                    ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-copy',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+            // the shared training project itself is read-only for them:
+            // browsable, so the library and the seed can be opened, but a
+            // write there would be cloned into every other learner's copy
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', { projectUuid: 'training-project' }),
+                ),
+            ).toBe(true);
+            (
+                [
+                    ['manage', 'PinnedItems'],
+                    ['manage', 'SavedChart'],
+                    ['manage', 'SqlRunner'],
+                    ['manage', 'AiAgent'],
+                    ['create', 'DashboardComments'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect({
+                    action,
+                    subjectName,
+                    can: ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-project',
+                        }),
+                    ),
+                }).toEqual({ action, subjectName, can: false });
+            });
+            // but not on their real project
+            expect(
+                ability.can(
+                    'manage',
+                    subject('PinnedItems', { projectUuid: 'project-1' }),
+                ),
+            ).toBe(false);
+            // and never the excluded scopes on the training project
+            (
+                [
+                    ['delete', 'Project'],
+                    ['update', 'Project'],
+                    ['manage', 'CompileProject'],
+                    ['manage', 'ScheduledDeliveries'],
+                    ['manage', 'ExternalConnection'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect({
+                    action,
+                    subjectName,
+                    can: ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-project',
+                        }),
+                    ),
+                }).toEqual({ action, subjectName, can: false });
+            });
+        });
+
+        it('unions org and project extra roles into a human user ability', async () => {
+            const model = createHumanModel();
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(model.customRoleScopes).toHaveBeenCalledWith(
+                expect.arrayContaining(['org-extra', 'project-extra']),
+                expect.anything(),
+            );
+            // base viewer ability kept
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: humanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+            // extra org role adds manage:Organization (a viewer cannot)
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Organization', {
+                        organizationUuid: humanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+            // extra project role adds manage:SqlRunner in that project only
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', { projectUuid: 'project-1' }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', { projectUuid: 'project-2' }),
+                ),
+            ).toBe(false);
+        });
+
+        it('applies org extra roles to a legacy-scopes service account', async () => {
+            const model = createUserModel();
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => [
+                'org-extra',
+            ]);
+            model.customRoleScopes = vi.fn(async () => ({
+                'org-extra': ['manage:Organization'],
+            }));
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(userDetails);
+
+            expect(
+                abilityBuilder.build().can(
+                    'manage',
+                    subject('Organization', {
+                        organizationUuid: userDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+        });
+    });
+
+    describe('customRoleScopes (loader)', () => {
+        // Table-scoped fake trx: avoids knex-mock-client's global tracker,
+        // whose SQL-substring matcher can't tell "roles" from "scoped_roles".
+        const createScopedRolesTrx = (
+            scopedRolesRows: { role_uuid: string; scope_name: string }[],
+        ) =>
+            vi.fn((tableName: string) => {
+                if (tableName === ScopedRolesTableName) {
+                    return {
+                        select: () => ({
+                            whereIn: async () => scopedRolesRows,
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex;
+
+        const createRawUserModel = (
+            scopedRolesRows: { role_uuid: string; scope_name: string }[],
+        ) =>
+            new UserModel({
+                database: createScopedRolesTrx(scopedRolesRows),
+                lightdashConfig,
+                featureFlagModel,
+            }) as unknown as TestableUserModel;
+
+        // Only scoped_roles rows drive this map: an existing role with zero
+        // rows and a missing/unknown roleUuid are indistinguishable here —
+        // both produce no entry. Distinguishing them is the narrow job of
+        // `roleExists`, scoped to the human primary-org-role check only.
+        it('omits a role with zero scoped_roles rows entirely, rather than an empty list', async () => {
+            const model = createRawUserModel([]);
+
+            const result = await model.customRoleScopes(['empty-role']);
+
+            expect(result).toEqual({});
+            expect(
+                Object.prototype.hasOwnProperty.call(result, 'empty-role'),
+            ).toBe(false);
+        });
+
+        it('omits a missing/unknown roleUuid entirely, rather than an empty list', async () => {
+            const model = createRawUserModel([]);
+
+            const result = await model.customRoleScopes(['unknown-role']);
+
+            expect(result).toEqual({});
+            expect(
+                Object.prototype.hasOwnProperty.call(result, 'unknown-role'),
+            ).toBe(false);
+        });
+
+        it('still returns the stored scopes for a role that has them', async () => {
+            const model = createRawUserModel([
+                { role_uuid: 'scoped-role', scope_name: 'view:Dashboard' },
+                { role_uuid: 'scoped-role', scope_name: 'manage:Space' },
+            ]);
+
+            await expect(
+                model.customRoleScopes(['scoped-role']),
+            ).resolves.toEqual({
+                'scoped-role': ['view:Dashboard', 'manage:Space'],
+            });
+        });
+    });
+
+    describe('roleExists', () => {
+        const createRolesTrx = (rolesRows: { role_uuid: string }[]) =>
+            vi.fn((tableName: string) => {
+                if (tableName === RolesTableName) {
+                    return {
+                        select: () => ({
+                            where: () => ({
+                                first: async () => rolesRows[0],
+                            }),
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex;
+
+        const createRawUserModel = (rolesRows: { role_uuid: string }[]) =>
+            new UserModel({
+                database: createRolesTrx(rolesRows),
+                lightdashConfig,
+                featureFlagModel,
+            }) as unknown as TestableUserModel;
+
+        it('resolves true for an existing role uuid', async () => {
+            const model = createRawUserModel([{ role_uuid: 'exists' }]);
+
+            await expect(model.roleExists('exists')).resolves.toBe(true);
+        });
+
+        it('resolves false for a missing/unknown role uuid', async () => {
+            const model = createRawUserModel([]);
+
+            await expect(model.roleExists('missing')).resolves.toBe(false);
+        });
+    });
+
+    describe('org custom role PAT scope authority (pat-scope-authoritative flag)', () => {
+        const orgCustomRoleUuid = 'org-custom-role';
+        const patHumanDetails: DbUserDetails = {
+            ...userDetails,
+            user_uuid: 'pat-human-user',
+            is_internal: false,
+            role: OrganizationMemberRole.MEMBER,
+            role_uuid: orgCustomRoleUuid,
+        };
+
+        const patLightdashConfig = {
+            ...lightdashConfig,
+            auth: {
+                pat: {
+                    enabled: true,
+                    allowedOrgRoles: [OrganizationMemberRole.MEMBER],
+                },
+            },
+            customRoles: { enabled: true },
+            license: { licenseKey: 'test-license-key' },
+        } as unknown as LightdashConfig;
+
+        const createFeatureFlagModelFor = (
+            patScopeAuthoritative: boolean,
+        ): FeatureFlagModel =>
+            ({
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId ===
+                        CommercialFeatureFlags.PatScopeAuthoritative
+                            ? patScopeAuthoritative
+                            : false,
+                })),
+            }) as unknown as FeatureFlagModel;
+
+        const createPatHumanModel = (
+            patScopeAuthoritative: boolean,
+            roleScopes: string[],
+        ) => {
+            const model = new UserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig: patLightdashConfig,
+                featureFlagModel: createFeatureFlagModelFor(
+                    patScopeAuthoritative,
+                ),
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
+            model.customRoleScopes = vi.fn(async () => ({
+                [orgCustomRoleUuid]: roleScopes,
+            }));
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+            return model;
+        };
+
+        it('flag off: a role that omits the scope still gets PAT from the config fallback', async () => {
+            const model = createPatHumanModel(false, [
+                'manage:OrganizationMemberProfile',
+            ]);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+
+            expect(
+                abilityBuilder.build().can('manage', 'PersonalAccessToken'),
+            ).toBe(true);
+        });
+
+        it('flag on: the same role is denied PAT once the org opts in', async () => {
+            const model = createPatHumanModel(true, [
+                'manage:OrganizationMemberProfile',
+            ]);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+
+            expect(
+                abilityBuilder.build().can('manage', 'PersonalAccessToken'),
+            ).toBe(false);
+        });
+
+        it('flag on + empty role: denied, with no system-role fallback', async () => {
+            const model = createPatHumanModel(true, []);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(ability.can('manage', 'PersonalAccessToken')).toBe(false);
+            // A system MEMBER role would grant this; its absence proves the
+            // empty custom role did not fall back to the system role.
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: patHumanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        // customRoleScopes only queries scoped_roles; roleExists separately
+        // confirms the uuid is a real (not deleted/unknown) role via `roles`.
+        const createExistingEmptyRoleTrx = () =>
+            vi.fn((tableName: string) => {
+                if (tableName === ScopedRolesTableName) {
+                    return { select: () => ({ whereIn: async () => [] }) };
+                }
+                if (tableName === RolesTableName) {
+                    return {
+                        select: () => ({
+                            where: () => ({
+                                first: async () => ({
+                                    role_uuid: orgCustomRoleUuid,
+                                }),
+                            }),
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex;
+
+        it('end-to-end: flag on + an existing org custom role with zero scoped_roles rows denies PAT via the real loader, no system fallback', async () => {
+            const model = new UserModel({
+                database: createExistingEmptyRoleTrx(),
+                lightdashConfig: patLightdashConfig,
+                featureFlagModel: createFeatureFlagModelFor(true),
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(ability.can('manage', 'PersonalAccessToken')).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: patHumanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('end-to-end: flag off + the same existing empty org custom role still falls back to the system role (legacy behavior preserved)', async () => {
+            const model = new UserModel({
+                database: createExistingEmptyRoleTrx(),
+                lightdashConfig: patLightdashConfig,
+                featureFlagModel: createFeatureFlagModelFor(false),
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+            const ability = abilityBuilder.build();
+
+            // System MEMBER abilities, including config-granted PAT: the
+            // narrow empty-role check never ran (flag off), so the missing
+            // scopes entry falls back exactly like it always has on main.
+            expect(ability.can('manage', 'PersonalAccessToken')).toBe(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: patHumanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+        });
+    });
+
+    describe('empty existing role still falls back everywhere except the flagged human primary org role', () => {
+        it('a service account bound to an existing role with zero scoped_roles rows still falls back to legacy service_accounts.scopes', async () => {
+            const model = createUserModel();
+            // Restored loader semantics: an existing role with no
+            // scoped_roles rows has no entry, same as an unknown uuid.
+            model.customRoleScopes = vi.fn(async () => ({}));
+
+            const { abilityBuilder } = await model.generateUserAbilityBuilder({
+                ...userDetails,
+                role_uuid: 'custom-role',
+            });
+            const ability = abilityBuilder.build();
+
+            // createUserModel()'s default findServiceAccountByUserUuid mock
+            // returns legacy scopes: [SYSTEM_MEMBER], which grants this.
+            expect(model.findServiceAccountByUserUuid).toHaveBeenCalled();
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: userDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+        });
+
+        it('a project membership on an existing role with zero scoped_roles rows still falls back to projectMemberAbilities', async () => {
+            const projectUuid = 'project-1';
+            const rolesTrx = vi.fn((tableName: string) => {
+                if (tableName === ProjectMembershipsTableName) {
+                    return {
+                        leftJoin: () => ({
+                            select: () => ({
+                                where: async () => [
+                                    {
+                                        project_id: 1,
+                                        project_uuid: projectUuid,
+                                        role: ProjectMemberRole.ADMIN,
+                                        role_uuid: 'empty-project-role',
+                                        project_type: ProjectType.DEFAULT,
+                                        created_by_user_uuid: null,
+                                    },
+                                ],
+                            }),
+                        }),
+                    };
+                }
+                if (tableName === ProjectMembershipCustomRolesTableName) {
+                    return {
+                        join: () => ({
+                            where: () => ({
+                                whereIn: () => ({
+                                    select: () => ({
+                                        orderBy: async () => [],
+                                    }),
+                                }),
+                            }),
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex;
+
+            const model = new UserModel({
+                database: rolesTrx,
+                lightdashConfig,
+                featureFlagModel,
+            }) as unknown as TestableUserModel;
+            // Restored loader semantics: an existing role with no
+            // scoped_roles rows has no entry, same as an unknown uuid.
+            model.customRoleScopes = vi.fn(async () => ({}));
+
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            await model.applyServiceAccountProjectMemberships(
+                1,
+                'sa-user',
+                builder,
+                rolesTrx,
+            );
+            const ability = builder.build();
+
+            // ADMIN grants this via projectMemberAbilities: project custom
+            // roles are untouched by the narrow human-primary-role check.
+            expect(
+                ability.can('manage', subject('DataApp', { projectUuid })),
+            ).toBe(true);
+        });
     });
 
     it('uses one transaction executor for every ability source', async () => {
@@ -385,6 +1083,11 @@ describe('UserModel', () => {
             userDetails.user_uuid,
             trx,
         );
+        expect(model.getOrganizationExtraRoleUuids).toHaveBeenCalledWith(
+            userDetails.user_id,
+            userDetails.organization_id,
+            trx,
+        );
         expect(model.findServiceAccountByUserUuid).toHaveBeenCalledWith(
             userDetails.user_uuid,
             { trx },
@@ -404,10 +1107,16 @@ describe('UserModel', () => {
             const query: unknown = new Proxy(
                 {},
                 {
-                    get: (_target, prop) => {
+                    get: (target, prop) => {
                         if (prop === 'then') {
                             return (resolve: (value: unknown[]) => unknown) =>
                                 resolve(rows);
+                        }
+                        if (prop === 'first') {
+                            return () => Promise.resolve(rows[0]);
+                        }
+                        if (prop in target) {
+                            return Reflect.get(target, prop);
                         }
                         return () => query;
                     },
@@ -416,26 +1125,378 @@ describe('UserModel', () => {
             return query;
         };
 
-        it('fails authentication without comparing passwords when the user has no password hash', async () => {
-            const database = vi.fn(() =>
-                createThenableQuery([{ ...userDetails, password_hash: null }]),
-            ) as unknown as Knex;
+        it('performs a dummy password comparison when the user has no password login', async () => {
+            const trx = vi.fn(() => createThenableQuery([]));
+            const database = Object.assign(vi.fn(), {
+                transaction: vi.fn(
+                    async (callback: (transaction: Knex) => unknown) =>
+                        callback(trx as unknown as Knex),
+                ),
+            }) as unknown as Knex;
             const model = new UserModel({
                 database,
                 lightdashConfig,
                 featureFlagModel,
             });
-            const compareSpy = vi.spyOn(bcrypt, 'compare');
+            const compareSpy = vi
+                .spyOn(bcrypt, 'compare')
+                .mockResolvedValue(false as never);
 
             await expect(
                 model.getUserByPrimaryEmailAndPassword(
                     'passwordless@example.com',
                     'password1!',
                 ),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow(
+                'No user found with email passwordless@example.com and password',
+            );
 
-            expect(compareSpy).not.toHaveBeenCalled();
+            expect(compareSpy).toHaveBeenCalledWith(
+                'password1!',
+                expect.stringMatching(/^\$2b\$10\$/),
+            );
             compareSpy.mockRestore();
+        });
+
+        it('uses the same error for an incorrect password', async () => {
+            const update = vi.fn(async () => 1);
+            const passwordLogin = {
+                user_id: 1,
+                password_hash: 'hash',
+                created_at: new Date(),
+                failed_attempt_count: 0,
+                last_attempt_at: new Date(),
+                blocked_until: null,
+            };
+            const trx = vi.fn(() => {
+                const query = createThenableQuery([passwordLogin]) as {
+                    update?: typeof update;
+                };
+                query.update = update;
+                return query;
+            });
+            const database = Object.assign(vi.fn(), {
+                transaction: vi.fn(
+                    async (callback: (transaction: Knex) => unknown) =>
+                        callback(trx as unknown as Knex),
+                ),
+            }) as unknown as Knex;
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            vi.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'passwordless@example.com',
+                    'password1!',
+                ),
+            ).rejects.toThrow(
+                'No user found with email passwordless@example.com and password',
+            );
+        });
+
+        it('blocks the account for 30 minutes on the fifth recent failed attempt', async () => {
+            vi.useFakeTimers();
+            vi.setSystemTime('2026-08-05T12:00:00.000Z');
+            const update = vi.fn(async () => 1);
+            const passwordLogin = {
+                user_id: 1,
+                password_hash: 'hash',
+                created_at: new Date(),
+                failed_attempt_count: 4,
+                last_attempt_at: new Date('2026-08-05T11:59:00.000Z'),
+                blocked_until: null,
+            };
+            const trx = vi.fn(() => {
+                const query = createThenableQuery([passwordLogin]) as {
+                    update?: typeof update;
+                };
+                query.update = update;
+                return query;
+            });
+            const database = Object.assign(vi.fn(), {
+                transaction: vi.fn(
+                    async (callback: (transaction: Knex) => unknown) =>
+                        callback(trx as unknown as Knex),
+                ),
+            }) as unknown as Knex;
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            vi.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'user@example.com',
+                    'wrong-password',
+                ),
+            ).rejects.toBeInstanceOf(PasswordLoginBlockedError);
+
+            expect(update).toHaveBeenCalledWith({
+                failed_attempt_count: 5,
+                last_attempt_at: new Date('2026-08-05T12:00:00.000Z'),
+                blocked_until: new Date('2026-08-05T12:30:00.000Z'),
+            });
+            vi.useRealTimers();
+        });
+    });
+
+    describe('getSessionUserFromCacheOrDB', () => {
+        const userUuid = 'user-1';
+        const organizationUuid = 'org-1';
+        let savedExperimentalCache: string | undefined;
+
+        beforeEach(() => {
+            savedExperimentalCache = process.env.EXPERIMENTAL_CACHE;
+            process.env.EXPERIMENTAL_CACHE = 'true';
+        });
+
+        afterEach(() => {
+            if (savedExperimentalCache === undefined) {
+                delete process.env.EXPERIMENTAL_CACHE;
+            } else {
+                process.env.EXPERIMENTAL_CACHE = savedExperimentalCache;
+            }
+            vi.doUnmock('node-cache');
+            vi.resetModules();
+        });
+
+        it('serves a cached setup-complete user', async () => {
+            const { CachedUserModel } =
+                await loadUserModelWithSessionUserCache();
+            const model = new CachedUserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const sessionUser = {
+                userUuid,
+                organizationUuid,
+                isSetupComplete: true,
+            } as SessionUser;
+            const findSessionUser = vi
+                .spyOn(model, 'findSessionUserAndOrgByUuid')
+                .mockResolvedValue(sessionUser);
+
+            await model.getSessionUserFromCacheOrDB(userUuid, organizationUuid);
+            const result = await model.getSessionUserFromCacheOrDB(
+                userUuid,
+                organizationUuid,
+            );
+
+            expect(result).toEqual({ sessionUser, cacheHit: true });
+            expect(findSessionUser).toHaveBeenCalledOnce();
+        });
+
+        it('treats a cached incomplete user as a cache miss', async () => {
+            const { CachedUserModel, entries } =
+                await loadUserModelWithSessionUserCache();
+            const model = new CachedUserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const incompleteUser = {
+                userUuid,
+                organizationUuid,
+                isSetupComplete: false,
+            } as SessionUser;
+            const sessionUser = {
+                ...incompleteUser,
+                isSetupComplete: true,
+            };
+            entries.set(`${userUuid}::${organizationUuid}`, incompleteUser);
+            const findSessionUser = vi
+                .spyOn(model, 'findSessionUserAndOrgByUuid')
+                .mockResolvedValue(sessionUser);
+
+            const result = await model.getSessionUserFromCacheOrDB(
+                userUuid,
+                organizationUuid,
+            );
+
+            expect(result).toEqual({ sessionUser, cacheHit: false });
+            expect(findSessionUser).toHaveBeenCalledWith(
+                userUuid,
+                organizationUuid,
+            );
+        });
+
+        it('does not cache an incomplete user', async () => {
+            const { CachedUserModel, sessionUserCache } =
+                await loadUserModelWithSessionUserCache();
+            const model = new CachedUserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const sessionUser = {
+                userUuid,
+                organizationUuid,
+                isSetupComplete: false,
+            } as SessionUser;
+            const findSessionUser = vi
+                .spyOn(model, 'findSessionUserAndOrgByUuid')
+                .mockResolvedValue(sessionUser);
+
+            await model.getSessionUserFromCacheOrDB(userUuid, organizationUuid);
+            await model.getSessionUserFromCacheOrDB(userUuid, organizationUuid);
+
+            expect(findSessionUser).toHaveBeenCalledTimes(2);
+            expect(sessionUserCache.set).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('findSessionUserByPersonalAccessToken', () => {
+        const rotationConfig = {
+            ...lightdashConfig,
+            lightdashSecrets: {
+                active: 'new secret',
+                fallbacks: ['old secret', 'older secret'],
+                all: ['new secret', 'old secret', 'older secret'],
+            },
+        } as unknown as LightdashConfig;
+
+        const patRow = (tokenHash: string, uuid: string = 'pat-uuid') => ({
+            ...userDetails,
+            personal_access_token_uuid: uuid,
+            token_hash: tokenHash,
+            created_at: new Date('2024-01-01'),
+            rotated_at: null,
+            last_used_at: null,
+            description: 'test token',
+            expires_at: null,
+            created_by_user_id: userDetails.user_id,
+        });
+
+        const mockDatabase = knex({ client: MockClient, dialect: 'pg' });
+        let tracker: Tracker;
+
+        const createPatUserModel = () => {
+            const model = new UserModel({
+                database: mockDatabase as unknown as Knex,
+                lightdashConfig: rotationConfig,
+                featureFlagModel,
+            });
+            (
+                model as unknown as {
+                    generateUserAbilityBuilder: () => Promise<unknown>;
+                }
+            ).generateUserAbilityBuilder = vi.fn(async () => ({
+                abilityBuilder: { rules: [], build: () => ({}) },
+                lightdashUser: { userUuid: userDetails.user_uuid },
+            }));
+            return model;
+        };
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+            vi.clearAllMocks();
+        });
+
+        it('performs one bcrypt hash and one grouped query for an active match', async () => {
+            tracker.on
+                .select('users')
+                .responseOnce([patRow('bcrypt:new secret:token')]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(result?.cacheHit).toBe(false);
+            expect(hashWithSecret).toHaveBeenCalledTimes(1);
+            expect(hashWithSecret).toHaveBeenCalledWith('token', 'new secret');
+            expect(tracker.history.select).toHaveLength(1);
+            expect(tracker.history.select[0].bindings).toEqual(
+                expect.arrayContaining([
+                    'bcrypt:new secret:token',
+                    'sha256:token',
+                ]),
+            );
+        });
+
+        it('matches a legacy sha256 hash without extra bcrypt work', async () => {
+            tracker.on.select('users').responseOnce([patRow('sha256:token')]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(hashWithSecret).toHaveBeenCalledTimes(1);
+            expect(result?.data.personalAccessToken.uuid).toEqual('pat-uuid');
+        });
+
+        it('derives fallback hashes only after a miss and matches them in one grouped query', async () => {
+            tracker.on.select('users').responseOnce([]);
+            tracker.on
+                .select('users')
+                .responseOnce([patRow('bcrypt:old secret:token')]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(vi.mocked(hashWithSecret).mock.calls).toEqual([
+                ['token', 'new secret'],
+                ['token', 'old secret'],
+                ['token', 'older secret'],
+            ]);
+            expect(tracker.history.select).toHaveLength(2);
+            expect(tracker.history.select[1].bindings).toEqual(
+                expect.arrayContaining([
+                    'bcrypt:old secret:token',
+                    'bcrypt:older secret:token',
+                ]),
+            );
+            expect(result?.data.personalAccessToken.uuid).toEqual('pat-uuid');
+        });
+
+        it('prefers the earliest configured fallback when several rows match', async () => {
+            tracker.on.select('users').responseOnce([]);
+            tracker.on
+                .select('users')
+                .responseOnce([
+                    patRow('bcrypt:older secret:token', 'older-pat-uuid'),
+                    patRow('bcrypt:old secret:token', 'old-pat-uuid'),
+                ]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(result?.data.personalAccessToken.uuid).toEqual(
+                'old-pat-uuid',
+            );
+        });
+
+        it('misses with a single grouped fallback query before returning undefined', async () => {
+            tracker.on.select('users').response([]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(result).toBeUndefined();
+            expect(vi.mocked(hashWithSecret).mock.calls).toEqual([
+                ['token', 'new secret'],
+                ['token', 'old secret'],
+                ['token', 'older secret'],
+            ]);
+            expect(tracker.history.select).toHaveLength(2);
         });
     });
 });

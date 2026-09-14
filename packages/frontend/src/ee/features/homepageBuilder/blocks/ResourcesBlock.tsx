@@ -6,18 +6,18 @@ import {
 import {
     ActionIcon,
     Group,
-    SegmentedControl,
     Select,
     Stack,
+    Switch,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+    Tooltip,
+} from '@mantine/core';
 import {
+    IconAppWindow,
     IconBook,
     IconBrandYoutube,
     IconExternalLink,
-    IconLayoutGrid,
-    IconLayoutList,
     IconLink,
     IconPlus,
     IconSparkles,
@@ -34,8 +34,12 @@ import {
     type KeyboardEvent,
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useAppThumbnailUrl } from '../../../../features/apps/hooks/useAppThumbnail';
+import { dataAppHref } from '../../../../features/apps/utils/appUrls';
 import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
 import classes from './blockStyles.module.css';
+import { ContentLayoutControl } from './ContentLayoutControl';
+import { DataAppPickerModal } from './DataAppPickerModal';
 import { PageGrid, PageGridItem } from './PageGrid';
 import {
     faviconUrl,
@@ -46,9 +50,12 @@ import {
 } from './resourceUrls';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
+// `thumbAccent` is the kind-tinted wash behind a bare favicon: it exists so an
+// external link's kind is legible when there's no image to show. Internal
+// content carries its own icon language and takes no tint — see DataAppCardMedia.
 const KIND_META: Record<
     HomepageResourceKind,
-    { icon: Icon; label: string; thumbAccent: string }
+    { icon: Icon; label: string; thumbAccent?: string }
 > = {
     video: {
         icon: IconVideo,
@@ -67,11 +74,14 @@ const KIND_META: Record<
         label: 'YouTube',
         thumbAccent: classes.resThumbYoutube,
     },
+    'data-app': { icon: IconAppWindow, label: 'Data app' },
 };
 
-const KIND_OPTIONS = (Object.keys(KIND_META) as HomepageResourceKind[]).map(
-    (kind) => ({ value: kind, label: KIND_META[kind].label }),
-);
+// Data apps are added via the picker, not the kind dropdown, so they're
+// excluded from the manually-selectable kinds.
+const KIND_OPTIONS = (Object.keys(KIND_META) as HomepageResourceKind[])
+    .filter((kind) => kind !== 'data-app')
+    .map((kind) => ({ value: kind, label: KIND_META[kind].label }));
 
 const kindMeta = (kind: HomepageResourceKind) =>
     KIND_META[kind] ?? KIND_META.link;
@@ -83,7 +93,43 @@ const isDefaultFavicon = (img: HTMLImageElement) => img.naturalWidth < 32;
 
 // --- Thumbnails -------------------------------------------------------------
 
-const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
+// The media slot for a data app card: its screenshot when there is one,
+// otherwise the same neutral wash tile a link with no favicon falls back to —
+// a filled band, but no kind tint (internal content takes no colour). Shared
+// by the published card and the editor canvas so they can't drift.
+const DataAppThumb: FC<{
+    item: HomepageResourceItem;
+    projectUuid: string;
+}> = ({ item, projectUuid }) => {
+    const [failed, setFailed] = useState(false);
+    const { data } = useAppThumbnailUrl(
+        projectUuid,
+        item.appUuid,
+        !!item.appUuid,
+    );
+    const thumbnailUrl = failed ? undefined : data?.thumbnailUrl;
+    if (!thumbnailUrl) {
+        return (
+            <div className={classes.resThumbTile}>
+                <div className={classes.resGlyphTile}>
+                    <MantineIcon icon={IconAppWindow} size={22} />
+                </div>
+            </div>
+        );
+    }
+    return (
+        <div className={classes.resThumb}>
+            <img
+                src={thumbnailUrl}
+                alt={item.title}
+                loading="lazy"
+                onError={() => setFailed(true)}
+            />
+        </div>
+    );
+};
+
+const UrlCardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const meta = kindMeta(item.kind);
     const [imgFailed, setImgFailed] = useState(false);
     const [faviconFailed, setFaviconFailed] = useState(false);
@@ -107,7 +153,11 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 
     // No sharp photo → a quiet kind-tinted wash with the bare favicon on it.
     return (
-        <div className={`${classes.resThumbTile} ${meta.thumbAccent}`}>
+        <div
+            className={[classes.resThumbTile, meta.thumbAccent]
+                .filter(Boolean)
+                .join(' ')}
+        >
             {favicon && !faviconFailed ? (
                 <img
                     className={classes.resFavTile}
@@ -129,87 +179,136 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     );
 };
 
-const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    const [imgFailed, setImgFailed] = useState(false);
-    const [faviconFailed, setFaviconFailed] = useState(false);
-    const imageUrl = safeImageUrl(item.imageUrl);
-    if (imageUrl && item.kind !== 'claude' && !imgFailed) {
-        return (
-            <div className={classes.rowThumb}>
-                <img
-                    src={imageUrl}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setImgFailed(true)}
-                />
-            </div>
-        );
-    }
-    const favicon = faviconUrl(item.url);
-    if (favicon && !faviconFailed) {
-        return (
-            <div className={`${classes.rowThumb} ${classes.rowThumbFallback}`}>
-                <img
-                    className={classes.rowFavicon}
-                    src={favicon}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setFaviconFailed(true)}
-                    onLoad={(e) => {
-                        if (isDefaultFavicon(e.currentTarget))
-                            setFaviconFailed(true);
-                    }}
-                />
-            </div>
-        );
-    }
-    return <IconSquare icon={kindMeta(item.kind).icon} />;
-};
+const CardThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
+    item,
+    projectUuid,
+}) =>
+    item.kind === 'data-app' ? (
+        <DataAppThumb item={item} projectUuid={projectUuid} />
+    ) : (
+        <UrlCardThumb item={item} />
+    );
 
 // --- Read-only presentation (published + preview) ---------------------------
 
-const ResourceCard: FC<{ item: HomepageResourceItem }> = ({ item }) => (
-    <a
-        href={item.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`${classes.mediaCard} ${classes.cardUnit1} ${classes.clickable} ${classes.plainLink}`}
-    >
-        <MantineIcon
-            icon={IconExternalLink}
-            size={13}
-            className={classes.resExternal}
-        />
-        <CardThumb item={item} />
-        <div className={classes.mediaBody}>
-            <div className={classes.mediaTitle}>
-                {item.title || hostnameOf(item.url)}
-            </div>
-            <div className={classes.mediaDesc}>
-                {item.description || hostnameOf(item.url)}
-            </div>
-        </div>
-    </a>
-);
+// Data apps are internal links; everything else is an external resource. The
+// external-link chrome (new tab, hostname fallback) only applies to the latter.
+const isDataApp = (item: HomepageResourceItem) => item.kind === 'data-app';
 
-const ResourceRow: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    const meta = kindMeta(item.kind);
+// Data app hrefs are derived from `appUuid` rather than trusting the stored
+// `url` — some already-persisted layouts contain malformed data app urls.
+const itemHref = (item: HomepageResourceItem, projectUuid: string): string =>
+    isDataApp(item) && item.appUuid
+        ? dataAppHref(projectUuid, item.appUuid)
+        : item.url;
+
+const ResourceCard: FC<{
+    item: HomepageResourceItem;
+    projectUuid: string;
+    standalone: boolean;
+    showDescription?: boolean;
+}> = ({ item, projectUuid, standalone, showDescription = true }) => {
+    const dataApp = isDataApp(item);
     return (
         <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
+            href={itemHref(item, projectUuid)}
+            target={dataApp ? undefined : '_blank'}
+            rel={dataApp ? undefined : 'noopener noreferrer'}
+            className={`${classes.mediaCard} ${classes.cardUnit1} ${
+                standalone ? classes.mediaCardTall : ''
+            } ${classes.clickable} ${classes.plainLink}`}
         >
-            <RowThumb item={item} />
-            <div className={classes.flexFill}>
-                <div className={classes.rowName}>{item.title}</div>
-                <div className={classes.rowMeta}>
-                    {item.description || hostnameOf(item.url)}
+            {!dataApp && (
+                <MantineIcon
+                    icon={IconExternalLink}
+                    size={13}
+                    className={classes.resExternal}
+                />
+            )}
+            <CardThumb item={item} projectUuid={projectUuid} />
+            <div className={classes.mediaBody}>
+                <div className={classes.mediaTitle}>
+                    {item.title || hostnameOf(item.url)}
                 </div>
+                {showDescription && (
+                    <div className={classes.mediaDesc}>
+                        {item.description ||
+                            (dataApp
+                                ? kindMeta(item.kind).label
+                                : hostnameOf(item.url))}
+                    </div>
+                )}
             </div>
-            <MiniPill>{meta.label}</MiniPill>
-            <MantineIcon icon={IconExternalLink} size={14} color="ldGray.4" />
+        </a>
+    );
+};
+
+// The trailing preview on a data app tile: its live screenshot when one
+// exists, nothing otherwise. Data apps get opened like dashboards, so their
+// tile earns a glimpse of the real thing where a link just gets an arrow.
+const DataAppTilePeek: FC<{
+    item: HomepageResourceItem;
+    projectUuid: string;
+}> = ({ item, projectUuid }) => {
+    const [failed, setFailed] = useState(false);
+    const { data } = useAppThumbnailUrl(
+        projectUuid,
+        item.appUuid,
+        !!item.appUuid,
+    );
+    const thumbnailUrl = failed ? undefined : data?.thumbnailUrl;
+    if (!thumbnailUrl) return null;
+    return (
+        <div className={classes.tilePeek}>
+            <img
+                src={thumbnailUrl}
+                alt=""
+                loading="lazy"
+                onError={() => setFailed(true)}
+            />
+        </div>
+    );
+};
+
+// Compact tile: the same horizontal card language native content uses —
+// glyph square + name + one supporting line. The dense grid option for
+// blocks where resources are destinations to reach, not media to showcase.
+const ResourceTile: FC<{
+    item: HomepageResourceItem;
+    projectUuid: string;
+    showDescription: boolean;
+}> = ({ item, projectUuid, showDescription }) => {
+    const dataApp = isDataApp(item);
+    return (
+        <a
+            href={itemHref(item, projectUuid)}
+            target={dataApp ? undefined : '_blank'}
+            rel={dataApp ? undefined : 'noopener noreferrer'}
+            className={`${classes.resTile} ${classes.clickable} ${classes.plainLink}`}
+        >
+            <IconSquare icon={kindMeta(item.kind).icon} />
+            <div className={classes.resTileBody}>
+                <div className={classes.rowName}>
+                    {item.title || hostnameOf(item.url)}
+                </div>
+                {showDescription && (
+                    <div className={classes.rowDesc}>
+                        {item.description ||
+                            (dataApp
+                                ? kindMeta(item.kind).label
+                                : hostnameOf(item.url))}
+                    </div>
+                )}
+            </div>
+            {dataApp ? (
+                <DataAppTilePeek item={item} projectUuid={projectUuid} />
+            ) : (
+                <MantineIcon
+                    icon={IconExternalLink}
+                    size={14}
+                    color="ldGray.4"
+                />
+            )}
         </a>
     );
 };
@@ -217,11 +316,14 @@ const ResourceRow: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 export const ResourcesBlockView: FC<BlockComponentProps> = ({
     block,
     itemSpan,
+    projectUuid,
+    standalone = false,
 }) => {
     if (block.type !== 'resources' || block.config.items.length === 0) {
         return null;
     }
     const layout: HomepageResourcesLayout = block.config.layout ?? 'list';
+    const showDescriptions = block.config.showDescriptions ?? true;
     return (
         <Stack gap={0}>
             <BlockHeader icon={IconBook} title={block.config.title} />
@@ -229,14 +331,24 @@ export const ResourcesBlockView: FC<BlockComponentProps> = ({
                 <PageGrid itemSpan={itemSpan ?? null}>
                     {block.config.items.map((item, i) => (
                         <PageGridItem key={`${item.url}-${i}`}>
-                            <ResourceCard item={item} />
+                            <ResourceCard
+                                item={item}
+                                projectUuid={projectUuid}
+                                standalone={standalone}
+                                showDescription={showDescriptions}
+                            />
                         </PageGridItem>
                     ))}
                 </PageGrid>
             ) : (
-                <div className={classes.listCard}>
+                <div className={classes.resTileGrid}>
                     {block.config.items.map((item, i) => (
-                        <ResourceRow key={`${item.url}-${i}`} item={item} />
+                        <ResourceTile
+                            key={`${item.url}-${i}`}
+                            item={item}
+                            projectUuid={projectUuid}
+                            showDescription={showDescriptions}
+                        />
                     ))}
                 </div>
             )}
@@ -262,7 +374,7 @@ const SkeletonCard: FC = () => (
 );
 
 const SkeletonRow: FC = () => (
-    <div className={classes.listRow}>
+    <div className={classes.resTile}>
         <div className={`${classes.rowThumb} ${classes.skeletonBlock}`} />
         <div className={classes.flexFill}>
             <div className={classes.skeletonLine} />
@@ -277,6 +389,7 @@ const SkeletonRow: FC = () => (
 
 type EditProps = {
     item: HomepageResourceItem;
+    projectUuid: string;
     onPatch: (patch: Partial<HomepageResourceItem>) => void;
     onRemove: () => void;
 };
@@ -297,18 +410,38 @@ const KindSelect: FC<{
     />
 );
 
-const BuildCard: FC<EditProps> = ({ item, onPatch, onRemove }) => (
-    <div className={classes.mediaCard}>
-        <CardThumb item={item} />
+// Data app kind is fixed (set by the picker) — show a static pill instead of
+// the editable dropdown so it can't be switched to a URL-based kind.
+const KindControl: FC<{
+    item: HomepageResourceItem;
+    onChange: (kind: HomepageResourceKind) => void;
+}> = ({ item, onChange }) =>
+    item.kind === 'data-app' ? (
+        <MiniPill>{kindMeta(item.kind).label}</MiniPill>
+    ) : (
+        <KindSelect value={item.kind} onChange={onChange} />
+    );
+
+const BuildCard: FC<EditProps & { standalone: boolean }> = ({
+    item,
+    projectUuid,
+    standalone,
+    onPatch,
+    onRemove,
+}) => (
+    <div
+        className={`${classes.mediaCard} ${
+            standalone ? classes.mediaCardTall : ''
+        }`}
+    >
+        <CardThumb item={item} projectUuid={projectUuid} />
         <div className={classes.mediaBody}>
             <Group gap={4} justify="space-between" wrap="nowrap">
-                <KindSelect
-                    value={item.kind}
+                <KindControl
+                    item={item}
                     onChange={(kind) => onPatch({ kind })}
                 />
                 <ActionIcon
-                    variant="subtle"
-                    color="ldGray.6"
                     size="sm"
                     aria-label={`Remove ${item.title}`}
                     onClick={onRemove}
@@ -340,10 +473,10 @@ const BuildCard: FC<EditProps> = ({ item, onPatch, onRemove }) => (
     </div>
 );
 
-const BuildRow: FC<EditProps> = ({ item, onPatch, onRemove }) => (
-    <div className={classes.listRow}>
-        <RowThumb item={item} />
-        <div className={classes.flexFill}>
+const BuildTile: FC<EditProps> = ({ item, projectUuid, onPatch, onRemove }) => (
+    <div className={classes.resTile}>
+        <IconSquare icon={kindMeta(item.kind).icon} />
+        <div className={classes.resTileBody}>
             <TextInput
                 variant="unstyled"
                 size="xs"
@@ -361,10 +494,12 @@ const BuildRow: FC<EditProps> = ({ item, onPatch, onRemove }) => (
                 }
             />
         </div>
-        <KindSelect value={item.kind} onChange={(kind) => onPatch({ kind })} />
+        {isDataApp(item) ? (
+            <DataAppTilePeek item={item} projectUuid={projectUuid} />
+        ) : (
+            <KindControl item={item} onChange={(kind) => onPatch({ kind })} />
+        )}
         <ActionIcon
-            variant="subtle"
-            color="ldGray.6"
             size="sm"
             aria-label={`Remove ${item.title}`}
             onClick={onRemove}
@@ -387,9 +522,11 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
     itemSpan,
+    standalone = false,
 }) => {
     const [pasteValue, setPasteValue] = useState('');
     const [batch, setBatch] = useState<BatchEntry[]>([]);
+    const [isAppPickerOpen, setIsAppPickerOpen] = useState(false);
     const keyCounter = useRef(0);
 
     // Flush the paste batch into config once every URL has resolved — a single
@@ -424,6 +561,19 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
 
     const removeItem = (index: number) =>
         patchConfig({ items: items.filter((_, i) => i !== index) });
+
+    const existingAppUuids = items.flatMap((it) =>
+        it.kind === 'data-app' && it.appUuid ? [it.appUuid] : [],
+    );
+
+    const addDataApps = (newItems: HomepageResourceItem[]) => {
+        const known = new Set(existingAppUuids);
+        const deduped = newItems.filter(
+            (it) => !it.appUuid || !known.has(it.appUuid),
+        );
+        if (deduped.length === 0) return;
+        patchConfig({ items: [...items, ...deduped] });
+    };
 
     const startResolving = (text: string) => {
         const urls = Array.from(
@@ -489,24 +639,23 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                         patchConfig({ title: e.currentTarget.value })
                     }
                 />
-                <SegmentedControl
-                    size="xs"
+                <ContentLayoutControl
                     value={layout}
-                    onChange={(v) =>
-                        patchConfig({ layout: v as HomepageResourcesLayout })
+                    onChange={(nextLayout) =>
+                        patchConfig({ layout: nextLayout })
                     }
-                    data={[
-                        {
-                            value: 'card',
-                            label: <MantineIcon icon={IconLayoutGrid} />,
-                        },
-                        {
-                            value: 'list',
-                            label: <MantineIcon icon={IconLayoutList} />,
-                        },
-                    ]}
                 />
             </Group>
+            <Switch
+                size="xs"
+                label="Show descriptions"
+                checked={block.config.showDescriptions ?? true}
+                onChange={(e) =>
+                    patchConfig({
+                        showDescriptions: e.currentTarget.checked,
+                    })
+                }
+            />
 
             {layout === 'card' ? (
                 <PageGrid itemSpan={itemSpan ?? null}>
@@ -514,6 +663,8 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                         <PageGridItem key={`${item.url}-${i}`}>
                             <BuildCard
                                 item={item}
+                                projectUuid={projectUuid}
+                                standalone={standalone}
                                 onPatch={(patch) => patchItem(i, patch)}
                                 onRemove={() => removeItem(i)}
                             />
@@ -521,7 +672,11 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                     ))}
                     {resolvedBatch.map((e) => (
                         <PageGridItem key={e.key}>
-                            <ResourceCard item={e.item} />
+                            <ResourceCard
+                                item={e.item}
+                                projectUuid={projectUuid}
+                                standalone={standalone}
+                            />
                         </PageGridItem>
                     ))}
                     {Array.from({ length: pendingCount }).map((_, i) => (
@@ -531,17 +686,25 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                     ))}
                 </PageGrid>
             ) : (
-                <div className={classes.listCard}>
+                <div className={classes.resTileGrid}>
                     {items.map((item, i) => (
-                        <BuildRow
+                        <BuildTile
                             key={`${item.url}-${i}`}
                             item={item}
+                            projectUuid={projectUuid}
                             onPatch={(patch) => patchItem(i, patch)}
                             onRemove={() => removeItem(i)}
                         />
                     ))}
                     {resolvedBatch.map((e) => (
-                        <ResourceRow key={e.key} item={e.item} />
+                        <ResourceTile
+                            key={e.key}
+                            item={e.item}
+                            projectUuid={projectUuid}
+                            showDescription={
+                                block.config.showDescriptions ?? true
+                            }
+                        />
                     ))}
                     {Array.from({ length: pendingCount }).map((_, i) => (
                         <SkeletonRow key={`sk-${i}`} />
@@ -549,28 +712,48 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 </div>
             )}
 
-            <Group gap="xs" align="flex-end">
-                <TextInput
-                    size="xs"
-                    flex={1}
-                    placeholder="Paste a Claude artifact, YouTube, or any link…"
-                    value={pasteValue}
-                    onChange={(e) => setPasteValue(e.currentTarget.value)}
-                    onPaste={handlePaste}
-                    onKeyDown={handleKeyDown}
-                />
-                <ActionIcon
-                    variant="default"
-                    size="lg"
-                    aria-label="Add resource"
-                    onClick={() => startResolving(pasteValue)}
-                >
-                    <MantineIcon icon={IconPlus} />
-                </ActionIcon>
-            </Group>
+            <TextInput
+                size="sm"
+                placeholder="Paste a Claude artifact, YouTube, or any link…"
+                value={pasteValue}
+                onChange={(e) => setPasteValue(e.currentTarget.value)}
+                onPaste={handlePaste}
+                onKeyDown={handleKeyDown}
+                rightSectionWidth={64}
+                rightSection={
+                    <Group gap={2} wrap="nowrap">
+                        <Tooltip label="Add data app" openDelay={200}>
+                            <ActionIcon
+                                size="sm"
+                                aria-label="Add data app"
+                                onClick={() => setIsAppPickerOpen(true)}
+                            >
+                                <MantineIcon icon={IconAppWindow} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Add link" openDelay={200}>
+                            <ActionIcon
+                                size="sm"
+                                aria-label="Add resource"
+                                onClick={() => startResolving(pasteValue)}
+                            >
+                                <MantineIcon icon={IconPlus} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
+                }
+            />
             <div className={classes.buildHint}>
-                Paste multiple links (one per line) to add them all at once.
+                Paste multiple links (one per line) to add them all at once, or
+                add a data app with the app button.
             </div>
+            <DataAppPickerModal
+                opened={isAppPickerOpen}
+                onClose={() => setIsAppPickerOpen(false)}
+                projectUuid={projectUuid}
+                existingAppUuids={existingAppUuids}
+                onAdd={addDataApps}
+            />
         </Stack>
     );
 };

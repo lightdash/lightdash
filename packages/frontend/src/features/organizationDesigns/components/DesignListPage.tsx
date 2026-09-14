@@ -10,11 +10,11 @@ import {
     Stack,
     Table,
     Text,
-    Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCheck,
     IconDots,
+    IconPalette,
     IconPencil,
     IconPlus,
     IconTrash,
@@ -23,7 +23,9 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { SettingsEmptyState } from '../../../components/common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
+import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import useApp from '../../../providers/App/useApp';
 import {
     useDeleteOrganizationDesign,
@@ -51,7 +53,6 @@ const DesignRow: FC<{
                     {design.isDefault && (
                         <Badge
                             color="blue"
-                            variant="light"
                             leftSection={
                                 <MantineIcon icon={IconCheck} size={12} />
                             }
@@ -61,25 +62,24 @@ const DesignRow: FC<{
                     )}
                 </Group>
                 {design.description && (
-                    <Text size="xs" c="ldGray.6" lineClamp={2}>
+                    <Text size="xs" c="dimmed" lineClamp={2}>
                         {design.description}
                     </Text>
                 )}
             </Stack>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm" c="ldGray.6">
+            <Text fz="sm" c="dimmed">
                 {design.files.length}{' '}
                 {design.files.length === 1 ? 'file' : 'files'}
             </Text>
         </Table.Td>
         <Table.Td w="1%">
-            <Menu position="bottom-end" withinPortal>
+            <Menu position="bottom-end">
                 <Menu.Target>
                     <ActionIcon
                         variant="transparent"
                         size="sm"
-                        color="ldGray.6"
                         aria-label="More actions"
                     >
                         <MantineIcon icon={IconDots} />
@@ -113,7 +113,6 @@ const DesignRow: FC<{
 );
 
 const DesignListPage: FC = () => {
-    const { cx, classes } = useTableStyles();
     const {
         user: { data: user },
     } = useApp();
@@ -132,81 +131,72 @@ const DesignListPage: FC = () => {
         useState<ApiOrganizationDesign | null>(null);
 
     return (
-        <Stack gap="sm">
-            <Group gap="xxs">
-                <Title order={5}>Themes</Title>
-            </Group>
-            <SettingsCard mb="lg">
-                <Stack gap="md">
-                    <Group justify="space-between">
-                        <Text size="sm" c="ldGray.6">
-                            Shared brand assets — CSS, fonts, images, and design
-                            instructions — that can be used when building data
-                            apps. New apps will automatically use the default
-                            theme.
-                        </Text>
-                        {canManage && (
-                            <Button
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                variant="default"
-                                size="xs"
-                                onClick={() => setCreateOpen(true)}
-                                style={{ alignSelf: 'flex-end' }}
-                            >
-                                New theme
-                            </Button>
-                        )}
-                    </Group>
-
-                    {isInitialLoading ? (
-                        <Stack gap="xs">
-                            <Skeleton height={48} />
-                            <Skeleton height={48} />
-                        </Stack>
-                    ) : designs.length === 0 ? null : (
-                        <Paper withBorder style={{ overflow: 'hidden' }}>
-                            <Table
-                                className={cx(
-                                    classes.root,
-                                    classes.alignLastTdRight,
-                                )}
-                            >
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th w={500}>Theme</Table.Th>
-                                        <Table.Th>Files</Table.Th>
-                                        <Table.Th />
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {designs.map((design) => (
-                                        <DesignRow
-                                            key={design.designUuid}
-                                            design={design}
-                                            onOpenDetail={() =>
-                                                setActiveDetailUuid(
-                                                    design.designUuid,
-                                                )
-                                            }
-                                            onSetDefault={() =>
-                                                setDefault.mutate(
-                                                    design.designUuid,
-                                                )
-                                            }
-                                            onDelete={() =>
-                                                setDesignToDelete(design)
-                                            }
-                                            settingDefault={
-                                                setDefault.isLoading
-                                            }
-                                        />
-                                    ))}
-                                </Table.Tbody>
-                            </Table>
-                        </Paper>
-                    )}
-                </Stack>
-            </SettingsCard>
+        <SettingsPage
+            title="Themes"
+            description="Manage shared brand assets and instructions used when building data apps."
+            actions={
+                canManage ? (
+                    <Button
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        variant="default"
+                        onClick={() => setCreateOpen(true)}
+                    >
+                        New theme
+                    </Button>
+                ) : null
+            }
+        >
+            {isInitialLoading ? (
+                <SettingsCard>
+                    <Stack gap="xs">
+                        <Skeleton height={48} />
+                        <Skeleton height={48} />
+                    </Stack>
+                </SettingsCard>
+            ) : designs.length === 0 ? (
+                <SettingsEmptyState
+                    icon={IconPalette}
+                    title="No themes"
+                    description="Create a theme to share brand assets and instructions across data apps."
+                />
+            ) : (
+                <SettingsCard>
+                    <Paper>
+                        <Table
+                            className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
+                        >
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th w={500}>Theme</Table.Th>
+                                    <Table.Th>Files</Table.Th>
+                                    <Table.Th />
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {designs.map((design) => (
+                                    <DesignRow
+                                        key={design.designUuid}
+                                        design={design}
+                                        onOpenDetail={() =>
+                                            setActiveDetailUuid(
+                                                design.designUuid,
+                                            )
+                                        }
+                                        onSetDefault={() =>
+                                            setDefault.mutate(design.designUuid)
+                                        }
+                                        onDelete={() =>
+                                            setDesignToDelete(design)
+                                        }
+                                        settingDefault={setDefault.isLoading}
+                                    />
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </Paper>
+                </SettingsCard>
+            )}
 
             <CreateDesignModal
                 opened={createOpen}
@@ -243,7 +233,7 @@ const DesignListPage: FC = () => {
                     <DesignDetailPanel designUuid={activeDetailUuid} />
                 )}
             </MantineModal>
-        </Stack>
+        </SettingsPage>
     );
 };
 

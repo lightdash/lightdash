@@ -15,8 +15,8 @@ import {
     type ComboboxItem,
     type ComboboxItemGroup,
     type ComboboxLikeRenderOptionInput,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import uniqBy from 'lodash/uniqBy';
@@ -31,14 +31,18 @@ import {
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useSpaceAccessByUserUuids } from '../../../hooks/useSpaceAccess';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
+import { useSpaceServiceAccounts } from '../../../hooks/useSpaceServiceAccounts';
 import { LightdashUserAvatar } from '../../Avatar';
+import InlineErrorState from '../InlineErrorState';
 import MantineIcon from '../MantineIcon';
 import { DEFAULT_PAGE_SIZE } from '../Table/constants';
+import { ServiceAccountBadge } from './ServiceAccountBadge';
 import styles from './ShareSpaceAddUser.module.css';
 import { getAccessColor } from './ShareSpaceModalUtils';
 import { UserAccessOptions } from './ShareSpaceSelect';
@@ -68,6 +72,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
+    const {
+        data: serviceAccounts,
+        isFetching: isServiceAccountsFetching,
+        isError: isServiceAccountsError,
+        refetch: refetchServiceAccounts,
+    } = useSpaceServiceAccounts(projectUuid, space.uuid, !disabled);
     const viewportRef = useRef<HTMLDivElement>(null);
 
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
@@ -159,7 +169,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
         const orgUserUuids =
             organizationUsers
-                ?.filter((user) => user.role !== OrganizationMemberRole.MEMBER)
+                ?.filter(
+                    (user) =>
+                        user.role !== OrganizationMemberRole.MEMBER ||
+                        user.roleUuid !== undefined ||
+                        user.hasMultipleRoles === true,
+                )
                 .map((user) => user.userUuid) ?? [];
 
         return [...new Set([...projectUserUuids, ...orgUserUuids])];
@@ -168,6 +183,22 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const allUsersRef = useRef<Map<string, OrganizationMemberProfile>>(
         new Map(),
     );
+
+    const candidateUserUuids = useMemo(
+        () =>
+            uniq([
+                ...userUuids,
+                ...(serviceAccounts?.map((account) => account.userUuid) ?? []),
+                ...selectedItems.users,
+            ]),
+        [userUuids, serviceAccounts, selectedItems.users],
+    );
+
+    const {
+        map: spaceAccessByUserUuid,
+        isLoading: isSpaceAccessLoading,
+        isError: isSpaceAccessError,
+    } = useSpaceAccessByUserUuids(projectUuid, space.uuid, candidateUserUuids);
 
     // Current search results (not accumulated) — used to restrict dropdown when searching
     const currentSearchUserUuids = useMemo(
@@ -191,12 +222,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             allUsersRef.current.set(user.userUuid, user);
         }
 
-        const userUuidsAndSelected = uniq([
-            ...userUuids,
-            ...selectedItems.users,
-        ]);
-
-        const usersSet = userUuidsAndSelected
+        const usersSet = candidateUserUuids
             .map((userUuid): ComboboxItem | null => {
                 // When searching, only show users that match the current server results
                 if (
@@ -213,12 +239,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
                 if (!user) return null;
 
-                const hasDirectAccess = (space.access || []).some(
-                    (access) =>
-                        access.userUuid === userUuid &&
-                        access.hasDirectAccess &&
-                        access.inheritedFrom !== 'parent_space',
-                );
+                const access = spaceAccessByUserUuid.get(userUuid);
+                const hasDirectAccess =
+                    !!access &&
+                    access.hasDirectAccess &&
+                    access.inheritedFrom !== 'parent_space';
 
                 if (hasDirectAccess) return null;
 
@@ -266,7 +291,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             });
         }
 
-        const result: (ComboboxItem | ComboboxItemGroup)[] = [];
+        const result: (ComboboxItem | ComboboxItemGroup<ComboboxItem>)[] = [];
 
         if (groupItems.length > 0) {
             result.push({ group: 'Groups', items: groupItems });
@@ -274,22 +299,49 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         if (usersSet.length > 0) {
             result.push({ group: 'Users', items: usersSet });
         }
+        const serviceAccountItems = (serviceAccounts ?? [])
+            .filter((account) => {
+                const access = spaceAccessByUserUuid.get(account.userUuid);
+                return (
+                    !(
+                        access?.hasDirectAccess &&
+                        access.inheritedFrom !== 'parent_space'
+                    ) &&
+                    (!debouncedSearchQuery ||
+                        selectedItems.users.includes(account.userUuid) ||
+                        account.description
+                            .toLowerCase()
+                            .includes(debouncedSearchQuery.toLowerCase()))
+                );
+            })
+            .map((account) => ({
+                value: account.userUuid,
+                label: account.description,
+            }));
+        if (serviceAccountItems.length > 0) {
+            result.push({
+                group: 'Service accounts',
+                items: serviceAccountItems,
+            });
+        }
 
         return result;
     }, [
-        userUuids,
+        candidateUserUuids,
         selectedItems.users,
         allSearchedGroups,
         allSearchedOrganizationUsers,
-        space.access,
+        spaceAccessByUserUuid,
         space.groupsAccess,
         space.projectMemberAccessRole,
         debouncedSearchQuery,
         currentSearchUserUuids,
         currentSearchGroupUuids,
+        serviceAccounts,
     ]);
 
-    const isFetching = isUsersFetching || isGroupsFetching;
+    const isFetching =
+        isUsersFetching || isGroupsFetching || isServiceAccountsFetching;
 
     const handleScrollPositionChange = useCallback(
         ({ y }: { x: number; y: number }) => {
@@ -332,12 +384,30 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 );
             }
 
+            const serviceAccount = serviceAccounts?.find(
+                (account) => account.userUuid === option.value,
+            );
+            if (serviceAccount) {
+                return (
+                    <Group gap="sm" wrap="nowrap">
+                        <LightdashUserAvatar
+                            name={serviceAccount.description}
+                            size="sm"
+                            radius="xl"
+                            userUuid={serviceAccount.userUuid}
+                        />
+                        <Text size="sm" fw={500}>
+                            {serviceAccount.description}
+                        </Text>
+                        <ServiceAccountBadge />
+                    </Group>
+                );
+            }
+
             const user = allUsersRef.current.get(option.value);
             if (!user) return option.label;
 
-            const spaceAccess = space.access.find(
-                (access) => access.userUuid === user.userUuid,
-            );
+            const spaceAccess = spaceAccessByUserUuid.get(user.userUuid);
             const roleTitle = spaceAccess
                 ? (UserAccessOptions.find(
                       (opt) => opt.value === spaceAccess.role,
@@ -396,7 +466,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     {spaceAccess && roleTitle && (
                         <Badge
                             size="sm"
-                            variant="light"
                             color={getAccessColor(spaceAccess.role).join('.')}
                             radius="xl"
                         >
@@ -406,7 +475,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         },
-        [space.access, groupUuidsSet],
+        [spaceAccessByUserUuid, groupUuidsSet, serviceAccounts],
     );
 
     const handleSelectionChange = useCallback(
@@ -433,6 +502,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
 
     const handleShare = useCallback(async () => {
+        if (isSpaceAccessLoading || isSpaceAccessError) return;
+
         for (const uuid of selectedItems.groups) {
             if (uuid === ALL_PROJECT_MEMBERS_VALUE) {
                 await updateSpaceMutation({
@@ -440,23 +511,22 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     projectMemberAccessRole: SpaceMemberRole.VIEWER,
                 });
             } else {
-                const role =
-                    space.access.find((a) => a.userUuid === uuid)?.role ??
-                    SpaceMemberRole.VIEWER;
-                await shareGroupSpaceMutation([uuid, role]);
+                await shareGroupSpaceMutation([uuid, SpaceMemberRole.VIEWER]);
             }
         }
         for (const uuid of selectedItems.users) {
             // Preserve inherited role so direct access isn't a downgrade
             const role =
-                space.access.find((a) => a.userUuid === uuid)?.role ??
-                SpaceMemberRole.VIEWER;
+                spaceAccessByUserUuid.get(uuid)?.role ?? SpaceMemberRole.VIEWER;
             await shareSpaceMutation([uuid, role]);
         }
         setSelectedItems({ users: [], groups: [] });
     }, [
         selectedItems,
         space,
+        spaceAccessByUserUuid,
+        isSpaceAccessLoading,
+        isSpaceAccessError,
         shareGroupSpaceMutation,
         shareSpaceMutation,
         updateSpaceMutation,
@@ -465,7 +535,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     return (
         <Group>
             <MultiSelect
-                style={{ flex: 1 }}
+                flex={1}
                 classNames={{ option: styles.option }}
                 searchable
                 clearable
@@ -479,7 +549,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 renderOption={renderOption}
                 maxDropdownHeight={300}
                 disabled={disabled}
-                rightSection={isFetching ? <Loader size="xs" /> : null}
+                // Not null: since Mantine 8.3 explicit null removes the clear button entirely
+                rightSection={
+                    isFetching || isSpaceAccessLoading ? (
+                        <Loader size="xs" />
+                    ) : undefined
+                }
                 scrollAreaProps={{
                     viewportRef,
                     onScrollPositionChange: handleScrollPositionChange,
@@ -488,11 +563,22 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             />
 
             <Button
-                disabled={disabled || selectedValues.length === 0}
+                disabled={
+                    disabled ||
+                    selectedValues.length === 0 ||
+                    isSpaceAccessLoading ||
+                    isSpaceAccessError
+                }
                 onClick={handleShare}
             >
                 Share
             </Button>
+            {isServiceAccountsError && (
+                <InlineErrorState
+                    message="Unable to load service accounts"
+                    onRetry={() => void refetchServiceAccounts()}
+                />
+            )}
         </Group>
     );
 };

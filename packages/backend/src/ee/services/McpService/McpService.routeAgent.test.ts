@@ -10,6 +10,7 @@ const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
@@ -22,6 +23,10 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
             return {
+                server: {
+                    registerCapabilities: vi.fn(),
+                    setRequestHandler: vi.fn(),
+                },
                 registerResource: vi.fn(),
                 registerPrompt: vi.fn(),
                 registerTool: vi.fn(
@@ -51,7 +56,7 @@ const account = {
         ability: {
             can: vi.fn(() => true),
             cannot: vi.fn(() => false),
-            relevantRuleFor: vi.fn(() => undefined),
+            relevantRuleFor: vi.fn(() => ({ inverted: false })),
             rules: [],
         },
     },
@@ -98,9 +103,11 @@ const selectedAgent: AiAgentWithContext = {
     enableSelfImprovement: true,
     enableContentTools: true,
     enableUserContext: false,
+    enableSqlMode: true,
     adminOnly: false,
     modelConfig: null,
     version: 1,
+    threadRetentionHours: null,
     context: {
         uuid: 'agent-uuid',
         projectUuid,
@@ -205,7 +212,7 @@ const makeMcpService = () => {
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            getSettings: vi.fn().mockResolvedValue({ aiAgentsVisible: true }),
+            isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService,
         aiWritebackService: {},
@@ -269,7 +276,7 @@ describe('McpService route_agent', () => {
         expect(getCurrentAgentTool).toBeDefined();
 
         const routeResult = (await routeAgentTool!(
-            { prompt: 'show revenue by month' },
+            { prompt: 'show revenue by month', projectUuid },
             extra,
         )) as {
             content: Array<{ text: string }>;
@@ -304,7 +311,10 @@ describe('McpService route_agent', () => {
             }),
         );
 
-        const currentResult = (await getCurrentAgentTool!({}, extra)) as {
+        const currentResult = (await getCurrentAgentTool!(
+            { projectUuid },
+            extra,
+        )) as {
             content: Array<{ text: string }>;
         };
         expect(JSON.parse(currentResult.content[0].text)).toEqual(
@@ -316,7 +326,7 @@ describe('McpService route_agent', () => {
         );
     });
 
-    it('applies routed agent scope to later tool calls', async () => {
+    it('applies an explicitly routed agent to later tool calls', async () => {
         const { aiAgentToolsService } = makeMcpService();
 
         const routeAgentTool = mockRegisteredMcpTools.get(
@@ -326,10 +336,19 @@ describe('McpService route_agent', () => {
             McpToolName.LIST_CONTENT,
         );
 
-        await routeAgentTool!({ prompt: 'show revenue by month' }, extra);
+        await routeAgentTool!(
+            { prompt: 'show revenue by month', projectUuid },
+            extra,
+        );
 
         const listContentResult = (await listContentTool!(
-            { spaceSlug: null, page: 1, pageSize: 25 },
+            {
+                projectUuid,
+                agentUuid: 'agent-uuid',
+                spaceSlug: null,
+                page: 1,
+                pageSize: 25,
+            },
             extra,
         )) as {
             content: Array<{ text: string }>;
@@ -345,5 +364,72 @@ describe('McpService route_agent', () => {
         );
         expect(rendered).toContain('slug="allowed-space"');
         expect(rendered).not.toContain('slug="blocked-space"');
+    });
+
+    it('rejects a project argument that differs from the pinned project', async () => {
+        const { aiRouterService } = makeMcpService();
+        const routeAgentTool = mockRegisteredMcpTools.get(
+            McpToolName.ROUTE_AGENT,
+        );
+        const pinnedExtra = {
+            ...extra,
+            authInfo: {
+                extra: {
+                    ...extra.authInfo.extra,
+                    headerProjectUuid: projectUuid,
+                },
+            },
+        };
+
+        await expect(
+            routeAgentTool!(
+                {
+                    prompt: 'show revenue by month',
+                    projectUuid: 'another-project-uuid',
+                },
+                pinnedExtra,
+            ),
+        ).rejects.toThrow(
+            'The requested project does not match the pinned MCP project',
+        );
+        expect(aiRouterService.routePromptToAgent).not.toHaveBeenCalled();
+    });
+
+    it('uses pinned project context instead of a stored project and agent', async () => {
+        const { aiAgentService, storedContext } = makeMcpService();
+        storedContext.projectUuid = 'stored-project-uuid';
+        storedContext.agentUuid = 'stored-agent-uuid';
+        const getCurrentProjectTool = mockRegisteredMcpTools.get(
+            McpToolName.GET_CURRENT_PROJECT,
+        );
+        const getCurrentAgentTool = mockRegisteredMcpTools.get(
+            McpToolName.GET_CURRENT_AGENT,
+        );
+        const pinnedExtra = {
+            ...extra,
+            authInfo: {
+                extra: {
+                    ...extra.authInfo.extra,
+                    headerProjectUuid: projectUuid,
+                },
+            },
+        };
+
+        const projectResult = (await getCurrentProjectTool!(
+            {},
+            pinnedExtra,
+        )) as { content: Array<{ text: string }> };
+        const agentResult = (await getCurrentAgentTool!(
+            { projectUuid },
+            pinnedExtra,
+        )) as { content: Array<{ text: string }> };
+
+        expect(JSON.parse(projectResult.content[0].text)).toEqual(
+            expect.objectContaining({ projectUuid }),
+        );
+        expect(JSON.parse(agentResult.content[0].text)).toEqual({
+            error: 'No active agent set. Use set_agent to set one.',
+        });
+        expect(aiAgentService.getAgent).not.toHaveBeenCalled();
     });
 });

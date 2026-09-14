@@ -6,11 +6,12 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine-8/core';
+import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     useProject,
+    useTestWarehouseConnectionMutation,
     useUpdateMutation,
     useUpdateWarehouseCredentialsMutation,
 } from '../../hooks/useProject';
@@ -20,6 +21,7 @@ import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import ConnectionTestResults from './ConnectionTestResults';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
@@ -97,8 +99,20 @@ const UpdateProjectConnection: FC<{
 
     const { track } = useTracking();
 
+    const {
+        mutate: runConnectionTest,
+        isLoading: isTestingConnection,
+        data: connectionTestResults,
+        reset: resetConnectionTest,
+    } = useTestWarehouseConnectionMutation(projectUuid);
+
     const handleSaveCredentials = () => {
         updateWarehouseCredentials(form.values.warehouse);
+    };
+
+    const handleTestConnection = () => {
+        resetConnectionTest();
+        runConnectionTest(form.values.warehouse);
     };
 
     const handleSubmit = async ({
@@ -157,6 +171,12 @@ const UpdateProjectConnection: FC<{
                         />
                     </ProjectFormProvider>
 
+                    {connectionTestResults && (
+                        <ConnectionTestResults
+                            results={connectionTestResults}
+                        />
+                    )}
+
                     {!isIdle && (
                         <ProjectStatusCallout
                             isSuccess={isSuccess}
@@ -168,7 +188,6 @@ const UpdateProjectConnection: FC<{
 
                     <Card
                         className={classes.stickyFooter}
-                        withBorder
                         shadow="sm"
                         radius="sm"
                     >
@@ -193,6 +212,14 @@ const UpdateProjectConnection: FC<{
                             )}
                         </Box>
                         <Flex gap="sm">
+                            <Button
+                                variant="default"
+                                loading={isTestingConnection}
+                                disabled={isDisabled || isTestingConnection}
+                                onClick={handleTestConnection}
+                            >
+                                Test connection
+                            </Button>
                             {showSaveCredentials && (
                                 <Button
                                     variant="default"
@@ -230,7 +257,13 @@ const UpdateProjectConnectionWrapper: FC<{
         return null;
     }
 
-    return <UpdateProjectConnection projectUuid={projectUuid} project={data} />;
+    return (
+        <UpdateProjectConnection
+            key={projectUuid}
+            projectUuid={projectUuid}
+            project={data}
+        />
+    );
 };
 
 export default UpdateProjectConnectionWrapper;

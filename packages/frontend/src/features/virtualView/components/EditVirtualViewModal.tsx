@@ -1,5 +1,5 @@
 import { ProjectType, type Explore } from '@lightdash/common';
-import { Button, Center, Loader, Modal, Stack, Text } from '@mantine-8/core';
+import { Button, Center, Loader, Modal, Stack, Text } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import {
     lazy,
@@ -91,6 +91,8 @@ export const EditVirtualViewModal: FC<Props> = ({
                 actions={
                     <Button
                         color="red"
+                        data-tour-anchor="virtual-view-discard"
+                        data-tour-hint="Discard and continue"
                         onClick={() => {
                             startTransition(() => {
                                 handleClearQuery();
@@ -117,7 +119,7 @@ export const EditVirtualViewModal: FC<Props> = ({
             closeOnClickOutside={false}
         >
             <Modal.Overlay />
-            <Modal.Content>
+            <Modal.Content data-tour-anchor="virtual-view-editor">
                 <Modal.Body p={0}>
                     <Suspense
                         fallback={

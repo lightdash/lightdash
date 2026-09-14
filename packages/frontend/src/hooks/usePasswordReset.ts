@@ -28,6 +28,7 @@ const resetPasswordQuery = async (data: PasswordReset): Promise<null> =>
         url: `/user/password/reset`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 export const usePasswordResetLink = (code: string | undefined) =>

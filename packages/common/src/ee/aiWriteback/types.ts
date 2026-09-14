@@ -127,6 +127,8 @@ export type AiWritebackSource =
     | 'admin_review'
     | 'changeset';
 
+export type AiWritebackWorkstream = 'dbt-writeback' | 'general';
+
 export const AI_WRITEBACK_STAGES = [
     'install',
     'sandbox',
@@ -139,7 +141,23 @@ export const AI_WRITEBACK_STAGES = [
 
 export type AiWritebackFailureStage = (typeof AI_WRITEBACK_STAGES)[number];
 
-export const AI_WRITEBACK_RUN_TERMINAL_STATUSES = ['ready', 'error'] as const;
+export const AI_WRITEBACK_RUN_TERMINAL_STATUSES = [
+    'ready',
+    'error',
+    'cancelled',
+] as const;
+
+/**
+ * Once a run's git side effects begin (commit → push → PR), cancellation is
+ * refused: the finalize claim moves the row into 'commit' atomically, and
+ * markCancelled excludes these stages so a cancel can never race an
+ * in-flight push into an unrecorded pull request.
+ */
+export const AI_WRITEBACK_RUN_FINALIZING_STATUSES = [
+    'commit',
+    'push',
+    'pull_request',
+] as const;
 
 export type AiWritebackRunStatus =
     | 'pending'
@@ -153,31 +171,22 @@ export const isAiWritebackRunInProgress = (
 
 export const MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION = `Tool: run_ai_writeback
 
-Purpose:
-Make a change to the dbt project that backs the active Lightdash project by describing it in natural language, then open a pull request with the result. The target GitHub repository and dbt sub-folder are resolved server-side from the active project's dbt connection — you never specify them.
+Change a Lightdash project's dbt project from a natural-language prompt. The GitHub repository and dbt sub-folder are resolved server-side from its dbt connection; never specify them.
 
-How it works:
-- This tool starts the run and returns immediately with an aiWritebackRunUuid — it does NOT wait for the run to finish.
-- In the background: a sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project. If the agent changes any files, a branch is committed, pushed, and a pull request is opened.
-- Call get_ai_writeback_status with the returned aiWritebackRunUuid to check progress and get the pull request URL once the run finishes. The run typically takes a few minutes (cloning, running the agent, opening the PR) — poll every 10-15 seconds rather than immediately looping.
+Safety and requirements:
+- NOT read-only or idempotent: each call can start a run and open a new pull request. Use only when the user explicitly wants a dbt change.
+- Requires a GitHub-backed dbt connection, the organization's GitHub App installation, and AI writeback enabled for the organization.
 
-Requirements:
-- An active project must be set first via set_project (or the X-Lightdash-Project header).
-- The project's dbt connection must be GitHub-backed, and the organization must have the GitHub App installed.
-- The AI writeback feature must be enabled for the organization.
+Execution:
+- Returns immediately with aiWritebackRunUuid; does not wait for completion. A background sandbox clones the project's GitHub repository and runs the prompt through Claude Code CLI against dbt. If files change, a branch is committed and pushed, and a pull request opened.
+- Runs usually take a few minutes. Poll get_ai_writeback_status every 10-15 seconds with aiWritebackRunUuid for progress and the pull request URL.
+- Clients declaring io.modelcontextprotocol/tasks in per-request capabilities instead get a task handle (resultType: "task", taskId = run id). Poll tasks/get and cancel via tasks/cancel, rather than using get_ai_writeback_status.
 
-Important:
-- This tool is NOT read-only and NOT idempotent — each call can start a run that opens a new pull request. Use it only when the user explicitly wants to change their dbt project.
-- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the run finishes with status "error" and an error message listing the sources by name and repository — call run_ai_writeback again naming the intended source in the prompt itself (e.g. "In jaffle-2, add ..."). You never pass an id.
+Input:
+- prompt: a clear, self-contained change, e.g. "Add a total_revenue metric to orders as the sum of amount".
+- With multiple dbt sources, name the intended source in the prompt, e.g. "In the marketing dbt project, ..."; never pass a source ID. If ambiguous, the run ends with status "error" and an error message listing the source names. Call run_ai_writeback again with the intended source named in the prompt.
 
-Parameters:
-- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. "Add a 'total_revenue' metric to the orders model as the sum of amount"). When the project has more than one dbt source, name the intended source here (e.g. "In the marketing dbt project, ...").
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<human-readable message telling you the run started and to poll get_ai_writeback_status>" }]
-- structuredContent: {
-    aiWritebackRunUuid: string   // pass this to get_ai_writeback_status
-  }
+Normal response (MCP CallToolResult): content contains a text message saying the run started and to poll get_ai_writeback_status; structuredContent is { aiWritebackRunUuid: string }.
 `;
 
 export const mcpRunAiWritebackArgsSchema = z.object({
@@ -185,7 +194,7 @@ export const mcpRunAiWritebackArgsSchema = z.object({
         .string()
         .min(1)
         .describe(
-            'A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.',
+            'A clear, self-contained description of the change to make to the dbt project that backs the target Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.',
         ),
 });
 
@@ -194,6 +203,28 @@ export const mcpRunAiWritebackStructuredOutputSchema = z.object({
         .string()
         .describe(
             'Id of the writeback run that just started. Pass this to get_ai_writeback_status to check progress and get the pull request URL.',
+        ),
+    // Only present on the final result of a task-augmented call (MCP Tasks
+    // extension): the synchronous response carries just the run id.
+    status: z
+        .string()
+        .optional()
+        .describe(
+            'Final run status. Only present on the completed result of a task-augmented call.',
+        ),
+    prUrl: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+            'URL of the opened pull request, or null when the run made no changes or failed. Only present on the completed result of a task-augmented call.',
+        ),
+    errorMessage: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+            'Why the run failed, or null on success. Only present on the completed result of a task-augmented call.',
         ),
 });
 
@@ -206,7 +237,7 @@ Check the status of a writeback run started by run_ai_writeback, and get the pul
 
 Important:
 - Poll every 10-15 seconds rather than immediately looping — a run typically takes a few minutes.
-- "status" is either "pending" (not yet picked up), an in-progress pipeline stage (e.g. "sandbox", "agent", "pull_request"), or a terminal value: "ready" (finished — check prUrl) or "error" (finished — check errorMessage; this also covers the "more than one dbt source" case described in run_ai_writeback).
+- "status" is either "pending" (not yet picked up), an in-progress pipeline stage (e.g. "sandbox", "agent", "pull_request"), or a terminal value: "ready" (finished — check prUrl), "error" (finished — check errorMessage; this also covers the "more than one dbt source" case described in run_ai_writeback), or "cancelled" (stopped before finishing).
 
 Parameters:
 - aiWritebackRunUuid: The id returned by run_ai_writeback.
@@ -214,7 +245,7 @@ Parameters:
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<human-readable status summary>" }]
 - structuredContent: {
-    status:       string,        // "pending" | a pipeline stage | "ready" | "error"
+    status:       string,        // "pending" | a pipeline stage | "ready" | "error" | "cancelled"
     prUrl:        string | null, // set once status is "ready" and a PR was opened
     errorMessage: string | null  // set once status is "error"
   }
@@ -231,7 +262,7 @@ export const mcpGetAiWritebackStatusStructuredOutputSchema = z.object({
     status: z
         .string()
         .describe(
-            '"pending" | a pipeline stage (e.g. "sandbox", "agent", "pull_request") | "ready" | "error".',
+            '"pending" | a pipeline stage (e.g. "sandbox", "agent", "pull_request") | "ready" | "error" | "cancelled".',
         ),
     prUrl: z
         .string()

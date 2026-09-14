@@ -161,4 +161,27 @@ describe('WarehouseConnectCodeModel', () => {
             'database-now',
         );
     });
+
+    it('deletes expired codes without returning them', async () => {
+        const builder = {
+            where: vi.fn(),
+            delete: vi.fn(async () => 2),
+        };
+        builder.where.mockReturnValue(builder);
+        const database = Object.assign(
+            vi.fn(() => builder),
+            {
+                fn: { now: vi.fn(() => 'database-now') },
+            },
+        ) as unknown as Knex;
+        const model = new WarehouseConnectCodeModel({ database });
+
+        await expect(model.deleteExpired()).resolves.toBe(2);
+        expect(builder.where).toHaveBeenCalledWith(
+            'expires_at',
+            '<=',
+            'database-now',
+        );
+        expect(builder.delete).toHaveBeenCalledOnce();
+    });
 });

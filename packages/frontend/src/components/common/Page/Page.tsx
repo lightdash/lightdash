@@ -1,6 +1,6 @@
 import { ProjectType, type AnyType } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { useDisclosure, useElementSize } from '@mantine-8/hooks';
+import { Box } from '@mantine/core';
+import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { type FC } from 'react';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
@@ -23,6 +23,9 @@ type StyleProps = {
     withFixedContent?: boolean;
     withFooter?: boolean;
     withFullHeight?: boolean;
+    // Size to the parent container instead of the viewport. Use when the page
+    // renders inside a modal or another host that is not viewport-height.
+    withContainerHeight?: boolean;
     withHeader?: boolean;
     withNavbar?: boolean;
     withPaddedContent?: boolean;
@@ -49,6 +52,8 @@ type Props = {
     sidebarWidthProps?: SidebarWidthProps;
     rightSidebar?: React.ReactNode;
     isRightSidebarOpen?: boolean;
+    keepRightSidebarMounted?: boolean;
+    noRightSidebarPadding?: boolean;
     rightSidebarWidthProps?: SidebarWidthProps;
     header?: React.ReactNode;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader' | 'hasBanner'>;
@@ -64,6 +69,8 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     sidebarWidthProps,
     rightSidebar,
     isRightSidebarOpen = false,
+    keepRightSidebarMounted = false,
+    noRightSidebarPadding,
     rightSidebarWidthProps,
 
     withCenteredContent = false,
@@ -74,6 +81,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withXLargePaddedContent = false,
     withFooter = false,
     withFullHeight = false,
+    withContainerHeight = false,
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
@@ -117,6 +125,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                 data-has-banner={hasBanner}
                 data-full-page-scroll={fullPageScroll}
                 data-full-height={withFullHeight}
+                data-container-height={withContainerHeight}
                 data-with-sidebar={withSidebar}
                 data-sidebar-resizing={isSidebarResizing}
                 data-centered-root={withCenteredRoot}
@@ -171,10 +180,13 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
                 {rightSidebar ? (
                     <Sidebar
-                        noSidebarPadding={noSidebarPadding}
+                        noSidebarPadding={
+                            noRightSidebarPadding ?? noSidebarPadding
+                        }
                         widthProps={rightSidebarWidthProps}
                         mainWidth={mainWidth}
                         isOpen={isRightSidebarOpen}
+                        keepMounted={keepRightSidebarMounted}
                         position={SidebarPosition.RIGHT}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}

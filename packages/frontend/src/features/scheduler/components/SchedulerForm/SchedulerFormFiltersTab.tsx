@@ -1,281 +1,24 @@
 import {
-    FeatureFlags,
-    FilterOperator,
-    FilterType,
-    getFilterTypeFromItem,
-    isWithValueFilter,
     type Dashboard,
     type DashboardFilterRule,
     type FilterableDimension,
+    type UnmetFilterRequirement,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Center,
-    Flex,
-    Group,
-    Loader,
-    Paper,
-    Select,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
-import {
-    IconAlertTriangle,
-    IconCheck,
-    IconPencil,
-    IconRotate2,
-    IconTrash,
-} from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import FieldIcon from '../../../../components/common/Filters/FieldIcon';
-import FieldLabel from '../../../../components/common/Filters/FieldLabel';
-import FilterInputComponent from '../../../../components/common/Filters/FilterInputs';
-import {
-    getConditionalRuleLabelFromItem,
-    getFilterOperatorOptions,
-} from '../../../../components/common/Filters/FilterInputs/utils';
+import { Box, Center, Loader, Stack, Text } from '@mantine/core';
+import { useCallback, useEffect, useMemo, type FC } from 'react';
 import FiltersProvider from '../../../../components/common/Filters/FiltersProvider';
-import useFiltersContext from '../../../../components/common/Filters/useFiltersContext';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProject } from '../../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
-import { getSchedulerFilterRequirements } from '../../utils/filterRequirements';
-
-const isValidFilterOperator = (value: unknown): value is FilterOperator =>
-    Object.values(FilterOperator).includes(value as FilterOperator);
-
-const FilterSummaryLabel: FC<
-    {
-        filterSummary: ReturnType<typeof getConditionalRuleLabelFromItem>;
-    } & Record<'isDisabled', boolean>
-> = ({ filterSummary, isDisabled }) => {
-    if (isDisabled) {
-        return (
-            <Text fw={400} span>
-                <Text span color="ldGray.6">
-                    is any value
-                </Text>
-            </Text>
-        );
-    }
-    return (
-        <Text fw={400} span>
-            <Text span color="ldGray.7">
-                {filterSummary?.operator}{' '}
-            </Text>
-            <Text fw={700} span>
-                {filterSummary?.value}
-            </Text>
-        </Text>
-    );
-};
-
-type SchedulerFilterItemProps = {
-    dashboardFilter: DashboardFilterRule;
-    schedulerFilter?: DashboardFilterRule;
-    isMissingRequiredValue: boolean;
-    onChange: (schedulerFilter: DashboardFilterRule) => void;
-    onRevert: () => void;
-    hasChanged: boolean;
-    onRemove?: () => void;
-    tilesWithFilter?: string[];
-};
-
-const FilterItem: FC<SchedulerFilterItemProps> = ({
-    dashboardFilter,
-    schedulerFilter,
-    isMissingRequiredValue,
-    onChange,
-    onRevert,
-    hasChanged,
-    onRemove,
-    tilesWithFilter,
-}) => {
-    const { itemsMap } =
-        useFiltersContext<Record<string, FilterableDimension>>();
-    const field = itemsMap[dashboardFilter.target.fieldId];
-    const [isEditing, setIsEditing] = useState(false);
-
-    const filterType = useMemo(() => {
-        return field ? getFilterTypeFromItem(field) : FilterType.STRING;
-    }, [field]);
-
-    const isDisabled = useMemo(
-        () => Boolean((schedulerFilter ?? dashboardFilter).disabled),
-        [schedulerFilter, dashboardFilter],
-    );
-
-    const filterOperatorOptions = useMemo(() => {
-        return getFilterOperatorOptions(filterType, field);
-    }, [filterType, field]);
-
-    if (!field) {
-        // show invalid dashboard filter
-        return (
-            <Group gap="xs" wrap="nowrap" justify="flex-start">
-                <Paper key={dashboardFilter.id} withBorder p="xs" radius="md">
-                    <Group gap="xs">
-                        <MantineIcon icon={IconAlertTriangle} color="red" />
-                        <Text span fw={500} fz="sm">
-                            Invalid filter
-                        </Text>
-                        <Text fw={400} span fz="xs">
-                            <Text span c="ldGray.6" fz="xs">
-                                Tried to reference field with unknown id:
-                            </Text>
-                            <Text span fz="xs" fw={500}>
-                                {' '}
-                                {dashboardFilter.target.fieldId}
-                            </Text>
-                        </Text>
-                    </Group>
-                </Paper>
-                {onRemove && (
-                    <Tooltip label="Remove invalid filter" fz="xs">
-                        <ActionIcon size="xs" onClick={onRemove}>
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </Group>
-        );
-    }
-
-    return (
-        <Stack key={dashboardFilter.id} gap="xs">
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                    <FieldIcon item={field} />
-                    <FieldLabel
-                        item={{
-                            ...field,
-                            label: dashboardFilter.label ?? field.label,
-                        }}
-                        hideTableName
-                    />
-                    {isEditing ? null : (
-                        <FilterSummaryLabel
-                            filterSummary={getConditionalRuleLabelFromItem(
-                                schedulerFilter ?? dashboardFilter,
-                                field,
-                            )}
-                            isDisabled={isDisabled}
-                        />
-                    )}
-                    {isMissingRequiredValue && !isEditing && (
-                        <Text fz="sm" color="red">
-                            *
-                        </Text>
-                    )}
-                    {tilesWithFilter && tilesWithFilter.length > 0 && (
-                        <Tooltip
-                            label={`Applies to: ${tilesWithFilter.join(', ')}`}
-                            fz="xs"
-                            multiline
-                            w={200}
-                        >
-                            <Text fz="xs" color="ldGray.6" span>
-                                {`Applies to ${tilesWithFilter.length} tiles`}
-                            </Text>
-                        </Tooltip>
-                    )}
-                </Group>
-                <Group gap={4} wrap="nowrap">
-                    {hasChanged && (
-                        <Tooltip label="Reset filter" fz="xs">
-                            <ActionIcon
-                                size="xs"
-                                onClick={() => {
-                                    if (isEditing) {
-                                        setIsEditing(false);
-                                    }
-                                    onRevert();
-                                }}
-                            >
-                                <MantineIcon icon={IconRotate2} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                    <ActionIcon
-                        size="xs"
-                        onClick={() => {
-                            setIsEditing(!isEditing);
-                        }}
-                    >
-                        <MantineIcon
-                            icon={isEditing ? IconCheck : IconPencil}
-                        />
-                    </ActionIcon>
-                    {onRemove && (
-                        <ActionIcon size="xs" onClick={onRemove}>
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    )}
-                </Group>
-            </Group>
-            {!isEditing && hasChanged && (
-                <Text fz="xs" c="ldGray.6">
-                    Unsaved changes
-                </Text>
-            )}
-
-            {isEditing && (
-                <Flex gap="xs" wrap="wrap">
-                    <Select
-                        style={{
-                            flex: '0 0 180px',
-                        }}
-                        size="xs"
-                        value={
-                            schedulerFilter?.operator ??
-                            dashboardFilter.operator
-                        }
-                        data={filterOperatorOptions}
-                        onChange={(operator: string | null) => {
-                            if (!isValidFilterOperator(operator)) return;
-
-                            const newFilter = {
-                                ...dashboardFilter,
-                                operator,
-                                values: isWithValueFilter(operator)
-                                    ? dashboardFilter.values
-                                    : undefined,
-                            };
-
-                            onChange(newFilter);
-                        }}
-                    />
-
-                    <FilterInputComponent
-                        filterType={filterType}
-                        field={field}
-                        rule={schedulerFilter ?? dashboardFilter}
-                        onChange={(newFilter) => {
-                            onChange(newFilter);
-                        }}
-                        popoverProps={{ withinPortal: true }}
-                    />
-                </Flex>
-            )}
-        </Stack>
-    );
-};
-
-const hasFilterChanged = (
-    filterToCompareAgainst: DashboardFilterRule,
-    updatedFilter: DashboardFilterRule,
-) =>
-    // Check if the filter has changed, ignoring disabled state.
-    // The inputs this component uses do not include enabling/disabling filters.
-    hasSavedFilterValueChanged(
-        { ...filterToCompareAgainst, disabled: undefined },
-        { ...updatedFilter, disabled: undefined },
-    );
+import {
+    hasSchedulerFilterChanged,
+    withDerivedDisabledState,
+} from '../../utils/schedulerFilterOverrides';
+import {
+    RemovedSchedulerFilterItem,
+    SchedulerFilterItem,
+} from './SchedulerFilterItem';
 
 const updateFilters = (
     updatedFilter: DashboardFilterRule,
@@ -291,33 +34,15 @@ const updateFilters = (
             ? draftFilters[filterIndex]
             : originalFilter;
 
-    // Manually enable/disable filters based on the values.
-    // The inputs this component uses do not include enabling/disabling filters.
-    // If the operator is a value filter, the filter is disabled if the values are empty or undefined.
-    const isDisabled =
-        isWithValueFilter(updatedFilter.operator) &&
-        (updatedFilter.values?.length === 0 ||
-            updatedFilter?.values?.length === undefined);
-
     if (hasSavedFilterValueChanged(filterToCompareAgainst, updatedFilter)) {
+        const nextFilter = withDerivedDisabledState(updatedFilter);
         if (draftFilters && isExistingFilter) {
             return draftFilters.map((f) =>
-                f.id === updatedFilter.id
-                    ? {
-                          ...updatedFilter,
-                          disabled: isDisabled,
-                      }
-                    : f,
+                f.id === updatedFilter.id ? nextFilter : f,
             );
         }
 
-        return [
-            ...(draftFilters ?? []),
-            {
-                ...updatedFilter,
-                disabled: isDisabled,
-            },
-        ];
+        return [...(draftFilters ?? []), nextFilter];
     }
 };
 
@@ -327,6 +52,8 @@ type SchedulerFiltersProps = {
     draftFilters: DashboardFilterRule[] | undefined;
     savedFilters: DashboardFilterRule[] | undefined;
     isEditMode: boolean;
+    unmetRequirements: UnmetFilterRequirement[];
+    filtersWithUnmetRequirements: DashboardFilterRule[];
 };
 
 export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
@@ -335,6 +62,8 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     savedFilters,
     isEditMode,
     onChange,
+    unmetRequirements,
+    filtersWithUnmetRequirements,
 }) => {
     const { data: project, isInitialLoading } = useProject(
         dashboard?.projectUuid,
@@ -343,17 +72,14 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         (c) => c.isLoadingDashboardFilters,
     );
     const currentDashboardFilters = useDashboardContext((c) => c.allFilters);
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
 
     const tileNamesById = useDashboardTileStatusContext((c) => c.tileNamesById);
-
-    const { data: filterRequirementsFlag } = useServerFeatureFlag(
-        FeatureFlags.DashboardFilterRequirements,
-    );
-    const isFilterRequirementsEnabled =
-        filterRequirementsFlag?.enabled === true;
 
     const { savedFiltersInDashboard, savedFiltersNotInDashboard } =
         useMemo(() => {
@@ -378,18 +104,20 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             };
         }, [savedFilters, currentDashboardFilters.dimensions]);
 
-    // Initialize form with live filters if no saved filters exist
+    // Seed the form with live filters exactly once (undefined = never seeded).
+    // Checking for an empty array instead would re-seed after the user removes
+    // the last filter, resurrecting every deleted filter.
     useEffect(() => {
         if (
             !isEditMode &&
-            draftFilters?.length === 0 &&
-            currentDashboardFilters.dimensions.length > 0
+            draftFilters === undefined &&
+            !isLoadingDashboardFilters
         ) {
             onChange(currentDashboardFilters.dimensions);
         }
     }, [
         currentDashboardFilters.dimensions,
-        savedFilters,
+        isLoadingDashboardFilters,
         onChange,
         draftFilters,
         isEditMode,
@@ -425,6 +153,13 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         [onChange, draftFilters],
     );
 
+    const handleRestoreFilter = useCallback(
+        (dashboardFilter: DashboardFilterRule) => {
+            onChange([...(draftFilters ?? []), dashboardFilter]);
+        },
+        [onChange, draftFilters],
+    );
+
     if (isInitialLoading || isLoadingDashboardFilters || !project) {
         return (
             <Center component={Stack} h={100}>
@@ -434,14 +169,6 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         );
     }
 
-    // Same base as the submit gate in useSchedulerFormModal: the saved
-    // dashboard filters, not the live session filters.
-    const { unmetRequirements, filtersWithUnmetRequirements } =
-        getSchedulerFilterRequirements(
-            dashboard?.filters,
-            draftFilters,
-            isFilterRequirementsEnabled,
-        );
     const unmetFilterIds = new Set(
         filtersWithUnmetRequirements.map((filter) => filter.id),
     );
@@ -451,88 +178,94 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     const hasUnmetGroups = unmetRequirements.some(
         (requirement) => requirement.type === 'group',
     );
-    const isMissingRequiredValue = (
-        dashboardFilter: DashboardFilterRule,
-        schedulerFilter: DashboardFilterRule | undefined,
-    ) =>
-        isFilterRequirementsEnabled
-            ? unmetFilterIds.has(dashboardFilter.id)
-            : Boolean(
-                  dashboardFilter.required &&
-                  (!schedulerFilter?.values ||
-                      schedulerFilter?.values?.length === 0),
-              );
+    const isMissingRequiredValue = (dashboardFilter: DashboardFilterRule) =>
+        unmetFilterIds.has(dashboardFilter.id);
 
     return (
         <FiltersProvider<Record<string, FilterableDimension>>
             popoverProps={{ withinPortal: true }}
             projectUuid={project.projectUuid}
             itemsMap={allFilterableFieldsMap}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
             dashboardFilters={currentDashboardFilters}
         >
-            {(draftFilters?.length ?? 0) + savedFiltersNotInDashboard?.length >
+            {currentDashboardFilters.dimensions.length +
+                savedFiltersNotInDashboard.length >
             0 ? (
                 <Stack mb="sm">
                     {hasUnmetSingles && (
-                        <Text fz="xs" color="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             All required filters must have values
                         </Text>
                     )}
                     {hasUnmetGroups && (
-                        <Text fz="xs" color="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             Set a value for at least one filter in each
                             requirement group
                         </Text>
                     )}
-                    {draftFilters?.map((filter) => {
-                        const originalFilter = isEditMode
-                            ? savedFiltersInDashboard?.find(
-                                  (sf) => sf.id === filter.id,
-                              )
-                            : currentDashboardFilters.dimensions.find(
-                                  (d) => d.id === filter.id,
-                              );
+                    {currentDashboardFilters.dimensions.map(
+                        (dashboardFilterRule) => {
+                            const draftFilter = draftFilters?.find(
+                                (f) => f.id === dashboardFilterRule.id,
+                            );
 
-                        if (!originalFilter) {
-                            return null;
-                        }
+                            if (!draftFilter) {
+                                return (
+                                    <RemovedSchedulerFilterItem
+                                        key={dashboardFilterRule.id}
+                                        savedFilter={dashboardFilterRule}
+                                        defaultLabel="Uses dashboard default"
+                                        onRestore={() =>
+                                            handleRestoreFilter(
+                                                dashboardFilterRule,
+                                            )
+                                        }
+                                    />
+                                );
+                            }
 
-                        return (
-                            <FilterItem
-                                key={filter.id}
-                                dashboardFilter={originalFilter}
-                                schedulerFilter={filter}
-                                isMissingRequiredValue={isMissingRequiredValue(
-                                    originalFilter,
-                                    filter,
-                                )}
-                                onChange={(updatedFilter) =>
-                                    handleUpdateSchedulerFilter(
-                                        updatedFilter,
+                            const originalFilter = isEditMode
+                                ? (savedFiltersInDashboard?.find(
+                                      (sf) => sf.id === draftFilter.id,
+                                  ) ?? dashboardFilterRule)
+                                : dashboardFilterRule;
+
+                            return (
+                                <SchedulerFilterItem
+                                    key={draftFilter.id}
+                                    savedFilter={originalFilter}
+                                    schedulerFilter={draftFilter}
+                                    isMissingRequiredValue={isMissingRequiredValue(
                                         originalFilter,
-                                    )
-                                }
-                                onRevert={() =>
-                                    handleUpdateSchedulerFilter(
+                                    )}
+                                    onChange={(updatedFilter) =>
+                                        handleUpdateSchedulerFilter(
+                                            updatedFilter,
+                                            originalFilter,
+                                        )
+                                    }
+                                    onRevert={() =>
+                                        handleUpdateSchedulerFilter(
+                                            originalFilter,
+                                            originalFilter,
+                                        )
+                                    }
+                                    hasChanged={hasSchedulerFilterChanged(
+                                        draftFilter,
                                         originalFilter,
-                                        originalFilter,
-                                    )
-                                }
-                                hasChanged={
-                                    originalFilter
-                                        ? hasFilterChanged(
-                                              filter,
-                                              originalFilter,
-                                          )
-                                        : false
-                                }
-                                onRemove={() => handleRemoveFilter(filter.id)}
-                            />
-                        );
-                    })}
+                                    )}
+                                    onRemove={() =>
+                                        handleRemoveFilter(draftFilter.id)
+                                    }
+                                    removeTooltip="Remove filter — the delivery will use the dashboard default"
+                                />
+                            );
+                        },
+                    )}
                     {savedFiltersNotInDashboard.length > 0 && (
-                        <Text fz="xs" color="ldGray.6" mt="xs">
+                        <Text fz="xs" c="dimmed" mt="xs">
                             The following filters are applied to this scheduled
                             delivery but no longer exist in the dashboard
                         </Text>
@@ -557,13 +290,12 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
 
                         return (
                             <Box key={filter.id}>
-                                <FilterItem
+                                <SchedulerFilterItem
                                     key={filter.id}
-                                    dashboardFilter={filter}
+                                    savedFilter={filter}
                                     schedulerFilter={schedulerFilter}
                                     isMissingRequiredValue={isMissingRequiredValue(
                                         filter,
-                                        schedulerFilter,
                                     )}
                                     onChange={(updatedFilter) =>
                                         handleUpdateSchedulerFilter(
@@ -579,7 +311,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     }
                                     hasChanged={
                                         schedulerFilter
-                                            ? hasFilterChanged(
+                                            ? hasSchedulerFilterChanged(
                                                   filter,
                                                   schedulerFilter,
                                               )
@@ -596,7 +328,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                 </Stack>
             ) : (
                 <Center component={Stack} h={100}>
-                    <Text color="dimmed">
+                    <Text c="dimmed">
                         No filters defined for this dashboard.
                     </Text>
                 </Center>

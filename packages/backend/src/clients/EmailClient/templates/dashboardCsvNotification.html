@@ -1010,19 +1010,7 @@
                                                                                                                                 mso-text-raise: 1px;
                                                                                                                             "
                                                                                                                         >
-                                                                                                                            The
-                                                                                                                            latest
-                                                                                                                            results
-                                                                                                                            for
-                                                                                                                            the
-                                                                                                                            charts
-                                                                                                                            in
-                                                                                                                            this
-                                                                                                                            dashboard
-                                                                                                                            are
-                                                                                                                            ready
-                                                                                                                            to
-                                                                                                                            download!
+                                                                                                                            {{resultsHeadline}}
                                                                                                                         </h1>
                                                                                                                     </td>
                                                                                                                 </tr>
@@ -1107,7 +1095,7 @@
                                                                                                                                 mso-text-raise: 6px;
                                                                                                                             "
                                                                                                                             target="_blank"
-                                                                                                                            >{{filename}}</a
+                                                                                                                            >{{displayName}}</a
                                                                                                                         >
                                                                                                                     </td>
                                                                                                                 </tr>
@@ -1477,7 +1465,7 @@
                                                                                                                                 mso-text-raise: 6px;
                                                                                                                             "
                                                                                                                             target="_blank"
-                                                                                                                            >{{filename}}</a
+                                                                                                                            >{{displayName}}</a
                                                                                                                         >
                                                                                                                     </td>
                                                                                                                 </tr>
@@ -1605,9 +1593,10 @@
                                                                                                                             line-height: 18px;
                                                                                                                         "
                                                                                                                     >
-                                                                                                                        <strong
+                                                                                                                        {{#if
+                                                                                                                        chartName}}<strong
                                                                                                                             >{{chartName}}:</strong
-                                                                                                                        >
+                                                                                                                        >{{/if}}
                                                                                                                         {{error}}
                                                                                                                     </li>
                                                                                                                     {{/failures}}
@@ -1662,8 +1651,7 @@
                                                                                                                 >
                                                                                                                     ⚠️
                                                                                                                     Warning:
-                                                                                                                    {{failures.length}}
-                                                                                                                    chart(s)
+                                                                                                                    {{failureCountPhrase}}
                                                                                                                     failed
                                                                                                                     to
                                                                                                                     export
@@ -1693,9 +1681,10 @@
                                                                                                                             line-height: 18px;
                                                                                                                         "
                                                                                                                     >
-                                                                                                                        <strong
+                                                                                                                        {{#if
+                                                                                                                        chartName}}<strong
                                                                                                                             >{{chartName}}:</strong
-                                                                                                                        >
+                                                                                                                        >{{/if}}
                                                                                                                         {{error}}
                                                                                                                     </li>
                                                                                                                     {{/failures}}
@@ -1704,6 +1693,42 @@
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                     {{/if}}
+                                                                                                    {{/if}}
+                                                                                                    {{#if hasNotices}}
+                                                                                                    <tr>
+                                                                                                        <td>
+                                                                                                            <div
+                                                                                                                style="
+                                                                                                                    padding: 16px;
+                                                                                                                    margin-top: 16px;
+                                                                                                                    background-color: #e7f3fe;
+                                                                                                                    border-left: 4px solid #2196f3;
+                                                                                                                    border-radius: 4px;
+                                                                                                                    font-family: BlinkMacSystemFont, Segoe UI,
+                                                                                                                        Helvetica Neue, Arial, sans-serif, 'Inter';
+                                                                                                                "
+                                                                                                            >
+                                                                                                                <ul
+                                                                                                                    style="
+                                                                                                                        margin: 0;
+                                                                                                                        padding-left: 20px;
+                                                                                                                        color: #0c5460;
+                                                                                                                        font-size: 12px;
+                                                                                                                        font-family: BlinkMacSystemFont, Segoe UI,
+                                                                                                                            Helvetica Neue, Arial, sans-serif, 'Inter';
+                                                                                                                        line-height: 18px;
+                                                                                                                    "
+                                                                                                                >
+                                                                                                                    {{#notices}}
+                                                                                                                    <li style="margin-bottom: 6px; line-height: 18px">
+                                                                                                                        {{label}} reached its query limit; additional rows
+                                                                                                                        may exist ({{rowCount}} rows delivered)
+                                                                                                                    </li>
+                                                                                                                    {{/notices}}
+                                                                                                                </ul>
+                                                                                                            </div>
+                                                                                                        </td>
+                                                                                                    </tr>
                                                                                                     {{/if}}
                                                                                                 </table>
                                                                                             </td>

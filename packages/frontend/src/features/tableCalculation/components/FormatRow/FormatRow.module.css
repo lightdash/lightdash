@@ -44,21 +44,13 @@
 
 .previewArrow {
     color: var(--mantine-color-ldGray-5);
-
-    @mixin dark {
-        color: var(--mantine-color-ldDark-7);
-    }
 }
 
 .previewValue {
     font-size: var(--mantine-font-size-md);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-    color: var(--mantine-color-ldDark-9);
-
-    @mixin dark {
-        color: var(--mantine-color-white);
-    }
+    color: var(--mantine-color-text);
 }
 
 .divider {
@@ -85,10 +77,6 @@
     align-items: center;
     justify-content: flex-start;
     color: var(--mantine-color-ldGray-5);
-
-    @mixin dark {
-        color: var(--mantine-color-ldDark-7);
-    }
 }
 
 .subFieldInput {

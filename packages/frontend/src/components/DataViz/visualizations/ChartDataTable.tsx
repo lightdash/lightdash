@@ -4,8 +4,14 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Flex, Group, type FlexProps, Badge } from '@mantine-8/core';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import {
+    Flex,
+    Group,
+    type FlexProps,
+    Badge,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';
@@ -98,13 +104,11 @@ export const ChartDataTable = ({
                                                 label="You cannot sort by a group column"
                                                 disabled={!!onClick}
                                                 position="top"
-                                                withinPortal
                                             >
-                                                <Group gap="two" fz={13}>
+                                                <Group gap="two" fz="sm">
                                                     {columnsConfig?.[header.id]
                                                         ?.aggregation && (
                                                         <Badge
-                                                            variant="light"
                                                             size="sm"
                                                             color="indigo"
                                                             radius="xs"

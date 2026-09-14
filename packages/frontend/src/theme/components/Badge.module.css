@@ -1,0 +1,28 @@
+/* Sizes: 18 / 20 / 22 / 26 / 30px. */
+.root {
+    --badge-height-xs: rem(18px);
+    --badge-height-sm: rem(20px);
+    --badge-height-md: rem(22px);
+    --badge-height-lg: rem(26px);
+    --badge-height-xl: rem(30px);
+
+    --badge-fz-xs: rem(10px);
+    --badge-fz-sm: rem(11px);
+    --badge-fz-md: rem(12px);
+    --badge-fz-lg: rem(13px);
+    --badge-fz-xl: rem(14px);
+
+    --badge-padding-x-xs: rem(6px);
+    --badge-padding-x-sm: rem(8px);
+    --badge-padding-x-md: rem(8px);
+    --badge-padding-x-lg: rem(10px);
+    --badge-padding-x-xl: rem(12px);
+
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+}
+
+.root[data-variant='default'] {
+    --badge-bd: 1px solid var(--mantine-color-default-border);
+}

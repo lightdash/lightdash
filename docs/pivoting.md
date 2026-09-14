@@ -77,7 +77,7 @@ is spread yet):
 
 **Phase 2 — spread (Stage 3).** `runQueryAndTransformRows` groups the rows sharing
 a `row_index` and emits one wide row when `row_index` changes. The value column
-`revenue_sum` is suffixed with the group-by raw value (`getValueColumnFieldName`
+`revenue_sum` is suffixed with the group-by raw value (`getPivotValueColumnName`
 gives `revenue_sum`, then `_<status>`), producing one JSONL row per `row_index`:
 
 ```json
@@ -97,6 +97,25 @@ rows into `PivotData`: each `status` value becomes a column header, each
 | **2026-01-01** |           100 |          40 |
 | **2026-01-02** |            80 |          60 |
 
+## Cohort-retention demo
+
+The full Jaffle Shop demo includes `subscription_cohort_retention`, a
+deterministic 12-month grid derived from the subscription seed. Use it to build
+a pivot-table retention heatmap that also exercises metrics on the row axis:
+
+1. Add **Cohort started at Month** and **Months since start** as dimensions.
+2. Add **Cohort size** and **Retention rate** as metrics.
+3. Move **Months since start** to Columns and sort it ascending so month zero is
+   the first rendered pivot group.
+4. Move **Cohort size** into Rows beside **Cohort started at Month**.
+5. Apply a color-scale conditional formatting rule to **Retention rate**.
+6. To test table calculations on Rows, add **Month-zero retention** with SQL
+   `${subscription_cohort_retention.retention_rate}` and drag it into Rows. It
+   should show the exact value from the first rendered month group.
+
+The result keeps the initial cohort size visible once per cohort while the
+retention-rate cells form the 0–11 month heatmap.
+
 ## Mini-glossary
 
 Cross-cutting terms only — fuller definitions live in the linked package docs.
@@ -110,18 +129,34 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
 - **`indexColumn` / `groupByColumns` / `valuesColumns`** — the row dimensions, the
   pivot (column) dimensions, and the metrics/aggregations being spread.
 - **`sortOnlyColumns` & `sortOnlyDimensions` vs `passthroughDimensions`** — the
-  most-confused trio. The first two carry _hidden, sorted_ fields through SQL so
-  they influence ordering without being displayed; `passthroughDimensions` carry
-  _hidden, non-sorted_ fields through `GROUP BY` so richText/image templates can
-  still reference them.
+  most-confused trio, all scoped to fields that are _not_ row dimensions.
+  `sortOnlyColumns` carries sorted-but-not-displayed metrics/table calcs
+  (cartesian charts); `sortOnlyDimensions` carries _hidden, sorted_
+  pivot-column dims so they drive column ORDER BY without becoming headers;
+  `passthroughDimensions` carries _hidden, non-sorted_ pivot-column dims
+  through `GROUP BY` so richText/image templates can still reference them.
+  Hidden _row_ dims use none of these: they stay in `indexColumn` so SQL row
+  identity is unchanged (rows differing only by a hidden value stay separate),
+  and rendering drops them via `hiddenDimensionFieldIds` — the result reshape
+  re-exposes their per-row values as render-only passthrough columns for
+  templates and drill-down.
 - **`metricsAsRows`** — layout flag; when true, metrics fan out down the rows
   instead of across the columns (affects the column-count math).
+- **`pivotConfig.rows` / `rowFieldIds`** — persisted and runtime names for the
+  ordered fields rendered once on the row axis. Metrics and table calculations
+  remain value columns in the warehouse pivot, then the shared reshape step
+  takes their exact value from the first rendered pivot group and removes their
+  repeated pivot columns.
 - **anchor (column / row)** — the reference column/row used when sorting a pivot by
   a metric value; see `QueryBuilder/CLAUDE.md`.
 - **`PivotData` / `pivotColumnInfo`** — the matrix structure (`headerValues`,
   `indexValues`, `dataValues`, totals) and the flattened TanStack column metadata.
 - **`NULL_PIVOT_KEY`** — collision-safe placeholder used in a value column's
   suffix when a group-by value is `null`, so it doesn't collide with the base column.
+- **`getPivotValueColumnName`** (`packages/common/src/pivot/pivotColumnName.ts`) —
+  the single rule for naming a spread value column. The pivot SQL alias, the
+  result transform, and the chart-type previews all compose names through it, so
+  a lookup built on one side always resolves on the other.
 
 ## Related docs
 

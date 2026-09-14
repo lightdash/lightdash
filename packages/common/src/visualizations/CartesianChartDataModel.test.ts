@@ -1,4 +1,5 @@
 import { DimensionType, Format } from '../types/field';
+import { CartesianSeriesType, ChartKind } from '../types/savedCharts';
 import { CartesianChartDataModel } from './CartesianChartDataModel';
 import {
     VizAggregationOptions,
@@ -28,6 +29,124 @@ describe('CartesianChartDataModel formatters', () => {
                 value: { category: 'Jan', value: 1200000 },
             }),
         ).toEqual('1.2M');
+    });
+});
+
+describe('CartesianChartDataModel series draw order', () => {
+    const columns = ['target', 'sales'];
+
+    const getModel = async (references = columns) => {
+        const pivotChartData: PivotChartData = {
+            queryUuid: undefined,
+            fileUrl: undefined,
+            results: [{ month: 'Jan', target: 40, sales: 100 }],
+            indexColumn: { reference: 'month', type: VizIndexType.CATEGORY },
+            valuesColumns: references.map((reference) => ({
+                referenceField: reference.split('__')[0],
+                pivotColumnName: reference,
+                aggregation: VizAggregationOptions.SUM,
+                pivotValues: [],
+            })),
+            columns: [],
+            columnCount: references.length + 1,
+        };
+        const model = new CartesianChartDataModel({
+            type: ChartKind.VERTICAL_BAR,
+            resultsRunner: {
+                getPivotedVisualizationData: async () => pivotChartData,
+                getColumnNames: () => ['month', ...references],
+                getRows: () => [],
+                getPivotQueryDimensions: () => [],
+                getPivotQueryMetrics: () => [],
+                getPivotQueryCustomMetrics: () => [],
+            },
+            fieldConfig: {
+                x: { reference: 'month', type: VizIndexType.CATEGORY },
+                y: columns.map((reference) => ({
+                    reference,
+                    aggregation: VizAggregationOptions.SUM,
+                })),
+                groupBy: undefined,
+            },
+        });
+        await model.getPivotedChartData({
+            sql: 'SELECT 1',
+            limit: 500,
+            sortBy: [],
+            filters: [],
+        });
+        return model;
+    };
+
+    test('brings a line in front of bars without changing its color or settings', async () => {
+        const model = await getModel();
+        const display = {
+            series: {
+                target: {
+                    type: CartesianSeriesType.LINE as const,
+                    label: 'Target',
+                    whichYAxis: 1,
+                    format: Format.PERCENT,
+                },
+                sales: { type: CartesianSeriesType.BAR as const },
+            },
+        };
+        const before = model.getSpec(display);
+        const after = model.getSpec({
+            ...display,
+            seriesOrder: ['sales', 'target'],
+        });
+
+        expect(before.series[0].z).toBeLessThan(before.series[1].z);
+        expect(after.series.map((s: { name: string }) => s.name)).toEqual([
+            'Sales',
+            'Target',
+        ]);
+        expect(after.series[1]).toMatchObject({
+            type: 'line',
+            yAxisIndex: 1,
+            color: before.series[0].color,
+        });
+        expect(after.series[0].color).toEqual(before.series[1].color);
+        expect(after.series[1].z).toBeGreaterThan(after.series[0].z);
+        expect(after.series[1].tooltip.valueFormatter(0.5)).toBe('50%');
+    });
+
+    test('orders pivot series independently, ignoring removed series and retaining new ones', async () => {
+        const model = await getModel([
+            'target__west',
+            'sales__west',
+            'target__east',
+            'sales__east',
+            'profit',
+        ]);
+        const spec = model.getSpec({
+            seriesOrder: [
+                'removed',
+                'sales__west',
+                'sales__east',
+                'target__east',
+                'target__west',
+            ],
+        });
+        expect(
+            spec.series.map((s: { encode: { y: string } }) => s.encode.y),
+        ).toEqual([
+            'sales__west',
+            'sales__east',
+            'target__east',
+            'target__west',
+            'profit',
+        ]);
+    });
+
+    test('keeps the query series order when no order is saved', async () => {
+        const model = await getModel();
+        expect(
+            model
+                .getSpec()
+                .series.map((s: { encode: { y: string } }) => s.encode.y),
+        ).toEqual(columns);
     });
 });
 

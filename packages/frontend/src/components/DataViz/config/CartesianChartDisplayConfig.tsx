@@ -1,5 +1,5 @@
 import { VizIndexType, type ChartKind } from '@lightdash/common';
-import { TextInput, Group, Stack } from '@mantine-8/core';
+import { TextInput, Group, Stack } from '@mantine/core';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -60,7 +60,6 @@ export const CartesianChartDisplayConfig = ({
                             size="xs"
                             w="100%"
                             value={xAxisLabel || ''}
-                            radius="md"
                             onChange={(e) =>
                                 dispatch(
                                     actions.setXAxisLabel({
@@ -99,7 +98,6 @@ export const CartesianChartDisplayConfig = ({
                                 size="xs"
                                 w="100%"
                                 value={yAxisLabels[0] || ''}
-                                radius="md"
                                 onChange={(e) =>
                                     dispatch(
                                         actions.setYAxisLabel({
@@ -140,7 +138,6 @@ export const CartesianChartDisplayConfig = ({
                                 size="xs"
                                 w="100%"
                                 value={yAxisLabels[1] || ''}
-                                radius="md"
                                 onChange={(e) =>
                                     dispatch(
                                         actions.setYAxisLabel({

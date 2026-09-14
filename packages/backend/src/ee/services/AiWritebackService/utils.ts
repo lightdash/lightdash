@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DbtProjectType,
+    MissingConfigError,
     ParameterError,
     PullRequestProvider,
     resolveDbtVersion,
@@ -10,6 +11,8 @@ import {
     type DbtVersionOption,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
+import type { LightdashConfig } from '../../../config/parseConfig';
+import type { ClaudeCodeAnthropicConfig } from '../AppGenerateService/claudeCodeEnv';
 import {
     COMPILE_WRAPPER_PATH,
     DBT_VENV_BIN_PREFIX,
@@ -36,6 +39,11 @@ import type {
 
 const DEFAULT_GITLAB_HOST_DOMAIN = 'gitlab.com';
 
+export const quoteShellArgument = (value: string): string => {
+    const escaped = value.replace(/'/g, "'\"'\"'");
+    return `'${escaped}'`;
+};
+
 const splitOwnerRepo = (
     repository: string,
 ): { owner: string; repo: string } => {
@@ -52,7 +60,7 @@ const splitOwnerRepo = (
  * Normalise the stored sub-path (leading slash, `/` for root) to a path
  * relative to the repo root so it can be passed to `--project-dir`.
  */
-const normalizeProjectSubPath = (projectSubPath: string): string => {
+export const normalizeProjectSubPath = (projectSubPath: string): string => {
     const relative = projectSubPath
         .trim()
         .replace(/^\/+/, '')
@@ -75,6 +83,9 @@ export const parseGithubConnection = (
         repo,
         projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
         branch: connection.branch?.trim() ?? '',
+        ...(connection.semanticLayer === 'lightdash'
+            ? { semanticLayer: 'lightdash' as const }
+            : {}),
     };
 };
 
@@ -110,6 +121,12 @@ export const buildCloneTarget = (
             return {
                 url: `https://github.com/${connection.owner}/${connection.repo}.git`,
                 username: 'x-access-token',
+                password: token,
+            };
+        case PullRequestProvider.BITBUCKET:
+            return {
+                url: `https://bitbucket.org/${encodeURIComponent(connection.owner)}/${encodeURIComponent(connection.repo)}.git`,
+                username: 'x-bitbucket-api-token-auth',
                 password: token,
             };
         case PullRequestProvider.GITLAB:
@@ -348,6 +365,40 @@ export const parseGitNameStatus = (stdout: string): StagedFileChanges => {
 };
 
 /** Caller owns the side effects (logging, counting, progress). */
+/**
+ * Collapse a flat file listing into one `dir/ (N files)` line per directory.
+ *
+ * Used when the full listing is too large to inject (see
+ * `REPO_CONTEXT_MAX_BYTES`). The digest keeps the shape of the project — where
+ * models live, how the tree is organised — at a fraction of the tokens, and the
+ * agent finds specific files with Glob/Grep from there. Derived host-side from
+ * the listing already gathered, so it costs no extra sandbox round trip.
+ */
+export const summarizeRepoListing = (
+    listing: string,
+): { digest: string; fileCount: number } => {
+    const paths = listing
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+    const countsByDir = new Map<string, number>();
+    for (const path of paths) {
+        const lastSlash = path.lastIndexOf('/');
+        // A path with no slash sits at the project root; group those together
+        // rather than emitting a bare "" directory.
+        const dir = lastSlash === -1 ? '.' : path.slice(0, lastSlash);
+        countsByDir.set(dir, (countsByDir.get(dir) ?? 0) + 1);
+    }
+
+    const digest = [...countsByDir.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([dir, count]) => `${dir}/ (${count} files)`)
+        .join('\n');
+
+    return { digest, fileCount: paths.length };
+};
+
 export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
     if (!event || typeof event !== 'object') return { type: 'ignored' };
     const typed = event as {
@@ -357,6 +408,8 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         duration_ms?: number;
         duration_api_ms?: number;
         num_turns?: number;
+        is_error?: boolean;
+        subtype?: string;
         // Token counts live nested under `usage` on the result event; the rest
         // are top-level. Same shape data apps reads in ClaudeStreamProcessor.
         usage?: {
@@ -371,6 +424,8 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         return {
             type: 'result',
             costUsd: typed.total_cost_usd ?? null,
+            isError: typed.is_error ?? null,
+            subtype: typed.subtype ?? null,
             durationMs: typed.duration_ms ?? null,
             durationApiMs: typed.duration_api_ms ?? null,
             numTurns: typed.num_turns ?? null,
@@ -600,3 +655,21 @@ export const resolveSandboxDbtVersion = (
  */
 export const dbtSandboxVenvBin = (version: SupportedDbtVersions): string =>
     `${DBT_VENV_BIN_PREFIX}${version.slice(1)}/bin`;
+
+/**
+ * Anthropic credentials for the sandboxed `claude` CLI. Writeback and the
+ * onboarding agent share the data-apps credentials (`ANTHROPIC_API_KEY`); the
+ * writeback-specific `AI_WRITEBACK_ANTHROPIC_API_KEY` is deprecated and only
+ * honoured while the shared key is unset.
+ */
+export const resolveSandboxAnthropicConfig = (
+    lightdashConfig: Pick<LightdashConfig, 'ai' | 'aiWriteback'>,
+): ClaudeCodeAnthropicConfig => {
+    const { anthropic } = lightdashConfig.ai.copilot.providers;
+    if (anthropic?.apiKey) return anthropic;
+    const { legacyAnthropicApiKey } = lightdashConfig.aiWriteback;
+    if (legacyAnthropicApiKey) return { apiKey: legacyAnthropicApiKey };
+    throw new MissingConfigError(
+        'Anthropic API key is not configured (ANTHROPIC_API_KEY)',
+    );
+};

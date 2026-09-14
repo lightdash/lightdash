@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CreateInviteLink,
     type InviteLink,
+    type InviteLinkWithAuthenticationOptions,
     type LightdashUser,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -34,14 +35,14 @@ const createInviteWith3DayExpiryQuery = async (
 };
 
 const inviteLinkQuery = async (inviteCode: string) =>
-    lightdashApi<InviteLink>({
+    lightdashApi<InviteLinkWithAuthenticationOptions>({
         url: `/invite-links/${inviteCode}`,
         method: 'GET',
         body: undefined,
     });
 
 export const useInviteLink = (inviteCode: string | undefined) =>
-    useQuery<InviteLink, ApiError>({
+    useQuery<InviteLinkWithAuthenticationOptions, ApiError>({
         queryKey: ['invite_link', inviteCode],
         queryFn: () => inviteLinkQuery(inviteCode!),
         enabled: inviteCode !== undefined,
@@ -76,7 +77,9 @@ export const useActivateInviteLinkMutation = (
     );
 };
 
-export const useCreateInviteLinkMutation = () => {
+export const useCreateInviteLinkMutation = ({
+    showSuccessToast = true,
+}: { showSuccessToast?: boolean } = {}) => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
@@ -94,9 +97,11 @@ export const useCreateInviteLinkMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['onboarding-status']);
             await queryClient.refetchQueries(['organization_users']);
-            showToastSuccess({
-                title: 'Created new invite link',
-            });
+            if (showSuccessToast) {
+                showToastSuccess({
+                    title: 'Created new invite link',
+                });
+            }
         },
     });
 };

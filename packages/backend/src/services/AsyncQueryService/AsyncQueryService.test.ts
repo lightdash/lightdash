@@ -2,21 +2,35 @@ import { Ability } from '@casl/ability';
 import {
     Account,
     AnyType,
+    assertUnreachable,
     ChartType,
     CreateWarehouseCredentials,
     DimensionType,
     DownloadFileType,
+    DuckdbExecutionSpec,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
+    ExternalSourceScope,
     FeatureFlags,
+    FieldType,
     FilterOperator,
     ForbiddenError,
+    getFilterRulesFromGroup,
+    MergeJoinType,
+    MergeQueryErrorKind,
+    MetricType,
+    MissingConfigError,
     NotFoundError,
     OrganizationAccessStatus,
+    ParameterError,
+    PersistentDownloadFileAccessMode,
     PossibleAbilities,
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
+    QueryHistoryWindow,
+    QuerySourceType,
+    QueryTrigger,
     ResultColumns,
     VizAggregationOptions,
     VizIndexType,
@@ -24,24 +38,35 @@ import {
     WarehouseTypes,
     type Explore,
     type ItemsMap,
+    type MergeFieldTypes,
+    type MergeQuery,
+    type MergeTypedColumn,
     type MetricQuery,
     type ParameterDefinitions,
+    type PivotConfiguration,
+    type ProjectDefaults,
     type UserAccessControls,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromJwt } from '../../auth/account/account';
+import { defaultJwtToken } from '../../auth/account/account.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
-import type { INatsClient } from '../../clients/NatsClient';
+import {
+    NatsNoRespondersError,
+    type INatsClient,
+} from '../../clients/NatsClient';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import type { ContentDraftModel } from '../../models/ContentDraftModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { DownloadAuditModel } from '../../models/DownloadAuditModel';
@@ -59,7 +84,7 @@ import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { SpaceModel } from '../../models/SpaceModel';
@@ -72,6 +97,8 @@ import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
+import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
@@ -81,6 +108,8 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import * as analyticsClient from '../ProjectService/analyticsProject/analyticsProjectClient';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import {
     allExplores,
     buildAccount,
@@ -98,11 +127,21 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
+import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
+import { QuerySourceService } from '../QuerySourceService/QuerySourceService';
+import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
+import { SqlQuerySource } from '../QuerySourceService/sources/SqlQuerySource';
+import type { SubmitSourceQueryArgs } from '../QuerySourceService/types';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     AsyncQueryService,
     QUEUED_QUERY_EXPIRED_MESSAGE,
 } from './AsyncQueryService';
+import {
+    COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
+    ComposeEngineClient,
+} from './ComposeEngineClient';
+import { buildComposeMergeOriginalColumns } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
@@ -112,6 +151,7 @@ import type {
     DownloadAsyncQueryResultsArgs,
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
+    RunDuckdbQueryArgs,
 } from './types';
 
 const noOpStrategy = new NoOpPreAggregateStrategy();
@@ -121,10 +161,11 @@ const makeMockStrategy = (
 ): PreAggregateStrategy => ({
     getRoutingDecision: noOpStrategy.getRoutingDecision.bind(noOpStrategy),
     resolveExecution: vi.fn(async () => resolveResult),
-    createExecutionWarehouseClient: vi.fn(
+    createPreAggregateWarehouseClient: vi.fn(
         () => warehouseClientMock as unknown as WarehouseClient,
     ),
     recordStats: vi.fn(),
+    recordExecutionFallback: vi.fn(),
     cleanupStats: vi.fn(async () => 0),
     getStats: noOpStrategy.getStats.bind(noOpStrategy),
     getResultsStorageClient: vi.fn(() => undefined),
@@ -201,6 +242,7 @@ const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
+    getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getQueryTimezone: vi.fn(async () => 'UTC'),
@@ -219,6 +261,9 @@ const projectModel = {
         runQuery: vi.fn(async () => resultsWith1Row),
     })),
     findExploreByTableName: vi.fn(async () => validExplore),
+    findProjectDefaults: vi.fn(
+        async (): Promise<ProjectDefaults | null> => null,
+    ),
 };
 const onboardingModel = {
     getByOrganizationUuid: vi.fn(async () => ({
@@ -240,13 +285,95 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: vi.fn(async () => ({})),
 };
 
+// A history model that keeps the row submit created and the DuckDB spec set
+// on it, so a run rebuilding itself from the row reads what submit wrote
+const inMemoryDuckdbHistory = ({
+    queryUuid,
+    account,
+    overrides = {},
+}: {
+    queryUuid: string;
+    account: Account;
+    overrides?: Record<string, unknown>;
+}) => {
+    const rows = new Map<string, QueryHistory>();
+    const specs = new Map<string, DuckdbExecutionSpec>();
+    const model = {
+        create: vi.fn(
+            async (
+                _account: Account,
+                args: Parameters<QueryHistoryModel['create']>[1],
+            ) => {
+                rows.set(queryUuid, {
+                    ...args,
+                    queryUuid,
+                    status: QueryHistoryStatus.PENDING,
+                    createdAt: new Date(),
+                    createdByUserUuid: account.user.id,
+                    createdByAccount: null,
+                    createdByActorType: account.authentication.type,
+                } as unknown as QueryHistory);
+                return { queryUuid };
+            },
+        ),
+        getByQueryUuid: vi.fn(async (uuid: string) => rows.get(uuid)),
+        updateStatusToExecuting: vi.fn(async () => 1),
+        updateStatusToQueued: vi.fn(async () => 1),
+        updateStatusToError: vi.fn(async () => 1),
+        updateStatusToExpired: vi.fn(async () => 1),
+        setDuckdbExecution: vi.fn(
+            async (uuid: string, spec: DuckdbExecutionSpec) => {
+                specs.set(uuid, spec);
+            },
+        ),
+        getDuckdbExecution: vi.fn(
+            async (uuid: string) => specs.get(uuid) ?? null,
+        ),
+        markDuckdbCacheHit: vi.fn(async (uuid: string) => {
+            const spec = specs.get(uuid);
+            if (spec) specs.set(uuid, { ...spec, cacheHit: true });
+        }),
+        recordDuckdbRefusal: vi.fn(
+            async (
+                uuid: string,
+                _projectUuid: string,
+                refusal: DuckdbExecutionSpec['refusal'],
+            ) => {
+                const spec = specs.get(uuid);
+                if (spec) specs.set(uuid, { ...spec, refusal });
+            },
+        ),
+        update: vi.fn(),
+        ...overrides,
+    };
+    return model as unknown as QueryHistoryModel & typeof model;
+};
+
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<AsyncQueryService> = {},
-) =>
-    new AsyncQueryService({
+) => {
+    // The registry is built over the service under test, so a merge's DAG
+    // nodes reach the same mocks a direct call would
+    let querySourceService: QuerySourceService | undefined;
+    const service: AsyncQueryService = new AsyncQueryService({
+        getQuerySourceService: () => {
+            querySourceService ??= new QuerySourceService({
+                projectModel: (service as AnyType).projectModel,
+                queryHistoryModel: service.queryHistoryModel,
+                featureFlagModel: (service as AnyType).featureFlagModel,
+                registry: QuerySourceRegistry.withBuiltInSources({
+                    asyncQueryService: service,
+                    projectService: service,
+                }),
+            });
+            return querySourceService;
+        },
         lightdashConfig,
         analytics: analyticsMock,
+        contentDraftModel: {
+            findOpenDraft: vi.fn().mockResolvedValue(undefined),
+        } as unknown as ContentDraftModel,
         projectModel: projectModel as unknown as ProjectModel,
         projectDbtSourcesModel: {} as unknown as ProjectDbtSourcesModel,
         preAggregateModel: {} as PreAggregateModel,
@@ -284,6 +411,9 @@ const getMockedAsyncQueryService = (
             })),
             enqueueMaterializationQuery: vi.fn(async () => ({
                 jobId: 'test-nats-materialization-job-id',
+            })),
+            enqueueDuckdbQuery: vi.fn(async () => ({
+                jobId: 'test-nats-duckdb-job-id',
             })),
         } as unknown as INatsClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
@@ -367,16 +497,24 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as OrganizationAccessService,
         preAggregateStrategy: new NoOpPreAggregateStrategy(),
+        composeEngineClient: new ComposeEngineClient({
+            resolveCaCertFile: () => '/etc/ssl/certs/ca-certificates.crt',
+            lightdashConfig,
+            createDuckdbWarehouseClient: () => warehouseClientMock,
+        }),
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         spacePermissionService: {
-            getSpaceAccessContext: vi.fn(async () => ({
+            resolveAccess: vi.fn(async () => ({
                 organizationUuid: projectSummary.organizationUuid,
                 projectUuid,
                 inheritsFromOrgOrProject: true,
                 access: [],
+                admins: [],
+                directOnly: false,
             })),
         } as unknown as SpacePermissionService,
+        directAccessService: {} as never,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
                 queryLimit: null,
@@ -384,9 +522,18 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as OrganizationSettingsModel,
         ...overrides,
+        getDataAppCustomSqlProvenance:
+            overrides.getDataAppCustomSqlProvenance ??
+            (async () => ({
+                tableCalculations: new Set(),
+                customDimensions: new Set(),
+                additionalMetrics: new Set(),
+            })),
         userOAuthGrantsModel:
             overrides.userOAuthGrantsModel ?? ({} as UserOAuthGrantsModel),
     });
+    return service;
+};
 
 const getJsonlStream = (rows: Record<string, unknown>[]) =>
     Readable.from(rows.map((row) => `${JSON.stringify(row)}\n`).join(''));
@@ -400,6 +547,734 @@ type JwtDashboardQueryContextTestService = {
 };
 
 describe('AsyncQueryService', () => {
+    describe('saved SQL chart access', () => {
+        test('resolves access through the saved SQL chart target', async () => {
+            const resolveAccess = vi.fn(async () => ({
+                organizationUuid: 'organizationUuid',
+                projectUuid,
+                inheritsFromOrgOrProject: false,
+                access: [
+                    {
+                        userUuid: 'userId',
+                        role: 'viewer',
+                        hasDirectAccess: true,
+                        grantedVia: 'sql_chart',
+                    },
+                ],
+                admins: [],
+                directOnly: true,
+            }));
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                spacePermissionService: {
+                    resolveAccess,
+                } as unknown as SpacePermissionService,
+            } as never);
+            const account = buildAccount() as AnyType;
+            account.user.ability = new Ability<PossibleAbilities>([
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userId' } },
+                    },
+                },
+            ]);
+
+            await (service as AnyType).assertSavedChartAccess(account, 'view', {
+                savedSqlUuid: 'savedSqlUuid',
+                organization: { organizationUuid: 'organizationUuid' },
+                project: { projectUuid },
+                space: { uuid: 'spaceUuid' },
+            });
+
+            expect(resolveAccess).toHaveBeenCalledWith('userId', {
+                type: 'sqlChart',
+                savedSqlUuid: 'savedSqlUuid',
+                spaceUuid: 'spaceUuid',
+            });
+        });
+
+        test('keeps JWT access scoped to the containing space', async () => {
+            const resolveAccess = vi.fn(async () => ({
+                organizationUuid: 'organizationUuid',
+                projectUuid,
+                inheritsFromOrgOrProject: true,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }));
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                spacePermissionService: {
+                    resolveAccess,
+                } as unknown as SpacePermissionService,
+            } as never);
+            const account = buildAccount({
+                accountType: 'jwt',
+                userType: 'anonymous',
+            }) as AnyType;
+            account.user.ability = new Ability<PossibleAbilities>([
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                },
+            ]);
+
+            await (service as AnyType).assertSavedChartAccess(account, 'view', {
+                savedSqlUuid: 'savedSqlUuid',
+                organization: { organizationUuid: 'organizationUuid' },
+                project: { projectUuid },
+                space: { uuid: 'spaceUuid' },
+            });
+
+            expect(resolveAccess).toHaveBeenCalledWith('userId', {
+                type: 'space',
+                spaceUuid: 'spaceUuid',
+            });
+        });
+    });
+
+    describe('executeAsyncExternalSqlQuery', () => {
+        const execute = (featureFlags: Record<string, boolean>) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled: featureFlags[featureFlagId] ?? false,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
+            } as never);
+
+            return service.executeAsyncExternalSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                sql: 'SELECT * FROM attachment',
+                tables: { attachment: 'table-uuid' },
+            });
+        };
+
+        test('requires the external sources flag', async () => {
+            await expect(
+                execute({
+                    [FeatureFlags.ComposeSqlRunner]: true,
+                }),
+            ).rejects.toThrow('External sources are not enabled');
+        });
+
+        test('requires the compose SQL runner flag', async () => {
+            await expect(
+                execute({
+                    [FeatureFlags.ExternalSources]: true,
+                }),
+            ).rejects.toThrow('Compose SQL queries are not enabled');
+        });
+
+        test('rejects attachments created by another user', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                externalSourceTableResolver: vi.fn(async () => ({
+                    external_source_scope: ExternalSourceScope.ATTACHMENT,
+                    external_source_created_by_user_uuid: 'another-user',
+                })),
+            } as never);
+
+            await expect(
+                service.executeAsyncExternalSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    sql: 'SELECT * FROM attachment',
+                    tables: { attachment: 'table-uuid' },
+                }),
+            ).rejects.toThrow('This attachment belongs to another user');
+        });
+    });
+
+    describe('compose engine in every edition', () => {
+        const composeFlags = {
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.ComposeSqlRunner,
+                }),
+            ),
+        } as unknown as FeatureFlagModel;
+
+        const withoutResultsStorage: LightdashConfig = {
+            ...lightdashConfigMock,
+            results: { ...lightdashConfigMock.results, s3: undefined },
+        };
+
+        const referencedQueryHistory = {
+            queryUuid: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: sessionAccount.user.id,
+            context: QueryExecutionContext.EXPLORE,
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'referenced-results.jsonl',
+            resultsExpiresAt: null,
+            columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+            metricQuery: { exploreName: 'orders' },
+        } as unknown as QueryHistory;
+
+        test('runs a compose SQL query over referenced results without a license', async () => {
+            const createDuckdbWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: composeFlags,
+                composeEngineClient: new ComposeEngineClient({
+                    resolveCaCertFile: () =>
+                        '/etc/ssl/certs/ca-certificates.crt',
+                    lightdashConfig: lightdashConfigMock,
+                    createDuckdbWarehouseClient,
+                }),
+                queryHistoryModel: inMemoryDuckdbHistory({
+                    queryUuid: 'queryUuid',
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async () => referencedQueryHistory),
+                        pollForQueryCompletion: vi.fn(
+                            async () => referencedQueryHistory,
+                        ),
+                    },
+                }),
+                resultsStorageClient: {
+                    isEnabled: true,
+                    configuration: { bucket: 'mock_bucket' },
+                } as unknown as S3ResultsFileStorageClient,
+            } as never);
+            expect((service as AnyType).preAggregateStrategy).toBeInstanceOf(
+                NoOpPreAggregateStrategy,
+            );
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            const result = await service.executeAsyncComposeSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'SELECT one FROM orders',
+                references: { orders: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11' },
+            });
+
+            expect(result.queryUuid).toBe('queryUuid');
+            await vi.waitFor(() =>
+                expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1),
+            );
+            expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
+                s3Config: {
+                    endpoint: 'mock_endpoint',
+                    region: 'mock_region',
+                    caCertFile: '/etc/ssl/certs/ca-certificates.crt',
+                    accessKey: undefined,
+                    secretKey: undefined,
+                    forcePathStyle: false,
+                    useSsl: true,
+                },
+                sharedResourceLimits: undefined,
+                instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
+            });
+            expect(runAsyncWarehouseSpy.mock.calls[0][0]).toMatchObject({
+                warehouseClientOverride: warehouseClientMock,
+                query: expect.stringContaining(
+                    "read_json('s3://mock_bucket/referenced-results.jsonl'",
+                ),
+            });
+        });
+
+        test('refuses a compose SQL query naming the missing results storage', async () => {
+            const service = getMockedAsyncQueryService(withoutResultsStorage, {
+                featureFlagModel: composeFlags,
+                queryHistoryModel: {
+                    create: vi.fn(),
+                    get: vi.fn(async () => referencedQueryHistory),
+                } as unknown as QueryHistoryModel,
+            } as never);
+
+            await expect(
+                service.executeAsyncComposeSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    sql: 'SELECT one FROM orders',
+                    references: { orders: referencedQueryHistory.queryUuid },
+                }),
+            ).rejects.toThrow(
+                new MissingConfigError(
+                    'The compose engine needs results storage to read referenced query results. Set S3_ENDPOINT, S3_BUCKET and S3_REGION, or the RESULTS_S3_* overrides.',
+                ),
+            );
+            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        });
+
+        test('a compose SQL query runs on a session scoped to exactly the results it references', async () => {
+            const createExecutionWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: composeFlags,
+                composeEngineClient: {
+                    createExecutionWarehouseClient,
+                } as unknown as ComposeEngineClient,
+                queryHistoryModel: inMemoryDuckdbHistory({
+                    queryUuid: 'queryUuid',
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async () => referencedQueryHistory),
+                        pollForQueryCompletion: vi.fn(
+                            async () => referencedQueryHistory,
+                        ),
+                    },
+                }),
+                resultsStorageClient: {
+                    isEnabled: true,
+                    configuration: { bucket: 'mock_bucket' },
+                } as unknown as S3ResultsFileStorageClient,
+            } as never);
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            await service.executeAsyncComposeSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'SELECT one FROM orders',
+                references: { orders: referencedQueryHistory.queryUuid },
+            });
+            await vi.waitFor(() =>
+                expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1),
+            );
+
+            // The shared session is built once, for the dialect and to refuse
+            // a missing results storage up front; the run, rebuilt from the
+            // row, gets its own, scoped to the one file the query reads
+            expect(createExecutionWarehouseClient.mock.calls).toEqual([
+                [{ storage: 'results', scope: null }],
+                [
+                    {
+                        storage: 'results',
+                        scope: ['s3://mock_bucket/referenced-results.jsonl'],
+                    },
+                ],
+            ]);
+        });
+
+        test('refuses a compose SQL query that references no results before writing a row', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: composeFlags,
+            } as never);
+
+            await expect(
+                service.executeAsyncComposeSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    sql: 'SELECT 1 AS one',
+                }),
+            ).rejects.toThrow(
+                'A compose SQL query must reference at least one query result',
+            );
+            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        });
+
+        test("a supplied plan composes the node's own pivot stage and records the pivot on the row", async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                composeEngineClient: {
+                    createExecutionWarehouseClient: vi.fn(
+                        () => warehouseClientMock,
+                    ),
+                } as unknown as ComposeEngineClient,
+                queryHistoryModel: inMemoryDuckdbHistory({
+                    queryUuid: 'join-uuid',
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async () => referencedQueryHistory),
+                    },
+                }),
+            } as never);
+            const runDuckdbQuery = vi
+                .spyOn(service as AnyType, 'runDuckdbQuery')
+                .mockResolvedValue(undefined);
+            const pivotConfiguration: PivotConfiguration = {
+                indexColumn: {
+                    reference: 'merge_month',
+                    type: VizIndexType.TIME,
+                },
+                valuesColumns: [
+                    {
+                        reference: 'a_orders_count',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            };
+            const compose = vi.fn(
+                () =>
+                    ({
+                        getSql: () => 'SELECT pivoted FROM orders',
+                        getFields: () => ({}),
+                        getUsedParameters: () => ({}),
+                        getMetricQuery: () => ({ exploreName: 'merge' }),
+                    }) as unknown as QueryComposer,
+            );
+
+            await service.executeAsyncDuckdbSourceQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM orders',
+                references: { orders: referencedQueryHistory.queryUuid },
+                pivotConfiguration,
+                plan: {
+                    columns: {
+                        mode: 'supplied',
+                        compose,
+                        originalColumns: {},
+                        requestParameters: {
+                            context: QueryExecutionContext.EXPLORE,
+                            sql: 'SELECT * FROM orders',
+                        },
+                    },
+                    engine: 'scopedToReferencedResults',
+                    guard: null,
+                    referenceLabels: {},
+                },
+            });
+            await vi.waitFor(() =>
+                expect(runDuckdbQuery).toHaveBeenCalledTimes(1),
+            );
+
+            expect(compose).toHaveBeenCalledWith({
+                warehouseClient: warehouseClientMock,
+                pivotConfiguration,
+            });
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    pivotConfiguration,
+                    compiledSql: 'SELECT pivoted FROM orders',
+                }),
+            );
+            expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
+                sql: 'SELECT pivoted FROM orders',
+                columns: { mode: 'supplied', pivotConfiguration },
+            });
+        });
+
+        test('a supplied plan records its columns, runs on a scoped session and reads no flag', async () => {
+            const featureFlagModel = {
+                get: vi.fn(async () => ({ enabled: false })),
+            } as unknown as FeatureFlagModel;
+            const createExecutionWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel,
+                composeEngineClient: {
+                    createExecutionWarehouseClient,
+                } as unknown as ComposeEngineClient,
+                queryHistoryModel: inMemoryDuckdbHistory({
+                    queryUuid: 'join-uuid',
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async () => referencedQueryHistory),
+                    },
+                }),
+            } as never);
+            const runDuckdbQuery = vi
+                .spyOn(service as AnyType, 'runDuckdbQuery')
+                .mockResolvedValue(undefined);
+            const guard = {
+                legLabelByReferenceTable: { orders: 'Query A' },
+                sourceRowCap: 500,
+            };
+            const fieldsMap = {
+                a_orders_count: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.COUNT,
+                    name: 'orders_count',
+                    label: 'Orders',
+                    table: 'a',
+                    tableLabel: 'Query A',
+                    sql: '',
+                    hidden: false,
+                },
+            } as ItemsMap;
+            const originalColumns: ResultColumns = {
+                a_orders_count: {
+                    reference: 'a_orders_count',
+                    type: DimensionType.NUMBER,
+                    label: 'Orders',
+                },
+            };
+            const metricQuery = {
+                exploreName: 'merge',
+                dimensions: [],
+                metrics: ['a_orders_count'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            } as unknown as MetricQuery;
+
+            const requestParameters = {
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM orders',
+            };
+            // The plan's composer owns the statement, fields and pivot stage
+            const composer = {
+                getSql: vi.fn(() => 'SELECT * FROM orders ORDER BY 1'),
+                getFields: () => fieldsMap,
+                getUsedParameters: () => ({ region: 'EU' }),
+                getMetricQuery: () => metricQuery,
+            } as unknown as QueryComposer;
+            const compose = vi.fn(() => composer);
+            const submission = await service.executeAsyncDuckdbSourceQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM orders',
+                references: { orders: referencedQueryHistory.queryUuid },
+                plan: {
+                    columns: {
+                        mode: 'supplied',
+                        compose,
+                        originalColumns,
+                        requestParameters,
+                    },
+                    engine: 'scopedToReferencedResults',
+                    guard,
+                    referenceLabels: {},
+                },
+            });
+            await vi.waitFor(() =>
+                expect(runDuckdbQuery).toHaveBeenCalledTimes(1),
+            );
+
+            expect(submission.queryUuid).toBe('join-uuid');
+            expect(compose).toHaveBeenCalledWith({
+                warehouseClient: warehouseClientMock,
+                pivotConfiguration: undefined,
+            });
+            expect(composer.getSql).toHaveBeenCalledWith({
+                columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
+            });
+            const flagsRead = (
+                featureFlagModel.get as import('vitest').Mock
+            ).mock.calls.map(([{ featureFlagId }]) => featureFlagId);
+            expect(flagsRead).not.toContain(FeatureFlags.ComposeSqlRunner);
+            expect(flagsRead).not.toContain(FeatureFlags.MultiSourceQuery);
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    fields: fieldsMap,
+                    originalColumns,
+                    metricQuery,
+                    requestParameters,
+                    usedParameters: { region: 'EU' },
+                    pivotConfiguration: null,
+                    compiledSql: 'SELECT * FROM orders ORDER BY 1',
+                }),
+            );
+            // The run rebuilds itself from the row and the spec set on it
+            expect(
+                service.queryHistoryModel.setDuckdbExecution,
+            ).toHaveBeenCalledWith('join-uuid', {
+                references: { orders: referencedQueryHistory.queryUuid },
+                engine: 'scopedToReferencedResults',
+                columns: { mode: 'supplied' },
+                guard,
+                storedCompiledSql: null,
+                referenceLabels: {},
+                invalidateCache: false,
+                cacheHit: false,
+                refusal: null,
+            });
+            expect(
+                service.queryHistoryModel.updateStatusToExecuting,
+            ).toHaveBeenCalledWith('join-uuid');
+            expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
+                actor: {
+                    userUuid: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                },
+                queryUuid: 'join-uuid',
+                sql: 'SELECT * FROM orders ORDER BY 1',
+                columns: {
+                    mode: 'supplied',
+                    fieldsMap,
+                    originalColumns,
+                    usedParameters: { region: 'EU' },
+                },
+                engine: { kind: 'scopedToReferencedResults' },
+                references: {
+                    kind: 'queries',
+                    references: { orders: referencedQueryHistory.queryUuid },
+                    guard: expect.any(Function),
+                    labelByTable: {},
+                },
+            });
+            // The shared session is built for the dialect and to refuse a
+            // missing results storage up front; the run scopes its own
+            expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+                storage: 'results',
+                scope: null,
+            });
+        });
+
+        test('reads external-source files on the pre-aggregate bucket session', async () => {
+            const createExecutionWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                composeEngineClient: {
+                    createExecutionWarehouseClient,
+                } as unknown as ComposeEngineClient,
+                externalSourceTableResolver: vi.fn(async () => ({
+                    external_source_table_uuid: 'table-uuid',
+                    external_source_scope: null,
+                    external_source_created_by_user_uuid: null,
+                    version: 3,
+                    locator: {
+                        storage: 's3',
+                        format: 'parquet',
+                        uri: 's3://mock_preagg_bucket/external-sources/file.parquet',
+                    },
+                    columns: {
+                        one: { reference: 'one', type: DimensionType.NUMBER },
+                    },
+                })),
+            } as never);
+            vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                undefined,
+            );
+
+            await service.executeAsyncExternalSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                sql: 'SELECT one FROM attachment',
+                tables: { attachment: 'table-uuid' },
+            });
+
+            expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+                storage: 'externalSources',
+                scope: null,
+            });
+        });
+
+        test('refuses a merge naming the missing results storage instead of downgrading it', async () => {
+            const service = getMockedAsyncQueryService(withoutResultsStorage, {
+                featureFlagModel: composeFlags,
+            } as never);
+            vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+                coreSql: 'SELECT 1',
+                typedColumns: [],
+                terminalWrapper: { orderBy: [], limit: null },
+                errors: [],
+                parameterReferences: [],
+                fieldOrigins: {},
+                columns: { valueColumnBySourceColumn: {} },
+                fieldIdByColumn: {},
+                itemsMap: {},
+                usedParametersValues: {},
+                legs: [],
+            } as never);
+
+            await expect(
+                service.executeAsyncMergeQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    mergeQuery: {
+                        sources: [],
+                        joinKey: [],
+                        joinType: 'full',
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    context: QueryExecutionContext.EXPLORE,
+                    mode: { type: 'interactive' },
+                }),
+            ).rejects.toThrow(MissingConfigError);
+            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('executeAsyncMergeQuery', () => {
+        const mergeQuery = {
+            sources: [],
+            joinKey: [],
+            joinType: 'full',
+            tableCalculations: [],
+            limit: 500,
+        } as never;
+
+        test('returns validation errors without starting execution', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+            vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+                coreSql: null,
+                typedColumns: null,
+                terminalWrapper: null,
+                errors: [
+                    { kind: MergeQueryErrorKind.FAN_OUT, message: 'Fan-out' },
+                ],
+                parameterReferences: ['date'],
+                fieldOrigins: {},
+            } as never);
+            const result = await service.executeAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+                mode: { type: 'interactive' },
+            });
+
+            expect(service.compileMergeQuery).toHaveBeenCalledTimes(1);
+            expect(result).toMatchObject({
+                outcome: 'refused',
+                parameterReferences: ['date'],
+                errors: [{ message: 'Fan-out' }],
+            });
+            expect(trackAccount).toHaveBeenCalledWith(sessionAccount, {
+                event: 'merge_query.refused',
+                properties: expect.objectContaining({
+                    projectId: projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    joinType: 'full',
+                    kind: MergeQueryErrorKind.FAN_OUT,
+                    kinds: [MergeQueryErrorKind.FAN_OUT],
+                    refusalCount: 1,
+                    queryId: null,
+                }),
+            });
+            trackAccount.mockRestore();
+        });
+    });
+
     describe('getJwtDashboardQueryContext', () => {
         const buildDashboardEmbedAccount = () =>
             ({
@@ -752,6 +1627,39 @@ describe('AsyncQueryService', () => {
                     status: QueryHistoryStatus.READY,
                 }),
                 sessionAccount,
+            );
+        });
+
+        test('marks playground queries for exclusion from the usage event stream', async () => {
+            projectModel.getSummary.mockResolvedValueOnce({
+                ...projectSummary,
+                provisioningSource: 'playground',
+            });
+            (
+                serviceWithCache.queryHistoryModel
+                    .create as import('vitest').Mock
+            ).mockResolvedValue({ queryUuid: 'test-query-uuid' });
+            const runAsyncWarehouseQuerySpy = vi
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            await serviceWithCache['executeAsyncQuery'](
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    invalidateCache: false,
+                    queryComposer: createQueryComposerMock(),
+                    warehouseCredentials: warehouseCredentialsMock,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+                expect.objectContaining({ isPreviewProject: true }),
             );
         });
 
@@ -1301,6 +2209,7 @@ describe('AsyncQueryService', () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
             });
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
@@ -1377,6 +2286,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 {
                     pre_aggregate_compiled_sql: 'SELECT * FROM duckdb_preagg',
+                    pre_aggregate_execution: 'duckdb',
                 },
                 sessionAccount,
             );
@@ -1455,7 +2365,111 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeMetricQueryAndGetResults', () => {
+        it('preserves the query UUID with the ready results', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.executeAsyncMetricQuery = vi.fn().mockResolvedValue({
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+            });
+            service.pollForQueryCompletion = vi.fn().mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+            } as QueryHistory);
+            const getReadyQueryResults = vi.fn().mockResolvedValue({
+                rows: [{ a_dim1: 'one', a_met1: 1 }],
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+                pivotDetails: null,
+                displayTimezone: null,
+            });
+            (service as AnyType).getReadyQueryResults = getReadyQueryResults;
+
+            const result = await service.executeMetricQueryAndGetResults({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.AI,
+            });
+
+            expect(result.queryUuid).toBe(
+                '11111111-1111-4111-8111-111111111111',
+            );
+            expect(getReadyQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    queryUuid: '11111111-1111-4111-8111-111111111111',
+                }),
+            );
+        });
+
+        it('extends result availability without shortening longer retention', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const { queryHistoryModel } = service as AnyType;
+            const expiresAt = new Date('2026-09-01T00:00:00.000Z');
+            queryHistoryModel.get = vi.fn().mockResolvedValue({
+                resultsFileName: 'results.jsonl',
+                resultsExpiresAt: new Date('2026-08-01T00:00:00.000Z'),
+            });
+            queryHistoryModel.update = vi.fn().mockResolvedValue(1);
+
+            await service.extendQueryResultsExpiration({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                expiresAt,
+            });
+
+            expect(queryHistoryModel.update).toHaveBeenCalledWith(
+                '11111111-1111-4111-8111-111111111111',
+                projectUuid,
+                { results_expires_at: expiresAt },
+                sessionAccount,
+            );
+
+            queryHistoryModel.get.mockResolvedValue({
+                resultsFileName: 'results.jsonl',
+                resultsExpiresAt: new Date('2026-10-01T00:00:00.000Z'),
+            });
+            queryHistoryModel.update.mockClear();
+
+            await service.extendQueryResultsExpiration({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                expiresAt,
+            });
+
+            expect(queryHistoryModel.update).not.toHaveBeenCalled();
+        });
+    });
+
     describe('executeAsyncMetricQuery', () => {
+        test('forwards trusted provenance inputs to custom SQL authorization', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const assertCustomSqlAuthorizedForQuery = vi
+                .spyOn(service as AnyType, 'assertCustomSqlAuthorizedForQuery')
+                .mockResolvedValue(undefined);
+            (service as AnyType).runAsyncMetricQueryWithoutPermissionCheck = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'query-uuid' });
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                dataAppPreviewToken: 'signed-preview-token',
+                customSqlProvenanceChartUuid: 'chart-uuid',
+            });
+
+            expect(assertCustomSqlAuthorizedForQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dataAppPreviewToken: 'signed-preview-token',
+                    customSqlProvenanceChartUuid: 'chart-uuid',
+                }),
+            );
+        });
+
         test('tags warehouse queries with the originating data app from the request context', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             service.getExploreWithUserAccessControls = vi
@@ -1522,6 +2536,7 @@ describe('AsyncQueryService', () => {
                 ...makeMockStrategy({
                     resolved: true,
                     query: 'SELECT * FROM duckdb_preagg',
+                    execution: 'duckdb',
                 }),
                 getRoutingDecision: ({ explore }) => {
                     if (
@@ -1688,6 +2703,7 @@ describe('AsyncQueryService', () => {
             warehouseQueryId: 'test-warehouse-query-id',
             warehouseQueryMetadata: null,
             requestParameters: {} as ExecuteAsyncQueryRequestParams,
+            usedParameters: null,
             totalRowCount: null,
             warehouseExecutionTimeMs: null,
             defaultPageSize: 10,
@@ -1702,6 +2718,8 @@ describe('AsyncQueryService', () => {
             columns: null,
             originalColumns: null,
             preAggregateCompiledSql: null,
+            preAggregateExecution: null,
+            preAggregateFallbackReason: null,
             processingStartedAt: null,
         });
 
@@ -1727,6 +2745,7 @@ describe('AsyncQueryService', () => {
                 status: QueryHistoryStatus.PENDING,
                 queryUuid: 'test-query-uuid',
             });
+            expect(projectModel.getSummary).toHaveBeenCalledTimes(1);
         });
 
         test('rejects embedded AI agent JWTs polling AI queries from another user', async () => {
@@ -1774,6 +2793,7 @@ describe('AsyncQueryService', () => {
                 warehouseQueryId: 'test-warehouse-query-id',
                 warehouseQueryMetadata: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                usedParameters: null,
                 totalRowCount: null,
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
@@ -1788,6 +2808,8 @@ describe('AsyncQueryService', () => {
                 columns: null,
                 originalColumns: null,
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
+                preAggregateFallbackReason: null,
                 processingStartedAt: null,
             });
 
@@ -2015,6 +3037,7 @@ describe('AsyncQueryService', () => {
                 warehouseQueryId: 'test-warehouse-query-id',
                 warehouseQueryMetadata: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                usedParameters: null,
                 totalRowCount: 10,
                 warehouseExecutionTimeMs: 1500,
                 defaultPageSize: 10,
@@ -2029,6 +3052,8 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: mockOriginalColumns,
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
+                preAggregateFallbackReason: null,
                 processingStartedAt: null,
             };
 
@@ -2051,11 +3076,14 @@ describe('AsyncQueryService', () => {
                 pageSize: 10,
             });
 
-            // THEN: Returns READY status with complete result structure
+            // THEN: Returns READY status with complete result structure and
+            // the persisted display timezone (null when the metric query was
+            // built without one)
             expect(result).toMatchObject({
                 status: QueryHistoryStatus.READY,
                 queryUuid: 'test-query-uuid',
                 rows: expect.any(Array),
+                resolvedTimezone: metricQueryMock.timezone ?? null,
             });
 
             // THEN: Includes execution metadata
@@ -2091,6 +3119,453 @@ describe('AsyncQueryService', () => {
 
             // THEN: Test completed successfully - all critical behaviors verified
         });
+
+        test('serves DuckDB compose query columns from the persisted row without adding metadata', async () => {
+            // A DuckDB compose query runs arbitrary SQL, so its columns carry
+            // only the reference, the probed type, and a label derived from
+            // the reference. No label, format, or provenance is inferred from
+            // the queries it references, and the results page serves the
+            // persisted columns unchanged.
+            const composeColumns = {
+                revenue: {
+                    reference: 'revenue',
+                    type: DimensionType.NUMBER,
+                    label: 'Revenue',
+                },
+                order_month: {
+                    reference: 'order_month',
+                    type: DimensionType.TIMESTAMP,
+                    label: 'Order month',
+                },
+            };
+            const composeQueryHistory: QueryHistory = {
+                createdAt: new Date(),
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                queryUuid: 'compose-query-uuid',
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                erroredAt: null,
+                // Compose rows persist the placeholder SqlQueryComposer
+                // metric query and an empty fields map
+                metricQuery: { ...metricQueryMock, timezone: undefined },
+                context: QueryExecutionContext.API,
+                fields: {},
+                compiledSql:
+                    'SELECT sum(orders_total_revenue) AS revenue, order_month FROM orders GROUP BY 2',
+                warehouseQueryId: null,
+                warehouseQueryMetadata: null,
+                requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                usedParameters: null,
+                totalRowCount: 2,
+                warehouseExecutionTimeMs: 5,
+                defaultPageSize: 10,
+                cacheKey: 'compose-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
+                resultsFileName: 'compose-results.jsonl',
+                resultsCreatedAt: new Date(),
+                resultsUpdatedAt: new Date(),
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: composeColumns,
+                originalColumns: composeColumns,
+                preAggregateCompiledSql: null,
+                preAggregateExecution: null,
+                preAggregateFallbackReason: null,
+                processingStartedAt: null,
+            };
+
+            serviceWithCache.queryHistoryModel.get = vi
+                .fn()
+                .mockResolvedValue(composeQueryHistory);
+            serviceWithCache.getResultsPageFromS3 = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'compose-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(result).toMatchObject({
+                status: QueryHistoryStatus.READY,
+                columns: composeColumns,
+                resolvedTimezone: null,
+            });
+            // No metadata is added at read time either.
+            if (result.status === QueryHistoryStatus.READY) {
+                Object.values(result.columns).forEach((column) => {
+                    expect(column).not.toHaveProperty('format');
+                    expect(column).not.toHaveProperty('provenance');
+                });
+            }
+        });
+
+        test('returns SQL Runner value columns in configured y-axis order after JSONB persistence', async () => {
+            const valuesColumns = [
+                {
+                    reference: 'b_actual_new',
+                    aggregation: VizAggregationOptions.COUNT,
+                },
+                {
+                    reference: 'c_actual',
+                    aggregation: VizAggregationOptions.COUNT,
+                },
+                {
+                    reference: 'a_forecast',
+                    aggregation: VizAggregationOptions.COUNT,
+                },
+            ];
+            const makePivotValueColumn = (referenceField: string) => ({
+                referenceField,
+                pivotColumnName: `${referenceField}_count`,
+                aggregation: VizAggregationOptions.COUNT,
+                pivotValues: [],
+            });
+            const mockQueryHistory: QueryHistory = {
+                createdAt: new Date(),
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                erroredAt: null,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.SQL_RUNNER,
+                fields: validExplore.tables.a.dimensions,
+                compiledSql: 'SELECT * FROM test.table',
+                warehouseQueryId: 'test-warehouse-query-id',
+                warehouseQueryMetadata: null,
+                requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                usedParameters: null,
+                totalRowCount: 1,
+                warehouseExecutionTimeMs: 1,
+                defaultPageSize: 10,
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: {
+                    indexColumn: {
+                        reference: 'x',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    valuesColumns,
+                    groupByColumns: undefined,
+                    sortBy: [],
+                },
+                pivotTotalColumnCount: 3,
+                // PostgreSQL JSONB does not preserve insertion order. This is
+                // the order returned for the ticket's c/a/b column names.
+                pivotValuesColumns: {
+                    c_actual_count: makePivotValueColumn('c_actual'),
+                    a_forecast_count: makePivotValueColumn('a_forecast'),
+                    b_actual_new_count: makePivotValueColumn('b_actual_new'),
+                },
+                resultsFileName: 'results-file-name.json',
+                resultsCreatedAt: new Date(),
+                resultsUpdatedAt: new Date(),
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: expectedColumns,
+                originalColumns: {},
+                preAggregateCompiledSql: null,
+                preAggregateExecution: null,
+                preAggregateFallbackReason: null,
+                processingStartedAt: null,
+            };
+
+            serviceWithCache.queryHistoryModel.get = vi
+                .fn()
+                .mockResolvedValue(mockQueryHistory);
+            serviceWithCache.getResultsPageFromS3 = vi.fn().mockResolvedValue({
+                rows: [expectedFormattedRow],
+            });
+            serviceWithCache.getExplore = vi
+                .fn()
+                .mockResolvedValue(validExplore);
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(result).toMatchObject({
+                pivotDetails: {
+                    valuesColumns: valuesColumns.map(({ reference }) =>
+                        makePivotValueColumn(reference),
+                    ),
+                },
+            });
+        });
+
+        test('ready results expose pre-aggregate execution and fallback in metadata', async () => {
+            const mockQueryHistory: QueryHistory = {
+                createdAt: new Date(),
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                erroredAt: null,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                fields: validExplore.tables.a.dimensions,
+                compiledSql: 'SELECT * FROM test.table',
+                warehouseQueryId: 'test-warehouse-query-id',
+                warehouseQueryMetadata: null,
+                requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                usedParameters: null,
+                totalRowCount: 1,
+                warehouseExecutionTimeMs: 1,
+                defaultPageSize: 10,
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
+                resultsFileName: 'results-file-name.json',
+                resultsCreatedAt: new Date(),
+                resultsUpdatedAt: new Date(),
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: expectedColumns,
+                originalColumns: null,
+                preAggregateCompiledSql: 'SELECT * FROM duckdb_preagg',
+                preAggregateExecution: 'duckdb',
+                preAggregateFallbackReason: 'duckdb_execution_error',
+                processingStartedAt: null,
+            };
+
+            serviceWithCache.queryHistoryModel.get = vi
+                .fn()
+                .mockResolvedValue(mockQueryHistory);
+            serviceWithCache.getResultsPageFromS3 = vi.fn().mockResolvedValue({
+                rows: [expectedFormattedRow],
+            });
+            serviceWithCache.getExplore = vi
+                .fn()
+                .mockResolvedValue(validExplore);
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(result).toMatchObject({
+                metadata: {
+                    preAggregate: {
+                        execution: 'duckdb',
+                        fallbackReason: 'duckdb_execution_error',
+                    },
+                },
+            });
+        });
+    });
+
+    describe('runAsyncPreAggregateQuery', () => {
+        const buildArgs = () => ({
+            userUuid: sessionAccount.user.id,
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            onboardingFlow: 'legacy' as const,
+            projectUuid,
+            queryUuid: 'test-query-uuid',
+            queryTags: {
+                query_context: QueryExecutionContext.EXPLORE,
+                explore_name: 'orders',
+                chart_uuid: 'chart-uuid',
+                dashboard_uuid: 'dashboard-uuid',
+            },
+            fieldsMap: {},
+            usedParameters: null,
+            cacheKey: 'test-cache-key',
+            pivotConfiguration: undefined,
+            originalColumns: undefined,
+            preAggregateQuery: 'SELECT * FROM duckdb_preagg',
+            warehouseQuery: 'SELECT * FROM warehouse',
+            preAggregateExecution: 'duckdb' as const,
+            queryCreatedAt: new Date(),
+            displayTimezone: null,
+        });
+
+        test('records fallback on query history and stats when execution fails', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('HTTP 404: missing parquet'))
+                .mockResolvedValueOnce(undefined);
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                { pre_aggregate_fallback_reason: 'duckdb_execution_error' },
+                expect.objectContaining({
+                    user: { id: sessionAccount.user.id },
+                }),
+            );
+            expect(mockStrategy.recordExecutionFallback).toHaveBeenCalledWith({
+                projectUuid,
+                exploreName: 'orders',
+                chartUuid: 'chart-uuid',
+                dashboardUuid: 'dashboard-uuid',
+                queryContext: QueryExecutionContext.EXPLORE,
+            });
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(2);
+            expect(runAsyncWarehouseSpy.mock.calls[1][0]).toMatchObject({
+                query: 'SELECT * FROM warehouse',
+            });
+        });
+
+        test('does not record fallback when execution succeeds', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+
+            vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                undefined,
+            );
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(service.queryHistoryModel.update).not.toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    pre_aggregate_fallback_reason: expect.anything(),
+                }),
+                expect.anything(),
+            );
+            expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
+        });
+
+        test('errors instead of falling back when the project disables execution fallback', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            projectModel.findProjectDefaults.mockResolvedValueOnce({
+                pre_aggregate_execution_fallback: false,
+            });
+
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('HTTP 404: missing parquet'));
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1);
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.stringContaining('execution fallback is disabled'),
+                expect.objectContaining({
+                    user: { id: sessionAccount.user.id },
+                }),
+            );
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.stringContaining('HTTP 404: missing parquet'),
+                expect.anything(),
+            );
+            expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
+            expect(service.queryHistoryModel.update).not.toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    pre_aggregate_fallback_reason: expect.anything(),
+                }),
+                expect.anything(),
+            );
+        });
+
+        test('still falls back when reading project defaults fails', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            projectModel.findProjectDefaults.mockRejectedValueOnce(
+                new Error('db unavailable'),
+            );
+
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('HTTP 404: missing parquet'))
+                .mockResolvedValueOnce(undefined);
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(2);
+            expect(runAsyncWarehouseSpy.mock.calls[1][0]).toMatchObject({
+                query: 'SELECT * FROM warehouse',
+            });
+        });
+
+        test('still falls back to the warehouse when the fallback write fails', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            (
+                service.queryHistoryModel.update as import('vitest').Mock
+            ).mockRejectedValue(new Error('db unavailable'));
+
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('HTTP 404: missing parquet'))
+                .mockResolvedValueOnce(undefined);
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(2);
+            expect(runAsyncWarehouseSpy.mock.calls[1][0]).toMatchObject({
+                query: 'SELECT * FROM warehouse',
+            });
+        });
     });
 
     describe('download pivot routing', () => {
@@ -2109,6 +3584,7 @@ describe('AsyncQueryService', () => {
         const pivotConfig = {
             pivotDimensions: ['order_date'],
             metricsAsRows: false,
+            rowFieldIds: ['user_id', 'amount'],
         };
 
         const baseReadyQueryHistory = (
@@ -2133,6 +3609,7 @@ describe('AsyncQueryService', () => {
                 warehouseQueryId: 'test-warehouse-query-id',
                 warehouseQueryMetadata: null,
                 requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                usedParameters: null,
                 totalRowCount: 10,
                 warehouseExecutionTimeMs: 1500,
                 defaultPageSize: 10,
@@ -2147,6 +3624,8 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: {},
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
+                preAggregateFallbackReason: null,
                 processingStartedAt: null,
                 ...overrides,
             }) as QueryHistory;
@@ -2171,6 +3650,8 @@ describe('AsyncQueryService', () => {
             await expect(
                 internals.downloadAsyncQueryResults({
                     account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     type: DownloadFileType.CSV,
@@ -2226,6 +3707,8 @@ describe('AsyncQueryService', () => {
             await expect(
                 internals.downloadAsyncQueryResults({
                     account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     type: DownloadFileType.CSV,
@@ -2235,6 +3718,15 @@ describe('AsyncQueryService', () => {
             ).resolves.toMatchObject({ fileUrl: 'pivot-url' });
 
             expect(pivotSpy).toHaveBeenCalledTimes(1);
+            expect(pivotSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    options: expect.objectContaining({
+                        pivotConfig: expect.objectContaining({
+                            rowFieldIds: ['user_id', 'amount'],
+                        }),
+                    }),
+                }),
+            );
             expect(flatSpy).not.toHaveBeenCalled();
         });
 
@@ -2282,6 +3774,8 @@ describe('AsyncQueryService', () => {
             await expect(
                 internals.downloadAsyncQueryResults({
                     account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     type: DownloadFileType.CSV,
@@ -2350,6 +3844,8 @@ describe('AsyncQueryService', () => {
             await expect(
                 internals.downloadAsyncQueryResults({
                     account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     type: DownloadFileType.CSV,
@@ -2361,6 +3857,80 @@ describe('AsyncQueryService', () => {
             expect(pivotSpy).not.toHaveBeenCalled();
             expect(flatSpy).toHaveBeenCalledTimes(1);
         });
+    });
+
+    describe('analytics cached-result boundaries', () => {
+        afterEach(() => {
+            projectModel.getSummary.mockResolvedValue(projectSummary);
+            vi.mocked(
+                analyticsClient.assertAnalyticsProjectEnabled,
+            ).mockRestore();
+        });
+        test.each(['disabled', 'non-admin', 'cross-org'] as const)(
+            'blocks every result/history/export surface for %s access',
+            async (reason) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                service.exportsStorageClient = {
+                    isEnabled: () => true,
+                } as FileStorageClient;
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { action: 'view', subject: 'Project' },
+                ]);
+                vi.spyOn(projectModel, 'getSummary').mockResolvedValue({
+                    ...projectSummary,
+                    organizationUuid:
+                        reason === 'cross-org'
+                            ? 'other-org'
+                            : account.organization.organizationUuid!,
+                    provisioningSource: 'analytics',
+                });
+                vi.spyOn(
+                    analyticsClient,
+                    'assertAnalyticsProjectEnabled',
+                ).mockImplementation(async () => {
+                    if (reason === 'disabled')
+                        throw new ForbiddenError('analytics disabled');
+                });
+                const args = {
+                    account,
+                    projectUuid,
+                    queryUuid: 'existing-query',
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR as const,
+                };
+                const expected = {
+                    disabled: 'analytics disabled',
+                    'cross-org': 'another organization',
+                    'non-admin': 'administration',
+                }[reason];
+                await expect(
+                    service.getAsyncQueryHistory(args),
+                ).rejects.toThrow(expected);
+                await expect(service.getResultsStream(args)).rejects.toThrow(
+                    expected,
+                );
+                await expect(
+                    service.getQueryHistoryList({
+                        ...args,
+                        filters: {},
+                        paginateArgs: { page: 1, pageSize: 10 },
+                    }),
+                ).rejects.toThrow(expected);
+                await expect(
+                    service.scheduleDownloadAsyncQueryResults(args),
+                ).rejects.toThrow(expected);
+                await expect(service.download(args)).rejects.toThrow(expected);
+                expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+                await expect(
+                    service.getAsyncQueryResults(args),
+                ).rejects.toThrow(expected);
+                expect(projectModel.getSummary).toHaveBeenLastCalledWith(
+                    projectUuid,
+                );
+            },
+        );
     });
 
     describe('getAsyncQueryHistory', () => {
@@ -2434,6 +4004,7 @@ describe('AsyncQueryService', () => {
             warehouseQueryId: 'test-warehouse-query-id',
             warehouseQueryMetadata: null,
             requestParameters: {} as ExecuteAsyncQueryRequestParams,
+            usedParameters: null,
             totalRowCount: null,
             warehouseExecutionTimeMs: null,
             defaultPageSize: 10,
@@ -2448,6 +4019,8 @@ describe('AsyncQueryService', () => {
             columns: null,
             originalColumns: null,
             preAggregateCompiledSql: null,
+            preAggregateExecution: null,
+            preAggregateFallbackReason: null,
             processingStartedAt: null,
         });
 
@@ -2586,46 +4159,49 @@ describe('AsyncQueryService', () => {
         });
     });
 
-    describe('prepareQueuedQueryForExecution', () => {
-        const createMockQueryHistory = (
-            status: QueryHistoryStatus,
-            createdAt: Date = new Date(),
-        ): QueryHistory => ({
-            createdAt,
-            organizationUuid: sessionAccount.organization.organizationUuid!,
-            createdByUserUuid: sessionAccount.user.id,
-            createdBy: sessionAccount.user.id,
-            createdByAccount: null,
-            createdByActorType: 'session',
-            queryUuid: 'test-query-uuid',
-            projectUuid,
-            status,
-            error: null,
-            erroredAt: null,
-            metricQuery: metricQueryMock,
-            context: QueryExecutionContext.EXPLORE,
-            fields: validExplore.tables.a.dimensions,
-            compiledSql: 'SELECT * FROM test.table',
-            warehouseQueryId: 'test-warehouse-query-id',
-            warehouseQueryMetadata: null,
-            requestParameters: {} as ExecuteAsyncQueryRequestParams,
-            totalRowCount: null,
-            warehouseExecutionTimeMs: null,
-            defaultPageSize: 10,
-            cacheKey: 'test-query-key',
-            pivotConfiguration: null,
-            pivotTotalColumnCount: null,
-            pivotValuesColumns: null,
-            resultsFileName: null,
-            resultsCreatedAt: null,
-            resultsUpdatedAt: null,
-            resultsExpiresAt: null,
-            columns: null,
-            originalColumns: null,
-            preAggregateCompiledSql: null,
-            processingStartedAt: null,
-        });
+    const createMockQueryHistory = (
+        status: QueryHistoryStatus,
+        createdAt: Date = new Date(),
+    ): QueryHistory => ({
+        createdAt,
+        organizationUuid: sessionAccount.organization.organizationUuid!,
+        createdByUserUuid: sessionAccount.user.id,
+        createdBy: sessionAccount.user.id,
+        createdByAccount: null,
+        createdByActorType: 'session',
+        queryUuid: 'test-query-uuid',
+        projectUuid,
+        status,
+        error: null,
+        erroredAt: null,
+        metricQuery: metricQueryMock,
+        context: QueryExecutionContext.EXPLORE,
+        fields: validExplore.tables.a.dimensions,
+        compiledSql: 'SELECT * FROM test.table',
+        warehouseQueryId: 'test-warehouse-query-id',
+        warehouseQueryMetadata: null,
+        requestParameters: {} as ExecuteAsyncQueryRequestParams,
+        usedParameters: null,
+        totalRowCount: null,
+        warehouseExecutionTimeMs: null,
+        defaultPageSize: 10,
+        cacheKey: 'test-query-key',
+        pivotConfiguration: null,
+        pivotTotalColumnCount: null,
+        pivotValuesColumns: null,
+        resultsFileName: null,
+        resultsCreatedAt: null,
+        resultsUpdatedAt: null,
+        resultsExpiresAt: null,
+        columns: null,
+        originalColumns: null,
+        preAggregateCompiledSql: null,
+        preAggregateExecution: null,
+        preAggregateFallbackReason: null,
+        processingStartedAt: null,
+    });
 
+    describe('prepareQueuedQueryForExecution', () => {
         test('transitions queued queries to executing', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (
@@ -2682,6 +4258,38 @@ describe('AsyncQueryService', () => {
             expect(
                 service.queryHistoryModel.updateStatusToExecuting,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('runAsyncWarehouseQueryFromHistory', () => {
+        test('rebuilds originalColumns from the query history row', async () => {
+            const mockOriginalColumns: ResultColumns = {
+                user_id: { reference: 'user_id', type: DimensionType.STRING },
+                amount: { reference: 'amount', type: DimensionType.NUMBER },
+            };
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (
+                service.queryHistoryModel
+                    .getByQueryUuid as import('vitest').Mock
+            ).mockResolvedValue({
+                ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
+                originalColumns: mockOriginalColumns,
+            });
+            const runAsyncWarehouseQuerySpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            const ran = await service.runAsyncWarehouseQueryFromHistory(
+                'test-query-uuid',
+                'worker-1',
+            );
+
+            expect(ran).toBe(true);
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    originalColumns: mockOriginalColumns,
+                }),
+            );
         });
     });
 
@@ -2759,6 +4367,78 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     originalColumns: mockOriginalColumns,
                 }),
+            );
+
+            // Verify that original columns are persisted at creation time too,
+            // so the NATS worker path (which rebuilds args from the history
+            // row) doesn't lose them for pivoted charts.
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    originalColumns: mockOriginalColumns,
+                }),
+            );
+        });
+
+        test('cache hit against a row with null originalColumns keeps the current originalColumns', async () => {
+            const createdAt = new Date();
+            const updatedAt = new Date();
+            const expiresAt = new Date(
+                createdAt.getTime() + 1000 * 60 * 60 * 24,
+            );
+            // Cached row predates persisting original columns at creation
+            const mockCacheResult: CacheHitCacheResult = {
+                cacheHit: true,
+                cacheKey: 'test-cache-key',
+                totalRowCount: 10,
+                createdAt,
+                updatedAt,
+                expiresAt,
+                fileName: 'file-name',
+                columns: expectedColumns,
+                originalColumns: null,
+                pivotValuesColumns: null,
+                pivotTotalColumnCount: null,
+            };
+
+            (
+                serviceWithCache.findResultsCache as import('vitest').Mock
+            ).mockResolvedValueOnce(mockCacheResult);
+            (
+                serviceWithCache.queryHistoryModel
+                    .create as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            await serviceWithCache['executeAsyncQuery'](
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    queryTags: {
+                        query_context: QueryExecutionContext.SQL_RUNNER,
+                    },
+                    invalidateCache: false,
+                    queryComposer: createQueryComposerMock(),
+                    originalColumns: mockOriginalColumns,
+                    warehouseCredentials: warehouseCredentialsMock,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(
+                serviceWithCache.queryHistoryModel.update,
+            ).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    status: QueryHistoryStatus.READY,
+                    original_columns: mockOriginalColumns,
+                }),
+                sessionAccount,
             );
         });
     });
@@ -2839,6 +4519,7 @@ describe('AsyncQueryService', () => {
                     projectUuid,
                     query: 'SELECT * FROM test',
                     fieldsMap: {},
+                    usedParameters: null,
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                     warehouseCredentialsOverrides: undefined,
                     queryUuid: 'test-query-uuid',
@@ -2865,7 +4546,11 @@ describe('AsyncQueryService', () => {
                 // THEN: Warehouse client created with tunneled credentials
                 expect(
                     mockProjectModel.getWarehouseClientFromCredentials,
-                ).toHaveBeenCalledWith(sshTunnelCredentials);
+                ).toHaveBeenCalledWith(sshTunnelCredentials, {
+                    enableInstanceCache: false,
+                    projectUuid: 'project uuid',
+                    logger: expect.anything(),
+                });
 
                 // THEN: Query executed through tunneled connection
                 expect(runQueryAndTransformRowsSpy).toHaveBeenCalledWith(
@@ -2938,6 +4623,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 query: 'SELECT * FROM test_table',
                 fieldsMap: {},
+                usedParameters: null,
                 queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 warehouseCredentialsOverrides: undefined,
                 queryUuid: 'test-query-uuid',
@@ -3054,6 +4740,63 @@ describe('AsyncQueryService', () => {
             expect(executedSql).not.toContain('viewer-region');
         });
 
+        it('does not apply model required filters to materialization queries', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const materializationExplore: Explore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        requiredFilters: [
+                            {
+                                id: 'required-dimension',
+                                target: { fieldRef: 'dim1' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['restricted'],
+                                required: true,
+                            },
+                        ],
+                        dimensions: {
+                            ...validExplore.tables.a.dimensions,
+                            dim1: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                sql: '${TABLE}.dim1',
+                                compiledSql: '"a".dim1',
+                            },
+                        },
+                    },
+                },
+            };
+
+            vi.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue(
+                materializationExplore,
+            );
+            const executeAsyncQuery = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
+            service['executeAsyncQuery'] = executeAsyncQuery;
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    tableCalculations: [],
+                },
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            });
+
+            const [executeArgs] = executeAsyncQuery.mock.calls[0];
+            const executedSql = executeArgs.queryComposer.getSql({
+                columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
+            });
+            expect(executedSql).not.toContain('restricted');
+        });
+
         it('fails closed when materializationRole is supplied outside materialization context', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
 
@@ -3075,6 +4818,60 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        it('throws ForbiddenError when the account lacks manage:SqlRunner', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+            const viewerAccount = {
+                ...sessionAccount,
+                user: {
+                    ...sessionAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: ['view'] },
+                    ]),
+                },
+            } as unknown as Account;
+
+            await expect(
+                service.executeAsyncSqlQuery({
+                    account: viewerAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.SQL_RUNNER,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('disconnects the SSH tunnel when column discovery fails', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const disconnect = vi.fn();
+            const discoveryError = new Error('Column discovery failed');
+
+            service.getUserAttributes = vi.fn(async () => ({
+                userAttributes: {},
+                intrinsicUserAttributes: { email: 'test@example.com' },
+            }));
+            service._getWarehouseClient = vi.fn(async () => ({
+                warehouseClient: {
+                    ...warehouseClientMock,
+                    streamQuery: vi.fn().mockRejectedValue(discoveryError),
+                },
+                sshTunnel: {
+                    disconnect,
+                } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                tunnelConnectMs: null,
+            }));
+
+            await expect(
+                service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.SQL_RUNNER,
+                }),
+            ).rejects.toBe(discoveryError);
+            expect(disconnect).toHaveBeenCalledOnce();
+        });
+
         describe('cache invalidation', () => {
             it('skips cache when invalidateCache is true', async () => {
                 const service = getMockedAsyncQueryService({
@@ -3446,11 +5243,13 @@ describe('AsyncQueryService', () => {
                     }),
                 };
                 (service as AnyType).spacePermissionService = {
-                    getSpaceAccessContext: vi.fn().mockResolvedValue({
+                    resolveAccess: vi.fn().mockResolvedValue({
                         organizationUuid: projectSummary.organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject: true,
                         access: [],
+                        admins: [],
+                        directOnly: false,
                     }),
                 };
                 service.pollForQueryCompletion = vi
@@ -3594,8 +5393,22 @@ describe('AsyncQueryService', () => {
         });
 
         it('threads the source dateZoom from request_parameters into the totals query', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-uuid',
+                        projectUuid,
+                        organizationUuid: projectSummary.organizationUuid,
+                        spaceUuid: 'space-uuid',
+                        dashboardUuid: 'dashboard-uuid',
+                    }),
+                },
+            } as never);
             const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                ...account.user.ability.rules,
+                { subject: 'SavedChart', action: 'view' },
+            ]);
 
             const dateZoom = {
                 granularity: 'MONTH',
@@ -3655,6 +5468,127 @@ describe('AsyncQueryService', () => {
             expect(runSpy.mock.calls[0][0]).toEqual(
                 expect.objectContaining({ dateZoom }),
             );
+        });
+    });
+
+    describe('executeAsyncUnboundedRerunFromQueryHistory', () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        const mockSourceQueryHistory = (sourceLimit: number) =>
+            ({
+                queryUuid: 'capped-query-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    limit: sourceLimit,
+                },
+                pivotConfiguration: null,
+                requestParameters: {
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    query: metricQueryMock,
+                    parameters: { region: 'EU' },
+                },
+            }) as unknown as QueryHistory;
+
+        // 'all' semantics: the org's cell-based cap, computed the same way
+        // for every source limit in this describe block.
+        const expectedUnboundedLimit = Math.floor(
+            lightdashConfigMock.query.csvCellsLimit /
+                (metricQueryMock.dimensions.length +
+                    metricQueryMock.metrics.length +
+                    metricQueryMock.tableCalculations.length),
+        );
+
+        it('re-runs the source metricQuery with the row limit lifted, returning the applied limit', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(mockSourceQueryHistory(500));
+
+            const runSpy = vi
+                .spyOn(
+                    service as unknown as {
+                        runAsyncMetricQueryWithoutPermissionCheck: (
+                            ...args: unknown[]
+                        ) => Promise<unknown>;
+                    },
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({ queryUuid: 'rerun-query-uuid' } as never);
+
+            const result =
+                await service.executeAsyncUnboundedRerunFromQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: 'capped-query-uuid',
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                });
+
+            expect(service.queryHistoryModel.get).toHaveBeenCalledWith(
+                'capped-query-uuid',
+                projectUuid,
+                account,
+            );
+            expect(runSpy).toHaveBeenCalledTimes(1);
+            const [runArgs] = runSpy.mock.calls[0] as [
+                { metricQuery: MetricQuery; context: QueryExecutionContext },
+            ];
+            // The numeric cap from the capped run (500) is replaced by the
+            // org's cell-based cap, not merely "not 500".
+            expect(runArgs.metricQuery.limit).toBe(expectedUnboundedLimit);
+            expect(runArgs.context).toBe(
+                QueryExecutionContext.SCHEDULED_DELIVERY,
+            );
+            expect(runSpy.mock.calls[0][0]).toEqual(
+                expect.objectContaining({
+                    parameters: { region: 'EU' },
+                    pivotConfiguration: undefined,
+                }),
+            );
+            expect(result).toEqual({
+                outcome: 'executed',
+                queryUuid: 'rerun-query-uuid',
+                appliedLimit: expectedUnboundedLimit,
+            });
+        });
+
+        // Wide-query case: a source limit already at (or above) the org's
+        // cell-based cap means rerunning can't return more rows than the
+        // capped result already has — 'All Results' must never deliver less.
+        it('skips execution and reports noImprovementPossible when the computed limit would not beat the source limit', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(mockSourceQueryHistory(expectedUnboundedLimit));
+
+            const runSpy = vi
+                .spyOn(
+                    service as unknown as {
+                        runAsyncMetricQueryWithoutPermissionCheck: (
+                            ...args: unknown[]
+                        ) => Promise<unknown>;
+                    },
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({} as never);
+
+            const result =
+                await service.executeAsyncUnboundedRerunFromQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: 'capped-query-uuid',
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                });
+
+            expect(runSpy).not.toHaveBeenCalled();
+            expect(result).toEqual({ outcome: 'noImprovementPossible' });
         });
     });
 
@@ -3870,6 +5804,132 @@ describe('AsyncQueryService', () => {
             expect(merged.filters.dimensions.and).toContainEqual(overrideGroup);
         });
 
+        const explorerAccount = {
+            ...authorizedAccount,
+            user: {
+                ...authorizedAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                    { subject: 'Explore', action: ['manage'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const replacingSchedulerFilters = {
+            dimensions: {
+                id: 'delivery-root',
+                and: [
+                    {
+                        // Same id as the chart's rule: the delivery
+                        // adjusts it rather than ANDing a second one.
+                        id: 'chart-filter-0',
+                        target: { fieldId: 'a_dim1' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['delivery-value'],
+                    },
+                ],
+            },
+        };
+
+        test('refuses schedulerFilters that replace a saved rule without explore access', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => chart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+            });
+            const prepareSpy = vi.fn();
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+
+            await expect(
+                service.executeAsyncSavedChartQuery({
+                    account: authorizedAccount,
+                    projectUuid,
+                    chartUuid: chart.uuid,
+                    versionUuid: undefined,
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    invalidateCache: true,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                    schedulerFilters: replacingSchedulerFilters,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(prepareSpy).not.toHaveBeenCalled();
+        });
+
+        test('schedulerFilters replace the chart rule they target instead of narrowing it', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => chart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+            });
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            await service.executeAsyncSavedChartQuery({
+                account: explorerAccount,
+                projectUuid,
+                chartUuid: chart.uuid,
+                versionUuid: undefined,
+                context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                invalidateCache: true,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                schedulerFilters: replacingSchedulerFilters,
+            });
+
+            const merged = prepareSpy.mock.calls[0][0].metricQuery;
+            expect(merged.filters.dimensions).toEqual({
+                id: 'chart-root',
+                and: [
+                    {
+                        id: 'chart-filter-0',
+                        target: { fieldId: 'a_dim1' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['delivery-value'],
+                        required: undefined,
+                    },
+                ],
+            });
+        });
+
         test('merges dashboard filters targeting the explore and silently drops the rest', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 savedChartModel: {
@@ -3960,6 +6020,234 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncDashboardChartQuery with a merged chart', () => {
+        const authorizedAccount = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const chartQuery = { ...metricQueryMock, tableCalculations: [] };
+        const otherQuery = {
+            ...metricQueryMock,
+            metrics: [],
+            tableCalculations: [],
+        };
+        const mergedChart = {
+            uuid: 'mergedChartUuid',
+            name: 'Merged chart',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            dashboardUuid: null,
+            tableName: validExplore.name,
+            metricQuery: chartQuery,
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.TABLE },
+            merge: {
+                primarySourceId: 'a',
+                sources: [
+                    { id: 'a', kind: 'chart' },
+                    { id: 'b', kind: 'query', metricQuery: otherQuery },
+                ],
+                joinKey: [
+                    {
+                        name: 'dim1',
+                        fieldIdBySourceId: { a: 'a_dim1', b: 'a_dim1' },
+                    },
+                ],
+                joinType: MergeJoinType.FULL,
+                tableCalculations: [],
+            },
+        };
+
+        const startedOutcome = {
+            outcome: 'started' as const,
+            query: {
+                queryUuid: 'merge-query-uuid',
+                cacheMetadata: { cacheHit: false },
+                metricQuery: chartQuery,
+                fields: {},
+                parameterReferences: [],
+                usedParametersValues: {},
+                resolvedTimezone: null,
+                warnings: [],
+            },
+            parameterReferences: [],
+            fieldOrigins: {},
+        };
+
+        const buildService = () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => mergedChart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+                spaceModel: {
+                    getSpaceSummary: vi.fn(async () => ({
+                        uuid: 'spaceUuid',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                    })),
+                } as unknown as SpaceModel,
+                dashboardModel: {
+                    getDashboardParametersByIdOrSlug: vi.fn(
+                        async () => undefined,
+                    ),
+                } as unknown as DashboardModel,
+            });
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            const mergeSpy = vi.fn().mockResolvedValue(startedOutcome);
+            service.executeAsyncMergeQuery = mergeSpy;
+            const prepareSpy = vi.fn();
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            return { service, mergeSpy, prepareSpy };
+        };
+
+        const tileFilter = {
+            id: 'dash-rule',
+            target: { fieldId: 'b_dim1', tableName: 'b' },
+            operator: FilterOperator.EQUALS,
+            values: ['dashboard-value'],
+            label: undefined,
+        };
+
+        test('runs the merge with the tile filter pushed into both sources', async () => {
+            const { service, mergeSpy, prepareSpy } = buildService();
+
+            const result = await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [tileFilter],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+            });
+
+            // The primary source never ran on its own.
+            expect(prepareSpy).not.toHaveBeenCalled();
+            expect(mergeSpy).toHaveBeenCalledTimes(1);
+            const args = mergeSpy.mock.calls[0][0];
+            expect(args.context).toBe(QueryExecutionContext.DASHBOARD);
+            expect(args.mode).toEqual({ type: 'interactive' });
+            const sources: { id: string; metricQuery: MetricQuery }[] =
+                args.mergeQuery.sources;
+            expect(sources.map((source) => source.id)).toEqual(['a', 'b']);
+            sources.forEach((source) => {
+                expect(
+                    getFilterRulesFromGroup(
+                        source.metricQuery.filters.dimensions,
+                    ).map((rule) => rule.target.fieldId),
+                ).toEqual(['b_dim1']);
+            });
+
+            expect(result.queryUuid).toBe('merge-query-uuid');
+            expect(result.dateZoomApplied).toBe(false);
+            expect(
+                result.appliedDashboardFilters.dimensions.map((r) => r.id),
+            ).toEqual(['dash-rule']);
+            expect(
+                Object.keys(result.appliedDashboardFiltersBySourceId ?? {}),
+            ).toEqual(['a', 'b']);
+        });
+
+        test('refuses a tile filter that names a merged column instead of dropping it', async () => {
+            const { service, mergeSpy } = buildService();
+
+            await expect(
+                service.executeAsyncDashboardChartQuery({
+                    account: authorizedAccount,
+                    projectUuid,
+                    tileUuid: 'tile-1',
+                    chartUuid: mergedChart.uuid,
+                    dashboardUuid: 'dashboard-uuid',
+                    dashboardFilters: {
+                        dimensions: [
+                            {
+                                ...tileFilter,
+                                id: 'merged-column-rule',
+                                target: { fieldId: 'a_a_met1', tableName: 'a' },
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    context: QueryExecutionContext.DASHBOARD,
+                    invalidateCache: false,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(mergeSpy).not.toHaveBeenCalled();
+        });
+
+        test('surfaces a merge refusal the way the chart page does', async () => {
+            const { service, mergeSpy } = buildService();
+            mergeSpy.mockResolvedValue({
+                outcome: 'refused',
+                errors: [
+                    {
+                        kind: MergeQueryErrorKind.FAN_OUT,
+                        sourceId: 'b',
+                        fieldIds: [],
+                        message: 'Fan-out',
+                    },
+                ],
+                parameterReferences: [],
+                fieldOrigins: {},
+            });
+
+            await expect(
+                service.executeAsyncDashboardChartQuery({
+                    account: authorizedAccount,
+                    projectUuid,
+                    tileUuid: 'tile-1',
+                    chartUuid: mergedChart.uuid,
+                    dashboardUuid: 'dashboard-uuid',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    context: QueryExecutionContext.DASHBOARD,
+                    invalidateCache: false,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                }),
+            ).rejects.toThrow('This saved merge cannot be run: Fan-out');
+        });
+    });
+
     describe('runQueryAndTransformRows', () => {
         const buildWarehouseClientStreaming = (
             batches: Record<string, unknown>[][],
@@ -4042,4 +6330,3096 @@ describe('AsyncQueryService', () => {
             expect(pivotDetails?.totalRows).toBe(5);
         });
     });
+});
+
+describe('checkDashboardChartQueryPermissions', () => {
+    const owningDashboardUuid = 'owned-dashboard-uuid';
+    const chartSpace = {
+        uuid: 'space-1',
+        organizationUuid: projectSummary.organizationUuid,
+    } as AnyType;
+
+    const buildGrantOnlyAccount = () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([
+            {
+                subject: 'SavedChart',
+                action: ['view'],
+                conditions: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    access: {
+                        $elemMatch: { userUuid: account.user.id },
+                    },
+                },
+            },
+            {
+                subject: 'Project',
+                action: ['view'],
+                conditions: {
+                    organizationUuid: projectSummary.organizationUuid,
+                },
+            },
+        ]);
+        return account;
+    };
+
+    const buildSpacePermissionService = (
+        dashboardAccess: { userUuid: string }[],
+    ) => ({
+        resolveAccess: vi.fn(async (_userUuid, target) =>
+            target.type === 'space'
+                ? {
+                      organizationUuid: projectSummary.organizationUuid,
+                      projectUuid: projectSummary.projectUuid,
+                      inheritsFromOrgOrProject: false,
+                      access: [],
+                      admins: [],
+                      directOnly: false,
+                  }
+                : {
+                      organizationUuid: projectSummary.organizationUuid,
+                      projectUuid: projectSummary.projectUuid,
+                      inheritsFromOrgOrProject: false,
+                      access: dashboardAccess.map(({ userUuid }) => ({
+                          userUuid,
+                          role: 'viewer',
+                          hasDirectAccess: true,
+                      })),
+                      admins: [],
+                      directOnly: true,
+                  },
+        ),
+    });
+
+    it('authorizes a dashboard-owned chart through the dashboard grant', async () => {
+        const account = buildGrantOnlyAccount();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const spacePermissionService = buildSpacePermissionService([
+            { userUuid: account.user.id },
+        ]);
+        (service as AnyType).spacePermissionService = spacePermissionService;
+
+        await expect(
+            (service as AnyType).checkDashboardChartQueryPermissions(
+                account,
+                projectSummary.projectUuid,
+                'chart-uuid',
+                chartSpace,
+                owningDashboardUuid,
+            ),
+        ).resolves.toBeUndefined();
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            account.user.id,
+            {
+                type: 'chart',
+                chartUuid: 'chart-uuid',
+                dashboardUuid: owningDashboardUuid,
+                spaceUuid: chartSpace.uuid,
+            },
+        );
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledTimes(1);
+    });
+
+    it('denies a dashboard-owned chart without a grant or space access', async () => {
+        const account = buildGrantOnlyAccount();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        (service as AnyType).spacePermissionService =
+            buildSpacePermissionService([]);
+
+        await expect(
+            (service as AnyType).checkDashboardChartQueryPermissions(
+                account,
+                projectSummary.projectUuid,
+                'chart-uuid',
+                chartSpace,
+                owningDashboardUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('routes a reusable chart through its own chart context and denies without a grant', async () => {
+        const account = buildGrantOnlyAccount();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const spacePermissionService = buildSpacePermissionService([]);
+        (service as AnyType).spacePermissionService = spacePermissionService;
+
+        await expect(
+            (service as AnyType).checkDashboardChartQueryPermissions(
+                account,
+                projectSummary.projectUuid,
+                'chart-uuid',
+                chartSpace,
+                null,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            account.user.id,
+            {
+                type: 'chart',
+                chartUuid: 'chart-uuid',
+                dashboardUuid: null,
+                spaceUuid: chartSpace.uuid,
+            },
+        );
+    });
+});
+
+describe('saved chart query result access', () => {
+    const buildFixture = (
+        accountOptions: Parameters<typeof buildAccount>[0] = {},
+    ) => {
+        const account = buildAccount(accountOptions);
+        account.user.ability = new Ability<PossibleAbilities>([
+            {
+                subject: 'Project',
+                action: 'view',
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: {
+                    access: { $elemMatch: { userUuid: account.user.id } },
+                },
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: { inheritsFromOrgOrProject: true },
+            },
+            { subject: 'UnderlyingData', action: 'view' },
+            { subject: 'Explore', action: 'manage' },
+        ]);
+        const history: QueryHistory = {
+            queryUuid: 'source-query-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            context: QueryExecutionContext.CHART,
+            status: QueryHistoryStatus.READY,
+            requestParameters: { chartUuid: 'source-chart-uuid' },
+            metricQuery: metricQueryMock,
+            fields: validExplore.tables.a.dimensions,
+            columns: expectedColumns,
+            resultsFileName: 'results.jsonl',
+            resultsExpiresAt: new Date(Date.now() + 60_000),
+            totalRowCount: 1,
+            defaultPageSize: 10,
+            createdAt: new Date(),
+            createdBy: account.user.id,
+            createdByUserUuid: account.user.id,
+            createdByAccount: null,
+            createdByActorType: account.authentication.type,
+            warehouseQueryId: null,
+            warehouseQueryMetadata: null,
+            compiledSql: 'select 1',
+            usedParameters: null,
+            warehouseExecutionTimeMs: null,
+            error: null,
+            erroredAt: null,
+            cacheKey: 'cache-key',
+            pivotConfiguration: null,
+            pivotValuesColumns: null,
+            pivotTotalColumnCount: null,
+            resultsCreatedAt: new Date(),
+            resultsUpdatedAt: new Date(),
+            originalColumns: expectedColumns,
+            preAggregateCompiledSql: null,
+            preAggregateExecution: null,
+            preAggregateFallbackReason: null,
+            processingStartedAt: null,
+        };
+        const getChart = vi.fn().mockResolvedValue({
+            uuid: 'source-chart-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            spaceUuid: 'current-space-uuid',
+            dashboardUuid: null,
+        });
+        const resolveAccess = vi.fn().mockResolvedValue({
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            inheritsFromOrgOrProject: false,
+            access: [],
+            admins: [],
+            directOnly: false,
+        });
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: { get: getChart },
+            spacePermissionService: { resolveAccess },
+            featureFlagModel: {
+                get: vi.fn(async () => ({
+                    id: FeatureFlags.ComposeSqlRunner,
+                    enabled: true,
+                })),
+            },
+        } as never);
+        service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);
+        service.exportsStorageClient = {
+            isEnabled: () => true,
+        } as FileStorageClient;
+        const exportFile = vi
+            .spyOn(
+                service as unknown as {
+                    downloadAsyncQueryResultsAsFormattedFile: () => Promise<{
+                        fileUrl: string;
+                        truncated: boolean;
+                    }>;
+                },
+                'downloadAsyncQueryResultsAsFormattedFile',
+            )
+            .mockResolvedValue({ fileUrl: 'export.csv', truncated: false });
+        return {
+            account,
+            service,
+            history,
+            getChart,
+            resolveAccess,
+            exportFile,
+        };
+    };
+
+    it('denies result reads after the source chart grant is revoked', async () => {
+        const { account, service } = buildFixture();
+        await expect(
+            service.getAsyncQueryResults({
+                account,
+                projectUuid,
+                queryUuid: 'source-query-uuid',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            service.resultsStorageClient.getDownloadStream,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('denies CSV generation after the source chart grant is revoked', async () => {
+        const { account, service, exportFile } = buildFixture();
+        await expect(
+            service.download({
+                account,
+                projectUuid,
+                queryUuid: 'source-query-uuid',
+                type: DownloadFileType.CSV,
+                accessMode:
+                    PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(exportFile).not.toHaveBeenCalled();
+        expect(
+            service.resultsStorageClient.getFirstLine,
+        ).not.toHaveBeenCalled();
+    });
+
+    const readOrDownload = (
+        service: AsyncQueryService,
+        account: Account,
+        operation: 'read' | 'download',
+    ) => {
+        const args = { account, projectUuid, queryUuid: 'source-query-uuid' };
+        return operation === 'read'
+            ? service.getAsyncQueryResults(args)
+            : service.download({
+                  ...args,
+                  type: DownloadFileType.CSV,
+                  accessMode:
+                      PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+              });
+    };
+
+    describe.each(['read', 'download'] as const)('%s', (operation) => {
+        it.each(['direct', 'group', 'space', 'project'] as const)(
+            'allows remaining %s access after a direct grant is removed',
+            async (accessSource) => {
+                const { account, service, resolveAccess } = buildFixture();
+                resolveAccess.mockResolvedValue({
+                    inheritsFromOrgOrProject: accessSource === 'project',
+                    access:
+                        accessSource === 'project'
+                            ? []
+                            : [{ userUuid: account.user.id, role: 'viewer' }],
+                    directOnly: accessSource === 'direct',
+                });
+                await expect(
+                    readOrDownload(service, account, operation),
+                ).resolves.toBeDefined();
+            },
+        );
+
+        it('checks the current owning dashboard instead of the historical one', async () => {
+            const { account, service, history, getChart, resolveAccess } =
+                buildFixture();
+            history.requestParameters = {
+                chartUuid: 'source-chart-uuid',
+                dashboardUuid: 'old-dashboard-uuid',
+                tileUuid: 'tile-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+            };
+            getChart.mockResolvedValue({
+                uuid: 'source-chart-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                spaceUuid: 'current-space-uuid',
+                dashboardUuid: 'current-dashboard-uuid',
+            });
+            resolveAccess.mockImplementation(async (_userUuid, target) => ({
+                inheritsFromOrgOrProject: false,
+                access:
+                    target.dashboardUuid === 'old-dashboard-uuid'
+                        ? [{ userUuid: account.user.id, role: 'viewer' }]
+                        : [],
+            }));
+            await expect(
+                readOrDownload(service, account, operation),
+            ).rejects.toThrow(ForbiddenError);
+            expect(getChart).toHaveBeenCalledWith(
+                'source-chart-uuid',
+                undefined,
+                { projectUuid },
+            );
+        });
+
+        it('allows access through the current owning dashboard', async () => {
+            const { account, service, getChart, resolveAccess } =
+                buildFixture();
+            getChart.mockResolvedValue({
+                uuid: 'source-chart-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                spaceUuid: 'current-space-uuid',
+                dashboardUuid: 'current-dashboard-uuid',
+            });
+            resolveAccess.mockImplementation(async (_userUuid, target) => ({
+                inheritsFromOrgOrProject: false,
+                access:
+                    target.dashboardUuid === 'current-dashboard-uuid'
+                        ? [{ userUuid: account.user.id, role: 'viewer' }]
+                        : [],
+            }));
+            await expect(
+                readOrDownload(service, account, operation),
+            ).resolves.toBeDefined();
+        });
+
+        it('denies results when the source chart has been deleted', async () => {
+            const { account, service, getChart } = buildFixture();
+            getChart.mockRejectedValue(new NotFoundError('Chart not found'));
+            await expect(
+                readOrDownload(service, account, operation),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('preserves inherited service-account access', async () => {
+            const { account, service, resolveAccess } = buildFixture({
+                accountType: 'service-account',
+            });
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: true,
+                access: [],
+            });
+            await expect(
+                readOrDownload(service, account, operation),
+            ).resolves.toBeDefined();
+        });
+
+        it('preserves the existing JWT access contract', async () => {
+            const { account, service, getChart } = buildFixture({
+                accountType: 'jwt',
+                userType: 'anonymous',
+            });
+            await expect(
+                readOrDownload(service, account, operation),
+            ).resolves.toBeDefined();
+            expect(getChart).not.toHaveBeenCalled();
+        });
+
+        it.each(['metric', 'sql', 'legacySqlChart'] as const)(
+            'preserves %s queries without saved-chart identity',
+            async (queryType) => {
+                const { account, service, history, getChart } = buildFixture();
+                history.requestParameters =
+                    queryType === 'sql'
+                        ? { sql: 'select 1' }
+                        : { query: metricQueryMock };
+                history.context =
+                    queryType === 'legacySqlChart'
+                        ? QueryExecutionContext.SQL_CHART
+                        : QueryExecutionContext.EXPLORE;
+                await expect(
+                    readOrDownload(service, account, operation),
+                ).resolves.toBeDefined();
+                expect(getChart).not.toHaveBeenCalled();
+            },
+        );
+
+        it('retains query ownership checks before source access', async () => {
+            const { account, service, getChart } = buildFixture();
+            vi.mocked(service.queryHistoryModel.get).mockRejectedValue(
+                new NotFoundError('Query not found for account'),
+            );
+            await expect(
+                readOrDownload(service, account, operation),
+            ).rejects.toThrow(NotFoundError);
+            expect(getChart).not.toHaveBeenCalled();
+        });
+    });
+
+    it.each([
+        'history',
+        'raw',
+        'stream',
+        'rerun',
+        'totals',
+        'underlying',
+        'schedule',
+    ] as const)(
+        'denies revoked source access through %s',
+        async (operation) => {
+            const { account, service } = buildFixture();
+            const args = {
+                account,
+                projectUuid,
+                queryUuid: 'source-query-uuid',
+            };
+            const run = () => {
+                switch (operation) {
+                    case 'schedule':
+                        return service.scheduleDownloadAsyncQueryResults(args);
+                    case 'history':
+                        return service.getAsyncQueryHistory(args);
+                    case 'raw':
+                        return service.getRawAsyncQueryResults(args);
+                    case 'stream':
+                        return service.getResultsStream(args);
+                    case 'rerun':
+                        return service.executeAsyncUnboundedRerunFromQueryHistory(
+                            { ...args, context: QueryExecutionContext.CSV },
+                        );
+                    case 'totals':
+                        return service.executeAsyncCalculateTotalFromQueryHistory(
+                            { ...args, kind: 'grandTotal' },
+                        );
+                    case 'underlying':
+                        return service.executeAsyncUnderlyingDataQuery({
+                            account,
+                            projectUuid,
+                            underlyingDataSourceQueryUuid: args.queryUuid,
+                            filters: {},
+                            context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                        });
+                    default:
+                        return assertUnreachable(
+                            operation,
+                            'Unknown query operation',
+                        );
+                }
+            };
+            await expect(run()).rejects.toThrow(ForbiddenError);
+        },
+    );
+    it('denies composing a reference to a revoked saved-chart result', async () => {
+        const { account, service, getChart } = buildFixture();
+        const references = { source: '11111111-1111-4111-8111-111111111111' };
+        await expect(
+            service.executeAsyncComposeSqlQuery({
+                account,
+                projectUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'select * from source',
+                references,
+            }),
+        ).rejects.toThrow("You don't have access to this chart");
+        expect(getChart).toHaveBeenCalled();
+    });
+
+    it('denies merge metadata for a revoked saved-chart result', async () => {
+        const { account, service } = buildFixture();
+        await expect(
+            service['getMergeResultSourceMetadata'](
+                account,
+                projectUuid,
+                'source-query-uuid',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+    it.each(['totals', 'rerun', 'underlying'] as const)(
+        'retains source access when %s are prepared before revocation',
+        async (operation) => {
+            const { account, service, history, resolveAccess } = buildFixture();
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [{ userUuid: account.user.id, role: 'viewer' }],
+            });
+            const execution = service as unknown as {
+                getExploreForMetricQueryExecution: () => Promise<unknown>;
+                getExploreWithUserAccessControls: () => Promise<unknown>;
+                prepareMetricQueryAsyncQueryArgs: () => Promise<QueryComposer>;
+                executeAsyncQuery: (
+                    args: unknown,
+                    parameters: ExecuteAsyncQueryRequestParams,
+                ) => Promise<{ queryUuid: string; cacheMetadata: {} }>;
+            };
+            vi.spyOn(
+                execution,
+                'getExploreForMetricQueryExecution',
+            ).mockResolvedValue({ explore: validExplore });
+            vi.spyOn(
+                execution,
+                'getExploreWithUserAccessControls',
+            ).mockResolvedValue({ explore: validExplore });
+            vi.spyOn(
+                execution,
+                'prepareMetricQueryAsyncQueryArgs',
+            ).mockResolvedValue(createQueryComposerMock());
+            const persist = vi
+                .spyOn(execution, 'executeAsyncQuery')
+                .mockImplementation(async (_args, requestParameters) => {
+                    vi.mocked(service.queryHistoryModel.get).mockImplementation(
+                        async (queryUuid) =>
+                            queryUuid === history.queryUuid
+                                ? history
+                                : {
+                                      ...history,
+                                      queryUuid: 'derived-query-uuid',
+                                      requestParameters,
+                                  },
+                    );
+                    return {
+                        queryUuid: 'derived-query-uuid',
+                        cacheMetadata: {},
+                    };
+                });
+            const args = { account, projectUuid, queryUuid: history.queryUuid };
+            const derive = async () => {
+                switch (operation) {
+                    case 'totals':
+                        return service.executeAsyncCalculateTotalFromQueryHistory(
+                            { ...args, kind: 'grandTotal' },
+                        );
+                    case 'rerun':
+                        return service.executeAsyncUnboundedRerunFromQueryHistory(
+                            { ...args, context: QueryExecutionContext.CSV },
+                        );
+                    case 'underlying':
+                        return service.executeAsyncUnderlyingDataQuery({
+                            account,
+                            projectUuid,
+                            underlyingDataSourceQueryUuid: history.queryUuid,
+                            filters: {},
+                            context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                        });
+                    default:
+                        return assertUnreachable(
+                            operation,
+                            'Unknown derivation',
+                        );
+                }
+            };
+            const result = await derive();
+            expect(result).toMatchObject({ queryUuid: 'derived-query-uuid' });
+            expect(persist).toHaveBeenCalledTimes(1);
+            const persistedParameters = persist.mock.calls[0][1];
+            expect(persistedParameters).not.toHaveProperty('chartUuid');
+            if (operation === 'underlying') {
+                expect(persistedParameters).toMatchObject({
+                    underlyingDataSourceQueryUuid: history.queryUuid,
+                    filters: {},
+                });
+            } else {
+                expect(persistedParameters).toMatchObject({
+                    query: metricQueryMock,
+                });
+                expect(persistedParameters).not.toHaveProperty(
+                    'underlyingDataSourceQueryUuid',
+                );
+            }
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [],
+            });
+            await expect(
+                service.getAsyncQueryResults({
+                    ...args,
+                    queryUuid: 'derived-query-uuid',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
+    it.each(['underlying', 'compose', 'merge'] as const)(
+        'rechecks the source of existing %s result references',
+        async (operation) => {
+            const { account, service, history, resolveAccess } = buildFixture();
+            const sourceUuid = history.queryUuid;
+            const getRequestParameters = (): ExecuteAsyncQueryRequestParams => {
+                switch (operation) {
+                    case 'underlying':
+                        return {
+                            underlyingDataSourceQueryUuid: sourceUuid,
+                            filters: {},
+                        };
+                    case 'compose':
+                        return {
+                            sql: 'select * from source',
+                            references: { source: sourceUuid },
+                        };
+                    case 'merge':
+                        return {
+                            mergeQuery: {
+                                sources: [
+                                    { id: 'source', queryUuid: sourceUuid },
+                                ],
+                                joinKey: [],
+                                joinType: MergeJoinType.INNER,
+                                tableCalculations: [],
+                                limit: 10,
+                            },
+                        };
+                    default:
+                        return assertUnreachable(
+                            operation,
+                            'Unknown derived source',
+                        );
+                }
+            };
+            const requestParameters = getRequestParameters();
+            vi.mocked(service.queryHistoryModel.get).mockImplementation(
+                async (queryUuid) =>
+                    queryUuid === sourceUuid
+                        ? history
+                        : {
+                              ...history,
+                              queryUuid: 'derived-query-uuid',
+                              requestParameters,
+                          },
+            );
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [{ userUuid: account.user.id, role: 'viewer' }],
+            });
+            const args = {
+                account,
+                projectUuid,
+                queryUuid: 'derived-query-uuid',
+            };
+            await expect(
+                service.getAsyncQueryResults(args),
+            ).resolves.toBeDefined();
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [],
+            });
+            await expect(service.getAsyncQueryResults(args)).rejects.toThrow(
+                ForbiddenError,
+            );
+            await expect(
+                service.download({
+                    ...args,
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
+});
+
+describe('getQueryHistoryList', () => {
+    const buildService = (
+        counts: Awaited<ReturnType<QueryHistoryModel['getUserHistoryCounts']>>,
+    ) =>
+        getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }: AnyType) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.QueryHistory,
+                })),
+            } as unknown as FeatureFlagModel,
+            queryHistoryModel: {
+                findUserHistory: vi.fn(async () => ({
+                    data: [],
+                    pagination: {
+                        page: 1,
+                        pageSize: 10,
+                        totalPageCount: 0,
+                        totalResults: 0,
+                    },
+                })),
+                getUserHistoryCounts: vi.fn(async () => counts),
+            } as unknown as QueryHistoryModel,
+        } as never);
+
+    it('totals across every trigger, not just the filtered one', async () => {
+        const service = buildService({
+            triggers: {
+                [QueryTrigger.INTERACTIVE]: 218,
+                [QueryTrigger.APPS]: 129,
+                [QueryTrigger.SCHEDULED]: 0,
+            },
+            // Windows keep the trigger filter, so they only cover interactive.
+            windows: {
+                [QueryHistoryWindow.LAST_FEW_MINUTES]: 0,
+                [QueryHistoryWindow.LAST_HOUR]: 8,
+                [QueryHistoryWindow.LAST_24_HOURS]: 20,
+                [QueryHistoryWindow.LAST_7_DAYS]: 28,
+                [QueryHistoryWindow.LAST_30_DAYS]: 162,
+            },
+            warehouseTimeMsLast7Days: 13331,
+        });
+
+        const { counts } = await service.getQueryHistoryList({
+            account: buildAccount(),
+            projectUuid: projectSummary.projectUuid,
+            filters: { trigger: QueryTrigger.INTERACTIVE },
+            paginateArgs: { page: 1, pageSize: 10 },
+        });
+
+        expect(counts.total).toBe(347);
+    });
+});
+
+describe('runDuckdbQuery', () => {
+    const legHistory = (totalRowCount: number | null) =>
+        ({
+            queryUuid: 'leg-uuid',
+            projectUuid,
+            status: QueryHistoryStatus.READY,
+            totalRowCount,
+            resultsFileName: 'leg-results.jsonl',
+            resultsExpiresAt: null,
+            columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+            context: QueryExecutionContext.EXPLORE,
+        }) as unknown as QueryHistory;
+
+    type DuckdbQueryRunner = {
+        runDuckdbQuery: (args: RunDuckdbQueryArgs) => Promise<void>;
+    };
+
+    const buildService = (cached: CacheHitCacheResult | null = null) => {
+        const pollForQueryCompletion = vi.fn(async () => legHistory(1));
+        const recordDuckdbRefusal = vi.fn();
+        const markDuckdbCacheHit = vi.fn();
+        const findCachedResultsFile = vi.fn(async () => cached);
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            resultsStorageClient: {
+                isEnabled: true,
+                configuration: { bucket: 'results-bucket' },
+            } as unknown as S3ResultsFileStorageClient,
+            queryHistoryModel: {
+                update: vi.fn(),
+                pollForQueryCompletion,
+                recordDuckdbRefusal,
+                markDuckdbCacheHit,
+            } as unknown as QueryHistoryModel,
+            cacheService: { findCachedResultsFile } as unknown as ICacheService,
+        } as never);
+        const runWarehouseQuery = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockResolvedValue(undefined);
+        return {
+            run: (args: RunDuckdbQueryArgs) =>
+                (service as unknown as DuckdbQueryRunner).runDuckdbQuery(args),
+            runWarehouseQuery,
+            pollForQueryCompletion,
+            recordDuckdbRefusal,
+            markDuckdbCacheHit,
+            findCachedResultsFile,
+            update: service.queryHistoryModel.update as import('vitest').Mock,
+        };
+    };
+
+    const fileKey = (files: string[]) =>
+        QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({
+                sql: 'SELECT 1 AS one',
+                files,
+                parameters: {},
+            }),
+            userUuid: null,
+        });
+
+    const cachedResults: CacheHitCacheResult = {
+        cacheHit: true,
+        cacheKey: 'cached-key',
+        fileName: 'cached-results.jsonl',
+        createdAt: new Date('2026-09-07T10:00:00Z'),
+        updatedAt: new Date('2026-09-07T10:00:00Z'),
+        expiresAt: new Date('2026-09-08T10:00:00Z'),
+        totalRowCount: 26,
+        columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+        originalColumns: null,
+        pivotValuesColumns: null,
+        pivotTotalColumnCount: null,
+    };
+
+    const probingClient = (fields: Record<string, { type: DimensionType }>) => {
+        const streamQuery = vi.fn(
+            async (
+                _sql: string,
+                callback: (chunk: {
+                    fields: Record<string, { type: DimensionType }>;
+                    rows: Record<string, unknown>[];
+                }) => void,
+            ) => {
+                callback({ fields, rows: [] });
+            },
+        );
+        return {
+            streamQuery,
+            warehouseClient: {
+                ...warehouseClientMock,
+                streamQuery,
+            } as unknown as WarehouseClient,
+        };
+    };
+
+    const baseArgs = (
+        overrides: Partial<RunDuckdbQueryArgs>,
+    ): RunDuckdbQueryArgs => ({
+        actor: {
+            userUuid: sessionAccount.user.id,
+            isRegisteredUser: true,
+            isServiceAccount: false,
+        },
+        invalidateCache: false,
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        isPreviewProject: false,
+        onboardingFlow: 'default' as AnyType,
+        queryUuid: 'duckdb-query-uuid',
+        sql: 'SELECT 1 AS one',
+        references: { kind: 'bound', referenceCtes: [] },
+        columns: { mode: 'discover', limit: undefined, parameters: {} },
+        storedCompiledSql: null,
+        engine: { kind: 'client', warehouseClient: warehouseClientMock },
+        queryTags: {} as AnyType,
+        queryCreatedAt: new Date(),
+        cacheKey: 'cache-key',
+        context: QueryExecutionContext.EXPLORE,
+        ...overrides,
+    });
+
+    it('discover mode probes the SQL with one row and executes with the columns it found', async () => {
+        const { streamQuery, warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run, runWarehouseQuery, update } = buildService();
+
+        await run(baseArgs({ engine: { kind: 'client', warehouseClient } }));
+
+        expect(streamQuery).toHaveBeenCalledTimes(1);
+        expect(streamQuery.mock.calls[0][0]).toMatch(/LIMIT 1$/);
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        expect(streamQuery.mock.invocationCallOrder[0]).toBeLessThan(
+            runWarehouseQuery.mock.invocationCallOrder[0],
+        );
+        const executed = runWarehouseQuery.mock.calls[0][0];
+        expect(executed.originalColumns).toEqual({
+            one: { reference: 'one', type: DimensionType.NUMBER, label: 'One' },
+        });
+        expect(Object.keys(executed.fieldsMap)).toEqual([
+            'sql_query_explorer_one',
+        ]);
+        expect(executed.pivotConfiguration).toBeUndefined();
+        expect(executed.warehouseClientOverride).toBe(warehouseClient);
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            {
+                compiled_sql: executed.query,
+                fields: executed.fieldsMap,
+                original_columns: executed.originalColumns,
+                cache_key: 'cache-key',
+            },
+            expect.anything(),
+        );
+    });
+
+    it('supplied mode executes with the caller fields, columns and pivot and never probes', async () => {
+        const { streamQuery, warehouseClient } = probingClient({});
+        const { run, runWarehouseQuery, update } = buildService();
+        const fieldsMap = {
+            a_orders_count: {
+                fieldType: FieldType.METRIC,
+                type: MetricType.COUNT,
+                name: 'orders_count',
+                label: 'Orders',
+                table: 'a',
+                tableLabel: 'Query A',
+                sql: '',
+                hidden: false,
+            },
+        } as ItemsMap;
+        const originalColumns: ResultColumns = {
+            a_orders_count: {
+                reference: 'a_orders_count',
+                type: DimensionType.NUMBER,
+                label: 'Orders',
+                provenance: {
+                    fieldId: 'orders_count',
+                    sourceQueryUuid: 'leg-uuid',
+                },
+            },
+        };
+        const pivotConfiguration: PivotConfiguration = {
+            indexColumn: [
+                { reference: 'a_orders_count', type: VizIndexType.CATEGORY },
+            ],
+            valuesColumns: [
+                {
+                    reference: 'a_orders_count',
+                    aggregation: VizAggregationOptions.SUM,
+                },
+            ],
+            groupByColumns: undefined,
+            sortBy: undefined,
+        };
+
+        await run(
+            baseArgs({
+                engine: { kind: 'client', warehouseClient },
+                sql: 'SELECT * FROM merge_source_0',
+                references: {
+                    kind: 'queries',
+                    references: { merge_source_0: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+                columns: {
+                    mode: 'supplied',
+                    fieldsMap,
+                    usedParameters: { region: 'EU' },
+                    originalColumns,
+                    pivotConfiguration,
+                },
+            }),
+        );
+
+        expect(streamQuery).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        const executed = runWarehouseQuery.mock.calls[0][0];
+        expect(executed.fieldsMap).toBe(fieldsMap);
+        expect(executed.originalColumns).toBe(originalColumns);
+        expect(executed.pivotConfiguration).toBe(pivotConfiguration);
+        expect(executed.usedParameters).toEqual({ region: 'EU' });
+        expect(executed.query).toContain(
+            "read_json('s3://results-bucket/leg-results.jsonl'",
+        );
+        expect(executed.query).toContain('SELECT * FROM merge_source_0');
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            {
+                compiled_sql: executed.query,
+                fields: fieldsMap,
+                original_columns: originalColumns,
+                // Keyed on the leg file it read, for the next run to find
+                cache_key: expect.any(String),
+            },
+            expect.anything(),
+        );
+    });
+
+    it('a session scoped to referenced results reaches exactly the bound leg files', async () => {
+        const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            composeEngineClient: {
+                createExecutionWarehouseClient,
+            } as unknown as ComposeEngineClient,
+            resultsStorageClient: {
+                isEnabled: true,
+                configuration: { bucket: 'results-bucket' },
+            } as unknown as S3ResultsFileStorageClient,
+            queryHistoryModel: {
+                update: vi.fn(),
+                pollForQueryCompletion: vi.fn(
+                    async ({ queryUuid }: { queryUuid: string }) => ({
+                        ...legHistory(1),
+                        queryUuid,
+                        resultsFileName: `${queryUuid}-results`,
+                    }),
+                ),
+            } as unknown as QueryHistoryModel,
+        } as never);
+        const runWarehouseQuery = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockResolvedValue(undefined);
+
+        await (service as unknown as DuckdbQueryRunner).runDuckdbQuery(
+            baseArgs({
+                engine: { kind: 'scopedToReferencedResults' },
+                sql: 'SELECT * FROM merge_source_0 JOIN merge_source_1 USING (k)',
+                references: {
+                    kind: 'queries',
+                    references: {
+                        merge_source_0: 'leg-a',
+                        merge_source_1: 'leg-b',
+                    },
+                    guard: null,
+                    labelByTable: {},
+                },
+                columns: {
+                    mode: 'supplied',
+                    fieldsMap: {},
+                    usedParameters: null,
+                    originalColumns: {},
+                    pivotConfiguration: undefined,
+                },
+            }),
+        );
+
+        expect(createExecutionWarehouseClient).toHaveBeenCalledTimes(1);
+        expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+            storage: 'results',
+            scope: [
+                's3://results-bucket/leg-a-results.jsonl',
+                's3://results-bucket/leg-b-results.jsonl',
+            ],
+        });
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        expect(runWarehouseQuery.mock.calls[0][0].warehouseClientOverride).toBe(
+            warehouseClientMock,
+        );
+    });
+
+    it('bound references attach without waiting on any query and persist the stored SQL', async () => {
+        const { run, runWarehouseQuery, pollForQueryCompletion, update } =
+            buildService();
+
+        await run(
+            baseArgs({
+                sql: 'SELECT * FROM attachment',
+                references: {
+                    kind: 'bound',
+                    referenceCtes: [
+                        `"attachment" AS (SELECT * FROM read_parquet('s3://private/file.parquet'))`,
+                    ],
+                },
+                storedCompiledSql: 'SELECT * FROM attachment',
+            }),
+        );
+
+        expect(pollForQueryCompletion).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        expect(runWarehouseQuery.mock.calls[0][0].query).toContain(
+            "read_parquet('s3://private/file.parquet')",
+        );
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                compiled_sql: 'SELECT * FROM attachment',
+            }),
+            expect.anything(),
+        );
+    });
+
+    it('a leg that fails names the source in the error, not the reference table', async () => {
+        const { run, runWarehouseQuery, pollForQueryCompletion, update } =
+            buildService();
+        pollForQueryCompletion.mockRejectedValueOnce(
+            new Error('permission denied for table orders'),
+        );
+
+        await run(
+            baseArgs({
+                references: {
+                    kind: 'queries',
+                    references: { merge_source_0: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: { merge_source_0: 'Query A ("a")' },
+                },
+            }),
+        );
+
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                status: QueryHistoryStatus.ERROR,
+                error: 'Query A ("a") did not complete: permission denied for table orders',
+            }),
+            expect.anything(),
+        );
+    });
+
+    it('a run over the same result files is served from the earlier run without touching DuckDB', async () => {
+        const { streamQuery, warehouseClient } = probingClient({});
+        const {
+            run,
+            runWarehouseQuery,
+            findCachedResultsFile,
+            markDuckdbCacheHit,
+            update,
+        } = buildService(cachedResults);
+
+        await run(
+            baseArgs({
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        // Keyed on the file the leg row points at, not the leg row itself
+        expect(findCachedResultsFile).toHaveBeenCalledWith(
+            projectUuid,
+            fileKey(['s3://results-bucket/leg-results.jsonl']),
+            expect.objectContaining({ userUuid: sessionAccount.user.id }),
+        );
+        expect(streamQuery).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+        expect(markDuckdbCacheHit).toHaveBeenCalledWith('duckdb-query-uuid');
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                status: QueryHistoryStatus.READY,
+                cache_key: fileKey(['s3://results-bucket/leg-results.jsonl']),
+                results_file_name: 'cached-results.jsonl',
+                total_row_count: 26,
+                warehouse_execution_time_ms: 0,
+            }),
+            expect.anything(),
+        );
+    });
+
+    it('a run that finds nothing lands its results under the file-based key for the next one', async () => {
+        const { streamQuery, warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run, runWarehouseQuery, update } = buildService(null);
+
+        await run(
+            baseArgs({
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(streamQuery).toHaveBeenCalledTimes(1);
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                cache_key: fileKey(['s3://results-bucket/leg-results.jsonl']),
+            }),
+            expect.anything(),
+        );
+        expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toBe(
+            fileKey(['s3://results-bucket/leg-results.jsonl']),
+        );
+    });
+
+    it('invalidating the cache runs regardless of an earlier run over the same files', async () => {
+        const { streamQuery, warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run, runWarehouseQuery, findCachedResultsFile } =
+            buildService(cachedResults);
+
+        await run(
+            baseArgs({
+                invalidateCache: true,
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(findCachedResultsFile).not.toHaveBeenCalled();
+        expect(streamQuery).toHaveBeenCalledTimes(1);
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('a guard refusal lands as the query error and is recorded on the row before anything runs', async () => {
+        const { streamQuery, warehouseClient } = probingClient({});
+        const { run, runWarehouseQuery, update, recordDuckdbRefusal } =
+            buildService();
+        const guard = vi.fn(() => 'Orders returned too many rows');
+
+        await run(
+            baseArgs({
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(guard).toHaveBeenCalledWith({ orders: legHistory(1) });
+        expect(streamQuery).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+        // The error status and the refusal land in one write, so a poll never
+        // sees the error without the refusal
+        expect(recordDuckdbRefusal).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            { kind: 'row_cap' },
+            'Orders returned too many rows',
+            expect.anything(),
+        );
+        expect(update).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
+        );
+    });
+});
+
+// An explore whose base table is row-filtered by a user attribute, so a
+// different attribute value is a different WHERE clause in the compiled SQL
+const attributeScopedExplore: Explore = {
+    ...validExplore,
+    tables: {
+        ...validExplore.tables,
+        a: {
+            ...validExplore.tables.a,
+            sqlWhere: 'region = ${lightdash.attribute.region}',
+            dimensions: {
+                ...validExplore.tables.a.dimensions,
+                region_param: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    name: 'region_param',
+                    label: 'region_param',
+                    sql: '${ld.parameters.region}',
+                    compiledSql: '${ld.parameters.region}',
+                },
+            },
+        },
+    },
+};
+
+describe('executeAsyncMergeQuery on the compose engine', () => {
+    const SOURCE_ROW_CAP = 3;
+    // Lowered through config rather than by seeding cap-many rows: the run
+    // path reads the cap from the same config the legs were submitted with.
+    const cappedConfig: LightdashConfig = {
+        ...lightdashConfigMock,
+        query: { ...lightdashConfigMock.query, maxLimit: SOURCE_ROW_CAP },
+    };
+    const legQueryUuidBySourceId = {
+        a: '1a6f0f8c-2d3e-4f5a-8b9c-0d1e2f3a4b5c',
+        b: '2b7a1a9d-3e4f-4a6b-9c0d-1e2f3a4b5c6d',
+    };
+    const itemsMap = {
+        merge_month: {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.DATE,
+            name: 'month',
+            label: 'Month',
+            table: 'merge',
+            tableLabel: 'Merged',
+            sql: '',
+            hidden: false,
+        },
+        a_orders_count: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.COUNT_DISTINCT,
+            name: 'orders_count',
+            label: 'Orders',
+            table: 'a',
+            tableLabel: 'Query A',
+            sql: '',
+            hidden: false,
+            format: '#,##0',
+        },
+        b_payments_sum: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: 'payments_sum',
+            label: 'Payments',
+            table: 'b',
+            tableLabel: 'Query B',
+            sql: '',
+            hidden: false,
+        },
+    } as ItemsMap;
+    const typedColumns: MergeTypedColumn[] = [
+        {
+            reference: 'merge_month',
+            type: DimensionType.DATE,
+            origin: {
+                kind: 'joinKey',
+                fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+            },
+        },
+        {
+            reference: 'a_orders_count',
+            type: DimensionType.NUMBER,
+            origin: {
+                kind: 'source',
+                sourceId: 'a',
+                sourceFieldId: 'orders_count',
+            },
+        },
+        {
+            reference: 'b_payments_sum',
+            type: DimensionType.NUMBER,
+            origin: {
+                kind: 'source',
+                sourceId: 'b',
+                sourceFieldId: 'payments_sum',
+            },
+        },
+    ];
+    const fieldTypes: MergeFieldTypes = {
+        a: { orders_month: { type: DimensionType.DATE, timeInterval: null } },
+        b: { payments_month: { type: DimensionType.DATE, timeInterval: null } },
+    };
+    const fieldIdByColumn = {
+        month: 'merge_month',
+        c0_0: 'a_orders_count',
+        c1_0: 'b_payments_sum',
+    };
+    // The join core exactly as the compile emits it, so the run path is
+    // exercised on the real DuckDB statement over the reference tables
+    const joinSql = buildComposeMergeSql({
+        sources: [
+            { id: 'a', valueColumns: ['orders_count'] },
+            { id: 'b', valueColumns: ['payments_sum'] },
+        ],
+        joinKey: [
+            {
+                name: 'month',
+                fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+            },
+        ],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
+        fieldTypes,
+        outputAliasByColumn: fieldIdByColumn,
+        limit: 500,
+    });
+    const compiledMerge = {
+        sql: applyMergeTerminalWrapper(
+            joinSql.coreSql,
+            joinSql.terminalWrapper,
+        ),
+        legs: [],
+        coreSql: joinSql.coreSql,
+        typedColumns,
+        terminalWrapper: joinSql.terminalWrapper,
+        columns: {
+            joinKeyColumns: ['month'],
+            valueColumnBySourceColumn: {
+                a: { orders_count: 'c0_0' },
+                b: { payments_sum: 'c1_0' },
+            },
+        },
+        fields: [],
+        itemsMap,
+        fieldOrigins: {},
+        parameterReferences: [],
+        usedParametersValues: {},
+        fieldIdByColumn,
+        errors: [],
+    };
+    const mergeQuery: MergeQuery = {
+        sources: [
+            {
+                id: 'a',
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: 'orders',
+                    dimensions: ['orders_month'],
+                    metrics: ['orders_count'],
+                    tableCalculations: [],
+                },
+            },
+            {
+                id: 'b',
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: 'payments',
+                    dimensions: ['payments_month'],
+                    metrics: ['payments_sum'],
+                    tableCalculations: [],
+                },
+            },
+        ],
+        joinKey: [
+            {
+                name: 'month',
+                fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+            },
+        ],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
+        limit: 500,
+    };
+
+    // Both sources over the attribute-scoped explore, so each leg compiles
+    // its own row filter from the submission's overrides
+    const attributeScopedMergeQuery: MergeQuery = {
+        ...mergeQuery,
+        sources: [
+            {
+                id: 'a',
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: 'orders',
+                    dimensions: ['a_dim1'],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+            {
+                id: 'b',
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: 'payments',
+                    dimensions: ['a_dim1'],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ],
+        joinKey: [
+            { name: 'dim1', fieldIdBySourceId: { a: 'a_dim1', b: 'a_dim1' } },
+        ],
+    };
+
+    const legHistory = (queryUuid: string, totalRowCount: number) =>
+        ({
+            queryUuid,
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: sessionAccount.user.id,
+            context: QueryExecutionContext.EXPLORE,
+            status: QueryHistoryStatus.READY,
+            totalRowCount,
+            warehouseExecutionTimeMs: 12,
+            error: null,
+            resultsFileName: `${queryUuid}.jsonl`,
+            resultsExpiresAt: null,
+            columns: {},
+            metricQuery: metricQueryMock,
+        }) as unknown as QueryHistory;
+
+    const legResultByExploreName = (exploreName: string) =>
+        exploreName === 'orders'
+            ? {
+                  queryUuid: legQueryUuidBySourceId.a,
+                  cacheMetadata: { cacheHit: true },
+              }
+            : {
+                  queryUuid: legQueryUuidBySourceId.b,
+                  cacheMetadata: { cacheHit: false },
+              };
+
+    const createComposeService = ({
+        config,
+        legRowCount,
+    }: {
+        config: LightdashConfig;
+        legRowCount: number;
+    }) => {
+        const streamQuery = vi.fn();
+        const warehouseClient = {
+            ...warehouseClientMock,
+            streamQuery,
+        } as unknown as WarehouseClient;
+        const legByUuid = (queryUuid: string) =>
+            legHistory(queryUuid, legRowCount);
+        const update = vi.fn();
+        let joinRan = false;
+        let refused = false;
+        // The outcome reporter polls the join row: it lands in a terminal
+        // state only once the tail has either refused it or run the join
+        const mergeHistoryOnceSettled = async () => {
+            const errored = () =>
+                refused ||
+                update.mock.calls.some(
+                    ([queryUuid, , patch]) =>
+                        queryUuid === 'merge-query-uuid' &&
+                        patch?.status === QueryHistoryStatus.ERROR,
+                );
+            await vi.waitFor(() => expect(errored() || joinRan).toBe(true));
+            return {
+                ...legHistory('merge-query-uuid', legRowCount),
+                status: errored()
+                    ? QueryHistoryStatus.ERROR
+                    : QueryHistoryStatus.READY,
+            };
+        };
+        const queryHistoryModel = inMemoryDuckdbHistory({
+            queryUuid: 'merge-query-uuid',
+            account: sessionAccount,
+            overrides: {
+                get: vi.fn(async (queryUuid: string) => legByUuid(queryUuid)),
+                pollForQueryCompletion: vi.fn(
+                    async ({ queryUuid }: { queryUuid: string }) =>
+                        queryUuid === 'merge-query-uuid'
+                            ? mergeHistoryOnceSettled()
+                            : legByUuid(queryUuid),
+                ),
+                update,
+            },
+        });
+        const recordRefusal =
+            queryHistoryModel.recordDuckdbRefusal.getMockImplementation();
+        queryHistoryModel.recordDuckdbRefusal.mockImplementation(
+            async (...args) => {
+                await recordRefusal?.(...args);
+                refused = true;
+            },
+        );
+        const service = getMockedAsyncQueryService(config, {
+            composeEngineClient: new ComposeEngineClient({
+                lightdashConfig: config,
+                createDuckdbWarehouseClient: () => warehouseClient,
+            }),
+            queryHistoryModel,
+            resultsStorageClient: {
+                isEnabled: true,
+                configuration: { bucket: 'results-bucket' },
+            } as unknown as S3ResultsFileStorageClient,
+        } as never);
+        vi.spyOn(service, 'compileMergeQuery').mockResolvedValue(
+            compiledMerge as never,
+        );
+        vi.spyOn(
+            service as AnyType,
+            'getMergeFieldTypesForQuery',
+        ).mockResolvedValue(fieldTypes);
+        const runWarehouseQuery = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockImplementation(async () => {
+                joinRan = true;
+            });
+        const trackAccount = vi
+            .spyOn(analyticsMock, 'trackAccount')
+            .mockImplementation(() => {});
+        return {
+            service,
+            streamQuery,
+            runWarehouseQuery,
+            trackAccount,
+            create: service.queryHistoryModel.create as import('vitest').Mock,
+            update,
+        };
+    };
+
+    const buildService = (args: {
+        config: LightdashConfig;
+        legRowCount: number;
+    }) => {
+        const built = createComposeService(args);
+        vi.spyOn(built.service, 'executeAsyncMetricQuery').mockImplementation(
+            async ({ metricQuery }) =>
+                legResultByExploreName(metricQuery.exploreName) as never,
+        );
+        return built;
+    };
+
+    // Legs compile for real against the attribute-scoped explore; only the
+    // execution tail is captured, so each leg's compiled SQL is observable
+    const buildServiceWithCompiledLegs = () => {
+        const built = createComposeService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
+        const { service } = built;
+        vi.spyOn(
+            service as AnyType,
+            'assertCustomSqlAuthorizedForQuery',
+        ).mockResolvedValue(undefined);
+        service.getExploreWithUserAccessControls = vi.fn(
+            async (
+                _account: Account,
+                _projectUuid: string,
+                exploreName: string,
+            ) => ({
+                explore: { ...attributeScopedExplore, name: exploreName },
+                userAccessControls: {
+                    userAttributes: { region: ['base'] },
+                    intrinsicUserAttributes: {},
+                },
+            }),
+        );
+        (service as AnyType).getWarehouseCredentials = vi
+            .fn()
+            .mockResolvedValue(warehouseClientMock.credentials);
+        const executeAsyncQuery = vi.fn(
+            async ({ queryComposer }: { queryComposer: QueryComposer }) =>
+                legResultByExploreName(
+                    queryComposer.getMetricQuery().exploreName,
+                ),
+        );
+        service['executeAsyncQuery'] = executeAsyncQuery as never;
+        const compiledLegs = () =>
+            executeAsyncQuery.mock.calls.map(([{ queryComposer }]) => ({
+                exploreName: queryComposer.getMetricQuery().exploreName,
+                sql: queryComposer.getSql({ columnLimit: 100 }),
+            }));
+        return { ...built, executeAsyncQuery, compiledLegs };
+    };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const mergeEvents = (
+        trackAccount: ReturnType<typeof buildService>['trackAccount'],
+    ) =>
+        trackAccount.mock.calls
+            .map(([, event]) => event)
+            .filter(({ event }) => event.startsWith('merge_query.'));
+
+    const execute = (service: AsyncQueryService) =>
+        service.executeAsyncMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery,
+            context: QueryExecutionContext.EXPLORE,
+            mode: { type: 'interactive' },
+        });
+
+    // The outcome reporter polls the join row, so a test that started a merge
+    // waits for its event or the event lands in the next test's spy
+    const drainMergeEvents = (
+        trackAccount: ReturnType<typeof buildService>['trackAccount'],
+        count: number,
+    ) =>
+        vi.waitFor(() => expect(mergeEvents(trackAccount)).toHaveLength(count));
+
+    it('refuses a pivot the composer rejects before any leg runs', async () => {
+        const { service, create } = buildService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
+
+        await expect(
+            // The v1 route hands over a pivot the caller derived itself
+            service.executeLegacyAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+                mode: { type: 'interactive' },
+                // A group column that is also the index column is refused by
+                // the pivot builder
+                pivotConfiguration: {
+                    indexColumn: {
+                        reference: 'merge_month',
+                        type: VizIndexType.TIME,
+                    },
+                    valuesColumns: [
+                        {
+                            reference: 'a_orders_count',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'merge_month' }],
+                    sortBy: undefined,
+                },
+            }),
+        ).rejects.toThrow(ParameterError);
+
+        expect(service.executeAsyncMetricQuery).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('runs the join in supplied mode: no column probe, and the compile-time columns reach execution unchanged', async () => {
+        const {
+            service,
+            streamQuery,
+            runWarehouseQuery,
+            create,
+            trackAccount,
+        } = buildService({ config: lightdashConfigMock, legRowCount: 2 });
+
+        const outcome = await execute(service);
+        if (outcome.outcome !== 'started') {
+            throw new Error(`Expected the merge to start: ${outcome.outcome}`);
+        }
+        await vi.waitFor(() =>
+            expect(runWarehouseQuery).toHaveBeenCalledTimes(1),
+        );
+
+        expect(streamQuery).not.toHaveBeenCalled();
+        const executed = runWarehouseQuery.mock.calls[0][0];
+        expect(executed.originalColumns).toEqual(
+            buildComposeMergeOriginalColumns({
+                typedColumns,
+                itemsMap,
+                usedParametersValues: {},
+                legReferenceBySourceId: legQueryUuidBySourceId,
+            }),
+        );
+        expect(executed.originalColumns?.a_orders_count).toMatchObject({
+            label: 'Query A Orders',
+            format: '#,##0',
+            provenance: {
+                fieldId: 'orders_count',
+                sourceQueryUuid: legQueryUuidBySourceId.a,
+            },
+        });
+        expect(executed.originalColumns).toBe(
+            create.mock.calls[0][1].originalColumns,
+        );
+        expect(executed.fieldsMap).toEqual(outcome.query.fields);
+        expect(executed.query).toContain(
+            `read_json_auto('s3://results-bucket/${legQueryUuidBySourceId.a}.jsonl')`,
+        );
+        expect(executed.query).toContain(
+            `read_json_auto('s3://results-bucket/${legQueryUuidBySourceId.b}.jsonl')`,
+        );
+        await drainMergeEvents(trackAccount, 1);
+    });
+
+    it('tracks the merge once it is ready, with leg cache hits and the merged row count', async () => {
+        const { service, trackAccount } = buildService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
+
+        await execute(service);
+
+        await vi.waitFor(() =>
+            expect(mergeEvents(trackAccount)).toHaveLength(1),
+        );
+        expect(mergeEvents(trackAccount)[0]).toEqual({
+            event: 'merge_query.executed',
+            properties: {
+                organizationId: projectSummary.organizationUuid,
+                projectId: projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                joinType: MergeJoinType.FULL,
+                sourceKinds: ['metric', 'metric'],
+                sourceCount: 2,
+                joinKeyCount: 1,
+                tableCalculationCount: 0,
+                queryId: 'merge-query-uuid',
+                engine: 'compose',
+                status: 'ready',
+                cacheHit: false,
+                legCount: 2,
+                legCacheHitCount: 1,
+                rowCount: 2,
+                durationMs: expect.any(Number),
+                joinExecutionTimeMs: 12,
+            },
+        });
+    });
+
+    it('refuses a join that reads files before any leg runs', async () => {
+        const { service, create } = buildService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
+        vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+            ...compiledMerge,
+            coreSql: "SELECT * FROM read_parquet('s3://bucket/secret.parquet')",
+        } as never);
+
+        await expect(execute(service)).rejects.toThrow(ParameterError);
+
+        expect(service.executeAsyncMetricQuery).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('refuses before the join when a leg reached the row cap, naming the source', async () => {
+        const {
+            service,
+            streamQuery,
+            runWarehouseQuery,
+            update,
+            trackAccount,
+        } = buildService({ config: cappedConfig, legRowCount: SOURCE_ROW_CAP });
+
+        await execute(service);
+
+        await vi.waitFor(() =>
+            expect(mergeEvents(trackAccount)).toHaveLength(1),
+        );
+        expect(mergeEvents(trackAccount)[0]).toMatchObject({
+            event: 'merge_query.refused',
+            properties: {
+                kind: 'row_cap',
+                kinds: ['row_cap'],
+                refusalCount: 1,
+                queryId: 'merge-query-uuid',
+                joinType: MergeJoinType.FULL,
+                sourceKinds: ['metric', 'metric'],
+            },
+        });
+
+        // The refusal and the error status land on the row in one write
+        await vi.waitFor(() =>
+            expect(
+                service.queryHistoryModel.recordDuckdbRefusal,
+            ).toHaveBeenCalledWith(
+                'merge-query-uuid',
+                projectUuid,
+                { kind: 'row_cap' },
+                `Query A and Query B each returned the maximum of ${SOURCE_ROW_CAP} rows, so the merged results would be missing data. Add a filter to each, then merge again.`,
+                expect.anything(),
+            ),
+        );
+        expect(update).not.toHaveBeenCalledWith(
+            'merge-query-uuid',
+            projectUuid,
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
+        );
+        expect(streamQuery).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+    });
+
+    it('runs the join when every leg is under the row cap', async () => {
+        const { service, runWarehouseQuery, update, trackAccount } =
+            buildService({
+                config: cappedConfig,
+                legRowCount: SOURCE_ROW_CAP - 1,
+            });
+
+        await execute(service);
+
+        await vi.waitFor(() =>
+            expect(runWarehouseQuery).toHaveBeenCalledTimes(1),
+        );
+        expect(update).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
+        );
+        await drainMergeEvents(trackAccount, 1);
+    });
+
+    it("compiles every leg with the submission's user attribute overrides, a different query per override", async () => {
+        const { service, executeAsyncQuery, compiledLegs, trackAccount } =
+            buildServiceWithCompiledLegs();
+        const submit = (region: string) =>
+            service.executeAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: attributeScopedMergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+                mode: { type: 'interactive' },
+                userAttributeOverrides: { region: [region] },
+            });
+
+        const eu = await submit('EU');
+        const us = await submit('US');
+
+        expect(eu.outcome).toBe('started');
+        expect(us.outcome).toBe('started');
+        expect(executeAsyncQuery).toHaveBeenCalledTimes(4);
+        const legs = compiledLegs();
+        const [euLegs, usLegs] = [legs.slice(0, 2), legs.slice(2)];
+        for (const exploreName of ['orders', 'payments']) {
+            const euSql = euLegs.find(
+                (leg) => leg.exploreName === exploreName,
+            )?.sql;
+            const usSql = usLegs.find(
+                (leg) => leg.exploreName === exploreName,
+            )?.sql;
+            expect(euSql).toContain("region = 'EU'");
+            expect(usSql).toContain("region = 'US'");
+            expect(euSql).not.toEqual(usSql);
+            // The override replaces the account's own value rather than adding to it
+            expect(euSql).not.toContain('base');
+            expect(usSql).not.toContain('base');
+        }
+        await drainMergeEvents(trackAccount, 2);
+    });
+});
+
+/**
+ * Query sources hand the submission's execution context to the execution
+ * path they wrap. Proven on the compiled query rather than on call shapes:
+ * a different attribute value is a different WHERE clause, a parameter
+ * value lands in the SQL, and a missing one refuses.
+ */
+describe('query sources carry the execution context', () => {
+    const submissionDefaults: Omit<SubmitSourceQueryArgs, 'query'> = {
+        account: sessionAccount,
+        projectUuid,
+        context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+        resolvedReferences: {},
+        parameters: {},
+        userAttributeOverrides: {},
+        invalidateCache: false,
+        pivotConfiguration: null,
+        plan: null,
+    };
+
+    const createSemanticLayerHarness = () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(
+            service as AnyType,
+            'assertCustomSqlAuthorizedForQuery',
+        ).mockResolvedValue(undefined);
+        // The account's own attributes; overrides layer on top of these
+        service.getExploreWithUserAccessControls = vi.fn().mockResolvedValue({
+            explore: attributeScopedExplore,
+            userAccessControls: {
+                userAttributes: { region: ['base'] },
+                intrinsicUserAttributes: {},
+            },
+        });
+        (service as AnyType).getWarehouseCredentials = vi
+            .fn()
+            .mockResolvedValue(warehouseClientMock.credentials);
+        const executeAsyncQuery = vi.fn().mockResolvedValue({
+            queryUuid: 'queryUuid',
+            cacheMetadata: { cacheHit: false },
+        });
+        service['executeAsyncQuery'] = executeAsyncQuery;
+
+        const source = new SemanticLayerQuerySource({
+            asyncQueryService: service,
+            projectService: {} as ProjectService,
+        });
+        const submit = (
+            overrides: Partial<SubmitSourceQueryArgs> & {
+                dimensions?: string[];
+            },
+        ) =>
+            source.submitQuery({
+                ...submissionDefaults,
+                ...overrides,
+                query: {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    exploreName: attributeScopedExplore.name,
+                    dimensions: overrides.dimensions ?? ['a_dim1'],
+                    metrics: [],
+                },
+            });
+        const composerOf = (call: number): QueryComposer =>
+            executeAsyncQuery.mock.calls[call][0].queryComposer;
+        const sqlOf = (call: number) =>
+            composerOf(call).getSql({ columnLimit: 100 });
+        return { submit, composerOf, sqlOf, executeAsyncQuery };
+    };
+
+    test('a semantic-layer node compiles a different query per user attribute override', async () => {
+        const { submit, sqlOf } = createSemanticLayerHarness();
+
+        await submit({ userAttributeOverrides: { region: ['EU'] } });
+        await submit({ userAttributeOverrides: { region: ['US'] } });
+
+        const [euSql, usSql] = [sqlOf(0), sqlOf(1)];
+        expect(euSql).toContain("region = 'EU'");
+        expect(usSql).toContain("region = 'US'");
+        expect(euSql).not.toEqual(usSql);
+        // The override replaces the account's own value rather than adding to it
+        expect(euSql).not.toContain('base');
+        expect(usSql).not.toContain('base');
+    });
+
+    test('a semantic-layer node resolves parameter values and reports a missing one for refusal', async () => {
+        const { submit, sqlOf, composerOf } = createSemanticLayerHarness();
+        const dimensions = ['a_region_param'];
+
+        await submit({ dimensions, parameters: { region: 'EU' } });
+        expect(sqlOf(0)).toContain("'EU'");
+        expect(sqlOf(0)).not.toContain('ld.parameters');
+
+        // executeAsyncQuery turns a missing reference into an error row
+        // before anything runs; the composer is where it is detected
+        await submit({ dimensions, parameters: {} });
+        expect(composerOf(1).getMissingParameterReferences()).toEqual([
+            'region',
+        ]);
+    });
+
+    test('cache invalidation and pivot configuration reach the metric execution unchanged', async () => {
+        const { submit, composerOf, executeAsyncQuery } =
+            createSemanticLayerHarness();
+        const pivotConfiguration: PivotConfiguration = {
+            indexColumn: { reference: 'a_dim1', type: VizIndexType.CATEGORY },
+            valuesColumns: [
+                {
+                    reference: 'a_dim1',
+                    aggregation: VizAggregationOptions.COUNT,
+                },
+            ],
+            groupByColumns: undefined,
+            sortBy: undefined,
+        };
+
+        await submit({
+            userAttributeOverrides: { region: ['EU'] },
+            invalidateCache: true,
+            pivotConfiguration,
+        });
+
+        expect(executeAsyncQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ invalidateCache: true }),
+            expect.any(Object),
+        );
+        expect(composerOf(0).getPivotConfiguration()).toEqual(
+            pivotConfiguration,
+        );
+    });
+
+    const createComposeEngineService = () =>
+        getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    }),
+                ),
+            } as unknown as FeatureFlagModel,
+            preAggregateStrategy: makeMockStrategy({
+                resolved: false,
+                reason: 'not routed',
+                isFatal: false,
+            }),
+            externalSourceTableResolver: vi.fn(async () => ({
+                external_source_table_uuid: 'table-uuid',
+                external_source_scope: ExternalSourceScope.CATALOG,
+                external_source_created_by_user_uuid: sessionAccount.user.id,
+                version: 1,
+                locator: {
+                    format: 'parquet',
+                    uri: 's3://bucket/table.parquet',
+                },
+                columns: {
+                    region: { reference: 'region', type: DimensionType.STRING },
+                },
+            })),
+        } as never);
+
+    test('a compose SQL submit with a missing parameter refuses synchronously and creates no query history row', async () => {
+        const service = createComposeEngineService();
+        const referencedQueryUuid = '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11';
+        (
+            service.queryHistoryModel.get as import('vitest').Mock
+        ).mockResolvedValue({
+            queryUuid: referencedQueryUuid,
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: sessionAccount.user.id,
+            context: QueryExecutionContext.EXPLORE,
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'referenced-results.jsonl',
+            resultsExpiresAt: null,
+            columns: {},
+            metricQuery: { exploreName: 'orders' },
+        });
+
+        await expect(
+            service.executeAsyncComposeSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                sql: 'SELECT * FROM t WHERE region = ${ld.parameters.region}',
+                references: { t: referencedQueryUuid },
+                parameters: {},
+            }),
+        ).rejects.toThrow('region');
+        expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+    });
+
+    test('an external SQL submit with a missing parameter refuses synchronously and creates no query history row', async () => {
+        const service = createComposeEngineService();
+
+        await expect(
+            service.executeAsyncExternalSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                sql: 'SELECT * FROM t WHERE region = ${ld.parameters.region}',
+                tables: { t: 'table-uuid' },
+                parameters: {},
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+    });
+
+    test('a sql node applies overrides and parameters to the executed SQL, bypasses the cache, and refuses a missing parameter', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        service.getUserAttributes = vi.fn(async () => ({
+            userAttributes: { region: ['base'] },
+            intrinsicUserAttributes: { email: 'test@example.com' },
+        }));
+        let capturedSql = '';
+        service._getWarehouseClient = vi.fn(async () => ({
+            warehouseClient: {
+                ...warehouseClientMock,
+                streamQuery: vi.fn(async (sql, callback) => {
+                    capturedSql = sql;
+                    await callback({
+                        fields: { test_col: { type: DimensionType.STRING } },
+                        rows: [],
+                    });
+                }),
+            },
+            sshTunnel: mockSshTunnel,
+            tunnelConnectMs: null,
+        }));
+        service.findResultsCache = vi.fn().mockResolvedValue({
+            cacheHit: false,
+            updatedAt: undefined,
+            expiresAt: undefined,
+        } satisfies MissCacheResult);
+        vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+            undefined,
+        );
+        const source = new SqlQuerySource({
+            asyncQueryService: service,
+            projectService: {} as ProjectService,
+        });
+        const query = {
+            sourceType: QuerySourceType.SQL,
+            sql: 'SELECT * FROM t WHERE region = ${lightdash.attribute.region} AND plan = ${ld.parameters.plan}',
+        } as const;
+
+        await source.submitQuery({
+            ...submissionDefaults,
+            query,
+            parameters: { plan: 'pro' },
+            userAttributeOverrides: { region: ['EU'] },
+            invalidateCache: true,
+        });
+
+        expect(capturedSql).toContain("region = 'EU'");
+        expect(capturedSql).toContain("plan = 'pro'");
+        expect(service.findResultsCache).toHaveBeenCalledWith(
+            projectUuid,
+            expect.any(String),
+            sessionAccount,
+            true,
+        );
+
+        await expect(
+            source.submitQuery({
+                ...submissionDefaults,
+                query,
+                userAttributeOverrides: { region: ['EU'] },
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('executeAsyncMergeQuery over a result source', () => {
+    // Lowered on the referenced query rather than by seeding limit-many rows:
+    // the check reads the limit that query ran with.
+    const REFERENCED_LIMIT = 3;
+    const resultQueryUuids = {
+        a: '3c8b2b0e-4f5a-4b6c-8d7e-9f0a1b2c3d4e',
+        b: '4d9c3c1f-5a6b-4c7d-9e8f-0a1b2c3d4e5f',
+    };
+
+    const storedFields = (table: string, metric: string): ItemsMap => ({
+        [`${table}_month`]: {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.DATE,
+            name: 'month',
+            label: 'Month',
+            table,
+            tableLabel: table,
+            sql: '',
+            hidden: false,
+            groups: [],
+        },
+        [`${table}_${metric}`]: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: metric,
+            label: metric,
+            table,
+            tableLabel: table,
+            sql: '',
+            hidden: false,
+            groups: [],
+        },
+    });
+
+    const storedResult = ({
+        queryUuid,
+        table,
+        metric,
+        limit,
+        totalRowCount,
+    }: {
+        queryUuid: string;
+        table: string;
+        metric: string;
+        limit: number;
+        totalRowCount: number | null;
+    }): QueryHistory => ({
+        createdAt: new Date(),
+        organizationUuid: projectSummary.organizationUuid,
+        createdByUserUuid: sessionAccount.user.id,
+        createdBy: sessionAccount.user.id,
+        createdByAccount: null,
+        createdByActorType: 'session',
+        queryUuid,
+        projectUuid,
+        status: QueryHistoryStatus.READY,
+        error: null,
+        erroredAt: null,
+        metricQuery: {
+            ...metricQueryMock,
+            exploreName: table,
+            dimensions: [`${table}_month`],
+            metrics: [`${table}_${metric}`],
+            tableCalculations: [],
+            limit,
+        },
+        context: QueryExecutionContext.AI,
+        fields: storedFields(table, metric),
+        compiledSql: 'SELECT 1',
+        warehouseQueryId: null,
+        warehouseQueryMetadata: null,
+        requestParameters: {} as ExecuteAsyncQueryRequestParams,
+        usedParameters: null,
+        totalRowCount,
+        warehouseExecutionTimeMs: null,
+        defaultPageSize: null,
+        cacheKey: `${queryUuid}-cache-key`,
+        pivotConfiguration: null,
+        pivotTotalColumnCount: null,
+        pivotValuesColumns: null,
+        resultsFileName: `${queryUuid}.jsonl`,
+        resultsCreatedAt: new Date(),
+        resultsUpdatedAt: new Date(),
+        resultsExpiresAt: null,
+        columns: null,
+        originalColumns: null,
+        preAggregateCompiledSql: null,
+        preAggregateExecution: null,
+        preAggregateFallbackReason: null,
+        processingStartedAt: null,
+    });
+
+    const mergeQuery: MergeQuery = {
+        sources: [
+            { id: 'a', queryUuid: resultQueryUuids.a },
+            { id: 'b', queryUuid: resultQueryUuids.b },
+        ],
+        joinKey: [
+            {
+                name: 'month',
+                fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+            },
+        ],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
+        limit: 500,
+    };
+
+    const buildService = ({
+        aRowCount,
+        bRowCount,
+    }: {
+        aRowCount: number | null;
+        bRowCount: number | null;
+    }) => {
+        const storedByUuid: Record<string, QueryHistory> = {
+            [resultQueryUuids.a]: storedResult({
+                queryUuid: resultQueryUuids.a,
+                table: 'orders',
+                metric: 'count',
+                limit: REFERENCED_LIMIT,
+                totalRowCount: aRowCount,
+            }),
+            [resultQueryUuids.b]: storedResult({
+                queryUuid: resultQueryUuids.b,
+                table: 'payments',
+                metric: 'sum',
+                limit: REFERENCED_LIMIT,
+                totalRowCount: bRowCount,
+            }),
+        };
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        service.queryHistoryModel.get = vi.fn(async (queryUuid: string) => {
+            const stored = storedByUuid[queryUuid];
+            if (stored === undefined) {
+                throw new NotFoundError(`No stored result ${queryUuid}`);
+            }
+            return stored;
+        });
+        const runLeg = vi.spyOn(service, 'executeAsyncMetricQuery');
+        return {
+            service,
+            runLeg,
+            create: service.queryHistoryModel.create as import('vitest').Mock,
+        };
+    };
+
+    it('refuses before any leg or the join when a referenced result returned as many rows as its own limit, naming the source', async () => {
+        const { service, runLeg, create } = buildService({
+            aRowCount: REFERENCED_LIMIT - 1,
+            bRowCount: REFERENCED_LIMIT,
+        });
+
+        const outcome = await service.executeAsyncMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery,
+            context: QueryExecutionContext.AI,
+            mode: { type: 'interactive' },
+        });
+
+        expect(outcome).toMatchObject({
+            outcome: 'refused',
+            errors: [
+                {
+                    kind: MergeQueryErrorKind.RESULT_SOURCE_UNAVAILABLE,
+                    sourceId: 'b',
+                    fieldIds: [],
+                    message: `Query "b" cannot back a merge: its results were cut short at their own limit of ${REFERENCED_LIMIT} rows, so the merged results would be missing data. Re-run that query with a higher limit or without one, then merge again.`,
+                },
+            ],
+        });
+        expect(runLeg).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('compiles a merge whose referenced results are all under their own limits', async () => {
+        const { service } = buildService({
+            aRowCount: REFERENCED_LIMIT - 1,
+            bRowCount: REFERENCED_LIMIT - 1,
+        });
+
+        const compiled = await service.compileMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery,
+        });
+
+        expect(compiled.errors).toEqual([]);
+        // A result source contributes rows, never a leg statement
+        expect(compiled.legs).toEqual([
+            { sourceId: 'a', sql: null },
+            { sourceId: 'b', sql: null },
+        ]);
+        expect(compiled.coreSql).toContain('"merge_source_0"');
+        expect(compiled.coreSql).toContain('"merge_source_1"');
+    });
+
+    it('leaves a referenced result with no recorded row count alone', async () => {
+        const { service } = buildService({
+            aRowCount: REFERENCED_LIMIT - 1,
+            bRowCount: null,
+        });
+
+        const compiled = await service.compileMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery,
+        });
+
+        expect(compiled.errors).toEqual([]);
+    });
+
+    const buildServiceWithForbiddenResult = (forbiddenQueryUuid: string) => {
+        const built = buildService({
+            aRowCount: REFERENCED_LIMIT - 1,
+            bRowCount: REFERENCED_LIMIT - 1,
+        });
+        const readable = built.service.queryHistoryModel.get;
+        built.service.queryHistoryModel.get = vi.fn(
+            async (queryUuid: string, ...rest: [string, Account]) => {
+                if (queryUuid === forbiddenQueryUuid) {
+                    throw new ForbiddenError(
+                        'User is not authorized to access this query',
+                    );
+                }
+                return readable(queryUuid, ...rest);
+            },
+        );
+        return built;
+    };
+
+    // The v1 mergeQuery routes cannot carry an embed account until PROD-10899 lands, so this pins the v2 service path
+    const embedAccount = fromJwt({
+        decodedToken: defaultJwtToken,
+        embed: {
+            projectUuid,
+            organization: {
+                organizationUuid: projectSummary.organizationUuid,
+                name: 'Test Organization',
+                createdAt: new Date('2024-01-01'),
+            },
+            encodedSecret: 'test-encoded-secret',
+            dashboardUuids: [],
+            allowAllDashboards: true,
+            chartUuids: [],
+            allowAllCharts: true,
+            allowAllApps: false,
+            appUuids: [],
+            createdAt: '2024-01-01',
+            user: null,
+        },
+        source: 'test-jwt-token',
+        content: {
+            type: 'dashboard',
+            dashboardUuid: 'test-dashboard-uuid',
+            chartUuids: [],
+            explores: [],
+        },
+        userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+    });
+
+    it.each([
+        ['a session account', sessionAccount],
+        ['an embed account', embedAccount],
+    ])(
+        'refuses a merge over a referenced result %s cannot read as forbidden, never as unavailable',
+        async (_label, account) => {
+            const { service, runLeg, create } = buildServiceWithForbiddenResult(
+                resultQueryUuids.b,
+            );
+
+            await expect(
+                service.executeAsyncMergeQuery({
+                    account,
+                    projectUuid,
+                    mergeQuery,
+                    context: QueryExecutionContext.AI,
+                    mode: { type: 'interactive' },
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(runLeg).not.toHaveBeenCalled();
+            expect(create).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('DuckDB source queries on the worker', () => {
+    const suppliedPlan = () => ({
+        columns: {
+            mode: 'supplied' as const,
+            compose: () =>
+                ({
+                    getSql: () => 'SELECT * FROM merge_source_0',
+                    getFields: () => ({}),
+                    getUsedParameters: () => ({}),
+                    getMetricQuery: () => ({ exploreName: 'merge' }),
+                }) as unknown as QueryComposer,
+            originalColumns: {},
+            requestParameters: {
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM merge_source_0',
+            },
+        },
+        engine: 'scopedToReferencedResults' as const,
+        guard: null,
+        referenceLabels: {},
+    });
+
+    const referencedQueryHistory = {
+        queryUuid: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11',
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        createdByUserUuid: sessionAccount.user.id,
+        status: QueryHistoryStatus.READY,
+        columns: {},
+        metricQuery: { exploreName: 'orders' },
+    } as unknown as QueryHistory;
+
+    const buildWorkerService = (config: LightdashConfig) => {
+        const service = getMockedAsyncQueryService(config, {
+            composeEngineClient: {
+                createExecutionWarehouseClient: vi.fn(
+                    () => warehouseClientMock,
+                ),
+            } as unknown as ComposeEngineClient,
+            queryHistoryModel: inMemoryDuckdbHistory({
+                queryUuid: 'join-uuid',
+                account: sessionAccount,
+                overrides: {
+                    get: vi.fn(async () => referencedQueryHistory),
+                },
+            }),
+        } as never);
+        const runDuckdbQuery = vi
+            .spyOn(service as AnyType, 'runDuckdbQuery')
+            .mockResolvedValue(undefined);
+        return { service, runDuckdbQuery };
+    };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('with the worker on, submit records the spec, hands the row to NATS and runs nothing itself', async () => {
+        const { service, runDuckdbQuery } = buildWorkerService({
+            ...lightdashConfigMock,
+            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
+        });
+
+        const submission = await service.executeAsyncDuckdbSourceQuery({
+            account: sessionAccount,
+            projectUuid,
+            context: QueryExecutionContext.EXPLORE,
+            sql: 'SELECT * FROM merge_source_0',
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            plan: suppliedPlan(),
+        });
+
+        expect(submission.queryUuid).toBe('join-uuid');
+        const { setDuckdbExecution, updateStatusToQueued } =
+            service.queryHistoryModel as unknown as ReturnType<
+                typeof inMemoryDuckdbHistory
+            >;
+        const enqueue = service.natsClient
+            .enqueueDuckdbQuery as import('vitest').Mock;
+        expect(enqueue).toHaveBeenCalledWith({
+            queryUuid: 'join-uuid',
+            queryTags: expect.objectContaining({
+                user_uuid: sessionAccount.user.id,
+                project_uuid: projectUuid,
+            }),
+        });
+        // The spec is on the row before the worker can pick it up
+        expect(setDuckdbExecution.mock.invocationCallOrder[0]).toBeLessThan(
+            enqueue.mock.invocationCallOrder[0],
+        );
+        expect(updateStatusToQueued).toHaveBeenCalledWith('join-uuid');
+        expect(runDuckdbQuery).not.toHaveBeenCalled();
+    });
+
+    it('a failed hand-off errors the row instead of leaving it pending', async () => {
+        const { service, runDuckdbQuery } = buildWorkerService({
+            ...lightdashConfigMock,
+            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
+        });
+        (
+            service.natsClient.enqueueDuckdbQuery as import('vitest').Mock
+        ).mockRejectedValueOnce(new Error('NATS is down'));
+
+        await service.executeAsyncDuckdbSourceQuery({
+            account: sessionAccount,
+            projectUuid,
+            context: QueryExecutionContext.EXPLORE,
+            sql: 'SELECT * FROM merge_source_0',
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            plan: suppliedPlan(),
+        });
+
+        expect(
+            service.queryHistoryModel.updateStatusToError,
+        ).toHaveBeenCalledWith(
+            'join-uuid',
+            projectUuid,
+            'Failed to enqueue DuckDB query: NATS is down',
+            sessionAccount,
+        );
+        expect(runDuckdbQuery).not.toHaveBeenCalled();
+    });
+
+    it('a hand-off no stream takes runs the query in this process instead', async () => {
+        const { service, runDuckdbQuery } = buildWorkerService({
+            ...lightdashConfigMock,
+            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
+        });
+        (
+            service.natsClient.enqueueDuckdbQuery as import('vitest').Mock
+        ).mockRejectedValueOnce(
+            new NatsNoRespondersError('pre_aggregate.duckdb.jobs'),
+        );
+
+        await service.executeAsyncDuckdbSourceQuery({
+            account: sessionAccount,
+            projectUuid,
+            context: QueryExecutionContext.EXPLORE,
+            sql: 'SELECT * FROM merge_source_0',
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            plan: suppliedPlan(),
+        });
+
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        expect(model.updateStatusToError).not.toHaveBeenCalled();
+        expect(model.updateStatusToQueued).not.toHaveBeenCalled();
+        await vi.waitFor(() => {
+            expect(model.updateStatusToExecuting).toHaveBeenCalledWith(
+                'join-uuid',
+            );
+            expect(runDuckdbQuery).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('the worker rebuilds a queued run from the row and its spec alone', async () => {
+        const { service, runDuckdbQuery } =
+            buildWorkerService(lightdashConfigMock);
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        // What the API process left behind: a queued row and its spec
+        model.getByQueryUuid.mockResolvedValue({
+            queryUuid: 'join-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            status: QueryHistoryStatus.QUEUED,
+            createdAt: new Date(),
+            createdByUserUuid: sessionAccount.user.id,
+            createdByAccount: null,
+            createdByActorType: 'pat',
+            context: QueryExecutionContext.DASHBOARD,
+            compiledSql: 'SELECT * FROM merge_source_0',
+            cacheKey: 'row-cache-key',
+            fields: { a_orders_count: { type: MetricType.COUNT } },
+            originalColumns: {
+                a_orders_count: {
+                    reference: 'a_orders_count',
+                    type: DimensionType.NUMBER,
+                },
+            },
+            usedParameters: { region: 'EU' },
+            pivotConfiguration: null,
+            metricQuery: { exploreName: 'merge' },
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                dashboardUuid: 'dashboard-uuid',
+            },
+        } as unknown as QueryHistory);
+        const guard = {
+            legLabelByReferenceTable: { merge_source_0: 'Query A' },
+            sourceRowCap: 3,
+        };
+        model.getDuckdbExecution.mockResolvedValue({
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            engine: 'scopedToReferencedResults',
+            columns: { mode: 'supplied' },
+            guard,
+            storedCompiledSql: null,
+            referenceLabels: {},
+            invalidateCache: false,
+            cacheHit: false,
+            refusal: null,
+        });
+
+        const ran = await service.runAsyncDuckdbQueryFromHistory(
+            'join-uuid',
+            'nats-worker-1',
+        );
+
+        expect(ran).toBe(true);
+        expect(model.updateStatusToExecuting).toHaveBeenCalledWith('join-uuid');
+        expect(runDuckdbQuery).toHaveBeenCalledTimes(1);
+        const args = runDuckdbQuery.mock.calls[0][0] as RunDuckdbQueryArgs;
+        expect(args).toMatchObject({
+            actor: {
+                userUuid: sessionAccount.user.id,
+                isRegisteredUser: true,
+                isServiceAccount: false,
+            },
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            queryUuid: 'join-uuid',
+            sql: 'SELECT * FROM merge_source_0',
+            engine: { kind: 'scopedToReferencedResults' },
+            columns: {
+                mode: 'supplied',
+                fieldsMap: { a_orders_count: { type: MetricType.COUNT } },
+                usedParameters: { region: 'EU' },
+                pivotConfiguration: undefined,
+            },
+            cacheKey: 'row-cache-key',
+            context: QueryExecutionContext.DASHBOARD,
+            queryTags: expect.objectContaining({
+                user_uuid: sessionAccount.user.id,
+                dashboard_uuid: 'dashboard-uuid',
+            }),
+        });
+        // The guard is rebuilt from data and refuses a leg over the cap
+        if (args.references.kind !== 'queries' || !args.references.guard) {
+            throw new Error('Expected a guarded query reference');
+        }
+        const rebuiltGuard = args.references.guard;
+        expect(
+            rebuiltGuard({
+                merge_source_0: {
+                    ...referencedQueryHistory,
+                    totalRowCount: 3,
+                } as QueryHistory,
+            }),
+        ).toContain('Query A');
+        expect(
+            rebuiltGuard({
+                merge_source_0: {
+                    ...referencedQueryHistory,
+                    totalRowCount: 2,
+                } as QueryHistory,
+            }),
+        ).toBeNull();
+    });
+
+    it('a discover run rebuilds its column probe on a scoped session', async () => {
+        const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            composeEngineClient: {
+                createExecutionWarehouseClient,
+            } as unknown as ComposeEngineClient,
+            queryHistoryModel: inMemoryDuckdbHistory({
+                queryUuid: 'compose-uuid',
+                account: sessionAccount,
+            }),
+        } as never);
+        const runDuckdbQuery = vi
+            .spyOn(service as AnyType, 'runDuckdbQuery')
+            .mockResolvedValue(undefined);
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        model.getByQueryUuid.mockResolvedValue({
+            queryUuid: 'compose-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            status: QueryHistoryStatus.QUEUED,
+            createdAt: new Date(),
+            createdByUserUuid: sessionAccount.user.id,
+            createdByAccount: null,
+            createdByActorType: 'session',
+            context: QueryExecutionContext.SQL_RUNNER,
+            compiledSql: 'SELECT one FROM orders',
+            cacheKey: 'row-cache-key',
+            fields: {},
+            metricQuery: { exploreName: 'sql_runner' },
+            requestParameters: {
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'SELECT one FROM orders',
+            },
+        } as unknown as QueryHistory);
+        model.getDuckdbExecution.mockResolvedValue({
+            references: { orders: referencedQueryHistory.queryUuid },
+            engine: 'scopedToReferencedResults',
+            columns: { mode: 'discover', limit: 10, parameters: { p: '1' } },
+            guard: null,
+            storedCompiledSql: null,
+            referenceLabels: {},
+            invalidateCache: false,
+            cacheHit: false,
+            refusal: null,
+        });
+
+        await service.runAsyncDuckdbQueryFromHistory(
+            'compose-uuid',
+            'nats-worker-1',
+        );
+
+        // The rebuild never opens the shared session: the run scopes its own
+        expect(createExecutionWarehouseClient).not.toHaveBeenCalled();
+        expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
+            columns: { mode: 'discover', limit: 10, parameters: { p: '1' } },
+            engine: { kind: 'scopedToReferencedResults' },
+            references: {
+                kind: 'queries',
+                references: { orders: referencedQueryHistory.queryUuid },
+                guard: null,
+            },
+        });
+    });
+
+    it('a rebuild that fails after the claim marks the row errored instead of leaving it executing', async () => {
+        const { service, runDuckdbQuery } =
+            buildWorkerService(lightdashConfigMock);
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        model.getByQueryUuid.mockResolvedValue({
+            queryUuid: 'join-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            status: QueryHistoryStatus.QUEUED,
+            createdAt: new Date(),
+            createdByUserUuid: sessionAccount.user.id,
+            createdByAccount: null,
+            createdByActorType: 'session',
+            context: QueryExecutionContext.EXPLORE,
+            compiledSql: 'SELECT 1',
+            metricQuery: { exploreName: 'merge' },
+        } as unknown as QueryHistory);
+        // The spec is gone: nothing to rebuild from
+        model.getDuckdbExecution.mockResolvedValue(null);
+
+        await expect(
+            service.runAsyncDuckdbQueryFromHistory(
+                'join-uuid',
+                'nats-worker-1',
+            ),
+        ).rejects.toThrow(NotFoundError);
+
+        expect(model.updateStatusToExecuting).toHaveBeenCalledWith('join-uuid');
+        expect(model.updateStatusToError).toHaveBeenCalledWith(
+            'join-uuid',
+            projectUuid,
+            expect.stringContaining('DuckDB execution spec not found'),
+            expect.objectContaining({ user: { id: sessionAccount.user.id } }),
+        );
+        expect(runDuckdbQuery).not.toHaveBeenCalled();
+    });
+
+    it('a DuckDB row queued behind its legs is claimed past the ordinary queue timeout, and expires past their wait', async () => {
+        const queued = (ageMs: number) =>
+            ({
+                queryUuid: 'join-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                status: QueryHistoryStatus.QUEUED,
+                createdAt: new Date(Date.now() - ageMs),
+                createdByUserUuid: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                context: QueryExecutionContext.EXPLORE,
+                compiledSql: 'SELECT * FROM merge_source_0',
+                cacheKey: 'row-cache-key',
+                fields: {},
+                originalColumns: {},
+                usedParameters: null,
+                pivotConfiguration: null,
+                metricQuery: { exploreName: 'merge' },
+                requestParameters: {
+                    context: QueryExecutionContext.EXPLORE,
+                    sql: 'SELECT * FROM merge_source_0',
+                },
+            }) as unknown as QueryHistory;
+        const spec = {
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            engine: 'scopedToReferencedResults' as const,
+            columns: { mode: 'supplied' as const },
+            guard: null,
+            storedCompiledSql: null,
+            referenceLabels: {},
+            invalidateCache: false,
+            cacheHit: false,
+            refusal: null,
+        };
+        const { queueTimeoutMs } = lightdashConfigMock.natsWorker;
+        const referenceWaitMs = 15 * 60 * 1000;
+
+        const behindLegs = buildWorkerService(lightdashConfigMock);
+        const behindLegsModel = behindLegs.service
+            .queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        behindLegsModel.getByQueryUuid.mockResolvedValue(
+            queued(queueTimeoutMs + 60_000),
+        );
+        behindLegsModel.getDuckdbExecution.mockResolvedValue(spec);
+        expect(
+            await behindLegs.service.runAsyncDuckdbQueryFromHistory(
+                'join-uuid',
+                'nats-worker-1',
+            ),
+        ).toBe(true);
+        expect(behindLegs.runDuckdbQuery).toHaveBeenCalledTimes(1);
+        expect(behindLegsModel.updateStatusToExpired).not.toHaveBeenCalled();
+
+        const stale = buildWorkerService(lightdashConfigMock);
+        const staleModel = stale.service
+            .queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        staleModel.getByQueryUuid.mockResolvedValue(
+            queued(queueTimeoutMs + referenceWaitMs + 60_000),
+        );
+        staleModel.getDuckdbExecution.mockResolvedValue(spec);
+        expect(
+            await stale.service.runAsyncDuckdbQueryFromHistory(
+                'join-uuid',
+                'nats-worker-1',
+            ),
+        ).toBe(false);
+        expect(staleModel.updateStatusToExpired).toHaveBeenCalledWith(
+            'join-uuid',
+            expect.any(String),
+        );
+        expect(stale.runDuckdbQuery).not.toHaveBeenCalled();
+    });
+
+    it('skips a row another worker already took', async () => {
+        const { service, runDuckdbQuery } =
+            buildWorkerService(lightdashConfigMock);
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        model.getByQueryUuid.mockResolvedValue({
+            queryUuid: 'join-uuid',
+            status: QueryHistoryStatus.EXECUTING,
+            createdAt: new Date(),
+        } as unknown as QueryHistory);
+
+        const ran = await service.runAsyncDuckdbQueryFromHistory(
+            'join-uuid',
+            'nats-worker-2',
+        );
+
+        expect(ran).toBe(false);
+        expect(runDuckdbQuery).not.toHaveBeenCalled();
+        expect(model.getDuckdbExecution).not.toHaveBeenCalled();
+    });
+});
+
+describe('chart embed token query history access', () => {
+    const buildChartEmbedAccount = (explores: string[]) =>
+        fromJwt({
+            decodedToken: {
+                user: { externalId: 'external-user-123' },
+                content: { type: 'chart', contentId: 'source-chart-uuid' },
+            },
+            embed: {
+                projectUuid,
+                organization: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    name: 'Test Organization',
+                    createdAt: new Date('2024-01-01'),
+                },
+                encodedSecret: 'test-encoded-secret',
+                dashboardUuids: [],
+                allowAllDashboards: false,
+                chartUuids: ['source-chart-uuid'],
+                allowAllCharts: true,
+                allowAllApps: false,
+                appUuids: [],
+                createdAt: '2024-01-01',
+                user: null,
+            },
+            source: 'test-jwt-token',
+            content: {
+                type: 'chart',
+                dashboardUuid: undefined,
+                chartUuids: ['source-chart-uuid'],
+                explores,
+            },
+            userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+        });
+
+    const buildFixture = (explores: string[]) => {
+        const account = buildChartEmbedAccount(explores);
+        const history: QueryHistory = {
+            queryUuid: 'source-query-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            context: QueryExecutionContext.CHART,
+            status: QueryHistoryStatus.READY,
+            requestParameters: { chartUuid: 'source-chart-uuid' },
+            metricQuery: metricQueryMock,
+            fields: validExplore.tables.a.dimensions,
+            columns: expectedColumns,
+            resultsFileName: 'results.jsonl',
+            resultsExpiresAt: new Date(Date.now() + 60_000),
+            totalRowCount: 1,
+            defaultPageSize: 10,
+            createdAt: new Date(),
+            createdBy: account.user.id,
+            createdByUserUuid: account.user.id,
+            createdByAccount: null,
+            createdByActorType: account.authentication.type,
+            warehouseQueryId: null,
+            warehouseQueryMetadata: null,
+            compiledSql: 'select 1',
+            usedParameters: null,
+            warehouseExecutionTimeMs: null,
+            error: null,
+            erroredAt: null,
+            cacheKey: 'cache-key',
+            pivotConfiguration: null,
+            pivotValuesColumns: null,
+            pivotTotalColumnCount: null,
+            resultsCreatedAt: new Date(),
+            resultsUpdatedAt: new Date(),
+            originalColumns: expectedColumns,
+            preAggregateCompiledSql: null,
+            preAggregateExecution: null,
+            preAggregateFallbackReason: null,
+            processingStartedAt: null,
+        };
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);
+        service.exportsStorageClient = {
+            isEnabled: () => true,
+        } as FileStorageClient;
+        (service as AnyType).schedulerClient = {
+            downloadAsyncQueryResults: vi.fn(async () => ({
+                jobId: 'export-job-uuid',
+            })),
+        };
+        vi.spyOn(
+            service as unknown as {
+                downloadAsyncQueryResultsAsFormattedFile: () => Promise<{
+                    fileUrl: string;
+                    truncated: boolean;
+                }>;
+            },
+            'downloadAsyncQueryResultsAsFormattedFile',
+        ).mockResolvedValue({ fileUrl: 'export.csv', truncated: false });
+        return { account, service };
+    };
+
+    const operations = ['stream', 'cancel', 'schedule', 'download'] as const;
+
+    const run = (
+        service: AsyncQueryService,
+        account: Account,
+        operation: (typeof operations)[number],
+    ) => {
+        const args = { account, projectUuid, queryUuid: 'source-query-uuid' };
+        switch (operation) {
+            case 'stream':
+                return service.getResultsStream(args);
+            case 'cancel':
+                return service.cancelAsyncQuery(args);
+            case 'schedule':
+                return service.scheduleDownloadAsyncQueryResults({
+                    ...args,
+                    type: DownloadFileType.CSV,
+                });
+            case 'download':
+                return service.download({
+                    ...args,
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                });
+            default:
+                return assertUnreachable(operation, 'Unknown query operation');
+        }
+    };
+
+    it.each(operations)(
+        'allows a chart token scoped to the query explore through %s',
+        async (operation) => {
+            const { account, service } = buildFixture([validExplore.name]);
+            await run(service, account, operation);
+            expect(service.queryHistoryModel.get).toHaveBeenCalledWith(
+                'source-query-uuid',
+                projectUuid,
+                account,
+            );
+        },
+    );
+
+    it.each(operations)(
+        'refuses a chart token scoped to another explore through %s',
+        async (operation) => {
+            const { account, service } = buildFixture(['other_explore']);
+            await expect(run(service, account, operation)).rejects.toThrow(
+                ForbiddenError,
+            );
+        },
+    );
 });

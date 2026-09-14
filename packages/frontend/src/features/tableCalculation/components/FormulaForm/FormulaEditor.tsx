@@ -5,7 +5,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { listFunctions } from '@lightdash/formula';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
     generateFieldSuggestion,
+    sortFieldSuggestions,
     type FieldSuggestionItem,
 } from '../../../../components/common/SuggestionList';
 import styles from './FormulaEditor.module.css';
@@ -170,9 +171,9 @@ type Props = {
 };
 
 const PLACEHOLDER_FORMULA =
-    'Type @ for fields or # for functions. Example: =IF(@Revenue > 1000, "high", "low")';
+    'Type @ to use your selected fields or # for functions. Example: =IF(@Revenue > 1000, "high", "low")';
 const PLACEHOLDER_DUAL =
-    'Describe the calculation, or =SUM(@Revenue) for a formula';
+    'Describe the calculation, or type @ to use your selected fields — e.g. =SUM(@Revenue)';
 
 export const FormulaEditor: FC<Props> = ({
     explore,
@@ -225,17 +226,19 @@ export const FormulaEditor: FC<Props> = ({
             ...(metricQuery.tableCalculations ?? []).map((tc) => tc.name),
         ]);
 
-        return Object.entries(itemsMap)
-            .filter(([id]) => usedFieldIds.has(id))
-            .map(([id, fieldItem]) => ({
-                id,
-                label: isField(fieldItem)
-                    ? fieldItem.label
-                    : 'displayName' in fieldItem
-                      ? (fieldItem.displayName ?? fieldItem.name)
-                      : fieldItem.name,
-                item: fieldItem,
-            }));
+        return sortFieldSuggestions(
+            Object.entries(itemsMap)
+                .filter(([id]) => usedFieldIds.has(id))
+                .map(([id, fieldItem]) => ({
+                    id,
+                    label: isField(fieldItem)
+                        ? fieldItem.label
+                        : 'displayName' in fieldItem
+                          ? (fieldItem.displayName ?? fieldItem.name)
+                          : fieldItem.name,
+                    item: fieldItem,
+                })),
+        );
     }, [explore, metricQuery]);
 
     const functionSuggestions: FunctionSuggestionItem[] = useMemo(
@@ -296,6 +299,9 @@ export const FormulaEditor: FC<Props> = ({
                 blockquote: false,
                 codeBlock: false,
                 horizontalRule: false,
+                link: false,
+                underline: false,
+                trailingNode: false,
             }),
             MentionWithLabel.configure({
                 suggestion: {
@@ -343,7 +349,8 @@ export const FormulaEditor: FC<Props> = ({
     }, [editor, editorRef]);
 
     useEffect(() => {
-        if (!editor || initialContent === undefined) return;
+        if (!editor || editor.isDestroyed || initialContent === undefined)
+            return;
         if (editor.getText() === initialContent) return;
         editor.commands.setContent(
             buildInitialContent(initialContent, fieldSuggestions),
@@ -352,7 +359,7 @@ export const FormulaEditor: FC<Props> = ({
     }, [editor, initialContent, fieldSuggestions]);
 
     useEffect(() => {
-        if (editor && fieldSuggestions.length > 0) {
+        if (editor && !editor.isDestroyed && fieldSuggestions.length > 0) {
             editor.extensionManager.extensions.forEach((ext) => {
                 if (ext.name === 'mention') {
                     ext.options.suggestion =
@@ -398,6 +405,21 @@ export const FormulaEditor: FC<Props> = ({
         isPreviewing,
         placeholder,
     ]);
+
+    const insertField = (field: FieldSuggestionItem) => {
+        if (!editor) return;
+        editor
+            .chain()
+            .focus()
+            .insertContent([
+                {
+                    type: 'mention',
+                    attrs: { id: field.id, label: field.label },
+                },
+                { type: 'text', text: ' ' },
+            ])
+            .run();
+    };
 
     const insertFunction = (text: string) => {
         if (!editor) return;
@@ -473,6 +495,8 @@ export const FormulaEditor: FC<Props> = ({
             <FormulaReferenceBar
                 opened={referenceOpened}
                 onToggle={onReferenceToggle}
+                fields={fieldSuggestions}
+                onInsertField={insertField}
             />
         </Box>
     );

@@ -1,4 +1,4 @@
-import { Box, LoadingOverlay, Text } from '@mantine-8/core';
+import { Box, LoadingOverlay, Text } from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
 import { IconGripHorizontal } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
@@ -40,7 +40,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     }, [isLoading, start, clear]);
 
     return (
-        <Box style={{ position: 'relative', flex: 1 }}>
+        <Box pos="relative" flex={1}>
             <LoadingOverlay visible={isLoading} />
 
             {error && (
@@ -50,9 +50,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
             )}
 
             {isLoading && showLoadingMessage && (
-                <Text c="ldGray.9" ta="center">
-                    Hang on, still loading...
-                </Text>
+                <Text ta="center">Hang on, still loading...</Text>
             )}
 
             {!isLoading && !error && (

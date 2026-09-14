@@ -34,6 +34,19 @@ export const isTileInSelectedTabs = (
     !selectedTabs || !tile.tabUuid || selectedTabs.includes(tile.tabUuid);
 
 /**
+ * Expands a null ("all tabs") selection into the explicit list the minimal
+ * dashboard render expects in its `selectedTabs` URL param: every tab UUID
+ * present on the tiles, plus a `null` sentinel for orphan (no-tab) tiles.
+ * Without the explicit list the minimal render falls back to showing only the
+ * active (first) tab. See PROD-2505.
+ */
+export const expandSelectedTabs = (
+    selectedTabs: string[] | null,
+    tiles: { tabUuid?: string | null }[],
+): (string | null)[] =>
+    selectedTabs ?? [...new Set(tiles.map((tile) => tile.tabUuid ?? null))];
+
+/**
  * Validates that selected tabs exist in the dashboard tiles.
  * If selectedTabs is provided and not empty, ensures at least one selected tab exists in dashboard tabs.
  * @param selectedTabs - Array of selected tab UUIDs or null

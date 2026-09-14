@@ -9,18 +9,42 @@ export const TEMPLATE_SCRIPTS: Record<string, string> = {
     preview: 'vite preview',
 };
 
+// Copy of the template's `devDependencies` — build tools must remain present
+// for frozen installs, but their package names and versions are server-owned.
+// A drift guard keeps this set aligned with the sandbox image.
+export const TEMPLATE_DEV_DEPENDENCIES: Record<string, string> = {
+    '@types/d3': '7.4.3',
+    '@types/d3-cloud': '1.2.9',
+    '@types/d3-sankey': '0.12.5',
+    '@types/react': '19.2.14',
+    '@types/react-dom': '19.2.3',
+    '@vitejs/plugin-react': '6.0.1',
+    autoprefixer: '10.4.20',
+    'oxc-parser': '0.128.0',
+    postcss: '8.5.25',
+    tailwindcss: '3.4.17',
+    typescript: '7.0.2',
+    vite: '8.0.16',
+};
+
 // Copy of sandboxes/data-apps/template/package.json `dependencies` — the
 // baseline against which uploaded dependency sets are diffed. The template is
 // not shipped in production backend builds, so it is checked in here;
 // templateDependencies.test.ts asserts this stays in sync with the template.
 export const TEMPLATE_DEPENDENCIES: Record<string, string> = {
     '@lightdash/query-sdk': 'workspace:*',
+    '@radix-ui/react-avatar': '1.2.2',
+    '@radix-ui/react-checkbox': '1.3.7',
     '@radix-ui/react-dialog': '1.1.15',
+    '@radix-ui/react-dropdown-menu': '2.1.20',
     '@radix-ui/react-label': '2.1.8',
     '@radix-ui/react-popover': '1.1.15',
+    '@radix-ui/react-progress': '1.1.12',
+    '@radix-ui/react-scroll-area': '1.2.14',
     '@radix-ui/react-select': '2.2.6',
     '@radix-ui/react-separator': '1.1.8',
     '@radix-ui/react-slot': '1.2.4',
+    '@radix-ui/react-switch': '1.3.3',
     '@radix-ui/react-tabs': '1.1.13',
     '@radix-ui/react-tooltip': '1.2.8',
     '@tanstack/react-query': '5.64.2',
@@ -38,8 +62,9 @@ export const TEMPLATE_DEPENDENCIES: Record<string, string> = {
     'lucide-react': '0.469.0',
     react: '19.2.5',
     'react-dom': '19.2.5',
+    'react-is': '19.2.5',
     'react-resizable-panels': '4.10.0',
-    recharts: '2.15.3',
+    recharts: '3.8.1',
     'tailwind-merge': '3.5.0',
     'tailwindcss-animate': '1.0.7',
 };

@@ -12,12 +12,18 @@ type MakeToolOptions = {
     waitForSqlApproval?: import('vitest').Mock;
     recordSqlApproval?: import('vitest').Mock;
     maxQueryLimit?: number;
+    enableDataAccess?: boolean;
+    slackLinksOnly?: boolean;
 };
 
-const executeRunSql = (tool: RunSqlTool, toolCallId: string = 'tool-call-1') =>
+const executeRunSql = (
+    tool: RunSqlTool,
+    toolCallId: string = 'tool-call-1',
+    sql: string = 'select 1 as answer',
+) =>
     tool.execute!(
         {
-            sql: 'select 1 as answer',
+            sql,
             limit: 500,
         },
         {
@@ -57,15 +63,20 @@ const makeTool = ({
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     recordSqlApproval = vi.fn().mockResolvedValue(true),
     maxQueryLimit = 5000,
+    enableDataAccess = true,
+    slackLinksOnly = false,
     useSlackStreamCard = false,
     prompt = makePrompt(),
+    sqlScope = null,
 }: MakeToolOptions & {
     useSlackStreamCard?: boolean;
     prompt?: AiWebAppPrompt | SlackPrompt;
+    sqlScope?: { schemas: string[]; catalogs?: string[] } | null;
 } = {}) => {
     const dependencies = {
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runSqlJob: vi.fn().mockResolvedValue({
+            queryUuid: 'query-uuid',
             rows: [{ answer: 1 }],
             columns: ['answer'],
             rowCount: 1,
@@ -78,10 +89,14 @@ const makeTool = ({
         recordSqlApproval,
         isThreadSqlAutoApproved: vi.fn().mockResolvedValue(false),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
+        createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
         autoApproveSql,
         autoApproveSqlUserUuid,
         maxQueryLimit,
+        enableDataAccess,
+        slackLinksOnly,
         useSlackStreamCard,
+        sqlScope,
     };
 
     return {
@@ -130,6 +145,62 @@ describe('getRunSql', () => {
         expect(output.metadata?.status).toBe('success');
     });
 
+    it('creates a SQL-backed chart artifact for web results', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+        });
+
+        await executeRunSql(tool);
+
+        expect(dependencies.createOrUpdateArtifact).toHaveBeenCalledWith({
+            threadUuid: 'thread-uuid',
+            promptUuid: 'prompt-uuid',
+            artifactType: 'chart',
+            title: 'SQL query results',
+            vizConfig: {
+                source: 'sql',
+                sql: 'select 1 as answer',
+                limit: 500,
+            },
+        });
+    });
+
+    it('creates an artifact even when the SQL result has no rows', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runSqlJob.mockResolvedValueOnce({
+            queryUuid: 'empty-query-uuid',
+            rows: [],
+            columns: ['answer'],
+            rowCount: 0,
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('success');
+        expect(dependencies.createOrUpdateArtifact).toHaveBeenCalledWith(
+            expect.objectContaining({
+                vizConfig: {
+                    source: 'sql',
+                    sql: 'select 1 as answer',
+                    limit: 500,
+                },
+            }),
+        );
+    });
+
+    it('does not create a web artifact for Slack results', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            prompt: makeSlackPrompt(),
+        });
+
+        await executeRunSql(tool);
+
+        expect(dependencies.createOrUpdateArtifact).not.toHaveBeenCalled();
+    });
+
     it('clamps a requested limit above maxQueryLimit when calling runSqlJob', async () => {
         const { tool, dependencies } = makeTool({
             autoApproveSql: true,
@@ -171,6 +242,30 @@ describe('getRunSql', () => {
             'tool-call-1',
         );
         expect(dependencies.runSqlJob).not.toHaveBeenCalled();
+    });
+
+    it('includes a CSV preview in the result when data access is enabled', async () => {
+        const { tool } = makeTool({ autoApproveSql: true });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('success');
+        expect(output.result).toContain('1 rows. Columns: answer.');
+        expect(output.result).toContain('```csv');
+        expect(output.result).toContain('answer');
+    });
+
+    it('returns only a summary when data access is disabled', async () => {
+        const { tool } = makeTool({
+            autoApproveSql: true,
+            enableDataAccess: false,
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('success');
+        expect(output.result).toBe('1 rows. Columns: answer.');
+        expect(output.result).not.toContain('```csv');
     });
 
     it('rejects nested SQL execution functions before approval', async () => {
@@ -243,5 +338,107 @@ describe('getRunSql', () => {
                 }),
             ]);
         });
+    });
+});
+
+describe('getRunSql agent SQL scope', () => {
+    it('runs a query against a schema inside the scope', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            sqlScope: { schemas: ['jaffle'] },
+        });
+
+        const output = await executeRunSql(
+            tool,
+            'tool-call-1',
+            'SELECT id FROM jaffle.orders',
+        );
+
+        expect(dependencies.runSqlJob).toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
+    });
+
+    it('refuses a query against a schema outside the scope', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            sqlScope: { schemas: ['jaffle'] },
+        });
+
+        const output = await executeRunSql(
+            tool,
+            'tool-call-1',
+            'SELECT id FROM jaffle_old.stale_orders',
+        );
+
+        expect(dependencies.runSqlJob).not.toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('jaffle_old');
+    });
+
+    it('refuses before asking the user to approve, so a blocked query costs no approval click', async () => {
+        const waitForSqlApproval = vi.fn().mockResolvedValue('approved');
+        const { tool, dependencies } = makeTool({
+            waitForSqlApproval,
+            sqlScope: { schemas: ['jaffle'] },
+        });
+
+        await executeRunSql(
+            tool,
+            'tool-call-1',
+            'SELECT id FROM jaffle_old.stale_orders',
+        );
+
+        expect(waitForSqlApproval).not.toHaveBeenCalled();
+        expect(dependencies.updateProgress).not.toHaveBeenCalledWith(
+            'Awaiting approval to run SQL...',
+        );
+    });
+
+    it('leaves queries unrestricted when no scope is configured', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+
+        const output = await executeRunSql(
+            tool,
+            'tool-call-1',
+            'SELECT id FROM anything.at.all',
+        );
+
+        expect(dependencies.runSqlJob).toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
+    });
+});
+
+describe('getRunSql Slack links only', () => {
+    const largeResult = {
+        queryUuid: 'query-uuid',
+        rows: Array.from({ length: 30 }, (_, index) => ({ answer: index })),
+        columns: ['answer'],
+        rowCount: 30,
+    };
+
+    it('does not upload the full CSV into the Slack thread', async () => {
+        const { tool, dependencies } = makeTool({
+            prompt: makeSlackPrompt(),
+            slackLinksOnly: true,
+        });
+        dependencies.runSqlJob.mockResolvedValue(largeResult);
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('success');
+        expect(dependencies.sendFile).not.toHaveBeenCalled();
+    });
+
+    it('keeps uploading the full CSV when the setting is off', async () => {
+        const { tool, dependencies } = makeTool({
+            prompt: makeSlackPrompt(),
+        });
+        dependencies.runSqlJob.mockResolvedValue(largeResult);
+
+        await executeRunSql(tool);
+
+        expect(dependencies.sendFile).toHaveBeenCalledWith(
+            expect.objectContaining({ filename: 'lightdash-sql-results.csv' }),
+        );
     });
 });

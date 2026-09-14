@@ -1,4 +1,4 @@
-import { Button, Stack, Text } from '@mantine-8/core';
+import { Button, Stack, Text } from '@mantine/core';
 import { IconCircleCheck, IconGitMerge } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

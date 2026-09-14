@@ -18,3 +18,7 @@
         animation: none;
     }
 }
+
+.fileIcon {
+    flex-shrink: 0;
+}

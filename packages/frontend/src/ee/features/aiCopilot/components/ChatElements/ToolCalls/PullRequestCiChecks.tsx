@@ -14,7 +14,7 @@ import {
     Text,
     UnstyledButton,
     type DefaultMantineColor,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAlertTriangle,
     IconBrandGithub,
@@ -219,7 +219,7 @@ export const PullRequestCiChecks: FC<{
                         <MantineIcon
                             icon={IconChevronRight}
                             size={14}
-                            color="ldGray.6"
+                            color="dimmed"
                             className={
                                 expanded ? styles.chevronOpen : styles.chevron
                             }
@@ -252,7 +252,7 @@ export const PullRequestCiChecks: FC<{
                 </Anchor>
             </Group>
 
-            <Collapse in={expanded}>
+            <Collapse expanded={expanded}>
                 <Box className={styles.table}>
                     {ciChecks.checks.map((check) => (
                         <CheckRow key={check.name} check={check} />

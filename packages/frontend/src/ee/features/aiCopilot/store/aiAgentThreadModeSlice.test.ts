@@ -18,6 +18,11 @@ describe('aiAgentThreadModeSlice', () => {
         expect(selectThreadSqlMode('t1')(state)).toBe(true);
     });
 
+    it('uses the provided agent default for an unknown thread', () => {
+        const state = wrap(reducer(undefined, { type: '@@init' }));
+        expect(selectThreadSqlMode('t1', false)(state)).toBe(false);
+    });
+
     it('selectThreadSqlModeRaw is undefined until the thread is toggled', () => {
         const state = wrap(reducer(undefined, { type: '@@init' }));
         expect(selectThreadSqlModeRaw('t1')(state)).toBeUndefined();
@@ -31,5 +36,6 @@ describe('aiAgentThreadModeSlice', () => {
         const state = wrap(next);
         expect(selectThreadSqlModeRaw('t1')(state)).toBe(false);
         expect(selectThreadSqlMode('t1')(state)).toBe(false);
+        expect(selectThreadSqlMode('t1', true)(state)).toBe(false);
     });
 });

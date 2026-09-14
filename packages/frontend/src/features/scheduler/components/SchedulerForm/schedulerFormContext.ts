@@ -1,4 +1,5 @@
 import {
+    isAppScheduler,
     isChartScheduler,
     isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
@@ -17,6 +18,7 @@ import {
     type ParametersValuesMap,
     type SchedulerAiAugmentation,
     type SchedulerAndTargets,
+    type SchedulerAppState,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
     type SchedulerPdfOptions,
@@ -50,12 +52,15 @@ export interface SchedulerFormValues {
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    /** App deliveries only: snapshot of the app's shareable URL state. */
+    appState?: SchedulerAppState | null;
     thresholds?: Array<{
         fieldId: string;
         operator: ThresholdOperator;
-        value: number;
+        value: number | '';
     }>;
     includeLinks: boolean;
+    plainTextEmail: boolean;
     notificationFrequency?: NotificationFrequency;
     // Saved to the EE ai-augmentation sub-resource, not the scheduler body.
     aiAugmentation: SchedulerAiAugmentation | null;
@@ -86,13 +91,17 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     slackTargets: [],
     msTeamsTargets: [],
     googleChatTargets: [],
-    dashboardFilters: [],
+    // undefined = not yet seeded from live dashboard filters; [] = user removed them all
+    dashboardFilters: undefined,
+    // undefined = not yet seeded from the chart's saved filters; {} = user removed them all
     chartFilters: undefined,
     parameters: undefined,
     customViewportWidth: undefined,
     selectedTabs: null,
+    appState: null,
     thresholds: [],
     includeLinks: true,
+    plainTextEmail: false,
     aiAugmentation: null,
 };
 
@@ -202,13 +211,23 @@ export const getFormValuesFromScheduler = (
             chartFilters: schedulerData.filters,
             parameters: schedulerData.parameters,
         }),
+        ...(isAppScheduler(schedulerData) && {
+            appState: schedulerData.appState ?? null,
+        }),
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
         includeLinks: schedulerData.includeLinks !== false,
+        plainTextEmail: schedulerData.plainTextEmail === true,
         // Populated separately from the ai-augmentation sub-resource.
         aiAugmentation: null,
     };
 };
+
+// Emails receive the file as an attachment, Slack channels get it in the message thread.
+export const hasFileAttachmentTargets = (
+    values: Pick<SchedulerFormValues, 'emailTargets' | 'slackTargets'>,
+): boolean =>
+    (values.emailTargets?.length || 0) + (values.slackTargets?.length || 0) > 0;
 
 export const transformFormValues = (
     values: SchedulerFormValues,
@@ -222,12 +241,9 @@ export const transformFormValues = (
                 values.options.limit === Limit.CUSTOM
                     ? values.options.customLimit
                     : values.options.limit,
-            // Only allow attachment for CSV format and if there are email targets
-            asAttachment:
-                values.format === SchedulerFormat.CSV &&
-                (values.emailTargets?.length || 0) > 0
-                    ? values.options.asAttachment
-                    : false,
+            asAttachment: hasFileAttachmentTargets(values)
+                ? values.options.asAttachment
+                : false,
             exportPivotedData: values.options.exportPivotedData,
             xlsxFileLayout:
                 values.format === SchedulerFormat.XLSX
@@ -294,12 +310,26 @@ export const transformFormValues = (
             filters: values.chartFilters,
             parameters: values.parameters,
         }),
-        thresholds: values.thresholds,
+        thresholds: values.thresholds?.filter(
+            (
+                threshold,
+            ): threshold is typeof threshold & {
+                value: number;
+            } => typeof threshold.value === 'number',
+        ),
+        ...(resourceType === 'app' && {
+            appState: values.appState ?? undefined,
+        }),
         enabled: true,
         notificationFrequency:
             'notificationFrequency' in values
                 ? (values.notificationFrequency as NotificationFrequency)
                 : undefined,
         includeLinks: values.includeLinks !== false,
+        // Plain text only affects email bodies, so it cannot be left on for a
+        // delivery with no email recipients.
+        plainTextEmail:
+            (values.emailTargets?.length || 0) > 0 &&
+            values.plainTextEmail === true,
     };
 };

@@ -1,8 +1,11 @@
 import {
     CustomFormatType,
+    FilterOperator,
     MetricQuery,
     PivotConfiguration,
     SortByDirection,
+    TableCalculationTotalMode,
+    TableCalculationType,
     VizAggregationOptions,
     VizIndexType,
 } from '@lightdash/common';
@@ -164,6 +167,7 @@ describe('QueryComposer', () => {
             { kind: 'columnTotal', subtotalDimensions: undefined },
             { kind: 'rowTotal', subtotalDimensions: undefined },
             { kind: 'columnSubtotal', subtotalDimensions: ['table1_dim1'] },
+            { kind: 'rowSubtotal', subtotalDimensions: ['table1_dim1'] },
         ];
 
         it.each(CASES)(
@@ -181,5 +185,83 @@ describe('QueryComposer', () => {
                 expect(composer.getSql({ columnLimit: 100 })).toMatchSnapshot();
             },
         );
+
+        describe('metric-filtered source (filtered dimension groups)', () => {
+            const METRIC_FILTERED_TOTALS_SOURCE: MetricQuery = {
+                ...TOTALS_SOURCE_METRIC_QUERY,
+                filters: {
+                    metrics: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: '1',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.GREATER_THAN,
+                                values: [10],
+                            },
+                        ],
+                    },
+                },
+            };
+
+            it.each([
+                { kind: 'columnTotal' as const, subtotalDimensions: undefined },
+                {
+                    kind: 'columnSubtotal' as const,
+                    subtotalDimensions: ['table1_dim1'],
+                },
+            ])(
+                'restricts the totals query to the filtered dimension groups for kind "$kind"',
+                ({ kind, subtotalDimensions }) => {
+                    const composer = new QueryComposer(
+                        {
+                            metricQuery: METRIC_FILTERED_TOTALS_SOURCE,
+                            pivotConfiguration:
+                                TOTALS_SOURCE_PIVOT_CONFIGURATION,
+                            totalConfiguration: { kind, subtotalDimensions },
+                        },
+                        CONTEXT,
+                    );
+
+                    const sql = composer.getSql({ columnLimit: 100 });
+                    // The metric filter must not survive into the collapsed
+                    // totals grain; it is enforced by the semi-join instead.
+                    expect(sql).toContain('source_dimension_groups');
+                    expect(sql).toMatchSnapshot();
+                },
+            );
+
+            it('sums sum-of-rows table calcs over the shared filtered-groups CTE', () => {
+                const composer = new QueryComposer(
+                    {
+                        metricQuery: {
+                            ...METRIC_FILTERED_TOTALS_SOURCE,
+                            tableCalculations: [
+                                {
+                                    name: 'metric_plus_two',
+                                    displayName: 'Metric plus two',
+                                    sql: '${table1.metric1} + 2',
+                                    type: TableCalculationType.NUMBER,
+                                    totalMode:
+                                        TableCalculationTotalMode.SUM_OF_ROWS,
+                                },
+                            ],
+                        },
+                        pivotConfiguration: undefined,
+                        totalConfiguration: {
+                            kind: 'grandTotal',
+                            subtotalDimensions: undefined,
+                        },
+                    },
+                    CONTEXT,
+                );
+
+                const sql = composer.getSql({ columnLimit: 100 });
+                expect(sql).toContain('source_aggregations');
+                // Restriction and aggregations share one source embed.
+                expect(sql.match(/source_rows AS \(/g)).toHaveLength(1);
+                expect(sql).toMatchSnapshot();
+            });
+        });
     });
 });

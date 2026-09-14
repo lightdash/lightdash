@@ -1,5 +1,9 @@
-import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
-import { Anchor, Button, Text } from '@mantine-8/core';
+import {
+    assertUnreachable,
+    ChartKind,
+    type AiAgentMessageAssistant,
+} from '@lightdash/common';
+import { Anchor, Button, Text } from '@mantine/core';
 import {
     IconChartBar,
     IconLayoutDashboard,
@@ -8,21 +12,32 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { setArtifact, setSavedChartPreview } from '../../store/aiArtifactSlice';
+import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import styles from './ContentLink.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
+import { type ContentType } from './rehypeContentLinks';
+import {
+    isPlainLeftClick,
+    useDataAppPreviewLink,
+} from './useDataAppPreviewLink';
 
 export type SqlRunnerLinkState = {
     sql: string;
     limit?: number;
 };
 
+const REFERENCE_LINK_KINDS = {
+    'dashboard-link': 'dashboard',
+    'data-app-link': 'data_app',
+    'scheduled-delivery-link': 'scheduled_delivery',
+} as const;
+
 type ContentLinkProps = {
-    contentType: string | undefined;
+    contentType: ContentType | undefined;
     props: Record<string, unknown>;
     children: ReactNode;
     message: AiAgentMessageAssistant;
@@ -44,26 +59,23 @@ export const ContentLink: FC<ContentLinkProps> = ({
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const dashboardHref = typeof props.href === 'string' ? props.href : '';
-    const title = typeof props.title === 'string' ? props.title : undefined;
     const dispatch = useAiAgentStoreDispatch();
-    const currentArtifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
-    const currentSavedChart = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.savedChart,
-    );
+    const currentPreview = useAiAgentStoreSelector(selectPreview);
+    const resourceHref = typeof props.href === 'string' ? props.href : '';
+    const title = typeof props.title === 'string' ? props.title : undefined;
+    const dataAppUuid =
+        'data-app-uuid' in props && typeof props['data-app-uuid'] === 'string'
+            ? props['data-app-uuid']
+            : null;
+    const dataAppPreviewLink = useDataAppPreviewLink(dataAppUuid, {
+        messageUuid: message.uuid,
+        threadUuid: message.threadUuid,
+        projectUuid,
+        agentUuid,
+    });
 
-    const handleDashboardClick = (e: MouseEvent<HTMLAnchorElement>) => {
-        if (
-            !dashboardHref ||
-            e.defaultPrevented ||
-            e.button !== 0 ||
-            e.metaKey ||
-            e.altKey ||
-            e.ctrlKey ||
-            e.shiftKey
-        ) {
+    const handleResourceClick = (e: MouseEvent<HTMLAnchorElement>) => {
+        if (!resourceHref || !isPlainLeftClick(e)) {
             return;
         }
 
@@ -73,7 +85,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
             pathname: location.pathname,
             search: location.search,
         });
-        const targetUrl = new URL(dashboardHref, window.location.origin);
+        const targetUrl = new URL(resourceHref, window.location.origin);
         const targetPath = createPath({
             pathname: targetUrl.pathname,
             search: targetUrl.search,
@@ -86,27 +98,35 @@ export const ContentLink: FC<ContentLinkProps> = ({
         }
     };
 
+    if (contentType === undefined) {
+        return <a {...props}>{children}</a>;
+    }
+
     switch (contentType) {
         case 'dashboard-link':
+        // Resource view URL with ?scheduler_uuid — navigating opens that
+        // delivery's edit modal on the chart/dashboard page.
+        case 'scheduled-delivery-link':
             return (
                 <ContentReferenceLink
-                    to={dashboardHref || undefined}
-                    kind="dashboard"
-                    onClick={handleDashboardClick}
+                    to={resourceHref || undefined}
+                    kind={REFERENCE_LINK_KINDS[contentType]}
+                    onClick={handleResourceClick}
                     title={title}
                 >
                     {children}
                 </ContentReferenceLink>
             );
 
-        // Resource view URL with ?scheduler_uuid — navigating opens that
-        // delivery's edit modal on the chart/dashboard page.
-        case 'scheduled-delivery-link':
+        case 'data-app-link':
             return (
                 <ContentReferenceLink
-                    to={dashboardHref || undefined}
-                    kind="scheduled_delivery"
-                    onClick={handleDashboardClick}
+                    to={resourceHref || undefined}
+                    kind={REFERENCE_LINK_KINDS[contentType]}
+                    data-app-active={dataAppPreviewLink.isActive || undefined}
+                    onClick={dataAppPreviewLink.onClick}
+                    target="_blank"
+                    rel="noreferrer"
                     title={title}
                 >
                     {children}
@@ -138,25 +158,19 @@ export const ContentLink: FC<ContentLinkProps> = ({
             const href = typeof props.href === 'string' ? props.href : '';
             const isSavedChart = chartSource !== 'sql-runner' && !!chartUuid;
             const isActive =
-                isSavedChart && currentSavedChart?.savedChartUuid === chartUuid;
+                isSavedChart &&
+                currentPreview?.type === 'savedChart' &&
+                currentPreview.savedChartUuid === chartUuid;
 
             const handleChartClick = (e: MouseEvent<HTMLAnchorElement>) => {
-                if (
-                    !isSavedChart ||
-                    !chartUuid ||
-                    e.defaultPrevented ||
-                    e.button !== 0 ||
-                    e.metaKey ||
-                    e.altKey ||
-                    e.ctrlKey ||
-                    e.shiftKey
-                ) {
+                if (!isSavedChart || !chartUuid || !isPlainLeftClick(e)) {
                     return;
                 }
 
                 e.preventDefault();
                 dispatch(
-                    setSavedChartPreview({
+                    setPreview({
+                        type: 'savedChart',
                         savedChartUuid: chartUuid,
                         messageUuid: message.uuid,
                         threadUuid: message.threadUuid,
@@ -207,9 +221,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
                       : IconChartBar;
 
             const isActive =
-                currentArtifact &&
-                currentArtifact.artifactUuid === artifactUuid &&
-                currentArtifact.versionUuid === versionUuid;
+                currentPreview?.type === 'artifact' &&
+                currentPreview.artifactUuid === artifactUuid &&
+                currentPreview.versionUuid === versionUuid;
 
             return (
                 <Anchor
@@ -227,7 +241,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
                         e.preventDefault();
                         if (artifactUuid && versionUuid) {
                             dispatch(
-                                setArtifact({
+                                setPreview({
+                                    type: 'artifact',
                                     artifactUuid,
                                     versionUuid,
                                     messageUuid: message.uuid,
@@ -277,6 +292,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     target="_blank"
                     rel="noreferrer"
                     title={title}
+                    inherit
                 >
                     {children}
                 </Anchor>
@@ -315,6 +331,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
         }
 
         default:
-            return <a {...props}>{children}</a>;
+            return assertUnreachable(
+                contentType,
+                `Unknown content type: ${contentType}`,
+            );
     }
 };

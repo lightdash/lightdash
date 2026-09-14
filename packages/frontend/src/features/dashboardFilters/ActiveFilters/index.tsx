@@ -11,9 +11,13 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { type DashboardFilterRule } from '@lightdash/common';
-import { Group, Skeleton, useMantineTheme } from '@mantine-8/core';
+import {
+    getDashboardFilterField,
+    type DashboardFilterRule,
+} from '@lightdash/common';
+import { Group, Skeleton, useMantineTheme } from '@mantine/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
     doesFilterApplyToAnyTile,
@@ -98,6 +102,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     triggerClassName,
     dropdownClassName,
 }) => {
+    const getUiString = useUiStrings();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
@@ -179,7 +184,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             if (tabsEnabled) {
                 return {
                     isOrphaned: appliesToTabs.length === 0,
-                    orphanedTooltip: 'This filter is not applied to any tabs',
+                    orphanedTooltip: getUiString('filters.notAppliedToAnyTabs'),
                 };
             }
             // Single tab or no tabs - check if filter applies to any tile
@@ -190,10 +195,10 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             );
             return {
                 isOrphaned: !appliesToAnyTile,
-                orphanedTooltip: 'This filter is not applied to any tiles',
+                orphanedTooltip: getUiString('filters.notAppliedToAnyTiles'),
             };
         },
-        [tabsEnabled, dashboardTiles, filterableFieldsByTileUuid],
+        [tabsEnabled, dashboardTiles, filterableFieldsByTileUuid, getUiString],
     );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
@@ -262,7 +267,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleDragEnd}
             >
                 {dashboardFilters.dimensions.map((item, index) => {
-                    const field = allFilterableFieldsMap[item.target.fieldId];
+                    const field = getDashboardFilterField(
+                        allFilterableFieldsMap,
+                        item,
+                        filterableFieldsByTileUuid,
+                    );
                     const appliesToTabs = getTabsUsingFilter(item);
 
                     const isOrphanedFilter = appliesToTabs.length === 0;
@@ -338,9 +347,22 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleMetricDragEnd}
             >
                 {dashboardFilters.metrics.map((item, index) => {
-                    const metricField =
-                        allFilterableMetricsMap[item.target.fieldId];
+                    const metricField = getDashboardFilterField(
+                        allFilterableMetricsMap,
+                        item,
+                        filterableFieldsByTileUuid,
+                    );
                     const appliesToTabs = getTabsUsingFilter(item);
+
+                    const isOrphanedFilter = appliesToTabs.length === 0;
+                    const appliedToCurrentTab =
+                        !activeTabUuid || appliesToTabs.includes(activeTabUuid);
+
+                    // Hide filter if it doesn't apply to the current tab
+                    // But always show orphaned filters so users can see and fix them
+                    if (!appliedToCurrentTab && !isOrphanedFilter) {
+                        return null;
+                    }
 
                     return metricField ? (
                         <DroppableArea key={item.id} id={item.id}>
@@ -390,9 +412,22 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             </DndContext>
 
             {dashboardTemporaryFilters.metrics.map((item, index) => {
-                const metricField =
-                    allFilterableMetricsMap[item.target.fieldId];
+                const metricField = getDashboardFilterField(
+                    allFilterableMetricsMap,
+                    item,
+                    filterableFieldsByTileUuid,
+                );
                 const appliesToTabs = getTabsUsingFilter(item);
+
+                const isOrphanedFilter = appliesToTabs.length === 0;
+                const appliedToCurrentTab =
+                    !activeTabUuid || appliesToTabs.includes(activeTabUuid);
+
+                // Hide filter if it doesn't apply to the current tab
+                // But always show orphaned filters so users can see and fix them
+                if (!appliedToCurrentTab && !isOrphanedFilter) {
+                    return null;
+                }
 
                 return metricField ? (
                     <Filter
@@ -432,7 +467,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             })}
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
-                const field = allFilterableFieldsMap[item.target.fieldId];
+                const field = getDashboardFilterField(
+                    allFilterableFieldsMap,
+                    item,
+                    filterableFieldsByTileUuid,
+                );
                 const appliesToTabs = getTabsUsingFilter(item);
 
                 const isOrphanedFilter = appliesToTabs.length === 0;

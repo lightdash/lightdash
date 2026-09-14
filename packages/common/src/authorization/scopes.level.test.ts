@@ -11,6 +11,8 @@ import {
 const ORG_ONLY_SCOPE_NAMES = [
     'view:Organization',
     'manage:Organization',
+    'view:Roadmap',
+    'manage:Roadmap',
     'view:OrganizationMemberProfile',
     'manage:OrganizationMemberProfile',
     'manage:InviteLink',
@@ -19,6 +21,7 @@ const ORG_ONLY_SCOPE_NAMES = [
     'view:OrganizationWarehouseCredentials',
     'manage:OrganizationWarehouseCredentials',
     'manage:PersonalAccessToken',
+    'manage:OrganizationColorPalette',
     'impersonate:User',
     'view:OrganizationDesign',
     'manage:OrganizationDesign',

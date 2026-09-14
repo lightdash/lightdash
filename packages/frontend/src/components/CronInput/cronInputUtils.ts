@@ -3,6 +3,7 @@ import { stringToArray } from 'cron-converter';
 export enum Frequency {
     HOURLY = 'HOURLY',
     DAILY = 'DAILY',
+    WEEKDAYS = 'WEEKDAYS',
     WEEKLY = 'WEEKLY',
     MONTHLY = 'MONTHLY',
     CUSTOM = 'CUSTOM',
@@ -12,6 +13,10 @@ const hasAllHours = (count: number) => count === 24;
 const hasAllDays = (count: number) => count === 31;
 const hasAllMonths = (count: number) => count === 12;
 const hasAllWeekDays = (count: number) => count === 7;
+const WEEK_DAYS_MONDAY_TO_FRIDAY = [1, 2, 3, 4, 5];
+const isMondayToFriday = (weekDays: number[]) =>
+    weekDays.length === WEEK_DAYS_MONDAY_TO_FRIDAY.length &&
+    WEEK_DAYS_MONDAY_TO_FRIDAY.every((day) => weekDays.includes(day));
 
 export const mapCronExpressionToFrequency = (value: string): Frequency => {
     try {
@@ -37,6 +42,14 @@ export const mapCronExpressionToFrequency = (value: string): Frequency => {
             hasAllWeekDays(weekDaysCount)
         ) {
             return Frequency.DAILY;
+        } else if (
+            minutesCount === 1 &&
+            hoursCount === 1 &&
+            hasAllDays(daysCount) &&
+            hasAllMonths(monthsCount) &&
+            isMondayToFriday(arr[4])
+        ) {
+            return Frequency.WEEKDAYS;
         } else if (
             minutesCount === 1 &&
             hoursCount === 1 &&
@@ -100,6 +113,13 @@ export const getDailyCronExpression = (
     return [minutes, hours, '*', '*', '*'].join(' ');
 };
 
+export const getWeekdaysCronExpression = (
+    minutes: number,
+    hours: number,
+): string => {
+    return [minutes, hours, '*', '*', '1-5'].join(' ');
+};
+
 export const getWeeklyCronExpression = (
     minutes: number,
     hours: number,
@@ -130,6 +150,10 @@ export const getFrequencyCronExpression = (
         }
         case Frequency.DAILY: {
             newCronExpression = getDailyCronExpression(minutes, hours);
+            break;
+        }
+        case Frequency.WEEKDAYS: {
+            newCronExpression = getWeekdaysCronExpression(minutes, hours);
             break;
         }
         case Frequency.WEEKLY: {

@@ -179,7 +179,7 @@ jobs:
       - uses: ${CHECKOUT_ACTION}
       - uses: ${SETUP_NODE_ACTION}
         with:
-          node-version: '20.x'
+          node-version: '24.x'
       - name: Install Lightdash CLI
         run: npm install -g @lightdash/cli@${cliVersion}
       - name: Write dbt profiles
@@ -239,7 +239,7 @@ jobs:
       - uses: ${CHECKOUT_ACTION}
       - uses: ${SETUP_NODE_ACTION}
         with:
-          node-version: '20.x'
+          node-version: '24.x'
       - name: Install Lightdash CLI
         run: npm install -g @lightdash/cli@${cliVersion}
       - name: Delete preview project

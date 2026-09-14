@@ -16,23 +16,25 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { Checkbox, Divider, Stack, Switch } from '@mantine-8/core';
-import { produce } from 'immer';
+import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import {
     getSeriesGroupedByField,
     isPivotSeriesOrderDeterminedByQuery,
+    moveSeriesGroup,
+    type SeriesGroup,
 } from '../../../../hooks/cartesianChartConfig/utils';
+import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../../common/ColorPaletteSection';
 import { Config } from '../../common/Config';
-import compactStyles from '../../mantineTheme.module.css';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import { CustomColors } from './CustomColors';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';
+import { SeriesDrawOrderBar } from './SeriesDrawOrder';
 
 type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
@@ -41,7 +43,8 @@ type DraggablePortalHandlerProps = {
 const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };
 
@@ -88,36 +91,59 @@ export const Series: FC<Props> = ({ items }) => {
         return getSeriesGroupedByField(dirtyEchartsConfig?.series ?? []);
     }, [isCartesianChart, visualizationConfig]);
 
+    const applyGroupOrder = useCallback(
+        (groups: SeriesGroup[]) => {
+            if (!chartConfig) return;
+            chartConfig.updateSeries(
+                groups.reduce<SeriesType[]>(
+                    (acc, seriesGroup) => [
+                        ...acc,
+                        ...seriesGroup.value.map((s) => ({
+                            ...s,
+                            color: getSeriesColor(s),
+                        })),
+                    ],
+                    [],
+                ),
+            );
+        },
+        [chartConfig, getSeriesColor],
+    );
+
     const onDragEnd = useCallback(
         (result: DropResult) => {
-            if (!chartConfig || !seriesGroupedByField) return;
-
-            const { updateSeries } = chartConfig;
-
+            if (!seriesGroupedByField) return;
             if (!result.destination) return;
             if (result.destination.index === result.source.index) return;
-            const sourceIndex = result.source.index;
-            const destinationIndex = result.destination.index;
-            const reorderedSeriesGroups = produce(
-                seriesGroupedByField,
-                (newState) => {
-                    const [removed] = newState.splice(sourceIndex, 1);
-                    newState.splice(destinationIndex, 0, removed);
-                },
+
+            applyGroupOrder(
+                moveSeriesGroup(
+                    seriesGroupedByField,
+                    result.source.index,
+                    result.destination.index,
+                ),
             );
-            const reorderedSeries = reorderedSeriesGroups.reduce<SeriesType[]>(
-                (acc, seriesGroup) => [
-                    ...acc,
-                    ...seriesGroup.value.map((s) => ({
-                        ...s,
-                        color: getSeriesColor(s),
-                    })),
-                ],
-                [],
-            );
-            updateSeries(reorderedSeries);
         },
-        [seriesGroupedByField, chartConfig, getSeriesColor],
+        [seriesGroupedByField, applyGroupOrder],
+    );
+
+    const onReverseOrder = useCallback(() => {
+        if (!seriesGroupedByField) return;
+        applyGroupOrder([...seriesGroupedByField].reverse());
+    }, [seriesGroupedByField, applyGroupOrder]);
+
+    const onBringToFront = useCallback(
+        (index: number) => {
+            if (!seriesGroupedByField) return;
+            applyGroupOrder(
+                moveSeriesGroup(
+                    seriesGroupedByField,
+                    index,
+                    seriesGroupedByField.length - 1,
+                ),
+            );
+        },
+        [seriesGroupedByField, applyGroupOrder],
     );
 
     if (!isCartesianChart) return null;
@@ -186,10 +212,19 @@ export const Series: FC<Props> = ({ items }) => {
     const customColorsEnabled =
         colorByCategory || conditionalFormattings.length > 0;
 
+    const hasMultipleSeries = (seriesGroupedByField?.length ?? 0) > 1;
+    const canReorder = hasMultipleSeries && !sortedByPivot;
+
     return (
         <Stack gap="md">
             <ColorPaletteSection />
             <Divider />
+            {hasMultipleSeries && (
+                <SeriesDrawOrderBar
+                    canReorder={canReorder}
+                    onReverse={onReverseOrder}
+                />
+            )}
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="results-table-sort-fields">
                     {(dropProps) => (
@@ -208,6 +243,16 @@ export const Series: FC<Props> = ({ items }) => {
 
                                 const hasDivider =
                                     seriesGroupedByField.length !== i + 1;
+
+                                const drawOrder = canReorder
+                                    ? {
+                                          isFront:
+                                              i ===
+                                              seriesGroupedByField.length - 1,
+                                          onBringToFront: () =>
+                                              onBringToFront(i),
+                                      }
+                                    : undefined;
 
                                 if (!field) {
                                     return (
@@ -268,6 +313,9 @@ export const Series: FC<Props> = ({ items }) => {
                                                             isDragDisabled={
                                                                 sortedByPivot
                                                             }
+                                                            drawOrder={
+                                                                drawOrder
+                                                            }
                                                             updateSeries={
                                                                 updateSeries
                                                             }
@@ -302,6 +350,9 @@ export const Series: FC<Props> = ({ items }) => {
                                                             isDragDisabled={
                                                                 sortedByPivot
                                                             }
+                                                            drawOrder={
+                                                                drawOrder
+                                                            }
                                                             showColorPickerIcon={
                                                                 colorByCategory
                                                             }
@@ -327,9 +378,6 @@ export const Series: FC<Props> = ({ items }) => {
                         <Stack gap="xs">
                             <Switch
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 label="Apply custom colors"
                                 checked={customColorsEnabled}
                                 onChange={(e) => {
@@ -396,9 +444,6 @@ export const Series: FC<Props> = ({ items }) => {
             {hasStackedBars && (
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     checked={showOverlappingLabelsEnabled}
                     label="Show overlapping labels"
                     onChange={handleOverlappingLabelsToggle}

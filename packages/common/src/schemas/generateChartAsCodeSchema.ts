@@ -251,7 +251,10 @@ export const convertOpenApiToDraft07 = (value: JsonValue): JsonValue => {
 const tryBuildDiscriminatedChartConfig = (
     components: Record<string, JsonObject>,
 ): JsonObject | null => {
-    const chartConfigSchema = components.ChartConfig;
+    // Chart YAML carries the as-code config union (slug-based viz bindings);
+    // fall back to the runtime union for older swagger outputs.
+    const chartConfigSchema =
+        components.ChartAsCodeConfig ?? components.ChartConfig;
     if (!chartConfigSchema) {
         return null;
     }
@@ -531,6 +534,7 @@ const run = (): void => {
             JSON.parse(currentContent) as JsonObject,
         );
         if (normalizedCurrentContent !== nextContent) {
+            // eslint-disable-next-line no-console
             console.error(
                 'chart-as-code schema is out of date. Run `pnpm generate:chart-as-code-schema`.',
             );

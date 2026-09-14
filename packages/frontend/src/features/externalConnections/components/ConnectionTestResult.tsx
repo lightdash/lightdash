@@ -1,5 +1,5 @@
 import { type ExternalFetchResponse } from '@lightdash/common';
-import { Badge, Code, Group, ScrollArea, Stack, Text } from '@mantine-8/core';
+import { Badge, Code, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 
 const MAX_BODY_RENDER_CHARS = 4000;
@@ -23,7 +23,7 @@ export const ConnectionTestResult: FC<Props> = ({ response }) => (
             <Badge color={statusColor(response.status)}>
                 {response.status}
             </Badge>
-            <Text fz="xs" c="ldGray.6">
+            <Text fz="xs" c="dimmed">
                 {response.contentType}
             </Text>
             {response.truncated && <Badge color="yellow">truncated</Badge>}
@@ -35,10 +35,10 @@ export const ConnectionTestResult: FC<Props> = ({ response }) => (
                 fz="xs"
                 style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
             >
-                {JSON.stringify(response.body, null, 2).slice(
-                    0,
-                    MAX_BODY_RENDER_CHARS,
-                )}
+                {(typeof response.body === 'string'
+                    ? response.body
+                    : JSON.stringify(response.body, null, 2)
+                ).slice(0, MAX_BODY_RENDER_CHARS)}
             </Code>
         </ScrollArea.Autosize>
     </Stack>

@@ -1,5 +1,6 @@
 import {
     getParameterReferences,
+    isVizBigNumberConfig,
     isVizTableConfig,
     type ParameterValue,
 } from '@lightdash/common';
@@ -10,7 +11,7 @@ import {
     SegmentedControl,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
@@ -20,11 +21,13 @@ import { ConditionalVisibility } from '../components/common/ConditionalVisibilit
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import BigNumberView from '../components/DataViz/visualizations/BigNumberView';
 import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import type { EChartsInstance } from '../components/EChartsReactWrapper';
 import { Parameters, useParameters } from '../features/parameters';
+import styles from '../features/sqlRunner/components/ContentPanel.module.css';
 import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
 import ResultsDownloadButton from '../features/sqlRunner/components/Download/ResultsDownloadButton';
 import { Header } from '../features/sqlRunner/components/Header';
@@ -41,6 +44,7 @@ import {
     setSavedChartData,
     updateParameterValue,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 
 enum TabOption {
     CHART = 'chart',
@@ -49,7 +53,8 @@ enum TabOption {
 }
 
 const ViewSqlChart = () => {
-    const params = useParams<{ projectUuid: string; slug?: string }>();
+    const params = useParams<{ slug?: string }>();
+    const projectUuid = useProjectUuid();
     const dispatch = useAppDispatch();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
 
@@ -77,7 +82,7 @@ const ViewSqlChart = () => {
         },
         getDownloadQueryUuid,
     } = useSavedSqlChartResults({
-        projectUuid: params.projectUuid,
+        projectUuid: projectUuid,
         ...(isUuid ? { savedSqlUuid: slugParam } : { slug: slugParam }),
         parameters: parameterValues,
     });
@@ -99,22 +104,27 @@ const ViewSqlChart = () => {
 
     // TODO: remove state sync - this is because the <Header /> component depends on the Redux state
     useEffect(() => {
-        if (chartData) {
+        if (chartData && !chartError) {
             dispatch(setSavedChartData(chartData));
         }
-        if (params.projectUuid) {
-            dispatch(setProjectUuid(params.projectUuid));
+        if (projectUuid) {
+            dispatch(setProjectUuid(projectUuid));
         }
-    }, [dispatch, chartData, params.projectUuid]);
+    }, [dispatch, chartData, chartError, projectUuid]);
 
     const {
         data: projectParameters,
         isLoading: isProjectParametersLoading,
         isError: isProjectParametersError,
-    } = useParameters(
-        params.projectUuid,
-        Array.from(parameterReferences ?? []),
-    );
+    } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
+
+    if (chartError) {
+        return (
+            <Page title="SQL chart">
+                <ErrorState error={chartError.error} />
+            </Page>
+        );
+    }
 
     return (
         <Page
@@ -123,14 +133,12 @@ const ViewSqlChart = () => {
             withFullHeight
             header={<Header mode="view" />}
         >
-            <Paper shadow="none" radius={0} px="md" pb={0} pt="sm" flex={1}>
-                <Stack h="100%">
-                    <Group justify="space-between">
+            <Stack p="lg" flex={1} miw={0} className={styles.root}>
+                <Paper className={styles.card}>
+                    <Box className={styles.cardHeader}>
                         <Group justify="space-between">
                             <SegmentedControl
-                                color="ldGray.9"
-                                size="xs"
-                                radius="md"
+                                size="sm"
                                 disabled={isChartResultsLoading}
                                 data={[
                                     {
@@ -176,10 +184,13 @@ const ViewSqlChart = () => {
                             />
                             {(activeTab === TabOption.RESULTS ||
                                 (activeTab === TabOption.CHART &&
-                                    isVizTableConfig(chartData?.config))) &&
-                                params.projectUuid && (
+                                    (isVizTableConfig(chartData?.config) ||
+                                        isVizBigNumberConfig(
+                                            chartData?.config,
+                                        )))) &&
+                                projectUuid && (
                                     <ResultsDownloadButton
-                                        projectUuid={params.projectUuid}
+                                        projectUuid={projectUuid}
                                         disabled={!chartResultsData}
                                         vizTableConfig={
                                             isVizTableConfig(chartData?.config)
@@ -204,11 +215,11 @@ const ViewSqlChart = () => {
                                 )}
                             {activeTab === TabOption.CHART &&
                                 echartsInstance &&
-                                params.projectUuid && (
+                                projectUuid && (
                                     <ChartDownload
                                         echartsInstance={echartsInstance}
                                         chartName={chartData?.name}
-                                        projectUuid={params.projectUuid}
+                                        projectUuid={projectUuid}
                                         disabled={!chartResultsData}
                                         totalResults={
                                             chartResultsData
@@ -226,15 +237,20 @@ const ViewSqlChart = () => {
                                     />
                                 )}
                         </Group>
-                    </Group>
+                    </Box>
 
-                    {chartError && <ErrorState error={chartError.error} />}
                     {chartResultsError && (
                         <ErrorState error={chartResultsError.error} />
                     )}
 
                     {chartData && !isChartLoading && (
-                        <Box h="100%" pos="relative" flex={1}>
+                        <Box
+                            className={styles.cardBody}
+                            data-padded={
+                                activeTab === TabOption.CHART &&
+                                !isVizTableConfig(chartData.config)
+                            }
+                        >
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.CHART}
                             >
@@ -254,7 +270,28 @@ const ViewSqlChart = () => {
                                                     }}
                                                 />
                                             )}
+                                        {isVizBigNumberConfig(
+                                            chartData.config,
+                                        ) && (
+                                            <BigNumberView
+                                                spec={
+                                                    chartResultsData?.chartSpec
+                                                }
+                                                isLoading={
+                                                    isChartLoading ||
+                                                    isChartResultsFetching
+                                                }
+                                                error={chartResultsError?.error}
+                                                hasValueField={
+                                                    !!chartData.config
+                                                        .fieldConfig?.y?.length
+                                                }
+                                            />
+                                        )}
                                         {!isVizTableConfig(chartData.config) &&
+                                            !isVizBigNumberConfig(
+                                                chartData.config,
+                                            ) &&
                                             params.slug &&
                                             chartData.sql && (
                                                 <ChartView
@@ -317,8 +354,8 @@ const ViewSqlChart = () => {
                             </ConditionalVisibility>
                         </Box>
                     )}
-                </Stack>
-            </Paper>
+                </Paper>
+            </Stack>
         </Page>
     );
 };

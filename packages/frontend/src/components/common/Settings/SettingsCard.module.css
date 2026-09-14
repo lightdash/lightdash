@@ -1,3 +1,21 @@
+.settingsGrid {
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+    gap: var(--mantine-spacing-xl);
+    align-items: start;
+}
+
+.settingsGrid > :only-child {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 60em) {
+    .settingsGrid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--mantine-spacing-md);
+    }
+}
+
 .projectCreationCard {
     position: relative;
     display: flex;

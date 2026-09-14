@@ -1,6 +1,7 @@
 import {
     generateSlug,
     getErrorMessage,
+    isValidDataAppSlug,
     validateDataAppCode,
     type DataAppCode,
     type DataAppCodeFile,
@@ -72,8 +73,16 @@ export const writeContextToDir = async (
     dir: string,
     context: DataAppContext,
 ): Promise<void> => {
+    // Server-owned snapshot: clear it so files from a previous download
+    // (removed models, parameters, theme assets) don't linger.
+    await fs.rm(path.join(dir, '.lightdash', 'context'), {
+        recursive: true,
+        force: true,
+    });
     const files: DataAppContextFile[] = [
         context.semanticLayer,
+        // Absent on pre-sharding servers — semanticLayer is then the whole layer.
+        ...(context.semanticLayerFiles ?? []),
         ...(context.parameters ? [context.parameters] : []),
         context.promptHistory,
         ...(context.theme.instructions ? [context.theme.instructions] : []),
@@ -134,7 +143,12 @@ const collectFiles = async (
 export const buildImportBody = (
     code: DataAppCode,
     targetProjectUuid: string,
-    opts: { app?: string; space?: string; createNew?: boolean },
+    opts: {
+        app?: string;
+        space?: string;
+        createNew?: boolean;
+        force?: boolean;
+    },
 ): ImportAppCodeRequestBody => {
     let targetAppUuid: string | undefined;
     if (opts.createNew) {
@@ -143,6 +157,9 @@ export const buildImportBody = (
     } else if (opts.app) {
         targetAppUuid = opts.app;
     } else if (targetProjectUuid === code.manifest.projectUuid) {
+        // Pre-slug bundles carry an appUuid (uuid-fallback identity, and
+        // same-project append on pre-slug servers). Slug-only bundles yield
+        // undefined here — slug-aware servers resolve by slug instead.
         targetAppUuid = code.manifest.appUuid;
     }
 
@@ -150,25 +167,33 @@ export const buildImportBody = (
         code,
         targetAppUuid,
         spaceUuid: opts.space,
+        ...(opts.createNew ? { createNew: true } : {}),
+        ...(opts.force ? { force: true } : {}),
     };
 };
 
 /**
- * Points a downloaded app folder's manifest at a different app, so future
- * uploads update that app instead of the one it was downloaded from.
+ * The persistent slug from a slug-aware server is the folder name (stable
+ * across app renames). Pre-slug servers fall back to name-derived folders.
  */
-export const retargetManifest = async (
-    dir: string,
-    target: { appUuid: string; projectUuid: string; version: number },
-): Promise<void> => {
-    const manifestPath = path.join(dir, MANIFEST_FILENAME);
-    const manifest = YAML.parse(
-        await fs.readFile(manifestPath, 'utf-8'),
-    ) as DataAppManifest;
-    await fs.writeFile(
-        manifestPath,
-        YAML.stringify({ ...manifest, ...target }),
-        'utf-8',
+export const resolveAppFolderName = (
+    manifest: DataAppManifest,
+    takenFolders: Set<string>,
+): string => {
+    // Defense-in-depth: a server of unknown version, or a hand-tampered
+    // manifest on disk, must not steer the local write path via an
+    // unvalidated slug (e.g. `../../etc`) — only trust it once it passes the
+    // same shape check the server enforces on upload.
+    if (manifest.slug !== undefined && isValidDataAppSlug(manifest.slug)) {
+        return manifest.slug;
+    }
+    // The fallback needs a uuid for its collision/untitled suffixes. Real
+    // pre-slug servers always emit appUuid; only a tampered slug-only
+    // manifest lands here without one.
+    return appFolderName(
+        manifest.name,
+        manifest.appUuid ?? 'unknown',
+        takenFolders,
     );
 };
 
@@ -192,6 +217,10 @@ export type LocalAppDependencies = {
     // freshly downloaded folder; it only becomes an error if the declared
     // set differs from the template baseline (the caller decides).
     lockfile: string | null;
+    // A stray package-lock.json — custom deps require pnpm's lockfile, so
+    // the caller can give a targeted hint when this is set and lockfile
+    // is null.
+    hasNpmLockfile: boolean;
 };
 
 /**
@@ -205,17 +234,23 @@ export const readDependenciesFromDir = async (
 ): Promise<LocalAppDependencies | null> => {
     const pkgJsonPath = path.join(dir, 'package.json');
     const lockfilePath = path.join(dir, 'pnpm-lock.yaml');
+    const npmLockfilePath = path.join(dir, 'package-lock.json');
 
-    const [pkgJsonExists, lockfileExists] = await Promise.all([
-        fs
-            .stat(pkgJsonPath)
-            .then(() => true)
-            .catch(() => false),
-        fs
-            .stat(lockfilePath)
-            .then(() => true)
-            .catch(() => false),
-    ]);
+    const [pkgJsonExists, lockfileExists, npmLockfileExists] =
+        await Promise.all([
+            fs
+                .stat(pkgJsonPath)
+                .then(() => true)
+                .catch(() => false),
+            fs
+                .stat(lockfilePath)
+                .then(() => true)
+                .catch(() => false),
+            fs
+                .stat(npmLockfilePath)
+                .then(() => true)
+                .catch(() => false),
+        ]);
 
     if (!pkgJsonExists && !lockfileExists) return null;
 
@@ -230,7 +265,7 @@ export const readDependenciesFromDir = async (
         lockfileExists ? fs.readFile(lockfilePath, 'utf-8') : null,
     ]);
 
-    return { packageJson, lockfile };
+    return { packageJson, lockfile, hasNpmLockfile: npmLockfileExists };
 };
 
 /**
@@ -288,19 +323,24 @@ export const attachDependenciesToCode = (
 ): DataAppCode =>
     Object.keys(customDeps).length > 0 ? { ...code, dependencies: deps } : code;
 
-export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
+export const readManifestFromDir = async (
+    dir: string,
+): Promise<DataAppManifest> => {
     const manifestRaw = await fs.readFile(
         path.join(dir, MANIFEST_FILENAME),
         'utf-8',
     );
-    let manifest: DataAppManifest;
     try {
-        manifest = YAML.parse(manifestRaw) as DataAppManifest;
+        return YAML.parse(manifestRaw) as DataAppManifest;
     } catch (err) {
         throw new Error(
             `Could not parse ${MANIFEST_FILENAME}: ${getErrorMessage(err)}`,
         );
     }
+};
+
+export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
+    const manifest = await readManifestFromDir(dir);
 
     const srcDir = path.join(dir, 'src');
     const srcExists = await fs

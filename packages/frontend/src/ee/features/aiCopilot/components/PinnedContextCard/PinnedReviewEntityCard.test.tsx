@@ -53,7 +53,13 @@ describe('PinnedReviewEntityCard', () => {
                     kind: 'definition',
                     content: 'Active user = signed in within 28 days',
                     terms: ['active user'],
-                    objects: [],
+                    objects: [
+                        {
+                            type: 'field',
+                            explore: 'users',
+                            fieldId: 'users_last_login_at',
+                        },
+                    ],
                 },
             },
         });
@@ -62,6 +68,29 @@ describe('PinnedReviewEntityCard', () => {
         expect(
             screen.getByText('Active user = signed in within 28 days'),
         ).toBeInTheDocument();
+        expect(
+            screen.getByText('field "users_last_login_at" in explore "users"'),
+        ).toBeInTheDocument();
+    });
+
+    it('renders a persisted legacy string ref', () => {
+        renderCard({
+            type: 'proposed_change',
+            fingerprint: 'fp-legacy',
+            payload: {
+                changeKind: 'project_context',
+                entry: {
+                    op: 'create',
+                    id: null,
+                    kind: 'context',
+                    content: 'Use the orders explore',
+                    terms: [],
+                    objects: ['orders'],
+                },
+            },
+        });
+
+        expect(screen.getByText('orders')).toBeInTheDocument();
     });
 
     it('renders a semantic-layer proposed change card with the recommendation title', () => {

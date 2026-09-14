@@ -18,6 +18,8 @@ import {
     ChartType,
     getHiddenTableFields,
     isCartesianChartConfig,
+    type DataAppVizFieldMapping,
+    type SavedChart,
     type SavedChartDAO,
 } from '../types/savedCharts';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -214,13 +216,9 @@ function getTablePivotConfiguration(
     const pivotColumns = pivotConfig.columns || [];
 
     // Identify hidden dimensions (visible: false in columnProperties).
-    // ANY hidden dim is excluded from indexColumn / groupByColumns.
-    // Hidden pivot-column dims are routed three ways:
-    //   - sorted → sortOnlyDimensions (drive column ORDER BY)
-    //   - not sorted → passthroughDimensions (carry values through GROUP BY so
-    //     other fields' richText/image templates can read them via `row.*.raw`)
-    // Hidden row-index dims still drop to sortOnlyColumns or are excluded
-    // entirely from indexColumn.
+    // Hidden pivot-column dims are omitted from headers and carried separately.
+    // Hidden row-index dims stay in indexColumn so they continue to distinguish
+    // rows in the SQL pivot; rendering filters them via hiddenDimensionFieldIds.
     const hiddenFieldIds = getHiddenTableFields(chartConfig);
     const sortFieldIds = new Set(metricQuery.sorts.map((s) => s.fieldId));
 
@@ -274,58 +272,6 @@ function getTablePivotConfiguration(
         (col) => !passthroughPivotRefs.has(col.reference),
     );
 
-    const groupByRefs = new Set([
-        ...groupByColumns.map((c) => c.reference),
-        ...sortOnlyPivotDimensions.map((c) => c.reference),
-        ...passthroughPivotDimensions.map((c) => c.reference),
-    ]);
-
-    // All hidden dims that are NOT pivot-column dims (i.e., row-index dims).
-    // These are excluded from indexColumn.
-    const allHiddenDimRefs = new Set(
-        metricQuery.dimensions.filter(
-            (d) => hiddenFieldIds.includes(d) && !groupByRefs.has(d),
-        ),
-    );
-
-    // Subset of hidden row-index dims that are also sorted → participate in SQL
-    // via sortOnlyColumns (merged into valuesColumns for the group_by_query).
-    const sortOnlyRowDimensions = metricQuery.dimensions
-        .filter((d) => allHiddenDimRefs.has(d) && sortFieldIds.has(d))
-        .map((d) => ({
-            reference: d,
-            aggregation: VizAggregationOptions.ANY,
-        }));
-
-    // Hidden row-index dims that are NOT sorted → carried through SQL via
-    // passthroughDimensions (same mechanism as hidden pivot-column dims).
-    // They survive group_by_query GROUP BY so their per-row value reaches
-    // result rows for cross-field richText / image templates. Don't render
-    // as an index column. Assumes 1-to-1 cardinality with the visible row
-    // dims (the typical case: an `image_url` derived from `status`).
-    const passthroughRowDimensions = metricQuery.dimensions
-        .filter(
-            (d) =>
-                allHiddenDimRefs.has(d) &&
-                !sortFieldIds.has(d) &&
-                // Don't double-route if already a sortOnly row dim
-                !sortOnlyRowDimensions.some((s) => s.reference === d),
-        )
-        .map((d) => ({ reference: d }));
-
-    // When computing index columns, treat ALL hidden dims the same as value columns
-    // so they are excluded from indexColumn (preventing them from rendering as
-    // row-index columns). This covers both sort-only hidden dims and hidden dims
-    // that are not sorted at all.
-    const hiddenDimPlaceholders = [...allHiddenDimRefs].map((d) => ({
-        reference: d,
-        aggregation: VizAggregationOptions.ANY,
-    }));
-    const allValuesColumnsForIndex = [
-        ...valuesColumns,
-        ...hiddenDimPlaceholders,
-    ];
-
     // Also exclude hidden pivot-column dims from indexColumn by treating them as
     // group-by columns from getIndexColumn's perspective.
     const allGroupByColumnsForIndex = [
@@ -337,7 +283,7 @@ function getTablePivotConfiguration(
     // Find columns that are not groupBy or value columns (these become index columns)
     const indexColumn = getIndexColumn(
         allGroupByColumnsForIndex,
-        allValuesColumnsForIndex,
+        valuesColumns,
         fields,
         metricQuery,
     );
@@ -346,19 +292,12 @@ function getTablePivotConfiguration(
         indexColumn,
         valuesColumns,
         groupByColumns,
-        ...(sortOnlyRowDimensions.length > 0 && {
-            sortOnlyColumns: sortOnlyRowDimensions,
-        }),
         ...(sortOnlyPivotDimensions.length > 0 && {
             sortOnlyDimensions: sortOnlyPivotDimensions,
             pivotColumnsOrder,
         }),
-        ...((passthroughPivotDimensions.length > 0 ||
-            passthroughRowDimensions.length > 0) && {
-            passthroughDimensions: [
-                ...passthroughPivotDimensions,
-                ...passthroughRowDimensions,
-            ],
+        ...(passthroughPivotDimensions.length > 0 && {
+            passthroughDimensions: passthroughPivotDimensions,
         }),
     };
 
@@ -495,6 +434,60 @@ function isValid(pivotConfiguration: PivotConfiguration): boolean {
     return true;
 }
 
+/**
+ * Derives the backend pivot shape for a reusable custom chart from its
+ * persisted field bindings and lightweight series columns. This function is
+ * intentionally standalone so DATA_APP_VIZ support remains a removable
+ * delegation from the chart-type dispatcher.
+ */
+export function deriveDataAppVizPivotConfiguration(
+    fieldMapping: DataAppVizFieldMapping | undefined,
+    pivotConfig: SavedChart['pivotConfig'],
+    metricQuery: MetricQuery,
+    fields: ItemsMap,
+): PivotConfiguration | undefined {
+    if (!fieldMapping || !pivotConfig?.columns.length) {
+        return undefined;
+    }
+
+    const mappedFieldIds = new Set(Object.values(fieldMapping));
+    const groupByColumns = pivotConfig.columns
+        .filter(
+            (fieldId) =>
+                mappedFieldIds.has(fieldId) &&
+                metricQuery.dimensions.includes(fieldId),
+        )
+        .map((reference) => ({ reference }));
+    const valuesColumns = [
+        ...metricQuery.metrics,
+        ...(metricQuery.tableCalculations ?? []).map(({ name }) => name),
+    ]
+        .filter((fieldId) => mappedFieldIds.has(fieldId))
+        .map((reference) => ({
+            reference,
+            aggregation: VizAggregationOptions.ANY,
+        }));
+    const indexColumn = getIndexColumn(
+        groupByColumns,
+        valuesColumns,
+        fields,
+        metricQuery,
+    );
+    const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
+        indexColumn,
+        valuesColumns,
+        groupByColumns,
+    };
+    const pivotConfiguration: PivotConfiguration = {
+        ...partialPivotConfiguration,
+        sortBy: getSortByForPivotConfiguration(
+            partialPivotConfiguration,
+            metricQuery,
+        ),
+    };
+
+    return isValid(pivotConfiguration) ? pivotConfiguration : undefined;
+}
 export function derivePivotConfigurationFromChart(
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
     metricQuery: MetricQuery,
@@ -527,8 +520,15 @@ export function derivePivotConfigurationFromChart(
         case ChartType.BIG_NUMBER:
         case ChartType.MAP:
         case ChartType.SANKEY:
-        case ChartType.DATA_APP_VIZ:
             newConfig = undefined;
+            break;
+        case ChartType.DATA_APP_VIZ:
+            newConfig = deriveDataAppVizPivotConfiguration(
+                chartConfig.config?.fieldMapping,
+                savedChart.pivotConfig,
+                metricQuery,
+                fields,
+            );
             break;
         default:
             return assertUnreachable(type, `Unknown chart type ${type}`);

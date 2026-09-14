@@ -1,7 +1,7 @@
 import {
     AnyType,
+    BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
-    CreateSchedulerAndTargets,
     CreateSchedulerTarget,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
@@ -12,6 +12,7 @@ import {
     GoogleChatNotificationPayload,
     GsheetsNotificationPayload,
     hasSchedulerUuid,
+    isAppCreateScheduler,
     isCreateScheduler,
     isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
@@ -40,6 +41,7 @@ import {
     SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
     SchedulerTaskName,
+    SendNowScheduler,
     SlackBatchNotificationPayload,
     SlackNotificationPayload,
     SqlRunnerPayload,
@@ -458,14 +460,22 @@ export class SchedulerClient {
             ? {
                   schedulerUuid,
                   ...traceProperties,
+                  ...('executionUserUuid' in scheduler &&
+                      scheduler.executionUserUuid && {
+                          executionUserUuid: scheduler.executionUserUuid,
+                      }),
               }
             : scheduler;
 
+        // Dashboard images and every app delivery (including csv/xlsx, which
+        // capture their queries from a headless render) are retried once more:
+        // the headless browser fails transiently.
         let maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS;
         if (
             isCreateScheduler(scheduler) &&
-            scheduler.format === SchedulerFormat.IMAGE &&
-            !!scheduler.dashboardUuid
+            ((scheduler.format === SchedulerFormat.IMAGE &&
+                !!scheduler.dashboardUuid) ||
+                isAppCreateScheduler(scheduler))
         ) {
             maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS + 1;
         }
@@ -554,7 +564,7 @@ export class SchedulerClient {
     private async addNotificationJob(
         date: Date,
         jobGroup: string,
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
         target: CreateSchedulerTarget | undefined,
         targetUuid: string | undefined,
         page: NotificationPayloadBase['page'] | undefined,
@@ -986,7 +996,7 @@ export class SchedulerClient {
 
     async generateJobsForSchedulerTargets(
         scheduledTime: Date,
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
         page: NotificationPayloadBase['page'] | undefined,
         parentJobId: string,
         traceProperties: TraceTaskBase,
@@ -1425,6 +1435,22 @@ export class SchedulerClient {
         return { jobId };
     }
 
+    async hasCreateProjectWithCompileJob(jobUuid: string): Promise<boolean> {
+        const graphileClient = await this.graphileUtils;
+        const result = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query<{ exists: boolean }>(
+                `SELECT EXISTS (
+                    SELECT 1
+                    FROM graphile_worker.jobs
+                    WHERE task_identifier = $1
+                      AND payload->>'jobUuid' = $2
+                ) AS exists`,
+                [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE, jobUuid],
+            ),
+        );
+        return result.rows[0]?.exists ?? false;
+    }
+
     async testAndCompileProject(payload: CompileProjectPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
@@ -1474,6 +1500,34 @@ export class SchedulerClient {
 
         await this.schedulerModel.logSchedulerJob({
             task,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                userUuid: payload.userUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                createdByUserUuid: payload.userUuid,
+            },
+        });
+
+        return { jobId };
+    }
+
+    async backfillDefaultUserSpaces(payload: BackfillDefaultUserSpacesPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES,
+            payload,
+            now,
+            JobPriority.LOW,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

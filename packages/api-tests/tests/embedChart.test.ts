@@ -267,6 +267,7 @@ describe('Embed Chart JWT API', () => {
 
         describe('POST query chart', () => {
             // This is the method used for the explore to get results from a chart
+            // oxlint-disable-next-line vitest-js/no-disabled-tests -- FIXME below documents why this can't run yet
             it.skip('should get chart query results using JWT token (authorized)', async () => {
                 // FIXME this doesn't work
                 // Currently throws a 403
@@ -310,6 +311,7 @@ describe('Embed Chart JWT API', () => {
         });
 
         describe('GET chart history', () => {
+            // oxlint-disable-next-line vitest-js/no-disabled-tests -- FIXME below documents why this can't run yet
             it.skip('should get chart history using JWT token (authorized)', async () => {
                 // FIXME this doesn't work
                 // SavedChartController.getChartHistory doesn't support embed JWT accounts
@@ -341,6 +343,7 @@ describe('Embed Chart JWT API', () => {
         });
 
         describe('GET chart views', () => {
+            // oxlint-disable-next-line vitest-js/no-disabled-tests -- FIXME below documents why this can't run yet
             it.skip('should get chart views using JWT token (authorized)', async () => {
                 // FIXME this doesn't work
                 // > 500: Internal Server Error
@@ -373,6 +376,7 @@ describe('Embed Chart JWT API', () => {
         // This method is deprecated, but still supported for backwards compatibility
         // We still need to make sure we can get access using the JWT token if the chart matches
         describe('POST chart results deprecated', () => {
+            // oxlint-disable-next-line vitest-js/no-disabled-tests -- FIXME below documents why this can't run yet
             it.skip('should get chart results using JWT token (authorized)', async () => {
                 // FIXME this doesn't work currently because SavedChartController.postChartResults
                 // is not supporting account, so fails to get userUuid parameter
@@ -484,6 +488,63 @@ describe('Embed Chart JWT API', () => {
                     },
                 );
                 // Should fail with 403 Forbidden to prevent project config disclosure
+                expect(resp.status).toBe(403);
+                expect(resp.body).toHaveProperty('error');
+            });
+        });
+
+        describe('Calculate Total from Raw Query (Explore scope)', () => {
+            // Chart JWTs grant view:Explore scoped to the chart's own explore
+            // (payments for the test chart). Raw metric queries must be allowed
+            // on that explore and rejected on any other.
+
+            it('should calculate totals on the chart own explore', async () => {
+                const client = embedClient();
+                const resp = await client.post<Body<unknown>>(
+                    `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                    {
+                        explore: 'payments',
+                        metricQuery: {
+                            exploreName: 'payments',
+                            dimensions: ['payments_payment_method'],
+                            metrics: ['payments_total_revenue'],
+                            filters: {},
+                            sorts: [],
+                            limit: 500,
+                            tableCalculations: [],
+                        },
+                    },
+                    {
+                        headers: embedHeaders(chartJwtToken),
+                        failOnStatusCode: false,
+                    },
+                );
+                expect(resp.status).toBe(200);
+                expect(resp.body.status).toBe('ok');
+                expect(typeof resp.body.results).toBe('object');
+            });
+
+            it('should fail to calculate totals on another explore', async () => {
+                const client = embedClient();
+                const resp = await client.post(
+                    `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                    {
+                        explore: 'customers',
+                        metricQuery: {
+                            exploreName: 'customers',
+                            dimensions: ['customers_customer_id'],
+                            metrics: [],
+                            filters: {},
+                            sorts: [],
+                            limit: 500,
+                            tableCalculations: [],
+                        },
+                    },
+                    {
+                        headers: embedHeaders(chartJwtToken),
+                        failOnStatusCode: false,
+                    },
+                );
                 expect(resp.status).toBe(403);
                 expect(resp.body).toHaveProperty('error');
             });

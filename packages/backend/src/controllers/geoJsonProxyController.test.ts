@@ -67,6 +67,21 @@ describe('GeoJsonProxyController parity', () => {
         ).rejects.toBeInstanceOf(ParameterError);
     });
 
+    it('rejects an upstream error status returned by secureFetch', async () => {
+        mockedSecureFetch.mockResolvedValue({
+            status: 404,
+            contentType: 'text/plain',
+            bodyText: 'not found',
+            truncated: false,
+        });
+        const controller = makeController();
+        await expect(
+            controller.get('https://example.com/data.json'),
+        ).rejects.toThrow(
+            'Failed to fetch GeoJSON: Request failed with status 404',
+        );
+    });
+
     it('returns parsed GeoJSON object on the happy path', async () => {
         mockedSecureFetch.mockResolvedValue({
             status: 200,

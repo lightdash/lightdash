@@ -13,7 +13,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconInfoCircle, IconPin, IconPinFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -107,7 +107,6 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                     </Text>
                                     {parameters?.[paramKey]?.description && (
                                         <Tooltip
-                                            withinPortal
                                             position="top"
                                             maw={350}
                                             label={
@@ -117,7 +116,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                         >
                                             <MantineIcon
                                                 icon={IconInfoCircle}
-                                                color="ldGray.6"
+                                                color="dimmed"
                                                 size="sm"
                                             />
                                         </Tooltip>

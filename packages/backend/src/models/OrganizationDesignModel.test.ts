@@ -1,4 +1,8 @@
-import { NotFoundError } from '@lightdash/common';
+import {
+    AlreadyExistsError,
+    NotFoundError,
+    type ApiOrganizationDesign,
+} from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { OrganizationDesignFilesTableName } from '../database/entities/organizationDesignFiles';
@@ -14,13 +18,16 @@ import { OrganizationDesignModel } from './OrganizationDesignModel';
 const ORG_UUID = '00000000-0000-0000-0000-000000000001';
 const USER_UUID = '00000000-0000-0000-0000-000000000002';
 const DESIGN_UUID = '00000000-0000-0000-0000-000000000010';
+const VALID_DESIGN_UUID = '00000000-0000-4000-8000-000000000010';
 const FILE_UUID = '00000000-0000-0000-0000-000000000100';
 
 const makeDbDesign = (overrides: Partial<Record<string, unknown>> = {}) => ({
     design_uuid: DESIGN_UUID,
     organization_uuid: ORG_UUID,
+    slug: 'brand-a',
     name: 'Brand A',
     description: 'Acme brand',
+    extra_instructions: null,
     is_default: false,
     created_at: new Date('2026-01-01T00:00:00Z'),
     updated_at: new Date('2026-01-02T00:00:00Z'),
@@ -53,6 +60,80 @@ describe('OrganizationDesignModel', () => {
 
     afterEach(() => {
         tracker.reset();
+    });
+
+    describe('create', () => {
+        it('serializes slug allocation and suffixes an organization conflict', async () => {
+            tracker.on.select('pg_advisory_xact_lock').response({});
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce({ slug: 'brand-a' });
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(undefined);
+            tracker.on
+                .insert(OrganizationDesignsTableName)
+                .responseOnce([makeDbDesign({ slug: 'brand-a-1' })]);
+
+            const result = await model.create(ORG_UUID, USER_UUID, {
+                name: 'Brand A',
+                description: null,
+            });
+
+            expect(result.slug).toBe('brand-a-1');
+            expect(
+                tracker.history.all.filter(({ sql }) =>
+                    sql.includes('pg_advisory_xact_lock'),
+                ),
+            ).toHaveLength(2);
+        });
+    });
+
+    describe('findByIdOrSlug', () => {
+        it.each([
+            { selector: VALID_DESIGN_UUID, column: 'design_uuid' },
+            { selector: 'brand-a', column: 'slug' },
+        ])('resolves a design by $column', async ({ selector, column }) => {
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
+                .select(OrganizationDesignFilesTableName)
+                .responseOnce([]);
+
+            const result = await model.findByIdOrSlug(ORG_UUID, selector);
+
+            expect(result?.designUuid).toBe(DESIGN_UUID);
+            expect(tracker.history.select[0].sql).toContain(column);
+            expect(tracker.history.select[0].bindings).toContain(selector);
+        });
+    });
+
+    describe('createWithFiles', () => {
+        it('reserves the imported slug and rejects an existing organization theme', async () => {
+            tracker.on.select('pg_advisory_xact_lock').response({});
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+
+            await expect(
+                model.createWithFiles(ORG_UUID, USER_UUID, {
+                    designUuid: DESIGN_UUID,
+                    slug: 'brand-a',
+                    name: 'Brand A',
+                    description: null,
+                    extraInstructions: null,
+                    files: [],
+                }),
+            ).rejects.toThrow(AlreadyExistsError);
+
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(
+                tracker.history.all.some(({ sql }) =>
+                    sql.includes('pg_advisory_xact_lock'),
+                ),
+            ).toBe(true);
+        });
     });
 
     describe('update', () => {
@@ -162,6 +243,9 @@ describe('OrganizationDesignModel', () => {
             // "modified at" displays. Easy to drop in a future refactor.
             const fileRow = makeDbFile();
             tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
                 .insert(OrganizationDesignFilesTableName)
                 .responseOnce([fileRow]);
             tracker.on.update(OrganizationDesignsTableName).responseOnce(1);
@@ -186,6 +270,9 @@ describe('OrganizationDesignModel', () => {
         it('bumps the parent design updated_at on successful delete', async () => {
             const fileRow = makeDbFile();
             tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
                 .delete(OrganizationDesignFilesTableName)
                 .responseOnce([fileRow]);
             tracker.on.update(OrganizationDesignsTableName).responseOnce(1);
@@ -200,6 +287,9 @@ describe('OrganizationDesignModel', () => {
             // The parent bump must NOT fire on a missing-file path — otherwise
             // the design row's updated_at gets touched for no-op deletes.
             tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
                 .delete(OrganizationDesignFilesTableName)
                 .responseOnce([]);
 
@@ -207,6 +297,182 @@ describe('OrganizationDesignModel', () => {
                 model.removeFile(DESIGN_UUID, FILE_UUID),
             ).rejects.toThrow(NotFoundError);
             expect(tracker.history.update).toHaveLength(0);
+        });
+    });
+
+    describe('removeAllFiles', () => {
+        it('returns every deleted row so the caller can delete their S3 objects', async () => {
+            // The service builds S3 keys from these rows — dropping any here
+            // silently orphans its bytes in the bucket.
+            const rows = [
+                makeDbFile(),
+                makeDbFile({
+                    file_uuid: '00000000-0000-0000-0000-000000000101',
+                    kind: 'image',
+                    filename: 'logo.png',
+                }),
+            ];
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
+                .delete(OrganizationDesignFilesTableName)
+                .responseOnce(rows);
+            tracker.on.update(OrganizationDesignsTableName).responseOnce(1);
+
+            const removed = await model.removeAllFiles(DESIGN_UUID);
+
+            expect(removed.map((f) => f.filename)).toEqual([
+                'theme.css',
+                'logo.png',
+            ]);
+            expect(tracker.history.update).toHaveLength(1);
+        });
+
+        it('skips the parent bump when the design already has no files', async () => {
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
+                .delete(OrganizationDesignFilesTableName)
+                .responseOnce([]);
+
+            await expect(model.removeAllFiles(DESIGN_UUID)).resolves.toEqual(
+                [],
+            );
+            expect(tracker.history.update).toHaveLength(0);
+        });
+    });
+
+    describe('confirmPackageSnapshot', () => {
+        const snapshot: ApiOrganizationDesign = {
+            designUuid: DESIGN_UUID,
+            organizationUuid: ORG_UUID,
+            slug: 'brand-a',
+            name: 'Brand A',
+            description: 'Acme brand',
+            extraInstructions: null,
+            isDefault: false,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+            updatedAt: new Date('2026-01-02T00:00:00Z'),
+            createdByUserUuid: USER_UUID,
+            files: [
+                {
+                    fileUuid: FILE_UUID,
+                    kind: 'css',
+                    filename: 'theme.css',
+                    contentType: 'text/css',
+                    sizeBytes: 1234,
+                    createdAt: new Date('2026-01-03T00:00:00Z'),
+                },
+            ],
+        };
+
+        it('returns the locked design when package metadata and file identities still match', async () => {
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
+                .select(OrganizationDesignFilesTableName)
+                .responseOnce([makeDbFile()]);
+
+            await expect(
+                model.confirmPackageSnapshot(ORG_UUID, snapshot),
+            ).resolves.toMatchObject({
+                designUuid: DESIGN_UUID,
+                slug: snapshot.slug,
+                files: [{ fileUuid: FILE_UUID }],
+            });
+            expect(tracker.history.select[0].sql).toContain('for update');
+        });
+
+        it('rejects the snapshot when a concurrent file replacement changed its identity', async () => {
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on.select(OrganizationDesignFilesTableName).responseOnce([
+                makeDbFile({
+                    file_uuid: '00000000-0000-0000-0000-000000000999',
+                }),
+            ]);
+
+            await expect(
+                model.confirmPackageSnapshot(ORG_UUID, snapshot),
+            ).resolves.toBeUndefined();
+        });
+    });
+
+    describe('replaceFiles', () => {
+        it('locks the design and swaps the complete file set before updating metadata', async () => {
+            const oldFile = makeDbFile();
+            const newFile = makeDbFile({
+                file_uuid: '00000000-0000-0000-0000-000000000101',
+                filename: 'replacement.css',
+            });
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
+                .delete(OrganizationDesignFilesTableName)
+                .responseOnce([oldFile]);
+            tracker.on
+                .insert(OrganizationDesignFilesTableName)
+                .responseOnce([newFile]);
+            tracker.on
+                .update(OrganizationDesignsTableName)
+                .responseOnce([makeDbDesign({ name: 'Updated brand' })]);
+
+            const result = await model.replaceFiles(
+                ORG_UUID,
+                DESIGN_UUID,
+                USER_UUID,
+                {
+                    name: 'Updated brand',
+                    description: null,
+                    extraInstructions: null,
+                    files: [
+                        {
+                            fileUuid: newFile.file_uuid,
+                            kind: 'css',
+                            filename: newFile.filename,
+                            contentType: newFile.content_type,
+                            sizeBytes: newFile.size_bytes,
+                        },
+                    ],
+                },
+            );
+
+            expect(result.design.files.map((file) => file.filename)).toEqual([
+                'replacement.css',
+            ]);
+            expect(result.removedFiles.map((file) => file.filename)).toEqual([
+                'theme.css',
+            ]);
+            expect(tracker.history.select[0].sql).toContain('for update');
+
+            const mutationSql = tracker.history.all
+                .map(({ sql }) => sql)
+                .filter(
+                    (sql) =>
+                        sql.includes(
+                            `delete from "${OrganizationDesignFilesTableName}"`,
+                        ) ||
+                        sql.includes(
+                            `insert into "${OrganizationDesignFilesTableName}"`,
+                        ) ||
+                        sql.includes(
+                            `update "${OrganizationDesignsTableName}"`,
+                        ),
+                );
+            expect(mutationSql[0]).toContain(
+                `delete from "${OrganizationDesignFilesTableName}"`,
+            );
+            expect(mutationSql[1]).toContain(
+                `insert into "${OrganizationDesignFilesTableName}"`,
+            );
+            expect(mutationSql[2]).toContain(
+                `update "${OrganizationDesignsTableName}"`,
+            );
         });
     });
 });

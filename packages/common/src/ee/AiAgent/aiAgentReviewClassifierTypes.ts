@@ -4,7 +4,11 @@ import type { PullRequestProvider } from '../../types/gitIntegration';
 import type { MetricQuery } from '../../types/metricQuery';
 import type { QueryHistoryStatus } from '../../types/queryHistory';
 import type { AiAgentDocumentStructuredSummary } from './documentTypes';
-import { projectContextEntryKinds } from './projectContext';
+import {
+    aiProjectContextTypedObjectRefSchema,
+    projectContextEntryKinds,
+    type AiProjectContextObjectRef,
+} from './projectContext';
 import type { AiAgentReviewClassifierEventType } from './requestTypes';
 
 export type AiAgentReviewClassifierSubject = {
@@ -66,6 +70,26 @@ export type AiAgentRootCause =
     | 'feedback_quality'
     | 'not_a_failure'
     | 'ambiguous';
+
+// Root causes the judge keeps assigning but that are never surfaced as issues:
+// a Lightdash capability gap is not something a customer can action on their
+// board. Findings are still classified and persisted for internal analysis.
+export const HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES: readonly AiAgentRootCause[] = [
+    'product_capability',
+];
+
+export const isHiddenAiAgentReviewRootCause = (
+    rootCause: AiAgentRootCause | null,
+): boolean =>
+    rootCause !== null &&
+    HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES.includes(rootCause);
+
+export const getVisibleAiAgentReviewRootCauses = (
+    rootCauses: AiAgentRootCause[],
+): AiAgentRootCause[] =>
+    rootCauses.filter(
+        (rootCause) => !isHiddenAiAgentReviewRootCause(rootCause),
+    );
 
 export type AiAgentFixTarget =
     | 'semantic_yaml_patch'
@@ -375,8 +399,10 @@ export type AiAgentReviewItemWritebackBlockedReason =
     | 'missing_agent'
     | 'missing_project_context_entry'
     | 'project_context_disabled'
+    | 'insufficient_source_code_access'
     | 'unsupported_source_control'
     | 'git_app_not_installed'
+    | 'bitbucket_token_missing'
     | 'missing_writeback_config'
     | 'pull_request_open'
     | 'source_thread_writeback_exists'
@@ -475,28 +501,49 @@ export const aiAgentJudgeProjectContextEntrySchema = z
         kind: z.enum(projectContextEntryKinds),
         content: z.string(),
         terms: z.array(z.string()),
-        objects: z.array(z.string()),
+        objects: z.array(aiProjectContextTypedObjectRefSchema),
     })
     .superRefine((entry, ctx) => {
         if (entry.op === 'update' && !entry.id) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'id is required when op is update',
                 path: ['id'],
             });
         }
     });
 
-// Concrete type (not z.infer) so tsoa can resolve it where it surfaces in API
-// responses (AiAgentReviewItemSummary). Kept structurally in sync with
-// aiAgentJudgeProjectContextEntrySchema above.
+// Lenient parse for persisted findings, which can predate typed object refs:
+// drops the whole `objects` array when it isn't a valid typed-ref array,
+// mirroring loadProjectContextFile's legacy handling.
+export const persistedAiAgentJudgeProjectContextEntrySchema = z.preprocess(
+    (entry) => {
+        if (
+            typeof entry !== 'object' ||
+            entry === null ||
+            Array.isArray(entry)
+        ) {
+            return entry;
+        }
+        const candidate = entry as Record<string, unknown>;
+        return z
+            .array(aiProjectContextTypedObjectRefSchema)
+            .safeParse(candidate.objects).success
+            ? entry
+            : { ...candidate, objects: [] };
+    },
+    aiAgentJudgeProjectContextEntrySchema,
+);
+
+// Concrete type (not z.infer) so tsoa can resolve it in API responses. The
+// string union preserves persisted findings written before typed refs.
 export type AiAgentJudgeProjectContextEntry = {
     op: 'create' | 'update';
     id: string | null;
     kind: 'definition' | 'context';
     content: string;
     terms: string[];
-    objects: string[];
+    objects: AiProjectContextObjectRef[];
 };
 
 // Signals that describe a healthy turn — mutually exclusive with promotion.
@@ -507,37 +554,47 @@ const NOT_A_FAILURE_SIGNALS: ReadonlySet<string> = new Set([
     'acceptance_or_continuation',
 ]);
 
-export const aiAgentReviewClassifierJudgeOutputSchema = z
-    .object({
-        signal: z.enum([
-            'normal_refinement',
-            'implicit_correction',
-            'explicit_dispute',
-            'retry_after_failure',
+const aiAgentReviewClassifierJudgeOutputBaseSchema = z.object({
+    signal: z.enum([
+        'normal_refinement',
+        'implicit_correction',
+        'explicit_dispute',
+        'retry_after_failure',
+        'output_shape_correction',
+        'new_question',
+        'acceptance_or_continuation',
+        'product_capability_request',
+        'human_intervention',
+        'ambiguous',
+    ]),
+    implicitSignalSources: z.array(
+        z.enum([
+            'next_user_correction',
+            'next_user_dispute',
+            'next_user_retry',
             'output_shape_correction',
-            'new_question',
-            'acceptance_or_continuation',
+            'tool_error',
+            'assistant_no_answer',
             'product_capability_request',
             'human_intervention',
-            'ambiguous',
         ]),
-        implicitSignalSources: z.array(
-            z.enum([
-                'next_user_correction',
-                'next_user_dispute',
-                'next_user_retry',
-                'output_shape_correction',
-                'tool_error',
-                'assistant_no_answer',
-                'product_capability_request',
-                'human_intervention',
-            ]),
-        ),
-        confidence: z.enum(['low', 'medium', 'high']),
-        promotedToFinding: z.boolean(),
-        promotionReason: z.string().nullable(),
-        matchedExistingItemKey: z.string().nullable(),
-        primaryRootCause: z.enum([
+    ),
+    confidence: z.enum(['low', 'medium', 'high']),
+    promotedToFinding: z.boolean(),
+    promotionReason: z.string().nullable(),
+    matchedExistingItemKey: z.string().nullable(),
+    primaryRootCause: z.enum([
+        'semantic_layer',
+        'project_context',
+        'agent_configuration',
+        'product_capability',
+        'runtime_reliability',
+        'feedback_quality',
+        'not_a_failure',
+        'ambiguous',
+    ]),
+    secondaryRootCauses: z.array(
+        z.enum([
             'semantic_layer',
             'project_context',
             'agent_configuration',
@@ -547,117 +604,135 @@ export const aiAgentReviewClassifierJudgeOutputSchema = z
             'not_a_failure',
             'ambiguous',
         ]),
-        secondaryRootCauses: z.array(
-            z.enum([
-                'semantic_layer',
-                'project_context',
-                'agent_configuration',
-                'product_capability',
-                'runtime_reliability',
-                'feedback_quality',
-                'not_a_failure',
-                'ambiguous',
+    ),
+    subcategories: z.array(z.string()),
+    fixTargets: z.array(
+        z.enum([
+            'semantic_yaml_patch',
+            'project_context_rule',
+            'agent_configuration_change',
+            'dbt_modeling_ticket',
+            'semantic_layer_ticket',
+            'product_capability_ticket',
+            'runtime_reliability_ticket',
+            'feedback_needed',
+            'no_action',
+        ]),
+    ),
+    targetRefs: z.array(aiAgentJudgeTargetRefSchema),
+    agentConfigurationSettings: z.array(aiAgentConfigurationSettingSchema),
+    ownerType: z.enum([
+        'semantic_layer_owner',
+        'agent_admin',
+        'product',
+        'support',
+        'unknown',
+    ]),
+    evidenceExcerpts: z.array(
+        z.object({
+            source: z.enum([
+                'user_prompt',
+                'assistant_answer',
+                'next_user_prompt',
+                'conversation_context',
+                'tool_call',
+                'tool_result',
+                'agent_config',
             ]),
-        ),
-        subcategories: z.array(z.string()),
-        fixTargets: z.array(
-            z.enum([
-                'semantic_yaml_patch',
-                'project_context_rule',
-                'agent_configuration_change',
-                'dbt_modeling_ticket',
-                'semantic_layer_ticket',
-                'product_capability_ticket',
-                'runtime_reliability_ticket',
-                'feedback_needed',
+            text: z.string(),
+            redacted: z.boolean(),
+        }),
+    ),
+    recommendation: z
+        .object({
+            actionType: z.enum([
+                'update_semantic_yaml',
+                'update_agent_instructions',
+                'add_knowledge_document',
+                'enable_data_access',
+                'enable_sql_mode',
+                'enable_self_improvement',
+                'configure_mcp_server',
+                'adjust_explore_tags',
+                'update_access',
+                'route_to_product_work',
+                'request_more_evidence',
                 'no_action',
             ]),
-        ),
-        targetRefs: z.array(aiAgentJudgeTargetRefSchema),
-        agentConfigurationSettings: z.array(aiAgentConfigurationSettingSchema),
-        ownerType: z.enum([
-            'semantic_layer_owner',
-            'agent_admin',
-            'product',
-            'support',
-            'unknown',
-        ]),
-        evidenceExcerpts: z.array(
-            z.object({
-                source: z.enum([
-                    'user_prompt',
-                    'assistant_answer',
-                    'next_user_prompt',
-                    'conversation_context',
-                    'tool_call',
-                    'tool_result',
-                    'agent_config',
-                ]),
-                text: z.string(),
-                redacted: z.boolean(),
-            }),
-        ),
-        recommendation: z
-            .object({
-                actionType: z.enum([
-                    'update_semantic_yaml',
-                    'update_agent_instructions',
-                    'add_knowledge_document',
-                    'enable_data_access',
-                    'enable_sql_mode',
-                    'enable_self_improvement',
-                    'configure_mcp_server',
-                    'adjust_explore_tags',
-                    'update_access',
-                    'route_to_product_work',
-                    'request_more_evidence',
-                    'no_action',
-                ]),
-                title: z.string(),
-                rationale: z.string(),
-                targetRefs: z.array(aiAgentJudgeTargetRefSchema),
-            })
-            .nullable(),
-        reviewItem: z.object({
             title: z.string(),
-            description: z.string(),
-        }),
-        projectContextEntry: aiAgentJudgeProjectContextEntrySchema.nullable(),
-    })
-    .superRefine((output, ctx) => {
-        if (
-            output.promotedToFinding &&
-            output.primaryRootCause === 'not_a_failure'
-        ) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message:
-                    'promotedToFinding must be false when primaryRootCause is not_a_failure',
-                path: ['promotedToFinding'],
-            });
-        }
-        if (
-            output.promotedToFinding &&
-            NOT_A_FAILURE_SIGNALS.has(output.signal)
-        ) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: `promotedToFinding must be false when signal is ${output.signal}; promoted findings need a failure signal`,
-                path: ['signal'],
-            });
-        }
-        if (
-            output.promotedToFinding &&
-            output.recommendation?.actionType === 'no_action'
-        ) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message:
-                    'promoted findings must carry an actionable recommendation, not no_action',
-                path: ['recommendation', 'actionType'],
-            });
-        }
-    });
+            rationale: z.string(),
+            targetRefs: z.array(aiAgentJudgeTargetRefSchema),
+        })
+        .nullable(),
+    reviewItem: z.object({
+        title: z.string(),
+        description: z.string(),
+    }),
+});
+
+const judgeOutputRefinement = (
+    output: {
+        promotedToFinding: boolean;
+        primaryRootCause: string;
+        signal: string;
+        recommendation: { actionType: string } | null;
+    },
+    ctx: z.RefinementCtx,
+): void => {
+    if (
+        output.promotedToFinding &&
+        output.primaryRootCause === 'not_a_failure'
+    ) {
+        ctx.addIssue({
+            code: 'custom',
+            message:
+                'promotedToFinding must be false when primaryRootCause is not_a_failure',
+            path: ['promotedToFinding'],
+        });
+    }
+    if (output.promotedToFinding && NOT_A_FAILURE_SIGNALS.has(output.signal)) {
+        ctx.addIssue({
+            code: 'custom',
+            message: `promotedToFinding must be false when signal is ${output.signal}; promoted findings need a failure signal`,
+            path: ['signal'],
+        });
+    }
+    if (
+        output.promotedToFinding &&
+        output.recommendation?.actionType === 'no_action'
+    ) {
+        ctx.addIssue({
+            code: 'custom',
+            message:
+                'promoted findings must carry an actionable recommendation, not no_action',
+            path: ['recommendation', 'actionType'],
+        });
+    }
+};
+
+// LLM-call schema: projectContextEntry is deliberately EXCLUDED. The full
+// schema compiles over the provider's strict-output grammar size limit (the
+// call then fails with "the compiled grammar is too large"), so the entry is
+// emitted via a second small call on the project_context path instead.
+export const aiAgentReviewClassifierJudgeCallOutputSchema =
+    aiAgentReviewClassifierJudgeOutputBaseSchema.superRefine(
+        judgeOutputRefinement,
+    );
+
+// Second-call schema for the project_context path: just the entry.
+export const aiAgentReviewClassifierJudgeProjectContextCallSchema = z.object({
+    projectContextEntry: aiAgentJudgeProjectContextEntrySchema.nullable(),
+});
+
+// Full judge output as persisted/replayed — the merge of both calls. Never
+// pass this to a strict-structured-output LLM call (see grammar note above).
+export const aiAgentReviewClassifierJudgeOutputSchema =
+    aiAgentReviewClassifierJudgeOutputBaseSchema
+        .extend({
+            projectContextEntry:
+                aiAgentJudgeProjectContextEntrySchema.nullable(),
+        })
+        .superRefine(judgeOutputRefinement);
 
 export type AiAgentReviewClassifierJudgeOutput = z.infer<
     typeof aiAgentReviewClassifierJudgeOutputSchema
@@ -687,6 +762,7 @@ export type AiAgentReviewItem = {
     statusUpdatedAt: Date;
     statusUpdatedByUserUuid: string | null;
     linkedIssueUrl: string | null;
+    linkedJiraIssueUrl?: string | null;
     linkedPrUrl: string | null;
     prState: AiAgentReviewItemPrState | null;
     prWritebackStatus: AiAgentReviewItemWritebackStatus | null;
@@ -698,7 +774,7 @@ export type AiAgentReviewItem = {
     updatedAt: Date;
 };
 
-export type AiAgentReviewItemSource = 'ai_finding' | 'manual';
+export type AiAgentReviewItemSource = 'ai_finding' | 'manual' | 'memory';
 
 export type AiAgentReviewItemPriority =
     | 'urgent'
@@ -708,6 +784,10 @@ export type AiAgentReviewItemPriority =
     | 'none';
 
 export type AiAgentReviewItemSummary = AiAgentReviewItem & {
+    projectContextEntry: AiAgentJudgeProjectContextEntry | null;
+    sourceMemory: { uuid: string; slug: string } | null;
+    nominationReason: string | null;
+    nominator: { name: string | null; email: string | null } | null;
     /**
      * Legacy boolean kept for current clients. New clients should use
      * writebackEligibility for the blocking reason and provider.
@@ -730,6 +810,13 @@ export type AiAgentReviewItemSummary = AiAgentReviewItem & {
         createdAt: Date;
     } | null;
 };
+
+export const getReviewItemProjectContextEntry = (
+    item: AiAgentReviewItemSummary,
+): AiAgentJudgeProjectContextEntry | null =>
+    item.source === 'memory'
+        ? item.projectContextEntry
+        : (item.latestFinding?.projectContextEntry ?? null);
 
 export type ApiAiAgentReviewItemsResponse = ApiSuccess<
     AiAgentReviewItemSummary[]
@@ -775,6 +862,12 @@ export type ReorderAiAgentReviewItems = {
 
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
 
+export type PromoteAiAgentMemory = { reason?: string };
+
+export type ApiPromoteAiAgentMemoryResponse = ApiSuccess<
+    Pick<AiAgentReviewItemSummary, 'uuid' | 'fingerprint' | 'status'>
+>;
+
 /**
  * Preview of the file change a writeback PR would make, computed deterministically
  * (no PR opened). Only available for the project_context strategy — semantic_layer
@@ -788,6 +881,8 @@ export type AiAgentReviewItemWritebackPreview =
           after: string;
           op: 'create' | 'update';
           entryId: string;
+          // True when the PR also rewrites a legacy (pre-v2) file as canonical v2.
+          upgradesFileToV2: boolean;
       }
     | { available: false };
 

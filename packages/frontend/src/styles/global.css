@@ -1,0 +1,99 @@
+/* App-wide global styles. Semantic colors come from the theme's CSS
+   variables resolver (src/theme/cssVariablesResolver.ts). */
+
+html,
+body {
+    background-color: var(--ld-color-page);
+}
+
+body {
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height-sm);
+    /* Inter: alternate 1 (distinguishable from l and I) and single-storey a. */
+    font-feature-settings: 'cv01', 'cv11';
+    text-rendering: optimizeLegibility;
+}
+
+/* Mantine v8 gives Text/Anchor `md` fallbacks (16px / 1.55) for font-size and
+   line-height instead of inheriting like v6 did. Restore inheritance as the
+   fallback; explicit `size`/`fz`/`lh` props still win because they set
+   --text-fz/--text-lh or inline styles.
+   Must load after @mantine/core/styles.css to win the cascade tie. */
+.mantine-Text-root,
+.mantine-Anchor-root {
+    font-size: var(--text-fz, inherit);
+    line-height: var(--text-lh, inherit);
+}
+
+p {
+    margin-bottom: 10px;
+    margin-top: 0;
+}
+
+b,
+strong {
+    font-weight: 600;
+}
+
+::selection {
+    background-color: light-dark(rgb(24 24 27 / 0.12), rgb(236 236 238 / 0.2));
+}
+
+.ace_editor.ace_autocomplete {
+    width: 500px;
+}
+
+.ace_editor * {
+    font-family: var(--mantine-font-family-monospace);
+}
+
+.wmde-markdown,
+.wmde-markdown-var {
+    font-family: var(--mantine-font-family);
+}
+
+.wmde-markdown img {
+    background-color: transparent;
+}
+
+/* CJK font selection for headless browser screenshots/PDFs.
+   Chromium on Linux ignores fontconfig, so we use :lang() CSS
+   selectors to explicitly pick the correct Noto Sans CJK variant. */
+:lang(ja) {
+    font-family: 'Noto Sans CJK JP', var(--mantine-font-family);
+}
+
+:lang(zh-CN),
+:lang(zh-Hans) {
+    font-family: 'Noto Sans CJK SC', var(--mantine-font-family);
+}
+
+:lang(zh-TW),
+:lang(zh-Hant) {
+    font-family: 'Noto Sans CJK TC', var(--mantine-font-family);
+}
+
+:lang(ko) {
+    font-family: 'Noto Sans CJK KR', var(--mantine-font-family);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+/* An @mention inside a comment, in the editor and once rendered. */
+.ld-mention {
+    padding: 0.1em 0.35em;
+    border-radius: var(--mantine-radius-sm);
+    background-color: light-dark(
+        var(--mantine-color-blue-0),
+        var(--mantine-color-blue-light)
+    );
+    color: var(--mantine-color-blue-light-color);
+    font-weight: 500;
+    box-decoration-break: clone;
+}
