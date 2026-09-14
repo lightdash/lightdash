@@ -118174,6 +118174,84 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDeployController_deployExplores: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dbtModelNames: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                complete: { dataType: 'boolean', required: true },
+                explores: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AnyType' },
+                    required: true,
+                },
+            },
+        },
+    };
+    app.put(
+        '/api/v2/projects/:projectUuid/deploy',
+        ...fetchMiddlewares<RequestHandler>(DeployController),
+        ...fetchMiddlewares<RequestHandler>(
+            DeployController.prototype.deployExplores,
+        ),
+
+        async function DeployController_deployExplores(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDeployController_deployExplores,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DeployController>(DeployController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deployExplores',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsDeployController_startDeploySession: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -118315,6 +118393,17 @@ export function RegisterRoutes(app: Router) {
             name: 'sessionUuid',
             required: true,
             dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dbtModelNames: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+            },
         },
     };
     app.post(

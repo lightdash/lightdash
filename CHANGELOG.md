@@ -1,3 +1,10 @@
+## [2.205.2](https://github.com/lightdash/lightdash/compare/2.205.1...2.205.2) (2026-09-14)
+
+
+### Bug Fixes
+
+* **cli:** remove deleted models after selective deploys ([#29127](https://github.com/lightdash/lightdash/issues/29127)) ([bf53057](https://github.com/lightdash/lightdash/commit/bf53057e660c015f4ff38d80a8eff5257ab8bed5))
+
 ## [2.205.1](https://github.com/lightdash/lightdash/compare/2.205.0...2.205.1) (2026-09-14)
 
 
