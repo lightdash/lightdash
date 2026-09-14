@@ -9,3 +9,7 @@ export const getAiAgentPageBase = (projectUuid: string) =>
     isEmbedAiAgentRoute()
         ? `/embed/${projectUuid}/ai-agents`
         : `/projects/${projectUuid}/ai-agents`;
+
+/** The thread on a full-page thread route, or null elsewhere. */
+export const getThreadUuidFromPathname = (pathname: string): string | null =>
+    pathname.match(/\/ai-agents\/[^/]+\/threads\/([^/]+)/)?.[1] ?? null;

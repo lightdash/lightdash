@@ -19,13 +19,18 @@ import { lightdashApi } from '../../../../../../api';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { store } from '../../../store';
 import { clearPreview } from '../../../store/aiArtifactSlice';
+import {
+    clearBuildWatches,
+    getBuildWatchKey,
+} from '../../../store/buildWatchesSlice';
+import { AiAgentBuildWatcher } from '../../Launcher/AiAgentBuildWatcher';
 import { AiDataAppBuildCard } from './AiDataAppBuildCard';
 
 vi.mock('../../../../../../api', () => ({ lightdashApi: vi.fn() }));
 const mockedLightdashApi = vi.mocked(lightdashApi);
 
-// The builder's poller runs in a Web Worker; jsdom has none. The stub keeps
-// the last instance so a test can hand it a poll result.
+// The build watcher's poller runs in a Web Worker; jsdom has none. The stub
+// keeps the last instance so a test can hand it a poll result.
 class WorkerStub {
     static last: WorkerStub | null = null;
 
@@ -37,7 +42,9 @@ class WorkerStub {
 
     postMessage() {}
 
-    terminate() {}
+    terminate() {
+        this.onmessage = null;
+    }
 }
 vi.stubGlobal('Worker', WorkerStub);
 const originalObjectUrl = {
@@ -113,15 +120,16 @@ const pending: ToolGenerateDataAppOutput['metadata'] = {
 
 const renderCard = (
     metadata: ToolGenerateDataAppOutput['metadata'],
-    compact = false,
+    { withWatcher = false }: { withWatcher?: boolean } = {},
 ) =>
     renderWithProviders(
         <Provider store={store}>
             <MemoryRouter>
+                {withWatcher && <AiAgentBuildWatcher />}
                 <div data-testid="host">
                     <AiDataAppBuildCard
                         metadata={metadata}
-                        compact={compact}
+                        compact={false}
                         {...IDS}
                     />
                 </div>
@@ -139,6 +147,7 @@ const pollResult = (versions: ApiAppVersionSummary[]) =>
 describe('AiDataAppBuildCard', () => {
     beforeEach(() => {
         store.dispatch(clearPreview());
+        store.dispatch(clearBuildWatches());
         WorkerStub.last = null;
         mockedLightdashApi.mockReset();
     });
@@ -156,7 +165,7 @@ describe('AiDataAppBuildCard', () => {
                 }),
             ]),
         );
-        renderCard(pending);
+        renderCard(pending, { withWatcher: true });
 
         expect(await screen.findByText('Generating your app')).toBeVisible();
         expect(store.getState().aiArtifact.preview).toBeNull();
@@ -173,15 +182,34 @@ describe('AiDataAppBuildCard', () => {
         expect(screen.getByText('v1 · built in 6m 12s')).toBeVisible();
         expect(store.getState().aiArtifact.preview).toEqual(expectedPreview);
 
-        // Closing the panel is final for this build; View brings it back.
+        // The landed build is no longer watched, so nothing reopens the
+        // panel once closed; View brings it back.
+        expect(store.getState().buildWatches.watches).toEqual({});
         act(() => {
             store.dispatch(clearPreview());
         });
-        pollResult([version({ status: 'ready' })]);
         expect(store.getState().aiArtifact.preview).toBeNull();
 
         fireEvent.click(screen.getByRole('button', { name: 'View' }));
         expect(store.getState().aiArtifact.preview).toEqual(expectedPreview);
+    });
+
+    it('starts a build watch for a pending build instead of polling itself', async () => {
+        mockedLightdashApi.mockResolvedValue(
+            app([version({ status: 'generating' })]),
+        );
+        renderCard(pending);
+
+        expect(await screen.findByText('Building your app')).toBeVisible();
+        expect(store.getState().buildWatches.watches).toEqual({
+            [getBuildWatchKey({ appUuid: APP_UUID, version: 1 })]: {
+                appUuid: APP_UUID,
+                version: 1,
+                ...IDS,
+                appName: 'Revenue app',
+            },
+        });
+        expect(WorkerStub.last).toBeNull();
     });
 
     it('opens its own version and is the only active card for it', async () => {

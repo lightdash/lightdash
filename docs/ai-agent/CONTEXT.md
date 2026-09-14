@@ -45,3 +45,9 @@ _Avoid_: sidebar, widget, chat panel
 The in-thread panel that renders a data app the agent built or the user
 pinned, so it can be inspected without leaving the thread.
 _Avoid_: iframe, side panel, viewer
+
+**Build watch**:
+One data app build started from a thread that the app-wide build watcher
+follows until its outcome lands. Lives in the AI agent store for the session
+only; nothing is persisted.
+_Avoid_: subscription, poll registration, tracked build
