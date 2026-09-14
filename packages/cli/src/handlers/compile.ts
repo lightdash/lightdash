@@ -84,6 +84,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 };
 
 export type CompileProjectResult = {
+    dbtModelNames?: string[];
     explores: (Explore | ExploreError)[];
     isProjectComplete: boolean;
 };
@@ -452,6 +453,7 @@ export const compileProject = async (
     let explores: (Explore | ExploreError)[] | null = null;
     let dbtMetrics: DbtManifest['metrics'] | null = null;
     let isProjectComplete = true;
+    let dbtModelNames: string[] | undefined;
 
     explores = await getExploresFromLightdashYmlProject({
         projectDir: absoluteProjectPath,
@@ -495,6 +497,24 @@ export const compileProject = async (
             );
         let manifest = await loadManifest({ targetDir: context.targetDir });
         const projectManifestModels = getModelsFromManifest(manifest);
+        if (
+            !options.combineManifest &&
+            !options.combineManifestProjectUuid &&
+            !projectManifestModels.some(
+                (model) =>
+                    model.lightdash_source_name !== undefined ||
+                    model.lightdash_source_uuid !== undefined,
+            )
+        ) {
+            dbtModelNames = [
+                ...new Set(
+                    projectManifestModels.flatMap((model) => [
+                        model.name,
+                        `${model.package_name}__${model.name}`,
+                    ]),
+                ),
+            ];
+        }
         isProjectComplete =
             getCompiledModels(projectManifestModels, compiledModelIds)
                 .length === projectManifestModels.length;
@@ -847,7 +867,7 @@ export const compileProject = async (
             durationMs: Date.now() - startTime,
         },
     });
-    return { explores, isProjectComplete };
+    return { explores, isProjectComplete, dbtModelNames };
 };
 
 export const compile = async (

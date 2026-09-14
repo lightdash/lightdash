@@ -555,6 +555,7 @@ type SaveCompiledExploresArgs = {
     projectConfigDefaults?: ProjectDefaults;
     cliVersion?: string | null;
     complete?: boolean;
+    dbtModelNames?: string[];
 };
 
 type PreparedExploreStream = {
@@ -2619,6 +2620,10 @@ export class ProjectService extends BaseService {
         },
     ) {
         const { explores, ...metadata } = args;
+        const hasDbtSources =
+            args.dbtModelNames !== undefined &&
+            (await this.projectDbtSourcesModel.hasSources(args.projectUuid));
+        const dbtModelNames = hasDbtSources ? undefined : args.dbtModelNames;
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             saveExplores: async (summary) => {
@@ -2626,6 +2631,7 @@ export class ProjectService extends BaseService {
                     args.projectUuid,
                     explores,
                     args.complete,
+                    dbtModelNames,
                 );
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
@@ -2722,16 +2728,20 @@ export class ProjectService extends BaseService {
         // "dashboard loaded with stale reference at T2".
         try {
             const NAME_SAMPLE_CAP = 50;
-            const newNames = summary.names;
+            const reconciled = complete || args.dbtModelNames !== undefined;
+            const newNames =
+                args.dbtModelNames !== undefined
+                    ? await this.projectModel.getCachedExploreNames(projectUuid)
+                    : summary.names;
             const previousNameSet = new Set(previousExploreNames ?? []);
             const newNameSet = new Set(newNames);
-            const removed = complete
+            const removed = reconciled
                 ? (previousExploreNames ?? []).filter(
                       (name) => !newNameSet.has(name),
                   )
                 : [];
             const added = newNames.filter((name) => !previousNameSet.has(name));
-            const resultingExploreCount = complete
+            const resultingExploreCount = reconciled
                 ? newNameSet.size
                 : new Set([...(previousExploreNames ?? []), ...newNames]).size;
 
@@ -3682,6 +3692,7 @@ export class ProjectService extends BaseService {
         explores: (Explore | ExploreError)[],
         cliVersion?: string | null,
         complete?: boolean,
+        dbtModelNames?: string[],
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -3731,6 +3742,7 @@ export class ProjectService extends BaseService {
             requestMethod: 'cli',
             cliVersion,
             complete,
+            dbtModelNames,
         });
 
         await this.schedulerClient.generateValidation({

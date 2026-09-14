@@ -85,9 +85,14 @@ describe('DeployService', () => {
         ).resolves.toEqual({ deploySessionUuid: 'deploy-session-uuid' });
     });
 
-    it.each([true, false])(
-        'passes batched completeness %s to the cache write',
-        async (complete) => {
+    it.each([
+        { complete: true, dbtModelNames: undefined },
+        { complete: false, dbtModelNames: undefined },
+        { complete: false, dbtModelNames: ['orders', 'customers'] },
+        { complete: false, dbtModelNames: [] },
+    ])(
+        'passes batched completeness $complete and model inventory $dbtModelNames to the cache write',
+        async ({ complete, dbtModelNames }) => {
             const projectService = {
                 saveExploresToCacheAndIndexCatalog: vi
                     .fn()
@@ -130,11 +135,15 @@ describe('DeployService', () => {
                 user,
                 'project-uuid',
                 'deploy-session-uuid',
+                undefined,
+                dbtModelNames,
             );
 
             expect(
                 projectService.saveExploresToCacheAndIndexCatalog,
-            ).toHaveBeenCalledWith(expect.objectContaining({ complete }));
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ complete, dbtModelNames }),
+            );
         },
     );
 });

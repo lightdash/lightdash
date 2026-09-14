@@ -5,6 +5,7 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/analytics';
+import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { lightdashApi } from './dbt/apiClient';
 import { deploy } from './deploy';
@@ -98,6 +99,96 @@ describe('deploy completeness transport', () => {
         },
     );
 
+    test('sends the full model inventory with a selective single-request deploy', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue(null as never);
+        const dbtModelNames = ['orders', 'customers'];
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+            complete: false,
+            dbtModelNames,
+        });
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'PUT',
+            url: '/api/v2/projects/project-uuid/deploy',
+            body: JSON.stringify({
+                explores: [compiledExplore],
+                dbtModelNames,
+                complete: false,
+            }),
+        });
+    });
+
+    test('retries the array payload with a warning when an older server lacks the inventory endpoint', async () => {
+        const warning = vi.spyOn(GlobalState, 'log');
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url === '/api/v2/projects/project-uuid/deploy') {
+                throw new LightdashError({
+                    message: 'Not found',
+                    name: 'NotFoundError',
+                    statusCode: 404,
+                    data: {},
+                });
+            }
+            return null as never;
+        });
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+            dbtModelNames: ['orders', 'customers'],
+        });
+
+        expect(lightdashApi).toHaveBeenLastCalledWith({
+            method: 'PUT',
+            url: '/api/v1/projects/project-uuid/explores?complete=false',
+            body: JSON.stringify([compiledExplore]),
+        });
+        expect(warning).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'does not support deleted dbt model cleanup',
+            ),
+        );
+        warning.mockRestore();
+    });
+
+    test.each([422, 500])(
+        'does not retry inventory deployment after HTTP %s',
+        async (statusCode) => {
+            const serverError = new LightdashError({
+                message: 'Unavailable',
+                name: 'InternalServerError',
+                statusCode,
+                data: {},
+            });
+            vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+                if (url === '/api/v2/projects/project-uuid/deploy') {
+                    throw serverError;
+                }
+                return null as never;
+            });
+
+            await expect(
+                deploy([compiledExplore], {
+                    ...deployOptions,
+                    batchedDeploy: false,
+                    dbtModelNames: ['orders'],
+                }),
+            ).rejects.toBe(serverError);
+            expect(
+                vi
+                    .mocked(lightdashApi)
+                    .mock.calls.filter(
+                        ([request]) =>
+                            request.url ===
+                            '/api/v2/projects/project-uuid/deploy',
+                    ),
+            ).toHaveLength(1);
+        },
+    );
+
     test('uses batched deploy by default and includes the completeness assertion in every batch body', async () => {
         vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
             if (url.endsWith('/deploy')) {
@@ -124,6 +215,7 @@ describe('deploy completeness transport', () => {
         await deploy([compiledExplore], {
             ...deployOptions,
             complete: false,
+            dbtModelNames: ['orders', 'customers'],
         });
 
         expect(lightdashApi).toHaveBeenCalledWith({
@@ -134,6 +226,11 @@ describe('deploy completeness transport', () => {
                 batchNumber: 0,
                 complete: false,
             }),
+        });
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'POST',
+            url: '/api/v2/projects/project-uuid/deploy/deploy-session-uuid/finalize',
+            body: JSON.stringify({ dbtModelNames: ['orders', 'customers'] }),
         });
     });
 

@@ -45,7 +45,7 @@ vi.mock('../lightdash/loader');
 vi.mock('./dbt/compile');
 vi.mock('./dbt/apiClient', async (importOriginal) => {
     const original = await importOriginal<typeof import('./dbt/apiClient')>();
-    return { ...original, lightdashApi: vi.fn() };
+    return { ...original, lightdashApi: vi.fn().mockResolvedValue(undefined) };
 });
 vi.mock('./dbt/getDbtVersion');
 vi.mock('./dbt/getWarehouseClient');

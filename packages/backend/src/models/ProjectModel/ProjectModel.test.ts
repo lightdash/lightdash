@@ -853,6 +853,46 @@ describe('ProjectModel', () => {
     });
 
     describe('saveExploresToCache', () => {
+        test('prunes deleted models while preserving unselected and user-managed explores', async () => {
+            const incoming = { ...exploresWithSameName[0], name: 'selected' };
+            const cached = [
+                { ...incoming, name: 'deleted' },
+                { ...incoming, name: 'retained' },
+                { ...incoming, name: 'virtual', type: ExploreType.VIRTUAL },
+                {
+                    ...incoming,
+                    name: 'external',
+                    type: ExploreType.EXTERNAL_SOURCE,
+                },
+            ];
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response(cached.map((explore) => ({ explore })));
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ cached_explore_uuid: 'selected-uuid' }]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response(1);
+
+            await model.saveExploresToCache(projectUuid, [incoming], false, [
+                'retained',
+                'selected',
+            ]);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].bindings).toEqual([
+                projectUuid,
+                'deleted',
+            ]);
+        });
+
         test('preserves cached explores when the payload is not explicitly complete', async () => {
             const cachedExplore = exploresWithSameName[0];
             const incomingExplore = {
@@ -911,6 +951,131 @@ describe('ProjectModel', () => {
                 .forEach(({ bindings }) => {
                     expect(bindings).toEqual([[], projectUuid]);
                 });
+        });
+
+        test.each([
+            { inventory: [], expectedDeleted: ['retained', 'deleted'] },
+            { inventory: ['retained'], expectedDeleted: ['deleted'] },
+        ])(
+            'prunes with an empty selection and inventory $inventory',
+            async ({ inventory, expectedDeleted }) => {
+                tracker.on
+                    .select(({ sql }) => sql.includes('"cached_explores"'))
+                    .response([]);
+                tracker.on
+                    .select(({ sql }) => sql.includes('"cached_explore"'))
+                    .response(
+                        ['retained', 'deleted'].map((name) => ({
+                            explore: { ...exploresWithSameName[0], name },
+                        })),
+                    );
+                tracker.on
+                    .insert(({ sql }) => sql.includes('"cached_explores"'))
+                    .response([]);
+                tracker.on
+                    .delete(({ sql }) => sql.includes('"cached_explore"'))
+                    .response(expectedDeleted.length);
+                await expect(
+                    model.saveExploresToCache(
+                        projectUuid,
+                        [],
+                        false,
+                        inventory,
+                    ),
+                ).resolves.toEqual({ cachedExploreUuids: [] });
+                expect(tracker.history.delete[0].bindings).toEqual([
+                    projectUuid,
+                    ...expectedDeleted,
+                ]);
+            },
+        );
+
+        test('preserves generated explores for surviving unselected models', async () => {
+            const base = exploresWithSameName[0];
+            const cached = [
+                {
+                    ...base,
+                    name: 'retained_preagg',
+                    type: ExploreType.PRE_AGGREGATE,
+                    preAggregateSource: {
+                        sourceExploreName: 'retained',
+                        preAggregateName: 'summary',
+                    },
+                },
+                {
+                    ...base,
+                    name: 'deleted_preagg',
+                    type: ExploreType.PRE_AGGREGATE,
+                    preAggregateSource: {
+                        sourceExploreName: 'deleted',
+                        preAggregateName: 'summary',
+                    },
+                },
+                {
+                    ...base,
+                    name: 'nested',
+                    baseTable: 'nested',
+                    tables: {
+                        nested: {
+                            ...Object.values(base.tables ?? {})[0],
+                            nestedFrom: {
+                                parentTable: 'retained',
+                                columnPath: 'items',
+                            },
+                        },
+                    },
+                },
+            ];
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response(cached.map((explore) => ({ explore })));
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response(1);
+            await model.saveExploresToCache(projectUuid, [], false, [
+                'retained',
+            ]);
+            expect(tracker.history.delete[0].bindings).toEqual([
+                projectUuid,
+                'deleted_preagg',
+            ]);
+        });
+
+        test('preserves cached combined-source explores when an inventory is supplied', async () => {
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([
+                    {
+                        explore: {
+                            ...exploresWithSameName[0],
+                            name: 'other_source',
+                            tables: {
+                                source: { dbtSourceUuid: 'source-uuid' },
+                            },
+                        },
+                    },
+                    {
+                        explore: {
+                            name: 'source_error',
+                            label: 'Error',
+                            errors: [],
+                        },
+                    },
+                ]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            await model.saveExploresToCache(projectUuid, [], false, []);
+            expect(tracker.history.delete).toHaveLength(0);
         });
 
         test('accepts an empty additive payload when cached explores exist', async () => {

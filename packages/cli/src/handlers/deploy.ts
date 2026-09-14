@@ -73,6 +73,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
     complete?: boolean;
+    dbtModelNames?: string[];
 };
 
 const logDeployWarnings = (
@@ -338,7 +339,7 @@ const deployBatched = async (
     >({
         method: 'POST',
         url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/finalize`,
-        body: JSON.stringify({}),
+        body: JSON.stringify({ dbtModelNames: options.dbtModelNames }),
     });
 
     GlobalState.log(
@@ -452,15 +453,44 @@ export const deploy = async (
         !(await deployBatched(deployableExplores, options));
     if (shouldUseLegacyDeploy) {
         const deployStartTime = Date.now();
-        const deployPayload = JSON.stringify(deployableExplores);
+        const deployPayload = JSON.stringify(
+            options.dbtModelNames === undefined
+                ? deployableExplores
+                : {
+                      explores: deployableExplores,
+                      dbtModelNames: options.dbtModelNames,
+                      complete: options.complete === true,
+                  },
+        );
         try {
             const deployResponse = await lightdashApi<ApiDeployExploresResults>(
                 {
                     method: 'PUT',
-                    url: `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}`,
+                    url:
+                        options.dbtModelNames === undefined
+                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}`
+                            : `/api/v2/projects/${options.projectUuid}/deploy`,
                     body: deployPayload,
                 },
-            );
+            ).catch(async (error: unknown) => {
+                if (
+                    options.dbtModelNames === undefined ||
+                    !(error instanceof LightdashError) ||
+                    error.statusCode !== 404
+                ) {
+                    throw error;
+                }
+                GlobalState.log(
+                    styles.warning(
+                        'This server does not support deleted dbt model cleanup; deploying without cleanup. Upgrade the server to enable it.',
+                    ),
+                );
+                return lightdashApi<ApiDeployExploresResults>({
+                    method: 'PUT',
+                    url: `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}`,
+                    body: JSON.stringify(deployableExplores),
+                });
+            });
             if (deployResponse) {
                 logDeployWarnings(deployResponse.warnings);
             }
@@ -712,7 +742,8 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
             );
     }
 
-    const { explores, isProjectComplete } = await compileProject(options);
+    const { explores, isProjectComplete, dbtModelNames } =
+        await compileProject(options);
 
     let projectUuid: string;
 
@@ -746,6 +777,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         ...options,
         projectUuid,
         complete: isProjectComplete,
+        dbtModelNames,
     });
 
     const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');

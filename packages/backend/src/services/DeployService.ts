@@ -34,6 +34,7 @@ type ProjectServiceInterface = {
         projectConfigDefaults?: ProjectDefaults;
         cliVersion?: string | null;
         complete?: boolean;
+        dbtModelNames?: string[];
     }) => Promise<string>;
 };
 
@@ -186,6 +187,7 @@ export class DeployService extends BaseService {
         projectUuid: string,
         sessionUuid: string,
         cliVersion?: string | null,
+        dbtModelNames?: string[],
     ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
         const session = await this.deploySessionModel.getSession(sessionUuid);
 
@@ -242,6 +244,7 @@ export class DeployService extends BaseService {
                 requestMethod: 'cli',
                 cliVersion,
                 complete: deployData.complete,
+                dbtModelNames,
             });
 
             // Schedule validation (same as in original finalizeDeploy)
