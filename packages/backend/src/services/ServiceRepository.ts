@@ -55,6 +55,7 @@ import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { LinearAppService } from './LinearAppService/LinearAppService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
+import { MobileSetupService } from './MobileSetupService/MobileSetupService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { ManagedSignInService } from './OAuthService/managedSignIn/ManagedSignInService';
 import { OAuthService } from './OAuthService/OAuthService';
@@ -128,6 +129,7 @@ interface ServiceManifest {
     healthService: HealthService;
     licenseService: LicenseService;
     notificationService: NotificationsService;
+    mobileSetupService: MobileSetupService;
     managedSignInService: ManagedSignInService;
     oauthService: OAuthService;
 
@@ -659,6 +661,7 @@ export class ServiceRepository
             () =>
                 new HealthService({
                     lightdashConfig: this.context.lightdashConfig,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     licenseService: this.getLicenseService(),
                     organizationModel: this.models.getOrganizationModel(),
                     migrationModel: this.models.getMigrationModel(),
@@ -675,6 +678,20 @@ export class ServiceRepository
             () =>
                 new NotificationsService({
                     notificationsModel: this.models.getNotificationsModel(),
+                }),
+        );
+    }
+
+    public getMobileSetupService(): MobileSetupService {
+        return this.getService(
+            'mobileSetupService',
+            () =>
+                new MobileSetupService({
+                    mobileSetupCodeModel: this.models.getMobileSetupCodeModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    userModel: this.models.getUserModel(),
+                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }
@@ -700,6 +717,7 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     lightdashConfig: this.context.lightdashConfig,
+                    getMobileSetupService: () => this.getMobileSetupService(),
                     getManagedSignInService: () =>
                         this.getManagedSignInService(),
                 }),
