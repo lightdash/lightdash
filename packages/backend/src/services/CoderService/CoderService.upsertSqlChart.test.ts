@@ -299,54 +299,59 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             expect(savedSqlModel.update).not.toHaveBeenCalled();
         });
 
-        it('blocks a move when the user lacks access to the chart current space', async () => {
-            // Chart currently lives in OTHER_SPACE_UUID; YAML moves it to SPACE_UUID.
-            // User can update in the target space but not the current one.
-            const savedSqlModel = {
-                find: vi.fn(async () => [existingRow(OTHER_SPACE_UUID)]),
-                update: vi.fn(),
-                create: vi.fn(),
-            };
-            const resolveAccessBatch = vi.fn(
-                async (
-                    _userUuid: string,
-                    targets: { type: 'space'; spaceUuid: string }[],
-                ) =>
-                    targets.map((target) => ({
-                        target,
-                        context:
-                            target.spaceUuid === SPACE_UUID
-                                ? {
-                                      ...accessContext(PROJECT_UUID),
-                                      directOnly: false,
-                                  }
-                                : {
-                                      ...accessContext('inaccessible-project'),
-                                      directOnly: false,
-                                  },
-                    })),
-            );
-            const service = buildService(savedSqlModel, resolveAccessBatch);
-            stubSpace(service, SPACE_UUID);
-            const user = makeUser([
-                { subject: 'ContentAsCode', action: 'create' },
-                { subject: 'CustomSql', action: 'manage' },
-                {
-                    subject: 'SavedChart',
-                    action: 'update',
-                    conditions: { projectUuid: PROJECT_UUID },
-                },
-            ]);
+        it.each(['create', 'manage'] as const)(
+            'blocks a move before space creation when current access is denied (%s)',
+            async (uploadAction) => {
+                // Chart currently lives in OTHER_SPACE_UUID; YAML moves it to SPACE_UUID.
+                // User can update in the target space but not the current one.
+                const savedSqlModel = {
+                    find: vi.fn(async () => [existingRow(OTHER_SPACE_UUID)]),
+                    update: vi.fn(),
+                    create: vi.fn(),
+                };
+                const resolveAccessBatch = vi.fn(
+                    async (
+                        _userUuid: string,
+                        targets: { type: 'space'; spaceUuid: string }[],
+                    ) =>
+                        targets.map((target) => ({
+                            target,
+                            context:
+                                target.spaceUuid === SPACE_UUID
+                                    ? {
+                                          ...accessContext(PROJECT_UUID),
+                                          directOnly: false,
+                                      }
+                                    : {
+                                          ...accessContext(
+                                              'inaccessible-project',
+                                          ),
+                                          directOnly: false,
+                                      },
+                        })),
+                );
+                const service = buildService(savedSqlModel, resolveAccessBatch);
+                stubSpace(service, SPACE_UUID);
+                const user = makeUser([
+                    { subject: 'ContentAsCode', action: uploadAction },
+                    { subject: 'CustomSql', action: 'manage' },
+                    {
+                        subject: 'SavedChart',
+                        action: 'update',
+                        conditions: { projectUuid: PROJECT_UUID },
+                    },
+                ]);
 
-            await expect(upsert(service, user)).rejects.toThrow(
-                'You don\'t have access to update Saved SQL chart "my-sql-chart"',
-            );
-            expect(savedSqlModel.update).not.toHaveBeenCalled();
-            // both the target and the current space were checked
-            expect(resolveAccessBatch).toHaveBeenCalledWith('user-uuid', [
-                { type: 'space', spaceUuid: SPACE_UUID },
-                { type: 'space', spaceUuid: OTHER_SPACE_UUID },
-            ]);
-        });
+                await expect(upsert(service, user)).rejects.toThrow(
+                    'You don\'t have access to update Saved SQL chart "my-sql-chart"',
+                );
+                expect(savedSqlModel.update).not.toHaveBeenCalled();
+                expect(service.getOrCreateSpace).not.toHaveBeenCalled();
+                // Reject the current space before resolving or creating the target.
+                expect(resolveAccessBatch).toHaveBeenCalledWith('user-uuid', [
+                    { type: 'space', spaceUuid: OTHER_SPACE_UUID },
+                ]);
+            },
+        );
     });
 });
