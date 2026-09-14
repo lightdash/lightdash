@@ -5,6 +5,7 @@ import {
 } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
 import { filterExpressionInputSchema } from '../filterExpressions/expressionSchemas';
+import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
@@ -36,6 +37,11 @@ Usage Tips:
 - When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
 `;
 
+const expressionGuidanceByRuntime = {
+    agent: `Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint; for supported operators, quoting, and examples, follow ${modelGuidanceSourceByRuntime.agent}.`,
+    mcp: `Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint. ${MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION}`,
+} satisfies Record<ToolDescriptionContext['runtime'], string>;
+
 export const TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION = ({
     runtime,
     toolName,
@@ -50,7 +56,7 @@ Usage Tips:
 - ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
-- Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint; for supported operators, quoting, and examples, follow ${modelGuidanceSourceByRuntime[runtime]}.
+- ${expressionGuidanceByRuntime[runtime]}
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()

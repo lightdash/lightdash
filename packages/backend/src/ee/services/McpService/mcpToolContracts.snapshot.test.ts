@@ -294,10 +294,46 @@ describe('MCP tool contracts', () => {
                 filterExpressionsEnabled: true,
             }),
         );
-        expect(getLatestMcpServerInstructions()).toContain(
+        expect(getLatestMcpServerInstructions()).not.toContain(
             MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
         );
+        expect(getLatestMcpServerInstructions()).toContain(
+            'read the shared skill',
+        );
     });
+
+    it.each([false, true])(
+        'links both expression-enabled tools to the shared skill: expressions=%s',
+        async (filterExpressionsEnabled) => {
+            const mcpService = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await mcpService.createServer(
+                makeMcpServerOptions({
+                    runMetricQueryEnabled: true,
+                    filterExpressionsEnabled,
+                }),
+            );
+            for (const name of [
+                McpToolName.RUN_METRIC_QUERY,
+                McpToolName.SEARCH_FIELD_VALUES,
+            ]) {
+                const tool = mockRegisteredMcpTools.find(
+                    (registered) => registered.name === name,
+                );
+                expect(tool).toBeDefined();
+                expect(
+                    tool?.config.description.includes(
+                        'read the `filter-expressions` skill',
+                    ),
+                ).toBe(filterExpressionsEnabled);
+            }
+            const skill =
+                await BuiltInSkills.readSkillTool('filter-expressions');
+            expect(skill?.body).toContain(
+                'Each category is flat and uses AND or OR, never both.',
+            );
+        },
+    );
 
     it.each([
         {
@@ -367,8 +403,8 @@ describe('MCP tool contracts', () => {
             await mcpService.createServer(makeMcpServerOptions(options));
             // Existing instruction overages cannot grow; lower these as text shrinks.
             const instructionCeilings = options.runSqlEnabled
-                ? { structured: 5483, expression: 9192 }
-                : { structured: 4659, expression: 8368 };
+                ? { structured: 5483, expression: 5620 }
+                : { structured: 4659, expression: 4796 };
             const instructionCeiling = options.runMetricQueryEnabled
                 ? instructionCeilings[
                       options.filterExpressionsEnabled

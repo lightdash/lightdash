@@ -19,7 +19,7 @@ const descriptionContexts = [
 
 const guidanceReferenceByRuntime = {
     agent: 'the Lightdash Agent system prompt',
-    mcp: 'the Lightdash MCP server instructions',
+    mcp: 'Before writing filter expressions, read the `filter-expressions` skill.',
 } satisfies Record<ToolDescriptionContext['runtime'], string>;
 
 describe('searchFieldValues filter schemas', () => {
