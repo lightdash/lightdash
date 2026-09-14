@@ -2233,6 +2233,7 @@ export class ProjectModel {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
         complete = false,
+        dbtModelNames?: string[],
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -2255,6 +2256,43 @@ export class ProjectModel {
                         );
                     }
                     const cachedExplores = await cachedExploresQuery;
+                    const retainedNames = new Set([
+                        ...(dbtModelNames ?? []),
+                        ...explores.map((explore) => explore.name),
+                    ]);
+                    const hasCombinedSources = cachedExplores.some(
+                        ({ explore }) =>
+                            Object.values(explore.tables ?? {}).some(
+                                (table) => table.dbtSourceUuid !== undefined,
+                            ),
+                    );
+                    const deletedNames =
+                        !complete &&
+                        dbtModelNames !== undefined &&
+                        !hasCombinedSources
+                            ? cachedExplores
+                                  .filter(({ explore }) => {
+                                      const sourceName =
+                                          explore.preAggregateSource
+                                              ?.sourceExploreName ??
+                                          explore.tables?.[
+                                              explore.baseTable ?? explore.name
+                                          ]?.nestedFrom?.parentTable ??
+                                          explore.name;
+                                      return (
+                                          !isUserManagedExplore(explore) &&
+                                          !retainedNames.has(sourceName)
+                                      );
+                                  })
+                                  .map(({ explore }) => explore.name)
+                            : [];
+                    if (deletedNames.length > 0) {
+                        await trx(CachedExploreTableName)
+                            .where('project_uuid', projectUuid)
+                            .whereIn('name', deletedNames)
+                            .delete();
+                    }
+                    const deletedNamesSet = new Set(deletedNames);
                     const userManagedExplores = cachedExplores.filter(
                         ({ explore }) => isUserManagedExplore(explore),
                     );
@@ -2272,10 +2310,15 @@ export class ProjectModel {
                     const exploresMap = new Map(
                         complete
                             ? []
-                            : cachedExplores.map(({ explore }) => [
-                                  explore.name,
-                                  explore,
-                              ]),
+                            : cachedExplores
+                                  .filter(
+                                      ({ explore }) =>
+                                          !deletedNamesSet.has(explore.name),
+                                  )
+                                  .map(({ explore }) => [
+                                      explore.name,
+                                      explore,
+                                  ]),
                     );
                     explores.forEach((explore) =>
                         exploresMap.set(explore.name, explore),
@@ -2285,7 +2328,10 @@ export class ProjectModel {
                     );
                     const uniqueExplores = Array.from(exploresMap.values());
 
-                    if (uniqueExplores.length <= 0) {
+                    if (
+                        uniqueExplores.length <= 0 &&
+                        (complete || dbtModelNames === undefined)
+                    ) {
                         throw new ParameterError('No explores to save');
                     }
 

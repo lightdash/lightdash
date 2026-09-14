@@ -5106,6 +5106,78 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('selective deploy model inventory', () => {
+        test.each([
+            {
+                name: 'single-source',
+                hasAdditionalSources: false,
+                expected: ['orders'],
+            },
+            {
+                name: 'combined',
+                hasAdditionalSources: true,
+                expected: undefined,
+            },
+        ])(
+            'only prunes deleted models for $name projects',
+            async ({ hasAdditionalSources, expected }) => {
+                const hasSources = vi
+                    .fn()
+                    .mockResolvedValue(hasAdditionalSources);
+                const deployService = getMockedProjectService(
+                    lightdashConfigMock,
+                    {
+                        projectDbtSourcesModel: {
+                            hasSources,
+                        } as unknown as ProjectDbtSourcesModel,
+                    },
+                );
+
+                await deployService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                    complete: false,
+                    dbtModelNames: ['orders'],
+                });
+
+                expect(hasSources).toHaveBeenCalledWith(projectUuid);
+                expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                    projectUuid,
+                    [validExplore],
+                    false,
+                    expected,
+                );
+            },
+        );
+
+        test('preserves legacy selective deploys without querying source ownership', async () => {
+            const hasSources = vi.fn();
+            const deployService = getMockedProjectService(lightdashConfigMock, {
+                projectDbtSourcesModel: {
+                    hasSources,
+                } as unknown as ProjectDbtSourcesModel,
+            });
+
+            await deployService.saveExploresToCacheAndIndexCatalog({
+                userUuid: user.userUuid,
+                projectUuid,
+                explores: [validExplore],
+                compilationSource: 'cli_deploy',
+                complete: false,
+            });
+
+            expect(hasSources).not.toHaveBeenCalled();
+            expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                projectUuid,
+                [validExplore],
+                false,
+                undefined,
+            );
+        });
+    });
+
     describe('pre-aggregate refreshes', () => {
         const adminUser: SessionUser = {
             ...user,

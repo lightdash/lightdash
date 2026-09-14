@@ -250,6 +250,12 @@ describe('compileProject completeness', () => {
         const result = await compileProject(compileOptions(tempDir));
 
         expect(result.isProjectComplete).toBe(true);
+        expect(result.dbtModelNames).toEqual([
+            'orders',
+            'test__orders',
+            'countries',
+            'test__countries',
+        ]);
     });
 
     test('reports a selected subset as incomplete', async () => {
@@ -270,7 +276,58 @@ describe('compileProject completeness', () => {
         const result = await compileProject(compileOptions(tempDir));
 
         expect(result.isProjectComplete).toBe(false);
+        expect(result.dbtModelNames).toEqual([
+            'orders',
+            'test__orders',
+            'customers',
+            'test__customers',
+        ]);
     });
+
+    test('omits cleanup inventory for YAML projects', async () => {
+        vi.mocked(loadLightdashModels).mockResolvedValue([
+            {
+                type: 'model',
+                name: 'orders',
+                sql_from: 'SELECT 1 AS id',
+                dimensions: [
+                    { name: 'id', type: DimensionType.NUMBER, sql: 'id' },
+                ],
+                sourcePath: 'models/orders.yml',
+            },
+        ]);
+
+        const result = await compileProject(compileOptions(tempDir));
+
+        expect(result.dbtModelNames).toBeUndefined();
+        expect(loadManifest).not.toHaveBeenCalled();
+    });
+
+    test.each(['lightdash_source_name', 'lightdash_source_uuid'])(
+        'omits cleanup inventory for a manifest annotated with %s',
+        async (sourceField) => {
+            vi.mocked(loadManifest).mockResolvedValue(
+                manifest({
+                    'model.test.orders': dbtNode(
+                        'model.test.orders',
+                        'model',
+                        true,
+                        {
+                            [sourceField]: 'source-a',
+                        },
+                    ),
+                }),
+            );
+            vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+                compiledModelIds: ['model.test.orders'],
+                originallySelectedModelIds: undefined,
+            });
+
+            const result = await compileProject(compileOptions(tempDir));
+
+            expect(result.dbtModelNames).toBeUndefined();
+        },
+    );
 
     test('derives completeness before combining an external manifest', async () => {
         const projectManifest = manifest({
@@ -306,6 +363,7 @@ describe('compileProject completeness', () => {
             'orders',
             'compiled',
         ]);
+        expect(result.dbtModelNames).toBeUndefined();
         expect(lightdashRawApi).not.toHaveBeenCalled();
         expect(console.info).toHaveBeenCalledWith(
             expect.stringContaining('Combined external manifest from'),
@@ -368,6 +426,7 @@ describe('compileProject completeness', () => {
             'customers',
         ]);
         expect(result.isProjectComplete).toBe(true);
+        expect(result.dbtModelNames).toBeUndefined();
         expect(lightdashRawApi).toHaveBeenCalledWith({
             method: 'GET',
             url: '/api/v1/projects/project-uuid/dbt/manifest',
