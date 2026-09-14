@@ -33,6 +33,7 @@ import { useSaveConnectionSample } from '../../../features/externalConnections/h
 import { useTestConnection } from '../../../features/externalConnections/hooks/useTestConnection';
 import { ConfirmDeleteButton } from '../../common/ConfirmDeleteButton';
 import MantineIcon from '../../common/MantineIcon';
+import classes from './ConnectionExamplesPanel.module.css';
 
 const MAX_SAMPLE_PREVIEW_CHARS = 200;
 
@@ -357,7 +358,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                     <TextInput
                         label="Path"
                         placeholder="/v1/endpoint"
-                        className="ld-grow"
+                        flex={1}
                         onPaste={handlePathPaste}
                         {...form.getInputProps('path')}
                     />
@@ -406,7 +407,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                         variant="subtle"
                         size="compact-sm"
                         leftSection={<MantineIcon icon={IconPlus} />}
-                        className="ld-self-start"
+                        className={classes.addParamButton}
                         onClick={() =>
                             form.insertListItem('queryParams', {
                                 uuid: uuidv4(),

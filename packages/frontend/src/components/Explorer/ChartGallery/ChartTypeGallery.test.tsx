@@ -29,6 +29,7 @@ const { mocks } = vi.hoisted(() => ({
 
 const projectChartType = {
     dataAppVizUuid: 'project-chart-type',
+    slug: 'event-pulse',
     name: 'Event pulse',
     description: 'Reusable ranked bars',
     projectUuid: 'project-uuid',
@@ -36,6 +37,7 @@ const projectChartType = {
     createdAt: new Date('2026-08-20T00:00:00Z'),
     createdByUserUuid: 'user-uuid',
     schema: { fields: [], configOptions: [], colorPalette: null },
+    icon: null,
     registrySlug: null,
 } satisfies DataAppViz;
 
@@ -136,7 +138,7 @@ describe('ChartTypeGallery', () => {
                         items: [galleryItem('Bar chart')],
                     }),
                     gallerySection({
-                        label: 'Project',
+                        label: 'Custom',
                         items: [
                             {
                                 ...galleryItem(
@@ -202,8 +204,8 @@ describe('ChartTypeGallery', () => {
                 disabledReason={null}
                 sections={[
                     gallerySection({
-                        label: 'Project',
-                        emptyMessage: 'No project chart types yet',
+                        label: 'Custom',
+                        emptyMessage: 'No custom chart types yet',
                         onCreateNew,
                     }),
                 ]}
@@ -211,7 +213,7 @@ describe('ChartTypeGallery', () => {
         );
 
         expect(
-            screen.getByText('No project chart types yet'),
+            screen.getByText('No custom chart types yet'),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Create new chart type' }),
@@ -289,7 +291,7 @@ describe('ChartTypeGallery', () => {
                 sections={[
                     gallerySection({ items: [galleryItem('Bar chart')] }),
                     gallerySection({
-                        label: 'Project',
+                        label: 'Custom',
                         items: [galleryItem('Event pulse')],
                     }),
                 ]}
@@ -303,7 +305,7 @@ describe('ChartTypeGallery', () => {
             ),
         ).toBeInTheDocument();
         expect(
-            within(screen.getByRole('group', { name: 'Project' })).getByRole(
+            within(screen.getByRole('group', { name: 'Custom' })).getByRole(
                 'button',
                 { name: 'Event pulse' },
             ),
@@ -343,14 +345,14 @@ describe('ChartTypeGallery', () => {
                 disabledReason={null}
                 sections={[
                     gallerySection({
-                        errorMessage: 'Failed to load project chart types',
+                        errorMessage: 'Failed to load custom chart types',
                     }),
                 ]}
             />,
         );
 
         expect(screen.getByRole('alert')).toHaveTextContent(
-            'Failed to load project chart types',
+            'Failed to load custom chart types',
         );
     });
 
@@ -681,7 +683,7 @@ describe('ExplorerChartTypeGallery', () => {
         dataAppsEnabled.current = false;
         renderGallery();
 
-        expect(screen.queryByText('Project')).not.toBeInTheDocument();
+        expect(screen.queryByText('Custom')).not.toBeInTheDocument();
         expect(screen.getByText('Built in')).toBeInTheDocument();
         // No project shelf means no reason to ask the server for one.
         expect(mockedUseDataAppVisualizations).toHaveBeenCalledWith(
@@ -698,7 +700,7 @@ describe('ExplorerChartTypeGallery', () => {
         renderGallery();
 
         expect(
-            screen.getByText('Failed to load project chart types'),
+            screen.getByText('Failed to load custom chart types'),
         ).toBeInTheDocument();
         await userEvent.click(
             screen.getByRole('button', { name: /Vega \(JSON editor\)/ }),

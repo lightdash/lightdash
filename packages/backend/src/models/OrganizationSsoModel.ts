@@ -223,6 +223,34 @@ export class OrganizationSsoModel {
             .find((method) => method.config.oauth2Issuer === oauth2Issuer);
     }
 
+    async findEnabledAzureAdMethodsByTenantId(
+        tenantId: string,
+    ): Promise<OrganizationSsoConfigLookup<OrganizationSsoProvider.AZUREAD>[]> {
+        const rows = await this.database(OrganizationSsoConfigurationsTableName)
+            .where(
+                `${OrganizationSsoConfigurationsTableName}.provider`,
+                OrganizationSsoProvider.AZUREAD,
+            )
+            .where(`${OrganizationSsoConfigurationsTableName}.enabled`, true)
+            .select(
+                `${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                `${OrganizationSsoConfigurationsTableName}.config`,
+            );
+
+        return rows
+            .map(
+                (
+                    row,
+                ): OrganizationSsoConfigLookup<OrganizationSsoProvider.AZUREAD> => ({
+                    organizationUuid: row.organization_uuid,
+                    config: this.decryptConfig<OrganizationSsoProvider.AZUREAD>(
+                        row.config,
+                    ),
+                }),
+            )
+            .filter((method) => method.config.oauth2TenantId === tenantId);
+    }
+
     /**
      * Finds every per-org Google policy row matching the email's domain,
      * including disabled ones. Google is enabled by default (shared instance

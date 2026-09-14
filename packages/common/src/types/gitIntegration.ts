@@ -29,6 +29,7 @@ export type PullRequestReviewContext = {
 export enum PullRequestProvider {
     GITHUB = 'github',
     GITLAB = 'gitlab',
+    BITBUCKET = 'bitbucket',
 }
 
 export enum PullRequestSource {
@@ -49,7 +50,7 @@ export enum PullRequestState {
 /**
  * A pull request created by a write-back. Only immutable identifiers are
  * persisted; the live title/state are resolved at runtime from the
- * GitHub/GitLab API using provider + owner + repo + prNumber.
+ * Git provider API using provider + owner + repo + prNumber.
  */
 export type PullRequest = {
     pullRequestUuid: string;

@@ -1,4 +1,4 @@
-import { Button, Card, List, Tooltip } from '@mantine/core';
+import { Paper, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { type SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { type SuggestionsItem } from '../../types';
@@ -63,62 +63,34 @@ export const SuggestionList = forwardRef<
     }));
 
     return props.items.length > 0 ? (
-        <Card shadow="xs" p={0} withBorder={false} radius="sm">
-            <List
-                withPadding={false}
-                listStyleType="none"
-                mah={120}
-                classNames={{
-                    root: classes.root,
-                    itemWrapper: classes.itemWrapper,
-                }}
-            >
-                {props.items.map((item, index) => (
-                    <List.Item key={index} fz="xs">
-                        <Tooltip
-                            fz="xs"
-                            label="User doesn't have access to this Dashboard's space"
-                            disabled={!item.disabled}
-                            position="right"
-                        >
-                            <Button
-                                size="compact-sm"
-                                onClick={() => {
-                                    if (item.disabled) return;
-                                    selectItem(index);
-                                }}
-                                styles={(theme) => ({
-                                    root: {
-                                        width: '100%',
-                                        fontSize: theme.fontSizes.xs,
-                                        fontWeight: 400,
-                                        textAlign: 'left',
-                                        backgroundColor:
-                                            theme.colors.background[0],
-                                        color:
-                                            index === selectedIndex
-                                                ? theme.colors.blue[6]
-                                                : theme.colors.ldGray[7],
-                                        opacity: item.disabled ? 0.5 : 1,
-                                        cursor: item.disabled
-                                            ? 'not-allowed'
-                                            : 'pointer',
-                                        '&:hover': {
-                                            backgroundColor:
-                                                theme.colors.blue[1],
-                                        },
-                                    },
-                                    inner: {
-                                        justifyContent: 'flex-start',
-                                    },
-                                })}
-                            >
-                                {item.label}
-                            </Button>
-                        </Tooltip>
-                    </List.Item>
-                ))}
-            </List>
-        </Card>
+        <Paper shadow="md" className={classes.root} role="listbox">
+            {props.items.map((item, index) => (
+                <Tooltip
+                    key={item.id}
+                    fz="xs"
+                    label="User doesn't have access to this Dashboard's space"
+                    disabled={!item.disabled}
+                    position="right"
+                >
+                    <UnstyledButton
+                        className={classes.item}
+                        role="option"
+                        aria-selected={index === selectedIndex}
+                        aria-disabled={item.disabled || undefined}
+                        data-selected={index === selectedIndex || undefined}
+                        data-disabled={item.disabled || undefined}
+                        onMouseEnter={() => setSelectedIndex(index)}
+                        onClick={() => {
+                            if (item.disabled) return;
+                            selectItem(index);
+                        }}
+                    >
+                        <Text fz="xs" truncate>
+                            {item.label}
+                        </Text>
+                    </UnstyledButton>
+                </Tooltip>
+            ))}
+        </Paper>
     ) : null;
 });

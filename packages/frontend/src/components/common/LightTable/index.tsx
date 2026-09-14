@@ -76,6 +76,8 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
               renderFn: () => ReactNode,
           ) => ReactNode);
     withValue?: string;
+    /** Hints that the cell menu offers link actions, like the results table's dotted underline. */
+    withUrls?: boolean;
 };
 
 interface TableCompoundComponents {
@@ -387,6 +389,7 @@ const BaseCell = (
                 withTextStyle = false,
                 withMenu = false,
                 withValue = undefined,
+                withUrls = false,
                 ...rest
             },
             ref,
@@ -487,6 +490,7 @@ const BaseCell = (
                             [classes.cfUnderline]:
                                 !!withTextStyle && !!withTextStyle.underline,
                             [classes.withInteractions]: withInteractions,
+                            [classes.withUrls]: withUrls,
                             [classes.withBackground]: !!withBackground,
                             [classes.withCopying]: clipboard.copied,
                         })}
@@ -530,6 +534,7 @@ const BaseCell = (
                     withColor,
                     withTextStyle,
                     withInteractions,
+                    withUrls,
                     withBackground,
                     clipboard.copied,
                     children,

@@ -3,6 +3,7 @@ import {
     ChartKind,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
+    getSdkFeatureTargetForTemplate,
     isApiError,
     isAppVersionInProgress,
     MAX_APP_FILES_PER_VERSION,
@@ -14,7 +15,6 @@ import {
     type DataAppVizContext,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Badge,
     Box,
     Button,
@@ -39,11 +39,9 @@ import {
     IconLayoutDashboard,
     IconLink,
     IconPackage,
-    IconClick,
     IconPlayerStop,
     IconRestore,
     IconPlugConnected,
-    IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -68,7 +66,6 @@ import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
 import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
-import MantineModal from '../components/common/MantineModal';
 import {
     ComposerSubmitButton,
     PromptComposer,
@@ -80,7 +77,6 @@ import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
     AttachButton,
-    InspectButton,
     ModelPicker,
     ScreenshotButton,
     SelectedAttachmentSection,
@@ -100,8 +96,11 @@ import AppPreview from '../features/apps/components/AppPreview';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
 import ConnectionChip from '../features/apps/components/ConnectionChip';
+import { ElementPickerButton } from '../features/apps/components/ElementPickerButton';
+import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
+import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -110,6 +109,7 @@ import { useBuildNotification } from '../features/apps/hooks/useBuildNotificatio
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
+import { useElementPicker } from '../features/apps/hooks/useElementPicker';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
@@ -139,11 +139,8 @@ import {
     type ChatMessage,
 } from '../features/apps/utils/chatMessage';
 import {
-    elementRefChipLabel,
     elementRefKey,
-    parseElementRefLabel,
     refToWireString,
-    type ElementRef,
 } from '../features/apps/utils/elementRefs';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
@@ -264,37 +261,6 @@ const ThemeChip: FC<{
     </Menu>
 );
 
-/** A removable pill for an element picked with the inspector. Matches the
- *  chart/dashboard pill shape, violet-tinted to mark inspector picks. */
-const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
-    elementRef,
-    onRemove,
-}) => {
-    const label = elementRefChipLabel(elementRef);
-    return (
-        <Tooltip
-            position="top-start"
-            disabled={!elementRef.loc}
-            label={`Source: ${elementRef.loc}`}
-        >
-            <Box className={classes.elementRefChip}>
-                <MantineIcon icon={IconClick} size={12} color="violet.6" />
-                <Text fw={500} truncate className={classes.elementRefChipName}>
-                    {label}
-                </Text>
-                <ActionIcon
-                    size="xs"
-                    radius="xl"
-                    onClick={onRemove}
-                    aria-label={`Remove ${label}`}
-                >
-                    <MantineIcon icon={IconX} size={10} />
-                </ActionIcon>
-            </Box>
-        </Tooltip>
-    );
-};
-
 /** A small informational badge shown on assistant bubbles for versions that
  *  were uploaded with a custom dependency set. Lists `name@version` per line
  *  in the tooltip so the author can confirm what was installed. */
@@ -404,15 +370,6 @@ const AppGenerate: FC = () => {
     const [selectedConnections, setSelectedConnections] = useState<
         SelectedConnection[]
     >([]);
-    // Click-to-edit ("Inspect") mode. While on, the iframe overlays a hover
-    // outline and intercepts clicks; each click inserts an element-reference
-    // pill at the editor cursor so the user can compose targeted edits.
-    // Stays on across multiple clicks; the user toggles off when done.
-    const [inspectorEnabled, setInspectorEnabled] = useState(false);
-    // Capability flag — flipped to true when the iframe SDK announces the
-    // inspector. Existing apps in resumed sandboxes may have an older SDK
-    // that never announces, in which case the toggle stays hidden.
-    const [inspectorAvailable, setInspectorAvailable] = useState(false);
     // Same handshake for screenshot capture. Older templates (resumed
     // sandboxes built before this feature shipped) never announce, so the
     // Screenshot button stays hidden — they keep working as before.
@@ -454,31 +411,6 @@ const AppGenerate: FC = () => {
     // consistency. Defaults to visible because the builder is the technical
     // workflow where seeing queries as they fire is the point.
     const [networkPanelHidden, setNetworkPanelHidden] = useState(false);
-    // Inspected elements attach as removable pills like the other prompt
-    // resources; the wire format is appended to the prompt at submit time.
-    const [selectedElementRefs, setSelectedElementRefs] = useState<
-        ElementRef[]
-    >([]);
-    const handleElementSelected = useCallback((event: { label: string }) => {
-        const ref = parseElementRefLabel(event.label);
-        if (!ref) {
-            console.warn(
-                '[apps] Ignoring unrecognized inspector label:',
-                event.label,
-            );
-            return;
-        }
-        setSelectedElementRefs((prev) =>
-            prev.some((r) => elementRefKey(r) === elementRefKey(ref))
-                ? prev
-                : [...prev, ref],
-        );
-    }, []);
-    // Stable so AppIframePreview's keydown listener doesn't re-attach on
-    // every render of this page.
-    const handleInspectorCancelled = useCallback(() => {
-        setInspectorEnabled(false);
-    }, []);
     const handleLineageSelected = useCallback(
         (event: { queryUuid: string }) => {
             setNetworkPanelHidden(false);
@@ -496,14 +428,6 @@ const AppGenerate: FC = () => {
         setFocusedQueryUuid(null);
     }, []);
 
-    const handleToggleLineage = useCallback(() => {
-        setLineageEnabled((v) => {
-            const next = !v;
-            if (next) setInspectorEnabled(false);
-            return next;
-        });
-        setFocusedQueryUuid(null);
-    }, []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
     // Maps prompt text → image preview URL so the thumbnail survives the
     // local→server message transition (localMessages get cleared when server
@@ -525,6 +449,20 @@ const AppGenerate: FC = () => {
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
         isUuidString(urlAppUuid ?? '') ? urlAppUuid : undefined,
     );
+    // Element references travel as wire-string lines appended to the prompt
+    // at submit time. Picker and lineage modes are mutually exclusive.
+    const elementPicker = useElementPicker({
+        identityKey: activeAppUuid ?? '',
+        onEnabled: handleLineageCancelled,
+    });
+    const cancelElementPicker = elementPicker.cancel;
+    const clearElementRefs = elementPicker.clear;
+    const handleToggleLineage = useCallback(() => {
+        const next = !lineageEnabled;
+        setLineageEnabled(next);
+        if (next) cancelElementPicker();
+        setFocusedQueryUuid(null);
+    }, [lineageEnabled, cancelElementPicker]);
     // Connections already linked to this app — shown as an "available" pill so
     // the user knows what the generated app can call via client.externalFetch.
     const { data: availableConnectionLinks = [] } = useAppExternalConnections(
@@ -573,7 +511,8 @@ const AppGenerate: FC = () => {
         setSelectedCharts([]);
         setSelectedDashboard(null);
         setSelectedConnections([]);
-        setSelectedElementRefs([]);
+        clearElementRefs();
+        cancelElementPicker();
         setFileAttachments([]);
         setLocalMessages([]);
         setPin(null);
@@ -581,8 +520,6 @@ const AppGenerate: FC = () => {
         // parent-owned fetch/poll of an in-flight query.
         resetQueries();
         clearExternalRequests();
-        setInspectorEnabled(false);
-        setInspectorAvailable(false);
         setScreenshotAvailable(false);
         setIsCapturingScreenshot(false);
         setLineageEnabled(false);
@@ -601,7 +538,13 @@ const AppGenerate: FC = () => {
         );
         sentImagesByPrompt.current.clear();
         sentFilesByPrompt.current.clear();
-    }, [resetQueries, clearExternalRequests, resetClarification]);
+    }, [
+        resetQueries,
+        clearExternalRequests,
+        resetClarification,
+        clearElementRefs,
+        cancelElementPicker,
+    ]);
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
         prevUrlAppUuid.current = urlAppUuid;
@@ -825,7 +768,9 @@ const AppGenerate: FC = () => {
     const serverVersionCount = allVersions.length;
     useEffect(() => {
         if (serverVersionCount > 0) {
-            setLocalMessages([]);
+            // Keep the same reference when already empty: a fresh array
+            // rebuilds `messages` and re-triggers the auto-scroll below.
+            setLocalMessages((prev) => (prev.length === 0 ? prev : []));
         }
     }, [serverVersionCount]);
 
@@ -1122,6 +1067,7 @@ const AppGenerate: FC = () => {
         renderedManifest: renderedSdkManifest,
         onSdkManifest: handleSdkManifest,
     } = useSdkUpgradeStatus({
+        target: getSdkFeatureTargetForTemplate(appPersistedTemplate),
         bundleKey:
             activeAppUuid && latestReadyVersion !== null
                 ? `${activeAppUuid}:${latestReadyVersion.version}`
@@ -1269,9 +1215,55 @@ const AppGenerate: FC = () => {
         el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, []);
 
-    useEffect(() => {
+    // Where the user was when they asked for earlier history. Older versions
+    // are prepended, so without re-anchoring the chat would jump around and
+    // the auto-scroll below would drag them back to the latest message.
+    const earlierHistoryAnchorRef = useRef<{
+        pageCount: number;
+        scrollTop: number;
+        scrollHeight: number;
+    } | null>(null);
+    const loadedPageCount = appData?.pages.length ?? 0;
+
+    const loadEarlierMessages = useCallback(() => {
+        if (isFetchingNextPage) return;
+        const el = chatMessagesRef.current;
+        if (el) {
+            earlierHistoryAnchorRef.current = {
+                pageCount: loadedPageCount,
+                scrollTop: el.scrollTop,
+                scrollHeight: el.scrollHeight,
+            };
+        }
+        void fetchNextPage();
+    }, [isFetchingNextPage, loadedPageCount, fetchNextPage]);
+
+    useLayoutEffect(() => {
+        const anchor = earlierHistoryAnchorRef.current;
+        if (anchor) {
+            if (loadedPageCount > anchor.pageCount) {
+                earlierHistoryAnchorRef.current = null;
+                const el = chatMessagesRef.current;
+                if (el) {
+                    el.scrollTop =
+                        anchor.scrollTop +
+                        (el.scrollHeight - anchor.scrollHeight);
+                }
+                return;
+            }
+            if (isFetchingNextPage) return;
+            // The fetch failed; drop the anchor but leave the user where they are.
+            earlierHistoryAnchorRef.current = null;
+            return;
+        }
         scrollToBottom();
-    }, [messages, isLoading, scrollToBottom]);
+    }, [
+        messages,
+        isLoading,
+        loadedPageCount,
+        isFetchingNextPage,
+        scrollToBottom,
+    ]);
 
     // Revoke all sent image blob URLs on unmount to prevent memory leaks.
     // We don't revoke on fileAttachments change because the URLs may have
@@ -1488,14 +1480,14 @@ const AppGenerate: FC = () => {
     const handleSubmit = async () => {
         const typed = (promptEditorRef.current?.getText() ?? '').trim();
         if (
-            (!typed && selectedElementRefs.length === 0) ||
+            (!typed && elementPicker.refs.length === 0) ||
             isLoading ||
             isSubmittingRef.current
         )
             return;
-        // Inspector references travel as their own lines after the typed text —
+        // Element references travel as their own lines after the typed text —
         // the same bracketed wire format the agent has always received.
-        const trimmed = [typed, ...selectedElementRefs.map(refToWireString)]
+        const trimmed = [typed, ...elementPicker.refs.map(refToWireString)]
             .filter(Boolean)
             .join('\n');
 
@@ -1662,7 +1654,7 @@ const AppGenerate: FC = () => {
             setSelectedCharts([]);
             setSelectedDashboard(null);
             setSelectedConnections([]);
-            setSelectedElementRefs([]);
+            clearElementRefs();
             resetGenerate();
             resetIterate();
 
@@ -1778,18 +1770,22 @@ const AppGenerate: FC = () => {
                         <Box
                             ref={chatMessagesRef}
                             className={classes.chatMessages}
+                            // Walkthrough look for create:DataApp: the
+                            // conversation that builds the app, version by
+                            // version.
+                            data-tour-scope="create:DataApp"
+                            data-tour-look="4"
+                            data-tour-after='[data-tour-anchor="app-continue-building"]'
+                            data-tour-label="Every prompt makes a new version"
+                            data-tour-docs="data-apps.mdx#iterating-on-your-app:1-2"
                         >
                             {hasUnloadedEarlierVersions && (
                                 <Group
                                     gap="xs"
                                     justify="center"
                                     p="xs"
-                                    onClick={() => {
-                                        if (!isFetchingNextPage) {
-                                            void fetchNextPage();
-                                        }
-                                    }}
-                                    className="ld-pointer"
+                                    onClick={loadEarlierMessages}
+                                    className={classes.loadEarlierRow}
                                 >
                                     {isFetchingNextPage ? (
                                         <Loader size="xs" />
@@ -2483,6 +2479,14 @@ const AppGenerate: FC = () => {
                                 <Box
                                     onDragOver={handleDragOver}
                                     onDrop={handleDrop}
+                                    // Typed walkthrough step for create:DataApp:
+                                    // the first prompt, with a suggestion that
+                                    // fits the seeded Jaffle data. The kit fills
+                                    // the editor inside this box.
+                                    data-tour-anchor="app-prompt"
+                                    data-tour-hint="Describe the app you want"
+                                    data-tour-input="true"
+                                    data-tour-suggest="A one-page pulse of orders, revenue and top customers, with a filter on order status"
                                 >
                                     <PromptComposer
                                         ref={promptEditorRef}
@@ -2502,20 +2506,19 @@ const AppGenerate: FC = () => {
                                                 selectedDashboard ||
                                                 selectedConnections.length >
                                                     0 ||
-                                                selectedElementRefs.length >
-                                                    0 ||
+                                                elementPicker.refs.length > 0 ||
                                                 fileAttachments.length > 0) && (
                                                 <Box
                                                     className={
                                                         classes.attachedResources
                                                     }
                                                 >
-                                                    {selectedElementRefs.length >
+                                                    {elementPicker.refs.length >
                                                         0 && (
                                                         <Group gap={4}>
-                                                            {selectedElementRefs.map(
+                                                            {elementPicker.refs.map(
                                                                 (ref) => (
-                                                                    <ElementRefChip
+                                                                    <ElementRefPill
                                                                         key={elementRefKey(
                                                                             ref,
                                                                         )}
@@ -2523,21 +2526,8 @@ const AppGenerate: FC = () => {
                                                                             ref
                                                                         }
                                                                         onRemove={() =>
-                                                                            setSelectedElementRefs(
-                                                                                (
-                                                                                    prev,
-                                                                                ) =>
-                                                                                    prev.filter(
-                                                                                        (
-                                                                                            r,
-                                                                                        ) =>
-                                                                                            elementRefKey(
-                                                                                                r,
-                                                                                            ) !==
-                                                                                            elementRefKey(
-                                                                                                ref,
-                                                                                            ),
-                                                                                    ),
+                                                                            elementPicker.remove(
+                                                                                ref,
                                                                             )
                                                                         }
                                                                     />
@@ -2798,31 +2788,14 @@ const AppGenerate: FC = () => {
                                                             }
                                                         />
                                                     )}
-                                                {inspectorAvailable && (
-                                                    <InspectButton
+                                                {elementPicker.available && (
+                                                    <ElementPickerButton
                                                         enabled={
-                                                            inspectorEnabled
+                                                            elementPicker.enabled
                                                         }
-                                                        onToggle={() => {
-                                                            setInspectorEnabled(
-                                                                (v) => {
-                                                                    const next =
-                                                                        !v;
-                                                                    if (next)
-                                                                        setLineageEnabled(
-                                                                            false,
-                                                                        );
-                                                                    return next;
-                                                                },
-                                                            );
-                                                            // Entering inspector
-                                                            // mode force-disables
-                                                            // lineage — drop its
-                                                            // selection too.
-                                                            setFocusedQueryUuid(
-                                                                null,
-                                                            );
-                                                        }}
+                                                        onToggle={
+                                                            elementPicker.toggle
+                                                        }
                                                     />
                                                 )}
                                                 {newAppLanding && (
@@ -2918,12 +2891,24 @@ const AppGenerate: FC = () => {
                                                     <ComposerSubmitButton
                                                         icon={IconArrowUp}
                                                         label="Send message"
+                                                        // Walkthrough look for
+                                                        // create:DataApp: the
+                                                        // build starts here;
+                                                        // the walkthrough
+                                                        // stops short of it.
+                                                        data-tour-scope="create:DataApp"
+                                                        data-tour-look="3"
+                                                        data-tour-after='[data-tour-anchor="app-prompt"]'
+                                                        data-tour-label="Send starts the build"
+                                                        data-tour-docs="data-apps.mdx#choosing-a-template:p2:2-3"
                                                         onClick={() =>
                                                             void handleSubmit()
                                                         }
                                                         disabled={
                                                             (isPromptEmpty &&
-                                                                selectedElementRefs.length ===
+                                                                elementPicker
+                                                                    .refs
+                                                                    .length ===
                                                                     0) ||
                                                             isLoading
                                                         }
@@ -3050,23 +3035,20 @@ const AppGenerate: FC = () => {
                                                     </Menu.Item>
                                                 ) : null
                                             }
+                                            askAiItem={null}
                                         />
                                     }
                                 />
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (
-                                <MantineModal
-                                    opened
+                                <RestoreAppVersionModal
+                                    version={restoreTargetVersion}
+                                    isLoading={isRestoringVersion}
+                                    error={restoreVersionError}
                                     onClose={() => {
-                                        if (isRestoringVersion) return;
                                         setRestoreTargetVersion(null);
                                         resetRestoreVersion();
                                     }}
-                                    title={`Restore version ${restoreTargetVersion}?`}
-                                    icon={IconRestore}
-                                    confirmLabel="Restore version"
-                                    cancelDisabled={isRestoringVersion}
-                                    confirmLoading={isRestoringVersion}
                                     onConfirm={() =>
                                         restoreVersionMutate(
                                             {
@@ -3083,27 +3065,23 @@ const AppGenerate: FC = () => {
                                             },
                                         )
                                     }
-                                >
-                                    <Stack gap="sm">
-                                        <Text fz="sm">
-                                            This will create a new version on
-                                            top of the timeline that duplicates
-                                            the contents of version{' '}
-                                            {restoreTargetVersion}. Your next
-                                            prompt will iterate from there.
-                                        </Text>
-                                        {restoreVersionError && (
-                                            <Callout variant="danger">
-                                                {restoreVersionError.error
-                                                    ?.message ??
-                                                    'Failed to restore version.'}
-                                            </Callout>
-                                        )}
-                                    </Stack>
-                                </MantineModal>
+                                />
                             )}
 
-                            <Box className={classes.previewContent}>
+                            <Box
+                                className={classes.previewContent}
+                                // Walkthrough result for create:DataApp: a
+                                // finished app in the builder, the seeded one
+                                // standing in for the build the learner did
+                                // not start.
+                                data-tour-scope="create:DataApp"
+                                data-tour-step="1"
+                                data-tour-route="/projects/:projectUuid/apps/:appUuid"
+                                data-tour-label="A running app in the builder"
+                                data-tour-docs="data-apps.mdx#creating-a-new-app:1"
+                                data-tour-return="none"
+                                data-tour-resultdocs="data-apps.mdx#restoring-an-earlier-version:1"
+                            >
                                 {previewApp ? (
                                     <AppPreview
                                         ref={previewRef}
@@ -3116,18 +3094,9 @@ const AppGenerate: FC = () => {
                                         onExternalRequestEvent={
                                             handleExternalRequestEvent
                                         }
-                                        inspectorEnabled={inspectorEnabled}
-                                        onElementSelected={
-                                            handleElementSelected
-                                        }
-                                        onInspectorAvailabilityChange={
-                                            setInspectorAvailable
-                                        }
+                                        {...elementPicker.iframeProps}
                                         onScreenshotAvailabilityChange={
                                             setScreenshotAvailable
-                                        }
-                                        onInspectorCancelled={
-                                            handleInspectorCancelled
                                         }
                                         lineageEnabled={lineageEnabled}
                                         onLineageAvailabilityChange={

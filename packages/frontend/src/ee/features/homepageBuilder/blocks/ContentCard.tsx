@@ -1,6 +1,7 @@
 import {
     ContentType,
     contentToResourceViewItem,
+    ResourceViewItemType,
     type SummaryContent,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine/core';
@@ -10,7 +11,12 @@ import { Link } from 'react-router';
 import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
-import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
+import {
+    getResourceUrl,
+    getResourceViewsSinceWhenDescription,
+    getViewStatsResourceType,
+} from '../../../../components/common/ResourceView/resourceUtils';
+import ViewsCountPopover from '../../../../components/common/ViewsCountPopover';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import classes from './blockStyles.module.css';
@@ -23,6 +29,8 @@ type Props = {
     /** `row`/`tile` are card-chrome variants; `compact` is a slim
      * single-line tile for dense grids. */
     variant?: 'row' | 'tile' | 'compact';
+    /** Walkthrough anchor for the card, picked by the content's name. */
+    tourAnchor?: string;
 };
 
 const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
@@ -61,7 +69,37 @@ const CONTENT_KIND_LABEL: Record<SummaryContent['contentType'], string> = {
     [ContentType.DATA_APP]: 'App',
 };
 
-const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
+const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
+    content,
+    projectUuid,
+}) => {
+    const item = contentToResourceViewItem(content);
+    return (
+        <ViewsCountPopover
+            resourceType={getViewStatsResourceType(item)}
+            resourceUuid={content.uuid}
+            projectUuid={projectUuid}
+            views={content.views}
+            fallbackTooltip={
+                item.type === ResourceViewItemType.SPACE
+                    ? undefined
+                    : getResourceViewsSinceWhenDescription(item)
+            }
+        >
+            <Group gap={4} wrap="nowrap" component="span">
+                <MantineIcon icon={IconEye} size={12} color="dimmed" />
+                <Text size="xs" c="dimmed" span>
+                    {content.views}
+                </Text>
+            </Group>
+        </ViewsCountPopover>
+    );
+};
+
+const KindAndViews: FC<{ content: SummaryContent; projectUuid: string }> = ({
+    content,
+    projectUuid,
+}) => (
     <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
         <Text size="xs" c="dimmed" span>
             {CONTENT_KIND_LABEL[content.contentType]}
@@ -69,10 +107,7 @@ const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
         <Text size="xs" c="dimmed" span>
             ·
         </Text>
-        <MantineIcon icon={IconEye} size={12} color="dimmed" />
-        <Text size="xs" c="dimmed" span>
-            {content.views}
-        </Text>
+        <ViewsCount content={content} projectUuid={projectUuid} />
     </Group>
 );
 
@@ -109,14 +144,24 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
 );
 
 const MaybeLink: FC<
-    PropsWithChildren<{ to: string | null; className: string }>
-> = ({ to, className, children }) =>
+    PropsWithChildren<{
+        to: string | null;
+        className: string;
+        attrs?: Record<string, string>;
+    }>
+> = ({ to, className, attrs, children }) =>
     to ? (
-        <Link to={to} className={`${className} ${classes.plainLink}`}>
+        <Link
+            to={to}
+            className={`${className} ${classes.plainLink}`}
+            {...attrs}
+        >
             {children}
         </Link>
     ) : (
-        <Box className={className}>{children}</Box>
+        <Box className={className} {...attrs}>
+            {children}
+        </Box>
     );
 
 export const ContentCard: FC<Props> = ({
@@ -125,8 +170,18 @@ export const ContentCard: FC<Props> = ({
     onRemove,
     star,
     variant = 'row',
+    tourAnchor,
 }) => {
     const projectUrlIdentifier = useProjectUrlIdentifier();
+    // Walkthrough anchor (data-tour-via), one card by its name.
+    const tourAttrs = tourAnchor
+        ? {
+              'data-tour-anchor': tourAnchor,
+              'data-tour-hint': 'Open a pinned item',
+              'data-tour-hint-named': 'Open {value}',
+              'data-tour-value': content.name,
+          }
+        : undefined;
     const to = onRemove
         ? null
         : getResourceUrl(
@@ -142,6 +197,7 @@ export const ContentCard: FC<Props> = ({
             <MaybeLink
                 to={to}
                 className={`${classes.resTile}${to ? ` ${classes.clickable}` : ''}`}
+                attrs={tourAttrs}
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Group gap={5} wrap="nowrap" className={classes.resTileBody}>
@@ -150,12 +206,7 @@ export const ContentCard: FC<Props> = ({
                     </Text>
                     <VerifiedBadge content={content} />
                 </Group>
-                <Group gap={4} wrap="nowrap">
-                    <MantineIcon icon={IconEye} size={12} color="dimmed" />
-                    <Text size="xs" c="dimmed" span>
-                        {content.views}
-                    </Text>
-                </Group>
+                <ViewsCount content={content} projectUuid={projectUuid} />
                 <Box className={classes.tileActions}>
                     <CardActions
                         content={content}
@@ -174,6 +225,7 @@ export const ContentCard: FC<Props> = ({
             <MaybeLink
                 to={to}
                 className={`${cardClass} ${classes.cardUnitHalf} ${classes.contentTile}`}
+                attrs={tourAttrs}
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box className={classes.tileBody}>
@@ -183,7 +235,7 @@ export const ContentCard: FC<Props> = ({
                         </Text>
                         <VerifiedBadge content={content} />
                     </Group>
-                    <KindAndViews content={content} />
+                    <KindAndViews content={content} projectUuid={projectUuid} />
                     <TileExtra content={content} />
                 </Box>
                 <Box className={classes.tileActions}>
@@ -198,7 +250,7 @@ export const ContentCard: FC<Props> = ({
     }
 
     return (
-        <MaybeLink to={to} className={cardClass}>
+        <MaybeLink to={to} className={cardClass} attrs={tourAttrs}>
             <Group gap="sm" wrap="nowrap" align="center" p="sm" h="100%">
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box flex={1} miw={0}>
@@ -208,7 +260,7 @@ export const ContentCard: FC<Props> = ({
                         </Text>
                         <VerifiedBadge content={content} />
                     </Group>
-                    <KindAndViews content={content} />
+                    <KindAndViews content={content} projectUuid={projectUuid} />
                 </Box>
                 <CardActions
                     content={content}

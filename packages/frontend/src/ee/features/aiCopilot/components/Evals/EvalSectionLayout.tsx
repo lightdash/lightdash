@@ -136,7 +136,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                 key="evaluation"
                 size="lg"
                 onClick={handleNavigateToEvaluation}
-                className="ld-pointer"
+                className={styles.breadcrumbLink}
                 td="none"
                 fw={500}
             >

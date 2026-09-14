@@ -117,7 +117,7 @@ const ReviewFindingRow: FC<{
             icon={IconSearch}
             right={
                 item.findingCount > 1 ? (
-                    <Text fz="xs" fw={600} c="dimmed" className="ld-shrink-0">
+                    <Text fz="xs" fw={600} c="dimmed" flex="0 0 auto">
                         {item.findingCount}×
                     </Text>
                 ) : undefined
@@ -148,7 +148,7 @@ const ReviewFindingRow: FC<{
                             Evidence ({item.evidenceExcerpts.length})
                         </Group>
                     </Anchor>
-                    <Collapse in={evidenceOpen}>
+                    <Collapse expanded={evidenceOpen}>
                         <Stack
                             gap={4}
                             mt={4}

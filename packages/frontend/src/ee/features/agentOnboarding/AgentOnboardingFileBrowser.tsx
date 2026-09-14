@@ -2,12 +2,14 @@ import { type AgentOnboardingFile } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
     Center,
     Group,
-    Loader,
+    Paper,
     ScrollArea,
     Stack,
     Text,
+    Tooltip,
     Tree,
     getTreeExpandedState,
     useMantineColorScheme,
@@ -20,13 +22,14 @@ import {
     IconChevronRight,
     IconFile,
     IconFolder,
-    IconGripVertical,
     IconMaximize,
+    IconPlayerPlay,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
+import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import {
@@ -37,6 +40,7 @@ import classes from './AgentOnboardingRunPage.module.css';
 import { useAgentOnboardingFile } from './hooks/useAgentOnboarding';
 import {
     buildAgentOnboardingFileTree,
+    sanitizeTerminalText,
     type AgentOnboardingFileTreeNode,
 } from './utils';
 
@@ -45,6 +49,29 @@ const getPreviewLanguage = (path: string): 'json' | 'yaml' | null => {
     if (/\.ya?ml$/i.test(path)) return 'yaml';
     return null;
 };
+
+const RECENT_UPDATE_WINDOW_MS = 15_000;
+
+const getLatestUpdatedFile = (
+    files: AgentOnboardingFile[],
+): AgentOnboardingFile | undefined =>
+    files.reduce<AgentOnboardingFile | undefined>(
+        (latest, file) =>
+            !latest ||
+            Date.parse(file.updatedAt) >= Date.parse(latest.updatedAt)
+                ? file
+                : latest,
+        undefined,
+    );
+
+const getAncestorPaths = (path: string): string[] =>
+    path
+        .split('/')
+        .slice(0, -1)
+        .map((_, index, segments) => segments.slice(0, index + 1).join('/'));
+
+const isRecentlyUpdated = (file: AgentOnboardingFile): boolean =>
+    Date.now() - Date.parse(file.updatedAt) < RECENT_UPDATE_WINDOW_MS;
 
 const toTreeData = (nodes: AgentOnboardingFileTreeNode[]): TreeNodeData[] =>
     nodes.map((node) => ({
@@ -111,19 +138,30 @@ export const AgentOnboardingFileBrowser: FC<{
     projectUuid: string;
     runUuid: string;
     files: AgentOnboardingFile[];
-}> = ({ projectUuid, runUuid, files }) => {
+    isLive: boolean;
+    latestActivity: string | null;
+}> = ({ projectUuid, runUuid, files, isLive, latestActivity }) => {
     const [selectedPath, setSelectedPath] = useState<string>();
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isFollowing, setIsFollowing] = useState(true);
+    const shouldFollowLatest = isLive && isFollowing;
+    // Keyed on the path set so the tree is not re-initialised on every poll
+    const pathsKey = files.map(({ path }) => path).join('\n');
     const treeData = useMemo(
         () => toTreeData(buildAgentOnboardingFileTree(files)),
-        [files],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [pathsKey],
     );
-    const allNodesExpanded = useMemo<Record<string, boolean>>(
-        () => getTreeExpandedState(treeData, '*') as Record<string, boolean>,
-        [treeData],
+    const folderValues = useMemo(
+        () =>
+            Object.keys(getTreeExpandedState(treeData, '*')).filter((value) =>
+                files.every(({ path }) => path !== value),
+            ),
+        [files, treeData],
     );
-    const fileTree = useTree({ initialExpandedState: allNodesExpanded });
-    const { clearSelected, select, setExpandedState } = fileTree;
+    const fileTree = useTree();
+    const { clearSelected, expand, select } = fileTree;
+    const seenFoldersRef = useRef<Set<string>>(new Set());
     const selectedFile = files.find(({ path }) => path === selectedPath);
     const fileQuery = useAgentOnboardingFile(
         projectUuid,
@@ -135,26 +173,36 @@ export const AgentOnboardingFileBrowser: FC<{
         if (files.length === 0) {
             setSelectedPath(undefined);
             clearSelected();
-        } else if (!files.some(({ path }) => path === selectedPath)) {
-            const nextSelectedPath = files[0].path;
+            return;
+        }
+        const latestFile = getLatestUpdatedFile(files);
+        const nextSelectedPath = shouldFollowLatest
+            ? latestFile?.path
+            : files.some(({ path }) => path === selectedPath)
+              ? selectedPath
+              : files[0].path;
+        if (nextSelectedPath && nextSelectedPath !== selectedPath) {
             setSelectedPath(nextSelectedPath);
             select(nextSelectedPath);
+            getAncestorPaths(nextSelectedPath).forEach(expand);
         }
-    }, [clearSelected, files, select, selectedPath]);
+    }, [
+        clearSelected,
+        expand,
+        files,
+        select,
+        selectedPath,
+        shouldFollowLatest,
+    ]);
 
+    // Runs after the Tree's own initialise effect, which collapses new folders
     useEffect(() => {
-        setExpandedState((current) => {
-            let changed = false;
-            const next = { ...current };
-            Object.keys(allNodesExpanded).forEach((value) => {
-                if (!(value in current)) {
-                    next[value] = true;
-                    changed = true;
-                }
-            });
-            return changed ? next : current;
+        folderValues.forEach((value) => {
+            if (seenFoldersRef.current.has(value)) return;
+            seenFoldersRef.current.add(value);
+            expand(value);
         });
-    }, [allNodesExpanded, setExpandedState]);
+    }, [expand, folderValues]);
 
     const renderTreeNode = ({
         node,
@@ -162,44 +210,48 @@ export const AgentOnboardingFileBrowser: FC<{
         hasChildren,
         elementProps,
         tree,
-    }: RenderTreeNodePayload) => (
-        <Group
-            gap={6}
-            align="center"
-            wrap="nowrap"
-            {...elementProps}
-            onClick={(event) => {
-                elementProps.onClick(event);
-                if (!hasChildren) {
-                    tree.select(node.value);
-                    setSelectedPath(node.value);
-                }
-            }}
-        >
-            <Box className={classes.fileTreeToggle}>
-                {hasChildren && (
+    }: RenderTreeNodePayload) => {
+        const file = files.find(({ path }) => path === node.value);
+        return (
+            <Group
+                key={file ? `${file.path}-${file.updatedAt}` : node.value}
+                gap={6}
+                align="center"
+                wrap="nowrap"
+                {...elementProps}
+                data-recent={file && isRecentlyUpdated(file) ? true : undefined}
+                onClick={(event) => {
+                    elementProps.onClick(event);
+                    if (!hasChildren) {
+                        setIsFollowing(false);
+                        tree.select(node.value);
+                        setSelectedPath(node.value);
+                    }
+                }}
+            >
+                <Box className={classes.fileTreeToggle}>
+                    {hasChildren && (
+                        <MantineIcon
+                            icon={expanded ? IconChevronDown : IconChevronRight}
+                            size={14}
+                        />
+                    )}
+                </Box>
+                <Box className={classes.fileTreeIcon}>
                     <MantineIcon
-                        icon={expanded ? IconChevronDown : IconChevronRight}
-                        size={14}
+                        icon={hasChildren ? IconFolder : IconFile}
+                        size={18}
                     />
-                )}
-            </Box>
-            <Box className={classes.fileTreeIcon}>
-                <MantineIcon
-                    icon={hasChildren ? IconFolder : IconFile}
-                    size={18}
-                />
-            </Box>
-            <Text fz="sm" lh="20px" truncate>
-                {node.label}
-            </Text>
-        </Group>
-    );
+                </Box>
+                <Text fz="sm" lh="20px" truncate>
+                    {node.label}
+                </Text>
+            </Group>
+        );
+    };
 
     const preview = fileQuery.isInitialLoading ? (
-        <Center h="100%">
-            <Loader size="sm" />
-        </Center>
+        <EmptyStateLoader h="100%" />
     ) : fileQuery.isError ? (
         <Center h="100%" p="lg">
             <Text c="red" fz="sm" ta="center">
@@ -222,16 +274,41 @@ export const AgentOnboardingFileBrowser: FC<{
 
     if (files.length === 0) {
         return (
-            <Center h="100%" p="xl">
-                <Stack gap="xs" align="center">
-                    <MantineIcon icon={IconFolder} size="lg" />
-                    <Text fw={600}>Generated files will appear here</Text>
-                    <Text c="dimmed" fz="sm" ta="center">
-                        The preview refreshes as the agent creates and updates
-                        your project files.
-                    </Text>
-                </Stack>
-            </Center>
+            <Box h="100%" p="md">
+                <Paper variant="dotted" h="100%">
+                    <Center h="100%" p="xl">
+                        <Stack gap="xs" align="center">
+                            <MantineIcon
+                                icon={IconFolder}
+                                size="lg"
+                                color="dimmed"
+                            />
+                            <Text fw={500}>
+                                {isLive
+                                    ? 'Exploring your warehouse'
+                                    : 'No files were generated'}
+                            </Text>
+                            <Text c="dimmed" fz="sm" ta="center">
+                                {isLive
+                                    ? 'Your semantic layer files appear here the moment the agent starts writing them.'
+                                    : 'The run ended before any project files were written.'}
+                            </Text>
+                            {isLive && latestActivity ? (
+                                <Text
+                                    c="dimmed"
+                                    fz="xs"
+                                    ff="monospace"
+                                    ta="center"
+                                    mt="sm"
+                                    className={classes.emptyActivity}
+                                >
+                                    {sanitizeTerminalText(latestActivity)}
+                                </Text>
+                            ) : null}
+                        </Stack>
+                    </Center>
+                </Paper>
+            </Box>
         );
     }
 
@@ -258,9 +335,7 @@ export const AgentOnboardingFileBrowser: FC<{
                 <PanelResizeHandle
                     className={classes.fileResizeHandle}
                     aria-label="Resize file tree and preview"
-                >
-                    <MantineIcon icon={IconGripVertical} size={14} />
-                </PanelResizeHandle>
+                />
                 <Panel
                     id="onboarding-file-preview"
                     minSize={30}
@@ -274,17 +349,49 @@ export const AgentOnboardingFileBrowser: FC<{
                             py={6}
                             className={classes.filePreviewHeader}
                         >
-                            <Text fz="xs" ff="monospace" truncate>
+                            <Text fz="xs" ff="monospace" c="dimmed" truncate>
                                 {selectedPath}
                             </Text>
-                            <ActionIcon
-                                aria-label="Expand file preview"
-                                size="sm"
-                                onClick={() => setIsExpanded(true)}
-                                disabled={!fileQuery.data}
-                            >
-                                <MantineIcon icon={IconMaximize} size="sm" />
-                            </ActionIcon>
+                            <Group gap={4} wrap="nowrap">
+                                {isLive ? (
+                                    <Button
+                                        variant={
+                                            isFollowing ? 'light' : 'subtle'
+                                        }
+                                        color={
+                                            isFollowing ? 'indigo' : undefined
+                                        }
+                                        size="compact-xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconPlayerPlay}
+                                                size={12}
+                                            />
+                                        }
+                                        aria-pressed={isFollowing}
+                                        onClick={() =>
+                                            setIsFollowing((value) => !value)
+                                        }
+                                    >
+                                        {isFollowing
+                                            ? 'Following latest'
+                                            : 'Follow latest'}
+                                    </Button>
+                                ) : null}
+                                <Tooltip label="Expand preview">
+                                    <ActionIcon
+                                        aria-label="Expand file preview"
+                                        size="sm"
+                                        onClick={() => setIsExpanded(true)}
+                                        disabled={!fileQuery.data}
+                                    >
+                                        <MantineIcon
+                                            icon={IconMaximize}
+                                            size="sm"
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
                         </Group>
                         <Box className={classes.filePreviewScroll}>
                             {preview}

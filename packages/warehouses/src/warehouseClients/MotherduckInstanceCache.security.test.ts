@@ -16,7 +16,7 @@ vi.mock('@duckdb/node-api', () => ({
 const getMockStreamResult = (marker: string) => ({
     columnCount: 1,
     columnNames: () => ['marker'],
-    columnTypeId: () => 17,
+    columnType: () => ({ typeId: 17 }),
     yieldRowObjectJson: async function* yieldRows() {
         yield [{ marker }];
     },

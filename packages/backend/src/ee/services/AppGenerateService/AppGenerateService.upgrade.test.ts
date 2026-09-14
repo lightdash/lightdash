@@ -228,7 +228,43 @@ describe('upgradeApp', () => {
         );
     });
 
-    it('preserves a chart type schema and queues a durable capability summary', async () => {
+    it('drops chart-type-only candidates from a data app upgrade', async () => {
+        const { service, schedulerClient } = buildService();
+
+        await service.upgradeApp(makeUser(), PROJECT_UUID, APP_UUID, {
+            reportedSdkVersion: '0.3400.0',
+            reportedFeatures: ['query'],
+            candidateFeatures: [
+                {
+                    key: 'viz-config-options',
+                    label: 'Visualization config options',
+                    description: 'Adjust the viz from the config panel.',
+                    wiring: 'Read options[name] from useVizContext().',
+                },
+                {
+                    key: 'gsheet-export',
+                    label: 'Google Sheets export',
+                    description: 'Export tabular results to Google Sheets.',
+                },
+                {
+                    key: 'not-a-registry-key',
+                    label: 'Made up',
+                    description: 'Not in the SDK registry.',
+                },
+            ],
+        });
+
+        const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
+        expect(payload.prompt).toContain(
+            'gsheet-export: Google Sheets export — Export tabular results to Google Sheets.',
+        );
+        expect(payload.prompt).not.toContain('viz-config-options');
+        expect(payload.prompt).not.toContain('useVizContext');
+        expect(payload.prompt).not.toContain('not-a-registry-key');
+        expect(payload.upgradeStatusMessage).toBeUndefined();
+    });
+
+    it('preserves a chart type schema and queues a capability summary limited to chart-type features', async () => {
         const { service, appModel, schedulerClient } = buildService({
             template: 'data_app_viz',
         });
@@ -244,9 +280,20 @@ describe('upgradeApp', () => {
                     wiring: 'Pass metric filters to the query builder.',
                 },
                 {
+                    key: 'gsheet-export',
+                    label: 'Google Sheets export',
+                    description: 'Export tabular results to Google Sheets.',
+                },
+                {
                     key: 'screenshot',
                     label: 'In-app screenshots',
                     description: 'Capture this chart for deliveries.',
+                },
+                {
+                    key: 'viz-underlying-data',
+                    label: 'View underlying data',
+                    description: 'Open the rows behind a clicked data point.',
+                    wiring: 'Show the action menu when underlyingData.enabled.',
                 },
             ],
         });
@@ -260,11 +307,41 @@ describe('upgradeApp', () => {
             undefined,
             VIZ_SCHEMA,
         );
+        const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
+        // Query and Sheets features never apply to a chart type: neither the
+        // durable summary nor the agent prompt may mention them.
+        expect(payload.upgradeStatusMessage).toBe(
+            'Upgraded to the latest chart SDK.\n\nNow active:\n\n- **In-app screenshots** — Capture this chart for deliveries.\n\nNewly available — ask me to add this in the prompt bar:\n\n- **View underlying data** — Open the rows behind a clicked data point.',
+        );
+        expect(payload.prompt).toContain('viz-underlying-data');
+        expect(payload.prompt).toContain('screenshot');
+        expect(payload.prompt).not.toContain('metric-filters');
+        expect(payload.prompt).not.toContain('gsheet-export');
+    });
+
+    it('treats a chart type whose only candidates are data-app features as already complete', async () => {
+        const { service, schedulerClient } = buildService({
+            template: 'data_app_viz',
+        });
+
+        await service.upgradeApp(makeUser(), PROJECT_UUID, APP_UUID, {
+            reportedSdkVersion: '1.68.0',
+            reportedFeatures: ['query'],
+            candidateFeatures: [
+                {
+                    key: 'metric-filters',
+                    label: 'Metric filters',
+                    description: 'Filter grouped results by metric values.',
+                    wiring: 'Pass metric filters to the query builder.',
+                },
+            ],
+        });
+
         expect(
             schedulerClient.appGeneratePipeline.mock.calls[0][0]
                 .upgradeStatusMessage,
         ).toBe(
-            'Upgraded to the latest chart SDK.\n\nNow active:\n\n- **In-app screenshots** — Capture this chart for deliveries.\n\nNewly available — ask me to add this in the prompt bar:\n\n- **Metric filters** — Filter grouped results by metric values.',
+            'Upgraded to the latest chart SDK. This chart already had all currently reported capabilities.',
         );
     });
 

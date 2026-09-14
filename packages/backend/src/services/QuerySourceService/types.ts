@@ -1,17 +1,37 @@
 import type {
     Account,
+    ParametersValuesMap,
+    PivotConfiguration,
     QueryExecutionContext,
     QuerySourceDefinition,
     QuerySourceSchema,
     SourceQuery,
+    UserAttributeValueMap,
 } from '@lightdash/common';
+import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 
 export type ScanSchemaArgs = {
     account: Account;
     projectUuid: string;
 };
 
-export type SubmitSourceQueryArgs = {
+/**
+ * Execution context shared by every query of one submission. Each field is
+ * required so a caller decides it explicitly; none of them defaults.
+ */
+export type SourceQueryExecutionContext = {
+    /** Parameter values every node resolves its references against. */
+    parameters: ParametersValuesMap;
+    /**
+     * Never optional: overrides come from the caller's runtime (embed, MCP,
+     * AI agent) and a dropped override shows a user another tenant's rows.
+     * Callers without overrides pass an empty map.
+     */
+    userAttributeOverrides: UserAttributeValueMap;
+    invalidateCache: boolean;
+};
+
+export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;
@@ -22,6 +42,14 @@ export type SubmitSourceQueryArgs = {
      * existing results and pass through unchanged.
      */
     resolvedReferences: Record<string, string>;
+    /** The node's own pivot, lifted off the query so every source reads one place. */
+    pivotConfiguration: PivotConfiguration | null;
+    /**
+     * How a duckdb node executes. Null is the public plan: the gated compose
+     * SQL path, columns discovered, shared results session. Only internal
+     * submissions carry a plan; the public endpoint cannot express one.
+     */
+    plan: DuckdbQueryPlan | null;
 };
 
 /**
@@ -36,9 +64,19 @@ export type SubmitSourceQueryArgs = {
  * register with QuerySourceRegistry; how a source authenticates against its
  * backing system is an implementation detail behind this contract.
  */
+export type SourceQuerySubmissionResult = {
+    queryUuid: string;
+    /** Whether the submission was served from an earlier result rather than run. */
+    cacheHit: boolean;
+};
+
 export interface QuerySourceClient {
     definition: QuerySourceDefinition;
+    /** Whether a query of this source may carry a pivotConfiguration. */
+    supportsPivot: boolean;
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
-    submitQuery(args: SubmitSourceQueryArgs): Promise<{ queryUuid: string }>;
+    submitQuery(
+        args: SubmitSourceQueryArgs,
+    ): Promise<SourceQuerySubmissionResult>;
 }

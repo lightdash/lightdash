@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
@@ -20,6 +21,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
+import { projectSummary } from '../ProjectService/ProjectService.mock';
 import {
     OrganizationService,
     type OrganizationServiceArguments,
@@ -37,11 +39,15 @@ vi.mock('@sentry/node', async (importOriginal) => {
 const projectModel = {
     hasProjects: vi.fn(async () => true),
     getProjectGroupAccesses: vi.fn(),
+    getAllByOrganizationUuid: vi.fn(),
 };
 const organizationModel = {
     get: vi.fn(async () => organization),
     create: vi.fn<OrganizationModel['create']>(async () => organization),
     hasOrgs: vi.fn<OrganizationModel['hasOrgs']>(async () => false),
+    getImpersonationEnabled: vi.fn<
+        OrganizationModel['getImpersonationEnabled']
+    >(async () => true),
 };
 const userModel = {
     hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
@@ -99,6 +105,50 @@ describe('organization service', () => {
     afterEach(() => {
         vi.clearAllMocks();
     });
+
+    it.each([true, false])(
+        'lists analytics projects according to Console enablement: %s',
+        async (enabled) => {
+            const account = buildAccount();
+            const organizationUuid = account.organization.organizationUuid!;
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'Project' },
+                {
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: { organizationUuid },
+                },
+            ]);
+            const ordinaryProject = {
+                ...projectSummary,
+                provisioningSource: null,
+            };
+            const analyticsProject = {
+                ...projectSummary,
+                projectUuid: 'analytics',
+                provisioningSource: 'analytics',
+            };
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                ordinaryProject,
+                analyticsProject,
+            ]);
+            featureFlagModel.get.mockResolvedValueOnce({
+                id: FeatureFlags.AnalyticsProject,
+                enabled,
+            });
+            await expect(
+                organizationService.getProjects(account),
+            ).resolves.toEqual(
+                enabled
+                    ? [ordinaryProject, analyticsProject]
+                    : [ordinaryProject],
+            );
+            expect(featureFlagModel.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AnalyticsProject,
+                user: { organizationUuid },
+            });
+        },
+    );
 
     describe('updateMember', () => {
         it('rejects assigning a system role above a custom-role caller', async () => {
@@ -331,5 +381,43 @@ describe('organization service', () => {
         // the member keeps their own org role (no system-role conversion).
         expect(result.data).toHaveLength(1);
         expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+    });
+
+    describe('getImpersonationEnabled', () => {
+        const orgCondition = { organizationUuid: user.organizationUuid };
+
+        it('lets a user with only impersonate:User read the setting', async () => {
+            const impersonatorAbility = new Ability<PossibleAbilities>([
+                {
+                    action: 'impersonate',
+                    subject: 'User',
+                    conditions: { ...orgCondition, isActive: true },
+                },
+            ]);
+
+            await expect(
+                organizationService.getImpersonationEnabled({
+                    ...user,
+                    ability: impersonatorAbility,
+                }),
+            ).resolves.toBe(true);
+        });
+
+        it('rejects a user who can neither update the org nor impersonate', async () => {
+            const memberAbility = new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'OrganizationMemberProfile',
+                    conditions: orgCondition,
+                },
+            ]);
+
+            await expect(
+                organizationService.getImpersonationEnabled({
+                    ...user,
+                    ability: memberAbility,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
     });
 });

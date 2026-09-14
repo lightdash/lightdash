@@ -25,6 +25,7 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
+import classes from './ProjectParameters.module.css';
 
 interface ProjectParametersProps {
     projectUuid: string;
@@ -204,7 +205,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th
-                                className="ld-pointer"
+                                className={classes.sortableHeader}
                                 onClick={() => handleSort('name')}
                             >
                                 <Group gap="xs">

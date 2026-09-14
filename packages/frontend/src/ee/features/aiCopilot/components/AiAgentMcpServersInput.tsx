@@ -69,6 +69,7 @@ import {
     MCP_TOOL_TOKEN_WARNING_THRESHOLD,
 } from '../utils/mcpToolTokenEstimates';
 import { AgentSettingsSubsection } from './AgentSettingsSubsection';
+import classes from './AiAgentMcpServersInput.module.css';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
@@ -397,7 +398,7 @@ const CreateMcpServerModal = ({
                                     More options
                                 </Button>
                                 <Collapse
-                                    in={
+                                    expanded={
                                         oauthOptionsOpened ||
                                         form.values.allowOAuthCredentialSharing
                                     }
@@ -1541,7 +1542,7 @@ export const AiAgentMcpServersInput = ({
                                         key={mcpServer.uuid}
                                         radius="md"
                                         p={0}
-                                        className="ld-overflow-hidden"
+                                        className={classes.serverCard}
                                     >
                                         <Group
                                             justify="space-between"
@@ -1765,7 +1766,7 @@ export const AiAgentMcpServersInput = ({
                                                 </Text>
                                             </Group>
                                         </Box>
-                                        <Collapse in={isExpanded}>
+                                        <Collapse expanded={isExpanded}>
                                             <Divider />
                                             <Box px="md" py="sm">
                                                 <AiAgentMcpServerToolsPanel

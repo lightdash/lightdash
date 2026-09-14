@@ -15,6 +15,7 @@ import {
     isOrganizationMemberRole,
     isScopeAssignableAtLevel,
     isSystemRole,
+    LearnAccess,
     NotFoundError,
     OrganizationMemberRole,
     OrganizationRoleSet,
@@ -27,6 +28,7 @@ import {
     RoleAssignment,
     RoleLevel,
     RoleWithScopes,
+    SessionUser,
     UpdateRole,
     UpdateRoleAssignmentRequest,
     UpsertUserRoleAssignmentRequest,
@@ -431,6 +433,37 @@ export class RolesService extends BaseService {
             organizationUuid,
             roleTypeFilter,
         );
+    }
+
+    /**
+     * Everything a learner can do, anywhere (CS-267): the scopes they hold
+     * through their organization role, any organization-level custom roles,
+     * and every project role they hold directly or through a group. The
+     * library shows those features and keeps the rest behind a toggle, so a
+     * learner is taught what they can actually practise rather than what one
+     * role's rank suggests. Custom-role scopes only count where custom roles
+     * are licensed and switched on, as they only apply there.
+     */
+    async getLearnAccess(user: SessionUser): Promise<LearnAccess> {
+        return {
+            scopes: await this.userModel.getScopesHeldAnywhere(user.userUuid, {
+                includeCustomRoles: await this.areCustomRolesInForce(user),
+            }),
+        };
+    }
+
+    /** Whether this org's custom roles are licensed and switched on. */
+    private async areCustomRolesInForce(user: SessionUser): Promise<boolean> {
+        if (!this.licenseService.getLicenseStatus().valid) return false;
+        if (this.lightdashConfig.customRoles.enabled) return true;
+        const flag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+            featureFlagId: CommercialFeatureFlags.CustomRoles,
+        });
+        return flag.enabled;
     }
 
     async getCustomRolesAsCode(

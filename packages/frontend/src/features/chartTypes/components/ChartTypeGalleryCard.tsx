@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Group,
     Menu,
@@ -27,6 +28,7 @@ import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPa
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
+import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeForkModal from './ChartTypeForkModal';
 import classes from './ChartTypeGalleryCard.module.css';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
@@ -34,11 +36,20 @@ import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
 type Props = {
     dataAppViz: DataAppViz;
+    /** A newer registry version of this official chart type exists */
+    hasRegistryUpdate: boolean;
     onClick: () => void;
+    onPreview: () => void;
     onDelete: () => void;
 };
 
-const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
+const ChartTypeGalleryCard: FC<Props> = ({
+    dataAppViz,
+    hasRegistryUpdate,
+    onClick,
+    onPreview,
+    onDelete,
+}) => {
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(dataAppViz.projectUuid);
     const isOfficial = isOfficialChartType(dataAppViz);
@@ -62,18 +73,30 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                     <ChartTypeSamplePreview
                         projectUuid={dataAppViz.projectUuid}
                         dataAppVizUuid={dataAppViz.dataAppVizUuid}
+                        icon={dataAppViz.icon}
                     />
                 </Box>
                 <Stack gap="xs" p="sm">
                     <Group gap="xs" wrap="nowrap" justify="space-between">
-                        <Text fz="sm" fw={600} truncate="end">
-                            {displayName}
-                        </Text>
+                        <Group gap="xs" wrap="nowrap" miw={0}>
+                            <MantineIcon
+                                icon={getChartTypeIcon(dataAppViz.icon)}
+                                color="dimmed"
+                            />
+                            <Text fz="sm" fw={600} truncate="end">
+                                {displayName}
+                            </Text>
+                        </Group>
                         {isOfficial && <OfficialChartTypeBadge />}
                     </Group>
                     <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
                         {dataAppViz.description || 'No description'}
                     </Text>
+                    {hasRegistryUpdate && (
+                        <Badge size="xs" variant="light" color="orange">
+                            Update available
+                        </Badge>
+                    )}
                 </Stack>
                 <FloatingActionsPill className={classes.menuHost}>
                     {isOfficial
@@ -98,7 +121,7 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                                       component={Link}
                                       to={chartTypeBuilderPath(
                                           dataAppViz.projectUuid,
-                                          dataAppViz.dataAppVizUuid,
+                                          dataAppViz.slug,
                                       )}
                                       aria-label={`Edit ${displayName}`}
                                       onClick={(e) => e.stopPropagation()}
@@ -124,12 +147,13 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                         </Menu.Target>
                         <Menu.Dropdown>
                             <Menu.Item
-                                component={Link}
                                 leftSection={
                                     <MantineIcon icon={IconTelescope} />
                                 }
-                                to={`/projects/${dataAppViz.projectUuid}/tables?dataAppVizUuid=${dataAppViz.dataAppVizUuid}`}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onPreview();
+                                }}
                             >
                                 Preview in explorer
                             </Menu.Item>

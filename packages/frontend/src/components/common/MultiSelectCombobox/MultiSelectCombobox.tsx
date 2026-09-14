@@ -26,7 +26,7 @@ export type MultiSelectComboboxOption = {
     group?: string;
 };
 
-type Props = Omit<PillsInputProps, 'onChange'> & {
+type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     options: MultiSelectComboboxOption[];
     value: string[];
     selectedValues?: string[];

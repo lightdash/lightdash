@@ -45,7 +45,7 @@ export const TOOL_FIND_CONTENT_DESCRIPTION = ({
             runtime === 'mcp' ? 'read_content' : 'readContent',
     }) +
     (runtime === 'mcp'
-        ? '\n- If query-execution tools (run_metric_query, run_sql) are NOT available in this session, use this tool FIRST: saved charts and dashboards often already answer the question. Never tell the user information is unavailable, and never suggest raw SQL or elevated permissions, before searching here.'
+        ? '\n- If neither run_metric_query nor run_sql is available, search here FIRST: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.'
         : '');
 
 export const toolFindContentArgsSchema = createToolSchema()

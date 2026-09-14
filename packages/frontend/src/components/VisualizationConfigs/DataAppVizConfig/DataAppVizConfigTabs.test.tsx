@@ -66,25 +66,43 @@ const {
 
 // The picker routes project-type selection through the Redux-based
 // useSelectProjectChartType hook; assert on what it dispatches.
-vi.mock('../../../features/explorer/store', () => ({
-    useExplorerDispatch: () => dispatch,
-    useExplorerSelector: () => authoringState.current,
-    selectChartTypeAuthoring: () => null,
-    explorerActions: {
-        setChartType: (payload: unknown) => ({ type: 'setChartType', payload }),
-        setChartConfig: (payload: unknown) => ({
-            type: 'setChartConfig',
-            payload,
-        }),
-        setPivotConfig: (payload: unknown) => ({
-            type: 'setPivotConfig',
-            payload,
-        }),
-        startChartTypeAuthoring: (payload: unknown) => ({
-            type: 'startChartTypeAuthoring',
-            payload,
-        }),
-    },
+vi.mock('../../../features/explorer/store', () => {
+    const selectTableName = vi.fn();
+    const selectMetricQuery = vi.fn();
+    return {
+        useExplorerDispatch: () => dispatch,
+        useExplorerSelector: (selector: unknown) =>
+            selector === selectTableName
+                ? 'orders'
+                : selector === selectMetricQuery
+                  ? { dimensions: [], metrics: [], tableCalculations: [] }
+                  : authoringState.current,
+        selectTableName,
+        selectMetricQuery,
+        selectChartTypeAuthoring: () => null,
+        explorerActions: {
+            setChartType: (payload: unknown) => ({
+                type: 'setChartType',
+                payload,
+            }),
+            setChartConfig: (payload: unknown) => ({
+                type: 'setChartConfig',
+                payload,
+            }),
+            setPivotConfig: (payload: unknown) => ({
+                type: 'setPivotConfig',
+                payload,
+            }),
+            startChartTypeAuthoring: (payload: unknown) => ({
+                type: 'startChartTypeAuthoring',
+                payload,
+            }),
+        },
+    };
+});
+// The add-to-query pool reads the explore; not under test here.
+vi.mock('../../../hooks/useExplore', () => ({
+    useExplore: () => ({ data: undefined }),
 }));
 vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
     default: (props: PickerProps) => {
@@ -97,6 +115,9 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
         data: { enabled: true },
         isLoading: false,
     }),
+}));
+vi.mock('../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-1',
 }));
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),

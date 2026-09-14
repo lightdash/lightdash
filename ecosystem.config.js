@@ -122,9 +122,7 @@ const watcherMemoryCapConfig = watcherMemoryCap
 // can't balloon to multi-GB peaks. LD_WATCHER_GOMEMLIMIT overrides ('off'
 // disables).
 const watcherGoMemLimit =
-    process.env.LD_WATCHER_GOMEMLIMIT ??
-    env.LD_WATCHER_GOMEMLIMIT ??
-    '1500MiB';
+    process.env.LD_WATCHER_GOMEMLIMIT ?? env.LD_WATCHER_GOMEMLIMIT ?? '1500MiB';
 const watcherEnv =
     watcherGoMemLimit === 'off' ? {} : { GOMEMLIMIT: watcherGoMemLimit };
 
@@ -155,6 +153,7 @@ module.exports = {
             // turns every common rebuild into thousands of API restarts.
             ignore_watch: [
                 'src/generated/swagger.json',
+                '**/*.test.ts',
                 '**/node_modules',
                 '**/node_modules/**',
             ],
@@ -170,12 +169,16 @@ module.exports = {
         {
             name: `${instanceId}-api-routes-watch`,
             script: 'pnpm',
-            args: 'generate-api-dev',
+            // common-watch already emits ../common/dist, so skip the root
+            // script's extra common-build: it duplicates work and crash-loops
+            // at 1Hz whenever a stale incremental build reports errors.
+            args: '-F backend generate-api-dev',
             interpreter: 'none',
             cwd: __dirname,
             env: envWithPath,
             watch: false,
             autorestart: true,
+            exp_backoff_restart_delay: 1000,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,

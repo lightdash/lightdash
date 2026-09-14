@@ -4,12 +4,13 @@ import {
     isDimensionValueInvalidDate,
     isField,
     isMetric,
+    type Field,
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
 import { Menu, type MenuProps, Text } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { memo, useState, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../../features/dashboardFilters/FilterDashboardTo';
 import { useContextMenuPermissions } from '../../../hooks/useContextMenuPermissions';
@@ -19,8 +20,24 @@ import { useAccount } from '../../../hooks/user/useAccount';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { UnderlyingDataMenuItem } from '../../DashboardTiles/UnderlyingDataMenuItem';
+import {
+    type GetTemplatedUrlItem,
+    type TemplatedUrlRowContext,
+} from '../../Explorer/ResultsCard/templatedUrlRowContext';
+import { TemplatedUrlMenuItems } from '../../Explorer/ResultsCard/UrlMenuItems';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import MantineIcon from '../MantineIcon';
+
+/**
+ * Templated URL actions for a cell. `field` is the field whose `urls` apply,
+ * which is not always the cell's display `item` (metricsAsRows swaps the
+ * dimension for the row metric). `getRowContext` runs when the menu opens.
+ */
+export type ValueCellUrlActions = {
+    field: Field | undefined;
+    getRowContext: () => TemplatedUrlRowContext;
+    getItem: GetTemplatedUrlItem;
+};
 
 type ValueCellMenuProps = {
     value?: ResultValue | null;
@@ -29,12 +46,49 @@ type ValueCellMenuProps = {
     rowIndex?: number;
     colIndex?: number;
     item?: ItemsMap[string] | undefined;
+    urlActions?: ValueCellUrlActions;
     getUnderlyingFieldValues?: (
         colIndex: number,
         rowIndex: number,
     ) => Record<string, ResultValue>;
     isMinimal?: boolean;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
+
+const CopyValueMenuItem: FC<{ onCopy: () => void }> = ({ onCopy }) => (
+    <Menu.Item
+        leftSection={<MantineIcon icon={IconCopy} size="md" fillOpacity={0} />}
+        onClick={onCopy}
+    >
+        Copy value
+    </Menu.Item>
+);
+
+const UrlMenuSection: FC<{
+    value: ResultValue;
+    urlActions: ValueCellUrlActions;
+    isMinimal: boolean;
+}> = ({ value, urlActions, isMinimal }) => {
+    // Resolved once per open: the dropdown content mounts when the menu opens.
+    const [rowContext] = useState(urlActions.getRowContext);
+
+    const urls = urlActions.field?.urls;
+    if (!urls?.length || value.raw === undefined || value.raw === null) {
+        return null;
+    }
+
+    return (
+        <>
+            <TemplatedUrlMenuItems
+                urls={urls}
+                value={value}
+                rowContext={rowContext}
+                getItem={urlActions.getItem}
+                showErrors={!isMinimal}
+            />
+            <Menu.Divider />
+        </>
+    );
+};
 
 /**
  * Inner dropdown content that is only mounted when the menu is opened.
@@ -44,6 +98,7 @@ type ValueCellMenuProps = {
 const ValueCellMenuDropdownContent: FC<{
     value: ResultValue;
     item?: ItemsMap[string] | undefined;
+    urlActions: ValueCellUrlActions | undefined;
     rowIndex?: number;
     colIndex?: number;
     getUnderlyingFieldValues?: (
@@ -55,6 +110,7 @@ const ValueCellMenuDropdownContent: FC<{
 }> = ({
     value,
     item,
+    urlActions,
     rowIndex,
     colIndex,
     getUnderlyingFieldValues,
@@ -72,21 +128,19 @@ const ValueCellMenuDropdownContent: FC<{
         minimal: isMinimal,
     });
 
+    const urlSection = urlActions && (
+        <UrlMenuSection
+            value={value}
+            urlActions={urlActions}
+            isMinimal={isMinimal}
+        />
+    );
+
     if (!tracking || !metricQueryData) {
         return (
             <Menu.Dropdown>
-                <Menu.Item
-                    leftSection={
-                        <MantineIcon
-                            icon={IconCopy}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                    onClick={onCopy}
-                >
-                    Copy value
-                </Menu.Item>
+                {urlSection}
+                <CopyValueMenuItem onCopy={onCopy} />
             </Menu.Dropdown>
         );
     }
@@ -171,14 +225,8 @@ const ValueCellMenuDropdownContent: FC<{
 
     return (
         <Menu.Dropdown>
-            <Menu.Item
-                leftSection={
-                    <MantineIcon icon={IconCopy} size="md" fillOpacity={0} />
-                }
-                onClick={onCopy}
-            >
-                Copy value
-            </Menu.Item>
+            {urlSection}
+            <CopyValueMenuItem onCopy={onCopy} />
 
             {hasUnderlyingData &&
                 !isDimension(item) &&
@@ -223,6 +271,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = memo(
         colIndex,
         getUnderlyingFieldValues,
         item,
+        urlActions,
         value,
         opened,
         onOpen,
@@ -254,6 +303,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = memo(
                     <ValueCellMenuDropdownContent
                         value={value}
                         item={item}
+                        urlActions={urlActions}
                         rowIndex={rowIndex}
                         colIndex={colIndex}
                         getUnderlyingFieldValues={getUnderlyingFieldValues}

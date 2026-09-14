@@ -136,8 +136,8 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     };
 
     return (
-        <Group gap="xs" wrap="nowrap" className="ld-grow">
-            <Box className="ld-grow">
+        <Group gap="xs" wrap="nowrap" flex={1}>
+            <Box flex={1}>
                 <ColumnConfigurationInput
                     fieldId={fieldId}
                     chartConfig={visualizationConfig.chartConfig}

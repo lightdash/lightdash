@@ -161,30 +161,13 @@ describe('ExplorePanel chart configuration placement', () => {
         testState.enabledFlags.clear();
     });
 
-    it('keeps the legacy portal and hides fields when the gallery flag is off', () => {
-        renderPanel(undefined, true);
-
-        expect(
-            document.getElementById('visualization-config-portal'),
-        ).not.toBeNull();
-        // The hidden state is applied via a CSS module class (`[data-hidden='true']`),
-        // which jsdom doesn't resolve, so assert the attribute directly.
-        expect(
-            screen.getByTestId('explore-tree').closest('[data-hidden]'),
-        ).toHaveAttribute('data-hidden', 'true');
-    });
-
-    it('keeps fields mounted and leaves the portal to the right rail when enabled', () => {
-        testState.enabledFlags.add(FeatureFlags.ExplorerChartGallery);
-
+    it('keeps fields mounted and leaves the portal to the right rail', () => {
         renderPanel(undefined, true);
 
         expect(
             document.getElementById('visualization-config-portal'),
         ).toBeNull();
-        expect(
-            screen.getByTestId('explore-tree').closest('[data-hidden]'),
-        ).toHaveAttribute('data-hidden', 'false');
+        expect(screen.getByTestId('explore-tree')).toBeVisible();
     });
 });
 

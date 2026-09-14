@@ -2,59 +2,52 @@ import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
     assertRegisteredAccount,
-    FeatureFlags,
     ForbiddenError,
+    NotFoundError,
     ParameterError,
     ROADMAP_DEFAULT_PAGE_SIZE,
+    RoadmapFollowProjectRequestSchema,
+    RoadmapFollowProjectResponseSchema,
+    RoadmapProjectQuerySchema,
+    RoadmapProjectRequestsResponseSchema,
+    RoadmapProjectResponseSchema,
     RoadmapQuerySchema,
     RoadmapResponseSchema,
     UnexpectedServerError,
     type Account,
+    type RoadmapFollowProjectRequest,
+    type RoadmapFollowProjectResults,
+    type RoadmapProjectQuery,
+    type RoadmapProjectResults,
     type RoadmapQuery,
     type RoadmapResults,
+    type UUID,
 } from '@lightdash/common';
+import { z } from 'zod';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
-import type { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 
-const ROADMAP_URL =
-    'https://roadmap.lightdash.com/api/v1/roadmap/organizations';
 const ROADMAP_REQUEST_TIMEOUT_MS = 10_000;
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
-    featureFlagService: Pick<FeatureFlagService, 'get'>;
 };
 
 export class RoadmapService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
-    private readonly featureFlagService: Pick<FeatureFlagService, 'get'>;
-
-    constructor({ lightdashConfig, featureFlagService }: Dependencies) {
+    constructor({ lightdashConfig }: Dependencies) {
         super();
         this.lightdashConfig = lightdashConfig;
-        this.featureFlagService = featureFlagService;
     }
 
-    async getRoadmap(
-        account: Account,
-        query: RoadmapQuery = {},
-    ): Promise<RoadmapResults> {
+    private async authorize(account: Account) {
         assertRegisteredAccount(account);
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
-        const roadmapFlag = await this.featureFlagService.get({
-            user: {
-                userUuid: account.user.userUuid,
-                organizationUuid,
-            },
-            featureFlagId: FeatureFlags.OrganizationRoadmap,
-        });
         const ability = this.createAuditedAbility(account);
 
         if (
-            !roadmapFlag.enabled ||
             ability.cannot(
                 'view',
                 subject('Roadmap', {
@@ -74,49 +67,187 @@ export class RoadmapService extends BaseService {
             );
         }
 
-        const parsedQuery = RoadmapQuerySchema.safeParse(query);
-        if (!parsedQuery.success) {
-            this.logger.warn('Could not parse roadmap query', {
-                issues: parsedQuery.error.issues,
-            });
-            throw new ParameterError('Could not load the organization roadmap');
-        }
+        return { organizationUuid, licenseKey };
+    }
 
-        let url: URL;
-        try {
-            url = new URL(ROADMAP_URL);
-            const basePath = url.pathname.replace(/\/$/, '');
-            url.pathname = `${basePath}/${encodeURIComponent(organizationUuid)}`;
-        } catch {
-            throw new UnexpectedServerError(
-                'Could not load the organization roadmap',
+    async followProject(
+        account: Account,
+        projectId: UUID,
+        body: RoadmapFollowProjectRequest,
+    ): Promise<RoadmapFollowProjectResults> {
+        const { organizationUuid, licenseKey } = await this.authorize(account);
+        assertRegisteredAccount(account);
+        assertIsAccountWithOrg(account);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Roadmap', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to request to follow roadmap projects',
             );
         }
-        const paginationQuery = {
-            ...parsedQuery.data,
-            pageSize: parsedQuery.data.pageSize ?? ROADMAP_DEFAULT_PAGE_SIZE,
-        };
-        Object.entries(paginationQuery).forEach(([key, value]) => {
-            if (value !== undefined) {
-                url.searchParams.set(key, String(value));
-            }
-        });
+        const parsed = RoadmapFollowProjectRequestSchema.safeParse(body);
+        const parsedProjectId = z.uuid().safeParse(projectId);
+        if (!parsed.success || !parsedProjectId.success) {
+            throw new ParameterError(
+                'Provide a valid project and a note of 1–2000 characters',
+            );
+        }
+        const identity = z
+            .object({
+                organizationName: z.string().trim().min(1).max(255),
+                user: z.object({
+                    userUuid: z.uuid(),
+                    name: z.string().trim().min(1).max(255),
+                    email: z.string().trim().max(320).pipe(z.email()),
+                }),
+            })
+            .safeParse({
+                organizationName: account.organization.name,
+                user: {
+                    userUuid: account.user.userUuid,
+                    name: `${account.user.firstName} ${account.user.lastName}`.trim(),
+                    email: account.user.email,
+                },
+            });
+        if (!identity.success) {
+            throw new ParameterError(
+                'Your organization name, user name and email are required to send this request',
+            );
+        }
+        const response = await this.request(
+            organizationUuid,
+            licenseKey,
+            `/projects/${encodeURIComponent(parsedProjectId.data)}/follow`,
+            {},
+            RoadmapFollowProjectResponseSchema,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    organizationName: identity.data.organizationName,
+                    user: identity.data.user,
+                    note: parsed.data.note,
+                }),
+                timeoutMs: 120_000,
+                errorMessage:
+                    'Could not send the roadmap request. Please try again.',
+            },
+        );
+        return response.results;
+    }
 
+    async getProjects(
+        account: Account,
+        query: RoadmapProjectQuery = {},
+    ): Promise<RoadmapProjectResults> {
+        const { organizationUuid, licenseKey } = await this.authorize(account);
+        const parsed = RoadmapProjectQuerySchema.safeParse(query);
+        if (!parsed.success)
+            throw new ParameterError('Could not load the organization roadmap');
+        const response = await this.request(
+            organizationUuid,
+            licenseKey,
+            '/projects',
+            parsed.data,
+            RoadmapProjectResponseSchema,
+        );
+        this.assertFresh(response.results.expiresAt);
+        return response.results;
+    }
+
+    private assertFresh(expiresAt: string) {
+        if (Date.parse(expiresAt) <= Date.now())
+            throw new UnexpectedServerError(
+                'Could not refresh the organization roadmap',
+            );
+    }
+
+    async getRoadmap(
+        account: Account,
+        query: RoadmapQuery = {},
+    ): Promise<RoadmapResults> {
+        const { organizationUuid, licenseKey } = await this.authorize(account);
+        const parsed = RoadmapQuerySchema.safeParse(query);
+        if (!parsed.success)
+            throw new ParameterError('Could not load the organization roadmap');
+        const hasFilters =
+            parsed.data.projectId !== undefined ||
+            parsed.data.search !== undefined ||
+            parsed.data.statuses !== undefined ||
+            parsed.data.priorities !== undefined;
+        const response = await this.request(
+            organizationUuid,
+            licenseKey,
+            '',
+            {
+                ...parsed.data,
+                pageSize: parsed.data.pageSize ?? ROADMAP_DEFAULT_PAGE_SIZE,
+            },
+            hasFilters
+                ? RoadmapProjectRequestsResponseSchema
+                : RoadmapResponseSchema,
+        );
+        if (response.expiresAt !== undefined)
+            this.assertFresh(response.expiresAt);
+        return {
+            data: response.results,
+            pagination: response.pagination,
+            facets: response.facets,
+            ...(response.expiresAt !== undefined && {
+                expiresAt: response.expiresAt,
+            }),
+        };
+    }
+
+    private async request<T>(
+        organizationUuid: string,
+        licenseKey: string,
+        suffix: string,
+        query: Record<string, string | number | boolean | undefined>,
+        schema: z.ZodType<T>,
+        options: {
+            method: 'GET' | 'POST';
+            body?: string;
+            timeoutMs: number;
+            errorMessage: string;
+        } = {
+            method: 'GET',
+            timeoutMs: ROADMAP_REQUEST_TIMEOUT_MS,
+            errorMessage: 'Could not load the organization roadmap',
+        },
+    ): Promise<T> {
+        const url = new URL(
+            '/api/v1/roadmap/organizations',
+            this.lightdashConfig.roadmap.baseUrl,
+        );
+        url.pathname = `${url.pathname}/${encodeURIComponent(organizationUuid)}${suffix}`;
+        Object.entries(query).forEach(([key, value]) => {
+            if (value !== undefined) url.searchParams.set(key, String(value));
+        });
         let response: Response;
         try {
             response = await fetch(url.toString(), {
+                method: options.method,
+                body: options.body,
                 headers: {
                     'lightdash-license-key': licenseKey,
+                    ...(options.method === 'POST' && {
+                        'Content-Type': 'application/json',
+                    }),
                 },
-                signal: AbortSignal.timeout(ROADMAP_REQUEST_TIMEOUT_MS),
+                signal: AbortSignal.timeout(options.timeoutMs),
             });
         } catch (error) {
+            const cause = z
+                .object({ code: z.string() })
+                .safeParse(error instanceof Error ? error.cause : undefined);
             this.logger.warn('Could not reach the roadmap service', {
-                error: error instanceof Error ? error.message : String(error),
+                errorName: error instanceof Error ? error.name : 'UnknownError',
+                errorCode: cause.success ? cause.data.code : undefined,
             });
-            throw new UnexpectedServerError(
-                'Could not load the organization roadmap',
-            );
+            throw new UnexpectedServerError(options.errorMessage);
         }
 
         // 401/403 means the instance license is not bound to this org in the
@@ -130,38 +261,37 @@ export class RoadmapService extends BaseService {
             );
         }
 
-        if (!response.ok) {
+        if (options.method === 'POST' && response.status === 404) {
+            throw new NotFoundError(
+                'This roadmap project is no longer available',
+            );
+        }
+        // Control Center confirms receipt only with HTTP 200 and a validated body.
+        if (
+            !response.ok ||
+            (options.method === 'POST' && response.status !== 200)
+        ) {
             this.logger.warn('Roadmap service returned an error', {
                 statusCode: response.status,
             });
-            throw new UnexpectedServerError(
-                'Could not load the organization roadmap',
-            );
+            throw new UnexpectedServerError(options.errorMessage);
         }
 
         let payload: unknown;
         try {
             payload = await response.json();
         } catch {
-            throw new UnexpectedServerError(
-                'Could not load the organization roadmap',
-            );
+            throw new UnexpectedServerError(options.errorMessage);
         }
 
-        const parsedResponse = RoadmapResponseSchema.safeParse(payload);
+        const parsedResponse = schema.safeParse(payload);
         if (!parsedResponse.success) {
             this.logger.warn('Roadmap service returned an invalid response', {
                 issueCount: parsedResponse.error.issues.length,
             });
-            throw new UnexpectedServerError(
-                'Could not load the organization roadmap',
-            );
+            throw new UnexpectedServerError(options.errorMessage);
         }
 
-        return {
-            data: parsedResponse.data.results,
-            pagination: parsedResponse.data.pagination,
-            facets: parsedResponse.data.facets,
-        };
+        return parsedResponse.data;
     }
 }

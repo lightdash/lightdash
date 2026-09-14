@@ -28,7 +28,7 @@ export const StreamRecoveryAlert = () => {
                     aria-label="Connection lost. Reconnecting"
                     color="yellow.7"
                     size={14}
-                    className="ld-shrink-0"
+                    flex="0 0 auto"
                 />
                 <Group gap={6} wrap="nowrap" flex={1} miw={0}>
                     <Text

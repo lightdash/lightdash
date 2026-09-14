@@ -93,7 +93,23 @@ export const CommentForm: FC<Props> = ({
                             {getNameInitials(userName)}
                         </LightdashUserAvatar>
                     </Grid.Col>
-                    <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
+                    <Grid.Col
+                        span={18}
+                        w={mode === 'reply' ? 300 : 350}
+                        // Walkthrough anchor: the typed step of
+                        // create:DashboardComments, with a suggestion the
+                        // learner can use as written. Only the new-comment
+                        // editor: a reply form sits inert in the thread.
+                        {...(mode === 'new'
+                            ? {
+                                  'data-tour-anchor': 'comment-editor',
+                                  'data-tour-hint': 'Write your comment',
+                                  'data-tour-input': 'true',
+                                  'data-tour-suggest':
+                                      'That January spike looks like the promo. Worth a closer look?',
+                              }
+                            : {})}
+                    >
                         {projectUuid && spaceUuid ? (
                             <LazyCommentWithMentions
                                 fetchSuggestions={fetchSuggestions}
@@ -122,6 +138,24 @@ export const CommentForm: FC<Props> = ({
                         loading={isSubmitting}
                         size="compact-xs"
                         type="submit"
+                        // Walkthrough action for create:DashboardComments
+                        // (posting a new comment, not a reply). See
+                        // scripts/scope-tours.
+                        {...(mode === 'new'
+                            ? {
+                                  'data-tour-scope': 'create:DashboardComments',
+                                  'data-tour-step': '2',
+                                  'data-tour-route':
+                                      '/projects/:projectUuid/dashboards/:dashboardUuid/view',
+                                  'data-tour-label': 'Click Add comment',
+                                  'data-tour-title': 'Comment on a dashboard',
+                                  'data-tour-interactive': 'true',
+                                  'data-tour-via':
+                                      '[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"] >> [data-tour-anchor="tile-comments"] >> [data-tour-anchor="comment-editor"]',
+                                  'data-tour-docs':
+                                      'explore/dashboards/interact.mdx#comment-on-a-tile:li2',
+                              }
+                            : {})}
                     >
                         {mode === 'reply' ? 'Reply' : 'Add comment'}
                     </Button>

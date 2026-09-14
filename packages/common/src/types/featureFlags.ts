@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Backend-provisioned usage analytics projects. */
+    AnalyticsProject = 'analytics-project',
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
@@ -14,21 +16,11 @@ export enum FeatureFlags {
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
-     * Enable scheduler task that replaces custom metrics after project compile
-     */
-    ReplaceCustomMetricsOnCompile = 'replace-custom-metrics-on-compile',
-
-    /**
      * Enable the dynamic calculation of series color, when not manually set on the chart config.
      * This aims to make the colors more consistent, depending on the groups, but this could cause the opposite effect.
      * For more details, see https://github.com/lightdash/lightdash/issues/13831
      */
     CalculateSeriesColor = 'calculate-series-color',
-
-    /**
-     * Enable the ability to write back custom bin dimensions to dbt.
-     */
-    WriteBackCustomBinDimensions = 'write-back-custom-bin-dimensions',
 
     /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
@@ -71,6 +63,12 @@ export enum FeatureFlags {
     ChangeChartExplore = 'change-chart-explore',
 
     /**
+     * Compile repeated (array) warehouse columns as unnested virtual tables
+     * instead of leaving their leaves as unqueryable dotted dimensions.
+     */
+    UnnestRepeatedColumns = 'unnest-repeated-columns',
+
+    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated
@@ -91,12 +89,8 @@ export enum FeatureFlags {
      * is true. Disabled by default.
      */
     EnableDataApps = 'enable-data-apps',
-
-    /**
-     * Keep Explorer fields mounted on the left while chart selection and
-     * configuration render in a right sidebar.
-     */
-    ExplorerChartGallery = 'explorer-chart-gallery',
+    // Enable the Learn library, walkthroughs and training project per org.
+    EnableLearn = 'enable-learn',
 
     /**
      * Per-organization gate for declaring custom npm dependencies in data
@@ -193,11 +187,6 @@ export enum FeatureFlags {
      * always on; this flag only controls who can see/configure the panel.
      */
     ProLimits = 'pro-limits',
-
-    /**
-     * Show the organization roadmap and enable its read-only API proxy.
-     */
-    OrganizationRoadmap = 'organization-roadmap',
 
     /**
      * Allow a single Lightdash project to connect to multiple dbt sources
@@ -301,14 +290,6 @@ export enum FeatureFlags {
     QueryHistory = 'query-history',
 
     /**
-     * Run merges as composition: each source executes separately against
-     * the warehouse and the DuckDB compose engine joins the results. Falls
-     * back to the single-statement warehouse merge when the compose engine
-     * is unavailable or the merge needs a pivot. Off by default.
-     */
-    MergeOnCompose = 'merge-on-compose',
-
-    /**
      * Configurable retention for AI agent threads. Off by default; enabled
      * per-org on demand for enterprise customers.
      */
@@ -341,6 +322,18 @@ export enum FeatureFlags {
      * Off by default.
      */
     DashboardCustomMetrics = 'dashboard-custom-metrics',
+    /**
+     * Build and edit charts in a full-screen modal over the dashboard
+     * instead of navigating away. Off by default.
+     */
+    InDashboardChartEditor = 'in-dashboard-chart-editor',
+
+    /**
+     * AI agent battle mode: send one prompt to two models in paired threads
+     * and compare the answers side by side with response timings. Internal
+     * experiment, off by default.
+     */
+    AiAgentBattleMode = 'ai-agent-battle-mode',
 }
 
 export type FeatureFlag = {

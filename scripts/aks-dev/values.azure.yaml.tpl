@@ -131,8 +131,6 @@ extraEnv:
   - { name: AI_DEFAULT_PROVIDER, value: "anthropic" }
   - name: ANTHROPIC_API_KEY
     valueFrom: { secretKeyRef: { name: lightdash-app, key: ANTHROPIC_API_KEY } }
-  - name: AI_WRITEBACK_ANTHROPIC_API_KEY
-    valueFrom: { secretKeyRef: { name: lightdash-app, key: ANTHROPIC_API_KEY } }
   # --- Sandbox backend: Azure Container Apps Sandboxes (native suspend/resume) ---
   # DefaultAzureCredential uses the injected Workload Identity token to drive the
   # ADC data plane (SandboxGroup Data Owner role). One group + disk image per feature.

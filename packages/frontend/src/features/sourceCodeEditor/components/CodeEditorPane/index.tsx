@@ -1,4 +1,4 @@
-import { lightdashDbtYamlSchema } from '@lightdash/common';
+import { lightdashDbtYamlSchema, modelAsCodeSchema } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine/core';
 import { IconFileOff } from '@tabler/icons-react';
 import type { editor } from 'monaco-editor';
@@ -20,25 +20,42 @@ import { detectLanguage } from '../../utils/fileLanguageDetection';
 import styles from './CodeEditorPane.module.css';
 import EditorToolbar from './EditorToolbar';
 
-// Configure monaco-yaml with schema once at module level
-let yamlConfigured = false;
-const configureYamlSchema = (monaco: Monaco) => {
-    if (yamlConfigured) return;
-    yamlConfigured = true;
-
-    configureMonacoYaml(monaco, {
+let yamlConfiguration: ReturnType<typeof configureMonacoYaml> | undefined;
+const configureYamlSchema = (
+    monaco: Monaco,
+    semanticLayer: 'dbt' | 'lightdash',
+    filePath: string | null,
+) => {
+    const isNative = semanticLayer === 'lightdash';
+    const options = {
         enableSchemaRequest: false,
-        schemas: [
-            {
-                uri: 'https://schemas.lightdash.com/lightdash/lightdash-dbt-2.0.json',
-                fileMatch: ['*.yml', '*.yaml'],
-                schema: lightdashDbtYamlSchema as Record<string, unknown>,
-            },
-        ],
-    });
+        schemas:
+            isNative && !/(^|\/)models\//.test(filePath ?? '')
+                ? []
+                : [
+                      {
+                          uri: isNative
+                              ? 'https://schemas.lightdash.com/lightdash/model-as-code.json'
+                              : 'https://schemas.lightdash.com/lightdash/lightdash-dbt-2.0.json',
+                          fileMatch: ['*.yml', '*.yaml'],
+                          schema: (isNative
+                              ? modelAsCodeSchema
+                              : lightdashDbtYamlSchema) as Record<
+                              string,
+                              unknown
+                          >,
+                      },
+                  ],
+    };
+    if (yamlConfiguration) {
+        void yamlConfiguration.update(options);
+    } else {
+        yamlConfiguration = configureMonacoYaml(monaco, options);
+    }
 };
 
 type CodeEditorPaneProps = {
+    semanticLayer: 'dbt' | 'lightdash';
     filePath: string | null;
     content: string;
     isLoading: boolean;
@@ -52,6 +69,7 @@ type CodeEditorPaneProps = {
 };
 
 const CodeEditorPane: FC<CodeEditorPaneProps> = ({
+    semanticLayer,
     filePath,
     content,
     isLoading,
@@ -74,6 +92,11 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
 
     const isReadOnly = !canManage || isProtectedBranch;
 
+    useEffect(() => {
+        if (monacoRef.current)
+            configureYamlSchema(monacoRef.current, semanticLayer, filePath);
+    }, [semanticLayer, filePath]);
+
     // Update Monaco theme when color scheme changes
     useEffect(() => {
         if (monacoRef.current) {
@@ -82,22 +105,25 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
         }
     }, [monacoTheme]);
 
-    const handleBeforeMount: BeforeMount = useCallback((monaco) => {
-        // Define both light and dark themes
-        monaco.editor.defineTheme('lightdash-light', {
-            base: 'vs',
-            inherit: true,
-            ...getLightdashMonacoTheme('light'),
-        });
-        monaco.editor.defineTheme('lightdash-dark', {
-            base: 'vs-dark',
-            inherit: true,
-            ...getLightdashMonacoTheme('dark'),
-        });
+    const handleBeforeMount: BeforeMount = useCallback(
+        (monaco) => {
+            // Define both light and dark themes
+            monaco.editor.defineTheme('lightdash-light', {
+                base: 'vs',
+                inherit: true,
+                ...getLightdashMonacoTheme('light'),
+            });
+            monaco.editor.defineTheme('lightdash-dark', {
+                base: 'vs-dark',
+                inherit: true,
+                ...getLightdashMonacoTheme('dark'),
+            });
 
-        // Configure YAML schema validation
-        configureYamlSchema(monaco);
-    }, []);
+            // Configure YAML schema validation
+            configureYamlSchema(monaco, semanticLayer, filePath);
+        },
+        [semanticLayer, filePath],
+    );
 
     const handleEditorMount: OnMount = useCallback((editorInstance, monaco) => {
         editorRef.current = editorInstance;
@@ -164,6 +190,7 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
             ) : filePath ? (
                 <Box className={styles.editorContainer}>
                     <Editor
+                        path={filePath}
                         height="100%"
                         language={language}
                         value={content}

@@ -101,6 +101,7 @@ export const getWarehouseLocation = (
                         schema: credentials.schema,
                     };
                 case DuckdbConnectionType.EMBEDDED:
+                case DuckdbConnectionType.ANALYTICS:
                     return {
                         database: null,
                         schema: credentials.schema ?? null,
@@ -190,8 +191,9 @@ export const applyWarehouseLocation = (
                         schema: schema ?? credentials.schema,
                     };
                 case DuckdbConnectionType.EMBEDDED:
+                case DuckdbConnectionType.ANALYTICS:
                     throw new ParameterError(
-                        'Embedded DuckDB credentials cannot be used for dbt compilation',
+                        'Internal DuckDB credentials cannot be used for dbt compilation',
                     );
                 default:
                     return assertUnreachable(

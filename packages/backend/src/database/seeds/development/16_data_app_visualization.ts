@@ -31,43 +31,70 @@ const buildSourceTar = (): Promise<Buffer> =>
         p.finalize();
     });
 
+// The served bundle the builder/explorer preview iframes load. Without an
+// index.html under the version prefix the app-view route 404s, so every
+// fresh environment showed raw `{"status":"error"...}` JSON in the preview
+// pane, and the bundle-servable check reported the version unavailable.
+const SEED_INDEX_HTML = `<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>${SEED_DATA_APP_VIZ.name}</title>
+    </head>
+    <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: #6b7280;">
+        ${SEED_DATA_APP_VIZ.name} (static seed bundle)
+    </body>
+</html>
+`;
+
 /**
- * Stores the version's source archive so this seeded app matches production
- * invariants: a 'ready' version always has its source in object storage.
- * Without it, the CLI download of content referencing this custom chart
- * type fails with "Source not found".
+ * Stores the version's source archive and a minimal servable bundle so this
+ * seeded app matches production invariants: a 'ready' version always has
+ * its source in object storage (the CLI download of content referencing
+ * this custom chart type fails with "Source not found" without it) and an
+ * index.html the app-view route can serve.
  */
-const uploadSourceTar = async (): Promise<void> => {
+const uploadVersionArtifacts = async (): Promise<void> => {
     const s3Config = lightdashConfig.appRuntime.s3; // pragma: allowlist secret (product-name false positive)
     if (!s3Config) {
         console.warn(
-            'Skipping seed data app source upload: app runtime S3 is not configured',
+            'Skipping seed data app artifact upload: app runtime S3 is not configured',
         );
         return;
     }
     const client = createS3ClientFromConfig(s3Config);
     const sourceTar = await buildSourceTar();
-    const putSourceTar = () =>
-        client.send(
+    const prefix = versionPrefix(
+        SEED_DATA_APP_VIZ.appUuid,
+        SEED_DATA_APP_VIZ.version,
+    );
+    const putArtifacts = async () => {
+        await client.send(
             new PutObjectCommand({
                 Bucket: s3Config.bucket,
-                Key: `${versionPrefix(
-                    SEED_DATA_APP_VIZ.appUuid,
-                    SEED_DATA_APP_VIZ.version,
-                )}source.tar`,
+                Key: `${prefix}source.tar`,
                 Body: sourceTar,
                 ContentType: 'application/x-tar',
             }),
         );
+        await client.send(
+            new PutObjectCommand({
+                Bucket: s3Config.bucket,
+                Key: `${prefix}index.html`,
+                Body: SEED_INDEX_HTML,
+                ContentType: 'text/html',
+            }),
+        );
+    };
     try {
-        await putSourceTar();
+        await putArtifacts();
     } catch (error) {
         // Local MinIO may not have the apps bucket yet
         if (error instanceof Error && error.name === 'NoSuchBucket') {
             await client.send(
                 new CreateBucketCommand({ Bucket: s3Config.bucket }),
             );
-            await putSourceTar();
+            await putArtifacts();
             return;
         }
         throw error;
@@ -113,7 +140,7 @@ export async function seed(knex: Knex): Promise<void> {
         { forceSlug: true },
     );
 
-    await uploadSourceTar();
+    await uploadVersionArtifacts();
 
     await new SavedChartModel({
         database: knex,

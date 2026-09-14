@@ -49,7 +49,7 @@ const ChartTypeForkModal: FC<Props> = ({
                 onSuccess: (result) => {
                     showToastSuccess({ title: 'Chart type forked' });
                     void navigate(
-                        chartTypeBuilderPath(projectUuid, result.appUuid),
+                        chartTypeBuilderPath(projectUuid, result.slug),
                     );
                 },
             },

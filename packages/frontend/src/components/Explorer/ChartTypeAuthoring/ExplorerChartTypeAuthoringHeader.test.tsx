@@ -17,6 +17,7 @@ const app = {
     appUuid: 'viz-1',
     name: 'Revenue changes waterfall',
     description: 'By tier',
+    icon: null,
 };
 
 const renderHeader = (

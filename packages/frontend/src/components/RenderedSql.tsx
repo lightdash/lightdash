@@ -1,4 +1,4 @@
-import { formatSql } from '@lightdash/common';
+import { formatSql, getMergeCompiledSqlText } from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -44,8 +44,8 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
         [project],
     );
     const { data, error, isInitialLoading } = useCompiledSql();
-    // With a merge configured, the merged statement is what Run executes;
-    // Query A's SQL alone would be SQL that does not run.
+    // With a merge configured, each leg and then the join are what Run
+    // executes; Query A's SQL alone would be SQL that does not run.
     const merge = useMergeCompiledSql();
 
     const beforeMount: BeforeMount = useCallback(
@@ -76,7 +76,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
 
     const formattedSql = useMemo(() => {
         const sqlToFormat = merge.isMergeActive
-            ? merge.data?.sql
+            ? merge.data && getMergeCompiledSqlText(merge.data)
             : effectiveView === 'pivotQuery'
               ? data?.pivotQuery
               : data?.query;
@@ -87,7 +87,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
         data?.pivotQuery,
         effectiveView,
         merge.isMergeActive,
-        merge.data?.sql,
+        merge.data,
         project?.warehouseConnection?.type,
     ]);
 

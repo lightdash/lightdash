@@ -37,6 +37,11 @@ describe('TrinoWarehouseClient', () => {
         acc[key.toLowerCase()] = warehouseClient.expectedFields[key];
         return acc;
     }, {});
+    // The mock's number column is a Trino integer, which reports its kind
+    lowerCaseFields.mynumbercolumn = {
+        ...lowerCaseFields.mynumbercolumn,
+        numericKind: { kind: 'integer' },
+    };
     const lowerCaseRow = Object.keys(warehouseClient.expectedRow).reduce<
         Record<string, AnyType>
     >((acc, key) => {
@@ -223,5 +228,35 @@ describe('TrinoSqlBuilder temporal literals', () => {
         expect(builder.castToNaiveTimestamp(epoch)).toBe(
             "TIMESTAMP '1970-01-01 00:00:00.000'",
         );
+    });
+});
+
+describe('TrinoWarehouseClient getAllTables', () => {
+    it('lists tables and views', async () => {
+        const warehouse = new TrinoWarehouseClient(credentials);
+        const runQuery = vi.spyOn(warehouse, 'runQuery').mockResolvedValueOnce({
+            rows: [
+                {
+                    table_catalog: 'hive',
+                    table_schema: 'analytics',
+                    table_name: 'orders_view',
+                    table_type: 'VIEW',
+                },
+            ],
+            fields: {},
+        });
+
+        const tables = await warehouse.getAllTables();
+
+        const [query] = runQuery.mock.calls[0];
+        expect(query).toContain("table_type IN ('BASE TABLE', 'VIEW')");
+        expect(tables).toEqual([
+            {
+                database: 'hive',
+                schema: 'analytics',
+                table: 'orders_view',
+                tableType: 'view',
+            },
+        ]);
     });
 });

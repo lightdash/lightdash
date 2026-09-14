@@ -210,8 +210,13 @@ const Filter: FC<Props> = ({
     const filterRuleTables = useMemo(() => {
         if (!field || !allFilterableFields) return;
 
-        return getFilterRuleTables(filterRule, field, allFilterableFields);
-    }, [filterRule, field, allFilterableFields]);
+        return getFilterRuleTables(
+            filterRule,
+            field,
+            allFilterableFields,
+            filterableFieldsByTileUuid,
+        );
+    }, [filterRule, field, allFilterableFields, filterableFieldsByTileUuid]);
 
     // Date values carry units ("2 months") and boolean values have localized
     // labels, so both render the composed rule label instead of raw values

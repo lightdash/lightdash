@@ -4,8 +4,10 @@ import {
     CompiledMetricQuery,
     CompileError,
     CustomDimensionType,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
     Explore,
+    ExploreCompiler,
     FieldType,
     FilterOperator,
     ForbiddenError,
@@ -21,7 +23,9 @@ import {
     VizIndexType,
     WeekDay,
     type CompiledDimension,
+    type CompiledExploreJoin,
     type CompiledMetric,
+    type CompiledTable,
     type MetricFilterRule,
     type TimestampDomain,
 } from '@lightdash/common';
@@ -33,6 +37,7 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    emptyTable,
     EXPLORE,
     EXPLORE_NESTED_AGG_NAME_COLLISION,
     EXPLORE_WITH_AVERAGE_DISTINCT,
@@ -95,6 +100,51 @@ const buildQuery = (
         ...args,
         parameterDefinitions: {},
     }).compileQuery();
+
+describe('skipped joins', () => {
+    it('returns an actionable compile error for a metric query depending on a skipped join', () => {
+        const explore = new ExploreCompiler(warehouseClientMock, {
+            allowPartialCompilation: true,
+        }).compileExplore({
+            ...EXPLORE,
+            meta: {},
+            spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    sqlWhere: '${details.dim2} IS NOT NULL',
+                },
+            },
+            joinedTables: [
+                {
+                    table: 'accounts',
+                    alias: 'account',
+                    sqlOn: '${table1.dim1} = ${account.id}',
+                },
+                {
+                    table: 'table2',
+                    alias: 'details',
+                    sqlOn: '${account.id} = ${details.dim2}',
+                },
+            ],
+        });
+        expect(explore.joinedTables).toEqual([]);
+
+        const query = () =>
+            buildQuery({
+                explore,
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: {},
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+        expect(query).toThrow(CompileError);
+        expect(query).toThrow(/Join "details" is not available/);
+        expect(query).toThrow(/account.*accounts/);
+        expect(query).toThrow(/tags\/selector/);
+    });
+});
 
 describe('field compilation errors', () => {
     const exploreWithErroredDimension: Explore = {
@@ -2013,6 +2063,310 @@ LIMIT 10`;
             expect(result.query).toContain(
                 'LEFT OUTER JOIN orders AS "orders"',
             );
+        });
+
+        test('Should render an unnested table with the alias its FROM item already carries', () => {
+            const explore: Explore = {
+                targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                name: 'sessions',
+                label: 'Sessions',
+                baseTable: 'sessions',
+                tags: [],
+                tables: {
+                    sessions: {
+                        ...emptyTable('sessions'),
+                        primaryKey: ['id'],
+                        dimensions: {
+                            id: {
+                                type: DimensionType.NUMBER,
+                                name: 'id',
+                                label: 'Id',
+                                table: 'sessions',
+                                tableLabel: 'Sessions',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.id',
+                                compiledSql: '"sessions".id',
+                                tablesReferences: ['sessions'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                    sessions__hits: {
+                        ...emptyTable('sessions__hits'),
+                        sqlTable:
+                            'UNNEST("sessions".hits) AS "sessions__hits" WITH OFFSET AS "sessions__hits__offset"',
+                        nestedFrom: {
+                            parentTable: 'sessions',
+                            columnPath: 'hits',
+                        },
+                        dimensions: {
+                            'page.pagePath': {
+                                type: DimensionType.STRING,
+                                name: 'page.pagePath',
+                                label: 'Page path',
+                                table: 'sessions__hits',
+                                tableLabel: 'Sessions: Hits',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.page.pagePath',
+                                compiledSql: '"sessions__hits".page.pagePath',
+                                tablesReferences: ['sessions__hits'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'sessions__hits',
+                        sqlOn: 'TRUE',
+                        compiledSqlOn: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        tablesReferences: ['sessions'],
+                    },
+                ],
+            };
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: {
+                    exploreName: 'sessions',
+                    dimensions: [
+                        'sessions_id',
+                        'sessions__hits_page__pagePath',
+                    ],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 10,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    compiledTableCalculations: [],
+                    compiledAdditionalMetrics: [],
+                    compiledCustomDimensions: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'LEFT OUTER JOIN UNNEST("sessions".hits) AS "sessions__hits" WITH OFFSET AS "sessions__hits__offset"\n  ON TRUE',
+            );
+            expect(result.query).toContain(
+                '"sessions__hits".page.pagePath AS "sessions__hits_page__pagePath"',
+            );
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes('missing a primary key definition'),
+                ),
+            ).toBe(false);
+        });
+
+        test('Should warn when two independent repeated columns are unnested together', () => {
+            const unnestedTable = (
+                tableName: string,
+                columnPath: string,
+                dimensionName: string,
+            ): CompiledTable => ({
+                ...emptyTable(tableName),
+                sqlTable: `UNNEST("sessions".${columnPath}) AS "${tableName}" WITH OFFSET AS "${tableName}__offset"`,
+                nestedFrom: { parentTable: 'sessions', columnPath },
+                dimensions: {
+                    [dimensionName]: {
+                        type: DimensionType.STRING,
+                        name: dimensionName,
+                        label: dimensionName,
+                        table: tableName,
+                        tableLabel: tableName,
+                        fieldType: FieldType.DIMENSION,
+                        sql: `\${TABLE}.${dimensionName}`,
+                        compiledSql: `"${tableName}".${dimensionName}`,
+                        tablesReferences: [tableName],
+                        hidden: false,
+                    },
+                },
+            });
+            const unnestJoin = (tableName: string): CompiledExploreJoin => ({
+                table: tableName,
+                sqlOn: 'TRUE',
+                compiledSqlOn: 'TRUE',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                tablesReferences: ['sessions'],
+            });
+            const explore: Explore = {
+                targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                name: 'sessions',
+                label: 'Sessions',
+                baseTable: 'sessions',
+                tags: [],
+                tables: {
+                    sessions: {
+                        ...emptyTable('sessions'),
+                        primaryKey: ['id'],
+                    },
+                    sessions__hits: unnestedTable(
+                        'sessions__hits',
+                        'hits',
+                        'hitNumber',
+                    ),
+                    sessions__customDimensions: unnestedTable(
+                        'sessions__customDimensions',
+                        'customDimensions',
+                        'value',
+                    ),
+                },
+                joinedTables: [
+                    unnestJoin('sessions__hits'),
+                    unnestJoin('sessions__customDimensions'),
+                ],
+            };
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: {
+                    exploreName: 'sessions',
+                    dimensions: [
+                        'sessions__hits_hitNumber',
+                        'sessions__customDimensions_value',
+                    ],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 10,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    compiledTableCalculations: [],
+                    compiledAdditionalMetrics: [],
+                    compiledCustomDimensions: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            const crossProductWarnings = result.warnings.filter((w) =>
+                w.message.includes('are unnested together'),
+            );
+            expect(crossProductWarnings).toHaveLength(1);
+            expect(crossProductWarnings[0].tables).toEqual([
+                'sessions__hits',
+                'sessions__customDimensions',
+            ]);
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes('missing a primary key definition'),
+                ),
+            ).toBe(false);
+        });
+
+        test('Should flag a metric on an unnested table as inflated by a deeper unnest without asking for a primary key', () => {
+            const explore: Explore = {
+                targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                name: 'sessions',
+                label: 'Sessions',
+                baseTable: 'sessions',
+                tags: [],
+                tables: {
+                    sessions: {
+                        ...emptyTable('sessions'),
+                        primaryKey: ['id'],
+                    },
+                    sessions__hits: {
+                        ...emptyTable('sessions__hits'),
+                        sqlTable:
+                            'UNNEST("sessions".hits) AS "sessions__hits" WITH OFFSET AS "sessions__hits__offset"',
+                        nestedFrom: {
+                            parentTable: 'sessions',
+                            columnPath: 'hits',
+                        },
+                        metrics: {
+                            hit_count: {
+                                type: MetricType.COUNT,
+                                name: 'hit_count',
+                                label: 'Hit count',
+                                table: 'sessions__hits',
+                                tableLabel: 'Sessions: Hits',
+                                fieldType: FieldType.METRIC,
+                                sql: '${TABLE}.hitNumber',
+                                compiledSql:
+                                    'COUNT("sessions__hits".hitNumber)',
+                                tablesReferences: ['sessions__hits'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                    sessions__hits__product: {
+                        ...emptyTable('sessions__hits__product'),
+                        sqlTable:
+                            'UNNEST("sessions__hits".product) AS "sessions__hits__product" WITH OFFSET AS "sessions__hits__product__offset"',
+                        nestedFrom: {
+                            parentTable: 'sessions__hits',
+                            columnPath: 'hits.product',
+                        },
+                        dimensions: {
+                            productSKU: {
+                                type: DimensionType.STRING,
+                                name: 'productSKU',
+                                label: 'Product SKU',
+                                table: 'sessions__hits__product',
+                                tableLabel: 'Sessions: Hits: Product',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.productSKU',
+                                compiledSql:
+                                    '"sessions__hits__product".productSKU',
+                                tablesReferences: ['sessions__hits__product'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'sessions__hits',
+                        sqlOn: 'TRUE',
+                        compiledSqlOn: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        tablesReferences: ['sessions'],
+                    },
+                    {
+                        table: 'sessions__hits__product',
+                        sqlOn: 'TRUE',
+                        compiledSqlOn: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        tablesReferences: ['sessions__hits'],
+                    },
+                ],
+            };
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: {
+                    exploreName: 'sessions',
+                    dimensions: ['sessions__hits__product_productSKU'],
+                    metrics: ['sessions__hits_hit_count'],
+                    filters: {},
+                    sorts: [],
+                    limit: 10,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    compiledTableCalculations: [],
+                    compiledAdditionalMetrics: [],
+                    compiledCustomDimensions: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings.map((w) => w.message)).toEqual([
+                expect.stringContaining(
+                    'Metric **"Hit count"** could be inflated by another unnested repeated column',
+                ),
+            ]);
+            expect(result.warnings[0].fields).toEqual([
+                'sessions__hits_hit_count',
+            ]);
         });
 
         test('Should throw when the referenced dimension table is aggregated in its own CTE', () => {
@@ -7536,6 +7890,44 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
         ],
     };
 
+    const snowflakeWrappedDimensionSql = `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', \${TABLE}.occurred_at))`;
+    const snowflakeWrappedSql = `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', "events".occurred_at))`;
+    const snowflakeClientMock = {
+        ...warehouseClientMock,
+        getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+    };
+    // Mirrors the compile-time wrap the translator applies to every Snowflake
+    // TIMESTAMP dimension when the connection's timestamp conversion is on.
+    const buildSnowflakeWrappedExplore = () => {
+        const explore = buildNaiveExplore(
+            SupportedDbtAdapter.SNOWFLAKE,
+            'naive',
+        );
+        ['occurred_at', 'occurred_at_raw'].forEach((dimensionName) => {
+            const dimension = explore.tables.events.dimensions[dimensionName];
+            dimension.sql = snowflakeWrappedDimensionSql;
+            dimension.compiledSql = snowflakeWrappedSql;
+        });
+        return explore;
+    };
+    const buildSnowflakeWrappedQuery = ({
+        explore,
+        compiledMetricQuery,
+    }: {
+        explore: Explore;
+        compiledMetricQuery: CompiledMetricQuery;
+    }) =>
+        buildQuery({
+            explore,
+            compiledMetricQuery,
+            warehouseSqlBuilder: snowflakeClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'UTC',
+            dataTimezone: 'Asia/Tokyo',
+        }).query;
+
     test('MIN/MAX over a known-naive TIMESTAMP base converts the aggregate operand (Postgres)', () => {
         const { query } = buildQuery({
             explore: buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
@@ -7609,33 +8001,102 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
     });
 
     test('MIN/MAX over a known-naive base rebases the aggregate from the DATA timezone (Snowflake, wrap enabled)', () => {
-        const snowflakeClientMock = {
-            ...warehouseClientMock,
-            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
-        };
         // Production wiring for wrap-enabled Snowflake: dimension SQL is
-        // compile-time normalized to UTC (columnTimezone) while the bare
-        // column the aggregate reads stays in the data timezone.
-        const { query } = buildQuery({
-            explore: buildNaiveExplore(SupportedDbtAdapter.SNOWFLAKE, 'naive'),
+        // compile-time normalized to UTC (columnTimezone) while a metric
+        // written against the bare column reads the data timezone.
+        const query = buildSnowflakeWrappedQuery({
+            explore: buildSnowflakeWrappedExplore(),
             compiledMetricQuery: maxNaiveQuery,
-            warehouseSqlBuilder: snowflakeClientMock,
-            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-            timezone: 'Asia/Tokyo',
-            useTimezoneAwareDateTrunc: true,
-            columnTimezone: 'UTC',
-            dataTimezone: 'Asia/Tokyo',
         });
         expect(query).toContain(
             `MAX(CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', "events".occurred_at)) AS "events_max_ts"`,
         );
     });
 
-    test('MIN/MAX over an unknown TIMESTAMP base stays byte-identical on Snowflake (identity cast)', () => {
-        const snowflakeClientMock = {
-            ...warehouseClientMock,
-            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+    test('MIN/MAX inherited from a wrapped Snowflake timestamp dimension is not rebased a second time', () => {
+        const query = buildSnowflakeWrappedQuery({
+            explore: buildSnowflakeWrappedExplore(),
+            compiledMetricQuery: {
+                ...maxNaiveQuery,
+                dimensions: ['events_occurred_at_raw'],
+                additionalMetrics: maxNaiveQuery.additionalMetrics?.map(
+                    (metric) => ({
+                        ...metric,
+                        sql: snowflakeWrappedDimensionSql,
+                    }),
+                ),
+                compiledAdditionalMetrics:
+                    maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                        ...metric,
+                        sql: snowflakeWrappedDimensionSql,
+                        compiledSql: `MAX(${snowflakeWrappedSql})`,
+                    })),
+            },
+        });
+
+        expect(query).toContain(
+            `${snowflakeWrappedSql} AS "events_occurred_at_raw"`,
+        );
+        expect(query).toContain(
+            `MAX(${snowflakeWrappedSql}) AS "events_max_ts"`,
+        );
+        expect(query).not.toContain(`CONVERT_TIMEZONE('Asia/Tokyo'`);
+    });
+
+    test('Snowflake filtered MIN/MAX rebases a bare column but not the inherited wrapped dimension SQL', () => {
+        const filters = [
+            {
+                id: 'f1',
+                target: { fieldRef: 'events.occurred_at' },
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ];
+        const inheritedFilteredSql = `MAX(CASE WHEN "events".occurred_at IS NOT NULL THEN ${snowflakeWrappedSql} ELSE NULL END)`;
+        const explicitFilteredSql = `MAX(CASE WHEN "events".occurred_at IS NOT NULL THEN "events".occurred_at ELSE NULL END)`;
+        const inheritedQuery: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            additionalMetrics: maxNaiveQuery.additionalMetrics?.map(
+                (metric) => ({
+                    ...metric,
+                    sql: snowflakeWrappedDimensionSql,
+                }),
+            ),
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    sql: snowflakeWrappedDimensionSql,
+                    filters,
+                    compiledSql: inheritedFilteredSql,
+                })),
         };
+        const explicitQuery: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    filters,
+                    compiledSql: explicitFilteredSql,
+                })),
+        };
+
+        expect(
+            buildSnowflakeWrappedQuery({
+                explore: buildSnowflakeWrappedExplore(),
+                compiledMetricQuery: inheritedQuery,
+            }),
+        ).toContain(`${inheritedFilteredSql} AS "events_max_ts"`);
+        expect(
+            buildSnowflakeWrappedQuery({
+                explore: buildSnowflakeWrappedExplore(),
+                compiledMetricQuery: explicitQuery,
+            }),
+        ).toContain(
+            `CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', ${explicitFilteredSql}) AS "events_max_ts"`,
+        );
+    });
+
+    test('MIN/MAX over an unknown TIMESTAMP base stays byte-identical on Snowflake (identity cast)', () => {
         const { query } = buildQuery({
             explore: buildNaiveExplore(SupportedDbtAdapter.SNOWFLAKE),
             compiledMetricQuery: maxNaiveQuery,

@@ -515,6 +515,7 @@ const makeService = ({
         aiAgentReviewNotificationService: {
             notifyAssigned: vi.fn().mockResolvedValue(undefined),
             createLinearIssues: vi.fn().mockResolvedValue(undefined),
+            createJiraIssues: vi.fn().mockResolvedValue(undefined),
             ...aiAgentReviewNotificationService,
         },
         slackClient: {
@@ -524,7 +525,12 @@ const makeService = ({
         lightdashConfig: {
             siteUrl: SITE_URL,
             appRuntime: { e2bApiKey: 'e2b-api-key' },
-            aiWriteback: { anthropicApiKey: 'anthropic-api-key' },
+            ai: {
+                copilot: {
+                    providers: { anthropic: { apiKey: 'anthropic-api-key' } },
+                },
+            },
+            aiWriteback: { legacyAnthropicApiKey: null },
         },
     } as unknown as ConstructorParameters<typeof AiAgentAdminService>[0]);
 
@@ -622,6 +628,52 @@ describe('AiAgentAdminService review access', () => {
             }),
         ).rejects.toThrow('not an available issue category');
         expect(createManualReviewItem).not.toHaveBeenCalled();
+    });
+
+    it('queues Linear and Jira exports for an issue created by hand', async () => {
+        const createLinearIssues = vi.fn().mockResolvedValue(undefined);
+        const createJiraIssues = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                createManualReviewItem: vi.fn().mockResolvedValue(
+                    makeReviewItem({
+                        fingerprint: 'fp-manual',
+                        organizationUuid: ORGANIZATION_UUID,
+                        projectUuid: PROJECT_UUID,
+                    }),
+                ),
+            },
+            projectModel: {
+                get: vi
+                    .fn()
+                    .mockResolvedValue({ organizationUuid: ORGANIZATION_UUID }),
+            },
+            aiAgentReviewNotificationService: {
+                createLinearIssues,
+                createJiraIssues,
+            },
+        });
+
+        await service.createReviewItem(makeAdminUser(), {
+            title: 'Revenue metric double counts refunds',
+            description: null,
+            projectUuid: PROJECT_UUID,
+            agentUuid: null,
+            assignedToUserUuid: null,
+            primaryRootCause: 'semantic_layer',
+            priority: 'high',
+            targetRefs: [],
+        });
+
+        const exportArgs = {
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            fingerprints: ['fp-manual'],
+            reviewRunUuid: null,
+            userUuid: USER_UUID,
+        };
+        expect(createLinearIssues).toHaveBeenCalledWith(exportArgs);
+        expect(createJiraIssues).toHaveBeenCalledWith(exportArgs);
     });
 
     it('forbids starting writeback without manage:SourceCode', async () => {
@@ -1739,6 +1791,52 @@ describe('AiAgentAdminService review notification settings', () => {
 });
 
 describe('getAiAgentReviewItemWritebackEligibility', () => {
+    it.each([true, false])(
+        'uses the Bitbucket project token without an app installation (token: %s)',
+        (hasProjectToken) => {
+            expect(
+                getAiAgentReviewItemWritebackEligibility({
+                    item: makeReviewItem(),
+                    reviewsEnabled: true,
+                    projectContextEnabled: false,
+                    projectAccess: {
+                        provider: PullRequestProvider.BITBUCKET,
+                        hasProjectToken,
+                    },
+                    hasSemanticWritebackConfig: true,
+                    sourceThreadHasWritebackPr: false,
+                }),
+            ).toEqual({
+                eligible: hasProjectToken,
+                provider: PullRequestProvider.BITBUCKET,
+                strategy: 'semantic_layer',
+                reason: hasProjectToken ? null : 'bitbucket_token_missing',
+            });
+        },
+    );
+
+    it('does not enable Bitbucket project-context writeback', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    source: 'manual',
+                    primaryRootCause: 'project_context',
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: true,
+                projectAccess: {
+                    provider: PullRequestProvider.BITBUCKET,
+                    hasProjectToken: true,
+                },
+                hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toMatchObject({
+            eligible: false,
+            reason: 'unsupported_source_control',
+        });
+    });
+
     it('allows semantic layer writeback on GitHub when configured', () => {
         expect(
             getAiAgentReviewItemWritebackEligibility({

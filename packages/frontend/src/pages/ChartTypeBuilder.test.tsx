@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
+    type SdkFeature,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -15,7 +16,10 @@ import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp'
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { useSdkUpgradeStatus } from '../features/apps/hooks/useSdkUpgradeStatus';
+import {
+    useSdkUpgradeStatus,
+    type SdkUpgradeOffer,
+} from '../features/apps/hooks/useSdkUpgradeStatus';
 import { useUpgradeApp } from '../features/apps/hooks/useUpgradeApp';
 import { appVersion } from '../features/apps/testing/appVersionHistory';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
@@ -29,6 +33,9 @@ import ChartTypeBuilder from './ChartTypeBuilder';
 
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
+}));
+vi.mock('../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'p1',
 }));
 vi.mock('../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: vi.fn(),
@@ -170,6 +177,7 @@ const appMeta = (overrides: Partial<AppMeta> = {}): AppMeta =>
         hasMore: false,
         latestReadyVersion: 1,
         registrySlug: null,
+        icon: null,
         ...overrides,
     }) as AppMeta;
 
@@ -246,26 +254,20 @@ const mockedClarificationRound = vi.mocked(
     useClarificationRound<VizBuildRequest>,
 );
 
-const staleUpgradeOffer = {
-    status: 'stale' as const,
-    newFeatures: [
-        {
-            key: 'metric-filters',
-            label: 'Metric filters',
-            description: 'Filter grouped results by metric values.',
-            wiring: 'Pass metric filters to the query builder.',
-        },
-    ],
-    candidateFeatures: [
-        {
-            key: 'metric-filters',
-            label: 'Metric filters',
-            description: 'Filter grouped results by metric values.',
-            wiring: 'Pass metric filters to the query builder.',
-        },
-    ],
+const underlyingDataFeature: SdkFeature = {
+    key: 'viz-underlying-data',
+    label: 'View underlying data',
+    description: 'Open the raw result rows behind a clicked data point.',
+    appliesTo: ['chart_type'],
+    wiring: 'Show the action menu when underlyingData.enabled.',
+};
+
+const staleUpgradeOffer: SdkUpgradeOffer = {
+    status: 'stale',
+    newFeatures: [underlyingDataFeature],
+    candidateFeatures: [underlyingDataFeature],
     reportedSdkVersion: '1.68.0',
-    reportedFeatures: ['query'],
+    reportedFeatures: ['viz-context'],
 };
 
 describe('ChartTypeBuilder', () => {
@@ -313,6 +315,15 @@ describe('ChartTypeBuilder', () => {
         );
 
         expect(screen.getByText('Chart type not found')).toBeInTheDocument();
+    });
+
+    it('resolves an edit route by slug', () => {
+        setApp(appMeta());
+
+        renderBuilder('/projects/p1/chart-types/stream-graph');
+
+        expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph');
+        expect(screen.getByText('Stream graph')).toBeInTheDocument();
     });
 
     it('hands non-viz apps to the app builder', () => {
@@ -783,6 +794,7 @@ describe('ChartTypeBuilder', () => {
             vi.mocked(useSdkUpgradeStatus).mock.lastCall?.[0];
 
         expect(keyedToLatestReady()).toEqual({
+            target: 'chart_type',
             bundleKey: 'viz-1:2',
             renderedKey: 'viz-1:2',
             isRendering: true,
@@ -794,6 +806,7 @@ describe('ChartTypeBuilder', () => {
         // An upgrade always rebuilds from v2, so the offer keeps describing
         // it; the v1 bundle on screen must not be classified in its place.
         expect(keyedToLatestReady()).toEqual({
+            target: 'chart_type',
             bundleKey: 'viz-1:2',
             renderedKey: 'viz-1:1',
             isRendering: false,

@@ -280,7 +280,10 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
             <Divider />
 
             {threadData && (
-                <Box mah="calc(100vh - 150px)" className="ld-scroll-y">
+                <Box
+                    mah="calc(100vh - 150px)"
+                    className={styles.scrollableBody}
+                >
                     {selectedReviewItem ? (
                         <>
                             <Stack p="md" gap="md">
@@ -411,7 +414,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         )}
                                     </Group>
 
-                                    <Collapse in={showDetails}>
+                                    <Collapse expanded={showDetails}>
                                         <Stack gap="sm" pt="xs">
                                             <Group
                                                 gap="lg"
@@ -452,7 +455,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         </Stack>
                                     </Collapse>
 
-                                    <Collapse in={showWhy}>
+                                    <Collapse expanded={showWhy}>
                                         <Stack gap="xs" pt="xs">
                                             <Text
                                                 fz="xs"
@@ -474,7 +477,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                     </Collapse>
 
                                     {previewProjectUuid && (
-                                        <Collapse in={showValidation}>
+                                        <Collapse expanded={showValidation}>
                                             <ReviewValidationList
                                                 previewProjectUuid={
                                                     previewProjectUuid
@@ -788,7 +791,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                 size="xs"
                             />
                         </UnstyledButton>
-                        <Collapse in={showConversation}>
+                        <Collapse expanded={showConversation}>
                             <AgentChatDisplay
                                 thread={threadData}
                                 projectUuid={projectUuid}

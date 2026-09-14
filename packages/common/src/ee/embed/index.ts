@@ -68,6 +68,7 @@ export type ParameterInteractivityOptions = z.infer<
     typeof ParameterInteractivityOptionsSchema
 >;
 
+/** Legacy capability flags remain supported; new permissions must use embed scopes. */
 export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:
         DashboardFilterInteractivityOptionsSchema.optional(),
@@ -120,6 +121,8 @@ export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
     spaceUuid: string;
+    /** Use scopes instead of dashboard flags; AI additionally requires EmbedAiAgent. */
+    permissionsMode?: 'default' | 'roles';
 };
 
 export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
@@ -127,6 +130,7 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
         serviceAccountUserUuid: z.string().uuid().optional(),
         userUuid: z.string().uuid().optional(),
         spaceUuid: z.string().uuid(),
+        permissionsMode: z.enum(['default', 'roles']).optional(),
     })
     .refine(
         ({ serviceAccountUserUuid, userUuid }) =>

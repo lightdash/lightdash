@@ -9,7 +9,15 @@ import {
     type EChartsReactProps,
     type Opts,
 } from 'echarts-for-react/lib/types';
-import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import {
     getDisabledLegendEntries,
@@ -232,9 +240,12 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 cartesianChartConfig?.dirtyEchartsConfig?.legend?.selected,
                 persistLegendSelection,
             );
+        // Measured canvas width so outside legends can size their labels
+        const [chartWidth, setChartWidth] = useState<number | null>(null);
         const eChartsOptions = useEchartsCartesianConfig(
             selectedLegends,
             props.isInDashboard,
+            chartWidth,
         );
 
         const hasSignaledScreenshotReady = useRef(false);
@@ -294,7 +305,11 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             };
 
             // Observe container size changes (e.g., collapsible card expand/collapse)
-            const observer = new ResizeObserver(resizeChart);
+            const observer = new ResizeObserver((entries) => {
+                const width = entries[0]?.contentRect.width;
+                if (width !== undefined) setChartWidth(Math.round(width));
+                resizeChart();
+            });
             observer.observe(dom);
 
             // Also listen for window resize events

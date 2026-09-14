@@ -284,6 +284,43 @@ describe('validateLocalDataApp', () => {
         );
     });
 
+    it('validates the icon from the manifest', async () => {
+        const manifest = {
+            ...defaultManifest,
+            icon: 'not-a-real-icon',
+        } as unknown as DataAppManifest;
+        const dir = await makeApp({ manifest });
+
+        const result = await validateLocalDataApp(dir, {
+            live: false,
+            loadLiveIndex: unusedLiveLoader,
+        });
+
+        expect(result.errors).toContainEqual(
+            expect.objectContaining({
+                code: 'manifest',
+                message: expect.stringContaining('Invalid icon'),
+            }),
+        );
+    });
+
+    it.each([null, 'chart-sankey'] as const)(
+        'accepts icon %s',
+        async (icon) => {
+            const manifest = { ...defaultManifest, icon };
+            const dir = await makeApp({ manifest });
+
+            const result = await validateLocalDataApp(dir, {
+                live: false,
+                loadLiveIndex: unusedLiveLoader,
+            });
+
+            expect(result.errors).not.toContainEqual(
+                expect.objectContaining({ code: 'manifest' }),
+            );
+        },
+    );
+
     it('requires a pnpm lockfile for custom dependencies', async () => {
         const dir = await makeApp({
             packageJson: JSON.stringify({

@@ -112,6 +112,8 @@ export const COMPILE_TIMINGS_PATH = '/tmp/ld-writeback-compile-timings';
 // also drop common token vars defensively in case that changes.
 export const COMPILE_STRIPPED_ENV_VARS = [
     'ANTHROPIC_API_KEY',
+    // Gateway mode carries the key here instead.
+    'ANTHROPIC_AUTH_TOKEN',
     'GITHUB_TOKEN',
     'GH_TOKEN',
 ];
@@ -151,6 +153,14 @@ export const ALLOWED_TOOLS = [
     // `lightdash compile` — see COMPILE_WRAPPER_PATH.
     `Bash(${COMPILE_WRAPPER_PATH}:*)`,
 ].join(',');
+
+// Native compilation runs on the host with the shared compiler. The agent
+// needs neither shell execution nor access to temporary dbt profiles.
+export const NATIVE_ALLOWED_TOOLS = ALLOWED_TOOLS.split(',')
+    .filter(
+        (tool) => !tool.startsWith('Bash(') && !tool.includes(TMP_PROFILES_DIR),
+    )
+    .join(',');
 
 // Anthropic model used for the writeback agent. Pinned to a specific Sonnet
 // snapshot rather than the CLI default so runs stay deterministic across

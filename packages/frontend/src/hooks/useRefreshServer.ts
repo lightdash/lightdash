@@ -46,13 +46,13 @@ export const jobStatusLabel = (status: JobStatusType, jobType?: JobType) => {
     }
     switch (status) {
         case JobStatusType.DONE:
-            return 'Successfully synced dbt project!';
+            return 'Successfully synced project!';
         case JobStatusType.STARTED:
             return 'Pending sync';
         case JobStatusType.ERROR:
-            return 'Error while syncing dbt project';
+            return 'Error while syncing project';
         case JobStatusType.RUNNING:
-            return 'Syncing dbt project';
+            return 'Syncing project';
         default:
             throw new Error('Unknown job status');
     }
@@ -162,7 +162,7 @@ export const useRefreshServer = () => {
         onSuccess: (data) => setActiveJobId(data.jobUuid),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Error syncing dbt project',
+                title: 'Error syncing project',
                 apiError: error,
             }),
     });

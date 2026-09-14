@@ -95,7 +95,7 @@ function buildService(
         getVersion: vi.fn().mockResolvedValue(null),
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
         createWithVersion: vi.fn().mockResolvedValue({
-            app: { app_id: 'new-app-uuid' },
+            app: { app_id: 'new-app-uuid', slug: 'sankey-custom-2' },
             version: { version: 1 },
         }),
         updateApp: vi.fn().mockResolvedValue({
@@ -425,8 +425,19 @@ describe('duplicateApp fork lineage', () => {
             data_references: null,
         });
 
-        await service.duplicateApp(makeUser(), PROJECT_UUID, APP_UUID, {
-            name: 'Sankey (custom)',
+        const result = await service.duplicateApp(
+            makeUser(),
+            PROJECT_UUID,
+            APP_UUID,
+            {
+                name: 'Sankey (custom)',
+            },
+        );
+
+        expect(result).toEqual({
+            appUuid: expect.any(String),
+            slug: 'sankey-custom-2',
+            version: 1,
         });
 
         expect(appModel.createWithVersion).toHaveBeenCalledWith(

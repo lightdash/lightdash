@@ -1,4 +1,9 @@
-import { ParameterError, SpaceMemberRole } from '@lightdash/common';
+import {
+    ConflictError,
+    NotFoundError,
+    ParameterError,
+    SpaceMemberRole,
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { EmailTableName } from '../database/entities/emails';
@@ -65,6 +70,108 @@ describe('SpaceModel project-scoped creation', () => {
 
         expect(space.uuid).toBe('existing-space-uuid');
         expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('creates a new space when the CaC path only matches a deleted space', async () => {
+        tracker.on.select(ProjectTableName).responseOnce({ project_id: 1 });
+        tracker.on.select('pg_advisory_xact_lock').response({});
+        // No active space at the path; the deleted one still reserves the slug
+        tracker.on.select(SpaceTableName).responseOnce([]);
+        tracker.on.select(SpaceTableName).responseOnce([{ slug: 'churn' }]);
+        tracker.on.select(SpaceTableName).responseOnce([]);
+        tracker.on.insert(SpaceTableName).responseOnce([
+            {
+                organization_uuid: 'organization-uuid',
+                space_uuid: 'new-space-uuid',
+                name: 'Churn',
+                slug: 'churn-1',
+                path: 'commercial.churn',
+                parent_space_uuid: 'commercial-space-uuid',
+                inherit_parent_permissions: true,
+                project_member_access_role: null,
+                color_palette_uuid: null,
+                deleted_at: null,
+            },
+        ]);
+
+        const space = await model.createSpace(
+            {
+                name: 'Churn',
+                inheritParentPermissions: true,
+                parentSpaceUuid: 'commercial-space-uuid',
+            },
+            {
+                projectUuid: 'project-uuid',
+                userId: 1,
+                path: 'commercial.churn',
+            },
+        );
+
+        expect(space.uuid).toBe('new-space-uuid');
+        expect(space.slug).toBe('churn-1');
+        expect(space.path).toBe('commercial.churn');
+        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.insert[0].bindings).toEqual(
+            expect.arrayContaining(['commercial.churn', 'churn-1']),
+        );
+        const pathLookup = tracker.history.select.find((query) =>
+            query.sql.includes('"path" = $'),
+        );
+        expect(pathLookup?.sql).toContain('"deleted_at" is null');
+    });
+});
+
+describe('SpaceModel restore', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SpaceModel({ database });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    const deletedSpaceRow = {
+        project_id: 1,
+        path: 'commercial.churn',
+        name: 'Churn',
+    };
+
+    it('restores a deleted space when no active space uses its path', async () => {
+        tracker.on.select(SpaceTableName).responseOnce([deletedSpaceRow]);
+        tracker.on.select(SpaceTableName).responseOnce([]);
+        tracker.on.update(SpaceTableName).responseOnce(1);
+
+        await model.restore('deleted-space-uuid');
+
+        expect(tracker.history.update).toHaveLength(1);
+        expect(tracker.history.update[0].bindings).toContain(
+            'deleted-space-uuid',
+        );
+    });
+
+    it('rejects restoring a space whose path is now used by an active space', async () => {
+        tracker.on.select(SpaceTableName).responseOnce([deletedSpaceRow]);
+        tracker.on
+            .select(SpaceTableName)
+            .responseOnce([{ name: 'Churn (as code)' }]);
+
+        await expect(model.restore('deleted-space-uuid')).rejects.toThrow(
+            ConflictError,
+        );
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    it('throws NotFoundError when the space is not deleted', async () => {
+        tracker.on.select(SpaceTableName).responseOnce([]);
+
+        await expect(model.restore('active-space-uuid')).rejects.toThrow(
+            NotFoundError,
+        );
+        expect(tracker.history.update).toHaveLength(0);
     });
 });
 

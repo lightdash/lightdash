@@ -268,7 +268,7 @@ describe('DbtSourcesPanel', () => {
         const { dialog, user } = await openAddSourceModal();
 
         await user.click(
-            within(dialog).getByRole('textbox', {
+            within(dialog).getByRole('combobox', {
                 name: 'Authorization method',
             }),
         );

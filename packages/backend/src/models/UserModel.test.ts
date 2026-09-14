@@ -6,6 +6,7 @@ import {
 } from '@casl/ability';
 import {
     CommercialFeatureFlags,
+    FeatureFlags,
     LightdashMode,
     LightdashUser,
     MemberAbility,
@@ -50,6 +51,17 @@ vi.mock('../utils/hash', () => ({
 
 type TestableUserModel = {
     hasAuthentication: (userUuid: string, trx?: Knex) => Promise<boolean>;
+    getTrainingProjects: (
+        organizationId: number,
+        userUuid: string,
+        trx?: Knex,
+    ) => Promise<
+        {
+            projectUuid: string;
+            projectType: ProjectType;
+            createdByUserUuid: string | null;
+        }[]
+    >;
     getUserProjectRoles: (
         userUuid: string,
         options?: { trx?: Knex },
@@ -123,7 +135,7 @@ const userDetails: DbUserDetails = {
     updated_at: new Date('2024-01-01'),
 };
 
-const createUserModel = (): TestableUserModel => {
+const createUserModel = (projectCount = 125): TestableUserModel => {
     const model = new UserModel({
         database: vi.fn() as unknown as Knex,
         lightdashConfig,
@@ -132,6 +144,7 @@ const createUserModel = (): TestableUserModel => {
 
     model.hasAuthentication = vi.fn(async () => true);
     model.getUserProjectRoles = vi.fn(async () => []);
+    model.getTrainingProjects = vi.fn(async () => []);
     model.getUserGroupProjectRoles = vi.fn(async () => []);
     model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
     model.findServiceAccountByUserUuid = vi.fn(async (userUuid) => ({
@@ -146,18 +159,19 @@ const createUserModel = (): TestableUserModel => {
     }));
     model.applyServiceAccountProjectMemberships = vi.fn(
         async (_userId, userUuid, builder) => {
-            Array.from({ length: 125 }, (_, i) => `project-${i}`).forEach(
-                (projectUuid) => {
-                    projectMemberAbilities[ProjectMemberRole.ADMIN](
-                        {
-                            projectUuid,
-                            role: ProjectMemberRole.ADMIN,
-                            userUuid,
-                        },
-                        builder,
-                    );
-                },
-            );
+            Array.from(
+                { length: projectCount },
+                (_, i) => `project-${i}`,
+            ).forEach((projectUuid) => {
+                projectMemberAbilities[ProjectMemberRole.ADMIN](
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.ADMIN,
+                        userUuid,
+                    },
+                    builder,
+                );
+            });
         },
     );
 
@@ -186,7 +200,6 @@ const expectCollapsedDashboardProjectRule = (
         );
     }
 
-    expect(rules.length).toBeLessThan(100);
     expect(
         (dashboardRule.conditions as Record<string, { $in: string[] }>)
             .projectUuid.$in,
@@ -377,6 +390,11 @@ describe('UserModel', () => {
             await model.generateUserAbilityBuilder(userDetails);
         const ability = abilityBuilder.build();
 
+        const singleProject =
+            await createUserModel(1).generateUserAbilityBuilder(userDetails);
+        expect(abilityBuilder.rules).toHaveLength(
+            singleProject.abilityBuilder.rules.length,
+        );
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
         expect(
             ability.can(
@@ -409,6 +427,15 @@ describe('UserModel', () => {
             expect.anything(),
         );
         expect(model.findServiceAccountByUserUuid).not.toHaveBeenCalled();
+        const singleProject = await createUserModel(
+            1,
+        ).generateUserAbilityBuilder({
+            ...userDetails,
+            role_uuid: 'custom-role',
+        });
+        expect(abilityBuilder.rules).toHaveLength(
+            singleProject.abilityBuilder.rules.length,
+        );
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
     });
 
@@ -421,16 +448,30 @@ describe('UserModel', () => {
             role_uuid: undefined,
         };
 
-        const createHumanModel = () => {
+        const createHumanModel = (learnEnabled = true) => {
             const model = new UserModel({
                 database: vi.fn() as unknown as Knex,
                 lightdashConfig: {
                     ...lightdashConfig,
                     customRoles: { enabled: true },
                 } as LightdashConfig,
-                featureFlagModel,
+                featureFlagModel: {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: string;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId === FeatureFlags.EnableLearn &&
+                                learnEnabled,
+                        }),
+                    ),
+                } as unknown as FeatureFlagModel,
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
+            model.getTrainingProjects = vi.fn(async () => []);
             model.getUserProjectRoles = vi.fn(async () => [
                 {
                     projectUuid: 'project-1',
@@ -452,6 +493,129 @@ describe('UserModel', () => {
             model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
             return model;
         };
+
+        it('does not grant trainee scopes when the org Learn flag is off', async () => {
+            const model = createHumanModel(false);
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            expect(model.getTrainingProjects).not.toHaveBeenCalled();
+            expect(
+                abilityBuilder.build().can(
+                    'manage',
+                    subject('PinnedItems', {
+                        projectUuid: 'training-copy',
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('grants the trainee layer on the org training project only', async () => {
+            const model = createHumanModel();
+            model.getTrainingProjects = vi.fn(async () => [
+                {
+                    projectUuid: 'training-project',
+                    projectType: ProjectType.TRAINING,
+                    createdByUserUuid: 'someone-else',
+                },
+                {
+                    projectUuid: 'training-copy',
+                    projectType: ProjectType.PREVIEW,
+                    createdByUserUuid: humanDetails.user_uuid,
+                },
+            ]);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(model.getTrainingProjects).toHaveBeenCalledWith(
+                humanDetails.organization_id,
+                humanDetails.user_uuid,
+                expect.anything(),
+            );
+            // the learner's own copy of the training project gets the layer too
+            expect(
+                ability.can(
+                    'manage',
+                    subject('PinnedItems', { projectUuid: 'training-copy' }),
+                ),
+            ).toBe(true);
+            // a viewer can pin, save and run SQL in their own copy
+            (
+                [
+                    ['manage', 'PinnedItems'],
+                    ['manage', 'SavedChart'],
+                    ['manage', 'SqlRunner'],
+                    ['manage', 'Validation'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect(
+                    ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-copy',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+            // the shared training project itself is read-only for them:
+            // browsable, so the library and the seed can be opened, but a
+            // write there would be cloned into every other learner's copy
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', { projectUuid: 'training-project' }),
+                ),
+            ).toBe(true);
+            (
+                [
+                    ['manage', 'PinnedItems'],
+                    ['manage', 'SavedChart'],
+                    ['manage', 'SqlRunner'],
+                    ['manage', 'AiAgent'],
+                    ['create', 'DashboardComments'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect({
+                    action,
+                    subjectName,
+                    can: ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-project',
+                        }),
+                    ),
+                }).toEqual({ action, subjectName, can: false });
+            });
+            // but not on their real project
+            expect(
+                ability.can(
+                    'manage',
+                    subject('PinnedItems', { projectUuid: 'project-1' }),
+                ),
+            ).toBe(false);
+            // and never the excluded scopes on the training project
+            (
+                [
+                    ['delete', 'Project'],
+                    ['update', 'Project'],
+                    ['manage', 'CompileProject'],
+                    ['manage', 'ScheduledDeliveries'],
+                    ['manage', 'ExternalConnection'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect({
+                    action,
+                    subjectName,
+                    can: ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-project',
+                        }),
+                    ),
+                }).toEqual({ action, subjectName, can: false });
+            });
+        });
 
         it('unions org and project extra roles into a human user ability', async () => {
             const model = createHumanModel();
@@ -670,6 +834,7 @@ describe('UserModel', () => {
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.customRoleScopes = vi.fn(async () => ({
@@ -755,6 +920,7 @@ describe('UserModel', () => {
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
@@ -783,6 +949,7 @@ describe('UserModel', () => {
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);

@@ -6,6 +6,7 @@ import {
 import { Group, Stack, Text } from '@mantine/core';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalTarget } from '../../../providers/PortalTarget/usePortalTarget';
 import { GrabIcon } from '../common/GrabIcon';
 import ColumnConfiguration, {
     type ColumnConfigurationProps,
@@ -18,7 +19,8 @@ type DraggablePortalHandlerProps = {
 const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };
 

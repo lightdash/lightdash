@@ -15,15 +15,18 @@ import {
     NotEnoughResults,
     PartialFailureType,
     PersistentDownloadFileAccessMode,
+    RequestMethod,
     SchedulerFormat,
     sleep,
     ThresholdOperator,
     VizAggregationOptions,
     VizIndexType,
     type CapturedQuery,
+    type CompileProjectPayload,
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
     type EmailNotificationPayload,
+    type Filters,
     type MetricQuery,
     type NotificationPayloadBase,
     type ReadyQueryResultsPage,
@@ -990,6 +993,106 @@ const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
 
+describe('compileProject', () => {
+    it('enqueues custom-field replacement after a successful preview compile without waiting for it', async () => {
+        const replaceCustomFields = vi.fn(
+            () =>
+                new Promise<never>(() => {
+                    // Intentionally left pending to verify fire-and-forget.
+                }),
+        );
+        const generateValidation = vi.fn();
+        const task = makeTaskWithDeps({
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({
+                    userUuid: 'user-1',
+                    organizationUuid: 'org-1',
+                }),
+            }),
+            projectService: asDep<'projectService'>({
+                compileProject: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerClient: asDep<'schedulerClient'>({
+                generateValidation,
+                replaceCustomFields,
+            }),
+        });
+        const payload: CompileProjectPayload = {
+            createdByUserUuid: 'user-1',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            requestMethod: RequestMethod.WEB_APP,
+            jobUuid: 'compile-job-1',
+            isPreview: true,
+            validateAfterCompile: false,
+        };
+
+        await (
+            task as unknown as {
+                compileProject(
+                    jobId: string,
+                    scheduledTime: Date,
+                    compilePayload: CompileProjectPayload,
+                ): Promise<void>;
+            }
+        ).compileProject('scheduler-job-1', new Date(), payload);
+
+        expect(generateValidation).not.toHaveBeenCalled();
+        expect(replaceCustomFields).toHaveBeenCalledWith({
+            userUuid: 'user-1',
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+        });
+    });
+
+    it('does not enqueue custom-field replacement when compilation fails', async () => {
+        const compileError = new Error('compile failed');
+        const replaceCustomFields = vi.fn();
+        const task = makeTaskWithDeps({
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({
+                    userUuid: 'user-1',
+                    organizationUuid: 'org-1',
+                }),
+            }),
+            projectService: asDep<'projectService'>({
+                compileProject: vi.fn().mockRejectedValue(compileError),
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerClient: asDep<'schedulerClient'>({ replaceCustomFields }),
+        });
+        const payload: CompileProjectPayload = {
+            createdByUserUuid: 'user-1',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            requestMethod: RequestMethod.WEB_APP,
+            jobUuid: 'compile-job-1',
+            isPreview: false,
+        };
+
+        await expect(
+            (
+                task as unknown as {
+                    compileProject(
+                        jobId: string,
+                        scheduledTime: Date,
+                        compilePayload: CompileProjectPayload,
+                    ): Promise<void>;
+                }
+            ).compileProject('scheduler-job-1', new Date(), payload),
+        ).rejects.toThrow(compileError);
+
+        expect(replaceCustomFields).not.toHaveBeenCalled();
+    });
+});
+
 describe('uploadGsheets — pivot routing', () => {
     const validPivotDetails: NonNullable<
         ReadyQueryResultsPage['pivotDetails']
@@ -1059,14 +1162,22 @@ describe('uploadGsheets — pivot routing', () => {
         source,
         hasPivotConfig,
         pivotDetails,
+        schedulerFilters,
     }: {
         source: 'saved-chart' | 'dashboard';
         hasPivotConfig: boolean;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        schedulerFilters?: Filters;
     }) => {
         const appendToSheet = vi.fn().mockResolvedValue(undefined);
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
         const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const executeSavedChartQueryAndGetResults = vi.fn().mockResolvedValue({
+            rows: pivotDetails ? pivotedRows : flatRows,
+            fields: itemMap,
+            pivotDetails,
+            displayTimezone: null,
+        });
         const chart = makeChart(hasPivotConfig);
         const dashboardUuid = source === 'dashboard' ? 'dashboard-1' : null;
         const scheduler = {
@@ -1081,7 +1192,7 @@ describe('uploadGsheets — pivot routing', () => {
             timezone: 'UTC',
             options: { gdriveId: 'sheet-1' },
             thresholds: undefined,
-            filters: undefined,
+            filters: schedulerFilters,
         };
         const task = makeTaskWithDeps({
             googleDriveClient: asDep<'googleDriveClient'>({
@@ -1112,12 +1223,7 @@ describe('uploadGsheets — pivot routing', () => {
                 getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
-                executeSavedChartQueryAndGetResults: vi.fn().mockResolvedValue({
-                    rows: pivotDetails ? pivotedRows : flatRows,
-                    fields: itemMap,
-                    pivotDetails,
-                    displayTimezone: null,
-                }),
+                executeSavedChartQueryAndGetResults,
                 executeDashboardChartQueryAndGetResults: vi
                     .fn()
                     .mockResolvedValue({
@@ -1179,7 +1285,13 @@ describe('uploadGsheets — pivot routing', () => {
                 projectUuid: 'project-1',
             });
 
-        return { appendToSheet, appendCsvToSheet, logSchedulerJob, run };
+        return {
+            appendToSheet,
+            appendCsvToSheet,
+            logSchedulerJob,
+            executeSavedChartQueryAndGetResults,
+            run,
+        };
     };
 
     it.each(['saved-chart', 'dashboard'] as const)(
@@ -1227,6 +1339,35 @@ describe('uploadGsheets — pivot routing', () => {
         expect(result.appendCsvToSheet).not.toHaveBeenCalled();
         expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
             expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    it('runs a saved-chart sync with the delivery filter overrides', async () => {
+        const schedulerFilters: Filters = {
+            dimensions: {
+                id: 'delivery',
+                and: [
+                    {
+                        id: 'status-rule',
+                        target: { fieldId: 'orders_status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['shipped'],
+                    },
+                ],
+            },
+        };
+        const result = setup({
+            source: 'saved-chart',
+            hasPivotConfig: false,
+            pivotDetails: null,
+            schedulerFilters,
+        });
+
+        await result.run();
+
+        expect(result.executeSavedChartQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({ chartUuid: 'chart-1', schedulerFilters }),
+            expect.anything(),
         );
     });
 });
@@ -3363,6 +3504,270 @@ describe('app delivery target senders', () => {
             'Sessions reached its query limit; additional rows may exist (5000 rows delivered)',
         );
         expect(blocks).toContain('Orders');
+    });
+
+    describe('csv file attachments in the Slack thread', () => {
+        const sendToSlack = async (
+            scheduler: CreateSchedulerAndTargets,
+            page: PageData,
+        ) => {
+            const postMessage = vi.fn().mockResolvedValue({ ts: '111' });
+            const postFileToThread = vi.fn().mockResolvedValue(undefined);
+            const task = makeTaskWithDeps({
+                ...senderBaseDeps(),
+                slackClient: asDep<'slackClient'>({
+                    isEnabled: true,
+                    postMessage,
+                    postFileToThread,
+                }),
+            });
+            await (
+                task as unknown as {
+                    sendSlackNotification(
+                        jobId: string,
+                        notification: never,
+                    ): Promise<void>;
+                }
+            ).sendSlackNotification(
+                'job-1',
+                notificationOf(scheduler, page, { channel: 'C123' }),
+            );
+            return { postMessage, postFileToThread };
+        };
+
+        const attachingScheduler = (
+            overrides: Partial<CreateSchedulerAndTargets> = {},
+        ) =>
+            appScheduler({
+                options: {
+                    formatted: true,
+                    limit: 'table',
+                    asAttachment: true,
+                },
+                ...overrides,
+            });
+
+        beforeEach(() => {
+            vi.stubGlobal(
+                'fetch',
+                vi.fn(async (url: string) =>
+                    url.includes('missing')
+                        ? new Response('gone', { status: 404 })
+                        : new Response(`rows from ${url}`),
+                ),
+            );
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+        });
+
+        it('uploads every csv file into the thread of the delivery message', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'csv-Revenue-2026-07-30.csv',
+                        path: 'https://files.example.com/revenue.csv?sig=1',
+                        localPath: 'https://files.example.com/revenue.csv',
+                        chartName: 'Revenue',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Orders-2026-07-30.csv',
+                        path: 'https://files.example.com/orders.csv?sig=1',
+                        localPath: 'https://files.example.com/orders.csv',
+                        chartName: 'Orders',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(2);
+            const [first, second] = postFileToThread.mock.calls.map(
+                (call) => call[0],
+            );
+            expect(first).toMatchObject({
+                organizationUuid: 'org-1',
+                channelId: 'C123',
+                threadTs: '111',
+                filename: 'csv-Revenue-2026-07-30.csv',
+                title: 'Revenue',
+                fileType: 'csv',
+            });
+            expect(first.file.toString()).toBe(
+                'rows from https://files.example.com/revenue.csv',
+            );
+            expect(second.filename).toBe('csv-Orders-2026-07-30.csv');
+        });
+
+        it('adds the csv extension to dashboard files that are named after their chart', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Revenue by method?',
+                        path: 'https://files.example.com/revenue.csv?sig=1',
+                        localPath: 'https://files.example.com/revenue.csv',
+                        chartName: 'Revenue by method?',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Revenue by method?.csv',
+                title: 'Revenue by method?',
+            });
+        });
+
+        it('uploads the chart csv with the chart name as the file title', async () => {
+            const page = senderPage({
+                pageType: LightdashPage.CHART,
+                details: { name: 'Revenue by method', description: '' },
+                csvUrls: undefined,
+                failures: undefined,
+                notices: undefined,
+                csvUrl: {
+                    filename: 'csv-Revenue-by-method-2026-07-30.csv',
+                    path: 'https://files.example.com/revenue.csv?sig=1',
+                    localPath: 'https://files.example.com/revenue.csv',
+                    truncated: false,
+                },
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({
+                    appUuid: null,
+                    appName: null,
+                    savedChartUuid: 'chart-1',
+                }),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                threadTs: '111',
+                filename: 'csv-Revenue-by-method-2026-07-30.csv',
+                title: 'Revenue by method',
+            });
+        });
+
+        it('keeps the link-only message when the attachment option is off', async () => {
+            const { postMessage, postFileToThread } = await sendToSlack(
+                appScheduler(),
+                senderPage(),
+            );
+
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            expect(postFileToThread).not.toHaveBeenCalled();
+        });
+
+        it('uploads xlsx files typed as xlsx', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Revenue',
+                        path: 'https://files.example.com/revenue.xlsx?sig=1',
+                        localPath: 'https://files.example.com/revenue.xlsx',
+                        chartName: 'Revenue',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({ format: SchedulerFormat.XLSX }),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Revenue.xlsx',
+                title: 'Revenue',
+                fileType: 'xlsx',
+            });
+        });
+
+        it('uploads the single workbook when the dashboard xlsx layout is workbook', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Sales App',
+                        path: 'https://files.example.com/workbook.xlsx?sig=1',
+                        localPath: 'https://files.example.com/workbook.xlsx',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({
+                    format: SchedulerFormat.XLSX,
+                    options: {
+                        formatted: true,
+                        limit: 'table',
+                        asAttachment: true,
+                        xlsxFileLayout: 'workbook',
+                    },
+                }),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Sales App.xlsx',
+                title: 'Sales App',
+                fileType: 'xlsx',
+            });
+        });
+
+        it('skips empty results and carries on after a file that fails to download', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'csv-Empty-2026-07-30.csv',
+                        path: '#no-results',
+                        localPath: '#no-results',
+                        chartName: 'Empty',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Missing-2026-07-30.csv',
+                        path: 'https://files.example.com/missing.csv?sig=1',
+                        localPath: 'https://files.example.com/missing.csv',
+                        chartName: 'Missing',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Orders-2026-07-30.csv',
+                        path: 'https://files.example.com/orders.csv?sig=1',
+                        localPath: 'https://files.example.com/orders.csv',
+                        chartName: 'Orders',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postMessage, postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0].filename).toBe(
+                'csv-Orders-2026-07-30.csv',
+            );
+        });
     });
 
     it('sends an app csv delivery by email with its failures and notices', async () => {

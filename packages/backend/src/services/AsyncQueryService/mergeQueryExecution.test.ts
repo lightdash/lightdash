@@ -8,11 +8,16 @@ import {
     type MergeQuery,
     type MergeTypedColumn,
     type MetricQuery,
+    type QueryHistory,
 } from '@lightdash/common';
 import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
+    buildMergeRowCapGuard,
     getMergeOutputColumnCount,
+    getMergeResultSourceCutShortError,
+    getMergeRowCapError,
+    getMergeSourceLabels,
 } from './mergeQueryExecution';
 
 const sourceQuery = (metrics: string[], calculations: string[] = []) =>
@@ -98,69 +103,69 @@ describe('merge query execution', () => {
     });
 });
 
-describe('buildComposeMergeOriginalColumns', () => {
-    const itemsMap: ItemsMap = {
-        orders_month: {
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.DATE,
-            name: 'month',
-            label: 'Month',
-            table: 'orders',
-            tableLabel: 'Orders',
-            sql: '${TABLE}.month',
-            hidden: false,
-            groups: [],
-        },
-        orders_count: {
-            fieldType: FieldType.METRIC,
-            type: MetricType.COUNT,
-            name: 'count',
-            label: 'Count',
-            table: 'orders',
-            tableLabel: 'Orders',
-            sql: '${TABLE}.count',
-            hidden: false,
-            groups: [],
-        },
-        merged_calc: {
-            name: 'merged_calc',
-            displayName: 'Merged calc',
-            sql: '1',
-        },
-    };
-    const typedColumns: MergeTypedColumn[] = [
-        {
-            reference: 'orders_month',
-            type: DimensionType.DATE,
-            origin: {
-                kind: 'joinKey',
-                fieldIdBySourceId: {
-                    orders: 'orders_month',
-                    payments: 'payments_month',
-                },
+const itemsMap: ItemsMap = {
+    orders_month: {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.DATE,
+        name: 'month',
+        label: 'Month',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '${TABLE}.month',
+        hidden: false,
+        groups: [],
+    },
+    orders_count: {
+        fieldType: FieldType.METRIC,
+        type: MetricType.COUNT,
+        name: 'count',
+        label: 'Count',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '${TABLE}.count',
+        hidden: false,
+        groups: [],
+    },
+    merged_calc: {
+        name: 'merged_calc',
+        displayName: 'Merged calc',
+        sql: '1',
+    },
+};
+const typedColumns: MergeTypedColumn[] = [
+    {
+        reference: 'orders_month',
+        type: DimensionType.DATE,
+        origin: {
+            kind: 'joinKey',
+            fieldIdBySourceId: {
+                orders: 'orders_month',
+                payments: 'payments_month',
             },
         },
-        {
-            reference: 'orders_count',
-            type: DimensionType.NUMBER,
-            origin: {
-                kind: 'source',
-                sourceId: 'orders',
-                sourceFieldId: 'orders_count',
-            },
+    },
+    {
+        reference: 'orders_count',
+        type: DimensionType.NUMBER,
+        origin: {
+            kind: 'source',
+            sourceId: 'orders',
+            sourceFieldId: 'orders_count',
         },
-        {
-            reference: 'merged_calc',
-            type: DimensionType.NUMBER,
-            origin: { kind: 'tableCalculation' },
-        },
-    ];
+    },
+    {
+        reference: 'merged_calc',
+        type: DimensionType.NUMBER,
+        origin: { kind: 'tableCalculation' },
+    },
+];
 
+describe('buildComposeMergeOriginalColumns', () => {
     const columns = buildComposeMergeOriginalColumns({
         typedColumns,
         itemsMap,
         usedParametersValues: {},
-        legQueryUuidBySourceId: { orders: 'orders-leg-uuid' },
+        legReferenceBySourceId: { orders: 'orders-leg-uuid' },
     });
 
     test('source-owned columns set provenance to the field in the leg query', () => {
@@ -198,10 +203,166 @@ describe('buildComposeMergeOriginalColumns', () => {
             typedColumns,
             itemsMap,
             usedParametersValues: {},
-            legQueryUuidBySourceId: {},
+            legReferenceBySourceId: {},
         });
         expect(withoutLeg.orders_count.provenance).toEqual({
             fieldId: 'orders_count',
         });
+    });
+});
+
+describe('getMergeSourceLabels', () => {
+    test('labels a source by the explore label its columns carry', () => {
+        expect(
+            getMergeSourceLabels({
+                sources: [{ id: 'orders' }],
+                typedColumns,
+                itemsMap,
+            }),
+        ).toEqual({ orders: 'Orders' });
+    });
+
+    test('falls back to the slot label for a source with no value column', () => {
+        expect(
+            getMergeSourceLabels({
+                sources: [{ id: 'orders' }, { id: 'empty' }],
+                typedColumns,
+                itemsMap,
+            }),
+        ).toEqual({ orders: 'Orders', empty: 'Query B' });
+    });
+});
+
+describe('getMergeRowCapError', () => {
+    test('refuses and names the source that reached the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 500 },
+                    { label: 'Payments', rowCount: 12 },
+                ],
+                sourceRowCap: 500,
+            }),
+        ).toBe(
+            'Orders returned the maximum of 500 rows, so the merged results would be missing data. Add a filter to Orders, then merge again.',
+        );
+    });
+
+    test('names every source that reached the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 500 },
+                    { label: 'Payments', rowCount: 501 },
+                ],
+                sourceRowCap: 500,
+            }),
+        ).toBe(
+            'Orders and Payments each returned the maximum of 500 rows, so the merged results would be missing data. Add a filter to each, then merge again.',
+        );
+    });
+
+    test('allows a merge whose sources are all under the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 499 },
+                    { label: 'Payments', rowCount: 0 },
+                ],
+                sourceRowCap: 500,
+            }),
+        ).toBeNull();
+    });
+
+    test('allows a source whose row count is unknown', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [{ label: 'Orders', rowCount: null }],
+                sourceRowCap: 500,
+            }),
+        ).toBeNull();
+    });
+});
+
+describe('getMergeResultSourceCutShortError', () => {
+    test('refuses a result that returned as many rows as its own limit', () => {
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: 500,
+                totalRowCount: 500,
+            }),
+        ).toBe(
+            'its results were cut short at their own limit of 500 rows, so the merged results would be missing data. Re-run that query with a higher limit or without one, then merge again.',
+        );
+    });
+
+    test('allows a result under its own limit, whatever the instance cap', () => {
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: 500,
+                totalRowCount: 499,
+            }),
+        ).toBeNull();
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: 5000,
+                totalRowCount: 0,
+            }),
+        ).toBeNull();
+    });
+
+    test('leaves a result with no recorded limit or row count alone', () => {
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: null,
+                totalRowCount: 500,
+            }),
+        ).toBeNull();
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: 500,
+                totalRowCount: null,
+            }),
+        ).toBeNull();
+    });
+});
+
+describe('buildMergeRowCapGuard', () => {
+    const completed = (rowCountByTable: Record<string, number | null>) =>
+        Object.fromEntries(
+            Object.entries(rowCountByTable).map(([table, totalRowCount]) => [
+                table,
+                { totalRowCount } as QueryHistory,
+            ]),
+        );
+    const guard = buildMergeRowCapGuard({
+        legLabelByReferenceTable: {
+            merge_source_0: 'Orders',
+            merge_source_1: 'Payments',
+        },
+        sourceRowCap: 500,
+    });
+
+    test('reads each leg row count from its completed query history', () => {
+        expect(
+            guard(completed({ merge_source_0: 500, merge_source_1: 12 })),
+        ).toBe(
+            'Orders returned the maximum of 500 rows, so the merged results would be missing data. Add a filter to Orders, then merge again.',
+        );
+        expect(
+            guard(completed({ merge_source_0: 499, merge_source_1: 12 })),
+        ).toBeNull();
+    });
+
+    test('checks only the legs it was given, never a referenced result', () => {
+        expect(
+            guard(
+                completed({
+                    merge_source_0: 1,
+                    merge_source_1: 1,
+                    merge_source_2: 500,
+                }),
+            ),
+        ).toBeNull();
     });
 });

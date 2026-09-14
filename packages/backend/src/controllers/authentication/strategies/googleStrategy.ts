@@ -17,6 +17,14 @@ import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import Logger from '../../../logging/logger';
 
+// The typings declare the claim as 'true' | 'false' but Google's userinfo sends a boolean
+const parseEmailVerifiedClaim = (claim: unknown): boolean | undefined => {
+    if (typeof claim === 'boolean') return claim;
+    if (claim === 'true') return true;
+    if (claim === 'false') return false;
+    return undefined;
+};
+
 export const googleStrategyVerify = async (
     req: Express.Request,
     _accessToken: string,
@@ -28,11 +36,22 @@ export const googleStrategyVerify = async (
     try {
         const issuer = 'https://accounts.google.com';
         const { inviteCode, intent } = req.session.oauth || {};
-        const [{ value: email }] = profile.emails || [];
+        const [{ value: email, verified: emailVerifiedClaim }] =
+            profile.emails || [];
         const { id: subject } = profile;
         if (!(email && subject)) {
             return done(null, undefined, {
                 message: 'Could not parse authentication token',
+            });
+        }
+
+        if (parseEmailVerifiedClaim(emailVerifiedClaim) === false) {
+            Logger.warn(
+                `Authentication failed: email ${email} is not verified in Google profile.`,
+            );
+            return done(null, undefined, {
+                message:
+                    'Authentication failed: email is not verified in Google profile.',
             });
         }
 

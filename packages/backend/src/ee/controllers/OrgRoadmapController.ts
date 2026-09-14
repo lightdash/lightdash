@@ -1,13 +1,20 @@
 import {
     assertRegisteredAccount,
     type ApiErrorPayload,
+    type ApiRoadmapFollowProjectResponse,
+    type ApiRoadmapProjectResponse,
     type ApiRoadmapResponse,
+    type RoadmapFollowProjectRequest,
+    type UUID,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Hidden,
     Middlewares,
     OperationId,
+    Path,
+    Post,
     Query,
     Request,
     Response,
@@ -30,23 +37,83 @@ import type { RoadmapService } from '../services/RoadmapService/RoadmapService';
 export class OrgRoadmapController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Post('/projects/{projectId}/follow')
+    @OperationId('followOrgRoadmapProject')
+    async followProject(
+        @Request() req: express.Request,
+        @Path() projectId: UUID,
+        @Body() body: RoadmapFollowProjectRequest,
+    ): Promise<ApiRoadmapFollowProjectResponse> {
+        assertRegisteredAccount(req.account);
+        this.setHeader('Cache-Control', 'no-store');
+        return {
+            status: 'ok',
+            results: await this.services
+                .getRoadmapService<RoadmapService>()
+                .followProject(req.account, projectId, body),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('getOrgRoadmap')
     async getOrgRoadmap(
         @Request() req: express.Request,
         @Query() page?: number,
         @Query() pageSize?: number,
+        @Query() projectId?: string,
+        @Query() search?: string,
+        @Query() statuses?: string,
+        @Query() priorities?: string,
     ): Promise<ApiRoadmapResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
+        this.setHeader('Cache-Control', 'no-store');
 
         return {
             status: 'ok',
             results: await this.services
                 .getRoadmapService<RoadmapService>()
                 .getRoadmap(req.account, {
+                    ...req.query,
                     page,
                     pageSize,
+                    projectId,
+                    search,
+                    statuses,
+                    priorities,
+                }),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects')
+    @OperationId('getOrgRoadmapProjects')
+    async getProjects(
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+        @Query() search?: string,
+        @Query() statuses?: string,
+        @Query() priorities?: string,
+        @Query() onlyInterested?: boolean,
+    ): Promise<ApiRoadmapProjectResponse> {
+        assertRegisteredAccount(req.account);
+        this.setHeader('Cache-Control', 'no-store');
+        return {
+            status: 'ok',
+            results: await this.services
+                .getRoadmapService<RoadmapService>()
+                .getProjects(req.account, {
+                    ...req.query,
+                    page,
+                    pageSize,
+                    search,
+                    statuses,
+                    priorities,
+                    onlyInterested,
                 }),
         };
     }

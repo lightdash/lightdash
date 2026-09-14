@@ -52,6 +52,7 @@ import {
     MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
     MCP_QUERY_POLL_INTERVAL_MS,
     MCP_QUERY_SYNC_WAIT_MS,
+    MCP_QUERY_TIMING_NOTE,
     MCP_TASKS_EXTENSION_NAME,
     McpCancelTaskResult,
     McpCreateTaskResult,
@@ -458,13 +459,14 @@ const getMcpContext = (
 ): McpProtocolContext => mcpProtocolContextSchema.parse(extra);
 
 export type McpServerToolOptions = {
-    projectPinned?: boolean;
-    aiWritebackEnabled?: boolean;
-    mcpContentWritesEnabled?: boolean;
-    scheduledDeliveryEnabled?: boolean;
-    runSqlEnabled?: boolean;
-    runMetricQueryEnabled?: boolean;
-    filterExpressionsEnabled?: boolean;
+    req: { pinnedProjectUuid: string | undefined };
+    featureAvailability: {
+        mcpContentWritesEnabled: boolean;
+        scheduledDeliveryEnabled: boolean;
+        runSqlEnabled: boolean;
+        runMetricQueryEnabled: boolean;
+        filterExpressionsEnabled: boolean;
+    };
 };
 
 export class McpService extends BaseService {
@@ -553,6 +555,7 @@ export class McpService extends BaseService {
             this.mcpServer = this.buildMcpServer({
                 runSqlEnabled: false,
                 runMetricQueryEnabled: true,
+                filterExpressionsEnabled: false,
             });
             this.setupHandlers();
         } catch (error) {
@@ -564,6 +567,7 @@ export class McpService extends BaseService {
     private buildMcpServer(args: {
         runSqlEnabled: boolean;
         runMetricQueryEnabled: boolean;
+        filterExpressionsEnabled: boolean;
     }): McpServer {
         return Sentry.wrapMcpServerWithSentry(
             new McpServer(
@@ -592,6 +596,7 @@ export class McpService extends BaseService {
                     instructions: getMcpAnalystPrompt({
                         runSqlEnabled: args.runSqlEnabled,
                         runMetricQueryEnabled: args.runMetricQueryEnabled,
+                        filterExpressionsEnabled: args.filterExpressionsEnabled,
                     }),
                 },
             ),
@@ -817,7 +822,7 @@ export class McpService extends BaseService {
             content: [
                 {
                     type: 'text' as const,
-                    text: `Query is still running. Poll get_query_result with queryUuid: ${queryUuid}. Last checked at ${heartbeatAt}.`,
+                    text: `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${queryUuid}. Do not resubmit the original query. ${MCP_QUERY_TIMING_NOTE} Last checked at ${heartbeatAt}.`,
                 },
             ],
             structuredContent: {
@@ -1922,22 +1927,15 @@ export class McpService extends BaseService {
     }
 
     setupHandlers(
-        options: {
-            projectPinned: boolean;
-            aiWritebackEnabled: boolean;
-            mcpContentWritesEnabled: boolean;
-            scheduledDeliveryEnabled: boolean;
-            runSqlEnabled: boolean;
-            runMetricQueryEnabled: boolean;
-            filterExpressionsEnabled: boolean;
-        } = {
-            projectPinned: false,
-            aiWritebackEnabled: false,
-            mcpContentWritesEnabled: true,
-            scheduledDeliveryEnabled: true,
-            runSqlEnabled: false,
-            runMetricQueryEnabled: true,
-            filterExpressionsEnabled: false,
+        { req, featureAvailability: options }: McpServerToolOptions = {
+            req: { pinnedProjectUuid: undefined },
+            featureAvailability: {
+                mcpContentWritesEnabled: true,
+                scheduledDeliveryEnabled: true,
+                runSqlEnabled: false,
+                runMetricQueryEnabled: true,
+                filterExpressionsEnabled: false,
+            },
         },
     ): void {
         this.registerTrackedTool(
@@ -2416,7 +2414,7 @@ export class McpService extends BaseService {
 
         // When the project is pinned via header, hide the legacy
         // project-selection tools so clients cannot change the pin.
-        if (!options.projectPinned) {
+        if (req.pinnedProjectUuid === undefined) {
             this.registerTrackedTool(
                 mcpListProjectsTool.name,
                 {
@@ -3624,16 +3622,9 @@ export class McpService extends BaseService {
 
         this.registerSkillToolHandlers();
 
-        // Dark-launched: this tool is only registered — and therefore only
-        // advertised in tools/list and invocable — when the AiWriteback
-        // feature flag is enabled for the caller. Clients without the flag
-        // never see it. The flag is resolved per-request in the MCP router
-        // (mcpRouter.ts) and passed through createServer.
-        if (options.aiWritebackEnabled) {
-            this.registerRunAiWritebackTool();
-            this.registerGetAiWritebackStatusTool();
-            this.registerAiWritebackTaskHandlers();
-        }
+        this.registerRunAiWritebackTool();
+        this.registerGetAiWritebackStatusTool();
+        this.registerAiWritebackTaskHandlers();
 
         this.mcpServer.registerPrompt(
             'lightdash-analyst',
@@ -3647,6 +3638,7 @@ export class McpService extends BaseService {
                 const promptText = getMcpAnalystPrompt({
                     runSqlEnabled: options.runSqlEnabled,
                     runMetricQueryEnabled: options.runMetricQueryEnabled,
+                    filterExpressionsEnabled: options.filterExpressionsEnabled,
                 });
 
                 return {
@@ -4046,28 +4038,16 @@ export class McpService extends BaseService {
      * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
      */
     public async createServer(
-        options?: McpServerToolOptions,
+        options: McpServerToolOptions,
     ): Promise<McpServer> {
-        const newServer = this.buildMcpServer({
-            runSqlEnabled: options?.runSqlEnabled ?? false,
-            runMetricQueryEnabled: options?.runMetricQueryEnabled ?? false,
-        });
+        const newServer = this.buildMcpServer(options.featureAvailability);
 
         // Temporarily swap the server to register handlers on the new instance.
         // Kept synchronous so concurrent createServer calls can't observe each
         // other's swapped this.mcpServer across an await.
         const originalServer = this.mcpServer;
         this.mcpServer = newServer;
-        this.setupHandlers({
-            projectPinned: options?.projectPinned ?? false,
-            aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
-            mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
-            scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
-            runSqlEnabled: options?.runSqlEnabled ?? false,
-            runMetricQueryEnabled: options?.runMetricQueryEnabled ?? false,
-            filterExpressionsEnabled:
-                options?.filterExpressionsEnabled ?? false,
-        });
+        this.setupHandlers(options);
         this.mcpServer = originalServer;
 
         // Skill resources load asynchronously; register them directly on the
@@ -4434,7 +4414,14 @@ export class McpService extends BaseService {
                     durationMs: params.durationMs,
                     status: 'success',
                     errorMessage: null,
-                    resultMetadata: { catalogue: params.catalogue },
+                    resultMetadata: {
+                        catalogue: {
+                            projectPinned:
+                                params.catalogue.req.pinnedProjectUuid !==
+                                undefined,
+                            ...params.catalogue.featureAvailability,
+                        },
+                    },
                     trackAnalytics: false,
                 }),
             )

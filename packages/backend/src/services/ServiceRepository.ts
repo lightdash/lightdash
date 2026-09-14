@@ -12,14 +12,19 @@ import {
     mergePullRequest,
 } from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
+import type { ServiceAccountModel } from '../ee/models/ServiceAccountModel';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
+import { seedPlaygroundContent } from '../ee/services/ProjectService/seedPlaygroundContent';
+import { seedPlaygroundMetricsTrees } from '../ee/services/ProjectService/seedPlaygroundMetricsTrees';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
+import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
+import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
@@ -45,11 +50,13 @@ import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
 import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
+import { JiraAppService } from './JiraAppService/JiraAppService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { LinearAppService } from './LinearAppService/LinearAppService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
+import { ManagedSignInService } from './OAuthService/managedSignIn/ManagedSignInService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
@@ -66,12 +73,14 @@ import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectComp
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
+import { provisionTrainingProject } from './ProjectService/provisionTrainingProject';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PromptService } from './PromptService/PromptService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { QuerySourceRegistry } from './QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService/QuerySourceService';
 import type { ReadinessService } from './ReadinessService/ReadinessService';
+import { RecentContentService } from './RecentContentService/RecentContentService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
@@ -111,6 +120,7 @@ interface ServiceManifest {
     pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
+    jiraAppService: JiraAppService;
     linearAppService: LinearAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
@@ -118,6 +128,7 @@ interface ServiceManifest {
     healthService: HealthService;
     licenseService: LicenseService;
     notificationService: NotificationsService;
+    managedSignInService: ManagedSignInService;
     oauthService: OAuthService;
 
     organizationDesignService: OrganizationDesignService;
@@ -133,6 +144,7 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     projectService: ProjectService;
+    analyticsProjectService: AnalyticsProjectService;
     promptService: PromptService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -152,6 +164,7 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
+    recentContentService: RecentContentService;
     contentVerificationService: ContentVerificationService;
     coderService: CoderService;
     contentAsCodeWritebackService: ContentAsCodeWritebackService;
@@ -584,6 +597,20 @@ export class ServiceRepository
         );
     }
 
+    public getJiraAppService(): JiraAppService {
+        return this.getService(
+            'jiraAppService',
+            () =>
+                new JiraAppService({
+                    jiraAppInstallationsModel:
+                        this.models.getJiraAppInstallationsModel(),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
+                }),
+        );
+    }
+
     public getGdriveService(): GdriveService {
         return this.getService(
             'gdriveService',
@@ -651,6 +678,19 @@ export class ServiceRepository
         );
     }
 
+    public getManagedSignInService(): ManagedSignInService {
+        return this.getService(
+            'managedSignInService',
+            () =>
+                new ManagedSignInService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationSsoModel: this.models.getOrganizationSsoModel(),
+                    managedSignInModel: this.models.getManagedSignInModel(),
+                    getUserService: () => this.getUserService(),
+                }),
+        );
+    }
+
     public getOauthService(): OAuthService {
         return this.getService(
             'oauthService',
@@ -659,6 +699,8 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     lightdashConfig: this.context.lightdashConfig,
+                    getManagedSignInService: () =>
+                        this.getManagedSignInService(),
                 }),
         );
     }
@@ -855,6 +897,21 @@ export class ServiceRepository
         );
     }
 
+    public getAnalyticsProjectService(): AnalyticsProjectService {
+        return this.getService(
+            'analyticsProjectService',
+            () =>
+                new AnalyticsProjectService({
+                    coderService: this.getCoderService(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
+                    userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
     public getProjectService(): ProjectService {
         return this.getService(
             'projectService',
@@ -928,6 +985,50 @@ export class ServiceRepository
                         customDimensions: new Set(),
                         additionalMetrics: new Set(),
                     }),
+                    // Enable Learn (CS-257). Core seeds the space, charts,
+                    // dashboard, pins, comment and categories; EE overrides
+                    // this to add the data app, agent and research run.
+                    provisionTrainingProject: ({ user, projectService }) =>
+                        provisionTrainingProject({
+                            user,
+                            projectService,
+                            featureFlagModel: this.models.getFeatureFlagModel(),
+                            projectModel: this.models.getProjectModel(),
+                            onboardingModel: this.models.getOnboardingModel(),
+                            catalogService: this.getCatalogService(),
+                            analytics: this.context.lightdashAnalytics,
+                            seedTrainingMetricsTrees: ({
+                                projectUuid,
+                                user: seedUser,
+                                content,
+                            }) =>
+                                seedPlaygroundMetricsTrees({
+                                    projectUuid,
+                                    userUuid: seedUser.userUuid,
+                                    content,
+                                    catalogModel: this.models.getCatalogModel(),
+                                }),
+                            seedTrainingContent: ({
+                                projectUuid,
+                                user: seedUser,
+                                content,
+                            }) =>
+                                seedPlaygroundContent({
+                                    projectUuid,
+                                    user: seedUser,
+                                    content,
+                                    publicSpace: true,
+                                    spaceModel: this.models.getSpaceModel(),
+                                    savedChartModel:
+                                        this.models.getSavedChartModel(),
+                                    dashboardModel:
+                                        this.models.getDashboardModel(),
+                                    pinnedListModel:
+                                        this.models.getPinnedListModel(),
+                                    commentModel: this.models.getCommentModel(),
+                                    tagsModel: this.models.getTagsModel(),
+                                }),
+                        }),
                 }),
         );
     }
@@ -941,6 +1042,19 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                 }),
         );
+    }
+
+    private composeEngineClient: ComposeEngineClient | null = null;
+
+    // One engine per process; enterprise wiring injects this same instance
+    public getComposeEngineClient(): ComposeEngineClient {
+        if (!this.composeEngineClient) {
+            this.composeEngineClient = new ComposeEngineClient({
+                lightdashConfig: this.context.lightdashConfig,
+                prometheusMetrics: this.prometheusMetrics,
+            });
+        }
+        return this.composeEngineClient;
     }
 
     public getAsyncQueryService(): AsyncQueryService {
@@ -986,6 +1100,8 @@ export class ServiceRepository
                     savedSqlModel: this.models.getSavedSqlModel(),
                     resultsStorageClient:
                         this.clients.getResultsFileStorageClient(),
+                    composeEngineClient: this.getComposeEngineClient(),
+                    getQuerySourceService: () => this.getQuerySourceService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
@@ -1207,6 +1323,9 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartService: this.getSavedChartService(),
                     dashboardService: this.getDashboardService(),
+                    serviceAccountModel: this.providers.serviceAccountService
+                        ? this.models.getServiceAccountModel<ServiceAccountModel>()
+                        : undefined,
                     // Only wired when EE license is active. Core builds get
                     // undefined and the delete cascade skips apps.
                     appGenerateService: this.providers.appGenerateService
@@ -1333,6 +1452,7 @@ export class ServiceRepository
             () =>
                 new ContentAsCodeWritebackService({
                     lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
                     gitIntegrationService: this.getGitIntegrationService(),
                     coderService: this.getCoderService(),
@@ -1379,6 +1499,7 @@ export class ServiceRepository
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     userModel: this.models.getUserModel(),
+                    directAccessService: this.getDirectAccessService(),
                 }),
         );
     }
@@ -1470,6 +1591,18 @@ export class ServiceRepository
                     schedulerModel: this.models.getSchedulerModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getRecentContentService(): RecentContentService {
+        return this.getService(
+            'recentContentService',
+            () =>
+                new RecentContentService({
+                    recentContentModel: this.models.getRecentContentModel(),
+                    projectModel: this.models.getProjectModel(),
+                    contentService: this.getContentService(),
                 }),
         );
     }

@@ -32,6 +32,7 @@ import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
+import { useRecentlyDeletedAccess } from '../../features/recentlyDeleted/hooks/useRecentlyDeletedAccess';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -82,6 +83,7 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
 };
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
+    const canManageDeletedContent = useRecentlyDeletedAccess(projectUuid);
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -139,6 +141,10 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     leftSection={
                         <MantineIcon color="dimmed" icon={IconCategory} />
                     }
+                    // Navigation anchor for scope walkthroughs (data-tour-via);
+                    // the hint is the step's instruction when a path uses it.
+                    data-tour-nav="browse"
+                    data-tour-hint="Click Browse"
                 >
                     Browse
                 </Button>
@@ -149,6 +155,20 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/spaces`}
                     leftSection={<MantineIcon icon={IconFolders} />}
+                    data-tour-nav="all-spaces"
+                    data-tour-hint="Open All Spaces"
+                    // Also the action of the view:Space walkthrough: finding
+                    // content through spaces starts here, and the row picked
+                    // after it opens the space. See scripts/scope-tours.
+                    data-tour-scope="view:Space"
+                    data-tour-step="2"
+                    data-tour-route="/projects/:projectUuid/home"
+                    data-tour-label="Open All Spaces"
+                    data-tour-title="Find content through spaces"
+                    data-tour-interactive="true"
+                    data-tour-via='[data-tour-nav="browse"]'
+                    data-tour-then='[data-tour-anchor="space-row"][data-tour-value="Training"]'
+                    data-tour-docs="explore/search.mdx#browsing-instead-of-searching:p3:1"
                 >
                     All Spaces
                 </Menu.Item>
@@ -157,6 +177,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/dashboards`}
                     leftSection={<MantineIcon icon={IconLayoutDashboard} />}
+                    data-tour-nav="all-dashboards"
+                    data-tour-hint="Open All dashboards"
                 >
                     All dashboards
                 </Menu.Item>
@@ -165,6 +187,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/saved`}
                     leftSection={<MantineIcon icon={IconChartAreaLine} />}
+                    data-tour-nav="all-charts"
+                    data-tour-hint="Open All saved charts"
                 >
                     All saved charts
                 </Menu.Item>
@@ -174,6 +198,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         component={Link}
                         to={`/projects/${projectUuid}/apps`}
                         leftSection={<MantineIcon icon={IconAppWindow} />}
+                        // Anchor for scope walkthroughs (data-tour-via)
+                        data-tour-nav="all-apps"
+                        data-tour-hint="Open All data apps"
                     >
                         All data apps
                     </Menu.Item>
@@ -193,6 +220,16 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     <MetricsLink projectUuid={projectUuid} asMenu />
                 )}
 
+                {canManageDeletedContent && (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUrlIdentifier}/recently-deleted`}
+                        data-tour-nav="recently-deleted"
+                        data-tour-hint="Open Recently deleted"
+                    >
+                        Recently deleted
+                    </Menu.Item>
+                )}
                 <ReviewRequestsMenuItem projectUuid={projectUuid} />
 
                 {hasFavorites ? (
@@ -259,7 +296,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                             />
                         </PolymorphicGroupButton>
 
-                        <Collapse in={spacesExpanded}>
+                        <Collapse expanded={spacesExpanded}>
                             {isInitialLoading ? (
                                 <Center my="sm">
                                     <Loader size="sm" color="gray" />

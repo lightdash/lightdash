@@ -394,26 +394,43 @@ the `/etc/hosts` configuration in your computer otherwise it will fail with a `D
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
-- node >= v24 (see `.nvmrc` for the exact version)
+- Node.js 24.18.1 (managed by pnpm; pinned in `package.json` under `devEngines.runtime`)
 - python >= 3.8
-- pnpm
+- pnpm 12.3.4 (pinned in `package.json`)
 - postgres >= 12
 - dbt 1.7.x aliased to `dbt1.7`
 
-eg. on MacOS you can follow this instructions:
+`sfw pnpm install --frozen-lockfile` installs the pinned Node runtime, and
+`pnpm run` / `pnpm exec` use it automatically. To replace nvm for bare `node`
+commands too, install Node globally through pnpm as shown below and put
+`$PNPM_HOME/bin` before any nvm/fnm paths in your shell. Disable conflicting
+automatic version-manager activation in your own shell configuration. pnpm's
+Node shim follows the project's pin when invoked inside the repo, including
+subdirectories; outside it, your global pnpm-managed Node version runs.
+
+`.nvmrc` remains as a compatibility pin for existing bootstrap scripts and
+developers who keep nvm. CI uses `pnpm/setup`, reading `devEngines.runtime`
+for current code and `.nvmrc` in jobs that also build older revisions.
+The production images continue using their Node 24 base image.
+
+pnpm-managed Node does not include npm or npx. Workspace commands and Git hooks
+use pnpm. If another workflow needs npm, install it separately:
+`sfw pnpm add -g npm@11.16.0 --config.minimumReleaseAge=4320`.
+
+For example, on macOS:
 
 ```shell
 # 1 Install Homebrew (https://brew.sh)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# 2 Install nvm (https://github.com/nvm-sh/nvm#troubleshooting-on-macos) and other required dependencies
-brew update
-brew install nvm
+# 2 Install the pinned pnpm version, then reopen your terminal so pnpm is on PATH
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.3.4 sh -
 
-# 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
+# 3 Install Node through pnpm; this also creates its project-aware node command
+pnpm runtime set node 24.18.1 --global
 
-nvm install v24.18.0
-nvm alias default v24.18.0
+# Install Socket Firewall before installing workspace dependencies
+pnpm add -g sfw --config.minimumReleaseAge=4320
 
 # 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew) and pgvector
 brew install postgresql@14
@@ -458,7 +475,7 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
 
 # 9 Install packages
-pnpm install
+sfw pnpm install --frozen-lockfile
 
 # 10 Build / migrate / seed
 pnpm load:env ./scripts/build.sh

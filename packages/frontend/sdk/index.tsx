@@ -3,6 +3,7 @@ import '@mantine/code-highlight/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/tiptap/styles.css';
 import '../src/styles/global.css';
+import './styles/sdk.css';
 import {
     FilterOperator,
     getErrorMessage,
@@ -12,18 +13,23 @@ import {
     type SdkUiOverrides,
     type UiStringKey,
 } from '@lightdash/common';
+import { Portal, type MantineThemeOverride } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import {
     useCallback,
     useEffect,
+    useId,
+    useMemo,
     useRef,
     useState,
     type FC,
     type PropsWithChildren,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import { embedContractClass } from '../src/ee/features/embed/styles/embedClassContract';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
@@ -40,6 +46,7 @@ import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
 import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
 import MantineProvider from '../src/providers/MantineProvider';
+import { PortalTargetContext } from '../src/providers/PortalTarget/PortalTargetContext';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
@@ -56,6 +63,7 @@ import {
     type ListContentOptions,
 } from './api';
 import { useLightdashAiAgentThreads, useLightdashContent } from './hooks';
+import { SDK_SCOPE_CLASS } from './styles/scope.json';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -149,17 +157,18 @@ const useEmbedTokenContext = (
     } | null>(null);
 
     useEffect(() => {
-        let isMounted = true;
+        // Flipped by cleanup on unmount and whenever the token prop changes,
+        // so an older token promise resolving late cannot overwrite a newer one.
+        let isCurrent = true;
 
         persistInstanceUrl(instanceUrl);
 
-        const resolveToken = async () =>
-            typeof tokenOrTokenPromise === 'string'
-                ? tokenOrTokenPromise
-                : tokenOrTokenPromise;
-
-        resolveToken()
+        Promise.resolve(tokenOrTokenPromise)
             .then((tokenToDecode) => {
+                if (!isCurrent) {
+                    return;
+                }
+
                 const { payload } = decodeJWT(tokenToDecode);
 
                 if (
@@ -167,12 +176,10 @@ const useEmbedTokenContext = (
                     'content' in payload &&
                     'projectUuid' in payload.content
                 ) {
-                    if (isMounted) {
-                        setTokenContext({
-                            token: tokenToDecode,
-                            projectUuid: payload.content.projectUuid,
-                        });
-                    }
+                    setTokenContext({
+                        token: tokenToDecode,
+                        projectUuid: payload.content.projectUuid,
+                    });
                 } else {
                     throw new Error('Error decoding token');
                 }
@@ -183,7 +190,7 @@ const useEmbedTokenContext = (
             });
 
         return () => {
-            isMounted = false;
+            isCurrent = false;
         };
     }, [instanceUrl, tokenOrTokenPromise]);
 
@@ -298,6 +305,10 @@ const isAiAgentThreadChangedMessage = (
     'threadUuid' in data.payload &&
     typeof data.payload.threadUuid === 'string';
 
+// Distinguishes this copy of the bundle from another one on the same page, so
+// instance ids never collide.
+const SDK_BUNDLE_ID = Math.random().toString(36).slice(2, 8);
+
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
@@ -305,17 +316,40 @@ const SdkProviders: FC<
         projectUuid?: string;
     }>
 > = ({ children, styles, theme, projectUuid }) => {
+    const colorScheme = theme ?? 'light';
+    const rootRef = useRef<HTMLDivElement>(null);
+    const getRootElement = useCallback(() => rootRef.current ?? undefined, []);
+    // Each mounted component gets its own class for Mantine's CSS variables,
+    // so two embeds with different fonts or themes on one page don't fight
+    // over shared variables. The scope class stays shared: the build-time
+    // scoped stylesheets key on it.
+    const instanceId = `${SDK_BUNDLE_ID}-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const instanceClass = `lightdash-sdk-instance-${instanceId}`;
+    // Body-level container for everything that portals out of the inline root
+    // (dropdowns, modals, drag overlays), so it escapes the host's overflow and
+    // stacking contexts while keeping the SDK's variables and colour scheme.
+    // Mantine resolves a selector target in its layout effect, by which time
+    // the container below is in the DOM, so no render round-trip.
+    const portalId = `lightdash-sdk-portal-${instanceId}`;
+    const fontFamily = styles?.fontFamily;
     // Only override the font when the consumer sets one: Mantine 8's CSS-vars
     // generator stringifies an explicit undefined into `font-family: undefined`.
-    const themeOverride = styles?.fontFamily
-        ? {
-              fontFamily: styles.fontFamily,
-              other: {
-                  tableFont: styles.fontFamily,
-                  chartFont: styles.fontFamily,
-              },
-          }
-        : {};
+    const themeOverride = useMemo<MantineThemeOverride>(
+        () => ({
+            ...(fontFamily
+                ? {
+                      fontFamily,
+                      other: { tableFont: fontFamily, chartFont: fontFamily },
+                  }
+                : {}),
+            components: {
+                Portal: Portal.extend({
+                    defaultProps: { target: `#${portalId}` },
+                }),
+            },
+        }),
+        [fontFamily, portalId],
+    );
     const route = projectUuid ? `/projects/${projectUuid}` : '/';
     const routedChildren = projectUuid ? (
         <Routes>
@@ -326,35 +360,73 @@ const SdkProviders: FC<
     );
 
     return (
-        <ReactQueryProvider>
-            <MantineProvider
-                themeOverride={themeOverride}
-                notificationsLimit={0}
-                forceColorScheme={theme}
-            >
-                <ModalsProvider>
-                    <AppProvider>
-                        <FullscreenProvider enabled={false}>
-                            <ThirdPartyServicesProvider enabled={false}>
-                                <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                    <MemoryRouter initialEntries={[route]}>
-                                        <TrackingProvider enabled={true}>
-                                            <AbilityProvider>
-                                                <ChartColorMappingContextProvider>
-                                                    <ActiveJobProvider>
-                                                        {routedChildren}
-                                                    </ActiveJobProvider>
-                                                </ChartColorMappingContextProvider>
-                                            </AbilityProvider>
-                                        </TrackingProvider>
-                                    </MemoryRouter>
-                                </ErrorBoundary>
-                            </ThirdPartyServicesProvider>
-                        </FullscreenProvider>
-                    </AppProvider>
-                </ModalsProvider>
-            </MantineProvider>
-        </ReactQueryProvider>
+        <>
+            {createPortal(
+                <div
+                    id={portalId}
+                    className={embedContractClass(
+                        'ld-sdk-portal',
+                        SDK_SCOPE_CLASS,
+                        instanceClass,
+                    )}
+                    data-mantine-color-scheme={colorScheme}
+                />,
+                document.body,
+            )}
+            <ReactQueryProvider>
+                <MantineProvider
+                    themeOverride={themeOverride}
+                    notificationsLimit={0}
+                    forceColorScheme={colorScheme}
+                    cssVariablesSelector={`.${instanceClass}`}
+                    getRootElement={getRootElement}
+                    syncBodyColorMode={false}
+                >
+                    <div
+                        ref={rootRef}
+                        className={embedContractClass(
+                            'ld-sdk-root',
+                            SDK_SCOPE_CLASS,
+                            instanceClass,
+                        )}
+                    >
+                        <PortalTargetContext.Provider value={`#${portalId}`}>
+                            <ModalsProvider>
+                                <AppProvider>
+                                    <FullscreenProvider enabled={false}>
+                                        <ThirdPartyServicesProvider
+                                            enabled={false}
+                                        >
+                                            <ErrorBoundary
+                                                wrapper={{ mt: '4xl' }}
+                                            >
+                                                <MemoryRouter
+                                                    initialEntries={[route]}
+                                                >
+                                                    <TrackingProvider
+                                                        enabled={true}
+                                                    >
+                                                        <AbilityProvider>
+                                                            <ChartColorMappingContextProvider>
+                                                                <ActiveJobProvider>
+                                                                    {
+                                                                        routedChildren
+                                                                    }
+                                                                </ActiveJobProvider>
+                                                            </ChartColorMappingContextProvider>
+                                                        </AbilityProvider>
+                                                    </TrackingProvider>
+                                                </MemoryRouter>
+                                            </ErrorBoundary>
+                                        </ThirdPartyServicesProvider>
+                                    </FullscreenProvider>
+                                </AppProvider>
+                            </ModalsProvider>
+                        </PortalTargetContext.Provider>
+                    </div>
+                </MantineProvider>
+            </ReactQueryProvider>
+        </>
     );
 };
 
@@ -599,50 +671,21 @@ const Explore: FC<
     exploreId,
     savedChart,
 }) => {
-    const [token, setToken] = useState<string | null>(null);
-    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
 
-    const handleDecodeToken = (tokenToDecode: string) => {
-        const { payload } = decodeJWT(tokenToDecode);
-
-        if (
-            payload &&
-            'content' in payload &&
-            'projectUuid' in payload.content
-        ) {
-            setToken(tokenToDecode);
-            setProjectUuid(payload.content.projectUuid);
-        } else {
-            throw new Error('Error decoding token');
-        }
-    };
-
-    useEffect(() => {
-        persistInstanceUrl(instanceUrl);
-
-        if (typeof tokenOrTokenPromise === 'string') {
-            handleDecodeToken(tokenOrTokenPromise);
-        } else {
-            tokenOrTokenPromise
-                .then((tokenToDecode) => {
-                    handleDecodeToken(tokenToDecode);
-                })
-                .catch((error) => {
-                    console.error(error);
-                    throw new Error('Error retrieving token');
-                });
-        }
-    }, [instanceUrl, tokenOrTokenPromise]);
-
-    if (!token || !projectUuid) {
+    if (!tokenContext) {
         return null;
     }
 
     return (
-        <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
             <EmbedProvider
-                embedToken={token}
-                projectUuid={projectUuid}
+                embedToken={tokenContext.token}
+                projectUuid={tokenContext.projectUuid}
                 filters={filters}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
@@ -728,42 +771,9 @@ const Chart: FC<ChartProps> = ({
     id,
     isEditMode,
 }) => {
-    const [token, setToken] = useState<string | null>(null);
-    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
 
-    const handleDecodeToken = (tokenToDecode: string) => {
-        const { payload } = decodeJWT(tokenToDecode);
-
-        if (
-            payload &&
-            'content' in payload &&
-            'projectUuid' in payload.content
-        ) {
-            setToken(tokenToDecode);
-            setProjectUuid(payload.content.projectUuid);
-        } else {
-            throw new Error('Error decoding token');
-        }
-    };
-
-    useEffect(() => {
-        persistInstanceUrl(instanceUrl);
-
-        if (typeof tokenOrTokenPromise === 'string') {
-            handleDecodeToken(tokenOrTokenPromise);
-        } else {
-            tokenOrTokenPromise
-                .then((tokenToDecode) => {
-                    handleDecodeToken(tokenToDecode);
-                })
-                .catch((error) => {
-                    console.error(error);
-                    throw new Error('Error retrieving token');
-                });
-        }
-    }, [instanceUrl, tokenOrTokenPromise]);
-
-    if (!token || !projectUuid) {
+    if (!tokenContext) {
         return null;
     }
 
@@ -778,10 +788,14 @@ const Chart: FC<ChartProps> = ({
     };
 
     return (
-        <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
             <EmbedProvider
-                embedToken={token}
-                projectUuid={projectUuid}
+                embedToken={tokenContext.token}
+                projectUuid={tokenContext.projectUuid}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
                 savedQueryUuid={id}

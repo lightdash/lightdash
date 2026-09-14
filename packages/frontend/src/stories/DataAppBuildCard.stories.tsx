@@ -27,6 +27,7 @@ const states = {
         name: APP_NAME,
         version: 1,
         durationMs: 372_000,
+        restoredFromVersion: null,
         completionMessage:
             'Your app is ready. Five regional pages, weekly revenue over the last 26 weeks.',
     },
@@ -71,6 +72,19 @@ export const Ready: Story = { args: { state: states.ready } };
 
 export const ReadyWithoutDuration: Story = {
     args: { state: { ...states.ready, version: 3, durationMs: null } },
+};
+
+/** A restore made from the thread: no build duration, names the origin. */
+export const ReadyRestored: Story = {
+    args: {
+        state: {
+            ...states.ready,
+            version: 3,
+            durationMs: null,
+            restoredFromVersion: 1,
+            completionMessage: 'Restored version 1 as version 3.',
+        },
+    },
 };
 
 export const ReadyWithLongSummary: Story = {

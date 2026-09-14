@@ -56,6 +56,7 @@ describe('MobilePushNotificationModel', () => {
             platform: 'ios',
             environment: 'sandbox',
             deviceToken: 'device-token',
+            oauthClientId: null,
         });
 
         const insert = tracker.history.insert.find((query) =>
@@ -114,6 +115,7 @@ describe('MobilePushNotificationModel', () => {
             platform: 'ios',
             environment: 'production',
             deviceToken: 'new-device-token',
+            oauthClientId: 'oauth-mobile',
         });
 
         const statements = tracker.history.all.map(({ sql }) => sql);
@@ -154,6 +156,7 @@ describe('MobilePushNotificationModel', () => {
                 platform: 'ios',
                 environment: 'sandbox',
                 deviceToken: 'guessed-device-token',
+                oauthClientId: null,
             }),
         ).resolves.toEqual({ status: 'owner_mismatch' });
 
@@ -198,6 +201,7 @@ describe('MobilePushNotificationModel', () => {
                 platform: 'ios',
                 environment: 'sandbox',
                 deviceToken: 'owner-device-token',
+                oauthClientId: null,
             }),
         ).resolves.toEqual({
             status: 'stored',
@@ -254,6 +258,7 @@ describe('MobilePushNotificationModel', () => {
             platform: 'ios',
             environment: 'sandbox',
             deviceToken: 'rotated-token',
+            oauthClientId: null,
         });
 
         expect(result.status).toBe('stored');
@@ -299,6 +304,7 @@ describe('MobilePushNotificationModel', () => {
             platform: 'ios',
             environment: 'production',
             deviceToken: 'new-device-token',
+            oauthClientId: 'oauth-mobile',
         });
 
         expect(
@@ -343,6 +349,7 @@ describe('MobilePushNotificationModel', () => {
             platform: 'android',
             environment: 'production',
             deviceToken: 'shared-device-token',
+            oauthClientId: null,
         });
 
         const cleanup = tracker.history.delete.find((query) =>
@@ -719,5 +726,88 @@ describe('MobilePushNotificationModel', () => {
             'select "live_activity_uuid" as "liveActivityUuid", "organization_uuid" as "organizationUuid", "project_uuid" as "projectUuid", "user_uuid" as "userUuid" from "ai_agent_live_activities" where "thread_uuid" = $1 and "ended_at" is null',
         );
         expect(tracker.history.select[0].bindings).toEqual(['thread-uuid']);
+    });
+});
+
+describe('MobilePushNotificationModel grant checks', () => {
+    it('treats an installation without an oauth client as always granted', async () => {
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce({
+            oauth_client_id: null,
+            user_uuid: 'user-uuid',
+        });
+
+        const result =
+            await model.installationHasLiveGrant('installation-uuid');
+
+        expect(result).toBe(true);
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
+    it('accepts an installation whose client still holds a live refresh token', async () => {
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce({
+            oauth_client_id: 'oauth-mobile',
+            user_uuid: 'user-uuid',
+        });
+        tracker.on
+            .select('oauth2_refresh_tokens')
+            .responseOnce({ refresh_token: 'refresh-token' });
+
+        const result =
+            await model.installationHasLiveGrant('installation-uuid');
+
+        expect(result).toBe(true);
+        const grantQuery = tracker.history.select[1];
+        expect(grantQuery.sql).toContain('"revoked_at" is null');
+        expect(grantQuery.sql).toContain('"expires_at" > CURRENT_TIMESTAMP');
+        expect(grantQuery.bindings.slice(0, 2)).toEqual([
+            'user-uuid',
+            'oauth-mobile',
+        ]);
+    });
+
+    it('rejects an installation whose client has no live refresh token', async () => {
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce({
+            oauth_client_id: 'oauth-mobile',
+            user_uuid: 'user-uuid',
+        });
+        tracker.on.select('oauth2_refresh_tokens').responseOnce(undefined);
+
+        const result =
+            await model.installationHasLiveGrant('installation-uuid');
+
+        expect(result).toBe(false);
+    });
+
+    it('rejects an installation that no longer exists', async () => {
+        tracker.on
+            .select(MobilePushInstallationsTableName)
+            .responseOnce(undefined);
+
+        const result =
+            await model.installationHasLiveGrant('installation-uuid');
+
+        expect(result).toBe(false);
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
+    it('deletes installations of a client the user no longer holds a grant for', async () => {
+        tracker.on.delete(MobilePushInstallationsTableName).responseOnce(1);
+
+        await model.deleteInstallationsWithoutLiveGrant({
+            userId: 42,
+            clientId: 'oauth-mobile',
+        });
+
+        expect(tracker.history.delete).toHaveLength(1);
+        const deleteQuery = tracker.history.delete[0];
+        expect(deleteQuery.sql).toContain('not exists');
+        expect(deleteQuery.sql).toContain('"oauth2_refresh_tokens"');
+        expect(deleteQuery.sql).toContain('"revoked_at" is null');
+        expect(deleteQuery.bindings).toEqual([
+            'oauth-mobile',
+            42,
+            42,
+            'oauth-mobile',
+        ]);
     });
 });

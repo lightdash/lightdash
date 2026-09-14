@@ -11,6 +11,24 @@ export type AbilityAction =
     | 'update'
     | 'view';
 
+export const VIEWER_EMBED_SUBJECTS = [
+    'EmbedDashboardFilters',
+    'EmbedDashboardFilterAddition',
+    'EmbedDashboardParameters',
+    'EmbedCsvExport',
+    'EmbedDashboardCsvExport',
+    'EmbedImageExport',
+    'EmbedPagePdfExport',
+    'EmbedDateZoom',
+] as const satisfies readonly CaslSubjectNames[];
+
+export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
+    'EmbedAiAgent',
+    'EmbedExplore',
+    'EmbedUnderlyingData',
+    'EmbedDataApps',
+] as const satisfies readonly CaslSubjectNames[];
+
 interface Project {
     organizationUuid: string;
     projectUuid: string;
@@ -41,6 +59,18 @@ export type CaslSubjectNames =
     | 'DeployProject'
     | 'DashboardComments'
     | 'DeletedContent'
+    | 'EmbedAiAgent'
+    | 'EmbedDashboardFilters'
+    | 'EmbedDashboardFilterAddition'
+    | 'EmbedDashboardParameters'
+    | 'EmbedCsvExport'
+    | 'EmbedDashboardCsvExport'
+    | 'EmbedImageExport'
+    | 'EmbedPagePdfExport'
+    | 'EmbedDateZoom'
+    | 'EmbedExplore'
+    | 'EmbedUnderlyingData'
+    | 'EmbedDataApps'
     | 'Explore'
     | 'ExternalConnection'
     | 'ExternalSource'

@@ -5,6 +5,7 @@ import {
     FieldType,
     FilterOperator,
     GroupValueMatchType,
+    JoinRelationship,
     MetricType,
     PreAggregateMissReason,
     preAggregateUtils,
@@ -3183,6 +3184,151 @@ describe('findMatch sql_filter coverage', () => {
         expect(result).toStrictEqual({
             hit: true,
             preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+});
+
+describe('deduplicated metrics on the one side of a join', () => {
+    const exploreWithHits = ({
+        dimensions,
+        metrics,
+    }: {
+        dimensions: string[];
+        metrics: string[];
+    }): Explore => ({
+        name: 'sessions',
+        label: 'Sessions',
+        tags: [],
+        baseTable: 'sessions',
+        targetDatabase: SupportedDbtAdapter.BIGQUERY,
+        joinedTables: [
+            {
+                table: 'hits',
+                sqlOn: 'TRUE',
+                compiledSqlOn: 'TRUE',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                tablesReferences: ['sessions'],
+            },
+        ],
+        tables: {
+            sessions: {
+                name: 'sessions',
+                label: 'Sessions',
+                database: 'db',
+                schema: 'public',
+                sqlTable: 'sessions',
+                primaryKey: ['id'],
+                dimensions: {
+                    device: makeDimension({
+                        name: 'device',
+                        table: 'sessions',
+                    }),
+                },
+                metrics: {
+                    session_count: makeMetric({
+                        name: 'session_count',
+                        type: MetricType.COUNT,
+                        table: 'sessions',
+                    }),
+                    last_visit: makeMetric({
+                        name: 'last_visit',
+                        type: MetricType.MAX,
+                        table: 'sessions',
+                    }),
+                },
+                lineageGraph: {},
+            },
+            hits: {
+                name: 'hits',
+                label: 'Hits',
+                database: 'db',
+                schema: 'public',
+                sqlTable: 'hits',
+                dimensions: {
+                    product: makeDimension({ name: 'product', table: 'hits' }),
+                },
+                metrics: {
+                    hit_count: makeMetric({
+                        name: 'hit_count',
+                        type: MetricType.COUNT,
+                        table: 'hits',
+                    }),
+                },
+                lineageGraph: {},
+            },
+        },
+        preAggregates: [{ name: 'sessions_by_product', dimensions, metrics }],
+    });
+    const productDef = () =>
+        exploreWithHits({
+            dimensions: ['device', 'hits.product'],
+            metrics: ['session_count', 'last_visit', 'hits.hit_count'],
+        });
+
+    it('misses a parent count at a coarser grain than the many-side dimensions', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['sessions_device'],
+                metrics: ['sessions_session_count'],
+            }),
+            productDef(),
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH,
+            fieldId: 'sessions_session_count',
+        });
+    });
+
+    it('serves the parent count on an exact dimension match', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['sessions_device', 'hits_product'],
+                metrics: ['sessions_session_count'],
+            }),
+            productDef(),
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'sessions_by_product',
+            miss: null,
+        });
+    });
+
+    it('re-aggregates a many-side count and an inflation-proof parent metric', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['sessions_device'],
+                metrics: ['hits_hit_count', 'sessions_last_visit'],
+            }),
+            productDef(),
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'sessions_by_product',
+            miss: null,
+        });
+    });
+
+    it('re-aggregates the parent count when the definition never joins the many side', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['sessions_session_count'],
+            }),
+            exploreWithHits({
+                dimensions: ['device'],
+                metrics: ['session_count'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'sessions_by_product',
             miss: null,
         });
     });

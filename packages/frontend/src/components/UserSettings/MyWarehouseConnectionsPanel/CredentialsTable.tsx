@@ -95,7 +95,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     setWarehouseCredentialsToBeDeleted,
 }) => {
     return (
-        <Paper className="ld-overflow-hidden">
+        <Paper className={tableStyles.paper}>
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
             >

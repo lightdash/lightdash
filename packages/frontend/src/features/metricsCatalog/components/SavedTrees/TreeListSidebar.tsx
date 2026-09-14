@@ -82,6 +82,9 @@ const TreeListSidebar: FC = () => {
                                             size={14}
                                         />
                                     }
+                                    data-tour-anchor="tree-new"
+                                    data-tour-hint="Start a new tree"
+                                    data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li1"
                                     onClick={handleNewTree}
                                 >
                                     New
@@ -98,6 +101,10 @@ const TreeListSidebar: FC = () => {
                                 <Stack gap="xs">
                                     {trees.map((tree) => (
                                         <Paper
+                                            data-tour-anchor="saved-tree"
+                                            data-tour-hint="Open {value}"
+                                            data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#intro:p3:2"
+                                            data-tour-value={tree.name}
                                             key={tree.metricsTreeUuid}
                                             p="xs"
                                             className={`${classes.treeItem} ${

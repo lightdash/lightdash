@@ -70,7 +70,7 @@ const { getSelectedChartTypeItem } = vi.hoisted(() => ({
     })),
 }));
 
-vi.mock('../VisualizationCardOptions/useChartTypeOptions', () => ({
+vi.mock('./useChartTypeOptions', () => ({
     useChartTypeOptions: () => ({ getSelectedChartTypeItem }),
 }));
 
@@ -128,7 +128,7 @@ describe('ExplorerChartSidebar', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('offers editing the selected project chart type in place', async () => {
+    it('offers editing the selected custom chart type in place', async () => {
         vizConfig.current = {
             chartType: ChartType.DATA_APP_VIZ,
             chartConfig: { dataAppVizUuid: 'viz-1' },

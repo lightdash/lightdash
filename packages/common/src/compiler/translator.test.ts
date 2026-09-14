@@ -1,7 +1,14 @@
-import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
+import {
+    SupportedDbtAdapter,
+    type DbtModelLightdashConfig,
+    type DbtModelNode,
+    type RESERVED_MODEL_META_KEYS,
+} from '../types/dbt';
 import {
     getExploreSplitCandidates,
     InlineErrorType,
+    isExploreError,
+    JoinRelationship,
     type Explore,
 } from '../types/explore';
 import {
@@ -12,12 +19,20 @@ import {
 } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
+import {
+    setCatalogNestedColumnShape,
+    WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
+    type WarehouseCatalog,
+} from '../types/warehouse';
+import { ExploreCompiler } from './exploreCompiler';
 import { warehouseClientMock } from './exploreCompiler.mock';
 import { getExploreParameterDefinitions } from './parameters';
 import {
     attachTypesToModels,
     convertExplores,
     convertTable,
+    iterateExplores,
+    type AttachTypesDiagnostics,
 } from './translator';
 import {
     expectedModelWithTimestampDomain,
@@ -187,6 +202,95 @@ describe('attachTypesToModels', () => {
             )[0],
         ).toEqual(expectedModelWithType);
     });
+    it('should keep the first catalog entry when two fold to the same name', async () => {
+        // Neither key matches exactly, so both can only be reached case-insensitively.
+        const collidingCatalog: WarehouseCatalog = {
+            myDatabase: {
+                mySchema: {
+                    MYTABLE: { myColumnName: DimensionType.NUMBER },
+                    MyTable: { myColumnName: DimensionType.STRING },
+                },
+            },
+        };
+        expect(
+            attachTypesToModels([model], collidingCatalog, true, false)[0]
+                .columns.myColumnName.data_type,
+        ).toEqual(DimensionType.NUMBER);
+    });
+    it('should prefer an exact match over a case-insensitive one', async () => {
+        const collidingCatalog: WarehouseCatalog = {
+            myDatabase: {
+                mySchema: {
+                    MYTABLE: { myColumnName: DimensionType.NUMBER },
+                    myTable: { myColumnName: DimensionType.STRING },
+                },
+            },
+        };
+        expect(
+            attachTypesToModels([model], collidingCatalog, true, false)[0]
+                .columns.myColumnName.data_type,
+        ).toEqual(DimensionType.STRING);
+    });
+    it('should not treat the timestamp-domain sidecar as a database', async () => {
+        const catalogWithSidecar = {
+            ...warehouseSchema,
+            [WAREHOUSE_TIMESTAMP_DOMAINS_KEY]: {
+                myDatabase: {
+                    mySchema: { myTable: { myColumnName: 'utc' } },
+                },
+            },
+        } as unknown as WarehouseCatalog;
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        expect(() =>
+            attachTypesToModels([model], catalogWithSidecar, true, true, (d) =>
+                diagnostics.push(d),
+            ),
+        ).not.toThrow();
+        expect(diagnostics[0].catalogTableCount).toEqual(1);
+    });
+    it('should count an exact table with a case-insensitive column as case-insensitive', async () => {
+        // The table key matches exactly and only the column needs folding. This is the
+        // combination that a table-level-only classification gets wrong.
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        attachTypesToModels(
+            [model],
+            warehouseSchemaWithUpperCaseColumn,
+            true,
+            false,
+            (d) => diagnostics.push(d),
+        );
+        expect(diagnostics[0].caseInsensitiveLookups).toEqual(1);
+        expect(diagnostics[0].exactLookups).toEqual(0);
+    });
+    it('should count a case-insensitive table as case-insensitive', async () => {
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        attachTypesToModels(
+            [model],
+            warehouseSchemaWithAllUpperCaseKeys,
+            true,
+            false,
+            (d) => diagnostics.push(d),
+        );
+        expect(diagnostics[0].caseInsensitiveLookups).toEqual(1);
+        expect(diagnostics[0].exactLookups).toEqual(0);
+    });
+    it('should report diagnostics for the phase', async () => {
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        attachTypesToModels([model], warehouseSchema, false, true, (d) =>
+            diagnostics.push(d),
+        );
+        expect(diagnostics).toHaveLength(1);
+        expect(diagnostics[0].modelCount).toEqual(1);
+        expect(diagnostics[0].columnCount).toEqual(
+            Object.keys(model.columns).length,
+        );
+        expect(diagnostics[0].catalogTableCount).toEqual(1);
+        expect(diagnostics[0].exactLookups).toEqual(1);
+        expect(diagnostics[0].caseInsensitiveLookups).toEqual(0);
+        expect(diagnostics[0].schemaPairs).toEqual([
+            { databaseSchema: 'myDatabase.mySchema', models: 1 },
+        ]);
+    });
 });
 
 describe('timestamp domain', () => {
@@ -345,6 +449,66 @@ describe('timestamp domain', () => {
         );
         expect(result.dimensions.user_created_plain_day).not.toHaveProperty(
             'timestampDomain',
+        );
+    });
+
+    it('should apply the Snowflake timestamp conversion once on additional dimension interval children', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.user_created_plain.sql).toEqual(
+            "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created_other))",
+        );
+        expect(result.dimensions.user_created_plain_day.sql).toEqual(
+            "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created_other)))",
+        );
+        expect(result.dimensions.user_created_aware_day.sql).toEqual(
+            "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created_utc)))",
+        );
+        // Regular column children are derived from the raw column meta
+        expect(result.dimensions.user_created_day.sql).toEqual(
+            "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+        );
+    });
+
+    it('should not wrap additional dimension interval children when timestamp conversion is disabled', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            true,
+        );
+
+        expect(result.dimensions.user_created_plain.sql).toEqual(
+            '${TABLE}.user_created_other',
+        );
+        expect(result.dimensions.user_created_plain_day).toMatchObject({
+            sql: "DATE_TRUNC('DAY', ${TABLE}.user_created_other)",
+            timeIntervalBaseDimensionName: 'user_created_plain',
+        });
+    });
+
+    it('should leave additional dimension interval children unchanged on adapters without a timestamp wrap', () => {
+        const postgres = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(postgres.dimensions.user_created_plain_day.sql).toEqual(
+            "DATE_TRUNC('DAY', ${TABLE}.user_created_other)",
+        );
+
+        const bigquery = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(bigquery.dimensions.user_created_plain_day.sql).toEqual(
+            'TIMESTAMP_TRUNC(${TABLE}.user_created_other, DAY)',
         );
     });
 });
@@ -1734,6 +1898,96 @@ describe('dbt Mesh model qualification', () => {
     });
 });
 
+describe('custom model metadata', () => {
+    it('reserves every recognised model config key', () => {
+        expectTypeOf<(typeof RESERVED_MODEL_META_KEYS)[number]>().toEqualTypeOf<
+            keyof DbtModelLightdashConfig
+        >();
+    });
+
+    it.each([
+        {},
+        {
+            label: 'Orders',
+            ai_hint: 'Use for orders',
+            sql_filter: '1 = 1',
+            sql_where: '1 = 1',
+            case_sensitive: false,
+            hidden: false,
+            metrics: {},
+            required_filters: [],
+        },
+        { nested: { tier: 2 }, list: [1, 'two'], absent: null },
+    ])(
+        'omits customMeta when meta contains no custom scalars (%j)',
+        async (meta) => {
+            const explores = await convertExplores(
+                [{ ...model, meta: { ...meta, explores: { curated: {} } } }],
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            );
+
+            expect(explores).toHaveLength(2);
+            explores.forEach((explore) => {
+                expect(explore).not.toHaveProperty('errors');
+                expect(explore).not.toHaveProperty('customMeta');
+            });
+        },
+    );
+
+    it('inherits merged scalar metadata on base and curated explores', async () => {
+        const modelMeta = {
+            model_tier: 1,
+            domain: 'finance',
+            certified: false,
+            zero: 0,
+            empty: '',
+        };
+        const configMeta = {
+            model_tier: 2,
+            nested: { tier: 3 },
+            list: ['a'],
+            absent: null,
+        };
+        const explores = await convertExplores(
+            [
+                {
+                    ...model,
+                    meta: { ...modelMeta, label: 'Base model' },
+                    config: {
+                        ...model.config,
+                        meta: {
+                            ...configMeta,
+                            explores: { curated: { label: 'Curated' } },
+                        },
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        expect(explores.map((explore) => explore.name)).toEqual([
+            model.name,
+            'curated',
+        ]);
+        explores.forEach((explore) => {
+            expect(explore).not.toHaveProperty('errors');
+            expect(explore).toHaveProperty('customMeta', {
+                model_tier: 2,
+                domain: 'finance',
+                certified: false,
+                zero: 0,
+                empty: '',
+            });
+        });
+    });
+});
+
 describe('explore-scoped additional dimensions', () => {
     const MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS: DbtModelNode & {
         relation_name: string;
@@ -2909,5 +3163,746 @@ describe('granularity_labels overrides', () => {
             expect(dims.created_week.timeIntervalLabel).toBeUndefined();
             expect(explore.granularityLabels).toBeUndefined();
         }
+    });
+});
+
+describe('iterateExplores', () => {
+    const buildStreamingModel = (
+        name: string,
+        meta: DbtModelNode['meta'] = {},
+    ): DbtModelNode => ({
+        ...model,
+        unique_id: `model.pkg.${name}`,
+        name,
+        alias: name,
+        relation_name: `analytics.${name}`,
+        meta,
+    });
+
+    const iterate = (models: DbtModelNode[]) =>
+        iterateExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('pauses compilation until the next explore is consumed', async () => {
+        const compileExplore = vi.mocked(
+            vi.spyOn(ExploreCompiler.prototype, 'compileExplore'),
+        );
+        const iterator = iterate([
+            buildStreamingModel('first'),
+            buildStreamingModel('second'),
+        ]);
+
+        expect(compileExplore).not.toHaveBeenCalled();
+
+        await iterator.next();
+
+        expect(compileExplore).toHaveBeenCalledTimes(1);
+
+        await Promise.resolve();
+
+        expect(compileExplore).toHaveBeenCalledTimes(1);
+
+        await iterator.next();
+
+        expect(compileExplore).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not compile unconsumed models after cancellation', async () => {
+        const compileExplore = vi.mocked(
+            vi.spyOn(ExploreCompiler.prototype, 'compileExplore'),
+        );
+        const iterator = iterate([
+            buildStreamingModel('first'),
+            buildStreamingModel('second'),
+            buildStreamingModel('third'),
+        ]);
+
+        await iterator.next();
+        await iterator.return(undefined);
+
+        expect(compileExplore).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves joined, error, and extra explore output order and JSON', async () => {
+        const models = [
+            buildStreamingModel('orders', {
+                joins: [
+                    {
+                        join: 'customers',
+                        sql_on: '${orders.myColumnName} = ${customers.myColumnName}',
+                    },
+                ],
+                explores: {
+                    orders_extra: {},
+                },
+            }),
+            buildStreamingModel('customers'),
+            buildStreamingModel('broken', {
+                joins: [
+                    {
+                        join: 'missing',
+                        sql_on: '${broken.myColumnName} = ${missing.myColumnName}',
+                    },
+                ],
+            }),
+        ];
+
+        const expected = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+        const actual: Awaited<ReturnType<typeof convertExplores>> = [];
+        for await (const explore of iterate(models)) {
+            actual.push(explore);
+        }
+
+        expect(actual.map(({ name }) => name)).toEqual([
+            'orders',
+            'orders_extra',
+            'customers',
+            'broken',
+        ]);
+        expect(actual[0]).toMatchObject({
+            name: 'orders',
+            tables: { customers: expect.anything() },
+        });
+        expect(actual[3]).toMatchObject({
+            name: 'broken',
+            errors: expect.any(Array),
+        });
+        expect(JSON.stringify(actual)).toBe(JSON.stringify(expected));
+    });
+});
+
+describe('convertExplores at scale', () => {
+    const MODEL_COUNT = 3000;
+
+    const buildScaleModels = (
+        count: number,
+        withJoins: boolean,
+    ): DbtModelNode[] =>
+        Array.from({ length: count }, (_, index) => ({
+            ...model,
+            unique_id: `model.pkg.m_${index}`,
+            package_name: 'pkg',
+            name: `m_${index}`,
+            alias: `m_${index}`,
+            relation_name: `analytics.m_${index}`,
+            columns: {
+                id: { name: 'id', data_type: DimensionType.NUMBER, meta: {} },
+                amount: {
+                    name: 'amount',
+                    data_type: DimensionType.NUMBER,
+                    meta: {},
+                },
+            },
+            meta:
+                withJoins && index > 0
+                    ? {
+                          joins: [
+                              {
+                                  join: `m_${index - 1}`,
+                                  sql_on: `\${m_${index}.id} = \${m_${index - 1}.id}`,
+                              },
+                          ],
+                      }
+                    : {},
+        })) as DbtModelNode[];
+
+    // The build this replaced. Kept as the oracle for key identity and for
+    // insertion order, which JSON serialisation of an explore depends on.
+    const buildTableLookupBySpread = (
+        tables: { name: string }[],
+    ): Record<string, { name: string }> =>
+        tables.reduce(
+            (prev, table) => ({ ...prev, [table.name]: table }),
+            {} as Record<string, { name: string }>,
+        );
+
+    const buildTableLookupByMutation = (
+        tables: { name: string }[],
+    ): Record<string, { name: string }> => {
+        const lookup: Record<string, { name: string }> = {};
+        tables.forEach((table) => {
+            lookup[table.name] = table;
+        });
+        return lookup;
+    };
+
+    it('builds the table lookup with the keys and the order of the spread build', () => {
+        const tables = [
+            { name: 'orders', version: 1 },
+            { name: 'customers', version: 1 },
+            { name: 'orders', version: 2 },
+            { name: 'payments', version: 1 },
+        ];
+
+        const expected = buildTableLookupBySpread(tables);
+        const actual = buildTableLookupByMutation(tables);
+
+        expect(actual).toEqual(expected);
+        expect(Object.keys(actual)).toEqual(Object.keys(expected));
+        expect(actual.orders).toBe(tables[2]);
+    });
+
+    it.each([
+        ['without joins', false],
+        ['with joins', true],
+    ])(
+        `converts ${MODEL_COUNT} models %s in under 2 seconds`,
+        async (_label, withJoins) => {
+            const models = buildScaleModels(MODEL_COUNT, withJoins);
+
+            const startedAt = performance.now();
+            const explores = await convertExplores(
+                models,
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            );
+            const durationMs = performance.now() - startedAt;
+
+            expect(explores).toHaveLength(MODEL_COUNT);
+            expect(explores.map(({ name }) => name)).toEqual(
+                models.map(({ name }) => name),
+            );
+            expect(durationMs).toBeLessThan(2000);
+        },
+        30000,
+    );
+
+    it('keeps every explore scoped to its base table and its joins', async () => {
+        const models = buildScaleModels(MODEL_COUNT, true);
+
+        const explores = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        const last = explores[explores.length - 1] as Explore;
+        expect(Object.keys(last.tables)).toEqual([
+            `m_${MODEL_COUNT - 1}`,
+            `m_${MODEL_COUNT - 2}`,
+        ]);
+
+        const first = explores[0] as Explore;
+        expect(Object.keys(first.tables)).toEqual(['m_0']);
+    });
+});
+
+describe('nested and repeated columns', () => {
+    const bigqueryClientMock = {
+        ...warehouseClientMock,
+        getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+        getFieldQuoteChar: () => '`',
+    };
+    const nestedColumn = (
+        name: string,
+        extra: Partial<DbtModelNode['columns'][string]> = {},
+    ) => ({ name, meta: {}, ...extra });
+    const gaSessions: DbtModelNode = {
+        ...model,
+        name: 'ga_sessions',
+        alias: 'ga_sessions',
+        unique_id: 'model.ga_sessions',
+        database: 'db',
+        schema: 'ds',
+        relation_name: '`db`.`ds`.`ga_sessions`',
+        meta: {},
+        columns: {
+            visitId: nestedColumn('visitId'),
+            'totals.pageviews': nestedColumn('totals.pageviews'),
+            hits: nestedColumn('hits', { description: 'One row per hit' }),
+            'customDimensions.index': nestedColumn('customDimensions.index'),
+            'customDimensions.value': nestedColumn('customDimensions.value'),
+            'hits.page.pagePath': nestedColumn('hits.page.pagePath'),
+            'hits.product.productSKU': nestedColumn('hits.product.productSKU'),
+            'hits.product.productRevenue': nestedColumn(
+                'hits.product.productRevenue',
+                {
+                    meta: {
+                        metrics: { total_revenue: { type: MetricType.SUM } },
+                    },
+                },
+            ),
+        },
+    };
+    const catalog: WarehouseCatalog = {
+        db: {
+            ds: {
+                ga_sessions: {
+                    visitId: DimensionType.NUMBER,
+                    totals: DimensionType.STRING,
+                    'totals.pageviews': DimensionType.NUMBER,
+                    customDimensions: DimensionType.STRING,
+                    'customDimensions.index': DimensionType.NUMBER,
+                    'customDimensions.value': DimensionType.STRING,
+                    hits: DimensionType.STRING,
+                    'hits.page': DimensionType.STRING,
+                    'hits.page.pagePath': DimensionType.STRING,
+                    'hits.product': DimensionType.STRING,
+                    'hits.product.productSKU': DimensionType.STRING,
+                    'hits.product.productRevenue': DimensionType.NUMBER,
+                    tags: DimensionType.STRING,
+                    'hits.page.keywords': DimensionType.STRING,
+                },
+            },
+        },
+    };
+    Object.entries({
+        totals: { repeated: false, record: true },
+        customDimensions: { repeated: true, record: true },
+        hits: { repeated: true, record: true },
+        'hits.page': { repeated: false, record: true },
+        'hits.product': { repeated: true, record: true },
+        tags: { repeated: true, record: false },
+        'hits.page.keywords': { repeated: true, record: false },
+    }).forEach(([path, shape]) =>
+        setCatalogNestedColumnShape(
+            catalog,
+            'db',
+            'ds',
+            'ga_sessions',
+            path,
+            shape,
+        ),
+    );
+    const typedModels = attachTypesToModels([gaSessions], catalog, true);
+
+    const compile = async (
+        models: DbtModelNode[],
+        unnestRepeatedColumns: boolean,
+    ) => {
+        const explores = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.BIGQUERY,
+            bigqueryClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { unnestRepeatedColumns },
+        );
+        const explore = explores.find((e) => e.name === 'ga_sessions');
+        if (!explore || isExploreError(explore)) {
+            throw new Error(JSON.stringify(explore));
+        }
+        return explore;
+    };
+
+    it('attaches the shape and repeated ancestors from the catalog', () => {
+        const { columns } = typedModels[0];
+        expect(columns.hits.nested_shape).toEqual({
+            repeated: true,
+            record: true,
+        });
+        expect(columns.hits.repeated_ancestors).toBeUndefined();
+        expect(columns['totals.pageviews'].repeated_ancestors).toBeUndefined();
+        expect(columns['hits.page.pagePath'].repeated_ancestors).toEqual([
+            'hits',
+        ]);
+        expect(columns['hits.product.productSKU'].repeated_ancestors).toEqual([
+            'hits',
+            'hits.product',
+        ]);
+    });
+
+    it("keeps today's dotted dimensions when unnesting is off", async () => {
+        const explore = await compile(typedModels, false);
+        expect(Object.keys(explore.tables)).toEqual(['ga_sessions']);
+        expect(
+            explore.tables.ga_sessions.dimensions['hits.product.productSKU']
+                .compiledSql,
+        ).toEqual('`ga_sessions`.hits.product.productSKU');
+    });
+
+    it('unnests each repeated node into a virtual table joined on TRUE', async () => {
+        const explore = await compile(typedModels, true);
+        expect(Object.keys(explore.tables).sort()).toEqual([
+            'ga_sessions',
+            'ga_sessions__customDimensions',
+            'ga_sessions__hits',
+            'ga_sessions__hits__product',
+        ]);
+
+        const base = explore.tables.ga_sessions;
+        expect(Object.keys(base.dimensions).sort()).toEqual([
+            'totals.pageviews',
+            'visitId',
+        ]);
+        expect(base.dimensions['totals.pageviews'].compiledSql).toEqual(
+            '`ga_sessions`.totals.pageviews',
+        );
+
+        const hits = explore.tables.ga_sessions__hits;
+        expect(hits.nestedFrom).toEqual({
+            parentTable: 'ga_sessions',
+            columnPath: 'hits',
+        });
+        expect(hits.sqlTable).toEqual(
+            'UNNEST(`ga_sessions`.hits) AS `ga_sessions__hits` WITH OFFSET AS `ga_sessions__hits__offset`',
+        );
+        expect(hits.label).toEqual('Ga sessions: Hits');
+        expect(hits.description).toEqual('One row per hit');
+        expect(hits.primaryKey).toBeUndefined();
+        expect(Object.keys(hits.dimensions).sort()).toEqual([
+            'offset',
+            'page.pagePath',
+        ]);
+        expect(hits.dimensions['page.pagePath']).toMatchObject({
+            table: 'ga_sessions__hits',
+            type: DimensionType.STRING,
+            compiledSql: '`ga_sessions__hits`.page.pagePath',
+        });
+        expect(hits.dimensions.offset).toMatchObject({
+            type: DimensionType.NUMBER,
+            compiledSql: '`ga_sessions__hits__offset`',
+        });
+
+        const product = explore.tables.ga_sessions__hits__product;
+        expect(product.nestedFrom).toEqual({
+            parentTable: 'ga_sessions__hits',
+            columnPath: 'hits.product',
+        });
+        expect(product.sqlTable).toEqual(
+            'UNNEST(`ga_sessions__hits`.product) AS `ga_sessions__hits__product` WITH OFFSET AS `ga_sessions__hits__product__offset`',
+        );
+        expect(product.label).toEqual('Ga sessions: Hits: Product');
+        expect(product.metrics.total_revenue).toMatchObject({
+            table: 'ga_sessions__hits__product',
+            compiledSql: 'SUM(`ga_sessions__hits__product`.productRevenue)',
+        });
+
+        expect(
+            explore.joinedTables.map(
+                ({
+                    table,
+                    type,
+                    relationship,
+                    compiledSqlOn,
+                    tablesReferences,
+                }) => ({
+                    table,
+                    type,
+                    relationship,
+                    compiledSqlOn,
+                    tablesReferences,
+                }),
+            ),
+        ).toEqual([
+            {
+                table: 'ga_sessions__customDimensions',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                compiledSqlOn: 'TRUE',
+                tablesReferences: ['ga_sessions'],
+            },
+            {
+                table: 'ga_sessions__hits',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                compiledSqlOn: 'TRUE',
+                tablesReferences: ['ga_sessions'],
+            },
+            {
+                table: 'ga_sessions__hits__product',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                compiledSqlOn: 'TRUE',
+                tablesReferences: ['ga_sessions__hits'],
+            },
+        ]);
+    });
+
+    it("adds a joined model's virtual tables after its own join", async () => {
+        const orders: DbtModelNode = {
+            ...model,
+            name: 'orders',
+            alias: 'orders',
+            unique_id: 'model.orders',
+            database: 'db',
+            schema: 'ds',
+            relation_name: '`db`.`ds`.`orders`',
+            columns: { id: nestedColumn('id') },
+            meta: {
+                joins: [
+                    {
+                        join: 'ga_sessions',
+                        sql_on: '${orders.id} = ${ga_sessions.visitId}',
+                    },
+                ],
+            },
+        };
+        const explores = await convertExplores(
+            [orders, ...typedModels],
+            false,
+            SupportedDbtAdapter.BIGQUERY,
+            bigqueryClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { unnestRepeatedColumns: true },
+        );
+        const explore = explores.find((e) => e.name === 'orders');
+        if (!explore || isExploreError(explore)) {
+            throw new Error(JSON.stringify(explore));
+        }
+        expect(explore.joinedTables.map(({ table }) => table)).toEqual([
+            'ga_sessions',
+            'ga_sessions__customDimensions',
+            'ga_sessions__hits',
+            'ga_sessions__hits__product',
+        ]);
+    });
+
+    it('instantiates virtual tables per join alias, referencing the alias in the UNNEST', async () => {
+        const orders: DbtModelNode = {
+            ...model,
+            name: 'orders',
+            alias: 'orders',
+            unique_id: 'model.orders',
+            database: 'db',
+            schema: 'ds',
+            relation_name: '`db`.`ds`.`orders`',
+            columns: { id: nestedColumn('id') },
+            meta: {
+                joins: [
+                    {
+                        join: 'ga_sessions',
+                        alias: 'first_session',
+                        sql_on: '${orders.id} = ${first_session.visitId}',
+                    },
+                    {
+                        join: 'ga_sessions',
+                        alias: 'second_session',
+                        label: 'Return visit',
+                        sql_on: '${orders.id} = ${second_session.visitId}',
+                    },
+                ],
+            },
+        };
+        const explores = await convertExplores(
+            [orders, ...typedModels],
+            false,
+            SupportedDbtAdapter.BIGQUERY,
+            bigqueryClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { unnestRepeatedColumns: true },
+        );
+        const explore = explores.find((e) => e.name === 'orders');
+        if (!explore || isExploreError(explore)) {
+            throw new Error(JSON.stringify(explore));
+        }
+        expect(explore.joinedTables.map(({ table }) => table)).toEqual([
+            'first_session',
+            'first_session__customDimensions',
+            'first_session__hits',
+            'first_session__hits__product',
+            'second_session',
+            'second_session__customDimensions',
+            'second_session__hits',
+            'second_session__hits__product',
+        ]);
+        const firstHits = explore.tables.first_session__hits;
+        expect(firstHits.sqlTable).toEqual(
+            'UNNEST(`first_session`.hits) AS `first_session__hits` WITH OFFSET AS `first_session__hits__offset`',
+        );
+        expect(firstHits.nestedFrom).toEqual({
+            parentTable: 'first_session',
+            columnPath: 'hits',
+        });
+        expect(firstHits.dimensions['page.pagePath'].compiledSql).toEqual(
+            '`first_session__hits`.page.pagePath',
+        );
+        expect(
+            explore.joinedTables.find(
+                ({ table }) => table === 'first_session__hits__product',
+            )?.tablesReferences,
+        ).toEqual(['first_session__hits']);
+        const secondProduct = explore.tables.second_session__hits__product;
+        expect(secondProduct.sqlTable).toEqual(
+            'UNNEST(`second_session__hits`.product) AS `second_session__hits__product` WITH OFFSET AS `second_session__hits__product__offset`',
+        );
+        expect(secondProduct.label).toEqual('Return visit: Hits: Product');
+        expect(secondProduct.metrics.total_revenue.compiledSql).toEqual(
+            'SUM(`second_session__hits__product`.productRevenue)',
+        );
+        expect(explore.tables.ga_sessions__hits).toBeUndefined();
+    });
+
+    it('keeps additional dimensions and explicit-SQL metrics declared under a struct container', async () => {
+        const jobs: DbtModelNode = {
+            ...gaSessions,
+            columns: {
+                visitId: nestedColumn('visitId'),
+                totals: nestedColumn('totals', {
+                    meta: {
+                        dimension: { type: DimensionType.STRING, hidden: true },
+                        additional_dimensions: {
+                            pageviews_bucket: {
+                                type: DimensionType.STRING,
+                                sql: "CASE WHEN ${TABLE}.totals.pageviews > 5 THEN 'many' ELSE 'few' END",
+                            },
+                        },
+                        metrics: {
+                            sessions_with_visits: {
+                                type: MetricType.COUNT,
+                                sql: '${TABLE}.totals.visits',
+                            },
+                            container_count: { type: MetricType.COUNT },
+                        },
+                    },
+                }),
+            },
+        };
+        const explore = await compile(
+            attachTypesToModels([jobs], catalog, true),
+            true,
+        );
+        const table = explore.tables.ga_sessions;
+        expect(Object.keys(table.dimensions).sort()).toEqual([
+            'pageviews_bucket',
+            'visitId',
+        ]);
+        expect(table.dimensions.pageviews_bucket.compiledSql).toEqual(
+            "CASE WHEN `ga_sessions`.totals.pageviews > 5 THEN 'many' ELSE 'few' END",
+        );
+        expect(Object.keys(table.metrics).sort()).toEqual([
+            'container_count',
+            'sessions_with_visits',
+        ]);
+        expect(table.metrics.sessions_with_visits.compiledSql).toEqual(
+            '`ga_sessions`.totals.visits',
+        );
+        expect(table.metrics.container_count.compiledSql).toEqual(
+            '`ga_sessions`.totals',
+        );
+    });
+
+    it('unnests an array of scalars into a virtual table with a value dimension', async () => {
+        const taggedSessions: DbtModelNode = {
+            ...gaSessions,
+            columns: {
+                visitId: nestedColumn('visitId'),
+                tags: nestedColumn('tags', {
+                    description: 'Session tags',
+                    meta: {
+                        dimension: { label: 'Tag list' },
+                        additional_dimensions: {
+                            tag_count: {
+                                type: DimensionType.NUMBER,
+                                sql: 'ARRAY_LENGTH(${TABLE}.tags)',
+                            },
+                        },
+                        metrics: {
+                            last_tag: { type: MetricType.MAX },
+                        },
+                    },
+                }),
+                'hits.page.keywords': nestedColumn('hits.page.keywords'),
+            },
+        };
+        const explore = await compile(
+            attachTypesToModels([taggedSessions], catalog, true),
+            true,
+        );
+        expect(Object.keys(explore.tables).sort()).toEqual([
+            'ga_sessions',
+            'ga_sessions__hits',
+            'ga_sessions__hits__page__keywords',
+            'ga_sessions__tags',
+        ]);
+        expect(Object.keys(explore.tables.ga_sessions.dimensions)).toEqual([
+            'visitId',
+            'tag_count',
+        ]);
+        expect(
+            explore.tables.ga_sessions.dimensions.tag_count.compiledSql,
+        ).toEqual('ARRAY_LENGTH(`ga_sessions`.tags)');
+        expect(explore.tables.ga_sessions.metrics.last_tag).toBeUndefined();
+
+        const tags = explore.tables.ga_sessions__tags;
+        expect(tags.label).toEqual('Tag list');
+        expect(tags.description).toEqual('Session tags');
+        expect(tags.sqlTable).toEqual(
+            'UNNEST(`ga_sessions`.tags) AS `ga_sessions__tags` WITH OFFSET AS `ga_sessions__tags__offset`',
+        );
+        expect(Object.keys(tags.dimensions).sort()).toEqual([
+            'offset',
+            'value',
+        ]);
+        expect(Object.keys(tags.metrics)).toEqual(['last_tag']);
+        expect(tags.dimensions.value).toMatchObject({
+            type: DimensionType.STRING,
+            label: 'Value',
+            compiledSql: '`ga_sessions__tags`',
+        });
+        expect(tags.metrics.last_tag.compiledSql).toEqual(
+            'MAX(`ga_sessions__tags`)',
+        );
+
+        // An array below a struct inside a repeated record unnests from the
+        // repeated parent, with the struct path in the segment.
+        const keywords = explore.tables.ga_sessions__hits__page__keywords;
+        expect(keywords.nestedFrom).toEqual({
+            parentTable: 'ga_sessions__hits',
+            columnPath: 'hits.page.keywords',
+        });
+        expect(keywords.sqlTable).toEqual(
+            'UNNEST(`ga_sessions__hits`.page.keywords) AS `ga_sessions__hits__page__keywords` WITH OFFSET AS `ga_sessions__hits__page__keywords__offset`',
+        );
+        expect(keywords.label).toEqual('Ga sessions: Hits: Page: Keywords');
+        expect(keywords.dimensions.value.compiledSql).toEqual(
+            '`ga_sessions__hits__page__keywords`',
+        );
+        expect(
+            Object.keys(explore.tables.ga_sessions__hits.dimensions),
+        ).toEqual(['offset']);
+        expect(
+            explore.joinedTables.map(({ table, tablesReferences }) => [
+                table,
+                tablesReferences,
+            ]),
+        ).toEqual([
+            ['ga_sessions__hits', ['ga_sessions']],
+            ['ga_sessions__tags', ['ga_sessions']],
+            ['ga_sessions__hits__page__keywords', ['ga_sessions__hits']],
+        ]);
+    });
+
+    it('fails the model when a virtual table name collides with a model', async () => {
+        const collidingModel: DbtModelNode = {
+            ...model,
+            name: 'ga_sessions__hits',
+            alias: 'ga_sessions__hits',
+            unique_id: 'model.ga_sessions__hits',
+            columns: { id: nestedColumn('id') },
+            meta: {},
+        };
+        const explores = await convertExplores(
+            [collidingModel, ...typedModels],
+            false,
+            SupportedDbtAdapter.BIGQUERY,
+            bigqueryClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { unnestRepeatedColumns: true },
+        );
+        const explore = explores.find((e) => e.name === 'ga_sessions');
+        expect(explore && isExploreError(explore)).toBe(true);
+        expect(JSON.stringify(explore)).toContain(
+            'already used by another table',
+        );
     });
 });

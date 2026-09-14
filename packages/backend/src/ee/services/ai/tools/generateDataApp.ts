@@ -1,7 +1,6 @@
 import {
     generateDataAppToolDefinition,
     getErrorMessage,
-    NotFoundError,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { GenerateDataAppFn } from '../types/aiAgentDependencies';
@@ -43,8 +42,6 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                     result: toolErrorHandler(
                         error,
                         'Error starting the data app build. No app was created.',
-                        // An unknown slug is the agent's mistake, not an incident.
-                        { captureToSentry: !(error instanceof NotFoundError) },
                     ),
                     metadata: {
                         status: 'error' as const,

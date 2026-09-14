@@ -1,11 +1,16 @@
 import {
+    applyChartFilterOverrides,
     applyDimensionOverrides,
+    getTotalFilterRules,
     getUnmetFilterRequirements,
+    isEmptyDashboardFilterRule,
     isTileInSelectedTabs,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardTile,
+    type FilterRule,
+    type Filters,
     type UnmetFilterRequirement,
 } from '@lightdash/common';
 import { doesFilterApplyToTile } from '../../dashboardFilters/FilterConfiguration/utils';
@@ -107,4 +112,25 @@ export const getSchedulerFilterRequirements = (
         });
 
     return { unmetRequirements, filtersWithUnmetRequirements };
+};
+
+/**
+ * Chart deliveries: required rules (from the explore's required filters) that
+ * the delivery would run without a value. Evaluates the chart's saved rules
+ * overlaid with the scheduler overrides, so clearing a required rule's value
+ * blocks the delivery the same way it does for dashboards.
+ */
+export const getChartSchedulerRequiredFiltersWithoutValues = (
+    savedChartFilters: Filters | undefined,
+    schedulerFilters: Filters | undefined,
+): FilterRule[] => {
+    if (!savedChartFilters) return [];
+    const effectiveFilters = schedulerFilters
+        ? applyChartFilterOverrides(savedChartFilters, schedulerFilters)
+        : savedChartFilters;
+    return getTotalFilterRules(effectiveFilters).filter(
+        (rule) =>
+            rule.required === true &&
+            (rule.disabled === true || isEmptyDashboardFilterRule(rule)),
+    );
 };

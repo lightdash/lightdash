@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     getExternalSourceDisplayName,
+    isSpaceRestrictedAgent,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -14,10 +15,8 @@ import {
     Box,
     FileButton,
     Group,
-    Loader,
     Menu,
     Paper,
-    Pill,
     Text,
 } from '@mantine/core';
 import {
@@ -67,8 +66,19 @@ import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
+    useProjectAiAgent,
 } from '../../hooks/useProjectAiAgents';
+import {
+    clearThreadElementReferences,
+    removeThreadElementReference,
+    selectThreadElementReferences,
+    type ThreadElementReference,
+} from '../../store/aiAgentThreadElementRefsSlice';
 import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
@@ -83,9 +93,73 @@ import {
     type ContentMentionMenuState,
     type ContentMentionSuggestionItem,
 } from './contentMentions';
+import {
+    PromptAttachments,
+    type ExternalSourceAttachment,
+} from './PromptAttachments';
 import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
+
+type SubmitContext = {
+    context?: AiPromptContextInput;
+    optimisticContext?: AiPromptContextItem[];
+};
+
+/** Context the composer submits with a prompt; keys are omitted when empty. */
+const buildSubmitContext = ({
+    mentionContext,
+    externalSources,
+    elementReferences,
+}: {
+    mentionContext: SubmitContext;
+    externalSources: ExternalSourceAttachment[];
+    elementReferences: ThreadElementReference[];
+}): SubmitContext => {
+    const context: AiPromptContextItemInput[] = [
+        ...(mentionContext.context ?? []),
+        ...externalSources.map(({ sourceUuid }) => ({
+            type: 'external_source' as const,
+            sourceUuid,
+        })),
+        ...elementReferences.map(({ appUuid, version, tag, text, loc }) => ({
+            type: 'data_app_element' as const,
+            appUuid,
+            version,
+            tag,
+            text,
+            loc,
+        })),
+    ];
+    const optimisticContext: AiPromptContextItem[] = [
+        ...(mentionContext.optimisticContext ?? []),
+        ...externalSources,
+        ...elementReferences.map(
+            ({
+                appUuid,
+                appSlug,
+                appDisplayName,
+                version,
+                tag,
+                text,
+                loc,
+            }) => ({
+                type: 'data_app_element' as const,
+                appUuid,
+                version,
+                tag,
+                text,
+                loc,
+                appSlug,
+                displayName: appDisplayName,
+            }),
+        ),
+    ];
+    return {
+        ...(context.length > 0 ? { context } : {}),
+        ...(optimisticContext.length > 0 ? { optimisticContext } : {}),
+    };
+};
 const ACTIVE_DEEP_RESEARCH_DISABLED_REASON =
     'Only one deep research run can be active in a thread at a time.';
 
@@ -111,17 +185,10 @@ const SuggestionChipMention = Mention.extend({
     },
 });
 
-type SubmitArgs = {
+type SubmitArgs = SubmitContext & {
     message: string;
     toolHints: string[];
-    context?: AiPromptContextInput;
-    optimisticContext?: AiPromptContextItem[];
 };
-
-type ExternalSourceAttachment = Extract<
-    AiPromptContextItem,
-    { type: 'external_source' }
->;
 
 interface AgentChatInputProps {
     onSubmit: (args: SubmitArgs) => void;
@@ -173,6 +240,25 @@ const extractToolHints = (editor: Editor | null): string[] => {
     return hints;
 };
 
+/**
+ * Walkthrough action for create:AiDeepResearch: switching the composer to
+ * deep research, the control that starts a run. Nothing is submitted; the
+ * tour then opens the seeded thread and its finished report.
+ */
+const deepResearchTourAction = {
+    'data-tour-scope': 'create:AiDeepResearch',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/ai-agents/:agentUuid',
+    'data-tour-label': 'Turn on Deep research',
+    'data-tour-title': 'Run deep research and read its report',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="ask-ai"] >> [data-tour-anchor="composer-options"]',
+    'data-tour-then':
+        '[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"] >> [data-tour-anchor="research-report-open"]',
+    'data-tour-docs': 'agents/deep-research.mdx#how-it-works:p2:1',
+};
+
 export const AgentChatInput = ({
     onSubmit,
     onStartDeepResearch,
@@ -210,6 +296,16 @@ export const AgentChatInput = ({
     const [externalSourceAttachments, setExternalSourceAttachments] = useState<
         ExternalSourceAttachment[]
     >([]);
+    // Picked in the thread's data app preview panel.
+    const storeDispatch = useAiAgentStoreDispatch();
+    const elementReferences = useAiAgentStoreSelector(
+        selectThreadElementReferences(threadUuid),
+    );
+    const clearElementReferences = useCallback(() => {
+        if (threadUuid) {
+            storeDispatch(clearThreadElementReferences({ threadUuid }));
+        }
+    }, [storeDispatch, threadUuid]);
     const resetCsvFileInputRef = useRef<() => void>(null);
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
@@ -277,6 +373,11 @@ export const AgentChatInput = ({
     projectUuidRef.current = projectUuid;
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
     contentMentionPriorityItemsRef.current = contentMentionPriorityItems;
+    // A space-restricted agent cannot read personal data apps, so @ hides them.
+    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
+    const hidePersonalDataAppsRef = useRef(false);
+    hidePersonalDataAppsRef.current =
+        agent !== undefined && isSpaceRestrictedAgent(agent);
     // What the @-mention dropdown is doing, sourced from the suggestion render
     // lifecycle — the plugin's own `active` flag alone can't tell an open
     // menu from a dismissed or empty one.
@@ -388,6 +489,7 @@ export const AgentChatInput = ({
             createContentMentionExtension({
                 getProjectUuid: () => projectUuidRef.current,
                 getPriorityItems: () => contentMentionPriorityItemsRef.current,
+                getHidePersonalDataApps: () => hidePersonalDataAppsRef.current,
                 onMenuStateChange: (state) => {
                     contentMentionMenuRef.current = state;
                 },
@@ -488,22 +590,17 @@ export const AgentChatInput = ({
             onSubmitRef.current({
                 message: chip.label,
                 toolHints: [chip.tool],
-                ...(externalSourceAttachments.length > 0
-                    ? {
-                          context: externalSourceAttachments.map(
-                              ({ sourceUuid }) => ({
-                                  type: 'external_source' as const,
-                                  sourceUuid,
-                              }),
-                          ),
-                          optimisticContext: externalSourceAttachments,
-                      }
-                    : {}),
+                ...buildSubmitContext({
+                    mentionContext: {},
+                    externalSources: externalSourceAttachments,
+                    elementReferences,
+                }),
             });
             if (clearOnSubmitRef.current) {
                 editor?.commands.clearContent();
                 setValueState('');
                 setExternalSourceAttachments([]);
+                clearElementReferences();
             }
             trackClick();
         },
@@ -518,6 +615,8 @@ export const AgentChatInput = ({
             emptyStateMode,
             navigate,
             externalSourceAttachments,
+            elementReferences,
+            clearElementReferences,
             isPreparingCsv,
             retainCsvSources,
         ],
@@ -643,34 +742,23 @@ export const AgentChatInput = ({
             dismissDeepResearchNudgeForSession();
             setNudgeState('done');
         }
-        const mentionContext = extractContentMentionContext(ed);
-        const context = [
-            ...(mentionContext.context ?? []),
-            ...externalSourceAttachments.map(
-                ({ sourceUuid }) =>
-                    ({
-                        type: 'external_source',
-                        sourceUuid,
-                    }) satisfies AiPromptContextItemInput,
-            ),
-        ];
-        const optimisticContext = [
-            ...(mentionContext.optimisticContext ?? []),
-            ...externalSourceAttachments,
-        ];
         retainCsvSources(
             externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
         );
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
-            ...(context.length > 0 ? { context } : {}),
-            ...(optimisticContext.length > 0 ? { optimisticContext } : {}),
+            ...buildSubmitContext({
+                mentionContext: extractContentMentionContext(ed),
+                externalSources: externalSourceAttachments,
+                elementReferences,
+            }),
         });
         if (clearOnSubmitRef.current) {
             ed.commands.clearContent();
             setValueState('');
             setExternalSourceAttachments([]);
+            clearElementReferences();
         }
     };
 
@@ -796,6 +884,9 @@ export const AgentChatInput = ({
                 }
                 disabled={hasActiveDeepResearchRun}
                 closeMenuOnClick={false}
+                {...(composerMode === 'deep_research'
+                    ? {}
+                    : deepResearchTourAction)}
                 onClick={() =>
                     setComposerMode(
                         composerMode === 'deep_research'
@@ -842,6 +933,9 @@ export const AgentChatInput = ({
                         size={30}
                         radius="xl"
                         aria-label="Composer options"
+                        // Anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="composer-options"
+                        data-tour-hint="Open the composer options"
                         className={
                             showDeepResearchNudge &&
                             !hasActiveDeepResearchRun &&
@@ -932,40 +1026,32 @@ export const AgentChatInput = ({
     };
 
     const renderedAttachments =
-        externalSourceAttachments.length > 0 || pendingCsvFiles.length > 0 ? (
-            <Pill.Group>
-                {externalSourceAttachments.map((attachment) => (
-                    <Pill
-                        key={attachment.sourceUuid}
-                        withRemoveButton
-                        onRemove={() => {
-                            setExternalSourceAttachments((attachments) =>
-                                attachments.filter(
-                                    ({ sourceUuid }) =>
-                                        sourceUuid !== attachment.sourceUuid,
-                                ),
-                            );
-                            void discardCsvSource(attachment.sourceUuid);
-                        }}
-                    >
-                        {attachment.displayName}
-                        {attachment.tables.length > 1
-                            ? ` · ${attachment.tables.length} tables`
-                            : ''}
-                    </Pill>
-                ))}
-                {pendingCsvFiles.map((file) => (
-                    <Pill key={file.id}>
-                        <Group gap={6} wrap="nowrap">
-                            {file.status === 'preparing' && (
-                                <Loader size={10} />
-                            )}
-                            {file.status === 'queued' ? 'Queued' : 'Preparing'}{' '}
-                            {file.filename}
-                        </Group>
-                    </Pill>
-                ))}
-            </Pill.Group>
+        externalSourceAttachments.length > 0 ||
+        pendingCsvFiles.length > 0 ||
+        elementReferences.length > 0 ? (
+            <PromptAttachments
+                externalSources={externalSourceAttachments}
+                pendingCsvFiles={pendingCsvFiles}
+                elementRefs={elementReferences}
+                onRemoveExternalSource={(sourceUuid) => {
+                    setExternalSourceAttachments((attachments) =>
+                        attachments.filter(
+                            (attachment) =>
+                                attachment.sourceUuid !== sourceUuid,
+                        ),
+                    );
+                    void discardCsvSource(sourceUuid);
+                }}
+                onRemoveElementRef={(reference) => {
+                    if (!threadUuid) return;
+                    storeDispatch(
+                        removeThreadElementReference({
+                            threadUuid,
+                            reference,
+                        }),
+                    );
+                }}
+            />
         ) : undefined;
 
     const renderComposerAction = (size: 'sm' | 'lg') => {
@@ -1002,6 +1088,18 @@ export const AgentChatInput = ({
                 icon={IconArrowUp}
                 label={isDeepResearch ? 'Start research' : 'Send message'}
                 size={size}
+                // Walkthrough marker for create:AiAgentThread: sending the
+                // first message opens a thread. The learner picks one of the
+                // agent's suggested questions on the way, so nothing is typed.
+                // See scripts/scope-tours/generate.ts.
+                data-tour-scope="create:AiAgentThread"
+                data-tour-step="2"
+                data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid"
+                data-tour-label="Send your question"
+                data-tour-title="Ask an AI agent"
+                data-tour-interactive="true"
+                data-tour-via='[data-tour-nav="ask-ai"] >> [data-tour-anchor="ai-suggestion"]'
+                data-tour-docs="agents.mdx#intro:2"
                 disabled={
                     disabled ||
                     !hasValue ||

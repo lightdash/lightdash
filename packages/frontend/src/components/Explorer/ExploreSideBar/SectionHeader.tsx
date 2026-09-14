@@ -18,6 +18,11 @@ const SectionHeader: FC<SectionHeaderProps> = ({
         <NavLink
             opened={isExpanded}
             onClick={onToggle}
+            // Anchor for scope walkthroughs (data-tour-via): a collapsed
+            // section of the list (Virtual Views), by its label.
+            data-tour-anchor="explore-section"
+            data-tour-hint="Open the {value} section"
+            data-tour-value={label}
             disableRightSectionRotation
             rightSection={<></>}
             leftSection={

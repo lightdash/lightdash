@@ -8,6 +8,7 @@ import {
     ApiSpaceAsCodeUpsertResponse,
     ApiSpaceDeleteImpactResponse,
     ApiSpaceResponse,
+    ApiSpaceServiceAccountCandidatesResponse,
     ApiSuccessEmpty,
     assertRegisteredAccount,
     CreateSpace,
@@ -45,6 +46,31 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Spaces')
 export class SpaceController extends BaseController {
+    /**
+     * List service accounts eligible for direct access to this space.
+     * @summary List service account candidates
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{spaceUuid}/share/service-accounts')
+    @OperationId('GetSpaceServiceAccountCandidates')
+    @Tags('Roles & Permissions')
+    async getSpaceServiceAccountCandidates(
+        @Path() projectUuid: UUID,
+        @Path() spaceUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSpaceServiceAccountCandidatesResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getSpaceService()
+            .getSpaceServiceAccountCandidates(
+                req.account,
+                projectUuid,
+                spaceUuid,
+            );
+        return { status: 'ok', results };
+    }
+
     /**
      * Get the current user's personal space in a project, if they have one
      * @summary Get personal space

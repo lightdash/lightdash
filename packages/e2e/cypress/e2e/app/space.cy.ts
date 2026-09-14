@@ -60,6 +60,7 @@ describe('Space', () => {
 
         cy.get('.mantine-Modal-body').find('button').should('be.disabled');
         cy.get('[data-testid="ChartCreateModal/NameInput"]')
+            .clear()
             .type(`Private chart ${timestamp}`)
             .should('have.value', `Private chart ${timestamp}`);
 
@@ -134,9 +135,6 @@ describe('Space', () => {
                 // Complete user onboarding
                 cy.findByPlaceholderText('Select your role').click();
                 cy.contains('Product').click();
-                cy.findByPlaceholderText(
-                    'Google, a colleague, a podcast...',
-                ).type('Cypress');
                 cy.contains('Next').click();
 
                 // Don't show private spaces in navbar
@@ -357,9 +355,9 @@ describe('Editor can create content', () => {
         cy.findByPlaceholderText('eg. KPI Dashboard').type(dashboardName);
         cy.get('[data-testid="DashboardCreateModal/Next"]').click();
         cy.get('button').contains('Create').click();
-        cy.wait(1500);
+        cy.location('pathname').should('match', /\/dashboards\/[^/]+\/edit$/);
         cy.go('back');
-        cy.wait(1500);
+        cy.location('pathname').should('include', '/spaces/');
         cy.contains(dashboardName);
 
         cy.get(

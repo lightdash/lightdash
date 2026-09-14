@@ -12,6 +12,7 @@ import {
     getRaw,
     resolveSeriesColor,
     resolveValueColor,
+    resolveVizFixtureUrl,
     toVizContextState,
     type DataAppVizContextMessage,
     type VizContextOptionValue,
@@ -296,6 +297,53 @@ describe('toVizContextState', () => {
 
     it('defaults missing pivot metadata to null', () => {
         expect(toVizContextState(message({})).pivotDetails).toBeNull();
+    });
+});
+
+describe('resolveVizFixtureUrl', () => {
+    const at = (parts: { hash?: string; search?: string }) => ({
+        hash: parts.hash ?? '',
+        search: parts.search ?? '',
+        origin: 'http://127.0.0.1:5173',
+    });
+
+    it('returns null when the param is absent', () => {
+        expect(resolveVizFixtureUrl(at({}))).toBeNull();
+        expect(resolveVizFixtureUrl(at({ search: '?other=1' }))).toBeNull();
+    });
+
+    it('resolves a relative path against the page origin', () => {
+        expect(
+            resolveVizFixtureUrl(at({ search: '?vizFixture=/my-fixture.json' })),
+        ).toBe('http://127.0.0.1:5173/my-fixture.json');
+    });
+
+    it('defaults a bare param to the conventional fixture path', () => {
+        expect(resolveVizFixtureUrl(at({ search: '?vizFixture=' }))).toBe(
+            'http://127.0.0.1:5173/viz-fixture.json',
+        );
+    });
+
+    it('prefers the hash over the search param (host-forwarded seed wins)', () => {
+        expect(
+            resolveVizFixtureUrl(
+                at({
+                    hash: '#vizFixture=/from-hash.json',
+                    search: '?vizFixture=/from-search.json',
+                }),
+            ),
+        ).toBe('http://127.0.0.1:5173/from-hash.json');
+    });
+
+    it('rejects a cross-origin fixture target', () => {
+        expect(
+            resolveVizFixtureUrl(
+                at({ search: '?vizFixture=https://evil.example/x.json' }),
+            ),
+        ).toBeNull();
+        expect(
+            resolveVizFixtureUrl(at({ search: '?vizFixture=//evil.example/x' })),
+        ).toBeNull();
     });
 });
 

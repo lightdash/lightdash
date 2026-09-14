@@ -63,8 +63,13 @@ export type FilterFacetProps = {
     enableSelectAll?: boolean;
     /** Rendered at the top of the dropdown, above the search input */
     headerSection?: ReactNode;
+    /** Walkthrough markers for the button that opens the facet. */
+    triggerProps?: Record<`data-tour-${string}`, string>;
+    /** Walkthrough anchor name for each option, picked by its search label. */
+    optionAnchor?: string;
     /** Shows a clear button next to the trigger while there is a selection */
     clearable?: boolean;
+    showSelectionCount?: boolean;
 };
 
 const isOptionVisible = (
@@ -97,6 +102,9 @@ const FilterFacet = ({
     enableSelectAll = false,
     headerSection,
     clearable = false,
+    showSelectionCount = true,
+    triggerProps,
+    optionAnchor,
 }: FilterFacetProps) => {
     const selectedSet = new Set(selected);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -178,6 +186,17 @@ const FilterFacet = ({
             <UnstyledButton
                 key={option.value}
                 onClick={() => toggle(option.value, disabled)}
+                {...(optionAnchor
+                    ? {
+                          'data-tour-anchor': optionAnchor,
+                          'data-tour-hint': 'Choose {value}',
+                          'data-tour-value':
+                              option.searchLabel ??
+                              (typeof option.label === 'string'
+                                  ? option.label
+                                  : option.value),
+                      }
+                    : {})}
                 px="xs"
                 py={6}
                 className={`${classes.option} ${
@@ -229,6 +248,7 @@ const FilterFacet = ({
             variant="default"
             size="xs"
             loading={loading}
+            {...triggerProps}
             className={
                 hasSelection
                     ? classes.filterButtonSelected
@@ -255,7 +275,7 @@ const FilterFacet = ({
                 <Text fz="xs" fw={500} c="ldGray.7">
                     {label}
                 </Text>
-                {hasSelection && (
+                {hasSelection && showSelectionCount && (
                     <Badge size="xs" radius="xl" variant="filled">
                         {selected.length}
                     </Badge>

@@ -259,6 +259,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Originating Slack channel, so scheduling can target "this channel"
     // without asking. Null for web and MCP prompts.
     slackChannelId: string | null;
+    // Org Slack setting: reply with links only, never post query results
+    // (files, images or values in the answer) into Slack.
+    slackLinksOnly: boolean;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     availableSkills: AiAgentSkillReference[];

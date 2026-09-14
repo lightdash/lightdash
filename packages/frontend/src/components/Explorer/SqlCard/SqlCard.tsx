@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     formatSql,
+    getMergeCompiledSqlText,
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '@lightdash/common';
@@ -77,13 +78,14 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
     });
-    // With a merge configured, the merged statement is what Run executes;
-    // the card's copy and open-in-SQL-runner must carry it, not the primary source's.
+    // With a merge configured, the legs and the join are what Run executes;
+    // the card's copy and open-in-SQL-runner must carry them, not the
+    // primary source's SQL alone.
     const merge = useMergeCompiledSql();
 
     const hasPivotQuery = !merge.isMergeActive && !!data?.pivotQuery;
     const selectedSql = merge.isMergeActive
-        ? merge.data?.sql
+        ? merge.data && getMergeCompiledSqlText(merge.data)
         : selectedView === 'pivotQuery'
           ? data?.pivotQuery
           : data?.query;
@@ -104,6 +106,33 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             isOpen={sqlIsOpen}
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
+            // Walkthrough markers for view:CompiledSql: the heading's click
+            // unfolds the SQL Lightdash wrote; the card is the result. See
+            // scripts/scope-tours.
+            headingTourProps={{
+                'data-tour-scope': 'view:CompiledSql',
+                'data-tour-step': '2',
+                'data-tour-route':
+                    '/projects/:projectUuid/saved/:savedQueryUuid',
+                'data-tour-label': 'Open the SQL',
+                'data-tour-title': 'Read the SQL behind a chart',
+                'data-tour-interactive': 'true',
+                'data-tour-via':
+                    '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                'data-tour-docs':
+                    'explore/explore-view.mdx#the-explore-page:li5',
+            }}
+            tourProps={{
+                'data-tour-scope': 'view:CompiledSql',
+                'data-tour-step': '1',
+                'data-tour-route':
+                    '/projects/:projectUuid/saved/:savedQueryUuid',
+                'data-tour-label': 'Every chart is a query on a table',
+                'data-tour-docs': 'explore/explore-view.mdx#intro:1',
+                'data-tour-return': 'none',
+                'data-tour-resultdocs':
+                    'get-started/explore-your-data.mdx#3-run-your-own-query:1',
+            }}
             headerElement={
                 !cannotViewSqlAuthoredFields &&
                 (hovered || sqlIsOpen) &&

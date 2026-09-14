@@ -48,8 +48,18 @@ export const getStateColor = (state: PullRequestState | null): string => {
     }
 };
 
-export const getProviderLabel = (provider: PullRequestProvider): string =>
-    provider === PullRequestProvider.GITHUB ? 'GitHub' : 'GitLab';
+export const getProviderLabel = (provider: PullRequestProvider): string => {
+    switch (provider) {
+        case PullRequestProvider.GITHUB:
+            return 'GitHub';
+        case PullRequestProvider.GITLAB:
+            return 'GitLab';
+        case PullRequestProvider.BITBUCKET:
+            return 'Bitbucket';
+        default:
+            return assertUnreachable(provider, `Unknown provider ${provider}`);
+    }
+};
 
 /** A distinct Mantine color per source, so each source tag reads differently. */
 export const getSourceColor = (source: PullRequestSource): string => {

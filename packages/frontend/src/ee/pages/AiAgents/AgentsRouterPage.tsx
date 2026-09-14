@@ -85,6 +85,7 @@ const AgentsRouterPage = () => {
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
+    const dataAppUuid = searchParams.get('dataAppUuid');
 
     const {
         contextInput,
@@ -95,6 +96,7 @@ const AgentsRouterPage = () => {
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dataAppUuidOrSlug: dataAppUuid,
     });
 
     const {
@@ -408,6 +410,7 @@ const AgentsRouterPage = () => {
                                             key={getPromptContextItemKey(item)}
                                             item={item}
                                             projectUuid={projectUuid!}
+                                            previewScope={null}
                                         />
                                     ))}
                                 </Group>

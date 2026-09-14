@@ -9,7 +9,9 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import type { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -1712,6 +1714,9 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
 });
 
 describe('SpaceService - space share target validation', () => {
+    const mockServiceAccountModel = {
+        getSpaceShareCandidates: vi.fn(),
+    };
     const mockUser = createTestUser({
         organizationRole: OrganizationMemberRole.ADMIN,
     });
@@ -1740,6 +1745,8 @@ describe('SpaceService - space share target validation', () => {
             analytics: analyticsMock,
             lightdashConfig: lightdashConfigMock,
             projectModel: mockProjectModel as unknown as ProjectModel,
+            serviceAccountModel:
+                mockServiceAccountModel as unknown as ServiceAccountModel,
             spaceModel: mockSpaceModel as unknown as SpaceModel,
             organizationModel: {} as OrganizationModel,
             organizationMemberProfileModel:
@@ -1753,6 +1760,7 @@ describe('SpaceService - space share target validation', () => {
         });
 
         mockSpacePermissionService.can.mockResolvedValue(true);
+        mockServiceAccountModel.getSpaceShareCandidates.mockResolvedValue([]);
         mockSpaceModel.getSpaceSummary.mockResolvedValue({
             uuid: 'test-space-uuid',
             organizationUuid: 'test-org-uuid',
@@ -1761,6 +1769,76 @@ describe('SpaceService - space share target validation', () => {
     });
 
     describe('addSpaceUserAccess', () => {
+        it.each(Object.values(SpaceMemberRole))(
+            'grants a live service account %s access using its backing user UUID',
+            async (role) => {
+                mockOrganizationMemberProfileModel.findOrganizationMemberUuids.mockResolvedValue(
+                    [],
+                );
+                mockServiceAccountModel.getSpaceShareCandidates.mockResolvedValue(
+                    [
+                        {
+                            userUuid: 'service-account-user',
+                            description: 'Automation',
+                        },
+                    ],
+                );
+
+                await service.addSpaceUserAccess(
+                    mockUser as SessionUser,
+                    'test-space-uuid',
+                    'service-account-user',
+                    role,
+                );
+
+                expect(
+                    mockServiceAccountModel.getSpaceShareCandidates,
+                ).toHaveBeenCalledWith('test-org-uuid', [
+                    'service-account-user',
+                ]);
+                expect(mockSpaceModel.addSpaceAccess).toHaveBeenCalledWith(
+                    'test-space-uuid',
+                    'service-account-user',
+                    role,
+                );
+            },
+        );
+
+        it.each([
+            'foreign-account-user',
+            'deleted-account-user',
+            'missing-account-user',
+        ])('rejects an ineligible recipient %s', async (userUuid) => {
+            mockOrganizationMemberProfileModel.findOrganizationMemberUuids.mockResolvedValue(
+                [],
+            );
+            await expect(
+                service.addSpaceUserAccess(
+                    mockUser as SessionUser,
+                    'test-space-uuid',
+                    userUuid,
+                    SpaceMemberRole.VIEWER,
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(mockSpaceModel.addSpaceAccess).not.toHaveBeenCalled();
+        });
+
+        it('rejects callers who cannot manage the space before looking up recipients', async () => {
+            mockSpacePermissionService.can.mockResolvedValue(false);
+            await expect(
+                service.addSpaceUserAccess(
+                    mockUser as SessionUser,
+                    'test-space-uuid',
+                    'service-account-user',
+                    SpaceMemberRole.VIEWER,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                mockServiceAccountModel.getSpaceShareCandidates,
+            ).not.toHaveBeenCalled();
+            expect(mockSpaceModel.addSpaceAccess).not.toHaveBeenCalled();
+        });
+
         it('adds access when the target user is a member of the organization', async () => {
             mockOrganizationMemberProfileModel.findOrganizationMemberUuids.mockResolvedValue(
                 ['target-user-uuid'],
@@ -1795,6 +1873,66 @@ describe('SpaceService - space share target validation', () => {
             ).rejects.toThrowError(NotFoundError);
 
             expect(mockSpaceModel.addSpaceAccess).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getSpaceServiceAccountCandidates', () => {
+        const account = fromSession({
+            ...mockUser,
+            abilityRules: mockUser.ability.rules,
+        } as SessionUser);
+
+        it('returns the eligible accounts for the actual space organization', async () => {
+            const candidates = [
+                { userUuid: 'service-account-user', description: 'Automation' },
+            ];
+            mockServiceAccountModel.getSpaceShareCandidates.mockResolvedValue(
+                candidates,
+            );
+            await expect(
+                service.getSpaceServiceAccountCandidates(
+                    account,
+                    'test-project-uuid',
+                    'test-space-uuid',
+                ),
+            ).resolves.toEqual(candidates);
+            expect(mockSpaceModel.getSpaceSummary).toHaveBeenCalledWith(
+                'test-space-uuid',
+                { projectUuid: 'test-project-uuid' },
+            );
+            expect(
+                mockServiceAccountModel.getSpaceShareCandidates,
+            ).toHaveBeenCalledWith('test-org-uuid');
+        });
+
+        it('rejects a space outside the requested project before disclosing accounts', async () => {
+            mockSpaceModel.getSpaceSummary.mockRejectedValue(
+                new NotFoundError('Space not found'),
+            );
+            await expect(
+                service.getSpaceServiceAccountCandidates(
+                    account,
+                    'other-project-uuid',
+                    'test-space-uuid',
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(
+                mockServiceAccountModel.getSpaceShareCandidates,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('requires permission to manage the space', async () => {
+            mockSpacePermissionService.can.mockResolvedValue(false);
+            await expect(
+                service.getSpaceServiceAccountCandidates(
+                    account,
+                    'test-project-uuid',
+                    'test-space-uuid',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                mockServiceAccountModel.getSpaceShareCandidates,
+            ).not.toHaveBeenCalled();
         });
     });
 

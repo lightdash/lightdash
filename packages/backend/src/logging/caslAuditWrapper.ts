@@ -9,6 +9,7 @@ import {
     type ServiceAcctAccount,
     type SessionUser,
 } from '@lightdash/common';
+import { z } from 'zod';
 import {
     createAuditLogEvent,
     type AuditActor,
@@ -38,10 +39,16 @@ export type AuditableUser = Pick<
     | 'serviceAccount'
 >;
 
+const GrantProvenanceSchema = z.object({
+    grantedVia: z.string(),
+    grantSourceUuid: z.string(),
+});
+
 type AuditableCaslSubjectObject = ForcedSubject<CaslSubjectNames> & {
     organizationUuid: string;
     projectUuid?: string;
     metadata?: Record<string, unknown>;
+    access?: unknown[];
 };
 
 type AuditableCaslSubject = AuditableCaslSubjectObject | CaslSubjectNames;
@@ -54,6 +61,7 @@ type AuditHelperArgs = {
     actor: AuditActor;
     action: string;
     subject: AuditableCaslSubject;
+    resource?: AuditResource;
     ip?: string;
     userAgent?: string;
     requestId?: string;
@@ -278,7 +286,8 @@ export class CaslAuditWrapper<T extends Ability> {
         if (!this.auditEnabled) return;
 
         try {
-            const resource = createResourceFromSubject(args.subject);
+            const resource =
+                args.resource ?? createResourceFromSubject(args.subject);
             const context = createContextFromArgs(args);
 
             const event = createAuditLogEvent(
@@ -310,6 +319,60 @@ export class CaslAuditWrapper<T extends Ability> {
         return { allowed: Boolean(rule && !rule.inverted), rule };
     }
 
+    private createAuditedResource(
+        action: string,
+        subject: AuditableCaslSubject,
+        allowed: boolean,
+    ): AuditResource {
+        const resource = createResourceFromSubject(subject);
+        if (!allowed || typeof subject === 'string' || !subject.access) {
+            return resource;
+        }
+        const grants = subject.access.flatMap((row) => {
+            const provenance = GrantProvenanceSchema.safeParse(row);
+            return provenance.success
+                ? [{ row, provenance: provenance.data }]
+                : [];
+        });
+        if (grants.length === 0) {
+            return resource;
+        }
+        const baseline = {
+            ...subject,
+            __caslSubjectType__: subject.__caslSubjectType__,
+            access: subject.access.filter(
+                (row) => !grants.some((grant) => grant.row === row),
+            ),
+        };
+        if (this.evaluate(action, baseline).allowed) {
+            return resource;
+        }
+        const directGrants = grants
+            .flatMap(({ row, provenance }) =>
+                this.evaluate(action, {
+                    ...baseline,
+                    access: [...baseline.access, row],
+                }).allowed
+                    ? [provenance]
+                    : [],
+            )
+            .filter(
+                (grant, index, all) =>
+                    all.findIndex(
+                        (other) =>
+                            other.grantedVia === grant.grantedVia &&
+                            other.grantSourceUuid === grant.grantSourceUuid,
+                    ) === index,
+            );
+        if (directGrants.length === 0) {
+            return resource;
+        }
+        return {
+            ...resource,
+            metadata: { ...resource.metadata, directGrants },
+        };
+    }
+
     can(action: string, subject: AuditableCaslSubject): boolean {
         const { allowed, rule } = this.evaluate(action, subject);
         if (!this.auditEnabled) return allowed;
@@ -319,6 +382,7 @@ export class CaslAuditWrapper<T extends Ability> {
                 actor: this.actor,
                 action,
                 subject,
+                resource: this.createAuditedResource(action, subject, allowed),
                 ip: this.ip,
                 userAgent: this.userAgent,
                 requestId: this.requestId,
@@ -344,7 +408,11 @@ export class CaslAuditWrapper<T extends Ability> {
             const { allowed, rule } = this.evaluate(action, subject);
 
             if (this.auditEnabled) {
-                const resource = createResourceFromSubject(subject);
+                const resource = this.createAuditedResource(
+                    action,
+                    subject,
+                    allowed,
+                );
                 const scopeKey = `${resource.type}\0${resource.organizationUuid}`;
                 const ruleGroups = groups.get(rule);
                 const group = ruleGroups?.get(scopeKey);

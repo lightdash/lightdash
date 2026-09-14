@@ -93,6 +93,14 @@ vi.mock(
         },
     }),
 );
+// The modal's config column needs the chart card's viz context, which this
+// container test does not mount.
+vi.mock(
+    '../../VisualizationConfigs/DataAppVizConfig/DataAppVizConfigTabs',
+    () => ({
+        ConfigTabs: () => <div data-testid="config-tabs" />,
+    }),
+);
 
 const itemsMap = {
     orders_status: {
@@ -131,6 +139,7 @@ const rows = [{ orders_status: { value: { raw: 'new', formatted: 'New' } } }];
 
 const dataAppViz = {
     dataAppVizUuid: 'viz-1',
+    slug: 'grouped-bars',
     name: 'Grouped bars',
     description: '',
     projectUuid: 'project-1',
@@ -157,6 +166,7 @@ const dataAppViz = {
     },
     createdAt: new Date('2026-08-19T00:00:00Z'),
     createdByUserUuid: 'user-1',
+    icon: null,
     registrySlug: null,
 } satisfies DataAppViz;
 
@@ -297,6 +307,14 @@ describe('ExplorerChartTypeAuthoring', () => {
                 setFetchAll,
             },
         } as unknown as ReturnType<typeof useExplorerResultsData>);
+    });
+
+    it('opens the builder in a modal with the chart configuration beside it', () => {
+        renderAuthoring();
+
+        expect(screen.getByText('Chart type builder')).toBeInTheDocument();
+        expect(screen.getByTestId('workspace')).toBeInTheDocument();
+        expect(screen.getByTestId('config-tabs')).toBeInTheDocument();
     });
 
     it('binds the chart to the type once its schema is known', () => {
@@ -554,7 +572,12 @@ describe('ExplorerChartTypeAuthoring', () => {
         document.body.appendChild(sidebarTitle);
         try {
             renderAuthoring();
-            expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
+            expect(
+                screen.getByRole('heading', {
+                    level: 2,
+                    name: 'Editing chart type · Grouped bars',
+                }),
+            ).toHaveFocus();
 
             await userEvent.click(
                 screen.getByRole('button', { name: 'Back to chart' }),

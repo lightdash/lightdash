@@ -356,7 +356,7 @@ async function buildScenario() {
             getClaudeCodeConfig: async () => ({
                 defaultProvider: 'anthropic',
                 providers: { anthropic: { apiKey: 'test-key' } },
-                selfManagedProviders: [],
+                lightdashManagedProviders: [],
                 byoProviders: [],
             }),
         } as never,

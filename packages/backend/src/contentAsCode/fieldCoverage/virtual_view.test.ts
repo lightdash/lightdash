@@ -8,6 +8,7 @@ describeContentAsCodeSchemaContract({
         'aiHint',
         'baseTable',
         'caseSensitive',
+        'customMeta',
         'databricksCompute',
         'externalSource',
         'granularityLabels',

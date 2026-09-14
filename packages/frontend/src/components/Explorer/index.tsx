@@ -3,12 +3,9 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine/core';
-import clsx from 'clsx';
+import { Stack } from '@mantine/core';
 import {
-    lazy,
     memo,
-    Suspense,
     useCallback,
     useEffect,
     useMemo,
@@ -19,7 +16,6 @@ import {
 import {
     explorerActions,
     selectAdditionalMetricModal,
-    selectChartTypeAuthoring,
     selectColumnOrder,
     selectDimensions,
     selectFormatModal,
@@ -69,11 +65,6 @@ import { WriteBackModal } from './WriteBackModal';
 
 const EMPTY_PARAMETER_REFERENCES: string[] = [];
 
-// Lazy-load to keep the flag-off Explorer bundle small.
-const ExplorerChartTypeAuthoring = lazy(
-    () => import('./ChartTypeAuthoring/ExplorerChartTypeAuthoring'),
-);
-
 const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
     ({ hideHeader = false, chartView = false }) => {
         const tableName = useExplorerSelector(selectTableName);
@@ -85,11 +76,8 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const showQueryBuilder = isEditMode || !chartView;
         const showMinimalChart = chartView && !isEditMode;
-        // Authoring a chart type takes the chart's place; the query keeps
-        // running underneath so the preview renders against it.
-        const chartTypeAuthoring = useExplorerSelector(
-            selectChartTypeAuthoring,
-        );
+        // Authoring a chart type opens the builder modal over the page; the
+        // query keeps running underneath so the preview renders against it.
         const isAuthoring = useExplorerSelector(selectIsChartTypeAuthoring);
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
@@ -283,39 +271,22 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                 parameters={parameters}
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
-                <Stack
-                    className={clsx(
-                        classes.stack,
-                        isAuthoring && classes.stackAuthoring,
-                    )}
-                >
+                <Stack className={classes.stack}>
                     <MergeAutoRun />
-                    {/* The query controls keep their usual spot while a chart
-                        type is authored; only the cards below make way. */}
                     {!hideHeader &&
                         (isEditMode ? (
                             <ExplorerHeader />
                         ) : (
                             !savedChart && <RefreshDbtButton />
                         ))}
-                    {isAuthoring && chartTypeAuthoring && (
-                        <Suspense fallback={null}>
-                            <ExplorerChartTypeAuthoring
-                                authoring={chartTypeAuthoring}
-                            />
-                        </Suspense>
-                    )}
 
-                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
-                        <MergeReadOnlyBar />
-                    )}
+                    {!isFullscreen && showQueryBuilder && <MergeReadOnlyBar />}
 
-                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
+                    {!isFullscreen && showQueryBuilder && (
                         <MergeRelationshipCard />
                     )}
 
-                    {!isAuthoring &&
-                        !isFullscreen &&
+                    {!isFullscreen &&
                         showQueryBuilder &&
                         !!tableName &&
                         hasReferencedUserParameters && (
@@ -326,23 +297,20 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                             />
                         )}
 
-                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
-                        <FiltersCard />
-                    )}
+                    {!isFullscreen && showQueryBuilder && <FiltersCard />}
 
-                    {/* Stays mounted while authoring: it hosts the sidebar
-                        that configures the type being built. */}
-                    <Box display={isAuthoring ? 'none' : 'contents'}>
-                        <VisualizationCard
-                            projectUuid={projectUuid}
-                            renderVisualization={!isAuthoring}
-                            onScreenshotReady={handleScreenshotReady}
-                            onScreenshotError={handleScreenshotError}
-                            minimal={showMinimalChart}
-                        />
-                    </Box>
+                    {/* The card also hosts the authoring modal, which needs
+                        its visualization context. The chart itself pauses
+                        while the type is authored so it doesn't render twice. */}
+                    <VisualizationCard
+                        projectUuid={projectUuid}
+                        renderVisualization={!isAuthoring}
+                        onScreenshotReady={handleScreenshotReady}
+                        onScreenshotError={handleScreenshotError}
+                        minimal={showMinimalChart}
+                    />
 
-                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
+                    {!isFullscreen && showQueryBuilder && (
                         <>
                             <ResultsCard />
 

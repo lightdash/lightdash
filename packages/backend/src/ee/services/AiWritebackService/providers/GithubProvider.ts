@@ -467,11 +467,14 @@ export class GithubProvider implements GitProvider {
         setStage: SetStage;
     }): Promise<LandedCommit> {
         setStage('commit');
-        const projectPaths = await resolveDbtProjectPaths(
-            sandbox,
-            connection.projectSubPath,
-            this.logger,
-        );
+        const projectPaths =
+            connection.semanticLayer === 'lightdash'
+                ? [connection.projectSubPath]
+                : await resolveDbtProjectPaths(
+                      sandbox,
+                      connection.projectSubPath,
+                      this.logger,
+                  );
         await stageChanges(sandbox, projectPaths, this.logger);
         const fileChanges = await collectFileChanges(sandbox);
         // Read the line stat while the change is still staged — the local commit

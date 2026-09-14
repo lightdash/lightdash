@@ -31,8 +31,10 @@ import { GitUserCredentialsModel } from './GitUserCredentials/GitUserCredentials
 import { GroupsModel } from './GroupsModel';
 import { HeadlessBrowserLoginGrantModel } from './HeadlessBrowserLoginGrantModel';
 import { InviteLinkModel } from './InviteLinkModel';
+import { JiraAppInstallationsModel } from './JiraAppInstallations/JiraAppInstallationsModel';
 import { JobModel } from './JobModel/JobModel';
 import { LinearAppInstallationsModel } from './LinearAppInstallations/LinearAppInstallationsModel';
+import { ManagedSignInModel } from './ManagedSignInModel';
 import { McpContextModel } from './McpContextModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
@@ -57,6 +59,7 @@ import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
 import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
+import { RecentContentModel } from './RecentContentModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
@@ -92,6 +95,7 @@ import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 
 export type ModelManifest = {
     analyticsModel: AnalyticsModel;
+    recentContentModel: RecentContentModel;
     appAccessModel: AppAccessModel;
     appModel: AppModel;
     commentModel: CommentModel;
@@ -108,11 +112,13 @@ export type ModelManifest = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitUserCredentialsModel: GitUserCredentialsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
+    jiraAppInstallationsModel: JiraAppInstallationsModel;
     linearAppInstallationsModel: LinearAppInstallationsModel;
     groupsModel: GroupsModel;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
     jobModel: JobModel;
+    managedSignInModel: ManagedSignInModel;
     mcpContextModel: McpContextModel;
     migrationModel: MigrationModel;
     notificationsModel: NotificationsModel;
@@ -198,6 +204,7 @@ export type ModelManifest = {
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     serviceAccountModel: unknown;
+    scimRequestLogModel: unknown;
     externalConnectionModel: unknown;
     schedulerAiAugmentationModel: unknown;
 };
@@ -295,6 +302,13 @@ export class ModelRepository
      * Holds memoized instances of models after their initial instantiation:
      */
     protected modelInstances: Partial<ModelManifest> = {};
+
+    public getRecentContentModel(): RecentContentModel {
+        return this.getModel(
+            'recentContentModel',
+            () => new RecentContentModel(this.database),
+        );
+    }
 
     public getAnalyticsModel(): AnalyticsModel {
         return this.getModel(
@@ -446,6 +460,17 @@ export class ModelRepository
         );
     }
 
+    public getJiraAppInstallationsModel(): JiraAppInstallationsModel {
+        return this.getModel(
+            'jiraAppInstallationsModel',
+            () =>
+                new JiraAppInstallationsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
     public getGroupsModel(): GroupsModel {
         return this.getModel(
             'groupsModel',
@@ -509,10 +534,17 @@ export class ModelRepository
         );
     }
 
+    public getManagedSignInModel(): ManagedSignInModel {
+        return this.getModel(
+            'managedSignInModel',
+            () => new ManagedSignInModel({ database: this.database }),
+        );
+    }
+
     public getOauthModel(): OAuth2Model {
         return this.getModel(
             'oauthModel',
-            () => new OAuth2Model(this.database),
+            () => new OAuth2Model(this.database, this.lightdashConfig),
         );
     }
 
@@ -1044,6 +1076,10 @@ export class ModelRepository
 
     public getServiceAccountModel<ModelImplT>(): ModelImplT {
         return this.getModel('serviceAccountModel');
+    }
+
+    public getScimRequestLogModel<ModelImplT>(): ModelImplT {
+        return this.getModel('scimRequestLogModel');
     }
 
     public getExternalConnectionModel<ModelImplT>(): ModelImplT {

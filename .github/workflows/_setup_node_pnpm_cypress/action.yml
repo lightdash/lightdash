@@ -2,6 +2,11 @@ name: Setup Node, PNPM, and Cypress
 
 description: Sets up Node.js, PNPM, and Cypress.
 
+inputs:
+    install-npm:
+        description: Install npm for downstream CLI installation tests.
+        default: 'false'
+
 runs:
     using: 'composite'
     steps:
@@ -11,13 +16,15 @@ runs:
         - name: Setup PNPM
           uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
           with:
+              cache: true
               install: false
-        - name: Setup Node
-          uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-          with:
-              node-version-file: '.nvmrc'
-              cache: 'pnpm'
-              cache-dependency-path: 'pnpm-lock.yaml'
+
+        - name: Install npm for CLI installation tests
+          if: inputs.install-npm == 'true'
+          run: |
+              pnpm add -g npm@11.16.0 --config.minimumReleaseAge=4320
+              echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
+          shell: bash
 
         - name: Install Dependencies
           run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16

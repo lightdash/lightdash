@@ -82,17 +82,18 @@ jobs:
           fi
           echo "action=$ACTION" >> "$GITHUB_OUTPUT"
 
+      - name: Read Node pin from checked-out revision
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          install: false
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
           cache-dependency-path: |
             pnpm-lock.yaml
             ${{ inputs.template_directory }}/pnpm-lock.yaml
+          install: false
 
       - name: Install root deps
         if: steps.plan.outputs.action == 'build' && inputs.install_root_deps

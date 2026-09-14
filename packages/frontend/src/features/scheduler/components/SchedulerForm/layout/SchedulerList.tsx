@@ -72,6 +72,7 @@ import { getSchedulerDeliveryType } from '../../types';
 import { isDeliveryListScheduler } from './deliveryListFilter';
 import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
+import { SchedulerDetailConditions } from './SchedulerDetailConditions';
 
 dayjs.extend(relativeTime);
 
@@ -316,6 +317,8 @@ const SchedulerDetail: FC<{
                 </Stack>
 
                 <Stack gap="lg" mt="sm">
+                    <SchedulerDetailConditions scheduler={scheduler} />
+
                     <Group gap="sm" wrap="nowrap" align="flex-start">
                         <MantineIcon
                             icon={IconClock}

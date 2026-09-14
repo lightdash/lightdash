@@ -1,5 +1,4 @@
 import {
-    getItemId,
     getItemLabelWithoutTableName,
     isField,
     type DashboardFilterableField,
@@ -23,7 +22,11 @@ import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import styles from './FilterFieldSelect.module.css';
-import { useFilterFieldSections } from './useFilterFieldSections';
+import {
+    getCollidingFieldIds,
+    getFieldOptionValue,
+    useFilterFieldSections,
+} from './useFilterFieldSections';
 
 interface FilterFieldSelectProps {
     fields: DashboardFilterableField[];
@@ -50,6 +53,11 @@ const GROUP_HEADER_HEIGHT = 28;
 const SECTION_HEADER_HEIGHT = 30;
 const DROPDOWN_MAX_HEIGHT = 300;
 
+const getSelectedFieldLabel = (field: DashboardFilterableField) =>
+    isField(field)
+        ? `${field.tableLabel} ${field.label}`
+        : getItemLabelWithoutTableName(field);
+
 const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     fields,
     availableTileFilters,
@@ -63,12 +71,11 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     const getUiString = useUiStrings();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 150);
-    const searchRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const combobox = useCombobox({
         onDropdownOpen: () => {
-            combobox.resetSelectedOption();
+            combobox.updateSelectedOptionIndex('active');
             popoverProps?.onOpen?.();
         },
         onDropdownClose: () => {
@@ -147,13 +154,27 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
         overscan: 10,
     });
 
+    const collidingFieldIds = useMemo(
+        () => getCollidingFieldIds(fields),
+        [fields],
+    );
+    const getOptionValue = useCallback(
+        (field: DashboardFilterableField) =>
+            getFieldOptionValue(field, collidingFieldIds),
+        [collidingFieldIds],
+    );
+
     const handleOptionSubmit = (value: string) => {
-        const field = fields.find((f) => getItemId(f) === value);
+        const field = fields.find((f) => getOptionValue(f) === value);
         if (field) {
             onChange(field);
         }
         combobox.closeDropdown();
     };
+
+    const selectedFieldId = selectedField
+        ? getOptionValue(selectedField)
+        : null;
 
     const renderVirtualItem = useCallback(
         (item: VirtualItem) => {
@@ -179,10 +200,11 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                         </div>
                     );
                 case 'field': {
-                    const fieldId = getItemId(item.field);
+                    const fieldId = getOptionValue(item.field);
                     return (
                         <Combobox.Option
                             value={fieldId}
+                            active={fieldId === selectedFieldId}
                             className={`${styles.option} ${item.dimmed ? styles.dimmedOption : ''}`}
                         >
                             <Tooltip
@@ -213,9 +235,18 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                 }
             }
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [],
+        [getOptionValue, selectedFieldId],
     );
+
+    const isOpen = combobox.dropdownOpened;
+    const selectedLabel = selectedField
+        ? getSelectedFieldLabel(selectedField)
+        : null;
+
+    const placeholder = isOpen
+        ? (selectedLabel ??
+          getUiString('filters.config.searchFieldPlaceholder'))
+        : getUiString('filters.config.selectFilterPlaceholder');
 
     return (
         <div>
@@ -233,65 +264,32 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
             >
                 <Combobox.Target>
                     <InputBase
-                        component="button"
-                        type="button"
                         radius="md"
                         size="xs"
-                        pointer
-                        onClick={() => combobox.toggleDropdown()}
+                        value={isOpen ? search : (selectedLabel ?? '')}
+                        placeholder={placeholder}
+                        onChange={(event) => {
+                            setSearch(event.currentTarget.value);
+                            combobox.openDropdown();
+                        }}
+                        onClick={() => combobox.openDropdown()}
+                        onBlur={() => combobox.closeDropdown()}
                         leftSection={
-                            selectedField ? (
+                            selectedField && !isOpen ? (
                                 <FieldIcon item={selectedField} />
-                            ) : undefined
+                            ) : (
+                                <MantineIcon icon={IconSearch} color="dimmed" />
+                            )
                         }
                         rightSection={<MantineIcon icon={IconSelector} />}
                         rightSectionPointerEvents="none"
-                        multiline={false}
+                        autoComplete="off"
+                        data-autofocus
                         data-testid="FilterConfiguration/FieldSelect"
-                    >
-                        {selectedField ? (
-                            <Text size="xs" truncate="end">
-                                {isField(selectedField)
-                                    ? `${selectedField.tableLabel} ${selectedField.label}`
-                                    : getItemLabelWithoutTableName(
-                                          selectedField,
-                                      )}
-                            </Text>
-                        ) : (
-                            <Text size="xs" truncate="end">
-                                {getUiString(
-                                    'filters.config.selectFilterPlaceholder',
-                                )}
-                            </Text>
-                        )}
-                    </InputBase>
+                    />
                 </Combobox.Target>
 
                 <Combobox.Dropdown p={0}>
-                    <Combobox.Search
-                        ref={searchRef}
-                        value={search}
-                        onChange={(event) =>
-                            setSearch(event.currentTarget.value)
-                        }
-                        placeholder={getUiString(
-                            'filters.config.searchFieldPlaceholder',
-                        )}
-                        size="xs"
-                        radius="md"
-                        leftSection={
-                            <MantineIcon icon={IconSearch} color="dimmed" />
-                        }
-                        data-testid="FilterConfiguration/FieldSelectSearch"
-                        styles={{
-                            input: {
-                                border: `1px solid var(--mantine-color-ldGray-1)`,
-                                borderRadius: 'var(--mantine-radius-sm)',
-                                margin: 2,
-                                width: 'calc(100% - 4px)',
-                            },
-                        }}
-                    />
                     <Combobox.Options>
                         {totalFields === 0 ? (
                             <Combobox.Empty>

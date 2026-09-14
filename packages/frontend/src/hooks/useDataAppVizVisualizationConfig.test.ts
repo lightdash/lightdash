@@ -24,7 +24,7 @@ describe('useDataAppVizVisualizationConfig', () => {
         });
     });
 
-    it('preserves the saved project chart type version through config edits', () => {
+    it('preserves the saved custom chart type version through config edits', () => {
         const onConfigChange = vi.fn();
         const { result } = renderHook(() =>
             useDataAppVizVisualizationConfig(
@@ -46,7 +46,7 @@ describe('useDataAppVizVisualizationConfig', () => {
         });
     });
 
-    it('pins the selected project chart type to the rendered version', () => {
+    it('pins the selected custom chart type to the rendered version', () => {
         const onConfigChange = vi.fn();
         const { result } = renderHook(() =>
             useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
@@ -325,7 +325,7 @@ describe('useDataAppVizVisualizationConfig', () => {
         });
     });
 
-    it('drops the pin when the same project chart type is re-selected', () => {
+    it('drops the pin when the same custom chart type is re-selected', () => {
         const { result, rerender } = renderHook(
             ({ config }) => useDataAppVizVisualizationConfig(config),
             {

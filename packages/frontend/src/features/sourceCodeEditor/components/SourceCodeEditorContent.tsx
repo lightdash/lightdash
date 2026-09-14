@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { isGitProjectType } from '@lightdash/common';
+import { DbtProjectType, isGitProjectType } from '@lightdash/common';
 import { Box, Group } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
@@ -357,7 +357,7 @@ const SourceCodeEditorContent: FC = () => {
     return (
         <>
             <Group gap={0} align="stretch" wrap="nowrap" h="100%" w="100%">
-                <Box w={300} className="ld-shrink-0">
+                <Box w={300} flex="0 0 auto">
                     <SourceCodeSidebar
                         projectUuid={projectUuid ?? ''}
                         branches={branches ?? []}
@@ -372,6 +372,13 @@ const SourceCodeEditorContent: FC = () => {
 
                 <Box flex={1}>
                     <CodeEditorPane
+                        semanticLayer={
+                            project?.dbtConnection.type ===
+                                DbtProjectType.GITHUB &&
+                            project.dbtConnection.semanticLayer === 'lightdash'
+                                ? 'lightdash'
+                                : 'dbt'
+                        }
                         filePath={currentFilePath}
                         content={editorContent}
                         isLoading={isLoadingFile && currentFilePath !== null}

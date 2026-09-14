@@ -97,6 +97,7 @@ import {
     findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
     findTablesWithMetricInflation,
+    findUnnestCrossProductWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getDimensionFromFilterTargetId,
@@ -169,9 +170,10 @@ export type BuildQueryProps = {
      *  Derived from warehouse credentials via `getColumnTimezone`. */
     columnTimezone?: string;
     /** Raw project data timezone from the warehouse credentials. Differs from
-     *  `columnTimezone` only on Snowflake, whose compile-time wrap normalizes
-     *  dimension columns to UTC while bare columns (aggregate inputs) remain
-     *  in the data timezone. */
+     *  `columnTimezone` only when the compiler wraps timestamp dimensions
+     *  into UTC at compile time: the wrapped dimension SQL is then in UTC
+     *  while raw column references (aggregate inputs) remain in the data
+     *  timezone. */
     dataTimezone?: string;
     queryExecutionContext?: QueryExecutionContext;
     /**
@@ -436,8 +438,8 @@ export class MetricQueryBuilder {
         return !this.args.skipModelRequiredFilters;
     }
 
-    /** Falls back to `columnTimezone`, which is equal on every warehouse
-     *  except Snowflake (see BuildQueryProps.dataTimezone). */
+    /** Falls back to `columnTimezone`, which is equal unless the compiler
+     *  wraps timestamp dimensions (see BuildQueryProps.dataTimezone). */
     private get dataTimezone(): string {
         return this.args.dataTimezone ?? this.columnTimezone;
     }
@@ -1170,10 +1172,9 @@ export class MetricQueryBuilder {
         }
         // A MIN/MAX over a naive TIMESTAMP column aggregates the bare wall
         // clock, which the wire stamps as UTC — rebase to a true instant:
-        // explicitly from the data timezone when the base is known-naive (on
-        // Snowflake that differs from columnTimezone, which only describes the
-        // compile-time-wrapped dimension SQL), via the session cast (identity
-        // in value for aware columns) as the unknown-domain fallback.
+        // explicitly from the timezone the operand carries when the base is
+        // known-naive, via the session cast (identity in value for aware
+        // columns) as the unknown-domain fallback.
         if (metric.baseDimensionType === DimensionType.TIMESTAMP) {
             const baseDimension = this.resolveMinMaxBaseDimension(
                 metricId,
@@ -1185,10 +1186,23 @@ export class MetricQueryBuilder {
                 castNaiveAggregateToInstant,
                 castAwareToInstant,
             } = dateTruncTimezoneConversions[adapterType];
+            const operand = this.resolveMinMaxOperand(
+                metric,
+                baseDimension,
+                baseSql,
+            );
+            // The operand form decides which timezone the aggregate reads: the
+            // dimension's compiled SQL is in columnTimezone, a raw column in
+            // dataTimezone. When the compiler wrapped the dimension, a metric
+            // that inherited its SQL already aggregates the UTC expression.
+            const operandTimezone =
+                operand !== undefined && operand === baseDimension?.compiledSql
+                    ? this.columnTimezone
+                    : this.dataTimezone;
             const explicitNaive =
                 baseDimension?.timestampDomain === 'naive' &&
                 castNaiveAggregateToInstant !== null &&
-                this.dataTimezone !== 'UTC';
+                operandTimezone !== 'UTC';
             const explicitAware =
                 baseDimension?.timestampDomain === 'aware' &&
                 castAwareToInstant !== null &&
@@ -1203,7 +1217,7 @@ export class MetricQueryBuilder {
             let convert: (sql: string) => string;
             if (explicitNaive) {
                 convert = (sql: string) =>
-                    castNaiveAggregateToInstant!(sql, this.dataTimezone);
+                    castNaiveAggregateToInstant!(sql, operandTimezone);
             } else if (explicitAware) {
                 convert = castAwareToInstant!;
             } else {
@@ -1214,11 +1228,6 @@ export class MetricQueryBuilder {
             // can disagree. Falls back to the output wrap when the operand
             // isn't found, or when metric filters may repeat the column
             // reference inside compiled predicates.
-            const operand = this.resolveMinMaxOperand(
-                metric,
-                baseDimension,
-                baseSql,
-            );
             if (operand && !metric.filters?.length) {
                 return baseSql.replace(
                     MetricQueryBuilder.sqlReferenceBoundary(operand),
@@ -1283,10 +1292,11 @@ export class MetricQueryBuilder {
 
     /**
      * The column expression a MIN/MAX metric aggregates, as it appears inside
-     * the compiled metric SQL. The dimension's compiledSql matches everywhere
-     * except wrap-enabled Snowflake, where the metric aggregates the bare
-     * column while the dimension SQL is compile-time wrapped — the bare
-     * reference is reconstructed from the table and dimension name.
+     * the compiled metric SQL. The dimension's compiledSql matches unless the
+     * compiler wrapped the dimension: then only a metric that inherited the
+     * dimension SQL aggregates the wrapped expression, while one written
+     * against the source column aggregates the raw column, which is
+     * reconstructed from the table and dimension name.
      */
     private resolveMinMaxOperand(
         metric: CompiledMetric,
@@ -2565,6 +2575,11 @@ export class MetricQueryBuilder {
                     warehouseSqlBuilder,
                 );
 
+                // An unnested table's FROM item already carries its alias
+                // (and the offset alias that must follow it).
+                if (explore.tables[join.table].nestedFrom) {
+                    return `${joinType} ${joinTable}\n  ON ${parsedSqlOn}`;
+                }
                 return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
             })
             .join('\n');
@@ -2725,6 +2740,7 @@ export class MetricQueryBuilder {
         const { tablesWithMetricInflation, joinWithoutRelationship } =
             findTablesWithMetricInflation({
                 tables: explore.tables,
+                warnings: explore.warnings,
                 possibleJoins: explore.joinedTables,
                 baseTable: explore.baseTable,
                 joinedTables,
@@ -2910,14 +2926,19 @@ export class MetricQueryBuilder {
             const metricsInCte: CompiledMetric[] = [];
 
             if (table?.primaryKey === undefined) {
-                // We can't handle deduplication if table doesn't have primary key
-                warnings.push({
-                    message: `Table **"${tableName}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
-                    tables: [tableName],
-                });
+                // Deduplication needs a primary key. An unnested table cannot
+                // declare one, so its metrics only get the inflation notice.
+                if (!table?.nestedFrom) {
+                    warnings.push({
+                        message: `Table **"${tableName}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                        tables: [tableName],
+                    });
+                }
                 metricsFromTable.forEach((metric) => {
                     warnings.push({
-                        message: `Metric **"${metric.label}"** could be inflated due to table missing primary key definition. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                        message: table?.nestedFrom
+                            ? `Metric **"${metric.label}"** could be inflated by another unnested repeated column. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`
+                            : `Metric **"${metric.label}"** could be inflated due to table missing primary key definition. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
                         fields: [getItemId(metric)],
                         tables: [metric.table],
                     });
@@ -5444,6 +5465,12 @@ export class MetricQueryBuilder {
             // Log error but don't block code execution
             Logger.error('Error during date-grain table calc detection', e);
         }
+        warnings.push(
+            ...findUnnestCrossProductWarnings({
+                tables: explore.tables,
+                joinedTables: joins.tables,
+            }),
+        );
 
         // Deduplicated distinct CTE: build separate CTEs for distinct metrics (sum_distinct, average_distinct), joined on dimensions
         const ddMetricIds = this.getSelectedAndReferencedMetricIds().filter(

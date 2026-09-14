@@ -1301,6 +1301,21 @@ describe('Formatting', () => {
             expect(formatItemValue(undefined, 5)).toEqual('5');
         });
 
+        test('formatItemValue serialises a structured cell of a string dimension as JSON', () => {
+            expect(
+                formatItemValue(
+                    { ...dimension, type: DimensionType.STRING },
+                    { city: 'NYC', tags: ['gift'] },
+                ),
+            ).toEqual('{"city":"NYC","tags":["gift"]}');
+            expect(
+                formatItemValue({ ...dimension, type: DimensionType.STRING }, [
+                    'gift',
+                    'rush',
+                ]),
+            ).toEqual('["gift","rush"]');
+        });
+
         test('formatItemValue should return the right format when field is Dimension', () => {
             expect(formatItemValue(dimension, undefined)).toEqual('-');
             expect(formatItemValue(dimension, null)).toEqual('∅');
@@ -2754,6 +2769,15 @@ describe('Formatting', () => {
         });
         it('should handle strings', () => {
             expect(applyDefaultFormat('foo')).toBe('foo');
+        });
+        it('serialises objects and arrays as JSON', () => {
+            expect(applyDefaultFormat({ sku: 'A1', qty: 2 })).toBe(
+                '{"sku":"A1","qty":2}',
+            );
+            expect(applyDefaultFormat(['gift', 'rush'])).toBe(
+                '["gift","rush"]',
+            );
+            expect(applyDefaultFormat([])).toBe('[]');
         });
         it('should handle numbers', () => {
             expect(applyDefaultFormat(1234567)).toBe('1,234,567');

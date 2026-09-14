@@ -137,6 +137,93 @@ describe('SpacePermissionService', () => {
         ).resolves.toBe(false);
     });
 
+    describe('space deletion during access resolution', () => {
+        const survivingSpaceUuid = 'surviving-space';
+        const deletedSpaceUuid = 'deleted-space';
+        const deniedSpaceUuid = 'denied-space';
+        const spaceUuids = [
+            survivingSpaceUuid,
+            deletedSpaceUuid,
+            deniedSpaceUuid,
+        ];
+        const user = {
+            userUuid: 'user-uuid',
+            ability: new Ability<PossibleAbilities>([
+                {
+                    action: 'view',
+                    subject: 'Space',
+                    conditions: { projectUuid: 'allowed-project' },
+                },
+            ]),
+        } as unknown as SessionUser;
+
+        beforeEach(() => {
+            mockPermissionModel.getInheritanceChains.mockResolvedValue(
+                Object.fromEntries(
+                    spaceUuids.map((spaceUuid) => [
+                        spaceUuid,
+                        {
+                            chain: [
+                                {
+                                    spaceUuid,
+                                    spaceName: spaceUuid,
+                                    inheritParentPermissions: true,
+                                },
+                            ],
+                            inheritsFromOrgOrProject: true,
+                        },
+                    ]),
+                ),
+            );
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({});
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue(
+                {},
+            );
+            // The deleted space disappeared after the inheritance-chain read.
+            mockPermissionModel.getSpaceInfo.mockResolvedValue({
+                [survivingSpaceUuid]: {
+                    projectUuid: 'allowed-project',
+                    organizationUuid: 'organization-uuid',
+                },
+                [deniedSpaceUuid]: {
+                    projectUuid: 'other-project',
+                    organizationUuid: 'organization-uuid',
+                },
+            });
+        });
+
+        test('lists surviving spaces while respecting project access', async () => {
+            await expect(
+                service.getAccessibleSpaceUuids('view', user, spaceUuids),
+            ).resolves.toEqual([survivingSpaceUuid]);
+        });
+
+        test.each([
+            { requestedSpaceUuids: [deletedSpaceUuid] },
+            { requestedSpaceUuids: [survivingSpaceUuid, deletedSpaceUuid] },
+        ])(
+            'denies access when $requestedSpaceUuids includes a deleted space',
+            async ({ requestedSpaceUuids }) => {
+                await expect(
+                    service.can('view', user, requestedSpaceUuids),
+                ).resolves.toBe(false);
+            },
+        );
+
+        test('direct access-context lookups still reject the deleted space', async () => {
+            await expect(
+                service.getAllSpaceAccessContext(deletedSpaceUuid),
+            ).rejects.toThrow(NotFoundError);
+            await expect(
+                service.resolveAccess(user.userUuid, {
+                    type: 'space',
+                    spaceUuid: deletedSpaceUuid,
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+    });
+
     test('uses the provided transaction for every access-context query', async () => {
         const spaceUuid = 'space-uuid';
         const userUuid = 'user-uuid';
@@ -1902,6 +1989,7 @@ describe('resolveAccess', () => {
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
                     grantedVia: 'dashboard',
+                    grantSourceUuid: 'dashboard-uuid',
                 },
                 {
                     userUuid: 'user-uuid',
@@ -1911,6 +1999,7 @@ describe('resolveAccess', () => {
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
                     grantedVia: 'dashboard',
+                    grantSourceUuid: 'dashboard-uuid',
                 },
             ],
             directOnly: true,
@@ -2046,11 +2135,13 @@ describe('resolveAccess', () => {
                     userUuid: 'user-uuid',
                     role: SpaceMemberRole.VIEWER,
                     grantedVia: 'app',
+                    grantSourceUuid: 'app-uuid',
                 },
                 {
                     userUuid: 'user-uuid',
                     role: SpaceMemberRole.EDITOR,
                     grantedVia: 'app',
+                    grantSourceUuid: 'app-uuid',
                 },
             ],
         });
@@ -2627,6 +2718,7 @@ describe('resolveAccess space-saved chart target', () => {
                 userUuid: 'user-uuid',
                 role: SpaceMemberRole.EDITOR,
                 grantedVia: 'saved_chart',
+                grantSourceUuid: 'chart-uuid',
             }),
         ]);
         expect(result.directOnly).toBe(true);
@@ -2728,6 +2820,7 @@ describe('resolveAccess saved SQL chart target', () => {
                 userUuid: 'user-uuid',
                 role: SpaceMemberRole.VIEWER,
                 grantedVia: 'sql_chart',
+                grantSourceUuid: 'saved-sql-uuid',
             }),
         ]);
         expect(result.directOnly).toBe(true);
@@ -2831,7 +2924,10 @@ describe('resolveAccess chart ownership routing', () => {
         });
 
         expect(result.access).toEqual([
-            expect.objectContaining({ grantedVia: 'dashboard' }),
+            expect.objectContaining({
+                grantedVia: 'dashboard',
+                grantSourceUuid: 'dashboard-uuid',
+            }),
         ]);
         expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
             ['dashboard-uuid'],

@@ -18,6 +18,7 @@ import { NumberInput } from '../../NumberInput';
 import useFiltersContext from '../useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
+import classes from './DateFilterInputs.module.css';
 import {
     getInvalidDateFilterValue,
     parseFilterDateValue,
@@ -146,7 +147,11 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 if (coarseTimeFrame) {
                     return coarseTimeFrame === TimeFrames.WEEK ? (
                         <Flex align="center" gap="xs" w="100%">
-                            <Text c="dimmed" className="ld-nowrap" size="xs">
+                            <Text
+                                c="dimmed"
+                                className={classes.weekPrefix}
+                                size="xs"
+                            >
                                 week commencing
                             </Text>
 
@@ -177,7 +182,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                             <Flex align="center" gap="xs" w="100%">
                                 <Text
                                     c="dimmed"
-                                    className="ld-nowrap"
+                                    className={classes.weekPrefix}
                                     size="xs"
                                 >
                                     week commencing

@@ -123,6 +123,7 @@ import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
+import { getExploreFromHereUrl } from '../../features/mergeQuery/utils/getExploreFromHereUrl';
 import {
     getExpectedSeriesMap,
     isPivotSeriesOrderDeterminedByQuery,
@@ -139,7 +140,7 @@ import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
-import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useExplore } from '../../hooks/useExplore';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
@@ -648,6 +649,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const {
             executeQueryResponse: {
                 appliedDashboardFilters,
+                appliedDashboardFiltersBySourceId,
                 cacheMetadata,
                 metricQuery,
                 resolvedTimezone,
@@ -656,6 +658,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             chart,
             explore,
         } = dashboardChartReadyQuery;
+        const savedMerge = chart.merge ?? null;
+        // A merged tile's filters echo per source; the other source's explore
+        // is needed to label them.
+        const additionalExploreName = savedMerge?.sources.flatMap((source) =>
+            source.kind === 'query' ? [source.metricQuery.exploreName] : [],
+        )[0];
+        const { data: additionalExplore } = useExplore(additionalExploreName, {
+            refetchOnMount: false,
+        });
 
         const { totalResults, metadata } = resultsData;
         const performance = metadata?.performance;
@@ -1035,18 +1046,26 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             },
             [explore, chart],
         );
-        const { appliedFilterRules, chartFilterItems } = useMemo(
+        const { appliedFilterItems, chartFilterItems } = useMemo(
             () =>
                 getDashboardTileFilterInfo({
                     chartFilters: chart.metricQuery.filters,
                     appliedDashboardFilters,
+                    appliedDashboardFiltersBySourceId,
+                    merge: savedMerge,
                     explore,
                 }),
-            [appliedDashboardFilters, chart.metricQuery.filters, explore],
+            [
+                appliedDashboardFilters,
+                appliedDashboardFiltersBySourceId,
+                savedMerge,
+                chart.metricQuery.filters,
+                explore,
+            ],
         );
 
         const hasFiltersToShow =
-            appliedFilterRules.length > 0 || chartFilterItems.length > 0;
+            appliedFilterItems.length > 0 || chartFilterItems.length > 0;
 
         const chartWithDashboardFilters = useMemo(
             () => ({
@@ -1059,13 +1078,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             !userCanUseCustomFields &&
             chartWithDashboardFilters.metricQuery?.customDimensions;
 
-        const { pathname: chartPathname, search: chartSearch } = useMemo(() => {
-            return getExplorerUrlFromCreateSavedChartVersion(
-                chartWithDashboardFilters.projectUuid,
-                chartWithDashboardFilters,
-                true,
-            );
-        }, [chartWithDashboardFilters]);
+        // A merged result is not a query the Explorer can open; a merged
+        // chart reopens from its own primary query plus its merge instead.
+        const { pathname: chartPathname, search: chartSearch } = useMemo(
+            () =>
+                getExploreFromHereUrl(
+                    savedMerge ? chart : chartWithDashboardFilters,
+                ),
+            [savedMerge, chart, chartWithDashboardFilters],
+        );
 
         const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
         const showComments = useDashboardContext(
@@ -1156,7 +1177,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 >
                                     <HoverCard.Dropdown>
                                         <Stack gap="xs" align="flex-start">
-                                            {appliedFilterRules.length > 0 && (
+                                            {appliedFilterItems.length > 0 && (
                                                 <>
                                                     <Text
                                                         c="ldGray.7"
@@ -1164,18 +1185,35 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         fz="xs"
                                                     >
                                                         Dashboard filter
-                                                        {appliedFilterRules.length >
+                                                        {appliedFilterItems.length >
                                                         1
                                                             ? 's'
                                                             : ''}{' '}
                                                         applied:
                                                     </Text>
-                                                    {appliedFilterRules.map(
-                                                        (filterRule) => {
+                                                    {appliedFilterItems.map(
+                                                        ({
+                                                            filterRule,
+                                                            sourceId,
+                                                            sourceExploreName,
+                                                        }) => {
+                                                            const sourceExplore =
+                                                                sourceExploreName ===
+                                                                    null ||
+                                                                sourceExploreName ===
+                                                                    explore?.name
+                                                                    ? explore
+                                                                    : additionalExplore;
+                                                            const sourceLabel =
+                                                                sourceExploreName ===
+                                                                null
+                                                                    ? null
+                                                                    : (sourceExplore?.label ??
+                                                                      sourceExploreName);
                                                             const fields: Field[] =
-                                                                explore
+                                                                sourceExplore
                                                                     ? getVisibleFields(
-                                                                          explore,
+                                                                          sourceExplore,
                                                                       )
                                                                     : [];
 
@@ -1208,9 +1246,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 );
                                                             return (
                                                                 <Badge
-                                                                    key={
-                                                                        filterRule.id
-                                                                    }
+                                                                    key={`${sourceId ?? ''}:${filterRule.id}`}
                                                                     variant="outline"
                                                                     color="ldGray.4"
                                                                     size="lg"
@@ -1218,6 +1254,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     fw="normal"
                                                                     c="black"
                                                                 >
+                                                                    {sourceLabel !==
+                                                                        null && (
+                                                                        <Text
+                                                                            span
+                                                                            inherit
+                                                                            c="ldGray.6"
+                                                                        >
+                                                                            {
+                                                                                sourceLabel
+                                                                            }{' '}
+                                                                            ·{' '}
+                                                                        </Text>
+                                                                    )}
                                                                     <Text
                                                                         fw={600}
                                                                         span
@@ -1550,6 +1599,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                 <EditChartMenuItem
                                                     tile={props.tile}
                                                     chartSlug={chart.slug}
+                                                    chart={chart}
                                                     disabled={
                                                         isEditMode ||
                                                         !userCanManageChart
@@ -1783,19 +1833,41 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             </Menu.Dropdown>
                         </Menu>
 
-                        <ValidDashboardChartTile
-                            tileUuid={tileUuid}
-                            dashboardChartReadyQuery={dashboardChartReadyQuery}
-                            resultsData={resultsData}
-                            project={chart.projectUuid}
-                            isTitleHidden={hideTitle}
-                            colorPaletteOverride={props.colorPaletteOverride}
-                            darkColorPaletteOverride={
-                                props.darkColorPaletteOverride
-                            }
-                            onSeriesContextMenu={onSeriesContextMenu}
-                            setEchartsRef={setEchartRef}
-                        />
+                        <Box
+                            w="100%"
+                            h="100%"
+                            miw={0}
+                            mih={0}
+                            // Walkthrough result marker for view:Dashboard:
+                            // the chart, re-zoomed, is where reading a
+                            // dashboard ends. The first chart tile on the
+                            // page gets the ring. See scripts/scope-tours.
+                            data-tour-scope="view:Dashboard"
+                            data-tour-step="1"
+                            data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                            data-tour-label="A dashboard is one view of many charts"
+                            data-tour-docs="explore/dashboards.mdx#intro:1"
+                            data-tour-return="none"
+                            data-tour-resultdocs="explore/dashboards/interact.mdx#change-the-date-granularity:1"
+                        >
+                            <ValidDashboardChartTile
+                                tileUuid={tileUuid}
+                                dashboardChartReadyQuery={
+                                    dashboardChartReadyQuery
+                                }
+                                resultsData={resultsData}
+                                project={chart.projectUuid}
+                                isTitleHidden={hideTitle}
+                                colorPaletteOverride={
+                                    props.colorPaletteOverride
+                                }
+                                darkColorPaletteOverride={
+                                    props.darkColorPaletteOverride
+                                }
+                                onSeriesContextMenu={onSeriesContextMenu}
+                                setEchartsRef={setEchartRef}
+                            />
+                        </Box>
                     </>
                 </TileBase>
 

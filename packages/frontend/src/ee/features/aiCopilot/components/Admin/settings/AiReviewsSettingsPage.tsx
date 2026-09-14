@@ -141,7 +141,7 @@ export const AiReviewsSettingsPage = () => {
                     description={
                         <>
                             An actionable queue of data issues from AI findings
-                            and human asks. Semantic layer fixes open a dbt pull
+                            and human asks. Semantic layer fixes open a pull
                             request; project context fixes add guidance your
                             agents read before answering.
                         </>

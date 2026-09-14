@@ -31,11 +31,11 @@ import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
-import { useChartTypeOptions } from '../VisualizationCardOptions/useChartTypeOptions';
 import ExplorerChartTypeGallery, {
     ChartTypeThumbnail,
 } from './ChartTypeGallery';
 import classes from './ExplorerChartSidebar.module.css';
+import { useChartTypeOptions } from './useChartTypeOptions';
 
 type Props = {
     chartType: ChartType;
@@ -213,12 +213,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                 )}
                             </Group>
 
-                            <VisualizationConfig
-                                chartType={chartType}
-                                onClose={onClose}
-                                withHeader={false}
-                                withChartTypePicker={false}
-                            />
+                            <VisualizationConfig chartType={chartType} />
                         </Stack>
                     )}
                 </Stack>

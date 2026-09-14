@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { Paper, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import useApp from '../../../providers/App/useApp';
 import AdminContentViewFilter from '../ResourceView/AdminContentViewFilter';
 import Tree from '../Tree/Tree';
@@ -81,10 +81,12 @@ const SpaceSelector = ({
 
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 200);
+    // Deferred so a large tree re-render never blocks the next keystroke.
+    const deferredSearchQuery = useDeferredValue(debouncedSearchQuery);
 
     const fuzzyFilteredSpaces = useFuzzyTreeSearch(
         filteredSpaces,
-        debouncedSearchQuery,
+        deferredSearchQuery,
     );
 
     return (
@@ -115,6 +117,10 @@ const SpaceSelector = ({
 
             <Paper w="100%" h={400} className={styles.treeContainer}>
                 <Tree
+                    // Scope-tour anchor on every space node, named by label
+                    // (the hint's {value} is the space name):
+                    //   data-tour-anchor="space-option" data-tour-hint="Choose the {value} space"
+                    nodeTourAnchor="space-option"
                     withRootSelectable={isRootSelectionEnabled}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}

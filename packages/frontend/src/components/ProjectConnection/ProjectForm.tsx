@@ -1,7 +1,8 @@
-import { ProjectType, type DbtProjectType } from '@lightdash/common';
+import { ProjectType, DbtProjectType } from '@lightdash/common';
 import { TextInput, Flex, Stack, Text, Title, Avatar } from '@mantine/core';
 import { type FC } from 'react';
 import useApp from '../../providers/App/useApp';
+import LightdashLogo from '../../svgs/logo-icon.svg';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -32,6 +33,10 @@ export const ProjectForm: FC<Props> = ({
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
     const warehouse = form.values.warehouse.type;
+    const isNative =
+        (form.values.dbt.type === DbtProjectType.GITHUB ||
+            form.values.dbt.type === DbtProjectType.BITBUCKET) &&
+        form.values.dbt.semanticLayer === 'lightdash';
 
     return (
         <Stack gap="xl">
@@ -78,7 +83,7 @@ export const ProjectForm: FC<Props> = ({
                         disabled={disabled}
                         isProjectUpdate={isProjectUpdate}
                     >
-                        {warehouseOnly &&
+                        {(warehouseOnly || isNative) &&
                             warehouse &&
                             !form.values
                                 .organizationWarehouseCredentialsUuid && (
@@ -95,10 +100,14 @@ export const ProjectForm: FC<Props> = ({
             {!warehouseOnly && (
                 <SettingsGridCard>
                     <div>
-                        <Avatar size="md" src={DbtLogo} alt="dbt icon" />
+                        <Avatar
+                            size="md"
+                            src={isNative ? LightdashLogo : DbtLogo}
+                            alt={isNative ? 'Lightdash icon' : 'dbt icon'}
+                        />
 
                         <Flex align="center" gap={2}>
-                            <Title order={5}>dbt connection</Title>
+                            <Title order={5}>Semantic layer connection</Title>
                             <DocumentationHelpButton
                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
                                 pos="relative"
@@ -116,9 +125,11 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            {savedProject && savedProject.type !== ProjectType.PREVIEW && (
-                <DbtSourcesPanel projectUuid={savedProject.projectUuid} />
-            )}
+            {savedProject &&
+                savedProject.type !== ProjectType.PREVIEW &&
+                !isNative && (
+                    <DbtSourcesPanel projectUuid={savedProject.projectUuid} />
+                )}
         </Stack>
     );
 };

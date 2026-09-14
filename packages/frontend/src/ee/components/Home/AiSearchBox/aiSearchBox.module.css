@@ -108,3 +108,7 @@
         margin-right: 4px !important;
     }
 }
+
+.loadingCard {
+    overflow: hidden;
+}

@@ -16,18 +16,18 @@ import {
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
+import {
+    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+    FILTER_EXPRESSION_GUIDANCE_SECTION,
+    STRUCTURED_FILTER_GUIDANCE_SECTION,
+    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+} from './filterGuidance';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
-import {
-    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
-    FILTER_EXPRESSION_GUIDANCE_SECTION,
-    STRUCTURED_FILTER_GUIDANCE_SECTION,
-    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
-} from './systemV2FilterGuidance';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     REPO_FS_SECTION,
@@ -39,7 +39,18 @@ import { getRunSqlSection } from './systemV2RunSql';
 import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
+import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+
+const getDataAccessSection = (
+    enableDataAccess: boolean,
+    slackLinksOnly: boolean,
+): string => {
+    if (slackLinksOnly) return getSlackLinksOnlySection(enableDataAccess);
+    return enableDataAccess
+        ? DATA_ACCESS_ENABLED_SECTION
+        : DATA_ACCESS_DISABLED_SECTION;
+};
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
@@ -69,6 +80,8 @@ export const getSystemPromptV2 = (args: {
     // Originating Slack channel for "this channel" scheduling targets; null on
     // web and MCP prompts.
     slackChannelId?: string | null;
+    // Org Slack setting: the answer may not carry query results into Slack.
+    slackLinksOnly?: boolean;
     canRunSql?: boolean;
     // When composer queries are on, the standalone runSql tool is withheld
     // and raw SQL runs as `sql` nodes inside runComposerQueries instead.
@@ -100,6 +113,7 @@ export const getSystemPromptV2 = (args: {
         enableGenerateDataApp = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
+        slackLinksOnly = false,
         canRunSql = false,
         enableComposerQueries = false,
         enableMergeQueries = false,
@@ -292,9 +306,7 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{data_access_section}}',
-            enableDataAccess
-                ? DATA_ACCESS_ENABLED_SECTION
-                : DATA_ACCESS_DISABLED_SECTION,
+            getDataAccessSection(enableDataAccess, slackLinksOnly),
         )
         .replace(
             '{{run_sql_section}}',
@@ -384,7 +396,7 @@ export const getSystemPromptV2 = (args: {
         "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
         '- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.',
         "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
-        '- Table filters marked `required` are hard constraints: they are always applied to queries on that table. You may provide a compatible filter on the same field when the user asks for a specific range, e.g. if `created_at inThePast [4 weeks]` is required, `created_at inThePast [10 months]` or `created_at inThePast [2 days]` is compatible.',
+        "- Table filters marked `required` require every query to filter that field, but their configured operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field; it replaces the configured default. For example, if `created_at inThePast [4 weeks]` is required, use `created_at inThePast [10 months]` when the user asks for ten months. Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it.",
         '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
         '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
         '- Once you have the fieldIds you need, build the query. Do NOT re-grep for fields you already found, and do not call grepFields again between generateVisualization attempts — if a query fails, fix the query itself (filters, metric, grain), not the discovery. If you need a filter value you are unsure of (e.g. which status string exists), use searchFieldValues rather than guessing.',

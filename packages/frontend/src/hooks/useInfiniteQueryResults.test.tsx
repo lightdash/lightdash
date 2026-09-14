@@ -204,6 +204,71 @@ describe('useInfiniteQueryResults', () => {
         expect(result.current.error?.error?.name).toBe('RedshiftIamTokenError');
     });
 
+    it('surfaces a rejected BigQuery refresh token as a token error', async () => {
+        const errorResponse: ApiGetAsyncQueryResults = {
+            queryUuid: 'q1',
+            status: QueryHistoryStatus.ERROR,
+            error: 'Google rejected the BigQuery refresh token (invalid_grant: Token has been expired or revoked.; invalid_rapt). Reconnect your BigQuery account in personal settings.',
+            erroredAt: new Date(),
+        };
+        mockGetResultsPage.mockResolvedValue(errorResponse);
+
+        const { result } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.error).not.toBeNull();
+        });
+
+        expect(result.current.error?.error?.name).toBe('BigqueryTokenError');
+        expect(result.current.error?.error?.statusCode).toBe(401);
+    });
+
+    it('leaves a bare invalid_grant message as a generic error', async () => {
+        const errorResponse: ApiGetAsyncQueryResults = {
+            queryUuid: 'q1',
+            status: QueryHistoryStatus.ERROR,
+            error: 'invalid_grant',
+            erroredAt: new Date(),
+        };
+        mockGetResultsPage.mockResolvedValue(errorResponse);
+
+        const { result } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.error).not.toBeNull();
+        });
+
+        expect(result.current.error?.error?.name).toBe('Error');
+        expect(result.current.error?.error?.statusCode).toBe(500);
+    });
+
+    it('leaves an unrelated query failure as a generic error', async () => {
+        const errorResponse: ApiGetAsyncQueryResults = {
+            queryUuid: 'q1',
+            status: QueryHistoryStatus.ERROR,
+            error: 'BigQuery quota exceeded. Query exceeded the daily quota',
+            erroredAt: new Date(),
+        };
+        mockGetResultsPage.mockResolvedValue(errorResponse);
+
+        const { result } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.error).not.toBeNull();
+        });
+
+        expect(result.current.error?.error?.name).toBe('Error');
+    });
+
     it('resets pages when queryUuid changes', async () => {
         const page1Q1 = makeReadyPage(1, { queryUuid: 'q1', rows: 5 });
         const page1Q2 = makeReadyPage(1, { queryUuid: 'q2', rows: 3 });

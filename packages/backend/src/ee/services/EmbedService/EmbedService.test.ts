@@ -1,9 +1,12 @@
-import { Ability } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    applyEmbedScopeAbilities,
+    buildAbilityFromScopes,
     ForbiddenError,
     type AnonymousAccount,
     type CreateEmbedJwt,
     type EmbedContent,
+    type MemberAbility,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -25,6 +28,129 @@ describe('EmbedService', () => {
         service = new EmbedService(EmbedServiceArgumentsMock);
         vi.clearAllMocks();
     });
+
+    test.each([undefined, 'default', 'roles'] as const)(
+        'dashboard response permissions in %s mode',
+        async (permissionsMode) => {
+            const fields = [
+                'canExportCsv',
+                'canExportDashboardCsv',
+                'canExportImages',
+                'canExportPagePdf',
+                'canDateZoom',
+                'canExplore',
+                'canViewUnderlyingData',
+                'canViewDataApps',
+            ] as const;
+            const dashboard = {
+                uuid: 'dashboard',
+                projectUuid: mockProjectUuid,
+                organizationUuid: mockOrganizationUuid,
+                tiles: [],
+            };
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi
+                        .fn()
+                        .mockResolvedValue({ allowAllDashboards: true }),
+                },
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
+                },
+                savedChartModel: {
+                    resolveColorPalette: vi
+                        .fn()
+                        .mockResolvedValue({ colors: [], darkColors: null }),
+                },
+                analytics: { trackAccount: vi.fn() },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            await Promise.all(
+                [undefined, false, true].flatMap((flag) =>
+                    [false, true].map(async (granted) => {
+                        const builder = new AbilityBuilder<MemberAbility>(
+                            Ability,
+                        );
+                        if (granted)
+                            builder.can(
+                                'view',
+                                [
+                                    'EmbedCsvExport',
+                                    'EmbedDashboardCsvExport',
+                                    'EmbedImageExport',
+                                    'EmbedPagePdfExport',
+                                    'EmbedDateZoom',
+                                    'EmbedExplore',
+                                    'EmbedUnderlyingData',
+                                    'EmbedDataApps',
+                                ],
+                                { projectUuid: mockProjectUuid },
+                            );
+                        const account = {
+                            ...mockAccountWithPermission,
+                            authentication: {
+                                type: 'jwt',
+                                source: 'token',
+                                data: {
+                                    content: {
+                                        type: 'dashboard',
+                                        dashboardUuid: 'dashboard',
+                                        ...Object.fromEntries(
+                                            fields.map((field) => [
+                                                field,
+                                                flag,
+                                            ]),
+                                        ),
+                                    },
+                                    writeActions: {
+                                        userUuid: mockUserUuid,
+                                        spaceUuid: 'space',
+                                        permissionsMode,
+                                    },
+                                },
+                            },
+                            access: { content: { dashboardUuid: 'dashboard' } },
+                            user: {
+                                ...mockAccountWithPermission.user,
+                                ability: builder.build(),
+                            },
+                        } as unknown as AnonymousAccount;
+                        const embedBuilder = new AbilityBuilder<MemberAbility>(
+                            Ability,
+                        );
+                        applyEmbedScopeAbilities({
+                            embedUser: account.authentication.data,
+                            embed: {
+                                projectUuid: mockProjectUuid,
+                                organization: {
+                                    organizationUuid: mockOrganizationUuid,
+                                    name: 'Test',
+                                },
+                            },
+                            embedWriteUserAbility: builder.build(),
+                            builder: embedBuilder,
+                        });
+                        account.user.ability = embedBuilder.build();
+                        const result = await scopedService.getDashboard(
+                            mockProjectUuid,
+                            account,
+                        );
+                        for (const field of fields) {
+                            const jwtPermission =
+                                field === 'canExportPagePdf'
+                                    ? (flag ?? true)
+                                    : flag;
+                            const expected =
+                                permissionsMode === 'roles'
+                                    ? granted
+                                    : jwtPermission;
+                            expect(result[field]).toBe(expected);
+                        }
+                    }),
+                ),
+            );
+        },
+    );
 
     describe('updateConfig', () => {
         const validDashboardUpdate = {
@@ -445,6 +571,183 @@ describe('EmbedService', () => {
             ).resolves.toMatchObject({
                 canUpdateSavedChart: false,
             });
+        });
+    });
+
+    describe('embedded AI scope', () => {
+        test.each([
+            {
+                name: 'old JWT without scope',
+                legacy: true,
+                scope: 'view:AiAgent',
+                allowed: true,
+            },
+            {
+                name: 'explicit default mode without scope',
+                legacy: true,
+                explicitDefault: true,
+                scope: 'view:AiAgent',
+                allowed: true,
+            },
+            {
+                name: 'legacy service account without scope',
+                legacy: true,
+                serviceAccount: true,
+                scope: 'view:AiAgent',
+                allowed: true,
+            },
+            {
+                name: 'legacy still requires chart creation',
+                legacy: true,
+                canCreate: false,
+                allowed: false,
+            },
+            {
+                name: 'legacy still requires project access',
+                legacy: true,
+                canView: false,
+                allowed: false,
+            },
+            {
+                name: 'legacy dashboard cannot access AI',
+                legacy: true,
+                dashboard: true,
+                allowed: false,
+            },
+            { name: 'user with project scope', allowed: true },
+            {
+                name: 'service account with scope',
+                serviceAccount: true,
+                allowed: true,
+            },
+            {
+                name: 'organization scope',
+                organizationScope: true,
+                allowed: true,
+            },
+            { name: 'missing scope', scope: 'view:AiAgent', allowed: false },
+            {
+                name: 'another project scope',
+                scopeUuid: 'other-project',
+                allowed: false,
+            },
+            {
+                name: 'another organization scope',
+                organizationScope: true,
+                scopeUuid: 'other-org',
+                allowed: false,
+            },
+            {
+                name: 'no chart creation permission',
+                canCreate: false,
+                allowed: false,
+            },
+            { name: 'no project access', canView: false, allowed: false },
+            { name: 'dashboard JWT', dashboard: true, allowed: false },
+            {
+                name: 'write space in another project',
+                spaceProjectUuid: 'other-project',
+                allowed: false,
+            },
+            { name: 'no write actor', noActor: true, allowed: undefined },
+            {
+                name: 'no writeActions',
+                noWriteActions: true,
+                allowed: undefined,
+            },
+        ])('$name', async ({ allowed, ...scenario }) => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            const target = {
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+            };
+            if (scenario.canCreate !== false)
+                builder.can('create', 'SavedChart', target);
+            if (scenario.canView !== false)
+                builder.can('view', 'Project', target);
+            buildAbilityFromScopes(
+                {
+                    userUuid: mockUserUuid,
+                    scopes: [scenario.scope ?? 'view:EmbedAiAgent'],
+                    isEnterprise: true,
+                    ...(scenario.organizationScope
+                        ? {
+                              organizationUuid:
+                                  scenario.scopeUuid ?? mockOrganizationUuid,
+                          }
+                        : {
+                              projectUuid:
+                                  scenario.scopeUuid ?? mockProjectUuid,
+                          }),
+                },
+                builder,
+            );
+            const actor = {
+                ...mockAccountWithPermission.user,
+                // Authorization must use the target organization, not the actor's.
+                organizationUuid: 'actor-org',
+                ability: builder.build(),
+            } as unknown as SessionUser;
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue(target),
+                },
+                spacePermissionService: {
+                    resolveAccess: vi.fn().mockResolvedValue({
+                        ...target,
+                        projectUuid:
+                            scenario.spaceProjectUuid ?? mockProjectUuid,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                    }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const getContext = (
+                scopedService as unknown as {
+                    getEmbedWriteContext: (
+                        token: CreateEmbedJwt,
+                        user: SessionUser | undefined,
+                        projectUuid: string,
+                        content: EmbedContent,
+                    ) => Promise<AnonymousAccount['embedWriteContext']>;
+                }
+            ).getEmbedWriteContext.bind(scopedService);
+            const content = scenario.dashboard
+                ? { type: 'dashboard' as const, dashboardUuid: 'dashboard' }
+                : { type: 'aiAgent' as const, agentUuid: 'agent' };
+            const defaultMode = scenario.explicitDefault
+                ? 'default'
+                : undefined;
+            const context = await getContext(
+                {
+                    content,
+                    ...(scenario.noWriteActions
+                        ? {}
+                        : {
+                              writeActions: {
+                                  spaceUuid: 'space',
+                                  permissionsMode: scenario.legacy
+                                      ? defaultMode
+                                      : 'roles',
+                                  ...(scenario.serviceAccount
+                                      ? { serviceAccountUserUuid: mockUserUuid }
+                                      : { userUuid: mockUserUuid }),
+                              },
+                          }),
+                },
+                scenario.noActor ? undefined : actor,
+                mockProjectUuid,
+                { ...content, chartUuids: [], explores: [] },
+            );
+            expect(context?.canUseAiAgent).toBe(allowed);
+            if (allowed === false)
+                expect(context?.aiAgentErrorMessage).toBeTruthy();
+            if (scenario.scope === 'view:AiAgent' && !allowed) {
+                expect(context?.aiAgentErrorMessage).toBe(
+                    'Embed token write actor cannot use embedded AI agents',
+                );
+            }
         });
     });
 

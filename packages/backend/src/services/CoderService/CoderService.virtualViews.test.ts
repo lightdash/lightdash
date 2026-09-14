@@ -98,6 +98,7 @@ const buildService = (existing: Explore | null = virtualView) => {
         projectModel: projectModel as never,
         savedChartModel: {} as never,
         savedSqlModel: {} as never,
+        directAccessService: {} as never,
         appModel: {} as never,
         dashboardModel: {} as never,
         spaceModel: {} as never,

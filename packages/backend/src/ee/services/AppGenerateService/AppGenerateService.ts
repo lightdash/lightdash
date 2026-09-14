@@ -18,6 +18,7 @@ import {
     assertEmbeddedAuth,
     assertUnreachable,
     ChartType,
+    chartTypeIconSchema,
     checkThemeLimits,
     compareSemverVersions,
     DATA_APP_CLAUDE_MODELS,
@@ -28,6 +29,7 @@ import {
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DEFAULT_DATA_APP_CODEX_MODEL,
+    DirectAccessResourceType,
     extractDataAppDataReferences,
     extractLockfilePackages,
     FeatureFlags,
@@ -38,7 +40,10 @@ import {
     getCustomSqlFieldKey,
     getEffectiveFieldAiHints,
     getErrorMessage,
+    getSdkFeaturesForTarget,
+    getSdkFeatureTargetForTemplate,
     getVisibleDataAppClaudeModels,
+    isChartTypeIcon,
     isDashboardChartTileType,
     isExploreError,
     isSemverVersion,
@@ -57,6 +62,7 @@ import {
     validateDataAppDependencies,
     type Account,
     type AnonymousAccount,
+    type ApiDuplicateAppResponse,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
@@ -75,6 +81,7 @@ import {
     type ChartConfig,
     type ChartReference,
     type ChartSampleData,
+    type ChartTypeIcon,
     type CompiledExploreJoin,
     type CompiledTable,
     type DashboardBlueprint,
@@ -115,9 +122,11 @@ import {
     type RegistryChartTypeListItem,
     type RegistryChartTypeState,
     type SavedChart,
+    type SdkFeatureTarget,
     type SessionUser,
     type TogglePinnedItemInfo,
     type UpgradeAppRequestBody,
+    type UpgradeCandidateFeature,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { Knex } from 'knex';
@@ -2123,37 +2132,71 @@ export class AppGenerateService extends BaseService {
         keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
     ): void {
-        emitAiUsage(
-            getAiCallTelemetry({
-                functionId: 'appClaudeGeneration',
-                feature: 'data-app',
-                organizationUuid: payload.organizationUuid,
-                projectUuid: payload.projectUuid,
-                userUuid: payload.userUuid,
-                model,
-                provider,
-                keyManagement,
-                extra: {
-                    appUuid: payload.appUuid,
-                    appVersion: payload.version,
+        const emit = (
+            resolvedModel: string,
+            tokens: Pick<
+                ClaudeGenerationUsage,
+                | 'inputTokens'
+                | 'outputTokens'
+                | 'cacheReadInputTokens'
+                | 'cacheCreationInputTokens'
+            >,
+        ) =>
+            emitAiUsage(
+                getAiCallTelemetry({
+                    functionId: 'appClaudeGeneration',
+                    feature: 'data-app',
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    userUuid: payload.userUuid,
+                    model: resolvedModel,
+                    provider,
+                    keyManagement,
+                    extra: {
+                        appUuid: payload.appUuid,
+                        appVersion: payload.version,
+                        codingAgentModel: model,
+                    },
+                }),
+                {
+                    // input_tokens is inclusive of cache reads and writes; the
+                    // warehouse derives the uncached share by subtraction.
+                    inputTokens:
+                        tokens.inputTokens +
+                        tokens.cacheReadInputTokens +
+                        tokens.cacheCreationInputTokens,
+                    outputTokens: tokens.outputTokens,
+                    cacheReadTokens: tokens.cacheReadInputTokens,
+                    cacheWriteTokens: tokens.cacheCreationInputTokens,
+                    reasoningTokens: null,
+                    totalTokens:
+                        tokens.inputTokens +
+                        tokens.cacheReadInputTokens +
+                        tokens.cacheCreationInputTokens +
+                        tokens.outputTokens,
                 },
-            }),
-            {
-                inputTokens:
-                    usage.inputTokens +
-                    usage.cacheReadInputTokens +
-                    usage.cacheCreationInputTokens,
-                outputTokens: usage.outputTokens,
-                cacheReadTokens: usage.cacheReadInputTokens,
-                cacheWriteTokens: usage.cacheCreationInputTokens,
-                reasoningTokens: null,
-                totalTokens:
-                    usage.inputTokens +
-                    usage.cacheReadInputTokens +
-                    usage.cacheCreationInputTokens +
-                    usage.outputTokens,
-            },
+            );
+
+        // The run is launched with a tier alias (`opus`, `sonnet`) that the
+        // CLI resolves to a concrete model, and subagents can run on another
+        // model again. Anthropic bills by the concrete model, so when the CLI
+        // reports the per-model split, emit one usage event per model it
+        // actually called; the alias is kept in `extra.codingAgentModel`.
+        const perModel = Object.entries(usage.modelUsage ?? {}).filter(
+            ([, tokens]) =>
+                tokens.inputTokens +
+                    tokens.outputTokens +
+                    tokens.cacheReadInputTokens +
+                    tokens.cacheCreationInputTokens >
+                0,
         );
+        if (perModel.length > 0) {
+            perModel.forEach(([resolvedModel, tokens]) =>
+                emit(resolvedModel, tokens),
+            );
+            return;
+        }
+        emit(model, usage);
     }
 
     /**
@@ -2220,11 +2263,18 @@ export class AppGenerateService extends BaseService {
                 generationUsage.numTurns > 0 ||
                 generationUsage.costUsd > 0)
         ) {
+            const claudeProvider = telemetry.claudeProvider ?? 'anthropic';
             AppGenerateService.emitDataAppAiUsage(
                 payload,
                 codingAgentModel,
-                telemetry.claudeProvider ?? 'anthropic',
-                telemetry.keyManagement ?? 'lightdash-managed',
+                claudeProvider,
+                // Fall back to the instance rule rather than assuming the key
+                // is Lightdash's: on self-hosted installs it never is.
+                telemetry.keyManagement ??
+                    resolveKeyManagement(
+                        this.lightdashConfig.ai.copilot,
+                        claudeProvider,
+                    ),
                 generationUsage,
             );
             await this.recordGenerationUsage(payload, generationUsage);
@@ -2845,7 +2895,7 @@ export class AppGenerateService extends BaseService {
                     alias: doc.alias,
                     ...(instructions ? { instructions } : {}),
                     signature:
-                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
+                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; headers: Record<string, string>; body: unknown; truncated: boolean }>",
                     origin: doc.origin,
                     browserImageOrigin: doc.browserImageOrigin,
                     // The single most-misread thing: `path` is the COMPLETE path from
@@ -2856,7 +2906,7 @@ export class AppGenerateService extends BaseService {
                         "query is Record<string, string> — EVERY value must be a string. Write { latitude: '52.52' }, never { latitude: 52.52 }. Numbers and booleans are rejected with a 422.",
                         `path is the COMPLETE path appended to the origin (requestUrl = origin + path). Pass the full path starting from the origin — e.g. "${examplePath}" — and make sure it starts with one of allowedPathPrefixes. Do NOT shorten it to the trailing segment and do NOT assume the origin or prefix is auto-prepended.`,
                         'method must be one of allowedMethods.',
-                        'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
+                        'Read the response from result.body. result.status is the upstream HTTP status; result.headers contains safe upstream response headers with lowercase names; result.truncated is true if the response was capped.',
                         'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
                         ...(doc.browserImageOrigin
                             ? [
@@ -4044,6 +4094,9 @@ export class AppGenerateService extends BaseService {
      * mirrors the clarify flow (org-resolved copilot config, BYO-key-aware
      * fast model). Returns a null name when no provider is configured or the
      * response is unusable — the app keeps its "Untitled" fallback.
+     *
+     * For a chart type the same call also suggests a curated icon, so the
+     * icon costs no extra model round trip.
      */
     private async generateAppMetadataFromPrompt(
         appUuid: string,
@@ -4051,7 +4104,12 @@ export class AppGenerateService extends BaseService {
         organizationUuid: string,
         projectUuid: string,
         userUuid: string,
-    ): Promise<{ name: string | null; description: string }> {
+        isChartType: boolean,
+    ): Promise<{
+        name: string | null;
+        description: string;
+        icon: ChartTypeIcon | null;
+    }> {
         const copilot =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
@@ -4067,7 +4125,7 @@ export class AppGenerateService extends BaseService {
             this.logger.info(
                 `App ${appUuid}: skipping auto-name — no LLM provider configured (${getErrorMessage(err)})`,
             );
-            return { name: null, description: '' };
+            return { name: null, description: '', icon: null };
         }
 
         const metadataSchema = z.object({
@@ -4079,6 +4137,13 @@ export class AppGenerateService extends BaseService {
             description: z
                 .string()
                 .describe('One-sentence description of what the app shows'),
+            ...(isChartType
+                ? {
+                      icon: chartTypeIconSchema.describe(
+                          'Icon from the list that best represents how the chart looks',
+                      ),
+                  }
+                : {}),
         });
 
         const METADATA_TIMEOUT_MS = 15_000;
@@ -4101,8 +4166,11 @@ export class AppGenerateService extends BaseService {
             messages: [
                 {
                     role: 'system',
-                    content:
-                        'You write display metadata for a data app that is being generated from the prompt the user provides. Respond with a short name (3-6 words, title case) and a one-sentence description of the app.',
+                    content: `You write display metadata for a data app that is being generated from the prompt the user provides. Respond with a short name (3-6 words, title case) and a one-sentence description of the app.${
+                        isChartType
+                            ? ' This app is a reusable chart type, so also pick the icon that best matches how the chart looks.'
+                            : ''
+                    }`,
                 },
                 { role: 'user', content: prompt },
             ],
@@ -4111,13 +4179,16 @@ export class AppGenerateService extends BaseService {
         const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
         const name = stripHtml(result.object.name).slice(0, 255);
         const description = stripHtml(result.object.description).slice(0, 1024);
+        const icon = isChartTypeIcon(result.object.icon)
+            ? result.object.icon
+            : null;
         if (!name) {
             this.logger.warn(
                 `App ${appUuid}: auto-name returned an empty name`,
             );
-            return { name: null, description };
+            return { name: null, description, icon };
         }
-        return { name, description };
+        return { name, description, icon };
     }
 
     private async runBuild(
@@ -4934,6 +5005,7 @@ export class AppGenerateService extends BaseService {
                 payload.organizationUuid,
                 projectUuid,
                 payload.userUuid,
+                isDataAppViz,
             )
                 .then(async (metadata) => {
                     if (metadata.name) {
@@ -4947,6 +5019,7 @@ export class AppGenerateService extends BaseService {
                                 {
                                     name: metadata.name,
                                     description: metadata.description,
+                                    icon: metadata.icon,
                                 },
                             );
                         this.logger.info(
@@ -6696,8 +6769,32 @@ export class AppGenerateService extends BaseService {
      * this composed instruction is what the pipeline actually sends —
      * mirrors the theme-change prompt pattern.
      */
-    private static buildUpgradePrompt(body: UpgradeAppRequestBody): string {
-        const candidates = (body.candidateFeatures ?? []).slice(0, 20);
+    /**
+     * The client computes candidates from its own registry, but the registry
+     * is the same for every bundle kind, so re-check applicability here: a
+     * chart type never gets query/Sheets/delivery features, an app never
+     * gets viz-context ones. Keys the registry does not know are dropped too.
+     */
+    private static applicableCandidateFeatures(
+        body: UpgradeAppRequestBody,
+        target: SdkFeatureTarget,
+    ): UpgradeCandidateFeature[] {
+        const applicableKeys = new Set(
+            getSdkFeaturesForTarget(target).map((f) => f.key),
+        );
+        return (body.candidateFeatures ?? [])
+            .filter((f) => applicableKeys.has(f.key))
+            .slice(0, 20);
+    }
+
+    private static buildUpgradePrompt(
+        body: UpgradeAppRequestBody,
+        target: SdkFeatureTarget,
+    ): string {
+        const candidates = AppGenerateService.applicableCandidateFeatures(
+            body,
+            target,
+        );
         const featureStep =
             candidates.length > 0
                 ? [
@@ -6740,7 +6837,10 @@ export class AppGenerateService extends BaseService {
     private static buildDataAppVizUpgradeStatusMessage(
         body: UpgradeAppRequestBody,
     ): string {
-        const candidates = (body.candidateFeatures ?? []).slice(0, 20);
+        const candidates = AppGenerateService.applicableCandidateFeatures(
+            body,
+            'chart_type',
+        );
         if (body.reportedFeatures === undefined) {
             return [
                 'Upgraded to the latest chart SDK.',
@@ -6868,6 +6968,7 @@ export class AppGenerateService extends BaseService {
         });
 
         const claudeEffort = resolveClaudeEffort(newVersion, app.template);
+        const sdkFeatureTarget = getSdkFeatureTargetForTemplate(app.template);
 
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
@@ -6875,7 +6976,10 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
-            prompt: AppGenerateService.buildUpgradePrompt(body),
+            prompt: AppGenerateService.buildUpgradePrompt(
+                body,
+                sdkFeatureTarget,
+            ),
             isIteration: true,
             isUpgrade: true,
             ...(app.template === DATA_APP_VIZ_TEMPLATE
@@ -7527,6 +7631,7 @@ export class AppGenerateService extends BaseService {
         const metadata = {
             name: sourceApp.name,
             description: sourceApp.description,
+            icon: sourceApp.icon,
             space_uuid: targetSpaceUuid,
             design_uuid: targetDesignUuid,
         };
@@ -7801,7 +7906,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         sourceAppUuid: string,
         options?: { name?: string },
-    ): Promise<GenerateAppResult> {
+    ): Promise<ApiDuplicateAppResponse['results']> {
         await this.assertDataAppsEnabled(user);
 
         const sourceApp = await this.appModel.getApp(
@@ -7874,15 +7979,17 @@ export class AppGenerateService extends BaseService {
         const duplicatePrompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
         const newAppName =
             options?.name?.trim() || `Duplicate of ${sourceDisplayName}`;
+        let newAppSlug: string;
 
         try {
-            await this.appModel.createWithVersion(
+            const { app } = await this.appModel.createWithVersion(
                 {
                     app_id: newAppUuid,
                     project_uuid: projectUuid,
                     created_by_user_uuid: user.userUuid,
                     name: newAppName,
                     description: sourceApp.description,
+                    icon: sourceApp.icon,
                     template: sourceApp.template,
                     space_uuid: null,
                     // A fork is a plain local chart type — registry lineage
@@ -7896,6 +8003,7 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
             );
+            newAppSlug = app.slug;
             await this.persistVersionDataReferences(
                 newAppUuid,
                 newVersion,
@@ -7932,6 +8040,7 @@ export class AppGenerateService extends BaseService {
                 appUuid: newAppUuid,
                 duplicatedFromAppUuid: sourceApp.app_id,
                 duplicatedFromVersion: sourceVersion.version,
+                duplicatedFromRegistrySlug: sourceApp.registry_slug,
             },
         });
 
@@ -7939,7 +8048,7 @@ export class AppGenerateService extends BaseService {
             `App ${newAppUuid}: duplicated from app ${sourceApp.app_id} v${sourceVersion.version} (user=${user.userUuid}, copied ${copiedKeys.length} S3 object(s))`,
         );
 
-        return { appUuid: newAppUuid, version: newVersion };
+        return { appUuid: newAppUuid, slug: newAppSlug, version: newVersion };
     }
 
     /**
@@ -8146,6 +8255,7 @@ export class AppGenerateService extends BaseService {
                     name: sourceApp.name,
                     slug: sourceApp.slug,
                     description: sourceApp.description,
+                    icon: sourceApp.icon,
                     template: sourceApp.template,
                     space_uuid: previewSpaceUuid,
                     design_uuid: targetDesignUuid,
@@ -8361,6 +8471,7 @@ export class AppGenerateService extends BaseService {
         hasMore: boolean;
         latestReadyVersion: number | null;
         registrySlug: string | null;
+        icon: ChartTypeIcon | null;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -8375,6 +8486,7 @@ export class AppGenerateService extends BaseService {
         const {
             name,
             description,
+            icon,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -8470,6 +8582,8 @@ export class AppGenerateService extends BaseService {
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
             registrySlug,
+            // An icon retired from the curated set reads back as no icon.
+            icon: isChartTypeIcon(icon) ? icon : null,
         };
     }
 
@@ -8542,6 +8656,7 @@ export class AppGenerateService extends BaseService {
     ): DataAppViz {
         return {
             dataAppVizUuid: app.app_id,
+            slug: app.slug,
             name: app.name,
             description: app.description,
             projectUuid: app.project_uuid,
@@ -8550,6 +8665,8 @@ export class AppGenerateService extends BaseService {
             createdAt: app.created_at,
             createdByUserUuid: app.created_by_user_uuid,
             registrySlug: app.registry_slug,
+            // An icon retired from the curated set reads back as no icon.
+            icon: isChartTypeIcon(app.icon) ? app.icon : null,
         };
     }
 
@@ -8700,7 +8817,12 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to install chart types',
         );
 
-        const entry = await this.chartRegistryClient.getEntry(chartSlug);
+        // Install/upgrade is an explicit "check the registry now" action —
+        // bypass the index TTL so a just-published version installs
+        // immediately instead of returning "unchanged" until expiry.
+        const entry = await this.chartRegistryClient.getEntry(chartSlug, {
+            forceRefresh: true,
+        });
         if (!entry) {
             throw new NotFoundError(
                 `Chart type "${chartSlug}" not found in the registry`,
@@ -8783,6 +8905,11 @@ export class AppGenerateService extends BaseService {
                     vizSchema,
                     { registryVersion: entry.version },
                 );
+                // Registry-installed apps are read-only, so the registry's
+                // icon always wins on upgrade.
+                await this.appModel.updateApp(appUuid, projectUuid, {
+                    icon: entry.icon,
+                });
             } else {
                 await this.appModel.createWithVersion(
                     {
@@ -8793,6 +8920,7 @@ export class AppGenerateService extends BaseService {
                         description: entry.description,
                         slug: entry.slug,
                         template: DATA_APP_VIZ_TEMPLATE,
+                        icon: entry.icon,
                         registry_slug: entry.slug,
                         registry_url: this.chartRegistryClient.getBaseUrl(),
                     },
@@ -9341,8 +9469,17 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-        update: { name?: string; description?: string },
-    ): Promise<{ appUuid: string; name: string; description: string }> {
+        update: {
+            name?: string;
+            description?: string;
+            icon?: ChartTypeIcon | null;
+        },
+    ): Promise<{
+        appUuid: string;
+        name: string;
+        description: string;
+        icon: ChartTypeIcon | null;
+    }> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -9352,8 +9489,11 @@ export class AppGenerateService extends BaseService {
         );
         AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
-        const fieldsToUpdate: Partial<{ name: string; description: string }> =
-            {};
+        const fieldsToUpdate: Partial<{
+            name: string;
+            description: string;
+            icon: string | null;
+        }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
             if (trimmedName.length === 0) {
@@ -9375,10 +9515,23 @@ export class AppGenerateService extends BaseService {
             }
             fieldsToUpdate.description = trimmedDescription;
         }
+        if (update.icon !== undefined) {
+            if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+                throw new ParameterError(
+                    'Only custom chart types can have an icon',
+                );
+            }
+            if (update.icon !== null && !isChartTypeIcon(update.icon)) {
+                throw new ParameterError(
+                    `Invalid chart type icon: ${String(update.icon)}`,
+                );
+            }
+            fieldsToUpdate.icon = update.icon;
+        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name or description must be provided',
+                'At least one of name, description or icon must be provided',
             );
         }
 
@@ -9391,6 +9544,7 @@ export class AppGenerateService extends BaseService {
             appUuid: updatedApp.app_id,
             name: updatedApp.name,
             description: updatedApp.description,
+            icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
         };
     }
 
@@ -9446,6 +9600,7 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 softDelete: softDeleteEnabled,
+                registrySlug: app.registry_slug,
             },
         });
     }
@@ -9538,6 +9693,7 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 softDelete: false,
+                registrySlug: app.registry_slug,
             },
         });
     }
@@ -9581,6 +9737,19 @@ export class AppGenerateService extends BaseService {
      * uploads, version source tarballs, built dist tarballs, and per-version
      * assets.
      */
+    /**
+     * Remove the stored files of every app in a project. Deleting a project
+     * only removes rows; a training copy is deleted after each walkthrough,
+     * so its duplicated app files would otherwise pile up in the bucket.
+     */
+    async deleteProjectAppFiles(projectUuid: string): Promise<number> {
+        const apps = await this.appModel.listAppsByProject(projectUuid);
+        await Promise.all(
+            apps.map((app) => this.deleteAppS3Prefix(app.app_id)),
+        );
+        return apps.length;
+    }
+
     private async deleteAppS3Prefix(appUuid: string): Promise<void> {
         const { client, bucket } = this.getS3Client();
         const prefix = `apps/${appUuid}/`;
@@ -10989,12 +11158,39 @@ export class AppGenerateService extends BaseService {
                 ? await this.spaceModel.getSpaceSummary(app.space_uuid)
                 : null;
 
+        // Direct grants ride along only for callers who could manage the
+        // app's sharing anyway — code download itself is view-gated, and a
+        // viewer must not learn who the app is shared with.
+        const canManageAppPolicy = await this.assertCanManageApp(
+            user,
+            app,
+            'not used',
+        ).then(
+            () => true,
+            () => false,
+        );
+        const appAccess = canManageAppPolicy
+            ? (
+                  await this.coderService.getPortableDirectAccessByUuid(
+                      user,
+                      app.organization_uuid,
+                      DirectAccessResourceType.APP,
+                      [app.app_id],
+                  )
+              ).get(app.app_id)
+            : undefined;
+
         const manifest = buildManifest({
             slug: app.slug,
             version: resolvedVersion,
             name: app.name,
             description: app.description,
             template: app.template,
+            // Only chart types carry an icon; omit the key entirely for other
+            // apps so their manifests stay unchanged.
+            ...(app.template === DATA_APP_VIZ_TEMPLATE
+                ? { icon: isChartTypeIcon(app.icon) ? app.icon : null }
+                : {}),
             // Only viz versions carry a schema; omit the key entirely otherwise
             // so non-viz manifests stay unchanged.
             ...(versionRow?.viz_schema
@@ -11015,6 +11211,7 @@ export class AppGenerateService extends BaseService {
                       ),
                   }
                 : {}),
+            ...(appAccess ? { access: appAccess } : {}),
             downloadedAt: new Date().toISOString(),
         });
 
@@ -11258,18 +11455,48 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Applies manifest name/description to the app row when they differ.
-     * App-level metadata only — never touches versions or builds.
+     * Validates a manifest icon value: null clears it, a curated icon name
+     * passes through, anything else is rejected loudly (a hand-edited
+     * lightdash-app.yml is the only way to get a bad value here).
+     */
+    private static resolveManifestIcon(
+        manifestIcon: unknown,
+    ): ChartTypeIcon | null {
+        if (manifestIcon === null) return null;
+        if (isChartTypeIcon(manifestIcon)) return manifestIcon;
+        throw new ParameterError(
+            'Invalid icon in the app manifest. Use one of the curated chart type icons, or null to clear it.',
+        );
+    }
+
+    /**
+     * Applies manifest name/description/icon to the app row when they
+     * differ. App-level metadata only — never touches versions or builds.
+     * The icon is only meaningful on chart types; a manifest icon on any
+     * other app is ignored, not rejected.
      */
     private async updateAppMetadataIfChanged(
-        existingApp: Pick<DbApp, 'app_id' | 'name' | 'description'>,
+        existingApp: Pick<
+            DbApp,
+            'app_id' | 'name' | 'description' | 'template' | 'icon'
+        >,
         manifest: DataAppCode['manifest'],
         projectUuid: string,
     ): Promise<void> {
-        const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
+        const update: Partial<Pick<DbApp, 'name' | 'description' | 'icon'>> =
+            {};
         if (manifest.name !== existingApp.name) update.name = manifest.name;
         if (manifest.description !== existingApp.description)
             update.description = manifest.description;
+        if (
+            manifest.icon !== undefined &&
+            existingApp.template === DATA_APP_VIZ_TEMPLATE
+        ) {
+            const resolvedIcon = AppGenerateService.resolveManifestIcon(
+                manifest.icon,
+            );
+            if (resolvedIcon !== existingApp.icon) update.icon = resolvedIcon;
+        }
         if (Object.keys(update).length > 0) {
             await this.appModel.updateApp(
                 existingApp.app_id,
@@ -11374,6 +11601,22 @@ export class AppGenerateService extends BaseService {
                 manifestLinks,
             );
         const warnings = [...linkWarnings];
+
+        // Access block preflight also runs up front: unresolvable or
+        // ambiguous principals reject the bundle before anything is written.
+        // Guarded like manifestLinks so pre-field bundles never touch the
+        // direct-access seam at all.
+        const directAccessAssignments =
+            code.manifest.access !== undefined
+                ? await this.coderService.prepareDirectAccessReplace({
+                      user,
+                      organizationUuid,
+                      access: code.manifest.access,
+                      contentLabel: `App ${
+                          code.manifest.slug ?? code.manifest.name
+                      }`,
+                  })
+                : null;
 
         // Validate the round-tripped viz schema up front and fail loud: the
         // build-from-source pipeline has no generation run to re-emit it, so
@@ -11645,6 +11888,17 @@ export class AppGenerateService extends BaseService {
                         resolvedLinks,
                     );
                 }
+                // An unchanged bundle still reconciles its declared policy —
+                // same contract as links and metadata above.
+                if (directAccessAssignments !== null) {
+                    await this.coderService.applyDirectAccessPolicy(
+                        user,
+                        projectUuid,
+                        DirectAccessResourceType.APP,
+                        existingApp.app_id,
+                        directAccessAssignments,
+                    );
+                }
                 this.analytics.track({
                     event: 'data_app.uploaded',
                     userId: user.userUuid,
@@ -11819,6 +12073,16 @@ export class AppGenerateService extends BaseService {
                     description: code.manifest.description,
                     template: code.manifest.template,
                     space_uuid: targetSpaceUuid,
+                    // The icon is only meaningful on chart types; a manifest
+                    // icon on any other app is ignored, not rejected.
+                    ...(code.manifest.icon !== undefined &&
+                    code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                        ? {
+                              icon: AppGenerateService.resolveManifestIcon(
+                                  code.manifest.icon,
+                              ),
+                          }
+                        : {}),
                     // Round-trip the manifest slug exactly; createNew and
                     // pre-slug bundles let the model generate a unique one.
                     ...(manifestSlug !== undefined && !body.createNew
@@ -11846,6 +12110,18 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.replaceAppLinks(
                 newAppUuid,
                 resolvedLinks,
+            );
+        }
+
+        // Same reconciliation contract for the direct policy: present
+        // (including empty) → atomic replacement; absent → untouched.
+        if (directAccessAssignments !== null) {
+            await this.coderService.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.APP,
+                newAppUuid,
+                directAccessAssignments,
             );
         }
 

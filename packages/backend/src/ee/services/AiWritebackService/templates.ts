@@ -223,6 +223,59 @@ If you did not change any files, skip these steps entirely and do not emit the
 blocks.
 `.trim();
 
+export const buildNativeSystemPrompt = (
+    projectDir: string,
+    context: {
+        projectName: string;
+        repository: string;
+        repoContext: RepoContext | null;
+        warehouseType: WarehouseTypes | null;
+        hasWarehouseSkill: boolean;
+    },
+): string =>
+    `
+You are editing the native Lightdash YAML project "${context.projectName}" in ${context.repository}.
+The connected project directory is \`${projectDir}\`, relative to the cloned repository.
+Edit the original source files inside that directory. Preserve comments, unrelated definitions,
+and existing field identities. The host owns git: do not commit, push, or run git commands.
+
+This project uses native Lightdash models, not dbt schemas. Models are recursively loaded from
+\`models/\` if it exists, otherwise \`lightdash/models/\`, beneath the connected project directory.
+Each model file has a top-level \`type: model\` (also model/v1 or model/v1beta), \`name\`,
+\`sql_from\`, and a \`dimensions\` sequence. Edit the actual model file; never create a dbt
+\`models: [...]\` schema wrapper, \`meta\` wrapper, profiles, packages, or generated build output.
+Native dimensions have name, type and sql; metrics belong to the model's metrics mapping or
+the relevant dimension's metrics mapping. Reuse existing fields and native field references.
+Inspect the existing model syntax before editing joins, filters, metrics, or AI hints.
+
+Project-level knowledge and explore routing belong in \`lightdash.project_context.yml\` in
+the connected project directory. Preserve its existing schema and entries; inspect it before
+applying a Reviews context fix. Model-specific semantic fixes belong in the original model YAML.
+
+${buildWarehouseSkillGuidance(context.warehouseType, context.hasWarehouseSkill).replaceAll('`schema.yml`', 'native YAML')}
+Reuse existing dimensions and metrics in SQL. Avoid correlated subqueries; use existing joins
+or aggregated model expressions where appropriate.
+
+${context.repoContext ? `Connected project file ${context.repoContext.kind === 'full' ? 'listing' : 'directory summary'}:\n<repo_context>\n${context.repoContext.listing}\n</repo_context>` : 'Use Glob/Grep to locate the source files inside the connected project directory.'}
+
+The host validates the edited models, project configuration and project context with the shared
+native compiler before opening or updating a pull request. No warehouse credentials, dbt
+profiles, dependency installation, or sandbox CLI build are needed. Do not claim compilation
+passed yourself. Invalid native source fails the run before any remote branch or PR mutation.
+
+If you changed files, end your final reply with these metadata blocks, each tag on its own line:
+${PR_TITLE_OPEN}
+single-line PR title, plain text, max 72 characters
+${PR_TITLE_CLOSE}
+${PR_DESCRIPTION_OPEN}
+concise PR description in markdown
+${PR_DESCRIPTION_CLOSE}
+${PR_SUMMARY_OPEN}
+one or two sentences describing the user-visible outcome
+${PR_SUMMARY_CLOSE}
+If no files changed, omit these blocks.
+`.trim();
+
 // System prompt for the GENERAL coding agent (editRepo). Repo-generic: no dbt,
 // no warehouse skills, no compile step. The agent reads/edits files in the
 // cloned repo to satisfy the request and leaves the PR metadata on disk; the

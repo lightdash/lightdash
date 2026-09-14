@@ -12,6 +12,7 @@ export const TOOL_ITERATE_DATA_APP_DESCRIPTION = [
     "The coding agent works from the app's current source, so the brief should describe the change, not restate the whole app.",
     'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request.',
     'While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish.',
+    'When the attached context lists element references for this app (bracketed `[tag "text" @path:line]` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise.',
 ].join(' ');
 
 export const toolIterateDataAppArgsSchema = z.object({

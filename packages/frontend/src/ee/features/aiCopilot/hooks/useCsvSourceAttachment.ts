@@ -13,7 +13,7 @@ import {
 } from '../../../../features/externalSources/hooks/useExternalSources';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
-type PendingCsvSource = {
+export type PendingCsvSource = {
     id: number;
     filename: string;
     status: 'queued' | 'preparing';

@@ -1,5 +1,6 @@
 import {
     CreateWarehouseCredentials,
+    DbtManifestProjectConfig,
     DbtProjectConfig,
     DbtProjectType,
     DbtVersionOption,
@@ -17,11 +18,17 @@ import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
-import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
+import {
+    DbtManifestProjectAdapter,
+    ManifestInput,
+} from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
+import { NativeGitProjectAdapter } from './nativeGitProjectAdapter';
 
 export const projectAdapterFromConfig = async (
-    config: DbtProjectConfig,
+    config:
+        | Exclude<DbtProjectConfig, DbtManifestProjectConfig>
+        | (Omit<DbtManifestProjectConfig, 'manifest'> & ManifestInput),
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
@@ -67,7 +74,9 @@ export const projectAdapterFromConfig = async (
                 cachedWarehouse,
                 dbtVersion,
                 analytics,
-                manifest: config.manifest,
+                ...(config.parsedManifest !== undefined
+                    ? { parsedManifest: config.parsedManifest }
+                    : { manifest: config.manifest }),
                 dbtProjectDir: manifestOptions?.projectDir,
                 selectedModelIds: manifestOptions?.selectedModelIds,
             });
@@ -101,6 +110,17 @@ export const projectAdapterFromConfig = async (
                 throw new ParameterError(
                     `Missing repository for GitHub project`,
                 );
+            }
+            if (config.semanticLayer === 'lightdash') {
+                return new NativeGitProjectAdapter({
+                    provider: DbtProjectType.GITHUB,
+                    warehouseClient,
+                    token: githubToken,
+                    repository: config.repository,
+                    branch: config.branch,
+                    projectSubPath: config.project_sub_path,
+                    hostDomain: config.host_domain,
+                });
             }
             return new DbtGithubProjectAdapter({
                 analytics,
@@ -142,6 +162,18 @@ export const projectAdapterFromConfig = async (
                 selector: config.selector,
             });
         case DbtProjectType.BITBUCKET:
+            if (config.semanticLayer === 'lightdash') {
+                return new NativeGitProjectAdapter({
+                    provider: DbtProjectType.BITBUCKET,
+                    warehouseClient,
+                    token: config.personal_access_token,
+                    username: config.username,
+                    repository: config.repository,
+                    branch: config.branch,
+                    projectSubPath: config.project_sub_path,
+                    hostDomain: config.host_domain,
+                });
+            }
             return new DbtBitBucketProjectAdapter({
                 analytics,
                 warehouseClient,

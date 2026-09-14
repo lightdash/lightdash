@@ -22,15 +22,12 @@ type RoleOptionGroups = {
     items: { value: string; label: string }[];
 }[];
 
-// Generic over both the form's value shape and its `transformValues` signature
-// so the create modal (which transforms `expiresAt`) and the edit modal (no
+// Generic over both the form's value shape and its transformed shape so the
+// create modal (which transforms `expiresAt`) and the edit modal (no
 // transform) can both pass their form in. The component only reads list state,
-// so the transform type is irrelevant to its behaviour.
-type Props<
-    T extends { projectRoles: ProjectRoleRow[] },
-    TransformValues extends (values: T) => unknown,
-> = {
-    form: UseFormReturnType<T, TransformValues>;
+// so the transformed shape is irrelevant to its behaviour.
+type Props<T extends { projectRoles: ProjectRoleRow[] }, TransformedValues> = {
+    form: UseFormReturnType<T, TransformedValues>;
     projects: { projectUuid: string; name: string }[];
     projectRoleOptions: RoleOptionGroups;
     rolesLoading: boolean;
@@ -42,14 +39,14 @@ type Props<
 // modals so the project-access UI stays identical across them.
 export const ServiceAccountProjectRoles = <
     T extends { projectRoles: ProjectRoleRow[] },
-    TransformValues extends (values: T) => unknown = (values: T) => T,
+    TransformedValues = T,
 >({
     form,
     projects,
     projectRoleOptions,
     rolesLoading,
     disabled,
-}: Props<T, TransformValues>) => {
+}: Props<T, TransformedValues>) => {
     const projectOptions = useMemo(
         () =>
             projects.map((p) => ({

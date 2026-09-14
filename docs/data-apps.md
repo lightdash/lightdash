@@ -167,7 +167,7 @@ Entities, not columns:
   handle, link to its upstream app when it lives in a preview project, soft-delete markers.
 - **Version** — sequence number, verbatim prompt, status and status narration, error, attached context
   (clarifications, chart/dashboard/image/file/connection references, model and theme snapshot), viz schema for
-  project chart types, declared dependencies, generation usage, data references.
+  custom chart types, declared dependencies, generation usage, data references.
 - **Access grants** — per-app user and group access, in addition to space access.
 - **Links** — external connections linked to an app; dashboard tiles that reference an app.
 
@@ -216,12 +216,17 @@ flag-gated extension: registry-only, lockfile required, screened for malicious p
 
 ---
 
-## Project chart types
+## Custom chart types
 
-A project chart type is a data app built from a dedicated template that declares a viz schema instead of running
+A custom chart type is a data app built from a dedicated template that declares a viz schema instead of running
 queries: the explorer hands it rows and a field mapping, and it renders. They share the pipeline, storage and
 permissions of data apps but are excluded from app listings, have their own gallery and builder, and are downloaded
-as code separately.
+as code separately. A type can carry one icon from a curated Tabler set; the as-code manifest's `icon` field round-trips
+it (omitted for non-chart-type apps), null clears it, and an off-list value is rejected on upload.
+
+Official chart types can also be installed prebuilt from a chart registry, are read-only once installed, and are
+customized by forking — the registry, library, install and fork model is documented in
+[`docs/chart-types.md`](./chart-types.md).
 
 A saved chart pins the version of the type it was saved with, so iterating on a type never changes existing charts.
 Charts saved before pins exist follow the latest version until they are next edited and saved. When a newer version

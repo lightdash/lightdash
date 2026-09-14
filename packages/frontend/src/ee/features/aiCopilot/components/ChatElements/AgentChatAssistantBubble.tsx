@@ -1,5 +1,6 @@
 import {
     type AiAgentMessageAssistant,
+    type AiAgentMessageUser,
     type AiAgentToolCall,
     type AiMcpServer,
     isToolEditDbtProjectResult,
@@ -67,6 +68,8 @@ import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { AiDataAppBuildCard } from './DataAppBuildCard/AiDataAppBuildCard';
+import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
+import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
@@ -77,6 +80,7 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
+import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
@@ -733,7 +737,15 @@ const AssistantBubbleContent: FC<{
                             </Stack>
                         ) : null;
                     return (
-                        <Stack gap={4} pt="xs">
+                        <Stack
+                            gap={4}
+                            pt="xs"
+                            // Walkthrough: the reply is still being worked
+                            // on while this is live. See scripts/scope-tours.
+                            data-tour-anchor={
+                                isStreaming ? 'ai-working' : undefined
+                            }
+                        >
                             {/* Activity card sits ABOVE the rolling preview /
                              *  final answer so tool work reads top-to-bottom:
                              *  what was done → the answer. After streaming we
@@ -772,7 +784,15 @@ const AssistantBubbleContent: FC<{
                                 />
                             )}
                             {latestTextSeg ? (
-                                <Box className={styles.streamPart}>
+                                <Box
+                                    className={styles.streamPart}
+                                    // Walkthrough: the answer in words (while
+                                    // streaming). See scripts/scope-tours.
+                                    data-tour-scope="create:AiAgentThread"
+                                    data-tour-result="1"
+                                    data-tour-label="Read the answer"
+                                    data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
+                                >
                                     {finalAnswerMd}
                                 </Box>
                             ) : null}
@@ -867,47 +887,56 @@ const AssistantBubbleContent: FC<{
                             />
                         )}
                         {messageContent.length > 0 ? (
-                            <AiMarkdown
-                                className={styles.persistedAnswer}
-                                allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                                rehypePlugins={[
-                                    rehypeAiAgentContentLinks,
-                                    rehypeMemoryCitationIndices,
-                                ]}
-                                plugins={markdownPlugins}
-                                components={{
-                                    ...MEMORY_CITATION_COMPONENTS,
-                                    a: ({ node, children, ...props }) => {
-                                        const contentType =
-                                            'data-content-type' in props &&
-                                            isContentType(
-                                                props['data-content-type'],
-                                            )
-                                                ? props['data-content-type']
-                                                : undefined;
-
-                                        return (
-                                            <ContentLink
-                                                contentType={contentType}
-                                                props={props}
-                                                message={message}
-                                                projectUuid={projectUuid}
-                                                agentUuid={agentUuid}
-                                                sqlRunnerLinkState={
-                                                    sqlRunnerLinkState
-                                                }
-                                                onDashboardLinkClick={
-                                                    onDashboardLinkClick
-                                                }
-                                            >
-                                                {children}
-                                            </ContentLink>
-                                        );
-                                    },
-                                }}
+                            <Box
+                                // Walkthrough: the answer in words (persisted).
+                                // See scripts/scope-tours.
+                                data-tour-scope="create:AiAgentThread"
+                                data-tour-result="1"
+                                data-tour-label="Read the answer"
+                                data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
                             >
-                                {messageContent}
-                            </AiMarkdown>
+                                <AiMarkdown
+                                    className={styles.persistedAnswer}
+                                    allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                                    rehypePlugins={[
+                                        rehypeAiAgentContentLinks,
+                                        rehypeMemoryCitationIndices,
+                                    ]}
+                                    plugins={markdownPlugins}
+                                    components={{
+                                        ...MEMORY_CITATION_COMPONENTS,
+                                        a: ({ node, children, ...props }) => {
+                                            const contentType =
+                                                'data-content-type' in props &&
+                                                isContentType(
+                                                    props['data-content-type'],
+                                                )
+                                                    ? props['data-content-type']
+                                                    : undefined;
+
+                                            return (
+                                                <ContentLink
+                                                    contentType={contentType}
+                                                    props={props}
+                                                    message={message}
+                                                    projectUuid={projectUuid}
+                                                    agentUuid={agentUuid}
+                                                    sqlRunnerLinkState={
+                                                        sqlRunnerLinkState
+                                                    }
+                                                    onDashboardLinkClick={
+                                                        onDashboardLinkClick
+                                                    }
+                                                >
+                                                    {children}
+                                                </ContentLink>
+                                            );
+                                        },
+                                    }}
+                                >
+                                    {messageContent}
+                                </AiMarkdown>
+                            </Box>
                         ) : null}
                     </>
                 );
@@ -921,7 +950,11 @@ const AssistantBubbleContent: FC<{
              *  sandbox…") so this gap isn't silent for long-setup tools. */}
             {(isStreaming || (isPending && !streamingError)) &&
                 (streamingState?.parts?.length ?? 0) === 0 && (
-                    <Box className={styles.streamPart} pl={7}>
+                    <Box
+                        className={styles.streamPart}
+                        pl={7}
+                        data-tour-anchor="ai-working"
+                    >
                         <TypingDots />
                     </Box>
                 )}
@@ -958,6 +991,8 @@ const AssistantBubbleContent: FC<{
 
 type Props = {
     message: AiAgentMessageAssistant;
+    /** The hidden user turn this reply answers, if any (same prompt uuid). */
+    hiddenSibling: AiAgentMessageUser | null;
     isLastMessage: boolean;
     isActive?: boolean;
     debug?: boolean;
@@ -973,6 +1008,7 @@ type Props = {
 export const AssistantBubble: FC<Props> = memo(
     ({
         message,
+        hiddenSibling,
         isLastMessage,
         isActive = false,
         debug = false,
@@ -1062,6 +1098,23 @@ export const AssistantBubble: FC<Props> = memo(
             message.artifacts && message.artifacts.length > 0
         );
 
+        // A restore turn is deterministic (no LLM): the card is the whole
+        // reply, its message included, so nothing else renders for it.
+        const restoreItem = getDataAppRestoreItem(hiddenSibling);
+        if (restoreItem) {
+            return (
+                <AiDataAppRestoreCard
+                    item={restoreItem}
+                    completionMessage={message.message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
+                    messageUuid={message.uuid}
+                    compact={!isLastMessage}
+                />
+            );
+        }
+
         return (
             <Stack
                 pos="relative"
@@ -1072,6 +1125,17 @@ export const AssistantBubble: FC<Props> = memo(
                     overflow: 'unset',
                     borderStartStartRadius: '0px',
                 }}
+                // Walkthrough result marker for create:AiAgentThread: the
+                // agent's answer is where sending a question lands, so no
+                // return path. See scripts/scope-tours/generate.ts.
+                data-tour-scope="create:AiAgentThread"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
+                data-tour-label="Ask the agent a question"
+                data-tour-docs="agents.mdx#intro:1"
+                data-tour-return="none"
+                data-tour-resultdocs="agents.mdx#intro:3"
+                data-tour-busy='[data-tour-anchor="ai-working"]'
             >
                 <AssistantBubbleContent
                     message={message}
@@ -1097,41 +1161,51 @@ export const AssistantBubble: FC<Props> = memo(
                               ))
                             : // Render artifact buttons that open modals
                               message.artifacts!.map((messageArtifact) => (
-                                  <AiArtifactButton
+                                  <Box
                                       key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
-                                      onClick={() => {
-                                          const isThisArtifactOpen =
+                                      // Walkthrough: the chart the agent built
+                                      // opens in the side panel from here.
+                                      // See scripts/scope-tours.
+                                      data-tour-scope="create:AiAgentThread"
+                                      data-tour-result="2"
+                                      data-tour-label="The chart the agent built"
+                                      data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:li2"
+                                  >
+                                      <AiArtifactButton
+                                          onClick={() => {
+                                              const isThisArtifactOpen =
+                                                  artifact?.artifactUuid ===
+                                                      messageArtifact.artifactUuid &&
+                                                  artifact?.versionUuid ===
+                                                      messageArtifact.versionUuid;
+                                              if (isThisArtifactOpen) {
+                                                  dispatch(clearPreview());
+                                                  return;
+                                              }
+                                              dispatch(
+                                                  setPreview({
+                                                      type: 'artifact',
+                                                      artifactUuid:
+                                                          messageArtifact.artifactUuid,
+                                                      versionUuid:
+                                                          messageArtifact.versionUuid,
+                                                      messageUuid: message.uuid,
+                                                      threadUuid:
+                                                          message.threadUuid,
+                                                      projectUuid: projectUuid,
+                                                      agentUuid: agentUuid,
+                                                  }),
+                                              );
+                                          }}
+                                          isArtifactOpen={
                                               artifact?.artifactUuid ===
                                                   messageArtifact.artifactUuid &&
                                               artifact?.versionUuid ===
-                                                  messageArtifact.versionUuid;
-                                          if (isThisArtifactOpen) {
-                                              dispatch(clearPreview());
-                                              return;
+                                                  messageArtifact.versionUuid
                                           }
-                                          dispatch(
-                                              setPreview({
-                                                  type: 'artifact',
-                                                  artifactUuid:
-                                                      messageArtifact.artifactUuid,
-                                                  versionUuid:
-                                                      messageArtifact.versionUuid,
-                                                  messageUuid: message.uuid,
-                                                  threadUuid:
-                                                      message.threadUuid,
-                                                  projectUuid: projectUuid,
-                                                  agentUuid: agentUuid,
-                                              }),
-                                          );
-                                      }}
-                                      isArtifactOpen={
-                                          artifact?.artifactUuid ===
-                                              messageArtifact.artifactUuid &&
-                                          artifact?.versionUuid ===
-                                              messageArtifact.versionUuid
-                                      }
-                                      artifact={messageArtifact}
-                                  />
+                                          artifact={messageArtifact}
+                                      />
+                                  </Box>
                               ))}
                     </Stack>
                 )}
@@ -1155,7 +1229,15 @@ export const AssistantBubble: FC<Props> = memo(
                     </Paper>
                 )}
                 {isLoading ? null : (
-                    <Group gap={0}>
+                    <Group
+                        gap={0}
+                        // Walkthrough: rating the answer teaches the agent.
+                        // See scripts/scope-tours.
+                        data-tour-scope="create:AiAgentThread"
+                        data-tour-result="3"
+                        data-tour-label="Rate the answer"
+                        data-tour-docs="agents/agent-memory.mdx#intro:2"
+                    >
                         <CopyActionIcon
                             value={message.message ?? ''}
                             color="ldGray.9"
@@ -1295,6 +1377,9 @@ export const AssistantBubble: FC<Props> = memo(
                             agentUuid={agentUuid}
                             modelConfig={message.modelConfig}
                             totalTokens={message.tokenUsage?.totalTokens}
+                        />
+                        <MessageTimingIndicator
+                            responseTiming={message.responseTiming}
                         />
                     </Group>
                 )}

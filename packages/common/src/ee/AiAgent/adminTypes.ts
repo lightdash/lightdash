@@ -373,26 +373,19 @@ export type ComputedAiOrganizationSettings = {
 };
 
 // AI Organization Settings Types
-export const BYO_AI_PROVIDERS = ['anthropic', 'openai'] as const;
+export const BYO_AI_PROVIDERS = ['anthropic', 'google', 'openai'] as const;
 export type ByoAiProvider = (typeof BYO_AI_PROVIDERS)[number];
 
 export const isByoAiProvider = (provider: string): provider is ByoAiProvider =>
     (BYO_AI_PROVIDERS as readonly string[]).includes(provider);
 
-export type AiProviderApiKeysSet = {
-    anthropic: boolean;
-    openai: boolean;
-};
+export type AiProviderApiKeysSet = Record<ByoAiProvider, boolean>;
 
-export type AiProviderApiKeyHints = {
-    anthropic: string | null;
-    openai: string | null;
-};
+export type AiProviderApiKeyHints = Record<ByoAiProvider, string | null>;
 
-export type UpdateAiProviderApiKeys = {
-    anthropic?: string | null;
-    openai?: string | null;
-};
+export type UpdateAiProviderApiKeys = Partial<
+    Record<ByoAiProvider, string | null>
+>;
 
 export type AiOrgProviderModelVisibility = {
     enabled: boolean;

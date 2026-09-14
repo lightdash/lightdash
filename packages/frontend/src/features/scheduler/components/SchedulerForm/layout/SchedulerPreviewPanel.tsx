@@ -324,9 +324,12 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                     )}
                                 </Paper>
                             )}
-                            {format === SchedulerFormat.CSV &&
+                            {(format === SchedulerFormat.CSV ||
+                                format === SchedulerFormat.XLSX) &&
                                 form.values.options.asAttachment && (
-                                    <AttachmentChip filename="data.csv" />
+                                    <AttachmentChip
+                                        filename={`data.${format}`}
+                                    />
                                 )}
                             {format === SchedulerFormat.IMAGE &&
                                 form.values.options.withPdf && (

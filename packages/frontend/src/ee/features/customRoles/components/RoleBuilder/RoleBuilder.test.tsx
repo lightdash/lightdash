@@ -40,7 +40,7 @@ const renderRoleBuilder = ({
 
 const selectPreset = async (title: string) => {
     const user = userEvent.setup();
-    await user.click(screen.getByRole('textbox', { name: 'Preset' }));
+    await user.click(screen.getByRole('combobox', { name: 'Preset' }));
     await user.click(await screen.findByRole('option', { name: title }));
     return user;
 };
@@ -50,7 +50,7 @@ describe('RoleBuilder presets', () => {
         renderRoleBuilder();
 
         expect(
-            screen.queryByRole('textbox', { name: 'Preset' }),
+            screen.queryByRole('combobox', { name: 'Preset' }),
         ).not.toBeInTheDocument();
     });
 
@@ -59,7 +59,7 @@ describe('RoleBuilder presets', () => {
         renderRoleBuilder({ presets: rolePresets, onSubmit });
 
         const roleTypeLabel = screen.getByText('Role type');
-        const presetInput = screen.getByRole('textbox', { name: 'Preset' });
+        const presetInput = screen.getByRole('combobox', { name: 'Preset' });
         expect(
             roleTypeLabel.compareDocumentPosition(presetInput) &
                 Node.DOCUMENT_POSITION_FOLLOWING,
@@ -113,7 +113,7 @@ describe('RoleBuilder presets', () => {
         renderRoleBuilder({ presets: rolePresets });
 
         const user = userEvent.setup();
-        await user.click(screen.getByRole('textbox', { name: 'Preset' }));
+        await user.click(screen.getByRole('combobox', { name: 'Preset' }));
         expect(
             screen.queryByRole('option', { name: 'Roadmap viewer' }),
         ).not.toBeInTheDocument();
@@ -122,7 +122,7 @@ describe('RoleBuilder presets', () => {
         await user.click(
             screen.getByRole('button', { name: /Organization role/ }),
         );
-        await user.click(screen.getByRole('textbox', { name: 'Preset' }));
+        await user.click(screen.getByRole('combobox', { name: 'Preset' }));
 
         expect(
             screen.queryByRole('option', { name: 'SQL Runner user' }),
@@ -132,7 +132,7 @@ describe('RoleBuilder presets', () => {
         );
         await user.click(screen.getByRole('button', { name: /Project role/ }));
 
-        expect(screen.getByRole('textbox', { name: 'Preset' })).toHaveValue(
+        expect(screen.getByRole('combobox', { name: 'Preset' })).toHaveValue(
             'Start from scratch',
         );
     });

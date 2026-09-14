@@ -1,4 +1,8 @@
-import { type CSSVariablesResolver } from '@mantine/core';
+import {
+    v8CssVariablesResolver,
+    type CSSVariablesResolver,
+    type MantineTheme,
+} from '@mantine/core';
 import {
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,
@@ -31,6 +35,17 @@ import { LD_FIELD_COLORS } from './fieldColors';
  * Also bridges JS layout constants to global CSS variables so CSS modules can
  * reference them without re-declaring the literal values.
  */
+// Mantine 9 paints the `light` variant with solid colours. On the dark scheme
+// that turns alerts, badges and date ranges into heavy blocks with poor text
+// contrast, so dark keeps the translucent 8.x tints; light takes the new ones.
+const LIGHT_VARIANT_VARIABLE = /-light(-hover|-color)?$/;
+const darkLightVariantTints = (theme: MantineTheme) =>
+    Object.fromEntries(
+        Object.entries(v8CssVariablesResolver(theme).dark).filter(([name]) =>
+            LIGHT_VARIANT_VARIABLE.test(name),
+        ),
+    );
+
 export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
     variables: {
         '--ld-table-selected-bg':
@@ -77,6 +92,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--ld-color-page': 'var(--mantine-color-gray-0)',
     },
     dark: {
+        ...darkLightVariantTints(theme),
         '--mantine-color-body': 'var(--mantine-color-dark-6)',
         '--mantine-color-text': 'var(--mantine-color-dark-0)',
         '--mantine-color-dimmed': 'var(--mantine-color-dark-2)',

@@ -23,7 +23,7 @@ export type EmbedMethod = 'iframe' | 'sdk';
 // Not sure why lint-staged is removing the value of this enum.
 // prettier-ignore
 // eslint-disable-next-line
-export enum SnippetLanguage {
+enum SnippetLanguage {
     NODE = 'node',
     PYTHON = 'python',
     GO = 'go',

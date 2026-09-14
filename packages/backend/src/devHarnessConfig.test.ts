@@ -12,6 +12,7 @@ type Pm2App = {
     watch?: string[];
     ignore_watch?: string[];
     watch_options?: { followSymlinks?: boolean };
+    exp_backoff_restart_delay?: number;
 };
 
 type Pm2Config = {
@@ -44,16 +45,20 @@ const expectApiReloadContract = (config: Pm2Config) => {
         // via symlinked node_modules inside src (e.g. mcp-chart-app).
         ignore_watch: [
             'src/generated/swagger.json',
+            '**/*.test.ts',
             '**/node_modules',
             '**/node_modules/**',
         ],
         watch_options: { followSymlinks: false },
     });
+    // common-watch already builds common, so the watcher calls the backend
+    // script directly and backs off instead of crash-looping on a stale build.
     expect(routeWatcher).toMatchObject({
         script: 'pnpm',
-        args: 'generate-api-dev',
+        args: '-F backend generate-api-dev',
         interpreter: 'none',
         autorestart: true,
+        exp_backoff_restart_delay: 1000,
     });
 };
 

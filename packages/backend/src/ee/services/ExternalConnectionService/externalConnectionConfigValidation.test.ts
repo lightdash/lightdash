@@ -236,7 +236,7 @@ describe('validateExternalConnectionConfig', () => {
             ).not.toThrow();
         });
 
-        it('rejects oauthScopes on a non-google type', () => {
+        it('rejects oauthScopes on a non-OAuth type', () => {
             expect(() =>
                 validateExternalConnectionConfig(
                     {
@@ -247,6 +247,90 @@ describe('validateExternalConnectionConfig', () => {
                     true,
                 ),
             ).toThrow(ParameterError);
+        });
+
+        const oauthClientCredentials = {
+            ...base,
+            type: 'oauth_client_credentials' as const,
+            oauthTokenUrl: 'https://auth.example.com/oauth/token',
+            oauthClientId: 'client-1',
+            oauthClientAuthMethod: 'basic' as const,
+            oauthScopes: ['read:data'],
+        };
+
+        it('accepts OAuth client credentials with Basic or body authentication', () => {
+            expect(() =>
+                validateExternalConnectionConfig(oauthClientCredentials, true),
+            ).not.toThrow();
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...oauthClientCredentials,
+                        oauthClientAuthMethod: 'body',
+                        oauthScopes: [],
+                    },
+                    true,
+                ),
+            ).not.toThrow();
+        });
+
+        it('requires a complete OAuth client-credentials configuration and secret', () => {
+            expect(() =>
+                validateExternalConnectionConfig(oauthClientCredentials, false),
+            ).toThrow(/requires a client secret/);
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...oauthClientCredentials, oauthClientId: null },
+                    true,
+                ),
+            ).toThrow(/requires a valid client ID/);
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...oauthClientCredentials, oauthTokenUrl: null },
+                    true,
+                ),
+            ).toThrow(/requires a valid token URL/);
+        });
+
+        it('rejects unsafe OAuth token URLs and invalid scopes', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...oauthClientCredentials,
+                        oauthTokenUrl: 'http://auth.example.com/oauth/token',
+                    },
+                    true,
+                ),
+            ).toThrow(/must use https/);
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...oauthClientCredentials,
+                        oauthTokenUrl:
+                            'https://client:secret@auth.example.com/oauth/token',
+                    },
+                    true,
+                ),
+            ).toThrow(/must not contain credentials/);
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...oauthClientCredentials, oauthScopes: ['read data'] },
+                    true,
+                ),
+            ).toThrow(/Invalid OAuth scope/);
+        });
+
+        it('rejects OAuth client fields on another authentication type', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'bearer_token',
+                        oauthTokenUrl: 'https://auth.example.com/oauth/token',
+                    },
+                    true,
+                ),
+            ).toThrow(/only valid for type "oauth_client_credentials"/);
         });
     });
 

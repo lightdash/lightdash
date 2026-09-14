@@ -171,6 +171,17 @@ pnpm -F backend migrate
 pnpm -F backend rollback-last
 ```
 
+## Feature flags
+
+Before adding or changing a feature flag, read [docs/feature-flags.md](docs/feature-flags.md).
+Use `FeatureFlagModel.get` / `FeatureFlagService.get` in backend services and
+`useServerFeatureFlag` in the frontend. Do not create an ENV-only or `NODE_ENV`
+rollout gate: the shared resolver supports Console database overrides and
+self-hosted ENV configuration. Keep resource authorization separate.
+Verify Console-only enablement with ENV enable unset and preview defaults off,
+including the backend action, not just UI visibility. Document scope, precedence,
+refresh/restart behavior, and remove temporary ENV overrides after rollout.
+
 ## Development Workflow
 
 1. **Package Management**: Use `pnpm` (pinned via `packageManager` in the root `package.json`, which pnpm reads directly). Install pnpm directly; do not use Corepack, npm, or yarn for workspace commands.
@@ -196,8 +207,8 @@ Never declare a break merely to make CI pass. Declaring a break advises every se
 `release.yml` fires on every push to `main`, so the release that goes out is whatever `main` contains at that moment. When something needs to reach a release on its own — a fix someone is waiting on — hold merges rather than asking people in Slack not to merge:
 
 -   **Freeze**: `gh workflow run merge-freeze.yml -f action=freeze`. This adds a `merge-freeze` required status check to the `main` ruleset. Nothing ever reports that check, so merges into `main` are blocked for everyone without a ruleset bypass.
--   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry.
--   **Only the person who froze can unfreeze it** from the Actions tab. If they're unavailable, a repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
+-   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry. Repeat unfreeze to refresh stale PR checks even when the ruleset is already open. In `#engineering`, ask `@Cloudy unfreeze merges to lightdash`.
+-   **Any verified Lightdash employee can unfreeze through Cloudy in Slack.** Direct Actions dispatch remains available to the recorded owner. A repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
 -   **There is no free-text reason, deliberately** — this repo is public, and a reason box invites someone to name a customer in it. Blocked PRs show who froze it so people know who to ask, and `#engineering` gets the same on both directions. Say why in Slack.
 -   **Only `main` is affected.** Stacked PRs merging into their parent branch are untouched.
 -   **Check the current state**: the `MERGE_FREEZE` repo variable (`true`/`false`), and `MERGE_FREEZE_ACTOR` for who froze it — `gh variable list -R lightdash/lightdash`. The authority is the ruleset itself: `merge-freeze` in the `main` ruleset's required status checks (`gh api repos/lightdash/lightdash/rulesets`). The variables are a mirror, so trust the ruleset if they ever disagree.
@@ -388,6 +399,8 @@ Tests in `rotation.test.ts` pin the registry contents — update them together w
 Slugs are unique per project and resource type for charts, dashboards, SQL Runner charts, spaces, and data apps. Database constraints are authoritative and include soft-deleted rows, so a deleted resource reserves its slug for a safe restore. The same slug may be used in a different project.
 
 Use `generateUniqueSlugScopedToProject()` (`packages/backend/src/utils/SlugUtils.ts`) for normal creation. It derives the base with `generateSlug()`, probes exact indexed candidates, and appends `-1`, `-2`, and so on for conflicts. Explicit slugs used by content-as-code and promotion must be inserted exactly; same-project conflicts return an actionable conflict or resolve the intended active upsert, never overwrite another resource.
+
+Content-as-code upserts address content by exact slug, so a soft-deleted chart or dashboard that owns the slug is revived in place with the uploaded content instead of blocking the upload. Space paths are not database-constrained: one active space and any number of deleted spaces may share a path, and restoring a deleted space is rejected while an active space holds its path.
 
 UUIDs remain the canonical internal identity. Use them for foreign keys, durable relationships, and references without an explicit project scope. Slugs are appropriate for project-scoped URLs and portable content-as-code selectors.
 

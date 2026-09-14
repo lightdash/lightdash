@@ -2868,6 +2868,10 @@ export class AiAgentToolsService extends BaseService {
                         projectUuid: context.projectUuid,
                         queries,
                         context: context.defaultQueryExecutionContext,
+                        parameters: {},
+                        userAttributeOverrides:
+                            context.userAttributeOverrides ?? {},
+                        invalidateCache: false,
                     });
 
                 // Per-node status emission is best-effort UI telemetry: only

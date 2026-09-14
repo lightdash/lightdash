@@ -3,15 +3,18 @@ import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
 import { IconAppsOff, IconMaximize } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
+import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
@@ -250,6 +253,13 @@ export default function AppPreviewTest() {
                     : classes.previewContainer
             }
         >
+            <DocumentTitle title={appName} />
+            {firstPage && (
+                <DataAppAiAgentContextBridge
+                    projectUuid={projectUuid}
+                    appUuid={firstPage.appUuid}
+                />
+            )}
             {!isFullscreen && (
                 <AppHeader
                     projectUuid={projectUuid}
@@ -330,11 +340,33 @@ export default function AppPreviewTest() {
                             }
                             shareUrl={window.location.href}
                             navItem={null}
+                            askAiItem={
+                                <AskAiAgentMenuItem
+                                    projectUuid={projectUuid}
+                                    dataAppUuid={appUuid}
+                                    clickedFrom={
+                                        explicitVersion === undefined
+                                            ? 'data_app_header'
+                                            : 'data_app_version_header'
+                                    }
+                                />
+                            }
                         />
                     }
                 />
             )}
-            <Box className={classes.previewBody}>{body}</Box>
+            <Box
+                data-tour-scope="view:DataApp"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/apps/:appUuid/view"
+                data-tour-label="Data apps"
+                data-tour-docs="data-apps.mdx#sharing-an-app:p2:1"
+                data-tour-resultdocs="data-apps.mdx#space-access:li1"
+                data-tour-return="none"
+                className={classes.previewBody}
+            >
+                {body}
+            </Box>
         </Box>
     );
 }

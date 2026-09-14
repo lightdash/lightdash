@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    AI_DEEP_RESEARCH_MAX_WORKERS,
     AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
     BYO_AI_PROVIDERS,
@@ -36,14 +37,14 @@ import {
 import {
     matchesPreset,
     type ModelPreset,
-    type ModelPresetProvider,
+    type SelectableModelProvider,
 } from './ai/models/presets';
 import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
 
-type AvailableModelPreset = ModelPreset<ModelPresetProvider>;
+type AvailableModelPreset = ModelPreset<SelectableModelProvider>;
 
 /**
  * Whether a stored model config still resolves to one of the models left
@@ -109,6 +110,17 @@ export const findUnconfiguredProviderKeyWrites = (
             !configuredProviders[provider],
     );
 
+const DEEP_RESEARCH_LIMIT_BOUNDS: Record<
+    keyof AiDeepResearchLimits,
+    { min: number; max: number }
+> = {
+    maxTokens: { min: 1, max: 10_000_000 },
+    maxSteps: { min: 1, max: 1_000 },
+    maxToolCalls: { min: AI_DEEP_RESEARCH_MAX_WORKERS + 1, max: 1_000 },
+    maxWarehouseQueries: { min: 1, max: 1_000 },
+    deadlineMs: { min: 1_000, max: 3_600_000 },
+};
+
 export const validateDeepResearchLimits = (
     limits: AiDeepResearchLimits,
 ): void => {
@@ -117,6 +129,12 @@ export const validateDeepResearchLimits = (
     ).forEach(([key, value]) => {
         if (!Number.isInteger(value) || value <= 0) {
             throw new ParameterError(`${key} must be a positive integer`);
+        }
+        const bounds = DEEP_RESEARCH_LIMIT_BOUNDS[key];
+        if (bounds && (value < bounds.min || value > bounds.max)) {
+            throw new ParameterError(
+                `${key} must be between ${bounds.min} and ${bounds.max}`,
+            );
         }
     });
 };
@@ -369,8 +387,16 @@ export class AiOrganizationSettingsService extends BaseService {
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
                 dataAppModelVisibility: null,
-                providerApiKeysSet: { anthropic: false, openai: false },
-                providerApiKeyHints: { anthropic: null, openai: null },
+                providerApiKeysSet: {
+                    anthropic: false,
+                    google: false,
+                    openai: false,
+                },
+                providerApiKeyHints: {
+                    anthropic: null,
+                    google: null,
+                    openai: null,
+                },
                 threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,

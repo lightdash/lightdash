@@ -1,4 +1,8 @@
-import { SearchItemType, type SearchResult } from '@lightdash/common';
+import {
+    SearchItemType,
+    type RecentContentEntry,
+    type SearchResult,
+} from '@lightdash/common';
 import { type Icon as TablerIcon } from '@tabler/icons-react';
 
 // Display order for the omnibar's "Item type" filter dropdown.
@@ -27,6 +31,7 @@ export type SearchItem = {
     description?: string;
     location: { pathname: string; search?: string };
     item?: SearchResult;
+    recentContent?: RecentContentEntry['content'];
     searchRank?: number;
     slug?: string;
 };

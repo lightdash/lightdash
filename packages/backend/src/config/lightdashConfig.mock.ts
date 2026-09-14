@@ -59,6 +59,10 @@ export const lightdashConfigMock: LightdashConfig = {
             privateKeyFile: undefined,
             openIdConnectMetadataEndpoint: undefined,
         },
+        microsoftManagedSignIn: {
+            iosClientId: undefined,
+            androidClientId: undefined,
+        },
         oidc: {
             authMethod: undefined,
             authSigningAlg: undefined,
@@ -117,6 +121,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     dbt: {
         environmentVariableAllowlist: [],
+        sourceFetchConcurrency: undefined,
     },
     dashboard: {
         maxTilesPerTab: 50,
@@ -211,6 +216,15 @@ export const lightdashConfigMock: LightdashConfig = {
                 schedule: '0 2 * * *',
             },
         },
+        scimRequestLogs: {
+            cleanup: {
+                enabled: true,
+                retentionDays: 30,
+                batchSize: 1000,
+                delayMs: 100,
+                maxBatches: 100,
+            },
+        },
     },
     secureCookies: false,
     sentry: {
@@ -254,6 +268,9 @@ export const lightdashConfigMock: LightdashConfig = {
         licenseKey: null,
         licenseCertificate: null,
     },
+    roadmap: {
+        baseUrl: 'https://roadmap.lightdash.com',
+    },
     groups: {
         enabled: false,
     },
@@ -288,7 +305,7 @@ export const lightdashConfigMock: LightdashConfig = {
             askAiButtonEnabled: false,
             embeddingEnabled: true,
             defaultProvider: 'openai',
-            selfManagedProviders: [],
+            lightdashManagedProviders: [],
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
@@ -378,7 +395,7 @@ export const lightdashConfigMock: LightdashConfig = {
         sessionTimeoutMs: 300000,
     },
     aiWriteback: {
-        anthropicApiKey: null,
+        legacyAnthropicApiKey: null,
         codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
@@ -519,7 +536,7 @@ export const lightdashConfigMock: LightdashConfig = {
         // Off in the test fixture (real default is `true`) so tests never make
         // a live OSV call.
         dependencyMalwareCheckEnabled: false,
-        chartRegistry: { url: null, allowInsecure: false },
+        chartRegistry: { url: null, allowInsecure: false, channel: 'stable' },
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

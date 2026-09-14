@@ -118,6 +118,11 @@ export const getConfig = async (): Promise<Config> => {
             apiKey: process.env.LIGHTDASH_API_KEY || rawConfig.context?.apiKey,
             project:
                 process.env.LIGHTDASH_PROJECT || rawConfig.context?.project,
+            projectName:
+                process.env.LIGHTDASH_PROJECT &&
+                process.env.LIGHTDASH_PROJECT !== rawConfig.context?.project
+                    ? undefined
+                    : rawConfig.context?.projectName,
             serverUrl:
                 process.env.LIGHTDASH_URL || rawConfig.context?.serverUrl,
             proxyAuthorization:

@@ -664,12 +664,12 @@ export class ScreenshotError extends LightdashError {
 }
 
 export class SshTunnelError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
             message,
             name: 'SshTunnelError',
             statusCode: 400,
-            data: {},
+            data,
         });
     }
 }
@@ -822,6 +822,12 @@ export class BigqueryTokenError extends LightdashError {
         });
     }
 }
+
+export const BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER =
+    'Google rejected the BigQuery refresh token';
+
+export const isBigqueryTokenErrorMessage = (message: string): boolean =>
+    message.includes(BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER);
 
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI

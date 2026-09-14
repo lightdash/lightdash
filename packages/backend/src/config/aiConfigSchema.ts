@@ -4,6 +4,8 @@ export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-5.4';
 export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 export const DEFAULT_OPENAI_FAST_MODEL_NAME = 'gpt-5.6-luna';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-6';
+export const DEFAULT_GOOGLE_MODEL_NAME = 'gemini-3.8-flash';
+export const DEFAULT_GOOGLE_FAST_MODEL_NAME = 'gemini-3.5-flash-lite';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
@@ -29,6 +31,7 @@ export const AI_PROVIDER_KEYS = [
     'openai',
     'azure',
     'anthropic',
+    'google',
     'openrouter',
     'bedrock',
 ] as const;
@@ -38,12 +41,15 @@ export const aiCopilotConfigSchema = z
         defaultProvider: z
             .enum(AI_PROVIDER_KEYS)
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
-        // Providers whose instance-level API key belongs to the customer
-        // rather than Lightdash (e.g. a dedicated cloud deployment configured
-        // with the customer's own key). Only affects the `keyManagement`
-        // dimension on AI usage analytics; org BYO keys are tracked separately
-        // at config resolution.
-        selfManagedProviders: z.array(z.enum(AI_PROVIDER_KEYS)).default([]),
+        // Providers whose instance-level API key is Lightdash's own. Set by
+        // Lightdash infrastructure on Lightdash Cloud deployments; empty on
+        // self-hosted installs and on dedicated instances configured with a
+        // customer's key. Only affects the `keyManagement` dimension on AI
+        // usage analytics; org BYO keys are tracked separately at config
+        // resolution.
+        lightdashManagedProviders: z
+            .array(z.enum(AI_PROVIDER_KEYS))
+            .default([]),
         defaultEmbeddingModelProvider: z
             .enum(['openai', 'bedrock', 'azure'])
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
@@ -87,6 +93,15 @@ export const aiCopilotConfigSchema = z
                     supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),
+            google: z
+                .object({
+                    apiKey: z.string(),
+                    modelName: z.string().default(DEFAULT_GOOGLE_MODEL_NAME),
+                    baseUrl: z.string().optional(),
+                    availableModels: z.array(z.string()).optional(),
+                    supportsStreaming: supportsStreamingSchema,
+                })
+                .optional(),
             openrouter: z
                 .object({
                     apiKey: z.string(),
@@ -94,13 +109,15 @@ export const aiCopilotConfigSchema = z
                     sortOrder: z
                         .enum(['price', 'throughput', 'latency'])
                         .default('latency'),
-                    /** @ref https://openrouter.ai/models */
-                    allowedProviders: z
-                        .array(z.enum(['anthropic', 'openai', 'google']))
-                        .default(['openai']),
+                    // Upstream slugs from https://openrouter.ai/api/v1/providers.
+                    // allowedProviders is a hard filter; providerOrder is a
+                    // preference that still falls back to the rest of the pool.
+                    allowedProviders: z.array(z.string()).default([]),
+                    providerOrder: z.array(z.string()).default([]),
                     modelName: z
                         .string()
                         .default(DEFAULT_OPENROUTER_MODEL_NAME),
+                    availableModels: z.array(z.string()).optional(),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
                 })

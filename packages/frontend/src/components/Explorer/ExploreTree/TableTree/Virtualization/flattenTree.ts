@@ -183,6 +183,7 @@ function flattenSection(
             sectionInfo.missingItems
                 ? sectionInfo.missingItems.filter((i) => isCustomDimension(i))
                 : undefined,
+        dashboardMetricIds: options.dashboardMetricIds,
         itemsAlerts: sectionInfo.itemsAlerts,
         orderFieldsBy: sectionInfo.orderFieldsBy,
         isGithubIntegrationEnabled: options.isGithubIntegrationEnabled,

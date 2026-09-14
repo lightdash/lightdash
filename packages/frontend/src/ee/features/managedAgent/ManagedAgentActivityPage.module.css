@@ -807,3 +807,7 @@
         var(--mantine-color-ldGray-9)
     );
 }
+
+.targetIcon {
+    flex-shrink: 0;
+}

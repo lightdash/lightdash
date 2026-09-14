@@ -11,6 +11,7 @@ const mockedPostSchedulerWebhook = vi.mocked(postSchedulerWebhook);
 const successfulWebhookResponse = {
     status: 200,
     contentType: '',
+    headers: {},
     bodyText: '',
     truncated: false,
 };

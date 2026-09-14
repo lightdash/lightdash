@@ -46,6 +46,24 @@ type Props = {
  * design: one-line title, info popover holding description/space metadata, and
  * an inline favorite star.
  */
+
+/**
+ * Walkthrough result for manage:DataApp: the learner's own app, now filed
+ * in a space where the team can find it.
+ */
+const appInSpaceTourProps = {
+    'data-tour-scope': 'manage:DataApp',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/apps/:appUuid',
+    'data-tour-label': 'Your app is in a space now',
+    // Cite the sharing section, not the page's opening: this walkthrough is
+    // about getting an app in front of the team, and the opening card takes
+    // its title from the docs heading it cites.
+    'data-tour-docs': 'data-apps.mdx#sharing-an-app:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'data-apps.mdx#sharing-an-app:2-3',
+};
+
 const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
     const displayName = getAppDisplayName(app.name, app.uuid);
 
@@ -65,7 +83,12 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
             }}
         >
             <Group gap="xs" flex={1} wrap="nowrap" miw={0}>
-                <Title order={6} lineClamp={1} miw={0}>
+                <Title
+                    order={6}
+                    lineClamp={1}
+                    miw={0}
+                    {...(app.spaceUuid ? appInSpaceTourProps : {})}
+                >
                     {displayName}
                 </Title>
 

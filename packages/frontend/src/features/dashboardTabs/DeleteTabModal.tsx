@@ -23,6 +23,7 @@ import MantineModal from '../../components/common/MantineModal';
 import { useDashboardSchedulers } from '../../features/scheduler/hooks/useDashboardSchedulers';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import classes from './DeleteTabModal.module.css';
 
 type DeleteProps = ModalProps & {
     tab: DashboardTab;
@@ -256,7 +257,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                             <Box
                                 ref={scrollContainerRef}
                                 mah={150}
-                                className="ld-scroll-y"
+                                className={classes.schedulerList}
                                 onScroll={onScroll}
                             >
                                 <List size="sm">

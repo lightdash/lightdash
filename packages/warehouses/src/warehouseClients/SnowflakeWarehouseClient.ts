@@ -3,6 +3,7 @@ import {
     CreateSnowflakeCredentials,
     DimensionType,
     getErrorMessage,
+    getWarehouseTableType,
     isWeekDay,
     Metric,
     MetricType,
@@ -15,6 +16,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
@@ -513,6 +515,34 @@ export type SnowflakePublicKeySlot = 'RSA_PUBLIC_KEY' | 'RSA_PUBLIC_KEY_2';
 export type SnowflakePublicKeySlots = {
     RSA_PUBLIC_KEY: string | null;
     RSA_PUBLIC_KEY_2: string | null;
+};
+
+/** NUMBER is FIXED with a scale at the source; scale 0 is an integer. */
+export const getSnowflakeNumericKind = (
+    type: string,
+    scale: number | undefined,
+): ResultNumericKind | null => {
+    switch (type.toUpperCase()) {
+        case SnowflakeTypes.NUMBER:
+        case SnowflakeTypes.FIXED:
+        case SnowflakeTypes.DECIMAL:
+        case SnowflakeTypes.NUMERIC:
+        case SnowflakeTypes.INT:
+        case SnowflakeTypes.INTEGER:
+        case SnowflakeTypes.BIGINT:
+        case SnowflakeTypes.SMALLINT:
+            if (scale === undefined) return null;
+            return scale > 0 ? { kind: 'decimal', scale } : { kind: 'integer' };
+        case SnowflakeTypes.FLOAT:
+        case SnowflakeTypes.FLOAT4:
+        case SnowflakeTypes.FLOAT8:
+        case SnowflakeTypes.DOUBLE:
+        case SnowflakeTypes.DOUBLE_PRECISION:
+        case SnowflakeTypes.REAL:
+            return { kind: 'float' };
+        default:
+            return null;
+    }
 };
 
 export const mapFieldType = (type: string): DimensionType => {
@@ -1318,15 +1348,20 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         // There is a bug/mistype in snowflake-sdk since this method can return undefined
         const columns = stmt.getColumns() as Column[] | undefined;
         return columns
-            ? columns.reduce(
-                  (acc, column) => ({
+            ? columns.reduce<WarehouseResults['fields']>((acc, column) => {
+                  const type = column.getType().toUpperCase();
+                  const numericKind = getSnowflakeNumericKind(
+                      type,
+                      column.getScale?.(),
+                  );
+                  return {
                       ...acc,
                       [column.getName()]: {
-                          type: mapFieldType(column.getType().toUpperCase()),
+                          type: mapFieldType(type),
+                          ...(numericKind ? { numericKind } : {}),
                       },
-                  }),
-                  {},
-              )
+                  };
+              }, {})
             : {};
     }
 
@@ -1701,27 +1736,39 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             table: string;
         }[],
     ) {
+        const startedAt = Date.now();
         const tablesMetadata = await processPromisesInBatches(
             config,
             DEFAULT_BATCH_SIZE,
             async ({ database, schema, table }) =>
                 this.runTableCatalogQuery(database, schema, table),
         );
+        const fetchedAt = Date.now();
 
-        return tablesMetadata.reduce<WarehouseCatalog>((acc, tableMetadata) => {
-            if (tableMetadata) {
-                tableMetadata.rows.forEach((row) => {
-                    const match = config.find(
-                        ({ database, schema, table }) =>
-                            database.toLowerCase() ===
-                                row.database_name.toLowerCase() &&
-                            schema.toLowerCase() ===
-                                row.schema_name.toLowerCase() &&
-                            table.toLowerCase() ===
-                                row.table_name.toLowerCase(),
-                    );
-                    // Unquoted identifiers will always be
-                    if (row.kind === 'COLUMN' && !!match) {
+        // Indexed once instead of scanning the whole request list, with three toLowerCase
+        // compares per candidate, for every column row returned.
+        const requestByKey = new Map<string, (typeof config)[number]>();
+        config.forEach((request) => {
+            const key = `${request.database.toLowerCase()}\u0000${request.schema.toLowerCase()}\u0000${request.table.toLowerCase()}`;
+            // config.find took the first match, so only absent keys are set.
+            if (!requestByKey.has(key)) requestByKey.set(key, request);
+        });
+
+        let columnRows = 0;
+        let unmatchedRows = 0;
+        const catalog = tablesMetadata.reduce<WarehouseCatalog>(
+            (acc, tableMetadata) => {
+                if (tableMetadata) {
+                    tableMetadata.rows.forEach((row) => {
+                        if (row.kind !== 'COLUMN') return;
+                        columnRows += 1;
+                        const match = requestByKey.get(
+                            `${row.database_name.toLowerCase()}\u0000${row.schema_name.toLowerCase()}\u0000${row.table_name.toLowerCase()}`,
+                        );
+                        if (!match) {
+                            unmatchedRows += 1;
+                            return;
+                        }
                         acc[match.database] = acc[match.database] || {};
                         acc[match.database][match.schema] =
                             acc[match.database][match.schema] || {};
@@ -1740,11 +1787,29 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                             row.column_name,
                             getSnowflakeTimestampDomain(rawType),
                         );
-                    }
-                });
-            }
-            return acc;
-        }, {});
+                    });
+                }
+                return acc;
+            },
+            {},
+        );
+
+        const finishedAt = Date.now();
+        console.info(
+            JSON.stringify({
+                event: 'warehouse.getCatalog',
+                warehouse: 'snowflake',
+                requestedTables: config.length,
+                respondedTables: tablesMetadata.filter(Boolean).length,
+                columnRows,
+                unmatchedRows,
+                batchSize: DEFAULT_BATCH_SIZE,
+                fetchDurationMs: fetchedAt - startedAt,
+                indexDurationMs: finishedAt - fetchedAt,
+                durationMs: finishedAt - startedAt,
+            }),
+        );
+        return catalog;
     }
 
     async getAllTables() {
@@ -1754,9 +1819,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             SELECT
                 TABLE_CATALOG as "table_catalog",
                 TABLE_SCHEMA as "table_schema",
-                TABLE_NAME as "table_name"
+                TABLE_NAME as "table_name",
+                TABLE_TYPE as "table_type"
             FROM information_schema.tables
-            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'MATERIALIZED VIEW', 'EXTERNAL TABLE')
             ${whereSql}
             ORDER BY 1,2,3
         `;
@@ -1774,6 +1840,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,
+            tableType: getWarehouseTableType(row.table_type),
         }));
     }
 

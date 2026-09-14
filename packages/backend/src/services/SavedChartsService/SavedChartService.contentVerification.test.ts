@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     ChartType,
+    ConflictError,
     ContentType,
     CustomDimensionType,
     DimensionType,
@@ -9,6 +10,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     PossibleAbilities,
+    type CreateSavedChartVersion,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../auth/account';
@@ -386,6 +388,48 @@ describe('SavedChartService - Content Verification', () => {
     });
 
     describe('Preserve verification on edit', () => {
+        it('rejects a version ownership conflict using the authorized snapshot without unverifying or emitting success', async () => {
+            savedChartModel.createVersion.mockRejectedValueOnce(
+                new ConflictError('Chart location changed'),
+            );
+            const version: CreateSavedChartVersion = {
+                tableName: 'test_table',
+                metricQuery: {
+                    exploreName: 'test',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                chartConfig: { type: ChartType.CARTESIAN },
+                tableConfig: { columnOrder: [] },
+            };
+
+            await expect(
+                service.createVersion(
+                    fromSession(adminUser, 'session-cookie'),
+                    savedChartData.uuid,
+                    { ...version, preserveVerification: false },
+                ),
+            ).rejects.toThrow(ConflictError);
+
+            expect(savedChartModel.createVersion).toHaveBeenCalledWith(
+                savedChartData.uuid,
+                version,
+                expect.objectContaining({ userUuid: adminUser.userUuid }),
+                undefined,
+                {
+                    projectUuid: savedChartData.projectUuid,
+                    dashboardUuid: null,
+                    spaceUuid: savedChartData.spaceUuid,
+                },
+            );
+            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+            expect(analyticsMock.track).not.toHaveBeenCalled();
+        });
+
         it('should preserve chart verification when admin edits content via createVersion', async () => {
             const result = await service.createVersion(
                 fromSession(adminUser, 'session-cookie'),

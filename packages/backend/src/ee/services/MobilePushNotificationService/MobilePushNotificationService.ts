@@ -89,6 +89,7 @@ export type MobilePushNotificationStore = {
     findLiveActivityOwner(
         liveActivityUuid: string,
     ): Promise<LiveActivityOwner | undefined>;
+    installationHasLiveGrant(installationUuid: string): Promise<boolean>;
     upsertInstallation(args: {
         installationUuid: string;
         organizationUuid: string;
@@ -96,6 +97,7 @@ export type MobilePushNotificationStore = {
         platform: MobilePushPlatform;
         environment: MobilePushEnvironment;
         deviceToken: string;
+        oauthClientId: string | null;
     }): Promise<UpsertInstallationResult>;
     registerPushToStartToken(args: {
         installationUuid: string;
@@ -415,6 +417,7 @@ export class MobilePushNotificationService {
         platform: MobilePushPlatform;
         environment: MobilePushEnvironment;
         deviceToken: string;
+        oauthClientId: string | null;
     }): Promise<void> {
         if (!this.config.enabled) return;
         validateDeviceToken(args.platform, args.deviceToken);
@@ -434,6 +437,7 @@ export class MobilePushNotificationService {
                 platform: args.platform,
                 environment: args.environment,
                 deviceToken: args.deviceToken,
+                oauthClientId: args.oauthClientId,
             });
         if (result.status === 'owner_mismatch') {
             throw new NotFoundError('Mobile push registration not found');
@@ -649,6 +653,26 @@ export class MobilePushNotificationService {
                 },
             );
         if (attempt === undefined) return;
+
+        if (
+            !(await this.mobilePushNotificationStore.installationHasLiveGrant(
+                attempt.installationUuid,
+            ))
+        ) {
+            await this.mobilePushNotificationStore.deleteInstallation({
+                installationUuid: attempt.installationUuid,
+                organizationUuid: attempt.organizationUuid,
+                userUuid: attempt.userUuid,
+            });
+            Logger.info(
+                'Removed a mobile push installation without a live grant',
+                {
+                    installationUuid: attempt.installationUuid,
+                    userUuid: attempt.userUuid,
+                },
+            );
+            return;
+        }
 
         const prompt = await this.threadStore.findWebAppPrompt(
             attempt.promptUuid,

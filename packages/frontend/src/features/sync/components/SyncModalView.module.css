@@ -1,0 +1,7 @@
+.syncList {
+    overflow-y: auto;
+}
+
+.syncCard {
+    overflow: hidden;
+}

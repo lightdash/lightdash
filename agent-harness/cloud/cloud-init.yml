@@ -146,14 +146,14 @@ runcmd:
       fnm default 24.18
     '
 
-  # -- Install pnpm 11.20.0 ---------------------------------------------------
+  # -- Install pnpm 12.3.4 ---------------------------------------------------
   - |
     su - lightdash -c '
       export PATH="/home/lightdash/.local/share/fnm:$PATH"
       eval "$(fnm env --shell bash)"
       export PNPM_HOME="/home/lightdash/.local/share/pnpm"
       export PATH="$PNPM_HOME/bin:$PATH"
-      curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=11.20.0 sh -
+      curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.3.4 sh -
     '
 
   # -- Install PM2 globally ----------------------------------------------------

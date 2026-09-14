@@ -30,8 +30,12 @@ capability pattern with `customHeaders`). Each provider has an opt-out env var, 
 | OpenAI | `OPENAI_SUPPORTS_STREAMING` |
 | Azure OpenAI | `AZURE_AI_SUPPORTS_STREAMING` |
 | Anthropic | `ANTHROPIC_SUPPORTS_STREAMING` |
+| Google Gemini | `GEMINI_SUPPORTS_STREAMING` |
 | OpenRouter | `OPENROUTER_SUPPORTS_STREAMING` |
 | Bedrock | `BEDROCK_SUPPORTS_STREAMING` |
+
+When routing Gemini through a gateway, `GEMINI_BASE_URL` must include the
+`/v1beta` path; the Google SDK appends `/interactions` to that base URL.
 
 Streaming is disabled only when the var is the literal `false`. Example for a gateway routed
 through the OpenAI provider:

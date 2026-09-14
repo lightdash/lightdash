@@ -61,9 +61,13 @@ export type MergeContextValue = {
     readOnly: boolean;
     /**
      * The merge arrived with the chart or the link rather than being built
-     * here, so it should run without being asked.
+     * here, so it should run without being asked. Cleared once that run is
+     * refused before execution: from then on it is in the user's hands, like
+     * a merge built here.
      */
     wasRestored: boolean;
+    /** The restored merge was refused before it could run, so stop waiting for it. */
+    refuseRestoredRun: () => void;
     /** Runs a merge, replacing any run already on screen. */
     run: (
         mergeQuery: MergeQuery,

@@ -21,6 +21,7 @@ import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { PostgresDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
+import { SshStaticIpHint } from './SshStaticIpHint';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
@@ -333,6 +334,8 @@ const PostgresForm: FC<{
                                     )}
                                 />
 
+                                <SshStaticIpHint />
+
                                 <NumberInput
                                     name="warehouse.sshTunnelPort"
                                     {...form.getInputProps(
@@ -354,30 +357,31 @@ const PostgresForm: FC<{
                                     )}
                                 />
 
-                                {sshTunnelPublicKey && (
-                                    <TextInput
-                                        name="warehouse.sshTunnelPublicKey"
-                                        {...form.getInputProps(
-                                            'warehouse.sshTunnelPublicKey',
-                                        )}
-                                        label="Generated SSH Public Key"
-                                        readOnly={true}
-                                        disabled={disabled}
-                                        rightSectionPointerEvents="all"
-                                        rightSection={
-                                            <>
-                                                <CopyActionIcon
-                                                    value={sshTunnelPublicKey}
-                                                    tooltipPosition="right"
-                                                    aria-label="Copy SSH tunnel public key"
-                                                    onMouseDown={(event) =>
-                                                        event.preventDefault()
-                                                    }
-                                                />
-                                            </>
-                                        }
-                                    />
-                                )}
+                                <TextInput
+                                    name="warehouse.sshTunnelPublicKey"
+                                    {...form.getInputProps(
+                                        'warehouse.sshTunnelPublicKey',
+                                    )}
+                                    value={sshTunnelPublicKey ?? ''}
+                                    label="Generated SSH Public Key"
+                                    description="Generate a key and add it to your SSH host before saving."
+                                    placeholder="No key generated yet"
+                                    readOnly={true}
+                                    disabled={disabled}
+                                    rightSectionPointerEvents="all"
+                                    rightSection={
+                                        sshTunnelPublicKey ? (
+                                            <CopyActionIcon
+                                                value={sshTunnelPublicKey}
+                                                tooltipPosition="right"
+                                                aria-label="Copy SSH tunnel public key"
+                                                onMouseDown={(event) =>
+                                                    event.preventDefault()
+                                                }
+                                            />
+                                        ) : undefined
+                                    }
+                                />
                                 <Button
                                     onClick={() => mutate()}
                                     loading={isLoading}

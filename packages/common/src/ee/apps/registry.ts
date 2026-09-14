@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ApiSuccess } from '../../types/api/success';
+import { chartTypeIconSchema, type ChartTypeIcon } from './chartTypeIcons';
 import { isValidDataAppSlug } from './code';
 import { dataAppVizSchema, type DataAppVizSchema } from './types';
 
@@ -61,9 +62,15 @@ export type ChartRegistryEntry = {
     tags: string[];
     changelog: string;
     minLightdashVersion: string | null;
+    /** Release channel; absent = stable (the stable index omits the field) */
+    channel?: 'stable' | 'beta';
     vizSchema: DataAppVizSchema;
     thumbnail: string | null;
+    /** Dark-scheme thumbnail variant; null = reuse `thumbnail` in both schemes */
+    thumbnailDark: string | null;
     screenshots: string[];
+    // Curated Tabler icon name; copied onto the app on install and upgrade.
+    icon: ChartTypeIcon | null;
     artifacts: {
         source: ChartRegistryArtifact;
         dist: ChartRegistryArtifact;
@@ -79,9 +86,12 @@ const registryEntrySchema = z.object({
     tags: z.array(z.string()).default([]),
     changelog: z.string().default(''),
     minLightdashVersion: semverString.nullable().default(null),
+    channel: z.enum(['stable', 'beta']).optional(),
     vizSchema: dataAppVizSchema,
     thumbnail: z.string().nullable().default(null),
+    thumbnailDark: z.string().nullable().default(null),
     screenshots: z.array(z.string()).default([]),
+    icon: chartTypeIconSchema.nullable().default(null),
     artifacts: z.object({
         source: registryArtifactSchema,
         dist: registryArtifactSchema,

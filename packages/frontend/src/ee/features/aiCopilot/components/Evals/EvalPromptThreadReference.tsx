@@ -13,6 +13,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useEvalSectionContext } from '../../hooks/useEvalSectionContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import classes from './EvalPromptThreadReference.module.css';
 
 type Props = {
     projectUuid: string;
@@ -78,7 +79,11 @@ export const EvalPromptThreadReference: FC<Props> = ({
     );
 
     return (
-        <Card p="sm" className="ld-pointer" onClick={handleOpenThread}>
+        <Card
+            p="sm"
+            className={classes.clickableCard}
+            onClick={handleOpenThread}
+        >
             <Stack gap="xs">
                 <Group justify="space-between" align="flex-start">
                     <Group gap="xs" flex={1} align="flex-start">

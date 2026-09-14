@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { type ToolDescriptionContext } from '../defineTool';
-import { getFieldIdSchema } from '../fieldId';
 import {
-    FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
-    filterExpressionInputSchema,
-} from '../filterExpressions/expressionSchemas';
+    modelGuidanceSourceByRuntime,
+    type ToolDescriptionContext,
+} from '../defineTool';
+import { getFieldIdSchema } from '../fieldId';
+import { filterExpressionInputSchema } from '../filterExpressions/expressionSchemas';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
@@ -49,12 +49,8 @@ Usage Tips:
 - Prefer a non-empty query containing candidate text, such as "complete" for a status
 - ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
 - If the user or field metadata already provides the exact value, use it directly instead of searching
-- ${emptyFiltersInstructionByRuntime[runtime]}
-- When filters is provided, pass one flat AND expression containing dimension fields only
-
-Filter expression syntax:
-${FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION}
-
+- Omit filters when the search does not need additional filters
+- Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint; for supported operators, quoting, and examples, follow ${modelGuidanceSourceByRuntime[runtime]}.
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()
@@ -81,9 +77,10 @@ export const toolSearchFieldValuesExpressionArgsSchema =
     toolSearchFieldValuesArgsSchema
         .extend({
             filters: filterExpressionInputSchema
-                .nullable()
+                .nullish()
+                .default(null)
                 .describe(
-                    'Optional flat AND filter expression containing dimension fields only. Use null when the value search needs no additional scope.',
+                    'When present, scopes the candidate-value search with one flat AND filter expression containing dimension fields only.',
                 ),
         })
         .strict();

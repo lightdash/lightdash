@@ -2,6 +2,7 @@ import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     AnyType,
     ChartAsCode,
+    ContentType,
     CustomDimensionType,
     DashboardAsCode,
     DashboardTileTypes,
@@ -24,7 +25,7 @@ const OTHER_SPACE_UUID = 'other-space-uuid';
 const PARENT_SPACE_UUID = 'parent-space-uuid';
 const NEW_SPACE_UUID = 'new-space-uuid';
 
-const makeUser = (
+const makeSessionUser = (
     rules: RawRuleOf<Ability<PossibleAbilities>>[],
 ): SessionUser =>
     ({
@@ -67,6 +68,7 @@ const dashboardAsCode = {
 
 const buildService = () =>
     new CoderService({
+        directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {
@@ -89,6 +91,7 @@ const buildService = () =>
             find: vi.fn(async () => []),
             create: vi.fn(),
             getByIdOrSlug: vi.fn(),
+            renameSlug: vi.fn(),
         } as AnyType,
         spaceModel: {
             find: vi.fn(async () => [
@@ -149,7 +152,101 @@ const buildService = () =>
         userModel: {} as AnyType,
     });
 
-describe('CoderService content-as-code space permissions', () => {
+const registerContentAccessTests = (
+    contentAsCodeAction: 'create' | 'manage',
+) => {
+    const makeUser = (rules: RawRuleOf<Ability<PossibleAbilities>>[]) =>
+        makeSessionUser(
+            rules.map((rule) =>
+                rule.subject === 'ContentAsCode' && rule.action === 'create'
+                    ? { ...rule, action: contentAsCodeAction }
+                    : rule,
+            ),
+        );
+    describe('CoderService dashboard slug rename permissions', () => {
+        const request = {
+            resourceType: ContentType.DASHBOARD,
+            from: 'old-dashboard',
+            to: 'dashboard',
+        };
+
+        it('requires project write access before looking up a dashboard', async () => {
+            const service = buildService();
+            await expect(
+                service.renameContentSlug(makeUser([]), PROJECT_UUID, request),
+            ).rejects.toThrow(ForbiddenError);
+            expect(service.dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+            expect(service.dashboardModel.renameSlug).not.toHaveBeenCalled();
+        });
+
+        it('requires dashboard update access for write-only callers', async () => {
+            const service = buildService();
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                slug: request.from,
+                spaceUuid: SPACE_UUID,
+            } as AnyType);
+            await expect(
+                service.renameContentSlug(
+                    makeUser([{ subject: 'ContentAsCode', action: 'create' }]),
+                    PROJECT_UUID,
+                    request,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(service.dashboardModel.renameSlug).not.toHaveBeenCalled();
+        });
+
+        it('renames an authorized project-scoped dashboard', async () => {
+            const service = buildService();
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                slug: request.from,
+                spaceUuid: SPACE_UUID,
+            } as AnyType);
+            await service.renameContentSlug(
+                makeUser([
+                    { subject: 'ContentAsCode', action: 'create' },
+                    {
+                        subject: 'Dashboard',
+                        action: 'update',
+                        conditions: { projectUuid: PROJECT_UUID },
+                    },
+                ]),
+                PROJECT_UUID,
+                request,
+            );
+            expect(service.dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+                request.from,
+                { projectUuid: PROJECT_UUID },
+            );
+            expect(service.dashboardModel.renameSlug).toHaveBeenCalledWith({
+                projectUuid: PROJECT_UUID,
+                dashboardUuid: 'dashboard-uuid',
+                from: request.from,
+                to: request.to,
+            });
+        });
+
+        it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(256)])(
+            'rejects malformed target %s before looking up a dashboard',
+            async (to) => {
+                const service = buildService();
+                await expect(
+                    service.renameContentSlug(makeUser([]), PROJECT_UUID, {
+                        ...request,
+                        to,
+                    }),
+                ).rejects.toThrow('target slug');
+                expect(
+                    service.dashboardModel.getByIdOrSlug,
+                ).not.toHaveBeenCalled();
+                expect(
+                    service.dashboardModel.renameSlug,
+                ).not.toHaveBeenCalled();
+            },
+        );
+    });
+
     const chartCreateRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
         { subject: 'ContentAsCode', action: 'create' },
         {
@@ -230,7 +327,7 @@ describe('CoderService content-as-code space permissions', () => {
 
         await expect(
             service.upsertChart(
-                makeUser(chartCreateRules),
+                makeSessionUser(chartCreateRules),
                 PROJECT_UUID,
                 chartAsCode.slug,
                 {
@@ -262,7 +359,7 @@ describe('CoderService content-as-code space permissions', () => {
 
         await expect(
             service.upsertChart(
-                makeUser(chartCreateRules),
+                makeSessionUser(chartCreateRules),
                 PROJECT_UUID,
                 chartAsCode.slug,
                 {
@@ -291,7 +388,7 @@ describe('CoderService content-as-code space permissions', () => {
 
         await expect(
             service.upsertChart(
-                makeUser(chartCreateRules),
+                makeSessionUser(chartCreateRules),
                 PROJECT_UUID,
                 chartAsCode.slug,
                 {
@@ -323,7 +420,7 @@ describe('CoderService content-as-code space permissions', () => {
         );
     });
 
-    it('lets manage upload any content without SQL and space checks', async () => {
+    it('lets manage upload SQL content but still checks space access', async () => {
         const service = buildService();
         prepareChartCreate(service);
         const chartWithSql = {
@@ -345,7 +442,14 @@ describe('CoderService content-as-code space permissions', () => {
 
         await expect(
             service.upsertChart(
-                makeUser([{ subject: 'ContentAsCode', action: 'manage' }]),
+                makeUser([
+                    { subject: 'ContentAsCode', action: 'manage' },
+                    {
+                        subject: 'SavedChart',
+                        action: 'create',
+                        conditions: { projectUuid: PROJECT_UUID },
+                    },
+                ]),
                 PROJECT_UUID,
                 chartWithSql.slug,
                 chartWithSql,
@@ -353,7 +457,7 @@ describe('CoderService content-as-code space permissions', () => {
         ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
         expect(
             service.spacePermissionService.resolveAccessBatch,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalled();
     });
 
     it('does not let ContentAsCode alone create charts in a space', async () => {
@@ -446,7 +550,7 @@ describe('CoderService content-as-code space permissions', () => {
         expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
     });
 
-    it('rechecks a newly created chart target space before moving content', async () => {
+    it('rejects moving a chart below a restricted parent before creating spaces', async () => {
         const service = buildService();
         vi.mocked(service.savedChartModel.find).mockResolvedValue([
             {
@@ -534,7 +638,7 @@ describe('CoderService content-as-code space permissions', () => {
                 spaceSlug: 'restricted/new-space',
             }),
         ).rejects.toThrow('You don\'t have access to update chart "chart"');
-        expect(service.spaceModel.createSpace).toHaveBeenCalledOnce();
+        expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
         expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
     });
 
@@ -1072,7 +1176,13 @@ describe('CoderService content-as-code space permissions', () => {
         ).resolves.toMatchObject({
             charts: [{ action: PromotionAction.NO_CHANGES }],
         });
-        expect(service.savedChartModel.get).toHaveBeenCalledWith('chart-uuid');
+        if (contentAsCodeAction === 'create') {
+            expect(service.savedChartModel.get).toHaveBeenCalledWith(
+                'chart-uuid',
+            );
+        } else {
+            expect(service.savedChartModel.get).not.toHaveBeenCalled();
+        }
         expect(service.promoteService.getPromoteCharts).toHaveBeenCalled();
     });
 
@@ -1356,7 +1466,14 @@ describe('CoderService content-as-code space permissions', () => {
             service.spacePermissionService.resolveAccessBatch,
         ).toHaveBeenCalledTimes(1);
     });
-});
+};
+
+describe.each(['create', 'manage'] as const)(
+    'CoderService content-as-code space permissions (%s)',
+    (action) => {
+        registerContentAccessTests(action);
+    },
+);
 
 describe('CoderService upsertDashboard tile chart versions', () => {
     it('does not re-version unchanged tile charts on a forced dashboard upload', async () => {
@@ -1415,7 +1532,7 @@ describe('CoderService upsertDashboard tile chart versions', () => {
             },
             [],
         ] as AnyType);
-        const user = makeUser([
+        const user = makeSessionUser([
             { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'Dashboard',

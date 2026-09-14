@@ -23,11 +23,13 @@ import {
     SchedulerWorkerArguments,
 } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
+import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
+import { type ScimRequestLogModel } from '../models/ScimRequestLogModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
@@ -43,6 +45,7 @@ import { type MobilePushNotificationService } from '../services/MobilePushNotifi
 import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
+import { createReviewJiraIssue } from './tasks/createReviewJiraIssue';
 import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
 import { sendContentReviewNotification } from './tasks/sendContentReviewNotification';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
@@ -121,6 +124,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
+    jiraAppService: JiraAppService;
     linearAppService: LinearAppService;
     aiAgentAdminService: AiAgentAdminService;
     embedService: EmbedService;
@@ -130,6 +134,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
     mcpToolCallModel: McpToolCallModel;
+    scimRequestLogModel: ScimRequestLogModel;
     projectHomepageService: Pick<
         ProjectHomepageService,
         'publishScheduledAnnouncement' | 'sweepDueAnnouncements'
@@ -170,6 +175,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
+    protected readonly jiraAppService: JiraAppService;
+
     protected readonly linearAppService: LinearAppService;
 
     protected readonly aiAgentAdminService: AiAgentAdminService;
@@ -187,6 +194,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly openIdIdentityModel: OpenIdIdentityModel;
 
     protected readonly mcpToolCallModel: McpToolCallModel;
+
+    protected readonly scimRequestLogModel: ScimRequestLogModel;
 
     protected readonly projectHomepageService: CommercialSchedulerWorkerArguments['projectHomepageService'];
 
@@ -217,6 +226,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.aiOrganizationSettingsModel = args.aiOrganizationSettingsModel;
         this.aiAgentReviewNotificationService =
             args.aiAgentReviewNotificationService;
+        this.jiraAppService = args.jiraAppService;
         this.linearAppService = args.linearAppService;
         this.aiAgentAdminService = args.aiAgentAdminService;
         this.embedService = args.embedService;
@@ -226,6 +236,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectModel = args.projectModel;
         this.openIdIdentityModel = args.openIdIdentityModel;
         this.mcpToolCallModel = args.mcpToolCallModel;
+        this.scimRequestLogModel = args.scimRequestLogModel;
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
         this.mobilePushNotificationService = args.mobilePushNotificationService;
@@ -328,6 +339,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     maxAttempts: 3,
                 },
             },
+            {
+                task: EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS,
+                pattern: '10 2 * * *', // 02:10 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
         ];
     }
 
@@ -411,6 +430,27 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         { maxAttempts: 3 },
                     );
                 }
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: async () => {
+                const cleanupConfig =
+                    this.lightdashConfig.scheduler.scimRequestLogs.cleanup;
+                if (!cleanupConfig.enabled) {
+                    Logger.info('SCIM request log cleanup job is disabled');
+                    return;
+                }
+                Logger.info('Starting SCIM request log cleanup job');
+                const cutoffDate = new Date(
+                    Date.now() - cleanupConfig.retentionDays * 24 * 3600 * 1000,
+                );
+                const { totalDeleted, batchCount } =
+                    await this.scimRequestLogModel.cleanupBatch(cutoffDate, {
+                        batchSize: cleanupConfig.batchSize,
+                        delayMs: cleanupConfig.delayMs,
+                        maxBatches: cleanupConfig.maxBatches,
+                    });
+                Logger.info(
+                    `SCIM request log cleanup completed. Records deleted: ${totalDeleted} in ${batchCount} batches`,
+                );
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (
                 payload,
@@ -1073,6 +1113,19 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         this.aiAgentReviewClassifierModel,
                     projectModel: this.projectModel,
                     linearAppService: this.linearAppService,
+                    analytics: this.analytics,
+                })(payload);
+            },
+            [EE_SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: async (payload) => {
+                await createReviewJiraIssue({
+                    siteUrl: this.lightdashConfig.siteUrl, // pragma: allowlist secret
+                    model: this.aiAgentReviewNotificationModel,
+                    aiOrganizationSettingsModel:
+                        this.aiOrganizationSettingsModel,
+                    aiAgentReviewClassifierModel:
+                        this.aiAgentReviewClassifierModel,
+                    projectModel: this.projectModel,
+                    jiraAppService: this.jiraAppService,
                     analytics: this.analytics,
                 })(payload);
             },

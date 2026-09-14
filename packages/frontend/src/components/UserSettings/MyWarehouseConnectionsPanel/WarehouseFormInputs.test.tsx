@@ -90,7 +90,7 @@ describe('WarehouseFormInputs - Snowflake', () => {
         ).toBeNull();
 
         await userEvent.click(
-            await findByRole('textbox', { name: /authentication type/i }),
+            await findByRole('combobox', { name: /authentication type/i }),
         );
         expect(
             queryByRole('option', { name: /sign in with snowflake/i }),
@@ -108,7 +108,7 @@ describe('WarehouseFormInputs - Snowflake', () => {
         const { findByRole } = renderWithProviders(<SnowflakeForm />);
 
         await userEvent.click(
-            await findByRole('textbox', { name: /authentication type/i }),
+            await findByRole('combobox', { name: /authentication type/i }),
         );
         expect(
             await findByRole('option', { name: /private key/i }),
@@ -140,7 +140,7 @@ describe('WarehouseFormInputs - Snowflake', () => {
         );
 
         expect(
-            await findByRole('textbox', { name: /authentication type/i }),
+            await findByRole('combobox', { name: /authentication type/i }),
         ).toHaveValue(getSsoLabel(WarehouseTypes.SNOWFLAKE));
     });
 });
@@ -258,7 +258,7 @@ describe('WarehouseFormInputs - Databricks', () => {
         expect(queryByLabelText(/personal access token/i)).toBeNull();
 
         await userEvent.click(
-            await findByRole('textbox', { name: /authentication type/i }),
+            await findByRole('combobox', { name: /authentication type/i }),
         );
         await userEvent.click(
             await findByRole('option', { name: /personal access token/i }),

@@ -77,6 +77,14 @@ export type AiPromptTokenUsage = {
 /** Write shape: both figures are required so a writer can't omit the compaction input. */
 export type AiPromptTokenUsageUpdate = Required<AiPromptTokenUsage>;
 
+/** Wall-clock timing of one model run, stamped by the agent loop. ISO strings. */
+export type AiPromptResponseTiming = {
+    startedAt: string;
+    /** First chunk the model produced (text, reasoning, or tool input). Null when nothing streamed. */
+    firstTokenAt: string | null;
+    finishedAt: string;
+};
+
 /**
  * Every origin an ai_thread can be created from. Canonical source for the
  * DB column type and the admin/list filters — add new origins here.
@@ -234,6 +242,32 @@ export type AiPromptContextItemInput =
           // The preview project where a semantic-layer fix can be tested.
           type: 'preview_environment';
           previewProjectUuid: string;
+      }
+    | {
+          // An element reference picked from a data app preview: the app and
+          // version it was picked from plus the element's tag, visible text,
+          // and source location (`path:line`, empty when unavailable).
+          type: 'data_app_element';
+          appUuid: string;
+          version: number;
+          tag: string;
+          text: string;
+          loc: string;
+      }
+    | {
+          // A thread restore: the new version and the ready one it copies.
+          // System-only, never user-attached.
+          type: 'data_app_restore';
+          appUuid: string;
+          version: number;
+          restoredFromVersion: number;
+      }
+    | {
+          // A data app the user pinned; the server snapshots its name and
+          // latest ready version number at attach time.
+          type: 'data_app';
+          appUuid: string;
+          appSlug?: string | null;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -323,6 +357,33 @@ export type AiPromptContextItem =
           previewThreadUuid: string | null;
           status: AiAgentReviewRemediationStatus | null;
           projectName: string | null;
+      }
+    | {
+          type: 'data_app_element';
+          appUuid: string;
+          version: number;
+          tag: string;
+          text: string;
+          loc: string;
+          appSlug: string | null;
+          displayName: string | null;
+      }
+    | {
+          type: 'data_app_restore';
+          appUuid: string;
+          version: number;
+          restoredFromVersion: number;
+          appSlug: string | null;
+          displayName: string | null;
+      }
+    | {
+          type: 'data_app';
+          appUuid: string;
+          appSlug: string | null;
+          displayName: string | null;
+          pinnedVersion: number | null;
+          // Personal apps have no space; space-restricted agents cannot read them.
+          isPersonal: boolean;
       };
 
 export type AiPromptContext = AiPromptContextItem[];
@@ -343,6 +404,7 @@ export type UpdateSlackResponse = {
     errorMessage?: string;
     humanScore?: number | null;
     tokenUsage?: AiPromptTokenUsageUpdate | null;
+    responseTiming?: AiPromptResponseTiming;
 };
 
 export type UpdateWebAppResponse = {
@@ -351,6 +413,7 @@ export type UpdateWebAppResponse = {
     errorMessage?: string;
     humanScore?: number | null;
     tokenUsage?: AiPromptTokenUsageUpdate | null;
+    responseTiming?: AiPromptResponseTiming;
 };
 
 export type UpdateSlackResponseTs = {

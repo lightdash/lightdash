@@ -12,6 +12,7 @@ import {
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import {
     createBranch,
     createPullRequest,
@@ -357,7 +358,14 @@ export class ProjectContextService extends BaseService {
             installationId,
             token,
         });
-        const headBranch = `lightdash-project-context/${entryId}-${args.branchTimestamp}`;
+        // Entry IDs may be derived from an entire context paragraph. Keep the
+        // GitHub ref below its 255-byte limit without changing the persisted ID
+        // or making entries with a shared long prefix target the same branch.
+        const branchEntryId =
+            Buffer.byteLength(entryId, 'utf8') > 160
+                ? createHash('sha256').update(entryId).digest('hex')
+                : entryId;
+        const headBranch = `lightdash-project-context/${branchEntryId}-${args.branchTimestamp}`;
         await createBranch({
             owner,
             repo,

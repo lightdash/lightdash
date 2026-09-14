@@ -16,6 +16,7 @@ import type {
 import type { DashboardFilterRule } from '../filter';
 import type { PromotionChanges } from '../promotion';
 import type { ContentAsCodeType } from './core';
+import type { ContentAsCodeDirectAccess } from './directAccess';
 import type { SpaceAsCode } from './spaces';
 
 type DashboardTileAsCodeBase = {
@@ -163,6 +164,8 @@ export type DashboardAsCode = Omit<
     verified?: boolean;
     /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
+    /** Direct user/group grants. Omission leaves the existing policy unchanged on upload. */
+    access?: ContentAsCodeDirectAccess;
 };
 
 export type ApiDashboardAsCodeListResponse = {

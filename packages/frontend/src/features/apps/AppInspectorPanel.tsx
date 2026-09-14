@@ -203,6 +203,10 @@ const AppInspectorPanel: FC<Props> = ({
 
     return (
         <Box
+            data-tour-scope="view:DataApp"
+            data-tour-result="1"
+            data-tour-label="Read the network activity"
+            data-tour-docs="data-apps.mdx#network-inspector:p2:1"
             className={
                 collapsed
                     ? `${classes.container} ${classes.containerCollapsed}`
@@ -320,7 +324,7 @@ const AppInspectorPanel: FC<Props> = ({
                     <MantineIcon icon={IconX} size={12} />
                 </ActionIcon>
             </Group>
-            <Collapse in={!collapsed}>
+            <Collapse expanded={!collapsed}>
                 <Box
                     className={classes.resizeHandle}
                     onPointerDown={handleResizeStart}

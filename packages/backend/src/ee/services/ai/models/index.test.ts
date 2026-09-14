@@ -19,7 +19,7 @@ import {
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
 } from './index';
-import type { ModelPreset } from './presets';
+import type { ModelPreset, ModelPresetProvider } from './presets';
 
 vi.mock('ai', async () => {
     const actual = await vi.importActual<typeof import('ai')>('ai');
@@ -177,8 +177,11 @@ describe('getModel', () => {
         expect(wrapLanguageModel).not.toHaveBeenCalled();
     });
 
-    it('stamps lightdash-managed when the resolved provider is not BYO', () => {
-        const { keyManagement } = getModel(copilotConfigWithStreaming(true));
+    it('stamps lightdash-managed when the resolved provider is declared Lightdash-managed and not BYO', () => {
+        const { keyManagement } = getModel({
+            ...copilotConfigWithStreaming(true),
+            lightdashManagedProviders: ['openai'],
+        });
         expect(keyManagement).toBe('lightdash-managed');
     });
 
@@ -193,6 +196,7 @@ describe('getModel', () => {
     it('stamps lightdash-managed when a different provider is BYO', () => {
         const { keyManagement } = getModel({
             ...copilotConfigWithStreaming(true),
+            lightdashManagedProviders: ['openai'],
             byoProviders: ['anthropic'],
         });
         expect(keyManagement).toBe('lightdash-managed');
@@ -237,6 +241,7 @@ describe('getModel', () => {
                         apiKey: 'test',
                         modelName: 'current/model',
                         allowedProviders: ['openai'],
+                        providerOrder: [],
                         sortOrder: 'latency',
                         customHeaders: {},
                         supportsStreaming: true,
@@ -251,6 +256,36 @@ describe('getModel', () => {
         );
 
         expect(model.modelId).toBe('run-selected/model');
+    });
+
+    it('honors an allowlisted OpenRouter model selection', () => {
+        const { model } = getModel(
+            {
+                ...baseCopilotConfig,
+                defaultProvider: 'openrouter',
+                providers: {
+                    openrouter: {
+                        apiKey: 'test',
+                        modelName: 'qwen/qwen3.8-flash',
+                        availableModels: [
+                            'qwen/qwen3.8-flash',
+                            'moonshotai/kimi-k3',
+                        ],
+                        allowedProviders: [],
+                        providerOrder: [],
+                        sortOrder: 'latency',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            {
+                provider: 'openrouter',
+                modelName: 'moonshotai/kimi-k3',
+            },
+        );
+
+        expect(model.modelId).toBe('moonshotai/kimi-k3');
     });
 
     it('ignores untrusted Azure and OpenRouter model-name overrides', () => {
@@ -283,6 +318,7 @@ describe('getModel', () => {
                         apiKey: 'test',
                         modelName: 'configured/model',
                         allowedProviders: ['openai'],
+                        providerOrder: [],
                         sortOrder: 'latency',
                         customHeaders: {},
                         supportsStreaming: true,
@@ -325,20 +361,37 @@ describe('getModel', () => {
         expect(model.modelId).toBe('jp.anthropic.claude-opus-5');
     });
 
-    it('stamps self-managed when the resolved provider is instance self-managed', () => {
+    it('stamps lightdash-managed only when Lightdash infrastructure declared the provider', () => {
         const { keyManagement } = getModel({
             ...copilotConfigWithStreaming(true),
-            selfManagedProviders: ['openai'],
+            lightdashManagedProviders: ['openai'],
+        });
+        expect(keyManagement).toBe('lightdash-managed');
+    });
+
+    it('stamps self-managed when the resolved provider is not declared as Lightdash-managed', () => {
+        const { keyManagement } = getModel({
+            ...copilotConfigWithStreaming(true),
+            lightdashManagedProviders: ['anthropic'],
         });
         expect(keyManagement).toBe('self-managed');
     });
 
-    it('stamps lightdash-managed when a different provider is instance self-managed', () => {
+    it('stamps self-managed by default (self-hosted, or a dedicated instance on a customer key)', () => {
         const { keyManagement } = getModel({
             ...copilotConfigWithStreaming(true),
-            selfManagedProviders: ['anthropic'],
+            lightdashManagedProviders: [],
         });
-        expect(keyManagement).toBe('lightdash-managed');
+        expect(keyManagement).toBe('self-managed');
+    });
+
+    it('stamps self-managed for an org UI key even when the instance key is Lightdash-managed', () => {
+        const { keyManagement } = getModel({
+            ...copilotConfigWithStreaming(true),
+            lightdashManagedProviders: ['openai'],
+            byoProviders: ['openai'],
+        });
+        expect(keyManagement).toBe('self-managed');
     });
 
     it('wraps the model with simulateStreamingMiddleware when the provider does not support streaming', () => {
@@ -346,6 +399,104 @@ describe('getModel', () => {
 
         expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
         expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
+    });
+});
+
+describe('OpenRouter model options', () => {
+    it('surfaces the default and allowlisted models for the picker', () => {
+        const models = getAvailableModels({
+            ...baseCopilotConfig,
+            defaultProvider: 'openrouter',
+            providers: {
+                openrouter: {
+                    apiKey: 'test',
+                    modelName: 'qwen/qwen3.5-9b',
+                    availableModels: [
+                        'qwen/qwen3.5-9b',
+                        'moonshotai/kimi-k3',
+                        'z-ai/glm-5.3-flash',
+                    ],
+                    allowedProviders: [],
+                    providerOrder: [],
+                    sortOrder: 'latency',
+                    customHeaders: {},
+                    supportsStreaming: true,
+                },
+            },
+        });
+
+        expect(models).toMatchObject([
+            {
+                provider: 'openrouter',
+                name: 'qwen/qwen3.5-9b',
+                displayName: 'Qwen3.5 9B',
+                groupLabel: 'Qwen',
+                description:
+                    'Compact multimodal model for affordable reasoning, coding, and visual analysis',
+            },
+            {
+                provider: 'openrouter',
+                name: 'moonshotai/kimi-k3',
+                displayName: 'Kimi K3',
+                groupLabel: 'Moonshot AI',
+                description:
+                    'Open-weight multimodal model for complex coding and long-running agents',
+            },
+            {
+                provider: 'openrouter',
+                name: 'z-ai/glm-5.3-flash',
+                displayName: 'GLM 5.3 Flash',
+                groupLabel: 'Z.ai',
+                description:
+                    'Efficient multimodal model for coding and long-context agent tasks',
+            },
+        ]);
+    });
+});
+
+describe('Google Gemini models', () => {
+    const googleCopilotConfig = {
+        ...baseCopilotConfig,
+        defaultProvider: 'google' as const,
+        providers: {
+            google: {
+                apiKey: 'fake-gemini-key',
+                modelName: 'gemini-3.8-flash',
+                availableModels: undefined,
+                supportsStreaming: true,
+            },
+        },
+    };
+
+    it('lists the shipped Gemini presets', () => {
+        expect(
+            getAvailableModels(googleCopilotConfig).map((model) => model.name),
+        ).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+    });
+
+    it('resolves Gemini through the Interactions-backed model factory', () => {
+        const { model, providerOptions } = getModel(googleCopilotConfig);
+
+        expect(model.modelId).toBe('gemini-3.8-flash');
+        expect(providerOptions).toEqual({
+            google: { store: false, thinkingLevel: 'low' },
+        });
+    });
+
+    it('uses Flash-Lite for lightweight work', () => {
+        const { model } = getFastModelForAccessibleKey(
+            { ...googleCopilotConfig, byoProviders: ['google'] },
+            null,
+        );
+
+        expect(model.modelId).toBe('gemini-3.5-flash-lite');
+    });
+
+    it('uses the Gemini context window for compaction', () => {
+        expect(getCompactionModelMetadata(googleCopilotConfig)).toEqual({
+            supportsCompaction: true,
+            contextWindowTokens: 400_000,
+        });
     });
 });
 
@@ -454,10 +605,10 @@ describe('custom OpenAI-compatible gateway models', () => {
 describe('filterModelsForOrg', () => {
     const preset = (
         overrides: Pick<
-            ModelPreset<'openai' | 'anthropic' | 'bedrock'>,
+            ModelPreset<ModelPresetProvider>,
             'name' | 'provider' | 'modelId'
         > & { hiddenUnlessKeyAccess?: boolean },
-    ): ModelPreset<'openai' | 'anthropic' | 'bedrock'> => ({
+    ): ModelPreset<ModelPresetProvider> => ({
         displayName: overrides.name,
         description: 'test preset',
         contextWindowTokens: 200000,
@@ -765,6 +916,7 @@ describe('getFastModelForAccessibleKey', () => {
     const anthropicByoConfig = {
         ...baseCopilotConfig,
         defaultProvider: 'anthropic' as const,
+        byoProviders: ['anthropic' as const],
         providers: {
             ...baseCopilotConfig.providers,
             anthropic: {
@@ -788,5 +940,40 @@ describe('getFastModelForAccessibleKey', () => {
             'claude-opus-4-8',
         ]);
         expect(model.modelId).toBe('claude-opus-4-8');
+    });
+
+    it('preserves the managed-instance Anthropic fast path', () => {
+        const { model } = getFastModelForAccessibleKey(
+            {
+                ...anthropicByoConfig,
+                defaultProvider: 'openai',
+                byoProviders: [],
+            },
+            ['claude-haiku-4-5-20251001'],
+        );
+
+        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
+    });
+
+    it('never uses the instance Anthropic key for a Google-only BYO org', () => {
+        const { model } = getFastModelForAccessibleKey(
+            {
+                ...anthropicByoConfig,
+                defaultProvider: 'google',
+                byoProviders: ['google'],
+                providers: {
+                    ...anthropicByoConfig.providers,
+                    google: {
+                        apiKey: 'fake-gemini-key',
+                        modelName: 'gemini-3.8-flash',
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            ['claude-haiku-4-5-20251001'],
+        );
+
+        expect(model.modelId).toBe('gemini-3.5-flash-lite');
+        expect(model.provider).toContain('google');
     });
 });

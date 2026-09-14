@@ -1,7 +1,9 @@
 import {
     QUERY_HISTORY_WINDOW_MINUTES,
     QUERY_HISTORY_WINDOWS_ORDERED,
+    QueryHistoryStatus,
     QueryHistoryWindow,
+    QueryLanguage,
     QueryTrigger,
     assertUnreachable,
 } from '@lightdash/common';
@@ -72,7 +74,7 @@ export const getWindowRangeLabel = (window: QueryHistoryWindow): string => {
         case QueryHistoryWindow.LAST_HOUR:
             return `${from.format('HH:mm')} – ${to.format('HH:mm')}`;
         case QueryHistoryWindow.LAST_24_HOURS:
-            return `Yesterday ${from.format('HH:mm')} onwards`;
+            return `Since ${from.format('ddd HH:mm')}`;
         case QueryHistoryWindow.LAST_7_DAYS:
         case QueryHistoryWindow.LAST_30_DAYS:
             return from.month() === to.month()
@@ -104,3 +106,11 @@ export const getTriggerLabel = (trigger: QueryTrigger): string => {
             return assertUnreachable(trigger, 'Unknown query trigger');
     }
 };
+
+export const isRunningStatus = (status: QueryHistoryStatus): boolean =>
+    status === QueryHistoryStatus.PENDING ||
+    status === QueryHistoryStatus.QUEUED ||
+    status === QueryHistoryStatus.EXECUTING;
+
+export const getLanguageLabel = (language: QueryLanguage): string =>
+    language === QueryLanguage.SQL ? 'SQL' : 'Semantic';

@@ -231,6 +231,7 @@ export const useChartTypeBuilderWorkspace = ({
 
     const previewVersion = viewedVersion ?? history.latestReadyVersion;
     const { offer: sdkUpgradeOffer, onSdkManifest } = useSdkUpgradeStatus({
+        target: 'chart_type',
         bundleKey:
             dataAppVizUuid && history.latestReadyVersion !== null
                 ? `${dataAppVizUuid}:${history.latestReadyVersion}`

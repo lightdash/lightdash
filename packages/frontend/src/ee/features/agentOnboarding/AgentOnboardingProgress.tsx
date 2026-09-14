@@ -2,7 +2,7 @@ import {
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
 } from '@lightdash/common';
-import { Stepper, Text, Tooltip, type StepperStepProps } from '@mantine/core';
+import { Box, Text } from '@mantine/core';
 import {
     IconChartBar,
     IconCheck,
@@ -16,49 +16,63 @@ import classes from './AgentOnboardingRunPage.module.css';
 import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
     formatStageDuration,
-    getAgentOnboardingProgressStageIndex,
     getAgentOnboardingProgressStageTimings,
     type AgentOnboardingProgressStage,
+    type AgentOnboardingProgressStageTiming,
 } from './utils';
 
 const STAGE_CONFIG: Record<
     AgentOnboardingProgressStage,
-    { label: string; description: string; icon: Icon }
+    { label: string; activeLabel: string; description: string; icon: Icon }
 > = {
     explore: {
-        label: 'Explore',
-        description:
-            'Looks through your warehouse to understand your data and choose a useful starting point.',
+        label: 'Explore your warehouse',
+        activeLabel: 'Exploring your warehouse',
+        description: 'Reads your tables to find a useful starting point.',
         icon: IconDatabaseSearch,
     },
     semantic_layer: {
-        label: 'Semantic layer',
-        description:
-            'Organizes your data into clear, reusable definitions for reporting.',
+        label: 'Build the semantic layer',
+        activeLabel: 'Building the semantic layer',
+        description: 'Turns your data into reusable metrics and dimensions.',
         icon: IconLayersLinked,
     },
     dashboard: {
-        label: 'Dashboard',
-        description:
-            'Creates a starter dashboard with useful metrics, charts, filters, and details.',
+        label: 'Create a starter dashboard',
+        activeLabel: 'Creating a starter dashboard',
+        description: 'Puts the first charts and filters together for you.',
         icon: IconChartBar,
     },
     ready: {
-        label: 'Ready',
-        description:
-            'Checks that everything works and gets your new project ready to use.',
+        label: 'Verify and hand off',
+        activeLabel: 'Verifying and handing off',
+        description: 'Checks everything works and opens the project.',
         icon: IconCheck,
     },
 };
 
-const ProgressStep: FC<StepperStepProps & { tooltip: string }> = ({
-    tooltip,
-    ...stepProps
-}) => (
-    <Tooltip label={tooltip} maw={360}>
-        <Stepper.Step {...stepProps} />
-    </Tooltip>
-);
+type StageState = AgentOnboardingProgressStageTiming['state'] | 'stopped';
+
+// A cancelled or failed run leaves its last started stage unfinished
+const getStageStates = (
+    run: AgentOnboardingRun | undefined,
+    timings: AgentOnboardingProgressStageTiming[] | undefined,
+): StageState[] => {
+    if (!run || !timings) {
+        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'not_started');
+    }
+    if (run.status === 'completed') {
+        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'completed');
+    }
+    const states: StageState[] = timings.map(({ state }) => state);
+    if (run.status === 'cancelled' || run.status === 'failed') {
+        const lastStartedIndex = states.findLastIndex(
+            (state) => state !== 'not_started',
+        );
+        if (lastStartedIndex >= 0) states[lastStartedIndex] = 'stopped';
+    }
+    return states;
+};
 
 export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
     run,
@@ -77,57 +91,68 @@ export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
             run ? getAgentOnboardingProgressStageTimings(run, now) : undefined,
         [now, run],
     );
-    const activeStageIndex = timings?.findIndex(
-        ({ state }) => state === 'active',
-    );
-    const currentStageIndex = getAgentOnboardingProgressStageIndex(
-        run?.stage ?? null,
-    );
-    const active = !run
-        ? -1
-        : run.status === 'completed'
-          ? (timings?.length ?? 0)
-          : activeStageIndex !== undefined && activeStageIndex >= 0
-            ? activeStageIndex
-            : Math.max(currentStageIndex ?? 0, 0);
+    const states = getStageStates(run, timings);
 
     return (
-        <Stepper
-            active={active}
-            size="xs"
-            iconSize={38}
-            classNames={{
-                root: classes.progressStepper,
-                steps: classes.progressSteps,
-                step: classes.progressStep,
-                stepBody: classes.progressStepBody,
-            }}
+        <Box
+            component="ol"
+            className={classes.stages}
+            aria-label="Setup stages"
         >
-            {AGENT_ONBOARDING_PROGRESS_STAGES.map(({ stage }) => {
-                const timing = timings?.find(
-                    ({ stage: timingStage }) => timingStage === stage,
-                );
+            {AGENT_ONBOARDING_PROGRESS_STAGES.map(({ stage }, index) => {
                 const config = STAGE_CONFIG[stage];
-                const icon = <MantineIcon icon={config.icon} size="md" />;
+                const state = states[index];
+                const timing = timings?.[index];
                 return (
-                    <ProgressStep
+                    <Box
+                        component="li"
                         key={stage}
-                        tooltip={config.description}
-                        label={config.label}
-                        description={
-                            timing ? (
-                                <Text fz="xs" c="dimmed" ff="monospace">
-                                    {formatStageDuration(timing.durationMs)}
-                                </Text>
-                            ) : undefined
-                        }
-                        icon={icon}
-                        completedIcon={icon}
-                        loading={timing?.state === 'active'}
-                        allowStepSelect={false}
-                    />
+                        className={classes.stage}
+                        data-state={state}
+                        aria-current={state === 'active' ? 'step' : undefined}
+                    >
+                        <Box className={classes.stageRail}>
+                            <Box className={classes.stageGlyph}>
+                                <MantineIcon
+                                    icon={
+                                        state === 'completed'
+                                            ? IconCheck
+                                            : config.icon
+                                    }
+                                    size={14}
+                                />
+                            </Box>
+                            <Box className={classes.stageLine} />
+                        </Box>
+                        <Box className={classes.stageBody}>
+                            <Text
+                                fz="sm"
+                                fw={500}
+                                className={classes.stageLabel}
+                            >
+                                {state === 'active'
+                                    ? config.activeLabel
+                                    : config.label}
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                {config.description}
+                            </Text>
+                        </Box>
+                        {timing && timing.durationMs !== null ? (
+                            <Text
+                                fz="xs"
+                                c="dimmed"
+                                ff="monospace"
+                                className={classes.stageDuration}
+                            >
+                                {formatStageDuration(timing.durationMs)}
+                            </Text>
+                        ) : (
+                            <span />
+                        )}
+                    </Box>
                 );
             })}
-        </Stepper>
+        </Box>
     );
 };

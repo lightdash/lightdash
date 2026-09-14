@@ -28,6 +28,7 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
         (c) => c.allFilterableFieldsMap,
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -102,6 +103,7 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTab?.uuid}
+            parameterValues={parameterValues}
         >
             <>
                 {canAddFilters && (

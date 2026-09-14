@@ -89,10 +89,10 @@ export class DashboardAccessModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .whereIn(
+            .whereRaw('?? = ANY(?::uuid[])', [
                 `${DashboardUserAccessTableName}.dashboard_uuid`,
                 uniqueDashboardUuids,
-            )
+            ])
             .where(`${DashboardUserAccessTableName}.user_uuid`, userUuid)
             .where(
                 `${OrganizationTableName}.organization_uuid`,
@@ -152,10 +152,10 @@ export class DashboardAccessModel {
                             );
                         },
                     )
-                    .whereIn(
+                    .whereRaw('?? = ANY(?::uuid[])', [
                         `${DashboardGroupAccessTableName}.dashboard_uuid`,
                         uniqueDashboardUuids,
-                    )
+                    ])
                     .where(`${UserTableName}.user_uuid`, userUuid)
                     .where(
                         `${OrganizationTableName}.organization_uuid`,

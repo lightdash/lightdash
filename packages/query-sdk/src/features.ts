@@ -8,10 +8,25 @@
  * stable identifiers; label/description feed the host's "What's new" UI.
  */
 
+/**
+ * Which kind of bundle a capability is meaningful for. Every bundle on a
+ * given SDK version reports the whole registry, so the host uses this to
+ * offer only what the app kind can use: a chart type never runs queries or
+ * exports to Sheets, an app never receives a viz context.
+ */
+export type SdkFeatureTarget = 'data_app' | 'chart_type';
+
+export const SDK_FEATURE_TARGETS: SdkFeatureTarget[] = [
+    'data_app',
+    'chart_type',
+];
+
 export type SdkFeature = {
     key: string;
     label: string;
     description: string;
+    /** Non-empty; features used by both kinds list both targets. */
+    appliesTo: SdkFeatureTarget[];
     /** Agent-facing note on the app-code wiring the feature needs before the
      *  host can use it (absent = zero wiring; it activates automatically once
      *  the bundle runs on a current SDK). Never rendered in user-facing UI. */
@@ -21,12 +36,14 @@ export type SdkFeature = {
 export const SDK_FEATURES: SdkFeature[] = [
     {
         key: 'query',
+        appliesTo: ['data_app'],
         label: 'Semantic layer queries',
         description:
             'Run metric and dimension queries against the Lightdash semantic layer.',
     },
     {
         key: 'metric-filters',
+        appliesTo: ['data_app'],
         label: 'Metric filters',
         description:
             'Filter grouped query results by metric values, including metrics used only as filters.',
@@ -34,24 +51,28 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'saved-chart',
+        appliesTo: ['data_app'],
         label: 'Saved chart queries',
         description:
             'Fetch results from existing saved charts instead of ad-hoc queries.',
     },
     {
         key: 'drill-down',
+        appliesTo: ['data_app'],
         label: 'Drill-down helper',
         description:
             'Derive drill-down queries from a clicked result row to build explore-style interactions.',
     },
     {
         key: 'inspect',
+        appliesTo: ['data_app'],
         label: 'Element inspection',
         description:
             'Lets the Lightdash editor highlight and select app elements to reference them in prompts.',
     },
     {
         key: 'lineage',
+        appliesTo: ['data_app'],
         label: 'Inspect data',
         description:
             'Click any chart to trace it back to the query and fields behind it, from the Inspect data button in the editor.',
@@ -59,36 +80,42 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'screenshot',
+        appliesTo: ['data_app', 'chart_type'],
         label: 'In-app screenshots',
         description:
             'Lets the host rasterize the app to an image for thumbnails and scheduled deliveries.',
     },
     {
         key: 'external-fetch',
+        appliesTo: ['data_app'],
         label: 'External data fetch',
         description:
             'Fetch approved external HTTP data sources through the Lightdash proxy.',
     },
     {
         key: 'gsheet-export',
+        appliesTo: ['data_app'],
         label: 'Google Sheets export',
         description:
             'Export tabular results from the app straight to Google Sheets.',
     },
     {
         key: 'url-state',
+        appliesTo: ['data_app'],
         label: 'Shareable URL state',
         description:
             'Sync in-app state to the page URL so app views can be shared and restored.',
     },
     {
         key: 'viz-context',
+        appliesTo: ['chart_type'],
         label: 'Dashboard visualization context',
         description:
             'Receive query context when app visualizations are embedded in dashboards.',
     },
     {
         key: 'viz-config-options',
+        appliesTo: ['chart_type'],
         label: 'Visualization config options',
         description:
             "Let viewers adjust the visualization from the Lightdash config panel — toggles, dropdowns, numbers, text and colours — and take series colours from the chart's palette, without regenerating the app.",
@@ -96,6 +123,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'viz-pivoted-results',
+        appliesTo: ['chart_type'],
         label: 'Pivoted results',
         description:
             'Render reusable charts and tables from backend-pivoted rows and their complete layout metadata.',
@@ -103,6 +131,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'viz-resolved-colors',
+        appliesTo: ['chart_type'],
         label: 'Consistent visualization colors',
         description:
             'Honor model-defined colors and shared dashboard color assignments in reusable visualizations.',
@@ -110,6 +139,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'follow-host-theme',
+        appliesTo: ['data_app', 'chart_type'],
         label: 'Follow the host light/dark mode',
         description:
             "Match the light or dark mode of the viewer's Lightdash (or embed) instead of a fixed theme, and restyle live when they switch.",
@@ -117,6 +147,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'delivery-render',
+        appliesTo: ['data_app'],
         label: 'Full data in scheduled deliveries',
         description:
             "Scheduled deliveries and their preview render every tab or slide's data, not just the one currently visible.",
@@ -124,6 +155,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'viz-underlying-data',
+        appliesTo: ['chart_type'],
         label: 'View underlying data',
         description:
             'Open the raw result rows behind a clicked data point in a reusable visualization, with CSV/XLSX download.',
@@ -131,6 +163,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'viz-drill-down',
+        appliesTo: ['chart_type'],
         label: 'Drill into data points',
         description:
             'Drill into a clicked data point in a reusable visualization — pick a dimension in Lightdash and open the drilled view in explore.',

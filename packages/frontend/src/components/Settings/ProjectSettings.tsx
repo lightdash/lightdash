@@ -152,7 +152,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                 element: (
                     <ProjectSettingsPage
                         title="Connection settings"
-                        description="Manage this project's warehouse and dbt connections."
+                        description="Manage this project's warehouse and semantic layer connections."
                     >
                         <UpdateProjectConnection projectUuid={projectUuid} />
                     </ProjectSettingsPage>

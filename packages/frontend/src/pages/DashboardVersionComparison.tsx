@@ -46,6 +46,7 @@ import { getConditionalRuleLabel } from '../components/common/Filters/FilterInpu
 import MantineIcon from '../components/common/MantineIcon';
 import { useDashboardVersion } from '../hooks/dashboard/useDashboard';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
+import classes from './DashboardVersionComparison.module.css';
 
 interface DashboardVersionComparisonProps {
     dashboard: Dashboard | undefined;
@@ -90,7 +91,7 @@ const ExpandableSection = ({
                     {!opened && badge}
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened}>{children}</Collapse>
+            <Collapse expanded={opened}>{children}</Collapse>
         </Paper>
     );
 };
@@ -447,7 +448,7 @@ const ChartsTable = ({
                                 size="xs"
                                 c="blue"
                                 td="none"
-                                className="ld-pointer"
+                                className={classes.chartHistoryLink}
                             >
                                 {chartName}
                             </Text>

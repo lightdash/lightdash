@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    ContentType,
     type ChartContent,
     type AiModelOption,
     type AppVersionExternalConnectionResource,
@@ -33,7 +34,6 @@ import {
     IconCamera,
     IconChartBar,
     IconCheck,
-    IconClick,
     IconDatabase,
     IconDatabasePlus,
     IconFileDescription,
@@ -58,8 +58,8 @@ import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
-import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
+import { useInfiniteContent } from '../../hooks/useContent';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
@@ -133,43 +133,6 @@ export const ScreenshotButton: FC<{
             aria-label="Capture screenshot"
         >
             <MantineIcon icon={IconCamera} size={16} />
-        </ActionIcon>
-    </Tooltip>
-);
-
-/**
- * Toggle button that activates the iframe-side element inspector.
- * While enabled, clicks inside the preview iframe are intercepted and
- * inserted as bracketed references at the textarea cursor (e.g.
- * `[button "Total Revenue"]: `), so the user can compose targeted edits.
- *
- * Rendered only once the iframe SDK has announced inspector support, for the
- * same reason as the screenshot button.
- */
-export const InspectButton: FC<{
-    enabled: boolean;
-    onToggle: () => void;
-    disabled?: boolean;
-}> = ({ enabled, onToggle, disabled }) => (
-    <Tooltip
-        label={
-            enabled
-                ? 'Inspect mode on - click any element in the preview'
-                : 'Point at an element in the preview to reference it'
-        }
-        position="top"
-    >
-        <ActionIcon
-            variant={enabled ? 'light' : 'subtle'}
-            color={enabled ? 'indigo' : 'gray'}
-            size="md"
-            radius="xl"
-            onClick={onToggle}
-            disabled={disabled}
-            aria-label="Toggle element inspector"
-            aria-pressed={enabled}
-        >
-            <MantineIcon icon={IconClick} size={16} />
         </ActionIcon>
     </Tooltip>
 );
@@ -814,16 +777,31 @@ const DashboardPickerView: FC<{
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
 
-    const { data: dashboards, isInitialLoading } = useDashboards(projectUuid, {
-        enabled,
-    });
+    const {
+        data: dashboardPages,
+        isInitialLoading,
+        isFetching,
+        hasNextPage,
+        fetchNextPage,
+    } = useInfiniteContent(
+        {
+            projectUuids: projectUuid ? [projectUuid] : [],
+            contentTypes: [ContentType.DASHBOARD],
+            page: 1,
+            pageSize: 25,
+            search: debouncedSearch,
+        },
+        { keepPreviousData: true, enabled: enabled && !!projectUuid },
+    );
 
-    const filteredDashboards = useMemo(() => {
-        if (!dashboards) return [];
-        const term = debouncedSearch.toLowerCase();
-        if (!term) return dashboards;
-        return dashboards.filter((d) => d.name.toLowerCase().includes(term));
-    }, [dashboards, debouncedSearch]);
+    const allDashboards = useMemo(
+        () =>
+            uniqBy(
+                dashboardPages?.pages.flatMap((page) => page.data) ?? [],
+                'uuid',
+            ),
+        [dashboardPages?.pages],
+    );
 
     const handleToggle = useCallback(
         (dashboard: { uuid: string; name: string }) => {
@@ -854,7 +832,9 @@ const DashboardPickerView: FC<{
                     placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     rightSection={
-                        isResolvingLink ? <Loader size={14} /> : undefined
+                        (isFetching && !isInitialLoading) || isResolvingLink ? (
+                            <Loader size={14} />
+                        ) : undefined
                     }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
@@ -867,44 +847,60 @@ const DashboardPickerView: FC<{
                     <Group justify="center" p="sm">
                         <Loader size="sm" />
                     </Group>
-                ) : filteredDashboards.length === 0 ? (
+                ) : allDashboards.length === 0 ? (
                     <Text size="xs" c="dimmed" ta="center" p="sm">
                         No dashboards found
                     </Text>
                 ) : (
-                    filteredDashboards.map((dashboard) => {
-                        const isSelected =
-                            selectedDashboard?.uuid === dashboard.uuid;
-                        return (
-                            <Box
-                                key={dashboard.uuid}
-                                className={`${classes.chartItem} ${
-                                    isSelected ? classes.chartItemSelected : ''
-                                }`}
-                                onClick={() => handleToggle(dashboard)}
-                            >
-                                <IconBox
-                                    icon={IconLayoutDashboard}
-                                    color="green.6"
-                                />
-                                <Text size="xs" fw={500} truncate flex={1}>
-                                    {dashboard.name}
-                                </Text>
-                                {isSelected && (
-                                    <Box
-                                        className={
-                                            classes.chartItemSelectedIcon
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size={14}
-                                        />
-                                    </Box>
-                                )}
+                    <>
+                        {allDashboards.map((dashboard) => {
+                            const isSelected =
+                                selectedDashboard?.uuid === dashboard.uuid;
+                            return (
+                                <Box
+                                    key={dashboard.uuid}
+                                    className={`${classes.chartItem} ${
+                                        isSelected
+                                            ? classes.chartItemSelected
+                                            : ''
+                                    }`}
+                                    onClick={() => handleToggle(dashboard)}
+                                >
+                                    <IconBox
+                                        icon={IconLayoutDashboard}
+                                        color="green.6"
+                                    />
+                                    <Text size="xs" fw={500} truncate flex={1}>
+                                        {dashboard.name}
+                                    </Text>
+                                    {isSelected && (
+                                        <Box
+                                            className={
+                                                classes.chartItemSelectedIcon
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size={14}
+                                            />
+                                        </Box>
+                                    )}
+                                </Box>
+                            );
+                        })}
+                        {hasNextPage && (
+                            <Box ta="center" py={4}>
+                                <Button
+                                    variant="subtle"
+                                    size="xs"
+                                    onClick={() => void fetchNextPage()}
+                                    loading={isFetching}
+                                >
+                                    Load more
+                                </Button>
                             </Box>
-                        );
-                    })
+                        )}
+                    </>
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
@@ -1290,6 +1286,13 @@ export const AttachButton: FC<{
                         onClick={() => setOpened((o) => !o)}
                         disabled={disabled}
                         aria-label="Attach resources"
+                        // Walkthrough look for create:DataApp: context makes
+                        // the agent's first version better.
+                        data-tour-scope="create:DataApp"
+                        data-tour-look="2"
+                        data-tour-after='[data-tour-anchor="app-prompt"]'
+                        data-tour-label="Attach charts or a dashboard for context"
+                        data-tour-docs="data-apps.mdx#adding-context:1"
                         leftSection={<MantineIcon icon={IconPlus} size={14} />}
                     >
                         <Text span size="xs" fw={600} lh={1.2} c="inherit">

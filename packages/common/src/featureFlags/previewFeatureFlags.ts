@@ -12,7 +12,6 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.OrganizationTrialWarning,
     // Changes query or compile semantics, so QA results would be misleading.
     FeatureFlags.CalculateSeriesColor,
-    FeatureFlags.ReplaceCustomMetricsOnCompile,
     // Needs per-org worker queues that previews don't run.
     FeatureFlags.ScheduledDeliveryPerOrgQueue,
     // Changes the signup flow and needs SMTP for the email OTP. The register
@@ -25,10 +24,12 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.AiReviewReplayCapture,
     // Security hardening: previews must not accept long-lived GitHub PATs.
     FeatureFlags.AiMcpGithubPat,
-    // The Explorer E2E specs drive the legacy chart type picker, which the
-    // gallery replaces; keep previews on the shipped path until it has its
-    // own coverage. QA can still turn it on with a feature_flag_overrides row.
-    FeatureFlags.ExplorerChartGallery,
+    // Same reason: the dashboard E2E specs drive the navigate-away "New chart"
+    // flow, which the in-dashboard modal replaces. Opt-in POC — keep previews
+    // on the shipped path until it has its own coverage. The metrics layer
+    // rides inside the modal, so it must stay off with it.
+    FeatureFlags.InDashboardChartEditor,
+    FeatureFlags.DashboardCustomMetrics,
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,

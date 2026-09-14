@@ -1,8 +1,13 @@
-import { getErrorMessage, ParameterError } from '@lightdash/common';
+import {
+    getErrorMessage,
+    ParameterError,
+    type ToolRuntime,
+} from '@lightdash/common';
 import crypto from 'crypto';
 import * as fs from 'fs/promises';
 import matter from 'gray-matter';
 import * as path from 'path';
+import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import {
     AiAgentSkill,
@@ -10,10 +15,16 @@ import {
     AiAgentSkillResource,
 } from './types';
 
-type SkillFrontmatter = {
-    name: string;
-    description: string;
-};
+const skillFrontmatterSchema = z.object({
+    name: z.string().min(1),
+    description: z.string().min(1),
+    availability: z
+        .array(z.enum(['agent', 'mcp']))
+        .min(1)
+        .default(['agent', 'mcp']),
+});
+
+type SkillFrontmatter = z.infer<typeof skillFrontmatterSchema>;
 
 /**
  * A single parsed markdown file within a skill directory — the skill's SKILL.md
@@ -104,18 +115,16 @@ export class BuiltInSkills {
         fileContents: string,
     ): ParsedSkillFile {
         const { content, data } = matter(fileContents);
-        const { name, description } = data as Partial<SkillFrontmatter>;
-
-        if (!name || !description) {
+        const frontmatter = skillFrontmatterSchema.safeParse(data);
+        if (!frontmatter.success) {
             throw new ParameterError(
-                `Missing required skill frontmatter in ${filePath}. Expected "name" and "description".`,
+                `Invalid skill frontmatter in ${filePath}: ${frontmatter.error.message}`,
             );
         }
 
         return {
             fileName: path.basename(filePath),
-            name,
-            description,
+            ...frontmatter.data,
             content,
             raw: fileContents,
         };
@@ -235,6 +244,13 @@ export class BuiltInSkills {
         return this.loadedPromise;
     }
 
+    private static async loadFor(runtime: ToolRuntime) {
+        // SKILL.md controls availability for the whole skill, including resources.
+        return (await this.load()).filter((skill) =>
+            skill.skill.availability.includes(runtime),
+        );
+    }
+
     private static toAiAgentResource(
         file: ParsedSkillFile,
     ): AiAgentSkillResource {
@@ -271,7 +287,7 @@ export class BuiltInSkills {
     }
 
     static async getAiAgentSkills(): Promise<AiAgentSkillReference[]> {
-        return (await this.load()).map((skill) =>
+        return (await this.loadFor('agent')).map((skill) =>
             this.toSkillReference(this.toAiAgentSkill(skill)),
         );
     }
@@ -279,7 +295,7 @@ export class BuiltInSkills {
     static async getAiAgentSkill(
         name: string,
     ): Promise<AiAgentSkill | undefined> {
-        const skill = (await this.load()).find(
+        const skill = (await this.loadFor('agent')).find(
             (loaded) => loaded.name.toLowerCase() === name.trim().toLowerCase(),
         );
         return skill ? this.toAiAgentSkill(skill) : undefined;
@@ -345,7 +361,7 @@ export class BuiltInSkills {
             return this.mcpResources;
         }
 
-        const skillResources = (await this.load()).flatMap((skill) => {
+        const skillResources = (await this.loadFor('mcp')).flatMap((skill) => {
             const skillTitle = this.deriveTitleFromName(skill.name);
             const skillMd: McpResourceWithBody = {
                 resource: {
@@ -398,7 +414,7 @@ export class BuiltInSkills {
     static async listSkillToolReferences(): Promise<
         BuiltInSkillToolReference[]
     > {
-        return (await this.load()).map((skill) => {
+        return (await this.loadFor('mcp')).map((skill) => {
             const skillTitle = this.deriveTitleFromName(skill.name);
             return {
                 name: skill.name,

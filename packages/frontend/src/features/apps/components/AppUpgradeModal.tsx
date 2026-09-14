@@ -47,7 +47,16 @@ const AppUpgradeModal: FC<Props> = ({
                         ? { reportedFeatures: offer.reportedFeatures }
                         : {}),
                     ...(offer.candidateFeatures.length > 0
-                        ? { candidateFeatures: offer.candidateFeatures }
+                        ? {
+                              candidateFeatures: offer.candidateFeatures.map(
+                                  ({ key, label, description, wiring }) => ({
+                                      key,
+                                      label,
+                                      description,
+                                      ...(wiring ? { wiring } : {}),
+                                  }),
+                              ),
+                          }
                         : {}),
                 },
             },

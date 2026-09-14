@@ -303,4 +303,106 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
             'One external node may read multiple tables from this source',
         );
     });
+
+    it('renders an element reference with its wire string, app, and iterateDataApp note', () => {
+        const content = buildMessage([
+            {
+                type: 'data_app_element',
+                appUuid: 'app-1',
+                version: 3,
+                tag: 'h1',
+                text: 'FORMULA 1',
+                loc: 'src/App.jsx:14',
+                appSlug: 'f1-standings',
+                displayName: 'F1 standings',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Element reference [h1 "FORMULA 1" @src/App.jsx:14] in data app "F1 standings" (appSlug: f1-standings, version 3)',
+        );
+        expect(content).toContain(
+            "the app's source is not readable in this thread",
+        );
+        expect(content).toContain(
+            'copy the bracketed reference verbatim into the iterateDataApp brief',
+        );
+    });
+
+    it('renders a data app restore as one line naming both versions', () => {
+        const content = buildMessage([
+            {
+                type: 'data_app_restore',
+                appUuid: 'app-1',
+                version: 5,
+                restoredFromVersion: 2,
+                appSlug: 'f1-standings',
+                displayName: 'F1 standings',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Data app restore: version 2 of "F1 standings" (appSlug: f1-standings) was restored as version 5 — the app now matches version 2; iterate from version 5.',
+        );
+    });
+});
+
+describe('AiAgentService.createPinnedContextMessage data app pins', () => {
+    it('renders a data app by name and slug only', () => {
+        const content = buildMessage([
+            {
+                type: 'data_app',
+                appUuid: 'app-1',
+                appSlug: 'f1-standings',
+                displayName: 'F1 standings',
+                pinnedVersion: 3,
+                isPersonal: false,
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Data app "F1 standings" (dataAppSlug: f1-standings)',
+        );
+        expect(content).not.toContain('version 3');
+        expect(content).toContain('readContent');
+    });
+
+    it('keeps mixed items in their pinned order', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: null,
+            },
+            {
+                type: 'data_app',
+                appUuid: 'app-1',
+                appSlug: 'f1-standings',
+                displayName: 'F1 standings',
+                pinnedVersion: null,
+                isPersonal: false,
+            },
+            {
+                type: 'chart',
+                chartUuid: 'chart-1',
+                chartSlug: 'revenue',
+                displayName: 'Revenue',
+                pinnedVersionUuid: null,
+                runtimeOverrides: null,
+                chartKind: null,
+            },
+        ]);
+
+        const dashboardAt = content.indexOf(
+            '- Dashboard "Executive dashboard"',
+        );
+        const appAt = content.indexOf('- Data app "F1 standings"');
+        const chartAt = content.indexOf('- Chart "Revenue"');
+        expect(dashboardAt).toBeGreaterThan(-1);
+        expect(appAt).toBeGreaterThan(dashboardAt);
+        expect(chartAt).toBeGreaterThan(appAt);
+    });
 });

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AgentSuggestion,
     AgentSummaryContext,
+    AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
     AiAgent,
     AiAgentEvalRunJobPayload,
@@ -42,6 +43,8 @@ import {
     AnyType,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentThreadCreateRequest,
+    ApiAiAgentThreadDataAppRestoreRequest,
+    ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
@@ -60,12 +63,17 @@ import {
     CommercialFeatureFlags,
     ConflictError,
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
+    dataAppContextKey,
+    dataAppElementContextKey,
+    dataAppRestoreContextKey,
     dataAppVizSchema,
     DbtProjectType,
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
     derivePivotConfigurationFromChart,
     DownloadFileType,
+    elementReferenceToWireString,
     EmbedArtifactVersionJobPayload,
     exceedsRetentionCeiling,
     Explore,
@@ -75,6 +83,7 @@ import {
     ForbiddenError,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    getAppDisplayName,
     getDataAppVizChartFromArtifact,
     getErrorMessage,
     getGenerateDataAppBuildOutcome,
@@ -201,6 +210,7 @@ import {
     AiAgentSuggestionSubmitEvent,
     AiAgentThreadsRetentionCleanedEvent,
     AiAgentToolCallEvent,
+    AiAgentToolCallFailedEvent,
     AiAgentUpdatedEvent,
     ContentVerificationEvent,
     LightdashAnalytics,
@@ -417,6 +427,7 @@ import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
+import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
@@ -441,6 +452,7 @@ import {
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
+import { getWritebackConnectionSupport } from './writebackConnection';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -567,6 +579,10 @@ type AiAgentServiceDependencies = {
     appModel: Pick<
         AppModel,
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
+    >;
+    appGenerateService: Pick<
+        AppGenerateService,
+        'canViewApp' | 'restoreVersion'
     >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -847,6 +863,11 @@ export class AiAgentService extends BaseService {
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
     >;
 
+    private readonly appGenerateService: Pick<
+        AppGenerateService,
+        'canViewApp' | 'restoreVersion'
+    >;
+
     private readonly inFlightStreamPrompts = new Map<
         string,
         AiPromptResponseState
@@ -990,6 +1011,20 @@ export class AiAgentService extends BaseService {
 
     private readonly mobilePushNotificationService: AiAgentServiceDependencies['mobilePushNotificationService'];
 
+    private static getModelConfigAnalyticsProperties(
+        modelConfig: AiAgentModelConfig | null | undefined,
+    ): {
+        modelProvider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
+    } {
+        return {
+            modelProvider: modelConfig?.modelProvider ?? null,
+            modelName: modelConfig?.modelName ?? null,
+            reasoningEnabled: modelConfig?.reasoning ?? null,
+        };
+    }
+
     private static getPinnedContextAnalyticsProperties(
         context: AiPromptContextInput | undefined,
     ): Pick<
@@ -1056,6 +1091,15 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'preview_environment':
                     key = `preview_environment:${item.previewProjectUuid}`;
+                    break;
+                case 'data_app_element':
+                    key = dataAppElementContextKey(item);
+                    break;
+                case 'data_app_restore':
+                    key = dataAppRestoreContextKey(item);
+                    break;
+                case 'data_app':
+                    key = dataAppContextKey(item.appUuid);
                     break;
                 default:
                     return assertUnreachable(
@@ -1138,6 +1182,41 @@ export class AiAgentService extends BaseService {
                     return;
                 }
 
+                if (
+                    item.type === 'data_app_element' ||
+                    item.type === 'data_app'
+                ) {
+                    const app = await this.appModel.findAppByUuid(item.appUuid);
+                    if (!app || app.project_uuid !== agent.projectUuid) {
+                        throw new NotFoundError('Data app not found');
+                    }
+                    if (
+                        item.type === 'data_app' &&
+                        app.template === DATA_APP_VIZ_TEMPLATE
+                    ) {
+                        throw new ParameterError(
+                            'Project chart types cannot be pinned context',
+                        );
+                    }
+                    if (
+                        !(await this.appGenerateService.canViewApp(user, app))
+                    ) {
+                        throw new ForbiddenError(
+                            'You do not have permission to view this data app',
+                        );
+                    }
+                    if (
+                        allowedSpaces &&
+                        (app.space_uuid === null ||
+                            !allowedSpaces.has(app.space_uuid))
+                    ) {
+                        throw new ForbiddenError(
+                            'Referenced data app is outside the embedded space',
+                        );
+                    }
+                    return;
+                }
+
                 if (item.type === 'external_source') {
                     if (allowedSpaces) {
                         throw new ForbiddenError(
@@ -1189,6 +1268,12 @@ export class AiAgentService extends BaseService {
                 ) {
                     throw new ForbiddenError(
                         'This context item can only be attached by the review remediation flow',
+                    );
+                }
+                // data_app_restore is written by the thread restore endpoint only.
+                if (item.type === 'data_app_restore') {
+                    throw new ForbiddenError(
+                        'This context item can only be attached by restoring a data app version from the thread',
                     );
                 }
 
@@ -1265,6 +1350,7 @@ export class AiAgentService extends BaseService {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
         this.appModel = dependencies.appModel;
+        this.appGenerateService = dependencies.appGenerateService;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.externalSourceModel = dependencies.externalSourceModel;
@@ -3372,6 +3458,120 @@ export class AiAgentService extends BaseService {
      * feature flag blocks this endpoint entirely; the admin threads view uses a
      * separate path and keeps working.
      */
+    private async getManagedThread(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            action,
+        }: { agentUuid: string; threadUuid: string; action: string },
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('AiAgentThread', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    userUuid: thread.user.uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Insufficient permissions to ${action} this thread`,
+            );
+        }
+
+        return { thread, agent, organizationUuid };
+    }
+
+    async updateAgentThreadTitle(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            title,
+        }: { agentUuid: string; threadUuid: string; title: string },
+    ): Promise<void> {
+        const trimmedTitle = title.trim();
+        if (trimmedTitle.length === 0) {
+            throw new ParameterError('Thread title cannot be empty');
+        }
+        if (trimmedTitle.length > AI_AGENT_THREAD_TITLE_MAX_LENGTH) {
+            throw new ParameterError(
+                `Thread title cannot exceed ${AI_AGENT_THREAD_TITLE_MAX_LENGTH} characters`,
+            );
+        }
+
+        const { agent, organizationUuid } = await this.getManagedThread(user, {
+            agentUuid,
+            threadUuid,
+            action: 'rename',
+        });
+
+        await this.aiAgentModel.updateThreadTitle({
+            threadUuid,
+            title: trimmedTitle,
+        });
+        this.analytics.track({
+            event: 'ai_agent.thread_renamed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                agentId: agentUuid,
+                threadId: threadUuid,
+                titleLength: trimmedTitle.length,
+            },
+        });
+    }
+
+    async setAgentThreadPinned(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            pinned,
+        }: { agentUuid: string; threadUuid: string; pinned: boolean },
+    ): Promise<void> {
+        const { agent, organizationUuid } = await this.getManagedThread(user, {
+            agentUuid,
+            threadUuid,
+            action: pinned ? 'pin' : 'unpin',
+        });
+
+        await this.aiAgentModel.setThreadPinned({ threadUuid, pinned });
+        this.analytics.track({
+            event: 'ai_agent.thread_pinned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                agentId: agentUuid,
+                threadId: threadUuid,
+                pinned,
+            },
+        });
+    }
+
     async deleteAgentThread(
         user: SessionUser,
         agentUuid: string,
@@ -3549,6 +3749,7 @@ export class AiAgentService extends BaseService {
                     projectId: agent.projectUuid,
                     aiAgentId: agentUuid,
                     threadId: threadUuid,
+                    promptId: promptUuid,
                     context: 'web_app',
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
                         context,
@@ -3697,6 +3898,7 @@ export class AiAgentService extends BaseService {
                 projectId: agent.projectUuid,
                 aiAgentId: agentUuid,
                 threadId: threadUuid,
+                promptId: messageUuid,
                 context: 'web_app',
                 ...AiAgentService.getPinnedContextAnalyticsProperties(context),
             },
@@ -3707,6 +3909,94 @@ export class AiAgentService extends BaseService {
             threadUuid,
             messageUuid,
         });
+    }
+
+    // Restores a data app version on behalf of a thread and records it as a
+    // hidden, already-answered turn so the agent's next prompt sees it.
+    async restoreDataAppVersionForThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+        body: ApiAiAgentThreadDataAppRestoreRequest,
+    ): Promise<ApiAiAgentThreadDataAppRestoreResponse['results']> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to create messages for this thread',
+            );
+        }
+
+        const app = await this.appModel.findAppByUuid(body.appUuid);
+        if (!app || app.project_uuid !== agent.projectUuid) {
+            throw new NotFoundError('Data app not found');
+        }
+
+        const restored = await this.appGenerateService.restoreVersion(
+            user,
+            agent.projectUuid,
+            body.appUuid,
+            body.version,
+        );
+
+        const promptUuid = await this.aiAgentModel.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: user.userUuid,
+            prompt: `Restore version ${body.version} of ${getAppDisplayName(
+                app.name,
+                body.appUuid,
+            )}`,
+            context: [
+                {
+                    type: 'data_app_restore',
+                    appUuid: body.appUuid,
+                    version: restored.version,
+                    restoredFromVersion: body.version,
+                },
+            ],
+            hidden: true,
+        });
+        await this.aiAgentModel.updateModelResponse({
+            promptUuid,
+            response: `Restored version ${body.version} as version ${restored.version}.`,
+        });
+
+        return {
+            appUuid: body.appUuid,
+            version: restored.version,
+            restoredFromVersion: body.version,
+            promptUuid,
+        };
     }
 
     async cleanExpiredThreads(batchSize: number): Promise<{
@@ -3835,6 +4125,7 @@ export class AiAgentService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        await this.assertAgentStaysInsideTraining(body.projectUuid, body);
 
         if (body.threadRetentionHours != null) {
             await this.validateThreadRetentionUpdate(
@@ -3880,6 +4171,9 @@ export class AiAgentService extends BaseService {
                 agentName: agent.name,
                 tagsCount: agent.tags?.length ?? 0,
                 integrationsCount: agent.integrations?.length ?? 0,
+                ...AiAgentService.getModelConfigAnalyticsProperties(
+                    agent.modelConfig,
+                ),
                 ...(options?.autoProvisioned ? { autoProvisioned: true } : {}),
             },
         });
@@ -3944,6 +4238,49 @@ export class AiAgentService extends BaseService {
 
             this.logger.warn(
                 `Failed to provision default AI agent for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /**
+     * A training project, or a learner's copy of it, is a sandbox every org
+     * member can act in. Agents there must not reach outside it: no Slack
+     * channels and no MCP servers (which would post every colleague's
+     * prompts to an arbitrary host), and no moving an agent into another
+     * project.
+     */
+    private async assertAgentStaysInsideTraining(
+        projectUuid: string,
+        body: { integrations?: unknown[]; mcpServerUuids?: unknown[] },
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const isTraining =
+            project.type === ProjectType.TRAINING ||
+            (project.type === ProjectType.PREVIEW &&
+                project.provisioningSource === 'training');
+        if (!isTraining) return;
+        if (body.integrations?.length || body.mcpServerUuids?.length) {
+            throw new ForbiddenError(
+                'Agents in the training project cannot use integrations or MCP servers',
+            );
+        }
+    }
+
+    /**
+     * Reads (listing servers and tools) stay open in the training project so
+     * the agent pages render; only adding or connecting a server is refused.
+     */
+    private async assertMcpServersNotInTraining(
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            project.type === ProjectType.TRAINING ||
+            (project.type === ProjectType.PREVIEW &&
+                project.provisioningSource === 'training')
+        ) {
+            throw new ForbiddenError(
+                'MCP servers cannot be added to the training project',
             );
         }
     }
@@ -4583,6 +4920,7 @@ export class AiAgentService extends BaseService {
         await this.assertCanManageMcpServers(user, projectUuid, {
             mcpServerName: body.name,
         });
+        await this.assertMcpServersNotInTraining(projectUuid);
 
         const name = body.name.trim();
         if (!name) {
@@ -4774,6 +5112,7 @@ export class AiAgentService extends BaseService {
         body: ApiUpdateAiMcpServerCredentialBody,
     ): Promise<AiMcpServer> {
         await this.assertCanManageMcpServers(user, projectUuid);
+        await this.assertMcpServersNotInTraining(projectUuid);
 
         const server = await this.getProjectMcpServerOrThrow(
             projectUuid,
@@ -5027,6 +5366,7 @@ export class AiAgentService extends BaseService {
         personalAccessToken: string,
         credentialScope: AiMcpCredentialScope,
     ) {
+        await this.assertMcpServersNotInTraining(projectUuid);
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -5111,6 +5451,7 @@ export class AiAgentService extends BaseService {
         }
 
         await this.assertCanManageMcpServers(user, projectUuid);
+        await this.assertMcpServersNotInTraining(projectUuid);
         // manage:GitIntegration so a project-level agent manager cannot
         // leverage an org-wide installation they don't control.
         const auditedAbility = this.createAuditedAbility(user);
@@ -5256,6 +5597,7 @@ export class AiAgentService extends BaseService {
                 );
             }
             await this.assertCanManageMcpServers(user, projectUuid);
+            await this.assertMcpServersNotInTraining(projectUuid);
         } else {
             await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
         }
@@ -5426,6 +5768,7 @@ export class AiAgentService extends BaseService {
                 );
             }
             await this.assertCanManageMcpServers(user, projectUuid);
+            await this.assertMcpServersNotInTraining(projectUuid);
         } else {
             await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
         }
@@ -5455,6 +5798,33 @@ export class AiAgentService extends BaseService {
     ) {
         const { organizationUuid, agent } =
             await this.getManageableAgentOrThrow(user, agentUuid);
+
+        // Moving an agent needs the same right on the project it lands in;
+        // managing it where it is says nothing about the destination.
+        if (body.projectUuid && body.projectUuid !== agent.projectUuid) {
+            const destination = await this.projectModel.getSummary(
+                body.projectUuid,
+            );
+            if (
+                destination.organizationUuid !== organizationUuid ||
+                this.createAuditedAbility(user).cannot(
+                    'manage',
+                    subject('AiAgent', {
+                        organizationUuid,
+                        projectUuid: body.projectUuid,
+                        metadata: { agentUuid, agentName: agent.name },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You cannot move an agent into that project',
+                );
+            }
+        }
+        await this.assertAgentStaysInsideTraining(
+            body.projectUuid ?? agent.projectUuid,
+            body,
+        );
 
         const nextEnableDataAccess =
             body.enableDataAccess ?? agent.enableDataAccess;
@@ -5515,6 +5885,9 @@ export class AiAgentService extends BaseService {
                 agentName: body.name,
                 tagsCount: updatedAgent.tags?.length ?? 0,
                 integrationsCount: updatedAgent.integrations?.length ?? 0,
+                ...AiAgentService.getModelConfigAnalyticsProperties(
+                    updatedAgent.modelConfig,
+                ),
             },
         });
 
@@ -7147,6 +7520,8 @@ export class AiAgentService extends BaseService {
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<ApiAiAgentArtifactVizQuery> {
+        // Timed from the top: the browser blocks on the whole call.
+        const vizQueryStartedAt = Date.now();
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -7218,6 +7593,9 @@ export class AiAgentService extends BaseService {
                     artifactVersionId: versionUuid,
                     vizType: AiResultType.QUERY_RESULT,
                     source: 'semantic',
+                    promptId: artifact.promptUuid,
+                    durationMs: Date.now() - vizQueryStartedAt,
+                    queryId: query.queryUuid,
                 },
             });
             return {
@@ -7269,6 +7647,9 @@ export class AiAgentService extends BaseService {
                     artifactVersionId: versionUuid,
                     vizType: AiResultType.TABLE_RESULT,
                     source: 'sql',
+                    promptId: artifact.promptUuid,
+                    durationMs: Date.now() - vizQueryStartedAt,
+                    queryId: query.queryUuid,
                 },
             });
 
@@ -7332,6 +7713,9 @@ export class AiAgentService extends BaseService {
                 artifactVersionId: versionUuid,
                 vizType: parsedVizConfig.type,
                 source: artifactChartConfig.source,
+                promptId: artifact.promptUuid,
+                durationMs: Date.now() - vizQueryStartedAt,
+                queryId: query.queryUuid,
             },
         });
 
@@ -8693,6 +9077,21 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     const status = item.status ? ` — ${item.status}` : '';
                     return `- Preview environment${name}${status} — test the fix in this preview project.`;
                 }
+                case 'data_app': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.appSlug ?? '(slug unavailable)';
+                    return `- Data app "${name}" (dataAppSlug: ${slugText})`;
+                }
+                case 'data_app_element': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.appSlug ?? '(slug unavailable)';
+                    return `- Element reference ${elementReferenceToWireString(item)} in data app "${name}" (appSlug: ${slugText}, version ${item.version}) — the app's source is not readable in this thread; copy the bracketed reference verbatim into the iterateDataApp brief so the coding agent can locate the element.`;
+                }
+                case 'data_app_restore': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.appSlug ?? '(slug unavailable)';
+                    return `- Data app restore: version ${item.restoredFromVersion} of "${name}" (appSlug: ${slugText}) was restored as version ${item.version} — the app now matches version ${item.restoredFromVersion}; iterate from version ${item.version}.`;
+                }
                 default:
                     return assertUnreachable(
                         item,
@@ -8707,7 +9106,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 The user attached the following to this message as context:
 ${lines.join('\n')}
 
-Use your existing tools to inspect them when relevant to the user's question. When runtime overrides are listed, apply them on top of the chart's saved state when querying.`,
+Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). When runtime overrides are listed, apply them on top of the chart's saved state when querying.`,
         } satisfies UserModelMessage;
     }
 
@@ -9301,6 +9700,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
         }
 
+        const isBitbucketPullRequest =
+            result.prUrl?.startsWith('https://bitbucket.org/') === true;
         let previewDeployConfigured: boolean | null = null;
         try {
             const { enabled: previewDeploySetupEnabled } =
@@ -9308,7 +9709,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     user,
                     featureFlagId: FeatureFlags.AiPreviewDeploySetup,
                 });
-            if (previewDeploySetupEnabled) {
+            if (previewDeploySetupEnabled && !isBitbucketPullRequest) {
                 const ciStatus =
                     await this.previewDeploySetupService.getOrScanProjectCiStatus(
                         user,
@@ -9326,7 +9727,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
 
         let previewUrl: string | null = null;
-        if (result.prUrl && !suppressWritebackPreview && !reviewRemediation) {
+        if (
+            result.prUrl &&
+            !isBitbucketPullRequest &&
+            !suppressWritebackPreview &&
+            !reviewRemediation
+        ) {
             const preview =
                 await this.writebackPreviewService.createPreviewForPullRequest({
                     user,
@@ -10729,12 +11135,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // Slack OAuth is required, otherwise the actor is the workspace
         // installer.
         let hasTrustedPromptUserIdentity = true;
+        let slackLinksOnly = false;
         if (isSlackPrompt(prompt) && user.organizationUuid) {
             const slackSettings =
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                     user.organizationUuid,
                 );
             hasTrustedPromptUserIdentity = !!slackSettings?.aiRequireOAuth;
+            slackLinksOnly = !!slackSettings?.aiLinksOnly;
         }
         const promptProject = await this.projectModel.get(prompt.projectUuid);
 
@@ -10893,15 +11301,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
         }
-        // Writeback opens a pull request and only supports GitHub and GitLab
-        // dbt connections (see AiWritebackService.getGitProvider, which throws
-        // for any other type). Without this guard the agent would expose the
-        // writeback section + editDbtProject tool — and offer to open PRs — on
-        // projects where editDbtProject can only fail.
-        const writebackSupportedConnection =
-            promptProject.dbtConnection.type === DbtProjectType.GITHUB ||
-            promptProject.dbtConnection.type === DbtProjectType.GITLAB;
-        if (aiWritebackEnabled && !writebackSupportedConnection) {
+        const writebackConnectionSupport = getWritebackConnectionSupport(
+            promptProject.dbtConnection,
+        );
+        if (aiWritebackEnabled && !writebackConnectionSupport.editDbtProject) {
             aiWritebackEnabled = false;
         }
 
@@ -10923,7 +11326,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             codingAgentEnabled = false;
         }
-        if (codingAgentEnabled && !writebackSupportedConnection) {
+        if (codingAgentEnabled && !writebackConnectionSupport.editRepo) {
             codingAgentEnabled = false;
         }
 
@@ -10962,6 +11365,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const projectContextEnabled =
             aiWritebackEnabled &&
+            writebackConnectionSupport.editRepo &&
             (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                 user,
             ));
@@ -10978,7 +11382,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 featureFlagId: FeatureFlags.AiPreviewDeploySetup,
             });
         const aiPreviewDeploySetupEnabled =
-            aiWritebackEnabled && aiPreviewDeploySetupFlag;
+            aiWritebackEnabled &&
+            writebackConnectionSupport.editRepo &&
+            aiPreviewDeploySetupFlag;
 
         // exploreRepo/discoverRepos read repo source and the view:SourceCode
         // check evaluates against the resolved user. On Slack without
@@ -11170,6 +11576,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             slackChannelId: isSlackPrompt(prompt)
                 ? prompt.slackChannelId
                 : null,
+            slackLinksOnly,
             warehouseType,
             warehouseSchema,
             sqlScope: agentSqlScope,
@@ -11457,12 +11864,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
                 return updateWithCitationTelemetryPromise.then(() => undefined);
             },
-            trackEvent: (
-                event:
-                    | AiAgentResponseStreamed
-                    | AiAgentToolCallEvent
-                    | AiAgentFindContentCoverageEvent,
-            ) => this.analytics.track(event),
+            trackEvent: (event) => this.analytics.track(event),
 
             createOrUpdateArtifact: async (data) => {
                 const artifact =
@@ -11812,6 +12214,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     projectId: data.projectUuid,
                     aiAgentId: data.agentUuid || '',
                     threadId: threadUuid,
+                    promptId: uuid,
                     context: 'slack',
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
                         undefined,

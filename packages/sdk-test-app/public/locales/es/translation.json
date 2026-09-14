@@ -84,6 +84,13 @@
                     }
                 }
             ]
+        },
+        "repro-prod-10299": {
+            "tabs": [
+                { "name": "Pestaña uno" },
+                { "name": "Pestaña dos" },
+                { "name": "Pestaña tres" }
+            ]
         }
     },
     "uiOverrides": {

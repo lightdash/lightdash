@@ -210,7 +210,7 @@ export const ConfigTabs: React.FC = memo(() => {
     );
     const isAiEnabled = aiCustomVizFlag?.enabled ?? false;
 
-    // Without data apps there are no project chart types, so Vega is the only
+    // Without data apps there are no custom chart types, so Vega is the only
     // custom chart type there is and a picker would offer a choice of one.
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===

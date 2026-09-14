@@ -1,5 +1,9 @@
 import {
     getItemId,
+    isCustomDimension,
+    isDimension,
+    isMetric,
+    isTableCalculation,
     type DataAppVizField,
     type DataAppVizFieldMapping,
     type Item,
@@ -11,6 +15,7 @@ import { poolKeyForSlot } from '../../../features/chartTypes/utils/autoMapDataAp
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
+import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 
 type Props = {
     itemsMap: ItemsMap;
@@ -33,9 +38,24 @@ const DataAppVizSettings: FC<Props> = ({
     fieldMapping,
     onFieldChange,
 }) => {
+    const { addableItems, addFieldToQuery, isFieldPending } =
+        useAddFieldsToQuery();
+
     const { dimensions, metrics } = useMemo(
         () => getDataAppVizFieldItems(itemsMap),
         [itemsMap],
+    );
+    // The hook already drops hidden fields, mirroring the in-query pools.
+    const addPools = useMemo(
+        () => ({
+            dimension: addableItems.filter(
+                (item) => isDimension(item) || isCustomDimension(item),
+            ),
+            metric: addableItems.filter(
+                (item) => isMetric(item) || isTableCalculation(item),
+            ),
+        }),
+        [addableItems],
     );
     const itemPools = { dimension: dimensions, metric: metrics };
     const fieldItems = (field: DataAppVizField): Item[] =>
@@ -51,9 +71,11 @@ const DataAppVizSettings: FC<Props> = ({
 
             {fields.map((field) => {
                 const items = fieldItems(field);
+                const addItems = addPools[poolKeyForSlot(field)];
                 const selectedId = fieldMapping[field.name];
                 const selectedItem = selectedId
-                    ? items.find((i) => getItemId(i) === selectedId)
+                    ? (items.find((i) => getItemId(i) === selectedId) ??
+                      addItems.find((i) => getItemId(i) === selectedId))
                     : undefined;
                 return (
                     <Config key={field.name}>
@@ -65,19 +87,33 @@ const DataAppVizSettings: FC<Props> = ({
                                 // own; the placeholder names what the chart is
                                 // missing, as the cartesian layout does.
                                 placeholder={
-                                    items.length === 0
+                                    items.length === 0 && addItems.length === 0
                                         ? `You need at least one ${poolKeyForSlot(field)} in your chart to set this field`
                                         : `Select ${field.label.toLowerCase()}`
                                 }
-                                disabled={items.length === 0}
+                                disabled={
+                                    items.length === 0 && addItems.length === 0
+                                }
                                 item={selectedItem}
                                 items={items}
-                                onChange={(newField) =>
+                                addItems={addItems}
+                                loading={isFieldPending(selectedId)}
+                                onChange={(newField) => {
+                                    if (
+                                        newField &&
+                                        !items.some(
+                                            (i) =>
+                                                getItemId(i) ===
+                                                getItemId(newField),
+                                        )
+                                    ) {
+                                        addFieldToQuery(newField);
+                                    }
                                     onFieldChange(
                                         field.name,
                                         newField ? getItemId(newField) : null,
-                                    )
-                                }
+                                    );
+                                }}
                                 clearable={!field.required}
                                 hasGrouping
                             />

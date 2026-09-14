@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
-    IconBrandGithub,
+    IconGitPullRequest,
     IconChevronDown,
     IconDeviceFloppy,
     IconLink,
@@ -37,14 +37,27 @@ import {
     toggleModal,
     updateName,
 } from '../../store/sqlRunnerSlice';
+import { isBitbucketCloudConnection } from '../../utils/isBitbucketCloudConnection';
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
+import classes from './HeaderCreate.module.css';
 
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
 const DEFAULT_SQL_NAME = 'Untitled SQL query';
 const DEFAULT_NAME_VIRTUAL_VIEW = 'Untitled virtual view';
+
+/** Anchor for scope walkthroughs (data-tour-via): the Save chart button. */
+const saveChartAnchor = {
+    'data-tour-anchor': 'sql-save-chart',
+    'data-tour-hint': 'Click Save chart',
+};
+/** The same button once Create virtual view is the chosen action. */
+const virtualViewAnchor = {
+    'data-tour-anchor': 'sql-create-virtual-view',
+    'data-tour-hint': 'Click Create virtual view',
+};
 
 export const HeaderCreate: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -93,6 +106,23 @@ export const HeaderCreate: FC = () => {
                 undefined,
             ];
         }
+        if (
+            project?.dbtConnection.type === DbtProjectType.GITHUB &&
+            project.dbtConnection.semanticLayer === 'lightdash'
+        ) {
+            return [
+                'SQL Runner model creation is only supported for dbt projects.',
+                undefined,
+            ];
+        }
+        if (project?.dbtConnection.type === DbtProjectType.BITBUCKET) {
+            return isBitbucketCloudConnection(project.dbtConnection)
+                ? [undefined, undefined]
+                : [
+                      'SQL writeback supports Bitbucket Cloud only. Update the project connection.',
+                      `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
+                  ];
+        }
         const hasGithubEnabled = gitIntegration?.enabled;
         const hasGitProject = [
             DbtProjectType.GITHUB,
@@ -119,8 +149,8 @@ export const HeaderCreate: FC = () => {
                     <Text span fw={600}>
                         {project?.name}
                     </Text>{' '}
-                    is not connected to a GitHub or GitLab repository, click
-                    here to open project settings page
+                    is not connected to a GitHub, GitLab or Bitbucket Cloud
+                    repository, click here to open project settings page
                 </Text>,
                 `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
             ];
@@ -131,7 +161,7 @@ export const HeaderCreate: FC = () => {
         gitIntegration?.enabled,
         health?.data?.hasGithub,
         health?.data?.siteUrl,
-        project?.dbtConnection.type,
+        project?.dbtConnection,
         project?.name,
         projectUuid,
     ]);
@@ -231,7 +261,7 @@ export const HeaderCreate: FC = () => {
             case 'createVirtualView':
                 return <MantineIcon icon={IconTableAlias} />;
             case 'writeBackToDbt':
-                return <MantineIcon icon={IconBrandGithub} />;
+                return <MantineIcon icon={IconGitPullRequest} />;
         }
     }, []);
 
@@ -256,7 +286,8 @@ export const HeaderCreate: FC = () => {
         !loadedColumns ||
         (ctaAction === 'save' && !canSaveChart) ||
         (ctaAction === 'createVirtualView' && !canCreateVirtualView) ||
-        (ctaAction === 'writeBackToDbt' && !canWriteBackToDbt);
+        (ctaAction === 'writeBackToDbt' &&
+            (!canWriteBackToDbt || writeBackDisabledMessage !== undefined));
 
     const hasAnyAction =
         canSaveChart || canCreateVirtualView || canWriteBackToDbt;
@@ -289,6 +320,11 @@ export const HeaderCreate: FC = () => {
                                     leftSection={getCtaIcon(ctaAction)}
                                     disabled={isCtaDisabled}
                                     onClick={handleCtaClick}
+                                    {...(ctaAction === 'save'
+                                        ? saveChartAnchor
+                                        : ctaAction === 'createVirtualView'
+                                          ? virtualViewAnchor
+                                          : {})}
                                 >
                                     {getCtaLabels(ctaAction).label}
                                 </Button>
@@ -307,6 +343,9 @@ export const HeaderCreate: FC = () => {
                                                 !loadedColumns || !hasAnyAction
                                             }
                                             variant="default"
+                                            // Anchor for scope walkthroughs (data-tour-via)
+                                            data-tour-anchor="sql-cta-menu"
+                                            data-tour-hint="Open the save options"
                                         >
                                             <MantineIcon
                                                 icon={IconChevronDown}
@@ -322,7 +361,9 @@ export const HeaderCreate: FC = () => {
                                             position="top"
                                             disabled={canSaveChart}
                                         >
-                                            <Group className="ld-pointer">
+                                            <Group
+                                                className={classes.menuOption}
+                                            >
                                                 <Menu.Item
                                                     disabled={!canSaveChart}
                                                     onClick={() => {
@@ -370,7 +411,9 @@ export const HeaderCreate: FC = () => {
                                             position="top"
                                             disabled={canCreateVirtualView}
                                         >
-                                            <Group className="ld-pointer">
+                                            <Group
+                                                className={classes.menuOption}
+                                            >
                                                 <Menu.Item
                                                     disabled={
                                                         !canCreateVirtualView
@@ -380,6 +423,9 @@ export const HeaderCreate: FC = () => {
                                                             'createVirtualView',
                                                         );
                                                     }}
+                                                    // Anchor for scope walkthroughs (data-tour-via)
+                                                    data-tour-anchor="sql-cta-virtual-view"
+                                                    data-tour-hint="Choose Create virtual view"
                                                 >
                                                     <Stack gap="two">
                                                         <Text
@@ -431,7 +477,9 @@ export const HeaderCreate: FC = () => {
                                                     );
                                             }}
                                         >
-                                            <Group className="ld-pointer">
+                                            <Group
+                                                className={classes.menuOption}
+                                            >
                                                 <Menu.Item
                                                     disabled={
                                                         writeBackDisabledMessage !==

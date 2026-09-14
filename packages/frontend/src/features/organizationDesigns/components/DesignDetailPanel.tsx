@@ -70,14 +70,14 @@ const FileRow: FC<{
                 <Badge
                     color={KIND_COLORS[file.kind] ?? 'gray'}
                     size="sm"
-                    className="ld-shrink-0"
+                    flex="0 0 auto"
                 >
                     {file.kind}
                 </Badge>
                 <Text size="sm" truncate>
                     {file.filename}
                 </Text>
-                <Text size="xs" c="dimmed" className="ld-shrink-0">
+                <Text size="xs" c="dimmed" flex="0 0 auto">
                     {formatBytes(file.sizeBytes)}
                 </Text>
             </Group>

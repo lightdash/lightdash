@@ -6,7 +6,7 @@ export type CompilationSource =
 
 export const SOURCE_LABELS: Record<CompilationSource, string> = {
     cli_deploy: 'CLI Deploy',
-    refresh_dbt: 'Refresh dbt',
+    refresh_dbt: 'Refresh',
     create_project: 'Create Project',
     project_connection_form: 'Project connection form',
 };

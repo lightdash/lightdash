@@ -573,7 +573,19 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         case MetricCatalogView.LIST:
             return (
                 <>
-                    <ContentTable table={table} />
+                    <Box
+                        // Walkthrough result marker for view:Tags: the
+                        // catalog, narrowed to a category.
+                        data-tour-scope="view:Tags"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/metrics"
+                        data-tour-label="The catalog lists every metric you can use"
+                        data-tour-docs="explore/metrics-catalog.mdx#getting-started:li1"
+                        data-tour-return="none"
+                        data-tour-resultdocs="explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:1"
+                    >
+                        <ContentTable table={table} />
+                    </Box>
                     {isMetricExploreModalOpen && (
                         <MetricExploreModal
                             opened={isMetricExploreModalOpen}

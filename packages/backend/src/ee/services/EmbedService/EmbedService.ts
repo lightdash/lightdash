@@ -620,18 +620,53 @@ export class EmbedService extends BaseService {
         if (!isDashboardContent(decodedToken.content)) {
             throw new ParameterError('JWT content is not of type dashboard');
         }
-        const {
-            isPreview,
-            canExportCsv,
-            canExportDashboardCsv,
-            canExportImages,
-            canExportPagePdf,
-            canDateZoom,
-            canExplore,
-            canViewUnderlyingData,
-            canViewDataApps,
-            stickyHeader,
-        } = decodedToken.content;
+        const { isPreview, stickyHeader } = decodedToken.content;
+        const useJwtPermissions =
+            decodedToken.writeActions?.permissionsMode !== 'roles';
+        const ability = this.createAuditedAbility(account);
+        const embedTarget = {
+            organizationUuid: dashboard.organizationUuid,
+            projectUuid,
+        };
+        const canExportCsv =
+            ability.can(
+                'view',
+                subject('EmbedCsvExport', { ...embedTarget }),
+            ) ||
+            (useJwtPermissions && decodedToken.content.canExportCsv);
+        const canExportDashboardCsv =
+            ability.can(
+                'view',
+                subject('EmbedDashboardCsvExport', { ...embedTarget }),
+            ) ||
+            (useJwtPermissions && decodedToken.content.canExportDashboardCsv);
+        const canExportImages =
+            ability.can(
+                'view',
+                subject('EmbedImageExport', { ...embedTarget }),
+            ) ||
+            (useJwtPermissions && decodedToken.content.canExportImages);
+        const canExportPagePdf =
+            ability.can(
+                'view',
+                subject('EmbedPagePdfExport', { ...embedTarget }),
+            ) ||
+            (useJwtPermissions && decodedToken.content.canExportPagePdf);
+        const canDateZoom =
+            ability.can('view', subject('EmbedDateZoom', { ...embedTarget })) ||
+            (useJwtPermissions && decodedToken.content.canDateZoom);
+        const canExplore =
+            ability.can('view', subject('EmbedExplore', { ...embedTarget })) ||
+            (useJwtPermissions && decodedToken.content.canExplore);
+        const canViewUnderlyingData =
+            ability.can(
+                'view',
+                subject('EmbedUnderlyingData', { ...embedTarget }),
+            ) ||
+            (useJwtPermissions && decodedToken.content.canViewUnderlyingData);
+        const canViewDataApps =
+            ability.can('view', subject('EmbedDataApps', { ...embedTarget })) ||
+            (useJwtPermissions && decodedToken.content.canViewDataApps);
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
         let selectedPalette: {
@@ -2797,7 +2832,15 @@ export class EmbedService extends BaseService {
             const canUseAiAgent =
                 decodedToken.content.type === 'aiAgent' &&
                 canCreateSavedChart &&
-                canViewProject;
+                canViewProject &&
+                (writeActions.permissionsMode !== 'roles' ||
+                    auditedAbility.can(
+                        'view',
+                        subject('EmbedAiAgent', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
+                    ));
 
             return {
                 canUpdateDashboard,
@@ -2852,7 +2895,7 @@ export class EmbedService extends BaseService {
             return 'Embed token write actor cannot view the embedded project';
         }
 
-        return 'Embed token does not allow AI agent actions';
+        return 'Embed token write actor cannot use embedded AI agents';
     }
 
     private async getEmbedWriteUser(

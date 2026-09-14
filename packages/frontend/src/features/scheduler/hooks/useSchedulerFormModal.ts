@@ -19,6 +19,7 @@ import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useUser from '../../../hooks/user/useUser';
+import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -32,7 +33,10 @@ import {
     type SchedulerFormValues,
 } from '../components/SchedulerForm/schedulerFormContext';
 import { Limit } from '../components/types';
-import { getSchedulerFilterRequirements } from '../utils/filterRequirements';
+import {
+    getChartSchedulerRequiredFiltersWithoutValues,
+    getSchedulerFilterRequirements,
+} from '../utils/filterRequirements';
 import { useScheduler, useSendNowScheduler } from './useScheduler';
 import {
     useSchedulerAiAugmentation,
@@ -144,6 +148,14 @@ export const useSchedulerFormModal = ({
         },
     });
 
+    // Chart deliveries adjust the chart's saved filters, so the form needs the
+    // chart itself (the AI section also reads its space from here).
+    const isChartResource = formResource?.type === 'chart';
+    const { data: savedChart } = useSavedQuery({
+        uuidOrSlug: isChartResource ? formResource?.uuid : undefined,
+        projectUuid,
+    });
+
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 1;
 
@@ -200,6 +212,17 @@ export const useSchedulerFormModal = ({
                 }
                 return null;
             },
+            chartFilters: (value) => {
+                if (!isChartResource) {
+                    return null;
+                }
+                return getChartSchedulerRequiredFiltersWithoutValues(
+                    savedChart?.metricQuery.filters,
+                    value,
+                ).length > 0
+                    ? 'Required filters must have values'
+                    : null;
+            },
             cron: (cronExpression) => {
                 return isInvalidCronExpression('Cron expression')(
                     cronExpression,
@@ -219,7 +242,13 @@ export const useSchedulerFormModal = ({
                     ? 'Instructions are required'
                     : null,
         }),
-        [isDashboard, dashboard?.filters, filterableTiles],
+        [
+            isDashboard,
+            dashboard?.filters,
+            filterableTiles,
+            isChartResource,
+            savedChart?.metricQuery.filters,
+        ],
     );
 
     const form = useSchedulerForm({
@@ -281,6 +310,12 @@ export const useSchedulerFormModal = ({
     const hasOnlyUnmetGroupRequirements =
         unmetRequirements.length > 0 &&
         unmetRequirements.every((requirement) => requirement.type === 'group');
+    const chartRequiredFiltersWithoutValues = isChartResource
+        ? getChartSchedulerRequiredFiltersWithoutValues(
+              savedChart?.metricQuery.filters,
+              form.values.chartFilters,
+          )
+        : [];
 
     // Sync form values when data is loaded. The AI augmentation is omitted —
     // it loads via a separate query and is synced by the effect below, so a
@@ -521,11 +556,13 @@ export const useSchedulerFormModal = ({
         confirmText,
         form,
         dashboard,
+        savedChart,
         isThresholdAlertWithNoFields,
         numericMetrics,
         isDashboardTabsAvailable,
         unmetRequirements,
         requiredFiltersWithoutValues,
+        chartRequiredFiltersWithoutValues,
         hasOnlyUnmetGroupRequirements,
     };
 };

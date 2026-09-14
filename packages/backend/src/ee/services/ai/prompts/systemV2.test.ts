@@ -4,13 +4,13 @@ import {
 } from '@lightdash/common';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getSystemPromptV2 } from './systemV2';
 import {
     EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
     STRUCTURED_FILTER_GUIDANCE_SECTION,
     STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
-} from './systemV2FilterGuidance';
+} from './filterGuidance';
+import { getSystemPromptV2 } from './systemV2';
 import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
@@ -61,19 +61,51 @@ describe('getSystemPromptV2 filter expressions', () => {
         expect(rendered.equals(baseline)).toBe(true);
     });
 
+    test('directs the agent to replace required filter defaults', () => {
+        const content = promptText({ availableExplores: [] });
+
+        expect(content).toContain(
+            'their configured operator and values are replaceable defaults, not fixed constraints on the data',
+        );
+        expect(content).toContain(
+            'you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field',
+        );
+        expect(content).toContain(
+            "Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it",
+        );
+        expect(content).not.toContain(
+            'required` are hard constraints: they are always applied',
+        );
+    });
+
     test('keeps structured field-value guidance when disabled', () => {
-        expect(
-            searchFieldValuesInstruction({ availableExplores: [] }),
-        ).toMatchSnapshot();
+        const instruction = searchFieldValuesInstruction({
+            availableExplores: [],
+        });
+
+        expect(instruction).toMatchSnapshot();
+        expect(instruction).toContain(
+            'Set `filters` to null when no additional scope is needed.',
+        );
+        expect(instruction).not.toContain(
+            'Omit `filters` when the search is unscoped.',
+        );
     });
 
     test('uses expression field-value guidance when enabled', () => {
-        expect(
-            searchFieldValuesInstruction({
-                availableExplores: [],
-                enableFilterExpressions: true,
-            }),
-        ).toMatchSnapshot();
+        const instruction = searchFieldValuesInstruction({
+            availableExplores: [],
+            enableFilterExpressions: true,
+        });
+
+        expect(instruction).toMatchSnapshot();
+        expect(instruction).toContain(
+            'Omit `filters` when the search is unscoped.',
+        );
+        expect(instruction).toContain(
+            'When present, `filters` scopes the candidate-value search',
+        );
+        expect(instruction).not.toContain('Set `filters` to null');
     });
 
     test('renders expression-only filter guidance', () => {
@@ -880,5 +912,40 @@ describe('getSystemPromptV2 data apps', () => {
         expect(content).not.toContain('generateDataApp');
         expect(content).not.toContain('iterateDataApp');
         expect(content).not.toContain('{{generate_data_app_section}}');
+    });
+});
+
+describe('getSystemPromptV2 Slack links only', () => {
+    const noDataInSlackRule =
+        'This organization does not allow query results to be shared in Slack';
+
+    test('forbids values in the reply while the model still gets the rows', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+            slackLinksOnly: true,
+        });
+        expect(content).toContain(noDataInSlackRule);
+        expect(content).toContain('Do not summarize them');
+        expect(content).not.toContain('call out trends');
+    });
+
+    test('keeps the no-results guidance when the agent has no data access', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: false,
+            slackLinksOnly: true,
+        });
+        expect(content).toContain(noDataInSlackRule);
+        expect(content).toContain('You do not see the actual query results');
+    });
+
+    test('is absent by default', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+        });
+        expect(content).not.toContain(noDataInSlackRule);
+        expect(content).toContain('call out trends');
     });
 });

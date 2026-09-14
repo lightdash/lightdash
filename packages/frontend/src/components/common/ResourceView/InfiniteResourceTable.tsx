@@ -8,6 +8,7 @@ import {
     ContentType,
     FeatureFlags,
     isResourceViewDataAppItem,
+    isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     type ApiContentBulkActionBody,
@@ -61,6 +62,7 @@ import {
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import { UserSelect } from '../UserSelect';
+import ViewsCountPopover from '../ViewsCountPopover';
 import AdminContentViewFilter, {
     type ContentViewValue,
 } from './AdminContentViewFilter';
@@ -72,7 +74,7 @@ import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import AttributeCount from './ResourceAttributeCount';
 import ResourceLastEdited from './ResourceLastEdited';
-import { getResourceUrl } from './resourceUtils';
+import { getResourceUrl, getViewStatsResourceType } from './resourceUtils';
 import {
     ColumnVisibility,
     ResourceViewItemAction,
@@ -371,9 +373,16 @@ const InfiniteResourceTable = ({
                         </Text>
                     );
                 return (
-                    <Text fz="xs" fw={500} c="ldGray.7">
-                        {row.original.data.views}
-                    </Text>
+                    <ViewsCountPopover
+                        resourceType={getViewStatsResourceType(row.original)}
+                        resourceUuid={row.original.data.uuid}
+                        projectUuid={filters.projectUuid}
+                        views={row.original.data.views}
+                    >
+                        <Text fz="xs" fw={500} c="ldGray.7">
+                            {row.original.data.views}
+                        </Text>
+                    </ViewsCountPopover>
                 );
             },
         },
@@ -385,11 +394,24 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (!isResourceViewSpaceItem(row.original)) return null;
                 return (
-                    <ResourceAccessInfo
-                        item={row.original}
-                        type="primary"
-                        withTooltip
-                    />
+                    // Scope-tour marker: the surface that shows a space's
+                    // access setting (result of manage:Space sharing). See
+                    // scripts/scope-tours/generate.ts.
+                    <Box
+                        data-tour-scope="manage:Space"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/spaces"
+                        data-tour-label="Every space has an access setting"
+                        data-tour-docs="explore/spaces.mdx#managing-access-to-a-space:1-2"
+                        data-tour-return='[data-tour-anchor="modal-close"] >> [data-tour-nav="browse"] >> [data-tour-nav="all-spaces"]'
+                        data-tour-resultdocs="explore/spaces.mdx#restricted-access-spaces:1"
+                    >
+                        <ResourceAccessInfo
+                            item={row.original}
+                            type="primary"
+                            withTooltip
+                        />
+                    </Box>
                 );
             },
         },
@@ -716,6 +738,42 @@ const InfiniteResourceTable = ({
                 table.getIsSomeRowsSelected() || table.getIsAllRowsSelected();
 
             return {
+                // Anchor for scope walkthroughs (data-tour-via): a space row
+                ...(isResourceViewSpaceItem(row.original)
+                    ? {
+                          'data-tour-anchor': 'space-row',
+                          'data-tour-hint': 'Open a space',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
+                // ... and a dashboard row, by name.
+                ...(isResourceViewItemDashboard(row.original)
+                    ? {
+                          'data-tour-anchor': 'dashboard-row',
+                          'data-tour-hint': 'Open a dashboard',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
+                // ... and a chart row, by name.
+                ...(isResourceViewItemChart(row.original)
+                    ? {
+                          'data-tour-anchor': 'chart-row',
+                          'data-tour-hint': 'Open a chart',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
+                // ... and a data app row, by name.
+                ...(isResourceViewDataAppItem(row.original)
+                    ? {
+                          'data-tour-anchor': 'app-row',
+                          'data-tour-hint': 'Open a data app',
+                          'data-tour-hint-named': 'Open {value}',
+                          'data-tour-value': row.original.data.name,
+                      }
+                    : {}),
                 onClick: () => {
                     if (isTableSelectionActive) {
                         row.toggleSelected();
@@ -767,7 +825,6 @@ const InfiniteResourceTable = ({
                                         w={1}
                                         h={20}
                                         color="#DEE2E6"
-                                        className="ld-self-center"
                                     />
                                     <ContentTypeFilter
                                         value={selectedContentType}
@@ -806,7 +863,6 @@ const InfiniteResourceTable = ({
                                         w={1}
                                         h={20}
                                         color="#DEE2E6"
-                                        className="ld-self-center"
                                     />
                                     <Box w={220}>
                                         <UserSelect

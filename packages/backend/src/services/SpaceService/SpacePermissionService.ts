@@ -563,7 +563,7 @@ export class SpacePermissionService extends BaseService {
                     baselineContext,
                     userUuid,
                     grantRoles,
-                    grantTarget.source,
+                    grantTarget,
                 ),
             );
         });
@@ -573,7 +573,7 @@ export class SpacePermissionService extends BaseService {
         spaceContext: SpaceAccessContextForCasl,
         userUuid: string,
         grantRoles: SpaceMemberRole[],
-        grantedVia: GrantSource,
+        grantTarget: DirectGrantTarget,
     ): AccessContextForCasl {
         const hasSpacePath =
             spaceContext.access.some(
@@ -591,7 +591,8 @@ export class SpacePermissionService extends BaseService {
                     projectRole: undefined,
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
-                    grantedVia,
+                    grantedVia: grantTarget.source,
+                    grantSourceUuid: grantTarget.resourceUuid,
                 })),
             ],
             directOnly: !hasSpacePath,
@@ -895,15 +896,17 @@ export class SpacePermissionService extends BaseService {
                 { trx },
             );
 
-        // For each requested space, aggregate access from its chain
+        // Omit spaces deleted between the chain and metadata reads.
+        const existingChains = chains.filter(
+            ({ spaceUuid }) => spaceInfo[spaceUuid] !== undefined,
+        );
         const result: Record<string, SpaceAccessContextForCasl> = {};
-        for (const { spaceUuid, chain, inheritsFromOrgOrProject } of chains) {
+        for (const {
+            spaceUuid,
+            chain,
+            inheritsFromOrgOrProject,
+        } of existingChains) {
             const space = spaceInfo[spaceUuid];
-            if (!space) {
-                throw new NotFoundError(
-                    `Space with uuid ${spaceUuid} not found`,
-                );
-            }
 
             // Build chain-ordered direct access (preserves leaf-to-root ordering)
             const chainDirectAccess = chain.map((item) => ({
@@ -971,19 +974,36 @@ export class SpacePermissionService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        const allRootSpaceUuids =
-            await this.spaceModel.getRootSpaceUuidsForProject(projectUuid);
-        const accessible = await this.getAccessibleSpaceUuids(
-            'view',
+        // Deleting a root space between listing the spaces and resolving
+        // access makes the access check throw, so resolve once more.
+        const firstViewable = await this.findFirstViewableSpaceUuid(
             user,
-            allRootSpaceUuids,
-        );
-        if (accessible.length === 0) {
+            projectUuid,
+        ).catch((e: unknown) => {
+            if (e instanceof NotFoundError) {
+                return this.findFirstViewableSpaceUuid(user, projectUuid);
+            }
+            throw e;
+        });
+        if (!firstViewable) {
             throw new NotFoundError(
                 `No viewable space found for project ${projectUuid}`,
             );
         }
-        return accessible[0];
+        return firstViewable;
+    }
+
+    private async findFirstViewableSpaceUuid(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<string | undefined> {
+        const allRootSpaceUuids =
+            await this.spaceModel.getRootSpaceUuidsForProject(projectUuid);
+        const accessible = new Set(
+            await this.getAccessibleSpaceUuids('view', user, allRootSpaceUuids),
+        );
+        // Oldest root space first, so the fallback is stable across calls
+        return allRootSpaceUuids.find((spaceUuid) => accessible.has(spaceUuid));
     }
 
     /**

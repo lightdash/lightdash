@@ -9,24 +9,17 @@ vi.mock('../hooks/useUpgradeApp', () => ({
     useUpgradeApp: vi.fn(),
 }));
 
+const metricFilters = {
+    key: 'metric-filters',
+    label: 'Metric filters',
+    description: 'Filter grouped results by metric values.',
+    wiring: 'Pass metric filters to the query builder.',
+};
+
 const staleOffer: SdkUpgradeOffer = {
     status: 'stale',
-    newFeatures: [
-        {
-            key: 'metric-filters',
-            label: 'Metric filters',
-            description: 'Filter grouped results by metric values.',
-            wiring: 'Pass metric filters to the query builder.',
-        },
-    ],
-    candidateFeatures: [
-        {
-            key: 'metric-filters',
-            label: 'Metric filters',
-            description: 'Filter grouped results by metric values.',
-            wiring: 'Pass metric filters to the query builder.',
-        },
-    ],
+    newFeatures: [{ ...metricFilters, appliesTo: ['data_app'] }],
+    candidateFeatures: [{ ...metricFilters, appliesTo: ['data_app'] }],
     reportedSdkVersion: '1.68.0',
     reportedFeatures: ['query'],
 };
@@ -72,7 +65,8 @@ describe('AppUpgradeModal', () => {
                 body: {
                     reportedSdkVersion: '1.68.0',
                     reportedFeatures: ['query'],
-                    candidateFeatures: staleOffer.candidateFeatures,
+                    // Registry-only metadata (appliesTo) stays off the wire.
+                    candidateFeatures: [metricFilters],
                 },
             },
             expect.objectContaining({ onSuccess: expect.any(Function) }),

@@ -35,6 +35,10 @@ export type DbApp = {
     // in-flight old code during a deploy.
     sandbox_id: string | null;
     template: Exclude<DataAppTemplate, 'custom'> | null;
+    // Curated icon name for a custom chart type (`ChartTypeIcon`); null when
+    // no icon is chosen or the app is not a chart type. Stored as text so an
+    // icon retired from the curated set does not fail to read back.
+    icon: string | null;
     design_uuid: string | null;
     // The production app this (preview) app was promoted into. Null until the
     // app is first promoted. Lives on the preview side so a single production
@@ -66,6 +70,7 @@ export type AppsTable = Knex.CompositeTableType<
                 | 'space_uuid'
                 | 'sandbox_id'
                 | 'template'
+                | 'icon'
                 | 'design_uuid'
                 | 'upstream_app_uuid'
                 | 'registry_slug'
@@ -82,6 +87,7 @@ export type AppsTable = Knex.CompositeTableType<
             | 'slug'
             | 'space_uuid'
             | 'sandbox_id'
+            | 'icon'
             | 'design_uuid'
             | 'upstream_app_uuid'
             | 'registry_slug'

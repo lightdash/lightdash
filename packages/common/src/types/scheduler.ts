@@ -1044,3 +1044,5 @@ export type CreateReviewLinearIssuePayload = {
     schedulerUuid?: string;
     userUuid?: string;
 };
+
+export type CreateReviewJiraIssuePayload = CreateReviewLinearIssuePayload;

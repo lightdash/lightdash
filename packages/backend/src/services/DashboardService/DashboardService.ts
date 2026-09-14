@@ -16,11 +16,14 @@ import {
     DashboardTab,
     DashboardTileTypes,
     DashboardVersionedFields,
+    DetailedViewStatistics,
     ExploreType,
     ExportContentPayload,
     ExportContentRequest,
     ForbiddenError,
     generateSlug,
+    getDashboardDeleteAccess,
+    getItemId,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
@@ -56,12 +59,14 @@ import {
     type ContentVerificationInfo,
     type CreateDashboardSqlChartTile,
     type DashboardBasicDetailsWithTileTypes,
+    type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
     type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type UpdateDashboardCustomMetric,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
@@ -849,6 +854,45 @@ export class DashboardService
         });
 
         return dashboard;
+    }
+
+    async getViewStats(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string },
+    ): Promise<DetailedViewStatistics> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid: options?.projectUuid },
+        );
+        const spaceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...spaceContext,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.analyticsModel.getDashboardViewStats(dashboard.uuid);
     }
 
     // The published dashboard with the caller's own unpublished draft applied
@@ -1862,6 +1906,17 @@ export class DashboardService
             ),
             base,
         });
+        this.analytics.track({
+            event: 'content_draft.saved',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingDashboardDao.projectUuid,
+                draftId: stored.uuid,
+                contentType: 'dashboard',
+                contentId: existingDashboardDao.uuid,
+                draftedFieldCount: Object.keys(stored.draft).length,
+            },
+        });
         const overlaid = DashboardService.mergeDraftIntoDashboard(
             existingDashboardDao,
             stored.draft,
@@ -2100,6 +2155,25 @@ export class DashboardService
                 },
             );
 
+            const previousOwnerUserUuid =
+                existingDashboardDao.owner?.userUuid ?? null;
+            if (
+                dashboardFields.ownerUserUuid !== undefined &&
+                dashboardFields.ownerUserUuid !== previousOwnerUserUuid
+            ) {
+                this.analytics.track({
+                    event: 'dashboard.owner_assigned',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: existingDashboardDao.organizationUuid,
+                        projectId: existingDashboardDao.projectUuid,
+                        dashboardId: existingDashboardDao.uuid,
+                        ownerUserUuid: dashboardFields.ownerUserUuid,
+                        previousOwnerUserUuid,
+                    },
+                });
+            }
+
             this.analytics.track({
                 event: 'dashboard.updated',
                 userId: user.userUuid,
@@ -2314,6 +2388,198 @@ export class DashboardService
         }
 
         return null;
+    }
+
+    /**
+     * Write-through edit of a dashboard registry custom metric: swaps the
+     * registry entry and re-versions every dashboard-owned chart whose
+     * snapshot references it, atomically. `dryRun` reports the affected
+     * charts without writing (the impact preview).
+     */
+    /** Auth + verified-content + content-as-code guards shared by registry mutations */
+    private async getRegistryMutationTarget(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string },
+    ): Promise<DashboardDAO> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid: options?.projectUuid },
+        );
+
+        const currentSpace = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            !auditedAbility.can(
+                'update',
+                subject('Dashboard', {
+                    ...currentSpace,
+                    metadata: { dashboardUuid: dashboard.uuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+        await this.assertCanMutateVerifiedDashboard({
+            user,
+            dashboardUuid: dashboard.uuid,
+            projectUuid: dashboard.projectUuid,
+            organizationUuid: dashboard.organizationUuid,
+        });
+
+        // Registry mutations write published content and chart versions
+        // directly, which the content-as-code draft lifecycle can't represent.
+        if ((await this.resolveDraftBase(dashboard)) !== null) {
+            throw new ParameterError(
+                'Shared metrics cannot be edited on a dashboard managed as code. Publish or discard its draft workflow first.',
+            );
+        }
+
+        return dashboard;
+    }
+
+    async updateCustomMetric(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        payload: UpdateDashboardCustomMetric,
+        options?: { projectUuid?: string },
+    ): Promise<DashboardCustomMetricUpdateResult> {
+        const dashboard = await this.getRegistryMutationTarget(
+            user,
+            dashboardUuidOrSlug,
+            options,
+        );
+
+        const { metric, dryRun = false } = payload;
+        const registry = dashboard.config?.customMetrics ?? [];
+        const metricId = getItemId(metric);
+        const existingIndex = registry.findIndex(
+            (entry) => getItemId(entry) === metricId,
+        );
+        // Identity is the lookup key, so a rename or table change can never
+        // match an entry — chart sorts/filters/config reference the field id.
+        if (existingIndex < 0) {
+            throw new NotFoundError(
+                `Custom metric "${metric.name}" is not in this dashboard's registry. A metric's name and table identify it and cannot be changed`,
+            );
+        }
+
+        // One query finds the affected charts; full chart data is fetched
+        // only for those, since each needs a rewritten version anyway.
+        const affectedCharts =
+            await this.dashboardModel.getDashboardOwnedChartsUsingMetric(
+                dashboard.uuid,
+                metric.table,
+                metric.name,
+            );
+        const affected = await Promise.all(
+            affectedCharts.map((chart) => this.savedChartModel.get(chart.uuid)),
+        );
+
+        const updatedRegistry = [
+            ...registry.slice(0, existingIndex),
+            metric,
+            ...registry.slice(existingIndex + 1),
+        ];
+        if (!dryRun) {
+            await this.savedChartModel.transaction(async (tx) => {
+                await this.dashboardModel.updateLatestVersionConfig(
+                    dashboard.uuid,
+                    {
+                        isDateZoomDisabled: false,
+                        ...dashboard.config,
+                        customMetrics: updatedRegistry,
+                    },
+                    tx,
+                );
+                await Promise.all(
+                    affected.map((chart) =>
+                        this.savedChartModel.createVersion(
+                            chart.uuid,
+                            {
+                                ...chart,
+                                metricQuery: {
+                                    ...chart.metricQuery,
+                                    additionalMetrics: (
+                                        chart.metricQuery.additionalMetrics ??
+                                        []
+                                    ).map((chartMetric) =>
+                                        getItemId(chartMetric) === metricId
+                                            ? metric
+                                            : chartMetric,
+                                    ),
+                                },
+                            },
+                            user,
+                            tx,
+                        ),
+                    ),
+                );
+            });
+        }
+
+        return { customMetrics: updatedRegistry, affectedCharts, dryRun };
+    }
+
+    /**
+     * Removes a metric from the registry. Delete = un-share: charts keep
+     * their local snapshots untouched, the metric just stops being offered.
+     * `dryRun` reports the charts still using it (the impact preview).
+     */
+    async deleteCustomMetric(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        metricTable: string,
+        metricName: string,
+        dryRun: boolean,
+        options?: { projectUuid?: string },
+    ): Promise<DashboardCustomMetricUpdateResult> {
+        const dashboard = await this.getRegistryMutationTarget(
+            user,
+            dashboardUuidOrSlug,
+            options,
+        );
+
+        const registry = dashboard.config?.customMetrics ?? [];
+        const metricId = getItemId({ table: metricTable, name: metricName });
+        const updatedRegistry = registry.filter(
+            (entry) => getItemId(entry) !== metricId,
+        );
+        if (updatedRegistry.length === registry.length) {
+            throw new NotFoundError(
+                `Custom metric "${metricName}" is not in this dashboard's registry`,
+            );
+        }
+
+        // Preview only needs names — the single lookup query carries them.
+        const affectedCharts =
+            await this.dashboardModel.getDashboardOwnedChartsUsingMetric(
+                dashboard.uuid,
+                metricTable,
+                metricName,
+            );
+
+        if (!dryRun) {
+            await this.dashboardModel.updateLatestVersionConfig(
+                dashboard.uuid,
+                {
+                    isDateZoomDisabled: false,
+                    ...dashboard.config,
+                    customMetrics: updatedRegistry,
+                },
+            );
+        }
+
+        return { customMetrics: updatedRegistry, affectedCharts, dryRun };
     }
 
     private async assertCanMutateVerifiedDashboard({
@@ -2608,7 +2874,7 @@ export class DashboardService
                         organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject,
-                        access,
+                        access: getDashboardDeleteAccess(access),
                         metadata: { dashboardUuid: dashboardToDelete.uuid },
                     }),
                 )
@@ -2729,7 +2995,7 @@ export class DashboardService
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
                         inheritsFromOrgOrProject,
-                        access,
+                        access: getDashboardDeleteAccess(access),
                         metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 )

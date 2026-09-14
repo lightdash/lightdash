@@ -227,12 +227,14 @@ describe('MCP tool catalogue activity', () => {
 
         expect(response.status).toBe(200);
         expect(mcpService.recordToolList).toHaveBeenCalledWith({
-            catalogue: expect.objectContaining({
-                projectPinned: false,
-                runSqlEnabled: false,
-                runMetricQueryEnabled: false,
-                filterExpressionsEnabled: true,
-            }),
+            catalogue: {
+                req: { pinnedProjectUuid: undefined },
+                featureAvailability: expect.objectContaining({
+                    runSqlEnabled: false,
+                    runMetricQueryEnabled: false,
+                    filterExpressionsEnabled: true,
+                }),
+            },
             authInfo: expect.objectContaining({ clientId: 'API key' }),
             durationMs: expect.any(Number),
         });
@@ -351,12 +353,12 @@ describe('project-scoped MCP route', () => {
         expect(mcpService.isFilterExpressionsEnabled).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
         );
-        expect(mcpService.createServer).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectPinned: true,
+        expect(mcpService.createServer).toHaveBeenCalledWith({
+            req: { pinnedProjectUuid: PROJECT_UUID },
+            featureAvailability: expect.objectContaining({
                 filterExpressionsEnabled: true,
             }),
-        );
+        });
         expect(transport.handleRequest).toHaveBeenCalledOnce();
     });
 });

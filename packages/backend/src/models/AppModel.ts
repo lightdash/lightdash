@@ -89,6 +89,7 @@ export class AppModel {
                     | 'name'
                     | 'description'
                     | 'template'
+                    | 'icon'
                     | 'space_uuid'
                     | 'design_uuid'
                     | 'registry_slug'
@@ -752,6 +753,7 @@ export class AppModel {
     ): Promise<{
         name: string;
         description: string;
+        icon: string | null;
         createdByUserUuid: string;
         organizationUuid: string;
         spaceUuid: string | null;
@@ -814,6 +816,7 @@ export class AppModel {
                 `${AppVersionsTableName}.*`,
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
+                `${AppsTableName}.icon`,
                 `${AppsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.space_uuid`,
                 `${SpaceTableName}.name as space_name`,
@@ -841,6 +844,7 @@ export class AppModel {
         const rows: ((DbAppVersion | Record<string, null>) & {
             name: string;
             description: string;
+            icon: string | null;
             created_by_user_uuid: string;
             space_uuid: string | null;
             space_name: string | null;
@@ -864,6 +868,7 @@ export class AppModel {
         const {
             name,
             description,
+            icon,
             created_by_user_uuid: createdByUserUuid,
             space_uuid: spaceUuid,
             space_name: spaceName,
@@ -883,6 +888,7 @@ export class AppModel {
             ): r is DbAppVersion & {
                 name: string;
                 description: string;
+                icon: string | null;
                 created_by_user_uuid: string;
                 space_uuid: string | null;
                 space_name: string | null;
@@ -901,6 +907,7 @@ export class AppModel {
         return {
             name,
             description,
+            icon,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -919,7 +926,7 @@ export class AppModel {
     async updateApp(
         appId: string,
         projectUuid: string,
-        update: Partial<Pick<DbApp, 'name' | 'description'>>,
+        update: Partial<Pick<DbApp, 'name' | 'description' | 'icon'>>,
     ): Promise<DbApp> {
         const [row] = await this.database(AppsTableName)
             .where({ app_id: appId, project_uuid: projectUuid })
@@ -1295,6 +1302,49 @@ export class AppModel {
             .where(`${ProjectTableName}.project_uuid`, previewProjectUuid)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .select(`${SavedChartsTableName}.saved_query_id`);
+        const [spaceCharts, dashboardCharts] = await Promise.all([
+            spaceChartIds,
+            dashboardChartIds,
+        ]);
+        const previewChartIds = [
+            ...new Set(
+                [...spaceCharts, ...dashboardCharts].map(
+                    (row) => row.saved_query_id,
+                ),
+            ),
+        ];
+        if (previewChartIds.length === 0) {
+            return;
+        }
+
+        // Narrow by the indexed chart id first: chart_type and chart_config
+        // are unindexed, so filtering the whole table on them is a full scan.
+        const candidates = await this.database(SavedChartVersionsTableName)
+            .select<
+                {
+                    saved_queries_version_id: number;
+                    source_app_uuid: string | null;
+                }[]
+            >(
+                'saved_queries_version_id',
+                this.database.raw(
+                    `chart_config->>'dataAppVizUuid' as source_app_uuid`,
+                ),
+            )
+            .whereRaw('?? = ANY(?::int[])', ['saved_query_id', previewChartIds])
+            .where('chart_type', ChartType.DATA_APP_VIZ);
+        const versionIdsBySourceApp = candidates.reduce<Map<string, number[]>>(
+            (acc, { saved_queries_version_id, source_app_uuid }) => {
+                if (source_app_uuid === null) {
+                    return acc;
+                }
+                const ids = acc.get(source_app_uuid) ?? [];
+                ids.push(saved_queries_version_id);
+                acc.set(source_app_uuid, ids);
+                return acc;
+            },
+            new Map(),
+        );
 
         /* eslint-disable no-await-in-loop */
         for (const {
@@ -1302,27 +1352,25 @@ export class AppModel {
             previewAppUuid,
             previewAppVersion,
         } of mappings) {
-            await this.database(SavedChartVersionsTableName)
-                .where('chart_type', ChartType.DATA_APP_VIZ)
-                .whereRaw(`chart_config->>'dataAppVizUuid' = ?`, [
-                    sourceAppUuid,
-                ])
-                .where((chartScope) => {
-                    void chartScope
-                        .whereIn('saved_query_id', spaceChartIds.clone())
-                        .orWhereIn('saved_query_id', dashboardChartIds.clone());
-                })
-                .update({
-                    chart_config: this.database.raw(
-                        `jsonb_set(
-                            jsonb_set(chart_config, '{dataAppVizUuid}', to_jsonb(?::text)),
-                            '{dataAppVizVersion}',
-                            to_jsonb(?::integer),
-                            true
-                        )`,
-                        [previewAppUuid, previewAppVersion],
-                    ) as unknown as ChartConfig['config'],
-                });
+            const versionIds = versionIdsBySourceApp.get(sourceAppUuid);
+            if (versionIds) {
+                await this.database(SavedChartVersionsTableName)
+                    .whereRaw('?? = ANY(?::int[])', [
+                        'saved_queries_version_id',
+                        versionIds,
+                    ])
+                    .update({
+                        chart_config: this.database.raw(
+                            `jsonb_set(
+                                jsonb_set(chart_config, '{dataAppVizUuid}', to_jsonb(?::text)),
+                                '{dataAppVizVersion}',
+                                to_jsonb(?::integer),
+                                true
+                            )`,
+                            [previewAppUuid, previewAppVersion],
+                        ) as unknown as ChartConfig['config'],
+                    });
+            }
         }
         /* eslint-enable no-await-in-loop */
     }
@@ -1336,7 +1384,7 @@ export class AppModel {
         appId: string,
         update: Pick<
             DbApp,
-            'name' | 'description' | 'space_uuid' | 'design_uuid'
+            'name' | 'description' | 'icon' | 'space_uuid' | 'design_uuid'
         >,
     ): Promise<DbApp> {
         const [row] = await this.database(AppsTableName)
@@ -1358,7 +1406,7 @@ export class AppModel {
     async setMetadataIfUnset(
         appId: string,
         projectUuid: string,
-        metadata: { name: string; description: string },
+        metadata: { name: string; description: string; icon?: string | null },
     ): Promise<DbApp> {
         return this.database.transaction(async (trx) => {
             const app = await trx(AppsTableName)
@@ -1371,13 +1419,18 @@ export class AppModel {
             }
 
             const update: Partial<
-                Pick<DbApp, 'name' | 'description' | 'slug'>
+                Pick<DbApp, 'name' | 'description' | 'slug' | 'icon'>
             > = {
                 description: trx.raw(
                     `CASE WHEN ${AppsTableName}.description = '' THEN ? ELSE ${AppsTableName}.description END`,
                     [metadata.description],
                 ) as unknown as string,
             };
+
+            // An icon the author already chose is never overwritten.
+            if (metadata.icon !== undefined && app.icon === null) {
+                update.icon = metadata.icon;
+            }
 
             if (app.name === '') {
                 const baseSlug = generateSlug(metadata.name).slice(0, 255);

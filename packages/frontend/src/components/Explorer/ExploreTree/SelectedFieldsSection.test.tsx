@@ -71,7 +71,8 @@ describe('SelectedFieldsSection source-aware actions', () => {
     });
 
     it('shows filter and basic overflow actions for a merged source field', async () => {
-        const user = userEvent.setup();
+        // user-event's mouseout has no relatedTarget, so a moving click hides the row actions
+        const user = userEvent.setup({ skipHover: true });
         const onAddFilter = vi.fn();
 
         renderWithProviders(

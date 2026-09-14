@@ -111,6 +111,7 @@ const baseProps = {
     onEdit: null,
     shareUrl: null,
     navItem: null,
+    askAiItem: null,
     fullscreenToggle: null,
     captureThumbnail: null,
     capturePreviewScreenshot: null,

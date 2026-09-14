@@ -57,7 +57,7 @@ describe('Settings - Warehouse connections', () => {
 
         cy.findByRole('dialog').within(() => {
             cy.findByRole('textbox', { name: 'Name' }).type(CREDENTIALS_NAME);
-            cy.findByRole('textbox', { name: 'Warehouse' }).click();
+            cy.findByRole('combobox', { name: 'Warehouse' }).click();
         });
         cy.findByRole('option', { name: 'Athena' }).click();
 

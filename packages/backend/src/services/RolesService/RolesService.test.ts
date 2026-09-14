@@ -2127,4 +2127,55 @@ describe('RolesService', () => {
             });
         });
     });
+    describe("the Learn library's view of what a learner holds", () => {
+        const sessionUser = (overrides: Record<string, unknown> = {}) =>
+            ({
+                userUuid: 'test-user-uuid',
+                organizationUuid: 'test-org-uuid',
+                role: OrganizationMemberRole.MEMBER,
+                ...overrides,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            }) as any;
+
+        beforeEach(() => {
+            mockUserModel.getScopesHeldAnywhere.mockResolvedValue([
+                'view:Dashboard',
+                'manage:Space',
+            ]);
+            mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+        });
+
+        afterEach(() => {
+            mockUserModel.getScopesHeldAnywhere.mockReset();
+            mockFeatureFlagModel.get.mockReset();
+        });
+
+        it('is every scope the learner holds anywhere', async () => {
+            await expect(
+                service.getLearnAccess(sessionUser()),
+            ).resolves.toStrictEqual({
+                scopes: ['view:Dashboard', 'manage:Space'],
+            });
+            expect(mockUserModel.getScopesHeldAnywhere).toHaveBeenCalledWith(
+                'test-user-uuid',
+                { includeCustomRoles: true },
+            );
+        });
+
+        it('leaves custom roles out where they are not in force', async () => {
+            mockFeatureFlagModel.get.mockResolvedValue({ enabled: false });
+            await service.getLearnAccess(sessionUser());
+            expect(mockUserModel.getScopesHeldAnywhere).toHaveBeenCalledWith(
+                'test-user-uuid',
+                { includeCustomRoles: false },
+            );
+
+            mockUserModel.getScopesHeldAnywhere.mockClear();
+            await buildService(false).getLearnAccess(sessionUser());
+            expect(mockUserModel.getScopesHeldAnywhere).toHaveBeenCalledWith(
+                'test-user-uuid',
+                { includeCustomRoles: false },
+            );
+        });
+    });
 });

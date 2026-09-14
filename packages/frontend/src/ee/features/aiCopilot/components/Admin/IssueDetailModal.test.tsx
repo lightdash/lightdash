@@ -241,6 +241,19 @@ describe('IssueDetailModal', () => {
         );
     });
 
+    it('links to the Jira issue when one has been exported', () => {
+        mockReviewItem.current = makeReviewItem({
+            linkedJiraIssueUrl: 'https://acme.atlassian.net/browse/DATA-42',
+        });
+
+        renderModal();
+
+        expect(screen.getByRole('link', { name: 'DATA-42' })).toHaveAttribute(
+            'href',
+            'https://acme.atlassian.net/browse/DATA-42',
+        );
+    });
+
     it('shows memory provenance instead of turn evidence for promotion items', () => {
         mockReviewItem.current = makeReviewItem({
             source: 'memory',

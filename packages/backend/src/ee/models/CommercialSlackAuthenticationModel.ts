@@ -42,6 +42,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             appProfilePhotoUrl: row.app_profile_photo_url ?? undefined,
             aiThreadAccessConsent: row.ai_thread_access_consent ?? false,
             aiRequireOAuth: row.ai_require_oauth,
+            aiLinksOnly: row.ai_links_only ?? false,
             aiMultiAgentChannelId: row.ai_multi_agent_channel_id ?? undefined,
             aiMultiAgentProjectUuids:
                 row.ai_router_project_uuids &&
@@ -105,6 +106,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             slackChannelProjectMappings,
             aiThreadAccessConsent,
             aiRequireOAuth,
+            aiLinksOnly,
             aiMultiAgentChannelId,
             aiMultiAgentProjectUuids,
             unfurlsEnabled,
@@ -125,6 +127,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                     app_profile_photo_url: appProfilePhotoUrl,
                     ai_thread_access_consent: aiThreadAccessConsent ?? false,
                     ai_require_oauth: aiRequireOAuth ?? false,
+                    ai_links_only: aiLinksOnly ?? false,
                     ai_multi_agent_channel_id: aiMultiAgentChannelId ?? null,
                     unfurls_enabled: unfurlsEnabled,
                     ai_agents_enabled: aiAgentsEnabled,

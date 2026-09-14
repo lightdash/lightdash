@@ -5,6 +5,7 @@ import {
     IconAppWindow,
     IconBrandGithub,
     IconChartBar,
+    IconClick,
     IconFile,
     IconFileSpreadsheet,
     IconFlask,
@@ -27,6 +28,7 @@ type ContentReferenceKind =
     | 'chart'
     | 'dashboard'
     | 'data_app'
+    | 'data_app_element'
     | 'thread'
     | 'file'
     | 'repository'
@@ -42,6 +44,8 @@ type Props = {
     children: ReactNode;
     kind: ContentReferenceKind;
     showArrow?: boolean;
+    /** Replaces the trailing arrow, e.g. to signal opening in a modal. */
+    trailingIcon?: Icon;
     to?: LinkProps['to'];
 } & Omit<
     AnchorProps,
@@ -71,6 +75,12 @@ const getIconMeta = ({
                 color: 'orange.7',
                 fill: 'orange.6',
                 icon: IconAppWindow,
+            };
+        case 'data_app_element':
+            return {
+                color: 'violet.7',
+                fill: 'violet.4',
+                icon: IconClick,
             };
         case 'artifact':
             return {
@@ -147,6 +157,7 @@ export const ContentReferenceLink = ({
     children,
     kind,
     showArrow = true,
+    trailingIcon,
     to,
     ...props
 }: Props) => {
@@ -169,7 +180,7 @@ export const ContentReferenceLink = ({
 
             {showArrow && (
                 <MantineIcon
-                    icon={IconArrowRight}
+                    icon={trailingIcon ?? IconArrowRight}
                     color="dimmed"
                     size={11}
                     stroke={1.5}

@@ -68,6 +68,7 @@ export enum PreAggregateMissReason {
     METRIC_NOT_IN_PRE_AGGREGATE = 'metric_not_in_pre_aggregate',
     NON_ADDITIVE_METRIC = 'non_additive_metric',
     NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH = 'non_additive_metric_requires_exact_match',
+    DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH = 'deduplicated_metric_requires_exact_match',
     CUSTOM_SQL_METRIC = 'custom_sql_metric',
     FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE = 'filter_dimension_not_in_pre_aggregate',
     SQL_FILTER_FIELD_NOT_IN_PRE_AGGREGATE = 'sql_filter_field_not_in_pre_aggregate',
@@ -100,6 +101,10 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH;
+          fieldId: FieldId;
+      }
+    | {
+          reason: PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH;
           fieldId: FieldId;
       }
     | {
@@ -211,6 +216,8 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.NON_ADDITIVE_METRIC]: 'Non-additive metric',
     [PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH]:
         'Non-additive metric: select exactly the pre-aggregate dimensions',
+    [PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH]:
+        'Metric deduplicated across a join: select exactly the pre-aggregate dimensions',
     [PreAggregateMissReason.CUSTOM_SQL_METRIC]: 'Custom SQL metric',
     [PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]:
         'Filter dimension not in pre-aggregate',

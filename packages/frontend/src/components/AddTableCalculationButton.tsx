@@ -23,6 +23,9 @@ const AddTableCalculationButton = memo(() => {
                         name: EventName.ADD_COLUMN_BUTTON_CLICKED,
                     });
                 }}
+                // Anchor for scope walkthroughs (data-tour-via)
+                data-tour-anchor="add-table-calculation"
+                data-tour-hint="Add a table calculation"
             >
                 Table calculation
             </Button>

@@ -16,9 +16,11 @@ import {
     countTotalFilterRules,
     CreateSavedChart,
     CreateSavedChartVersion,
+    CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
+    DetailedViewStatistics,
     ExploreSplitError,
     ExploreType,
     ForbiddenError,
@@ -26,6 +28,7 @@ import {
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
+    isChartCreateScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
@@ -55,7 +58,6 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
-    ViewStatistics,
     type ChartFieldUpdates,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
@@ -100,6 +102,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
     SoftDeletableService,
@@ -788,6 +791,17 @@ export class SavedChartService
             draft: pruneUnchangedDraftFields(existingChart, draftFields),
             base,
         });
+        this.analytics.track({
+            event: 'content_draft.saved',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingChart.projectUuid,
+                draftId: stored.uuid,
+                contentType: 'chart',
+                contentId: existingChart.uuid,
+                draftedFieldCount: Object.keys(stored.draft).length,
+            },
+        });
         const chartForOverlay =
             'metricQuery' in existingChart
                 ? existingChart
@@ -1069,6 +1083,8 @@ export class SavedChartService
             savedChartUuid,
             chartVersion,
             user,
+            undefined,
+            { projectUuid, dashboardUuid: dashboardUuid ?? null, spaceUuid },
         );
 
         if (!verificationAfterUpdate) {
@@ -1293,6 +1309,7 @@ export class SavedChartService
         const savedChart = await this.savedChartModel.update(
             savedChartUuid,
             chartUpdate,
+            { projectUuid, dashboardUuid: dashboardUuid ?? null, spaceUuid },
         );
 
         if (!verificationAfterUpdate) {
@@ -1809,7 +1826,7 @@ export class SavedChartService
     async getViewStats(
         user: SessionUser,
         savedChartUuid: string,
-    ): Promise<ViewStatistics> {
+    ): Promise<DetailedViewStatistics> {
         const savedChart =
             await this.savedChartModel.getSummary(savedChartUuid);
         const { inheritsFromOrgOrProject, access } =
@@ -2682,13 +2699,23 @@ export class SavedChartService
             }
         }
 
-        const scheduler = await this.schedulerModel.createScheduler({
+        const chartScheduler: CreateSchedulerAndTargets = {
             ...newScheduler,
             createdBy: user.userUuid,
             dashboardUuid: null,
             savedChartUuid: chartUuid,
             savedSqlUuid: null,
-        });
+        };
+        if (isChartCreateScheduler(chartScheduler) && chartScheduler.filters) {
+            assertCanReplaceChartFilters({
+                ability: this.createAuditedAbility(user),
+                chart: await this.savedChartModel.get(chartUuid),
+                schedulerFilters: chartScheduler.filters,
+            });
+        }
+
+        const scheduler =
+            await this.schedulerModel.createScheduler(chartScheduler);
 
         const createSchedulerEventData: SchedulerUpsertEvent = {
             userId: user.userUuid,
@@ -2847,7 +2874,10 @@ export class SavedChartService
         chartUuid: string,
         versionUuid: string,
     ): Promise<void> {
-        const { grantAudit } = await this.checkUpdateAccess(user, chartUuid);
+        const { grantAudit, savedChart } = await this.checkUpdateAccess(
+            user,
+            chartUuid,
+        );
         const currentChartVersion = await this.savedChartModel.get(chartUuid);
         const chartVersion = await this.savedChartModel.get(
             chartUuid,
@@ -2857,6 +2887,12 @@ export class SavedChartService
             chartUuid,
             chartVersion,
             user,
+            undefined,
+            {
+                projectUuid: savedChart.projectUuid,
+                dashboardUuid: savedChart.dashboardUuid ?? null,
+                spaceUuid: savedChart.spaceUuid,
+            },
         );
         this.analytics.track({
             event: 'saved_chart_version.rollback',

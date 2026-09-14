@@ -223,6 +223,12 @@ const getTagsForTask: {
         'content_review_request.uuid': payload.requestUuid,
     }),
 
+    [SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid ?? '',
+    }),
+
     [SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'project.uuid': payload.projectUuid,
@@ -313,6 +319,7 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: () => ({}),
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

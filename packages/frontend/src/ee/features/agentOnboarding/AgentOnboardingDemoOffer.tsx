@@ -1,12 +1,9 @@
 import { subject } from '@casl/ability';
 import { type AgentOnboardingRun } from '@lightdash/common';
-import { Button, Group, Paper, Stack, Text } from '@mantine/core';
+import { Anchor } from '@mantine/core';
 import { captureException } from '@sentry/react';
-import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
-import Callout from '../../../components/common/Callout';
-import MantineIcon from '../../../components/common/MantineIcon';
 import {
     getPlaygroundSetupFailure,
     isRetryablePlaygroundSetupFailure,
@@ -141,48 +138,31 @@ export const AgentOnboardingDemoOffer: FC<{ run: AgentOnboardingRun }> = ({
 
     if (offerType === null) return null;
 
+    const canRetry =
+        failure === null || isRetryablePlaygroundSetupFailure(failure);
+    const actionLabel = isProvisioning
+        ? 'setting up your demo project…'
+        : failure !== null
+          ? 'try again'
+          : offerType === 'open_existing_demo'
+            ? 'open the demo project'
+            : 'explore sample data';
+
     return (
-        <Paper radius="md" p="lg">
-            <Group justify="space-between" align="center" wrap="nowrap">
-                <Group gap="md" align="flex-start" wrap="nowrap">
-                    <MantineIcon
-                        icon={IconTelescope}
-                        size="xl"
-                        color="blue.6"
-                    />
-                    <Stack gap={4}>
-                        <Text fw={600}>
-                            Explore a demo project while you wait
-                        </Text>
-                        {failure ? (
-                            <Callout variant="warning" hideIcon>
-                                <Text size="sm">
-                                    {DEMO_OFFER_FAILURE_MESSAGES[failure]}
-                                </Text>
-                            </Callout>
-                        ) : (
-                            <Text c="dimmed" size="sm">
-                                Poke around a sample-data project — your setup
-                                keeps running in the background.
-                            </Text>
-                        )}
-                    </Stack>
-                </Group>
-                {failure === null ||
-                isRetryablePlaygroundSetupFailure(failure) ? (
-                    <Button
-                        variant="light"
-                        loading={isProvisioning}
-                        onClick={() => void openDemo(offerType)}
-                    >
-                        {failure !== null
-                            ? 'Try again'
-                            : offerType === 'open_existing_demo'
-                              ? 'Open demo project'
-                              : 'Explore sample data'}
-                    </Button>
-                ) : null}
-            </Group>
-        </Paper>
+        <>
+            {failure ? DEMO_OFFER_FAILURE_MESSAGES[failure] : 'You can also'}{' '}
+            {canRetry ? (
+                <Anchor
+                    component="button"
+                    type="button"
+                    fz="sm"
+                    disabled={isProvisioning}
+                    onClick={() => void openDemo(offerType)}
+                >
+                    {actionLabel}
+                </Anchor>
+            ) : null}
+            {failure === null ? ' while you wait.' : null}
+        </>
     );
 };

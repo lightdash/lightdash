@@ -656,6 +656,85 @@ describe('validation', () => {
         ]);
     });
 
+    it.each([
+        {
+            scenario: 'accepts valid references to selected models',
+            compiledExplores: [explore],
+            expectedErrors: [],
+        },
+        {
+            scenario: 'reports removed fields in selected models',
+            compiledExplores: [exploreWithoutDimension],
+            expectedErrors: [
+                expect.objectContaining({
+                    source: ValidationSourceType.DataApp,
+                    errorType: ValidationErrorType.Dimension,
+                    modelName: explore.name,
+                    fieldName: 'table.dimension',
+                }),
+            ],
+        },
+        {
+            scenario:
+                'reports unselected models even when they exist in the cache',
+            compiledExplores: [{ ...explore, name: 'selected_explore' }],
+            expectedErrors: [
+                expect.objectContaining({
+                    source: ValidationSourceType.DataApp,
+                    errorType: ValidationErrorType.Model,
+                    modelName: explore.name,
+                }),
+            ],
+        },
+    ])(
+        '$scenario for data apps',
+        async ({ compiledExplores, expectedErrors }) => {
+            appModel.findAppsForValidation.mockResolvedValueOnce([
+                {
+                    app_id: 'app-uuid',
+                    name: 'App using a selected model',
+                    data_references: {
+                        references: [
+                            {
+                                kind: 'query',
+                                explore: explore.name,
+                                dimensions: ['table.dimension'],
+                                metrics: [],
+                                dimensionFilterFields: [],
+                                metricFilterFields: [],
+                                sortFields: [],
+                                parameterKeys: [],
+                                localFields: [],
+                                unresolved: [],
+                                location: {
+                                    path: 'src/App.tsx',
+                                    line: 10,
+                                    column: 5,
+                                },
+                            },
+                        ],
+                        parseErrors: [],
+                        stats: {
+                            callSites: 1,
+                            fullyResolved: 1,
+                            partiallyResolved: 0,
+                            unresolved: 0,
+                        },
+                    },
+                },
+            ]);
+
+            const errors = await validationService.generateValidation(
+                'projectUuid',
+                compiledExplores,
+                new Set([ValidationTarget.APPS]),
+            );
+
+            expect(errors).toEqual(expectedErrors);
+            expect(projectModel.findExploresFromCache).not.toHaveBeenCalled();
+        },
+    );
+
     it('reveals only owned personal data app validations to non-admins', async () => {
         appModel.listAppsByProject.mockResolvedValueOnce([
             {

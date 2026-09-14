@@ -18,6 +18,7 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     children,
     tableCalculationsMetadata,
     parameters,
+    unsavedMetricQuery,
 }) => {
     const { dimensions, numericMetrics } = useMemo(() => {
         const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
@@ -37,6 +38,7 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
         colorPalette,
         tableCalculationsMetadata,
         parameters,
+        unsavedMetricQuery,
     );
 
     useEffect(() => {

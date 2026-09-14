@@ -282,6 +282,7 @@ const buildService = ({
     };
 
     const service = new CoderService({
+        directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {

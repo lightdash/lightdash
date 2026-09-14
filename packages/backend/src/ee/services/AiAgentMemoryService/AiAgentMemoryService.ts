@@ -733,6 +733,7 @@ export class AiAgentMemoryService extends BaseService {
                 projectUuid: memory.project_uuid,
                 agentUuid: memory.agent_uuid,
                 recordIO: copilotConfig.telemetryEnabled,
+                keyManagement: model.keyManagement,
                 ...getLanguageModelAttribution(model.model),
             }),
         });
@@ -1721,6 +1722,7 @@ export class AiAgentMemoryService extends BaseService {
                     projectUuid: args.partition.projectUuid,
                     userUuid: args.partition.ownerUserUuid,
                     recordIO: copilotConfig.telemetryEnabled,
+                    keyManagement: model.keyManagement,
                     ...getLanguageModelAttribution(model.model),
                 }),
                 messages: [
@@ -2031,6 +2033,7 @@ export class AiAgentMemoryService extends BaseService {
                 agentUuid: args.thread.agentUuid,
                 threadUuid: args.thread.threadUuid,
                 recordIO: copilotConfig.telemetryEnabled,
+                keyManagement: model.keyManagement,
                 ...getLanguageModelAttribution(model.model),
             }),
             messages: [

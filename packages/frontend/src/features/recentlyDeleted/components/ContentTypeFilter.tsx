@@ -114,12 +114,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
 
     return (
         <>
-            <Divider
-                orientation="vertical"
-                w={1}
-                h={20}
-                className="ld-self-center"
-            />
+            <Divider orientation="vertical" w={1} h={20} />
             <SegmentedControl
                 size="xs"
                 value={selectedContentType}

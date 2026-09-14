@@ -30,6 +30,14 @@ results are fetched with the standard results endpoint and carry the universal
   and reaches results of previous submissions. A referenced result keeps the
   column names of the query that produced it: field ids for `semanticLayer`
   queries, SELECT output names for `sql` queries.
+- **Execution context** (`SourceQueryExecutionContext` on the backend): what a
+  submission carries besides its queries — parameter values, user attribute
+  overrides and cache invalidation, shared by every node — plus each node's
+  own `pivotConfiguration`. All of it is required on the submit contract, so a
+  new source or caller decides each value explicitly. User attribute overrides
+  in particular are never optional: they come from the caller's runtime
+  (embed, MCP, the AI agent) and a dropped override shows a user another
+  tenant's rows. The HTTP API has none and passes an empty map.
 
 ## No orchestrator
 
@@ -37,7 +45,7 @@ There is deliberately no server-side pipeline executor, no pipeline tables and
 no new queue infrastructure. Submitting many queries at once validates them
 (unique node ids, resolvable references, no cycles) and submits every query
 immediately in dependency order, rewriting node-id references to the real
-queryUuids as each fire-and-forget submit returns. The dependency *wait*
+queryUuids as each fire-and-forget submit returns. The dependency _wait_
 happens inside the referencing query: a `duckdb` query's background execution
 blocks (via `QueryHistoryModel.pollForQueryCompletion`, bounded by a 15-minute
 timeout) until every referenced result exists, and fails with the upstream
@@ -62,7 +70,13 @@ than referencing expired results.
 - `types.ts` — `QuerySourceClient`: `scanSchema` (standard tables/columns
   shape), `getQueryReferences` (declares which results a query reads),
   `submitQuery` (returns a `queryUuid`). Each source owns its authorization,
-  applying the same checks as the execution path it wraps.
+  applying the same checks as the execution path it wraps, and honours the
+  execution context it is handed: `semanticLayer` and `sql` nodes apply all
+  of it; `duckdb` and `external` nodes resolve parameters, never serve from a
+  cache (so invalidation is trivially honoured), have no attribute-scoped SQL
+  to apply overrides to, and refuse a pivot on a public submission, since raw
+  SQL has no fields to pivot on. A `duckdb` node submitted with an execution
+  plan (a merge's join) pivots through the plan's composer.
 - `QuerySourceRegistry.ts` — sources register by `sourceType`; the service
   resolves and lists them. Commercial/self-hosted extensions register
   additional sources at construction time (`ServiceRepository`).
@@ -72,14 +86,22 @@ than referencing expired results.
 - `QuerySourceService.ts` — endpoint logic: validation, dependency-ordered
   submission, batch status.
 
-The reference wait lives in `AsyncQueryService.runComposeSqlQuery` (the
+The reference wait lives in `AsyncQueryService.runDuckdbQuery` (the
 background phase of `executeAsyncComposeSqlQuery`): references are validated
 and authorized at submit time with the exact access checks of fetching results
 by uuid, then resolved to S3-backed CTEs once the referenced queries complete.
-One caveat inherited by design: when compose queries move to NATS workers, a
-waiting query occupies a worker slot; dependency-ordered submission keeps
-queue order aligned with dependency order, and a dedicated consumer is the
-fix if slot starvation ever materializes.
+The statement then runs on an isolated DuckDB session whose storage
+credentials reach exactly those result files, so user SQL cannot read the
+rest of the results bucket; a duckdb query that references nothing is refused
+at submit, since it would have nothing to run on.
+The run rebuilds itself from the `query_history` row and its
+`duckdb_execution` column, so with the NATS worker on it runs on the worker
+(subject `duckdb.query.jobs` on the `DUCKDB_QUERY_JOBS` stream, its own
+durable consumer), and in the API process otherwise.
+One caveat inherited by design: on the worker, a waiting query occupies a
+worker slot; dependency-ordered submission keeps queue order aligned with
+dependency order, and a dedicated consumer is the fix if slot starvation ever
+materializes.
 
 ## API
 
@@ -87,12 +109,12 @@ All endpoints require the `multi-source-query` feature flag (on by default in
 preview environments) and live under
 `/api/v2/projects/{projectUuid}/query-sources`:
 
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /` | List registered sources |
-| `GET /{sourceType}/schema` | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape |
-| `POST /queries` | Submit 1..n source queries → immediate `{nodeId, queryUuid}` per query |
-| `GET /queries/status?queryUuids=...` | Batch status poll (standard async query lifecycle) |
+| Endpoint                             | Purpose                                                                                                                                                                                  |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /`                              | List registered sources                                                                                                                                                                  |
+| `GET /{sourceType}/schema`           | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape                                                                                 |
+| `POST /queries`                      | Submit 1..n source queries → immediate `{nodeId, queryUuid}` per query. Optional `parameters` and `invalidateCache` apply to every query; a query may carry its own `pivotConfiguration` |
+| `GET /queries/status?queryUuids=...` | Batch status poll (standard async query lifecycle)                                                                                                                                       |
 
 Individual results are fetched with the existing
 `GET /api/v2/projects/{projectUuid}/query/{queryUuid}` endpoint. Statuses are
@@ -104,21 +126,21 @@ Example body — two parallel sources merged by DuckDB:
 
 ```json
 {
-    "queries": [
-        { "nodeId": "orders", "sourceType": "sql", "sql": "SELECT ..." },
-        {
-            "nodeId": "revenue",
-            "sourceType": "semanticLayer",
-            "exploreName": "payments",
-            "dimensions": ["payments_order_id"],
-            "metrics": ["payments_total_revenue"]
-        },
-        {
-            "sourceType": "duckdb",
-            "sql": "SELECT * FROM orders JOIN revenue ON orders.order_id = revenue.payments_order_id",
-            "references": ["orders", "revenue"]
-        }
-    ]
+  "queries": [
+    { "nodeId": "orders", "sourceType": "sql", "sql": "SELECT ..." },
+    {
+      "nodeId": "revenue",
+      "sourceType": "semanticLayer",
+      "exploreName": "payments",
+      "dimensions": ["payments_order_id"],
+      "metrics": ["payments_total_revenue"]
+    },
+    {
+      "sourceType": "duckdb",
+      "sql": "SELECT * FROM orders JOIN revenue ON orders.order_id = revenue.payments_order_id",
+      "references": ["orders", "revenue"]
+    }
+  ]
 }
 ```
 

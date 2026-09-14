@@ -86,6 +86,10 @@ const ExportSelector: FC<
                         leftSection={<MantineIcon icon={IconFileTypeCsv} />}
                         disabled={isExportingGoogleSheets}
                         data-testid="chart-export-csv-button"
+                        // Walkthrough detour (manage:ExportCsv): the way to
+                        // the export form when this chooser is shown.
+                        data-tour-anchor="export-choose-download"
+                        data-tour-hint="Click Download data"
                     >
                         Download data
                     </Button>

@@ -12,6 +12,7 @@ import {
     ArgumentsOf,
     assertUnreachable,
     AuthorizationError,
+    AzureAdSsoConfig,
     BigqueryAuthenticationType,
     CompleteUserArgs,
     CreateInviteLink,
@@ -26,6 +27,8 @@ import {
     ForbiddenError,
     getEmailDomain,
     getErrorMessage,
+    getMicrosoftAuthority,
+    getMicrosoftIssuer,
     getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
@@ -43,9 +46,13 @@ import {
     LightdashUser,
     LocalIssuerTypes,
     LoginOptionTypes,
+    MANAGED_SIGN_IN_PROVIDER,
+    MANAGED_SIGN_IN_SCOPES,
+    ManagedSignIn,
     MissingConfigError,
     MobileLoginIntent,
     MobileLoginSsoPresentation,
+    MobilePlatform,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentityIssuerType,
@@ -194,6 +201,11 @@ export type AuthAuditContext = {
 type LoginWithOpenIdOptions = {
     isLinkFlow?: boolean;
     emailVerified?: boolean;
+    managedAzureIdentityLink?: {
+        tenantId: string;
+        organizationUuid: string | null;
+    };
+    deferSuccessAudit?: boolean;
 };
 
 const emitAuthAuditEvent = ({
@@ -958,6 +970,22 @@ export class UserService extends BaseService {
         }
     }
 
+    recordOpenIdLoginAllowed(
+        user: SessionUser,
+        issuerType: OpenIdIdentityIssuerType,
+        context?: AuthAuditContext,
+    ) {
+        emitAuthAuditEvent({
+            actor: createActorFromUser(user),
+            action: 'login',
+            resourceType: 'Session',
+            status: 'allowed',
+            organizationUuid: user.organizationUuid,
+            metadata: { loginProvider: issuerType },
+            context,
+        });
+    }
+
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         authenticatedUser: SessionUser | undefined,
@@ -982,15 +1010,13 @@ export class UserService extends BaseService {
                 refreshToken,
                 options,
             );
-            emitAuthAuditEvent({
-                actor: createActorFromUser(loggedInUser),
-                action: 'login',
-                resourceType: 'Session',
-                status: 'allowed',
-                organizationUuid: loggedInUser.organizationUuid,
-                metadata: { loginProvider: openIdUser.openId.issuerType },
-                context,
-            });
+            if (!options?.deferSuccessAudit) {
+                this.recordOpenIdLoginAllowed(
+                    loggedInUser,
+                    openIdUser.openId.issuerType,
+                    context,
+                );
+            }
             return loggedInUser;
         } catch (e) {
             emitAuthAuditEvent({
@@ -1207,11 +1233,35 @@ export class UserService extends BaseService {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
                 );
+                const managedAzureIdentityLink =
+                    options?.managedAzureIdentityLink;
+                const canLinkManagedAzureIdentity =
+                    managedAzureIdentityLink !== undefined &&
+                    openIdUser.openId.issuerType ===
+                        OpenIdIdentityIssuerType.AZUREAD &&
+                    openIdUser.openId.issuer ===
+                        getMicrosoftIssuer(managedAzureIdentityLink.tenantId) &&
+                    !!sessionUser.organizationUuid &&
+                    (managedAzureIdentityLink.organizationUuid === null ||
+                        sessionUser.organizationUuid ===
+                            managedAzureIdentityLink.organizationUuid) &&
+                    identities.some(
+                        (identity) =>
+                            identity.issuerType ===
+                                OpenIdIdentityIssuerType.AZUREAD &&
+                            identity.issuer === openIdUser.openId.issuer &&
+                            identity.email === openIdUser.openId.email,
+                    );
+
+                if (canLinkManagedAzureIdentity && !sessionUser.isActive) {
+                    throw new DeactivatedAccountError();
+                }
 
                 if (
-                    await this.isOidcLinkingEnabledForOrg(
+                    canLinkManagedAzureIdentity ||
+                    (await this.isOidcLinkingEnabledForOrg(
                         sessionUser.organizationUuid,
-                    )
+                    ))
                 ) {
                     this.logger.info(
                         `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,
@@ -1246,21 +1296,19 @@ export class UserService extends BaseService {
         }
 
         // Link the new openid identity to an existing user if they already
-        // have the same verified primary email. Allowed instance-wide via env
-        // OR per-org via organization_settings — resolve the candidate user,
-        // then check the effective toggle for their org.
+        // have the same verified primary email (instance env OR per-org
+        // organization_settings). Otherwise, fail closed without an invite.
         if (!authenticatedUser) {
             const userWithSameEmail =
                 await this.userModel.findSessionUserByPrimaryEmail(
                     openIdUser.openId.email,
                 );
 
-            if (
-                userWithSameEmail &&
-                (await this.isOidcToEmailLinkingEnabledForOrg(
-                    userWithSameEmail.organizationUuid,
-                ))
-            ) {
+            if (userWithSameEmail) {
+                const isLinkingEnabled =
+                    await this.isOidcToEmailLinkingEnabledForOrg(
+                        userWithSameEmail.organizationUuid,
+                    );
                 const emailStatus = await this.emailModel.getPrimaryEmailStatus(
                     userWithSameEmail.userUuid,
                 );
@@ -1268,7 +1316,7 @@ export class UserService extends BaseService {
                     `Email status for user ${userWithSameEmail.userUuid} - Is verified: ${emailStatus.isVerified}`,
                 );
 
-                if (emailStatus.isVerified) {
+                if (isLinkingEnabled && emailStatus.isVerified) {
                     if (
                         this.lightdashConfig.groups.enabled === true &&
                         this.lightdashConfig.auth.enableGroupSync === true &&
@@ -1293,6 +1341,18 @@ export class UserService extends BaseService {
                         userWithSameEmail,
                         openIdUser,
                         refreshToken,
+                    );
+                }
+
+                // Without an invite the fallthrough would collide with this
+                // account in createUser; fail closed with the next step instead.
+                if (!inviteCode) {
+                    throw new ForbiddenError(
+                        await this.getSsoLoginCollisionMessage(
+                            userWithSameEmail,
+                            openIdUser.openId.email,
+                            emailStatus.isVerified,
+                        ),
                     );
                 }
             }
@@ -2329,24 +2389,50 @@ export class UserService extends BaseService {
         return !hasPassword && !hasOpenIdIdentity;
     }
 
+    private async isEmailOtpLoginAvailable(
+        user: LightdashUser,
+        email: string,
+    ): Promise<boolean> {
+        if (!user.isActive) {
+            return false;
+        }
+        const [isStrictlyPasswordlessUser, isEmailOtpLoginAllowed] =
+            await Promise.all([
+                this.isStrictlyPasswordlessUser(user),
+                this.isLoginMethodAllowed(
+                    email.toLowerCase(),
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ]);
+        return isStrictlyPasswordlessUser && isEmailOtpLoginAllowed;
+    }
+
+    // Shown to an SSO user who provably owns the mailbox; never reveal org,
+    // role, groups or admin identities here.
+    private async getSsoLoginCollisionMessage(
+        user: LightdashUser,
+        email: string,
+        isEmailVerified: boolean,
+    ): Promise<string> {
+        if (isEmailVerified) {
+            return `An account for ${email} already exists. Sign in with your email, then connect this sign-in method from your account settings, or ask your admin to enable linking SSO logins by email.`;
+        }
+        if (await this.isEmailOtpLoginAvailable(user, email)) {
+            return `An account for ${email} is waiting to be activated. Sign in with your email to get a one-time code, or ask your admin for an invite link. After that, SSO sign-in will be enabled.`;
+        }
+        return `An account for ${email} already exists but hasn't been activated. Ask your admin for an invite link. After that, SSO sign-in will be enabled.`;
+    }
+
     // OTP login is deliberately NOT gated on the NewOnboarding flag: accounts
     // enrolled as strictly passwordless have no other way to sign in, so a
     // flag rollback must not strand them. The flag gates enrollment only.
     async requestEmailOtpLogin(email: string): Promise<void> {
         const normalizedEmail = email.toLowerCase();
         const user = await this.userModel.findUserByEmail(normalizedEmail);
-        if (!user || !user.isActive) {
-            return;
-        }
-        const [isStrictlyPasswordlessUser, isEmailLoginAllowed] =
-            await Promise.all([
-                this.isStrictlyPasswordlessUser(user),
-                this.isLoginMethodAllowed(
-                    normalizedEmail,
-                    LocalIssuerTypes.EMAIL_OTP,
-                ),
-            ]);
-        if (!isStrictlyPasswordlessUser || !isEmailLoginAllowed) {
+        if (
+            !user ||
+            !(await this.isEmailOtpLoginAvailable(user, normalizedEmail))
+        ) {
             return;
         }
         const emailStatus = await this.emailModel.getPrimaryEmailStatus(
@@ -3904,6 +3990,77 @@ export class UserService extends BaseService {
                 ssoPresentation: { kind: 'neutral' },
                 localEmailAvailable,
             };
+        }
+    }
+
+    private getManagedSignInClientId(
+        platform: MobilePlatform,
+    ): string | undefined {
+        const { microsoftManagedSignIn } = this.lightdashConfig.auth;
+        return platform === 'ios'
+            ? microsoftManagedSignIn.iosClientId
+            : microsoftManagedSignIn.androidClientId;
+    }
+
+    private async findManagedSignInTenantId(
+        email: string | undefined,
+    ): Promise<string | undefined> {
+        const envTenantId = this.lightdashConfig.auth.azuread.oauth2TenantId;
+        if (envTenantId) {
+            return envTenantId;
+        }
+        if (!email) {
+            return undefined;
+        }
+        const { matchingMethods } =
+            await this.getEnabledOrganizationSsoMethodsForEmail(email);
+        const tenantIds = new Set(
+            matchingMethods
+                .filter(
+                    (method) =>
+                        method.provider === OrganizationSsoProvider.AZUREAD,
+                )
+                .map(
+                    (method) =>
+                        (method.config as AzureAdSsoConfig).oauth2TenantId,
+                )
+                .filter((tenantId): tenantId is string => !!tenantId),
+        );
+        if (tenantIds.size !== 1) {
+            return undefined;
+        }
+        const [tenantId] = tenantIds;
+        return tenantId;
+    }
+
+    async getManagedSignIn(
+        platform: MobilePlatform | undefined,
+        email: string | undefined,
+    ): Promise<ManagedSignIn | undefined> {
+        if (!platform) {
+            return undefined;
+        }
+        const clientId = this.getManagedSignInClientId(platform);
+        if (!clientId) {
+            return undefined;
+        }
+        try {
+            const tenantId = await this.findManagedSignInTenantId(email);
+            if (!tenantId) {
+                return undefined;
+            }
+            return {
+                provider: MANAGED_SIGN_IN_PROVIDER,
+                clientId,
+                authority: getMicrosoftAuthority(tenantId),
+                tenantId,
+                scopes: MANAGED_SIGN_IN_SCOPES,
+            };
+        } catch (error) {
+            Logger.warn('Failed to resolve managed sign-in options', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return undefined;
         }
     }
 

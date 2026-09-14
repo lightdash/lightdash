@@ -205,11 +205,7 @@ const RequestReviewModal: FC<Props> = ({
                                 {contentName}
                             </Text>
                             <MantineIcon icon={IconArrowRight} color="dimmed" />
-                            <Group
-                                gap={4}
-                                wrap="nowrap"
-                                className="ld-shrink-0"
-                            >
+                            <Group gap={4} wrap="nowrap" flex="0 0 auto">
                                 <MantineIcon icon={IconFolder} color="dimmed" />
                                 <Text fz="sm" fw={500}>
                                     {targetSpace?.name ?? 'Shared space'}
@@ -218,6 +214,8 @@ const RequestReviewModal: FC<Props> = ({
                         </Group>
                         <SimilarContentPanel
                             projectUuid={projectUuid}
+                            contentType={contentType}
+                            contentUuid={contentUuid}
                             items={similarContent}
                         />
                         <Textarea

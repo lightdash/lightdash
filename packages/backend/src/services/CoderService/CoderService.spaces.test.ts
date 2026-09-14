@@ -192,6 +192,7 @@ const buildService = ({
         findSessionUserAndOrgByUuid: vi.fn(async () => refreshedUser),
     };
     const service = new CoderService({
+        directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: projectModel as AnyType,

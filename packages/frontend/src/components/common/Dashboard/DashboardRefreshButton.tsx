@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useStableCallback } from '../../../hooks/useStableCallback';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import MantineIcon from '../MantineIcon';
 
@@ -90,10 +91,20 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
             invalidateDashboardResultsQueries,
         ]);
 
-        const interval = useInterval(
-            () => invalidateAndSetRefreshTime(),
-            refreshInterval ? refreshInterval * 1000 * 60 : 0,
-        );
+        // The interval restarts whenever its callback identity changes, so
+        // the tick must stay stable across re-renders.
+        const tick = useStableCallback(() => {
+            void invalidateAndSetRefreshTime();
+        });
+        const autoRefresh = useInterval(tick, (refreshInterval ?? 0) * 60_000);
+
+        useEffect(() => {
+            if (refreshInterval === undefined) return;
+            autoRefresh.start();
+            return autoRefresh.stop;
+            // start/stop are stable; only the chosen interval matters
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [refreshInterval]);
 
         useEffect(() => {
             return () => {
@@ -102,16 +113,9 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
             };
         }, [hasInterval, onIntervalChange]);
 
-        useEffect(() => {
-            if (refreshInterval !== undefined) {
-                interval.start();
-            }
-            return interval.stop;
-        }, [interval, refreshInterval]);
-
         return (
             <ActionIcon.Group>
-                {interval.active && refreshInterval ? (
+                {refreshInterval !== undefined ? (
                     <ActionIcon.GroupSection
                         variant="default"
                         size="md"
@@ -167,6 +171,9 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         <Menu.Item
                             fz="xs"
                             onClick={() => {
+                                // A running interval restarts when its delay
+                                // changes, so stop before the delay drops to 0.
+                                autoRefresh.stop();
                                 setRefreshInterval(undefined);
                                 setIsAutoRefresh(false);
                             }}

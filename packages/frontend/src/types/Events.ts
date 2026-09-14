@@ -68,6 +68,7 @@ export enum PageName {
     METRICS_CATALOG = 'metrics_catalog',
     FUNNEL_BUILDER = 'funnel_builder',
     ROADMAP = 'roadmap',
+    LEARN = 'learn',
 }
 
 export enum CategoryName {
@@ -130,6 +131,10 @@ export enum EventName {
     DASHBOARD_FILTER_REQUIREMENTS_SAVED = 'dashboard_filter_requirements.saved',
     GO_TO_LINK_CLICKED = 'go_to_link.click',
     ADD_CUSTOM_METRIC_CLICKED = 'add_custom_metric.click',
+    DASHBOARD_CUSTOM_METRIC_CREATED = 'dashboard_custom_metric.created',
+    DASHBOARD_CUSTOM_METRIC_REUSED = 'dashboard_custom_metric.reused',
+    DASHBOARD_CHART_CREATED_IN_PLACE = 'dashboard_chart.created_in_place',
+    DASHBOARD_CHART_EDITED_IN_PLACE = 'dashboard_chart.edited_in_place',
     REMOVE_CUSTOM_METRIC_CLICKED = 'remove_custom_metric.click',
     // Headway-related notifications
     NOTIFICATIONS_CLICKED = 'notifications.clicked',
@@ -154,6 +159,7 @@ export enum EventName {
     ADD_CUSTOM_DIMENSION_CLICKED = 'add_custom_dimension.clicked',
     DATE_ZOOM_CLICKED = 'date_zoom.clicked',
     COMMENTS_CLICKED = 'comments.clicked',
+    DASHBOARD_COMMENTS_PANEL_OPENED = 'dashboard_comments_panel.opened',
     NOTIFICATIONS_COMMENTS_ITEM_CLICKED = 'notifications_comments_item.clicked',
     DASHBOARD_AUTO_REFRESH_UPDATED = 'dashboard_auto_refresh.updated',
 
@@ -204,6 +210,10 @@ export enum EventName {
     AI_AGENT_SUGGESTION_IMPRESSION = 'ai_agent.suggestion_impression',
     AI_AGENT_SUGGESTION_CLICK = 'ai_agent.suggestion_click',
     AI_DEEP_RESEARCH_REPORT_ENGAGED = 'ai_deep_research.report_engaged',
+    AI_AGENT_BATTLE_STARTED = 'ai_agent_battle.started',
+
+    // Content review
+    CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED = 'content_review_similar_content.clicked',
 
     // Theme
     THEME_TOGGLED = 'theme.toggled',
@@ -234,4 +244,18 @@ export enum EventName {
     AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN = 'agent_onboarding_completion_toast.shown',
     AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED = 'agent_onboarding_completion_toast.clicked',
     CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
+
+    // Chart type library (registry) funnel
+    CHART_TYPE_LIBRARY_VIEWED = 'chart_type_library.viewed',
+    CHART_TYPE_LIBRARY_CHART_CLICKED = 'chart_type_library.chart_clicked',
+    CHART_TYPE_LIBRARY_INSTALL_CLICKED = 'chart_type_library.install_clicked',
+    CHART_TYPE_DETAIL_VIEWED = 'chart_type.detail_viewed',
+    CHART_TYPE_PREVIEW_IN_EXPLORER = 'chart_type.preview_in_explorer',
+    CHART_TYPE_FORK_MODAL_OPENED = 'chart_type.fork_modal_opened',
+
+    // Learn: the training library and the walkthroughs started from it
+    LEARN_LIBRARY_VIEWED = 'learn_library.viewed',
+    LEARN_WALKTHROUGH_STARTED = 'learn_walkthrough.started',
+    LEARN_WALKTHROUGH_COMPLETED = 'learn_walkthrough.completed',
+    LEARN_WALKTHROUGH_DISMISSED = 'learn_walkthrough.dismissed',
 }

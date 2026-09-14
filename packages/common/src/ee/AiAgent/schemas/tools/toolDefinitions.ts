@@ -16,6 +16,7 @@ import {
 import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
+    modelGuidanceSourceByRuntime,
     type AgentToolView,
     type McpToolAnnotations,
     type ToolDefinitionInstance,
@@ -24,7 +25,6 @@ import {
     type ToolDescriptionContext,
 } from '../defineTool';
 import {
-    FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
     toolRunQueryExpressionArgsSchema,
     toolRunQueryExpressionArgsSchemaV2Mcp,
     toolRunQueryExpressionArgsSchemaV2RejectingMerge,
@@ -292,6 +292,7 @@ import {
     toolRunSavedChartOutputSchema,
 } from './toolRunSavedChartArgs';
 import {
+    buildAgentRunSqlDescription,
     buildRunSqlDescription,
     DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
@@ -566,7 +567,7 @@ const TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION = (
 ): string =>
     `${TOOL_RUN_QUERY_DESCRIPTION(
         context,
-    )}\nFilter expression syntax:\n${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}`;
+    )}\nFilter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow ${modelGuidanceSourceByRuntime[context.runtime]}.`;
 
 export const generateVisualizationFilterExpressionToolDefinition: ToolDefinitionWithoutMcpOutput<
     'generateVisualization',
@@ -664,10 +665,16 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
 > = defineTool({
     name: 'runSql',
     title: 'Run SQL',
-    description: buildRunSqlDescription(
-        DEFAULT_RUN_SQL_LIMIT,
-        DEFAULT_RUN_SQL_MAX_LIMIT,
-    ),
+    description: ({ runtime }) =>
+        (
+            ({
+                agent: buildAgentRunSqlDescription,
+                mcp: buildRunSqlDescription,
+            }) satisfies Record<
+                ToolDescriptionContext['runtime'],
+                typeof buildRunSqlDescription
+            >
+        )[runtime](DEFAULT_RUN_SQL_LIMIT, DEFAULT_RUN_SQL_MAX_LIMIT),
     availability: ['agent', 'mcp'],
     inputSchema: toolRunSqlArgsSchema,
     agent: { outputSchema: toolRunSqlOutputSchema },
@@ -1105,7 +1112,7 @@ export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     typeof toolEditDbtProjectOutputSchema
 > = defineTool({
     name: 'editDbtProject',
-    title: 'Edit dbt project',
+    title: 'Edit semantic layer',
     description: TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolEditDbtProjectArgsSchema,
@@ -1521,7 +1528,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {

@@ -4,6 +4,7 @@ set -euo pipefail
 
 ACTION_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 RELEASE_INDEX_URL=https://raw.githubusercontent.com/lightdash/lightdash/main/release-safety-index.json
+RELEASE_DETAIL_URL_TEMPLATE=${RELEASE_DETAIL_URL_TEMPLATE:-"https://raw.githubusercontent.com/lightdash/lightdash/{version}/release-safety.json"}
 
 require_value() {
     local name=$1

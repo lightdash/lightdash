@@ -82,24 +82,14 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                 <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
                     <SearchFilter search={search} setSearch={setSearch} />
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className="ld-self-center"
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     <ResourceTypeFilter
                         selectedResourceType={selectedResourceType}
                         setSelectedResourceType={setSelectedResourceType}
                     />
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className="ld-self-center"
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     <FormatFilter
                         selectedFormats={selectedFormats}
@@ -126,7 +116,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     />
                 </Group>
 
-                <Group gap="sm" wrap="nowrap" className="ld-shrink-0">
+                <Group gap="sm" wrap="nowrap" flex="0 0 auto">
                     {hasSelection && onBulkReassign && !hideBulkReassign && (
                         <>
                             <Text size="sm" c="dimmed">

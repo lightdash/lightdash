@@ -499,6 +499,16 @@ describe('computeUpsertedTotal', () => {
 });
 
 describe('shouldWarnAllSkipped', () => {
+    it.each(['data apps skipped', 'chart types skipped', 'data apps failed'])(
+        'does not suggest --force for %s, even with unchanged charts',
+        (key) => {
+            expect(shouldWarnAllSkipped({ [key]: 1 })).toBe(false);
+            expect(
+                shouldWarnAllSkipped({ [key]: 1, 'charts skipped': 3 }),
+            ).toBe(false);
+        },
+    );
+
     it('returns true when everything was skipped', () => {
         expect(shouldWarnAllSkipped({ 'charts skipped': 3 })).toBe(true);
     });
@@ -686,6 +696,46 @@ describe('downloadAppsToDir', () => {
                 path.join(appsDir, 'revenue-explorer', 'lightdash-app.yml'),
             ),
         ).toBe(true);
+    });
+
+    it('gives downloaded chart types the chart-type authoring flavor', async () => {
+        const appsDir = tmpDir();
+        const vizCode = codeFor('my-chart-type');
+        vizCode.manifest.template = 'data_app_viz';
+
+        const outcome = await downloadAppsToDir({
+            appRefs: ['my-chart-type'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async () => vizCode,
+        });
+
+        expect(outcome.successCount).toBe(1);
+        const skillsDir = path.join(appsDir, 'my-chart-type', '.claude/skills');
+        expect(
+            fs.existsSync(
+                path.join(skillsDir, 'developing-chart-types-locally/SKILL.md'),
+            ),
+        ).toBe(true);
+        // The app SDK skills would only mislead — a viz must not query.
+        expect(
+            fs.existsSync(path.join(skillsDir, 'lightdash-data-app/SKILL.md')),
+        ).toBe(false);
+        expect(
+            fs.existsSync(
+                path.join(skillsDir, 'developing-data-apps-locally/SKILL.md'),
+            ),
+        ).toBe(false);
+        expect(
+            fs
+                .readFileSync(
+                    path.join(appsDir, 'my-chart-type', 'AGENTS.md'),
+                    'utf8',
+                )
+                .toString(),
+        ).toContain('custom chart type');
     });
 
     it('skips bundles the skipBundle guard rejects without writing them', async () => {

@@ -22,6 +22,7 @@ import MantineIcon from '../common/MantineIcon';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
 import SpaceActionModal from '../common/SpaceActionModal';
 import { ActionType } from '../common/SpaceActionModal/types';
+import AppColorSchemeScope from './AppColorSchemeScope';
 
 type Props = {
     projectUuid: string;
@@ -82,6 +83,9 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 />
                             }
                             data-testid="ExploreMenu/NewButton"
+                            // Navigation anchor for scope walkthroughs
+                            data-tour-nav="new"
+                            data-tour-hint="Click New"
                         >
                             New
                         </Button>
@@ -94,6 +98,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             description="Build queries and save them as charts."
                             to={`/projects/${projectUrlIdentifier}/tables`}
                             icon={IconTable}
+                            data-tour-nav="new-chart"
+                            data-tour-hint="Choose Chart"
                         />
 
                         <Can
@@ -108,6 +114,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
                                 to={`/projects/${projectUrlIdentifier}/sql-runner`}
+                                data-tour-nav="new-sql-runner"
+                                data-tour-hint="Choose Query using SQL runner"
                                 onClick={(
                                     event: React.MouseEvent<HTMLAnchorElement>,
                                 ) => {
@@ -133,6 +141,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 onClick={() => setIsCreateDashboardOpen(true)}
                                 icon={IconLayoutDashboard}
                                 data-testid="ExploreMenu/NewDashboardButton"
+                                data-tour-nav="new-dashboard"
+                                data-tour-hint="Choose Dashboard"
                             />
                         )}
 
@@ -147,6 +157,9 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             >
                                 <LargeMenuItem
                                     component={Link}
+                                    // Navigation anchor for scope walkthroughs (data-tour-via)
+                                    data-tour-nav="new-app"
+                                    data-tour-hint="Choose Data App"
                                     title="Data App"
                                     description="Build an interactive app powered by your data."
                                     to={`/projects/${projectUuid}/apps/generate`}
@@ -175,35 +188,39 @@ const ExploreMenu: FC<Props> = memo((props) => {
             </Can>
 
             {isCreateSpaceOpen && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    actionType={ActionType.CREATE}
-                    title="Create new space"
-                    confirmButtonLabel="Create"
-                    icon={IconFolderPlus}
-                    onClose={() => setIsCreateSpaceOpen(false)}
-                    onSubmitForm={(space) => {
-                        if (space)
-                            void navigate(
-                                `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
-                            );
-                    }}
-                    parentSpaceUuid={null}
-                />
+                <AppColorSchemeScope>
+                    <SpaceActionModal
+                        projectUuid={projectUuid}
+                        actionType={ActionType.CREATE}
+                        title="Create new space"
+                        confirmButtonLabel="Create"
+                        icon={IconFolderPlus}
+                        onClose={() => setIsCreateSpaceOpen(false)}
+                        onSubmitForm={(space) => {
+                            if (space)
+                                void navigate(
+                                    `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
+                                );
+                        }}
+                        parentSpaceUuid={null}
+                    />
+                </AppColorSchemeScope>
             )}
             {isCreateDashboardOpen && (
-                <DashboardCreateModal
-                    projectUuid={projectUuid}
-                    opened={isCreateDashboardOpen}
-                    onClose={() => setIsCreateDashboardOpen(false)}
-                    onConfirm={(dashboard) => {
-                        void navigate(
-                            `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/edit`,
-                        );
+                <AppColorSchemeScope>
+                    <DashboardCreateModal
+                        projectUuid={projectUuid}
+                        opened={isCreateDashboardOpen}
+                        onClose={() => setIsCreateDashboardOpen(false)}
+                        onConfirm={(dashboard) => {
+                            void navigate(
+                                `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/edit`,
+                            );
 
-                        setIsCreateDashboardOpen(false);
-                    }}
-                />
+                            setIsCreateDashboardOpen(false);
+                        }}
+                    />
+                </AppColorSchemeScope>
             )}
         </>
     );

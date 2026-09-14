@@ -50,6 +50,7 @@ const workingSignals = (): AiAgentThreadLiveStateSignals => ({
 const createDependencies = () => {
     const notificationStore = {
         findLiveActivity: vi.fn(async () => activity),
+        installationHasLiveGrant: vi.fn(async () => true),
         markLiveActivityDelivered: vi.fn(async () => undefined),
         markCompletionAlertCompleted: vi.fn(async () => undefined),
         deleteLiveActivity: vi.fn(async () => undefined),
@@ -642,5 +643,68 @@ describe('MobilePushNotificationReconciler platform routing', () => {
         expect(
             dependencies.notificationStore.markLiveActivityDelivered,
         ).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobilePushNotificationReconciler grant checks', () => {
+    it('delivers to an installation whose OAuth grant is live', async () => {
+        const dependencies = createDependencies();
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(
+            dependencies.notificationStore.installationHasLiveGrant,
+        ).toHaveBeenCalledWith(activity.installationUuid);
+        expect(dependencies.apnsClient.sendLiveActivity).toHaveBeenCalled();
+        expect(
+            dependencies.notificationStore.deleteInstallation,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('removes the installation and sends nothing once the grant is gone', async () => {
+        const dependencies = createDependencies();
+        dependencies.notificationStore.installationHasLiveGrant.mockResolvedValue(
+            false,
+        );
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(
+            dependencies.notificationStore.deleteInstallation,
+        ).toHaveBeenCalledWith({
+            installationUuid: activity.installationUuid,
+            organizationUuid: activity.organizationUuid,
+            userUuid: activity.userUuid,
+        });
+        expect(dependencies.apnsClient.sendLiveActivity).not.toHaveBeenCalled();
+        expect(dependencies.apnsClient.sendAlert).not.toHaveBeenCalled();
+        expect(
+            dependencies.fcmClient.sendAgentRunUpdate,
+        ).not.toHaveBeenCalled();
+        expect(dependencies.fcmClient.sendAgentRunAlert).not.toHaveBeenCalled();
+    });
+
+    it('sends no completion alert for an ended activity without a grant', async () => {
+        const dependencies = createDependencies();
+        dependencies.notificationStore.findLiveActivity.mockResolvedValue({
+            ...activity,
+            endedAt: new Date('2026-08-30T12:00:30.000Z'),
+        });
+        dependencies.notificationStore.installationHasLiveGrant.mockResolvedValue(
+            false,
+        );
+        const reconciler = new MobilePushNotificationReconciler({
+            ...dependencies,
+            completionAlert: { title: 'Done', body: 'Your agent finished' },
+        });
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(dependencies.apnsClient.sendAlert).not.toHaveBeenCalled();
+        expect(
+            dependencies.notificationStore.deleteInstallation,
+        ).toHaveBeenCalled();
     });
 });

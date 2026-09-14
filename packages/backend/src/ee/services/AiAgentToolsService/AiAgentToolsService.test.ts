@@ -2121,6 +2121,9 @@ describe('AiAgentToolsService runComposerQueries', () => {
             projectUuid,
             queries: composerQueries,
             context: QueryExecutionContext.AI,
+            parameters: {},
+            userAttributeOverrides: {},
+            invalidateCache: false,
         });
         expect(getAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'query-2', page: 1 }),
@@ -2132,6 +2135,34 @@ describe('AiAgentToolsService runComposerQueries', () => {
             rows: [{ orders_total: 42 }],
             rowCount: 1,
         });
+    });
+
+    it('carries the runtime user attribute overrides into the pipeline', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
+        const service = makeService({
+            querySourceService: { executeSourceQueries },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        await service
+            .createRuntime(
+                makeRuntimeContext({
+                    userAttributeOverrides: { tenant: ['acme'] },
+                }),
+            )
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+            });
+
+        expect(executeSourceQueries).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAttributeOverrides: { tenant: ['acme'] },
+            }),
+        );
     });
 
     it('emits per-node status transitions while the pipeline executes', async () => {

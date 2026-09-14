@@ -1,8 +1,8 @@
-export function scrollToDashboardTile(tileUuid: string) {
+export function scrollToDashboardTile(tileUuid: string): boolean {
     const el = document.querySelector<HTMLElement>(
         `[data-tile-uuid="${tileUuid}"]`,
     );
-    if (!el) return;
+    if (!el) return false;
 
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.style.borderRadius = 'var(--mantine-radius-md)';
@@ -20,4 +20,5 @@ export function scrollToDashboardTile(tileUuid: string) {
         ],
         { duration: 1200, easing: 'ease-in-out' },
     );
+    return true;
 }

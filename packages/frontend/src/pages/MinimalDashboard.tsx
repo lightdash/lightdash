@@ -642,7 +642,7 @@ const MinimalDashboard: FC = () => {
 };
 
 const MinimalDashboardRoute: FC = () => {
-    const projectIdentifier = useProjectUuid();
+    const { projectUuid: projectIdentifier } = useParams();
     const isProjectUuid = isUuidString(projectIdentifier ?? '');
     const projectsQuery = useProjects({
         enabled: !!projectIdentifier && !isProjectUuid,

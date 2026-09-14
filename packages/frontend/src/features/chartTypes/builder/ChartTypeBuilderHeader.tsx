@@ -21,11 +21,13 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
+import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import { type ChartTypeAppMeta } from './appMeta';
 import classes from './ChartTypeBuilderHeader.module.css';
 
 type Props = {
     projectUuid: string;
+    appUuidOrSlug?: string;
     backLink: {
         label: string;
         to: To;
@@ -44,6 +46,7 @@ type Props = {
 
 const ChartTypeBuilderHeader: FC<Props> = ({
     projectUuid,
+    appUuidOrSlug,
     backLink,
     app,
     latestReadyVersion,
@@ -77,6 +80,10 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 <Box className={classes.nameCluster}>
                     {app ? (
                         <>
+                            <MantineIcon
+                                icon={getChartTypeIcon(app.icon)}
+                                color="dimmed"
+                            />
                             <Title
                                 className={classes.name}
                                 order={6}
@@ -161,10 +168,12 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     onConfirm={() => setIsEditingDetails(false)}
                     projectUuid={projectUuid}
                     uuid={app.appUuid}
+                    appUuidOrSlug={appUuidOrSlug}
                     initialName={getAppDisplayName(app.name, app.appUuid)}
                     initialDescription={app.description}
                     resourceLabel="Chart Type"
                     icon={IconPencil}
+                    iconPicker={{ initialIcon: app.icon }}
                 />
             )}
             {app && upgrade && isUpgradeModalOpen && (

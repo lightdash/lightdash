@@ -31,7 +31,7 @@ const SourceCodeSidebar: FC<SourceCodeSidebarProps> = ({
         <Stack gap="xs" className={styles.header}>
             <Title order={5}>Source Code</Title>
             <Text fz="xs" c="dimmed">
-                Browse and edit your dbt project files
+                Browse and edit your project files
             </Text>
             <BranchSelector
                 branches={branches}

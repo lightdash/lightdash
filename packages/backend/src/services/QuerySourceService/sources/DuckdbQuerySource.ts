@@ -7,9 +7,11 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
+import type { DuckdbQueryPlan } from '../../AsyncQueryService/types';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
+    SourceQuerySubmissionResult,
     SubmitSourceQueryArgs,
 } from '../types';
 
@@ -28,8 +30,10 @@ export class DuckdbQuerySource implements QuerySourceClient {
         sourceType: QuerySourceType.DUCKDB,
         label: 'DuckDB compose',
         description:
-            'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on.',
+            'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on. At least one reference is required: the query runs on a session that can reach only the results it references.',
     };
+
+    readonly supportsPivot = false;
 
     private readonly asyncQueryService: AsyncQueryService;
 
@@ -59,6 +63,37 @@ export class DuckdbQuerySource implements QuerySourceClient {
         return references;
     }
 
+    /** A supplied column's provenance may name a node; it resolves like a table reference. */
+    private static resolvePlanReferences(
+        plan: DuckdbQueryPlan,
+        resolvedReferences: Record<string, string>,
+    ): DuckdbQueryPlan {
+        if (plan.columns.mode !== 'supplied') return plan;
+        const originalColumns = Object.fromEntries(
+            Object.entries(plan.columns.originalColumns).map(
+                ([reference, column]) => {
+                    const sourceQueryUuid = column.provenance?.sourceQueryUuid;
+                    if (sourceQueryUuid === undefined) {
+                        return [reference, column];
+                    }
+                    return [
+                        reference,
+                        {
+                            ...column,
+                            provenance: {
+                                ...column.provenance,
+                                sourceQueryUuid:
+                                    resolvedReferences[sourceQueryUuid] ??
+                                    sourceQueryUuid,
+                            },
+                        },
+                    ];
+                },
+            ),
+        );
+        return { ...plan, columns: { ...plan.columns, originalColumns } };
+    }
+
     // eslint-disable-next-line class-methods-use-this
     async scanSchema(_args: ScanSchemaArgs): Promise<QuerySourceSchema> {
         return {
@@ -74,14 +109,34 @@ export class DuckdbQuerySource implements QuerySourceClient {
         );
     }
 
+    /**
+     * User attribute overrides have nothing to apply to here: referenced
+     * results were produced under them and compose SQL carries no attribute
+     * references.
+     *
+     * Without a plan the query takes the public compose SQL path, which
+     * carries its own flag and ability gates and cannot pivot: raw SQL has no
+     * fields to pivot on. With a plan it goes straight to the execution
+     * tail, where the plan's composer owns the pivot stage; the caller that
+     * built the plan owns authorization.
+     */
     async submitQuery({
         account,
         projectUuid,
         context,
         query,
         resolvedReferences,
-    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+        parameters,
+        invalidateCache,
+        pivotConfiguration,
+        plan,
+    }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
+        if (pivotConfiguration !== null && plan === null) {
+            throw new ParameterError(
+                `${QuerySourceType.DUCKDB} queries do not support pivotConfiguration yet`,
+            );
+        }
 
         const normalized = DuckdbQuerySource.normalizeReferences(
             sourceQuery.references,
@@ -95,16 +150,31 @@ export class DuckdbQuerySource implements QuerySourceClient {
               )
             : undefined;
 
-        const results =
-            await this.asyncQueryService.executeAsyncComposeSqlQuery({
-                account,
-                projectUuid,
-                sql: sourceQuery.sql,
-                limit: sourceQuery.limit,
-                references,
-                context,
-            });
+        const args = {
+            account,
+            projectUuid,
+            sql: sourceQuery.sql,
+            limit: sourceQuery.limit,
+            references,
+            context,
+            parameters,
+            invalidateCache,
+        };
+        const { queryUuid } =
+            plan === null
+                ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
+                : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
+                      ...args,
+                      pivotConfiguration: pivotConfiguration ?? undefined,
+                      plan: DuckdbQuerySource.resolvePlanReferences(
+                          plan,
+                          resolvedReferences,
+                      ),
+                  });
 
-        return { queryUuid: results.queryUuid };
+        // Whether the run is served from an earlier one over the same result
+        // files is known only once its references are bound, so submit
+        // cannot report it; the row and the merge event carry it
+        return { queryUuid, cacheHit: false };
     }
 }

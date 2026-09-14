@@ -206,7 +206,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                             </Anchor>
                         )}
                     </Text>
-                    <Collapse in={isListOpen}>
+                    <Collapse expanded={isListOpen}>
                         <ScrollArea h={180}>
                             {modelsIncluded.map((name) => (
                                 <Text

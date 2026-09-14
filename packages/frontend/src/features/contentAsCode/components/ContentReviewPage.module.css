@@ -22,3 +22,7 @@
 .row[data-active='true']:hover {
     background-color: var(--mantine-color-default-hover);
 }
+
+.diffPanel {
+    overflow: hidden;
+}

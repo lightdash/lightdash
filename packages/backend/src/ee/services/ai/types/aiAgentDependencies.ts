@@ -52,7 +52,10 @@ import {
 import {
     AiAgentFindContentCoverageEvent,
     AiAgentResponseStreamed,
+    AiAgentStepCompletedEvent,
+    AiAgentToolCallCompletedEvent,
     AiAgentToolCallEvent,
+    AiAgentToolCallFailedEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
@@ -520,7 +523,10 @@ export type ConsumePromptSteersFn = (args: {
 export type TrackEventFn = (
     event:
         | AiAgentResponseStreamed
+        | AiAgentStepCompletedEvent
         | AiAgentToolCallEvent
+        | AiAgentToolCallCompletedEvent
+        | AiAgentToolCallFailedEvent
         | AiAgentFindContentCoverageEvent,
 ) => void;
 

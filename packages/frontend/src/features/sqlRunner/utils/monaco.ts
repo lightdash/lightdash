@@ -322,7 +322,15 @@ export const registerCustomCompletionProvider = (
 
                 // Then apply quote preference
                 if (!settings || settings?.quotePreference === 'always') {
-                    return `${quoteChar}${formattedName}${quoteChar}`;
+                    // Backtick warehouses expose nested columns as dotted
+                    // paths; quoting the whole path would name one identifier.
+                    const segments =
+                        quoteChar === '`'
+                            ? formattedName.split('.')
+                            : [formattedName];
+                    return segments
+                        .map((segment) => `${quoteChar}${segment}${quoteChar}`)
+                        .join('.');
                 }
 
                 return formattedName;

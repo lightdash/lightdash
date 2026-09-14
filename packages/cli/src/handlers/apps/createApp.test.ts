@@ -12,6 +12,7 @@ import { selectProject } from '../selectProject';
 import { readBundleFromDir } from './appCodeFiles';
 import {
     buildLocalAppManifest,
+    CHART_TYPE_STARTER_VIZ_SCHEMA,
     createAppHandler,
     resolveLocalAppSlug,
 } from './createApp';
@@ -74,6 +75,19 @@ describe('resolveLocalAppSlug', () => {
 });
 
 describe('buildLocalAppManifest', () => {
+    it('marks chart types as data_app_viz with the starter vizSchema', () => {
+        const manifest = buildLocalAppManifest({
+            name: 'Radial Gauge',
+            description: '',
+            projectUuid: PROJECT_UUID,
+            slug: 'radial-gauge',
+            now: new Date('2026-01-01T00:00:00.000Z'),
+            chartType: true,
+        });
+        expect(manifest.template).toBe('data_app_viz');
+        expect(manifest.vizSchema).toEqual(CHART_TYPE_STARTER_VIZ_SCHEMA);
+    });
+
     it('builds a slug-identified manifest without an app uuid', () => {
         const manifest = buildLocalAppManifest({
             name: 'Revenue Explorer',
@@ -229,7 +243,7 @@ describe('createAppHandler', () => {
             expect.objectContaining({
                 type: 'confirm',
                 name: 'confirmed',
-                message: 'Install these packages and create the app?',
+                message: 'Install these packages and create the data app?',
                 default: false,
             }),
         ]);
@@ -264,6 +278,117 @@ describe('createAppHandler', () => {
             }),
         );
     });
+
+    it.each([false, true])(
+        'creates an uploadable chart type scaffold (custom path: %s)',
+        async (customPath) => {
+            const root = await fs.mkdtemp(
+                path.join(os.tmpdir(), 'ld-create-app-'),
+            );
+            vi.spyOn(process, 'cwd').mockReturnValue(root);
+            const contentRoot = customPath
+                ? root
+                : path.join(root, 'lightdash');
+
+            await createAppHandler('Radial Gauge', {
+                description: 'A gauge with a needle',
+                path: customPath ? root : undefined,
+                chartType: true,
+                verbose: false,
+            });
+
+            const appDir = path.join(
+                contentRoot,
+                'chart-types',
+                'radial-gauge',
+            );
+            const bundle = await readBundleFromDir(appDir);
+            expect(bundle.manifest.template).toBe('data_app_viz');
+            expect(bundle.manifest.vizSchema).toEqual(
+                CHART_TYPE_STARTER_VIZ_SCHEMA,
+            );
+
+            const appSource = await fs.readFile(
+                path.join(appDir, 'src/App.jsx'),
+                'utf8',
+            );
+            expect(appSource).toContain('useVizContext');
+
+            // No shadcn generation: chart types ship no UI-kit source.
+            expect(execaMock).not.toHaveBeenCalledWith(
+                'npx',
+                expect.anything(),
+                expect.anything(),
+            );
+
+            // The viz contract + local workflow skills ship; the app-only skills
+            // do not.
+            await expect(
+                fs.access(
+                    path.join(
+                        appDir,
+                        '.claude/skills/reusable-visualization/SKILL.md',
+                    ),
+                ),
+            ).resolves.toBeUndefined();
+            await expect(
+                fs.access(
+                    path.join(
+                        appDir,
+                        '.claude/skills/developing-chart-types-locally/SKILL.md',
+                    ),
+                ),
+            ).resolves.toBeUndefined();
+            await expect(
+                fs.access(
+                    path.join(
+                        appDir,
+                        '.claude/skills/lightdash-data-app/SKILL.md',
+                    ),
+                ),
+            ).rejects.toThrow();
+            await expect(
+                fs.access(
+                    path.join(
+                        appDir,
+                        '.claude/skills/developing-data-apps-locally/SKILL.md',
+                    ),
+                ),
+            ).rejects.toThrow();
+
+            expect(
+                await fs.readFile(path.join(appDir, 'AGENTS.md'), 'utf8'),
+            ).toContain('custom chart type');
+            expect(
+                await fs.readFile(path.join(appDir, 'README.md'), 'utf8'),
+            ).toContain('Radial Gauge');
+            const authoringDocs = await Promise.all(
+                [
+                    'README.md',
+                    'AGENTS.md',
+                    '.claude/skills/developing-chart-types-locally/SKILL.md',
+                ].map((file) => fs.readFile(path.join(appDir, file), 'utf8')),
+            );
+            for (const doc of authoringDocs) {
+                expect(doc).toContain(
+                    'upload --chart-types <slug> --path ../..',
+                );
+            }
+
+            expect(GlobalState.log).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    `upload --chart-types radial-gauge --path ${JSON.stringify(contentRoot)}`,
+                ),
+            );
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith({
+                event: 'command.executed',
+                properties: expect.objectContaining({
+                    command: 'create-chart-type',
+                    success: true,
+                }),
+            });
+        },
+    );
 
     it('requires npm before requesting app context', async () => {
         const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-create-app-'));

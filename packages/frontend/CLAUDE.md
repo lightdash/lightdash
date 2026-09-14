@@ -7,9 +7,8 @@ the [Frontend Style Guide](../../.cursor/rules/frontend.mdc). Key points:
 -   **Prefer Mantine components over raw HTML elements** - `Box` instead of `<div>`, `Text` instead of `<p>`/`<span>` for copy, `Group`/`Stack` for flex layouts. This applies even when mirroring existing code that uses raw elements - older files predate the rule and are not a licence to copy the pattern
 -   **Styling hierarchy**:
     1. Inline-style component props (≤3 simple layout props like `mt`, `p`, `w`)
-    2. CSS modules (default choice when more than 3 inline-style props are needed or when component props aren't available)
-    3. For a single layout rule Mantine has no prop for (`flex-shrink`, `align-self`, `overflow`, `cursor`, `white-space`), use the `ld-*` utility classes in `src/styles/global.css` (`ld-shrink-0`, `ld-grow`, `ld-self-center`, `ld-pointer`, `ld-nowrap`, ...) instead of a one-line module or an inline `style`
-    4. Theme extensions for reusable styles
+    2. CSS modules (default choice when more than 3 inline-style props are needed or when component props aren't available). This includes single rules Mantine has no prop for (`align-self`, `overflow`, `cursor`, `white-space`): add a role-named class (`.scrollableBody`, `.clickableRow`) to the file's module. `flex-shrink: 0` and `flex-grow: 1` are the `flex` style prop (`flex="0 0 auto"`, `flex={1}`). No global utility classes.
+    3. Theme extensions for reusable styles
 -   **NEVER use** `styles`(v8) or `sx`(v6) props or `style`(v6/v8)
 -   **Colors**: Prefer default component colors (auto-theme switching). For custom colors, use `ldGray.X` and `ldDark.X`, not standard `gray.X`
 -   **Prop changes** - `spacing` → `gap`, `noWrap` → `wrap="nowrap"`, `sx` → `style` (v6)
@@ -33,6 +32,16 @@ The theme lives in `src/theme/`: `colors.ts` (neutral ramps, `primary` is the in
 -   **Callouts**: Use `Callout` from `components/common/Callout` with variants: `danger`, `warning`, `info`
 -   **Shared controls**: `CopyActionIcon`, `FavoriteActionIcon`, `ConfirmDeleteButton` and `FilterFacet` in `components/common` replace the hand-rolled copy, star, two-click delete and faceted-filter patterns.
 -   **Number inputs**: Always use `NumberInput` from `components/common/NumberInput`. Prefer `onNumberChange` (fires `number`, or `undefined` on clear; never transient strings). Integer-only by default; decimal fields opt in via `decimalScale={n}` or `decimalScale="unlimited"`. Raw `onChange` only for `form.getInputProps()` spreads.
+
+## 🎓 Learn walkthroughs (`data-tour-*` attributes)
+
+Attributes named `data-tour-*` are steps in Learn walkthroughs, the in-app training generated from the product (`docs/learn/architecture.md`). They are not test ids and not dead code.
+
+-   **Before changing a component**, check it: `git grep -n 'data-tour-' -- <file>`. When refactoring, keep every attribute on the equivalent control; when a control moves to another component, its attributes move with it. Renaming a `data-tour-nav` or `data-tour-anchor` value means updating every path that names it.
+-   **After changing a marked component**, run `pnpm scope-tours:generate`, `pnpm scope-tours:order` and `pnpm scope-tours:check` (docs from `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`) and commit any change to `src/features/scopeTours/generated.ts` and `curriculum.ts`.
+-   **If the change alters what a user clicks through** (a new dialog or menu, a control moved, disabled, or shown only under some configuration), run `pnpm scope-tours:smoke` for the affected walkthroughs. CI cannot catch this.
+-   **Never change product UI to make a walkthrough pass.** Adapt the walkthrough instead.
+-   Finding affected walkthroughs, running the smoke, what each failure means and who fixes it: `docs/learn/maintaining-walkthroughs.md`.
 
 ## ⚛️ State Management
 

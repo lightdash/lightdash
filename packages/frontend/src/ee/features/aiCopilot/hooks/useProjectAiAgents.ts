@@ -1,6 +1,11 @@
 import type {
     AiAgent,
+    AiAgentModelConfig,
+    AiAgentProjectThreadSummary,
     AiAgentThreadFilters,
+    AiPromptContext,
+    AiPromptContextItem,
+    AiPromptContextItemInput,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
@@ -8,7 +13,10 @@ import type {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDataAppRestoreRequest,
+    ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadGenerateTitleResponse,
+    ApiAiAgentThreadUpdateRequest,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
@@ -18,14 +26,11 @@ import type {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
-    AiPromptContext,
-    AiPromptContextItem,
-    AiPromptContextItemInput,
+    ApiAiMcpServerListResponse,
+    ApiCloneAiAgentThreadShareResponse,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
-    ApiCloneAiAgentThreadShareResponse,
     ApiError,
-    ApiAiMcpServerListResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
@@ -37,11 +42,13 @@ import {
     useQuery,
     useQueryClient,
     type InfiniteData,
+    type QueryClient,
     type UseInfiniteQueryOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { invalidateAppAfterRestore } from '../../../../features/apps/hooks/useRestoreAppVersion';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -628,6 +635,167 @@ export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
     });
 };
 
+type ProjectThreadsInfiniteData = InfiniteData<
+    ApiAiAgentProjectThreadSummaryListResponse['results']
+>;
+
+const getProjectThreadsQueryKey = (projectUuid: string) =>
+    [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY] as const;
+
+// Snapshot every cached sidebar list (one per filter set) so a failed
+// mutation can restore them.
+const snapshotProjectThreads = (
+    queryClient: QueryClient,
+    projectUuid: string,
+) =>
+    queryClient.getQueriesData<ProjectThreadsInfiniteData | undefined>({
+        queryKey: getProjectThreadsQueryKey(projectUuid),
+    });
+
+const restoreProjectThreads = (
+    queryClient: QueryClient,
+    snapshot: ReturnType<typeof snapshotProjectThreads>,
+) => {
+    snapshot.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+    });
+};
+
+const patchProjectThread = (
+    queryClient: QueryClient,
+    projectUuid: string,
+    threadUuid: string,
+    patch: Partial<AiAgentProjectThreadSummary>,
+) => {
+    queryClient.setQueriesData<ProjectThreadsInfiniteData | undefined>(
+        { queryKey: getProjectThreadsQueryKey(projectUuid) },
+        (currentData) => {
+            if (!currentData) return currentData;
+            return {
+                ...currentData,
+                pages: currentData.pages.map((page) => ({
+                    ...page,
+                    data: page.data.map((thread) =>
+                        thread.uuid === threadUuid
+                            ? { ...thread, ...patch }
+                            : thread,
+                    ),
+                })),
+            };
+        },
+    );
+};
+
+const updateAgentThread = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+    data: ApiAiAgentThreadUpdateRequest,
+) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useRenameAiAgentThreadMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { agentUuid: string; threadUuid: string; title: string },
+        { snapshot: ReturnType<typeof snapshotProjectThreads> }
+    >({
+        mutationFn: ({ agentUuid, threadUuid, title }) =>
+            updateAgentThread(projectUuid, agentUuid, threadUuid, { title }),
+        onMutate: async ({ threadUuid, title }) => {
+            await queryClient.cancelQueries({
+                queryKey: getProjectThreadsQueryKey(projectUuid),
+            });
+            const snapshot = snapshotProjectThreads(queryClient, projectUuid);
+            patchProjectThread(queryClient, projectUuid, threadUuid, { title });
+            return { snapshot };
+        },
+        onError: ({ error }, _variables, context) => {
+            if (context) restoreProjectThreads(queryClient, context.snapshot);
+            showToastApiError({
+                title: 'Failed to rename thread',
+                apiError: error,
+            });
+        },
+        onSettled: async (_result, _error, { agentUuid, threadUuid }) => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: getProjectThreadsQueryKey(projectUuid),
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: getAiAgentThreadQueryKey(
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                    ),
+                }),
+            ]);
+        },
+    });
+};
+
+const setAgentThreadPinned = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+    pinned: boolean,
+) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/pin`,
+        method: pinned ? 'POST' : 'DELETE',
+        body: undefined,
+    });
+
+export const usePinAiAgentThreadMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { agentUuid: string; threadUuid: string; pinned: boolean },
+        { snapshot: ReturnType<typeof snapshotProjectThreads> }
+    >({
+        mutationFn: ({ agentUuid, threadUuid, pinned }) =>
+            setAgentThreadPinned(projectUuid, agentUuid, threadUuid, pinned),
+        onMutate: async ({ threadUuid, pinned }) => {
+            await queryClient.cancelQueries({
+                queryKey: getProjectThreadsQueryKey(projectUuid),
+            });
+            const snapshot = snapshotProjectThreads(queryClient, projectUuid);
+            patchProjectThread(queryClient, projectUuid, threadUuid, {
+                pinnedAt: pinned ? new Date().toISOString() : null,
+            });
+            return { snapshot };
+        },
+        onError: ({ error }, { pinned }, context) => {
+            if (context) restoreProjectThreads(queryClient, context.snapshot);
+            showToastApiError({
+                title: pinned
+                    ? 'Failed to pin thread'
+                    : 'Failed to unpin thread',
+                apiError: error,
+            });
+        },
+        // The server owns the pinned ordering, so refetch once settled
+        onSettled: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: getProjectThreadsQueryKey(projectUuid),
+            });
+        },
+    });
+};
+
 export const getAiAgentThreadQueryKey = (
     projectUuid: string,
     agentUuid: string | undefined,
@@ -773,10 +941,31 @@ const toOptimisticContextItem = (
                 status: null,
                 projectName: null,
             };
-        // System-only pins are seeded by the remediation flow, never optimistically
-        // attached from the UI, so they have no client-resolvable shape.
+        case 'data_app_element':
+            return {
+                type: 'data_app_element',
+                appUuid: item.appUuid,
+                version: item.version,
+                tag: item.tag,
+                text: item.text,
+                loc: item.loc,
+                appSlug: null,
+                displayName: null,
+            };
+        case 'data_app':
+            return {
+                type: 'data_app',
+                appUuid: item.appUuid,
+                appSlug: item.appSlug ?? null,
+                displayName: null,
+                pinnedVersion: null,
+                isPersonal: false,
+            };
+        // System-only pins are seeded by the remediation flow or the thread
+        // restore endpoint, never optimistically attached from the UI.
         case 'proposed_change':
         case 'review_finding':
+        case 'data_app_restore':
             throw new Error(
                 `Cannot optimistically resolve system-only context item: ${item.type}`,
             );
@@ -805,6 +994,7 @@ const createOptimisticMessages = (
     context: AiPromptContext = [],
     hidden = false,
     includeAssistantResponse = true,
+    modelConfig: AiAgentModelConfig | null = null,
 ) => {
     const userMessage = {
         role: 'user' as const,
@@ -851,8 +1041,9 @@ const createOptimisticMessages = (
             savedQueryUuid: null,
             artifacts: null,
             referencedArtifacts: null,
-            modelConfig: null,
+            modelConfig,
             tokenUsage: null,
+            responseTiming: null,
         },
     ];
 };
@@ -899,28 +1090,9 @@ const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
         mutationFn: ({ agentUuid, threadUuid }) =>
             generateAgentThreadTitle(projectUuid, agentUuid, threadUuid),
         onSuccess: (data, { threadUuid }) => {
-            queryClient.setQueriesData<
-                | InfiniteData<
-                      ApiAiAgentProjectThreadSummaryListResponse['results']
-                  >
-                | undefined
-            >(
-                { queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY] },
-                (currentData) => {
-                    if (!currentData) return currentData;
-                    return {
-                        ...currentData,
-                        pages: currentData.pages.map((page) => ({
-                            ...page,
-                            data: page.data.map((thread) =>
-                                thread.uuid === threadUuid
-                                    ? { ...thread, title: data.title }
-                                    : thread,
-                            ),
-                        })),
-                    };
-                },
-            );
+            patchProjectThread(queryClient, projectUuid, threadUuid, {
+                title: data.title,
+            });
         },
         onError: ({ error }) => {
             // Silently fail - don't show error toast or navigate for background title generation
@@ -1014,6 +1186,7 @@ export const useCreateAgentThreadMutation = (
                         uuid: thread.uuid,
                         title: null,
                         titleGeneratedAt: null,
+                        pinnedAt: null,
                         liveStatus: null,
                         compactions: [],
                         messages: createOptimisticMessages(
@@ -1031,6 +1204,7 @@ export const useCreateAgentThreadMutation = (
                                 variables.context?.map(toOptimisticContextItem),
                             false,
                             !variables.skipAgentResponse,
+                            variables.modelConfig ?? null,
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
@@ -1218,6 +1392,7 @@ export const useCreateAgentThreadMessageMutation = (
                                     data.context?.map(toOptimisticContextItem),
                                 data.hidden,
                                 !data.skipAgentResponse,
+                                data.modelConfig ?? null,
                             ),
                         ],
                     };
@@ -1455,6 +1630,42 @@ export const useCreateAiAgentThreadMessageSteerMutation = () => {
                 },
             );
         },
+    });
+};
+
+export const useRestoreAiAgentThreadDataAppVersionMutation = (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ApiAiAgentThreadDataAppRestoreResponse['results'],
+        ApiError,
+        ApiAiAgentThreadDataAppRestoreRequest
+    >({
+        mutationFn: (body) =>
+            lightdashApi<ApiAiAgentThreadDataAppRestoreResponse['results']>({
+                url: `${getAiAgentApiBase(
+                    projectUuid,
+                )}/${agentUuid}/threads/${threadUuid}/data-app-restores`,
+                method: 'POST',
+                body: JSON.stringify(body),
+            }),
+        // The thread gained a hidden restore turn; the app gained a version.
+        // Awaited so per-call onSuccess runs once the app refetch has landed.
+        onSuccess: (_result, { appUuid }) =>
+            Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: getAiAgentThreadQueryKey(
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                    ),
+                }),
+                invalidateAppAfterRestore(queryClient, projectUuid, appUuid),
+            ]),
     });
 };
 

@@ -43,13 +43,8 @@ jobs:
 
             - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
               with:
+                  cache: true
                   install: false
-            - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-              with:
-                  node-version-file: '.nvmrc'
-                  cache: 'pnpm'
-                  cache-dependency-path: 'pnpm-lock.yaml'
-
             - name: Install packages
               run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
 
@@ -156,13 +151,8 @@ jobs:
 
             - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
               with:
+                  cache: true
                   install: false
-            - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-              with:
-                  node-version-file: '.nvmrc'
-                  cache: 'pnpm'
-                  cache-dependency-path: 'pnpm-lock.yaml'
-
             - name: Restore build artifacts
               uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
               with:

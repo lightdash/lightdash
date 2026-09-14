@@ -1,3 +1,4 @@
+import { ManagedSignInError } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express from 'express';
 import { once } from 'node:events';
@@ -9,10 +10,18 @@ import oauthRouter from './oauthRouter';
 vi.mock('../logging/logger', () => ({
     default: {
         error: vi.fn(),
+        warn: vi.fn(),
     },
 }));
 
-type OAuthServiceStub = Pick<OAuthService, 'authorize' | 'validateRedirectUri'>;
+type OAuthServiceStub = Pick<
+    OAuthService,
+    | 'authorize'
+    | 'validateRedirectUri'
+    | 'getClientDisplayName'
+    | 'getSiteUrl'
+    | 'token'
+>;
 
 const getRedirectUrl = (body: string): string => {
     const match = /<meta http-equiv="refresh" content="0;url=([^"]+)" \/>/.exec(
@@ -33,12 +42,83 @@ const getRedirectUrl = (body: string): string => {
 const createOAuthService = () => ({
     authorize: vi.fn<OAuthServiceStub['authorize']>(),
     validateRedirectUri: vi.fn<OAuthServiceStub['validateRedirectUri']>(),
+    getClientDisplayName: vi
+        .fn<OAuthServiceStub['getClientDisplayName']>()
+        .mockResolvedValue('Lightdash Mobile'),
+    getSiteUrl: vi
+        .fn<OAuthServiceStub['getSiteUrl']>()
+        .mockReturnValue('https://eu1.lightdash.cloud'),
+    token: vi.fn<OAuthServiceStub['token']>(),
 });
+
+const requestToken = async (
+    tokenError: unknown,
+): Promise<{ body: Record<string, unknown>; status: number }> => {
+    const oauthService = createOAuthService();
+    oauthService.token.mockRejectedValue(tokenError);
+
+    const app = express();
+    app.use(express.json());
+    app.use((request, _response, next) => {
+        request.services = {
+            getOauthService: () => oauthService as unknown as OAuthService,
+        } as Express.Request['services'];
+        next();
+    });
+    app.use('/api/v1/oauth', oauthRouter);
+
+    const server = app.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+
+    try {
+        return await new Promise((resolve, reject) => {
+            const request = httpRequest(
+                {
+                    headers: { 'content-type': 'application/json' },
+                    hostname: '127.0.0.1',
+                    method: 'POST',
+                    path: '/api/v1/oauth/token',
+                    port: (server.address() as AddressInfo).port,
+                },
+                (response) => {
+                    const chunks: Buffer[] = [];
+                    response.on('data', (chunk: Buffer) => chunks.push(chunk));
+                    response.on('end', () =>
+                        resolve({
+                            body: JSON.parse(
+                                Buffer.concat(chunks).toString('utf8'),
+                            ) as Record<string, unknown>,
+                            status: response.statusCode ?? 0,
+                        }),
+                    );
+                },
+            );
+            request.on('error', reject);
+            request.end(JSON.stringify({}));
+        });
+    } finally {
+        await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+        });
+    }
+};
 
 const authenticatedUser = {
     userId: 1,
     organizationUuid: 'organization-uuid',
+    firstName: 'Test',
+    lastName: 'User',
+    email: 'test@lightdash.com',
+    organizationName: 'Test organization',
 } as Express.User;
+
+const userWithoutOrganization = {
+    ...authenticatedUser,
+    organizationUuid: undefined,
+} as Express.User;
+
+const missingOrganizationMessage =
+    'Your account is not a member of an organization on eu1.lightdash.cloud. Sign in to the Lightdash instance where you were invited.';
 
 const requestAuthorize = async ({
     body,
@@ -127,6 +207,61 @@ const requestAuthorizationLoginRedirect = async (path: string) => {
                     response.on('end', () =>
                         resolve({
                             headers: response.headers,
+                            status: response.statusCode ?? 0,
+                        }),
+                    );
+                },
+            );
+            request.on('error', reject);
+            request.end();
+        });
+    } finally {
+        await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+        });
+    }
+};
+
+const requestAuthorizePage = async ({
+    query,
+    oauthService,
+    user = authenticatedUser,
+}: {
+    query: Record<string, string>;
+    oauthService: ReturnType<typeof createOAuthService>;
+    user?: Express.User;
+}): Promise<{ body: string; status: number }> => {
+    const app = express();
+    app.use(express.json());
+    app.use((request, _response, next) => {
+        request.user = user;
+        request.services = {
+            getOauthService: () => oauthService as unknown as OAuthService,
+        } as Express.Request['services'];
+        next();
+    });
+    app.use('/api/v1/oauth', oauthRouter);
+
+    const server = app.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+
+    try {
+        return await new Promise((resolve, reject) => {
+            const request = httpRequest(
+                {
+                    hostname: '127.0.0.1',
+                    method: 'GET',
+                    path: `/api/v1/oauth/authorize?${new URLSearchParams(
+                        query,
+                    ).toString()}`,
+                    port: (server.address() as AddressInfo).port,
+                },
+                (response) => {
+                    const chunks: Buffer[] = [];
+                    response.on('data', (chunk: Buffer) => chunks.push(chunk));
+                    response.on('end', () =>
+                        resolve({
+                            body: Buffer.concat(chunks).toString('utf8'),
                             status: response.statusCode ?? 0,
                         }),
                     );
@@ -294,6 +429,76 @@ describe('OAuth authorize redirects', () => {
         }
     });
 
+    it('sends an OAuth error instead of the approve page when the user has no organization', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'client-id',
+                redirect_uri: 'https://registered.example/callback',
+                state: 'request-state',
+            },
+            oauthService,
+            user: userWithoutOrganization,
+        });
+
+        expect(response.status).toBe(200);
+        const location = new URL(getRedirectUrl(response.body));
+        expect(location.searchParams.get('error')).toBe('access_denied');
+        expect(location.searchParams.get('error_description')).toBe(
+            missingOrganizationMessage,
+        );
+        expect(location.searchParams.get('state')).toBe('request-state');
+        expect(oauthService.getClientDisplayName).not.toHaveBeenCalled();
+    });
+
+    it('renders the approve page when the user has an organization', async () => {
+        const oauthService = createOAuthService();
+
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'client-id',
+                redirect_uri: 'https://registered.example/callback',
+                state: 'request-state',
+            },
+            oauthService,
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toContain('Lightdash Mobile');
+        expect(response.body).toContain('action="/api/v1/oauth/authorize"');
+        expect(oauthService.getClientDisplayName).toHaveBeenCalledWith(
+            'client-id',
+        );
+    });
+
+    it('sends an OAuth error when an approval comes from a user with no organization', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+
+        const response = await requestAuthorize({
+            body: {
+                approve: 'true',
+                client_id: 'client-id',
+                redirect_uri: 'https://registered.example/callback',
+                state: 'request-state',
+            },
+            oauthService,
+            user: userWithoutOrganization,
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.headers['content-type']).toContain('text/html');
+        const location = new URL(getRedirectUrl(response.body));
+        expect(location.searchParams.get('error')).toBe('access_denied');
+        expect(location.searchParams.get('error_description')).toBe(
+            missingOrganizationMessage,
+        );
+        expect(location.searchParams.get('state')).toBe('request-state');
+        expect(oauthService.authorize).not.toHaveBeenCalled();
+    });
+
     it('checks authentication before handling a denial', async () => {
         const oauthService = createOAuthService();
 
@@ -309,5 +514,94 @@ describe('OAuth authorize redirects', () => {
 
         expect(response.status).toBe(401);
         expect(oauthService.validateRedirectUri).not.toHaveBeenCalled();
+    });
+});
+
+describe('OAuth token errors', () => {
+    it('keeps 401 for an invalid authorization code', async () => {
+        const { body, status } = await requestToken(
+            new OAuth2Server.InvalidGrantError(
+                'Invalid grant: authorization code is invalid',
+            ),
+        );
+
+        expect(status).toBe(401);
+        expect(body).toEqual({
+            error: 'invalid_grant',
+            error_description: 'Invalid grant: authorization code is invalid',
+        });
+    });
+
+    it('keeps 401 for missing client credentials', async () => {
+        const { body, status } = await requestToken(
+            new OAuth2Server.InvalidClientError(
+                'Invalid client: cannot retrieve client credentials',
+            ),
+        );
+
+        expect(status).toBe(401);
+        expect(body).toEqual({
+            error: 'invalid_client',
+            error_description:
+                'Invalid client: cannot retrieve client credentials',
+        });
+    });
+
+    it.each(Object.values(ManagedSignInError))(
+        'returns invalid_grant with %s in error_description',
+        async (code) => {
+            const { body, status } = await requestToken(
+                new OAuth2Server.InvalidGrantError(code),
+            );
+
+            expect(status).toBe(400);
+            expect(body).toEqual({
+                error: 'invalid_grant',
+                error_description: code,
+            });
+        },
+    );
+
+    it('answers 400 for organisation_required despite the legacy word match', async () => {
+        const { body, status } = await requestToken(
+            new OAuth2Server.InvalidGrantError(
+                ManagedSignInError.ORGANISATION_REQUIRED,
+            ),
+        );
+
+        expect(status).toBe(400);
+        expect(body).toEqual({
+            error: 'invalid_grant',
+            error_description: 'organisation_required',
+        });
+    });
+
+    it('still answers 401 for a legacy message containing required', async () => {
+        const { body, status } = await requestToken(
+            new OAuth2Server.InvalidRequestError(
+                'Missing parameter: `client_id` is required',
+            ),
+        );
+
+        expect(status).toBe(401);
+        expect(body).toMatchObject({ error: 'invalid_request' });
+    });
+
+    it('leaves a non-OAuth failure in the shape it had', async () => {
+        const { body, status } = await requestToken(new Error('boom'));
+
+        expect(status).toBe(400);
+        expect(body).toEqual({ error: 'boom' });
+    });
+
+    it('never wraps a token error in the api envelope', async () => {
+        const { body } = await requestToken(
+            new OAuth2Server.InvalidGrantError(
+                ManagedSignInError.TOKEN_REPLAYED,
+            ),
+        );
+
+        expect(body).not.toHaveProperty('status');
+        expect(body).not.toHaveProperty('results');
     });
 });

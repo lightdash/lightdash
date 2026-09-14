@@ -245,6 +245,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             initialDescription={
                                 action.item.data.description ?? ''
                             }
+                            iconPicker={null}
                             onClose={handleReset}
                             onConfirm={handleReset}
                         />

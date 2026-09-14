@@ -28,6 +28,7 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { filterDeprecatedModelsForPicker } from '../../../../../../components/common/ModelSelector/utils';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import AnthropicIcon from '../../../../../../svgs/anthropic.svg?react';
+import GeminiIcon from '../../../../../../svgs/gemini.svg?react';
 import OpenAiIcon from '../../../../../../svgs/openai.svg?react';
 import { AiDataAppModelToggles } from './AiDataAppModelToggles';
 
@@ -43,6 +44,11 @@ const PROVIDER_META: Record<
         label: 'Anthropic',
         icon: AnthropicIcon,
         placeholder: 'sk-ant-...',
+    },
+    google: {
+        label: 'Google Gemini',
+        icon: GeminiIcon,
+        placeholder: 'AIza...',
     },
     openai: { label: 'OpenAI', icon: OpenAiIcon, placeholder: 'sk-...' },
 };
@@ -194,10 +200,10 @@ const ProviderRow: FC<ProviderRowProps> = ({
 
             {locked && (
                 <Text c="dimmed" fz="xs">
-                    Disabled while your organization uses its own Anthropic key
-                    — OpenAI models can&apos;t be selected, so AI agents never
-                    fall back to the instance&apos;s OpenAI key. Add your own
-                    OpenAI API key to make OpenAI models available.
+                    Disabled while your organization uses another provider key —{' '}
+                    {label} models can&apos;t be selected, so AI agents never
+                    fall back to the instance&apos;s {label} key. Add your own{' '}
+                    {label} API key to make these models available.
                 </Text>
             )}
 
@@ -240,15 +246,13 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     onUpdateVisibility,
     onUpdateDataAppVisibility,
 }) => {
-    // Mirrors resolveEffectiveModelVisibility: a BYO Anthropic key with no
-    // OpenAI key hides OpenAI, and the admin can't re-enable it without a key.
+    const hasAnyByoKey = BYO_AI_PROVIDERS.some(
+        (provider) => providerApiKeysSet[provider],
+    );
+    // Mirrors resolveEffectiveModelVisibility: once an org supplies any key,
+    // providers without org keys are hidden to prevent instance-key fallback.
     const isLockedByByok = (provider: ByoAiProvider) =>
-        provider === 'openai' &&
-        providerApiKeysSet.anthropic &&
-        !providerApiKeysSet.openai;
-
-    const hasAnyByoKey =
-        providerApiKeysSet.anthropic || providerApiKeysSet.openai;
+        hasAnyByoKey && !providerApiKeysSet[provider];
     const selectableModelOptions = filterDeprecatedModelsForPicker(
         configurableModelOptions ?? [],
         null,
@@ -283,12 +287,13 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                         AI providers &amp; models
                     </Title>
                     <Text c="dimmed" fz="xs">
-                        Use your organization&apos;s own Anthropic or OpenAI API
-                        key for AI features, and control which models users can
-                        pick. Keys are stored encrypted and never shown again
-                        after saving; when set, they take precedence over the
-                        instance-level keys. Agents already using a hidden model
-                        keep working — it just can&apos;t be selected again.
+                        Use your organization&apos;s own Anthropic, Google
+                        Gemini, or OpenAI API key for AI features, and control
+                        which models users can pick. Keys are stored encrypted
+                        and never shown again after saving; when set, they take
+                        precedence over the instance-level keys. Agents already
+                        using a hidden model keep working — it just can&apos;t
+                        be selected again.
                     </Text>
                 </Box>
 

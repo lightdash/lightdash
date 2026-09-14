@@ -96,6 +96,10 @@ import {
     DashboardViewTable,
 } from '../database/entities/dashboards';
 import {
+    DashboardSlugMappingsTableName,
+    DashboardSlugMappingTable,
+} from '../database/entities/dashboardSlugMappings';
+import {
     DownloadAuditTable,
     DownloadAuditTableName,
 } from '../database/entities/downloadAudit';
@@ -152,6 +156,10 @@ import {
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
 import {
+    JiraAppInstallationTable,
+    JiraAppInstallationTableName,
+} from '../database/entities/jiraAppInstallation';
+import {
     JobsTable,
     JobsTableName,
     JobStepsTable,
@@ -161,6 +169,10 @@ import {
     LinearAppInstallationTable,
     LinearAppInstallationTableName,
 } from '../database/entities/linearAppInstallation';
+import {
+    ManagedSignInTokenUsesTable,
+    ManagedSignInTokenUsesTableName,
+} from '../database/entities/managedSignInTokenUses';
 import {
     NotificationsTable,
     NotificationsTableName,
@@ -293,6 +305,10 @@ import {
     QueryHistoryTable,
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
+import {
+    RecentContentTable,
+    RecentContentTableName,
+} from '../database/entities/recentContent';
 import {
     RolesTableName,
     RoleTable,
@@ -522,6 +538,8 @@ import {
     AiEvalTableName,
 } from '../ee/database/entities/aiEvals';
 import {
+    AiReviewJiraDestinationTable,
+    AiReviewJiraDestinationTableName,
     AiReviewLinearDestinationTable,
     AiReviewLinearDestinationTableName,
     AiReviewNotificationLogTable,
@@ -606,6 +624,10 @@ import {
     SchedulerAiAugmentationTableName,
 } from '../ee/database/entities/schedulerAiAugmentation';
 import {
+    ScimRequestLogsTableName,
+    ScimRequestLogTable,
+} from '../ee/database/entities/scimRequestLogs';
+import {
     ServiceAccountsTableName,
     ServiceAccountTable,
 } from '../ee/database/entities/serviceAccounts';
@@ -637,6 +659,7 @@ declare module 'knex/types/tables' {
         [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
+        [DashboardSlugMappingsTableName]: DashboardSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
@@ -680,6 +703,7 @@ declare module 'knex/types/tables' {
         [SlackAuthTokensTableName]: SlackAuthTokensTable;
         [SlackChannelsTableName]: SlackChannelsTable;
         [AnalyticsChartViewsTableName]: AnalyticsChartViews;
+        [RecentContentTableName]: RecentContentTable;
         [AnalyticsDashboardViewsTableName]: AnalyticsDashboardViews;
         [AnalyticsAppViewsTableName]: AnalyticsAppViews;
         [PinnedListTableName]: PinnedListTable;
@@ -715,9 +739,11 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [JiraAppInstallationTableName]: JiraAppInstallationTable;
         [LinearAppInstallationTableName]: LinearAppInstallationTable;
         [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [UserOAuthGrantsTableName]: UserOAuthGrantsTable;
+        [ManagedSignInTokenUsesTableName]: ManagedSignInTokenUsesTable;
         [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
@@ -773,6 +799,7 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;
         [AiReviewNotificationSettingsTableName]: AiReviewNotificationSettingsTable;
+        [AiReviewJiraDestinationTableName]: AiReviewJiraDestinationTable;
         [AiReviewLinearDestinationTableName]: AiReviewLinearDestinationTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
@@ -781,6 +808,7 @@ declare module 'knex/types/tables' {
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;
+        [ScimRequestLogsTableName]: ScimRequestLogTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [MetricsTreeLocksTableName]: MetricsTreeLocksTable;
         [MetricsTreesTableName]: MetricsTreesTable;

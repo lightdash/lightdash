@@ -39,7 +39,7 @@ describe('RoleSetMultiSelect', () => {
                 onChange={onChange}
             />,
         );
-        await userEvent.click(screen.getByRole('textbox', { name: 'Roles' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'Roles' }));
         await userEvent.click(
             await screen.findByRole('option', { name: 'Editor' }),
         );
@@ -62,7 +62,7 @@ describe('RoleSetMultiSelect', () => {
                 onChange={onChange}
             />,
         );
-        await userEvent.click(screen.getByRole('textbox', { name: 'Roles' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'Roles' }));
         await userEvent.click(
             await screen.findByRole('option', { name: 'SQL runner' }),
         );

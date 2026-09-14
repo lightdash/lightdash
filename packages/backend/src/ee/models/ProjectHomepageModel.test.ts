@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
-import { DatabaseError } from 'pg';
 import { UserTableName } from '../../database/entities/users';
 import {
     AnnouncementsTableName,
@@ -339,36 +338,6 @@ describe('ProjectHomepageModel', () => {
 
             expect(result[0]?.announcement.authorName).toBeNull();
             expect(result[0]?.slackChannelId).toBe('C1');
-        });
-    });
-
-    describe('getRecentlyViewed', () => {
-        const USER_UUID = '00000000-0000-0000-0000-000000000020';
-
-        it('returns no items when the query hits the statement timeout', async () => {
-            const timeout = new DatabaseError(
-                'canceling statement due to statement timeout',
-                0,
-                'error',
-            );
-            timeout.code = '57014';
-            tracker.on.any(/statement_timeout/).responseOnce([]);
-            tracker.on.any(/analytics_chart_views/).simulateErrorOnce(timeout);
-
-            await expect(
-                model.getRecentlyViewed(PROJECT_UUID, USER_UUID),
-            ).resolves.toEqual([]);
-        });
-
-        it('rethrows other database errors', async () => {
-            tracker.on.any(/statement_timeout/).responseOnce([]);
-            tracker.on
-                .any(/analytics_chart_views/)
-                .simulateErrorOnce(new Error('connection reset'));
-
-            await expect(
-                model.getRecentlyViewed(PROJECT_UUID, USER_UUID),
-            ).rejects.toThrow('connection reset');
         });
     });
 

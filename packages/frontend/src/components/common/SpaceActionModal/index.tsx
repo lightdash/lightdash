@@ -137,6 +137,17 @@ const SpaceModal: FC<ActionModalProps> = ({
                         color={confirmButtonColor}
                         loading={isLoading}
                         form="form-space-action-modal"
+                        // Walkthrough marker for create:Space: the space is
+                        // created here; the learner then opens it by name.
+                        // See scripts/scope-tours/generate.ts.
+                        data-tour-scope="create:Space"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/spaces"
+                        data-tour-label="Click Create"
+                        data-tour-title="Create a space"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-spaces"] >> [data-tour-anchor="add-space"] >> [data-tour-anchor="space-name"]'
+                        data-tour-docs="explore/spaces.mdx#creating-a-space:1"
                     >
                         {confirmButtonLabel}
                     </Button>

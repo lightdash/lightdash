@@ -4,7 +4,7 @@ ENV PNPM_HOME="/home/gitpod/.local/share/pnpm"
 ENV PATH="$PNPM_HOME/bin:$PATH"
 
 # Keep the bootstrap pnpm aligned with the root packageManager field.
-RUN bash -c '. /home/gitpod/.nvm/nvm.sh && nvm install 24.18 && nvm alias default 24.18 && curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=11.20.0 sh -'
+RUN bash -c '. /home/gitpod/.nvm/nvm.sh && nvm install 24.18 && nvm alias default 24.18 && curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.3.4 sh -'
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default

@@ -9,6 +9,7 @@ import { Provider } from 'react-redux';
 import Page from '../../../../../components/common/Page/Page';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../../../../../components/Explorer';
+import { useChartGalleryRightSidebar } from '../../../../../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
 import ExploreSideBar from '../../../../../components/Explorer/ExploreSideBar';
 import {
     buildInitialExplorerState,
@@ -37,6 +38,9 @@ const EmbedExploreView: FC<{
     chartView,
 }) => {
     const { data } = useExplore(exploreId);
+    const rightSidebarProps = useChartGalleryRightSidebar({
+        enabled: isEditMode,
+    });
 
     // Run the query effects hook
     useExplorerQueryEffects();
@@ -56,6 +60,7 @@ const EmbedExploreView: FC<{
                 />
             }
             isSidebarOpen={isEditMode}
+            {...rightSidebarProps}
             withFullHeight
             withPaddedContent
         >

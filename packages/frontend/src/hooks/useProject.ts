@@ -4,7 +4,10 @@ import {
     type ApiCreateProjectResults,
     type ApiError,
     type ApiJobStartedResults,
+    type ApiWarehouseConnectionTestBody,
+    type WarehouseConnectionTestResults,
     type CreateProject,
+    omitEmptySecrets,
     type CreateWarehouseCredentials,
     type DataTimezonePreviewRequest,
     type MostPopularAndRecentlyUpdated,
@@ -36,6 +39,7 @@ const createProject = async (data: CreateProject) =>
         method: 'POST',
         body: JSON.stringify(data),
         sensitive: true,
+        diagnoseTransportFailures: true,
     });
 
 const createProjectWithoutCompile = async (data: CreateProject) =>
@@ -44,6 +48,7 @@ const createProjectWithoutCompile = async (data: CreateProject) =>
         method: 'POST',
         body: JSON.stringify(data),
         sensitive: true,
+        diagnoseTransportFailures: true,
     });
 
 const updateProject = async (uuid: string, data: UpdateProject) =>
@@ -52,6 +57,7 @@ const updateProject = async (uuid: string, data: UpdateProject) =>
         method: 'PATCH',
         body: JSON.stringify(data),
         sensitive: true,
+        diagnoseTransportFailures: true,
     });
 
 export const getProject = async (uuid: string) =>
@@ -220,6 +226,41 @@ const updateWarehouseCredentials = async (
         }),
         sensitive: true,
     });
+
+const testWarehouseConnection = async (
+    uuid: string,
+    body: ApiWarehouseConnectionTestBody,
+) =>
+    lightdashApi<WarehouseConnectionTestResults>({
+        url: `/projects/${uuid}/warehouse/test`,
+        method: 'POST',
+        body: JSON.stringify(body),
+        sensitive: true,
+        diagnoseTransportFailures: true,
+    });
+
+export const useTestWarehouseConnectionMutation = (uuid: string) => {
+    const { showToastApiError } = useToaster();
+    return useMutation<
+        WarehouseConnectionTestResults,
+        ApiError,
+        CreateWarehouseCredentials
+    >(
+        (warehouseConnection) =>
+            testWarehouseConnection(uuid, {
+                warehouseConnection: omitEmptySecrets(warehouseConnection),
+            }),
+        {
+            mutationKey: ['project_warehouse_connection_test', uuid],
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Could not run the connection test',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
 
 export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {
     const queryClient = useQueryClient();

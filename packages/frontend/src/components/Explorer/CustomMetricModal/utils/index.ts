@@ -3,11 +3,15 @@ import {
     DimensionType,
     friendlyName,
     getCustomFormatFromLegacy,
+    getItemId,
+    getMetrics,
+    hasValidFormatExpression,
     isAdditionalMetric,
     isCustomBinDimension,
     isCustomDimension,
     isDimension,
     isMetric,
+    isNumericItem,
     MetricType,
     snakeCaseName,
     type AdditionalMetric,
@@ -65,35 +69,72 @@ export const getFilterRulesFromMetricBaseFilters = (
         });
     });
 
-// Formatting the clone should inherit: structured formatOptions when present,
+// Formatting a custom metric inherits from its base field: structured
+// formatOptions when present, a format expression as a custom format,
 // otherwise any combination of legacy format/round/compact. The field-level
-// separator composes with both shapes, so it carries over in either case.
-export const getFormatFromBaseMetric = (
-    metric: Metric,
+// separator composes with every shape, so it carries over in each case.
+export const getFormatFromBaseField = (
+    field: Dimension | Metric,
 ): CustomFormat | undefined => {
     const hasLegacyFormat =
-        metric.format !== undefined ||
-        metric.round !== undefined ||
-        metric.compact !== undefined;
+        field.format !== undefined ||
+        field.round !== undefined ||
+        field.compact !== undefined;
 
-    const base = metric.formatOptions
-        ? { ...metric.formatOptions }
-        : hasLegacyFormat || metric.separator !== undefined
-          ? getCustomFormatFromLegacy({
-                format: metric.format,
-                round: metric.round,
-                compact: metric.compact,
-            })
-          : undefined;
+    const base = field.formatOptions
+        ? { ...field.formatOptions }
+        : hasValidFormatExpression(field)
+          ? { type: CustomFormatType.CUSTOM, custom: field.format }
+          : hasLegacyFormat || field.separator !== undefined
+            ? getCustomFormatFromLegacy({
+                  format: field.format,
+                  round: field.round,
+                  compact: field.compact,
+              })
+            : undefined;
 
     if (!base) return undefined;
-    if (metric.separator && !base.separator) {
-        return { ...base, separator: metric.separator };
+    if (field.separator && !base.separator) {
+        return { ...base, separator: field.separator };
     }
     return base;
 };
 
-export const getCustomMetricName = (
+// Aggregations whose result is in the same unit as the base dimension, so its
+// formatting still describes the metric. Counts of dollar amounts are not
+// dollars, and counts of anything are never inherited.
+const VALUE_PRESERVING_METRIC_TYPES = [
+    MetricType.SUM,
+    MetricType.AVERAGE,
+    MetricType.MIN,
+    MetricType.MAX,
+    MetricType.MEDIAN,
+    MetricType.PERCENTILE,
+];
+
+export const getInheritedCustomMetricFormat = (
+    item: Dimension | AdditionalMetric | CustomDimension | Metric,
+    type: MetricType,
+    formatOverride?: CustomFormat,
+): CustomFormat | undefined => {
+    if (isMetric(item)) {
+        return formatOverride
+            ? { ...formatOverride }
+            : getFormatFromBaseField(item);
+    }
+    if (
+        isDimension(item) &&
+        isNumericItem(item) &&
+        VALUE_PRESERVING_METRIC_TYPES.includes(type)
+    ) {
+        return formatOverride
+            ? { ...formatOverride }
+            : getFormatFromBaseField(item);
+    }
+    return undefined;
+};
+
+const getCustomMetricName = (
     table: string,
     label: string,
     dimensionName: string,
@@ -109,6 +150,43 @@ export const getCustomMetricName = (
     return `${dimensionName.slice(0, maxPartLength)}_${snakeCaseName(
         label,
     ).slice(0, maxPartLength)}_${new Date().getTime()}`;
+};
+
+export const getCustomMetricLabelError = ({
+    label,
+    item,
+    isEditing,
+    exploreData,
+    additionalMetrics,
+}: {
+    label: string;
+    item: Dimension | AdditionalMetric | CustomDimension | Metric | undefined;
+    isEditing: boolean;
+    exploreData: Explore | undefined;
+    additionalMetrics: AdditionalMetric[] | undefined;
+}): string | null => {
+    if (!label || !item) return null;
+
+    const metricName = getCustomMetricName(
+        item.table,
+        label,
+        isEditing && isAdditionalMetric(item)
+            ? (item.baseDimensionName ?? item.baseMetricName ?? item.name)
+            : item.name,
+    );
+
+    const metricIds = exploreData ? getMetrics(exploreData).map(getItemId) : [];
+    if (
+        metricIds.includes(getItemId({ table: item.table, name: metricName }))
+    ) {
+        return 'Metric with this ID already exists';
+    }
+
+    if (isEditing && metricName === item.name) return null;
+
+    return additionalMetrics?.some((metric) => metric.name === metricName)
+        ? 'Metric with this label already exists'
+        : null;
 };
 
 const getCustomMetricDescription = (
@@ -278,4 +356,27 @@ export const prepareCustomMetricData = ({
 
         ...getTypeOverridesForAdditionalMetric(item, type),
     };
+};
+
+// A new custom metric remembers which explore field it came from so it can be
+// rebuilt, written back, or cloned later. Custom dimensions carry no such
+// reference: queryBuilder would reject a baseDimensionName it cannot resolve.
+export const buildNewAdditionalMetric = (
+    args: Omit<
+        Parameters<typeof prepareCustomMetricData>[0],
+        'isEditingCustomMetric'
+    >,
+): AdditionalMetric => {
+    const data = prepareCustomMetricData({
+        ...args,
+        isEditingCustomMetric: false,
+    });
+    const { item } = args;
+    if (isMetric(item)) {
+        return { uuid: uuidv4(), baseMetricName: item.name, ...data };
+    }
+    if (isDimension(item)) {
+        return { uuid: uuidv4(), baseDimensionName: item.name, ...data };
+    }
+    return { uuid: uuidv4(), ...data };
 };

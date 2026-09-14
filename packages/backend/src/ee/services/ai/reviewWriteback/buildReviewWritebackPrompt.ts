@@ -130,14 +130,14 @@ const buildSemanticLayerWritebackPrompt = (
             .filter(isSemanticTargetRef)
             .map((ref) => `- ${formatSemanticTargetRef(ref, ymlPathByModel)}`);
         const sections = [
-            'You are improving the dbt/Lightdash semantic layer YAML to resolve a manually filed data issue. Make the smallest change that resolves it.',
+            'You are improving the connected semantic layer YAML to resolve a manually filed data issue. Make the smallest change that resolves it.',
             `Issue: ${item.title}`,
             item.description ? `Description: ${item.description}` : null,
             manualTargetLines.length > 0
                 ? `Related explore(s)/field(s):\n${manualTargetLines.join('\n')}`
                 : null,
-            'No source conversation is attached. Use the issue title and description as the source of truth, inspect the dbt project, and open a pull request if a semantic-layer change can resolve the ask.',
-            'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse/dbt project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream dbt modeling or ingestion is required.',
+            'No source conversation is attached. Use the issue title and description as the source of truth, inspect the connected project, and open a pull request if a semantic-layer change can resolve the ask.',
+            'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse or connected project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream modeling or ingestion is required.',
         ].filter((section): section is string => section !== null);
 
         return {
@@ -154,7 +154,7 @@ const buildSemanticLayerWritebackPrompt = (
     const recommendation = finding?.recommendation ?? null;
 
     const sections = [
-        'You are improving the dbt/Lightdash semantic layer YAML to fix a recurring issue surfaced by AI agent review. Make the smallest change that resolves it.',
+        'You are improving the connected semantic layer YAML to fix a recurring issue surfaced by AI agent review. Make the smallest change that resolves it.',
         'The pinned review finding, the proposed change, and the original conversation are attached to this thread as context — read them first to understand exactly what was missing, then open a pull request that closes the gap.',
         recommendation
             ? `Recommended change: ${recommendation.title}\nRationale: ${recommendation.rationale}`
@@ -162,7 +162,7 @@ const buildSemanticLayerWritebackPrompt = (
         targetLines.length > 0
             ? `Target(s) to edit:\n${targetLines.join('\n')}`
             : null,
-        'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Put routing and disambiguation directives — "use this field when…" steering, join recipes, and negative cross-model caveats like "NOT suitable for…, use the other model instead" — in ai_hint (model or field level), never in a description: a description defines what a field is, while an ai_hint tells the agent when to choose it over a similar one. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse/dbt project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream dbt modeling or ingestion is required. Otherwise open a pull request describing the change and referencing this review finding.',
+        'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Put routing and disambiguation directives — "use this field when…" steering, join recipes, and negative cross-model caveats like "NOT suitable for…, use the other model instead" — in ai_hint (model or field level), never in a description: a description defines what a field is, while an ai_hint tells the agent when to choose it over a similar one. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse or connected project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream modeling or ingestion is required. Otherwise open a pull request describing the change and referencing this review finding.',
     ].filter((section): section is string => section !== null);
 
     return {

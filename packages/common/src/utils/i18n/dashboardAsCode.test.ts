@@ -9,7 +9,19 @@ const dashboardAsCode: DashboardAsCode = {
     slug: 'sales-overview',
     spaceSlug: 'shared',
     version: 1,
-    tabs: [],
+    tabs: [
+        {
+            slug: 'overview',
+            name: 'Overview',
+            order: 0,
+        },
+        {
+            slug: 'details',
+            name: 'Details',
+            order: 1,
+            hidden: true,
+        },
+    ],
     tiles: [
         {
             uuid: undefined,
@@ -71,6 +83,18 @@ describe('DashboardAsCodeInternalization', () => {
                     'Totale omzet': 'Totale omzet',
                 },
             });
+        });
+
+        it('should emit tab names in positional order', () => {
+            const languageMap =
+                new DashboardAsCodeInternalization().getLanguageMap(
+                    dashboardAsCode,
+                ).dashboard[dashboardAsCode.slug];
+
+            expect(languageMap.tabs).toEqual([
+                { name: 'Overview' },
+                { name: 'Details' },
+            ]);
         });
 
         it('should handle a dashboard without filters', () => {
@@ -156,6 +180,30 @@ describe('DashboardAsCodeInternalization', () => {
             expect(merged.filters?.dimensions?.[0]?.label).toBe(
                 'Région client',
             );
+        });
+
+        it('should merge translated tab names by position without touching other tab fields', () => {
+            const merged = new DashboardAsCodeInternalization().merge(
+                {
+                    tabs: [{ name: 'Vue d’ensemble' }, { name: 'Détails' }],
+                    filters: undefined,
+                },
+                structuredClone(dashboardAsCode),
+            );
+
+            expect(merged.tabs).toEqual([
+                {
+                    slug: 'overview',
+                    name: 'Vue d’ensemble',
+                    order: 0,
+                },
+                {
+                    slug: 'details',
+                    name: 'Détails',
+                    order: 1,
+                    hidden: true,
+                },
+            ]);
         });
     });
 });

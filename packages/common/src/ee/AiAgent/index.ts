@@ -13,6 +13,7 @@ import type {
     ToolName,
     ToolRunQueryArgs,
 } from '../..';
+import { type UUID } from '../../types/api/uuid';
 import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
@@ -26,6 +27,7 @@ import {
     type AiAgentModelConfig,
     type AiPromptContext,
     type AiPromptContextInput,
+    type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiThreadCreatedFrom,
 } from './requestTypes';
@@ -229,11 +231,15 @@ export type AiAgentSummary = Pick<
 >;
 
 // An empty spaceAccess list means the agent is unrestricted (all spaces).
+export const isSpaceRestrictedAgent = (
+    agent: Pick<AiAgent, 'spaceAccess'>,
+): boolean => agent.spaceAccess.length > 0;
+
 export const hasAiAgentAccessToSpace = (
     agent: Pick<AiAgent, 'spaceAccess'>,
     spaceUuid: string,
 ): boolean =>
-    agent.spaceAccess.length === 0 || agent.spaceAccess.includes(spaceUuid);
+    !isSpaceRestrictedAgent(agent) || agent.spaceAccess.includes(spaceUuid);
 
 export type AiAgentUser = {
     uuid: string;
@@ -312,6 +318,7 @@ export type AiAgentMessageAssistant = {
     referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
+    responseTiming: AiPromptResponseTiming | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -336,6 +343,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     createdFrom: AiThreadCreatedFrom;
     title: string | null;
     titleGeneratedAt: string | null;
+    pinnedAt: string | null;
     firstMessage: {
         uuid: string;
         message: string;
@@ -860,6 +868,18 @@ export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
     AiAgentMessageUser<AiAgentUser>
 >;
 
+export type ApiAiAgentThreadDataAppRestoreRequest = {
+    appUuid: UUID;
+    version: number;
+};
+
+export type ApiAiAgentThreadDataAppRestoreResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+    restoredFromVersion: number;
+    promptUuid: string;
+}>;
+
 export type ApiAiAgentStartThreadResponse = {
     status: 'ok';
     results: {
@@ -880,6 +900,12 @@ export type ApiAiAgentThreadGenerateTitleResponse = {
     results: {
         title: string;
     };
+};
+
+export const AI_AGENT_THREAD_TITLE_MAX_LENGTH = 200;
+
+export type ApiAiAgentThreadUpdateRequest = {
+    title: string;
 };
 
 export type ApiAiAgentThreadMessageViz = {
@@ -1321,6 +1347,7 @@ export type AiModelOption = {
     displayName: string;
     description: string;
     provider: string;
+    groupLabel?: string;
     default: boolean;
     supportsReasoning: boolean;
     deprecated: boolean;

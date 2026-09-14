@@ -34,6 +34,9 @@ vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
         data: { enabled: enabledFlags.has(featureFlag) },
     }),
 }));
+vi.mock('../../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-1',
+}));
 vi.mock('../../../LightdashVisualization/useVisualizationContext', () => ({
     useVisualizationContext: vi.fn(),
 }));

@@ -1,5 +1,228 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`MCP tool contracts > matches the 'filter-expression' MCP server instructions snapshot 1`] = `
+"# Lightdash MCP Tools — Usage Guidelines
+
+## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
+
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
+   - Search with business terms and synonyms, not long natural-language phrases
+   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
+   - Pass several patterns in one call so you can compare the different angles of the request together
+   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
+2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
+   - Batch all needed explores and fields in one call
+   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
+   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
+3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
+4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
+
+## Critical Rules
+
+### Tool Catalogue
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector; never substitute \`run_sql\` for it
+
+### Explore Selection
+- When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
+- When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
+- If still ambiguous, ask the user which data source they want — do NOT guess
+
+### When to Use run_sql vs run_metric_query
+- **Prefer \`run_metric_query\`** for standard analysis — it leverages the semantic layer and ensures consistent metric definitions
+- **Use \`run_sql\`** only for ad-hoc queries, cross-table joins not modeled in explores, or when the user explicitly requests raw SQL
+- \`run_sql\` defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
+- Use the SQL dialect appropriate for the connected warehouse
+
+### Filter Expressions
+
+For \`run_metric_query\`, set \`queryConfig.filters\` to null when no query filters are needed. Otherwise, \`dimensions\`, \`metrics\`, and \`tableCalculations\` are independent string expressions or null.
+
+- A non-null category contains one raw string expression.
+- Choose the category from discovered field metadata (its dimension/metric kind), never from a field name or whether a numeric field sounds metric-like. A raw numeric dimension belongs in \`dimensions\`; only metrics and custom metrics belong in \`metrics\`.
+- A field used only to restrict rows stays in its filter expression. Do not add it to \`queryConfig.dimensions\` unless the user asked to group by or display it: extra selected dimensions change aggregation and table-calculation grain.
+- Table calculations belong only in \`tableCalculations\`.
+- Each category is flat and uses AND or OR, never both.
+- The three categories combine implicitly with AND.
+- Aggregation custom metric filters are flat AND expressions.
+- Omit \`search_field_values.filters\` for an unscoped search. When present, it is one flat dimension expression string and is AND-only.
+- The tool schema is authoritative for where each string is placed.
+
+Raw placement examples:
+- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
+- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
+- metrics: orders_total_order_amount greaterThan=100
+- tableCalculations: rank lessThanOrEqual=10
+
+- Join flat rules with AND or OR. Do not mix both connectors in one expression.
+- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
+- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
+
+### string
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`include=<value>[,<value>...] [1+ values]\`
+- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
+
+### number
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- \`notInBetween=<first value>,<second value> [2 values]\`
+
+### date
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheCurrent=<unit> [1 unit]\`
+- \`notInTheCurrent=<unit> [1 unit]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+
+### boolean
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value> [1 value]\`
+- \`notEquals=<value> [1 value]\`
+
+### Time Filtering
+- If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
+- Use the \`inThePast\` operator for relative windows
+- Date fields from joined tables work identically in filters
+
+### Field Usage
+- Never mix fields from different explores in a single query
+- Any field used for sorting MUST be included in dimensions, metrics, or table calculations
+- When similar field names exist in base and joined tables, match to the query's semantic level
+
+### Pagination
+- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
+
+### Visualization
+- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
+- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
+- For time series: use \`line\` with \`xAxisType: 'time'\`
+- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
+- For single values or detailed data: use \`table\`
+- Always provide axis labels
+
+### Table Calculations
+Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
+- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
+- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
+- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
+- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
+
+### Custom Metrics
+- Use when the explore lacks a needed aggregation
+- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
+- Reference using the pattern \`table_metricname\`
+"
+`;
+
+exports[`MCP tool contracts > matches the 'structured-filter' MCP server instructions snapshot 1`] = `
+"# Lightdash MCP Tools — Usage Guidelines
+
+## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
+
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
+   - Search with business terms and synonyms, not long natural-language phrases
+   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
+   - Pass several patterns in one call so you can compare the different angles of the request together
+   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
+2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
+   - Batch all needed explores and fields in one call
+   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
+   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
+3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
+4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
+
+## Critical Rules
+
+### Tool Catalogue
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector; never substitute \`run_sql\` for it
+
+### Explore Selection
+- When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
+- When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
+- If still ambiguous, ask the user which data source they want — do NOT guess
+
+### When to Use run_sql vs run_metric_query
+- **Prefer \`run_metric_query\`** for standard analysis — it leverages the semantic layer and ensures consistent metric definitions
+- **Use \`run_sql\`** only for ad-hoc queries, cross-table joins not modeled in explores, or when the user explicitly requests raw SQL
+- \`run_sql\` defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
+- Use the SQL dialect appropriate for the connected warehouse
+
+### Time Filtering
+- If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
+- Use the \`inThePast\` operator for relative windows
+- Date fields from joined tables work identically in filters
+
+### Field Usage
+- Never mix fields from different explores in a single query
+- Any field used for sorting MUST be included in dimensions, metrics, or table calculations
+- When similar field names exist in base and joined tables, match to the query's semantic level
+
+### Pagination
+- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
+
+### Visualization
+- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
+- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
+- For time series: use \`line\` with \`xAxisType: 'time'\`
+- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
+- For single values or detailed data: use \`table\`
+- Always provide axis labels
+
+### Table Calculations
+Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
+- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
+- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
+- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
+- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
+
+### Custom Metrics
+- Use when the explore lacks a needed aggregation
+- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
+- Reference using the pattern \`table_metricname\`
+"
+`;
+
 exports[`MCP tool contracts > matches the current MCP tool and prompt contract snapshot 1`] = `
 {
   "prompts": [
@@ -1223,7 +1446,7 @@ Usage tips:
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "read_content" to see all charts for a specific dashboard.
 - Data Apps are readable: call "read_content" with type "data_app" and the app slug to see what the app shows, the charts and dashboard it was generated from, and the explores, fields, filters, parameters and external connections it queries.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.
-- If query-execution tools (run_metric_query, run_sql) are NOT available in this session, use this tool FIRST: saved charts and dashboards often already answer the question. Never tell the user information is unavailable, and never suggest raw SQL or elevated permissions, before searching here.",
+- If neither run_metric_query nor run_sql is available, search here FIRST: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1838,7 +2061,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
+      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {},
@@ -2339,37 +2562,16 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.
+      "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
-This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.
+This tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.
 
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
-    result: {
-      status: "done",
-      queryUuid: string,
-      rows: Array<Record<string, unknown>>,
-      fields: Record<string, unknown>,
-      exploreUrl: string | null
-    }
-  }
-- If the query is still running, structuredContent: {
-    result: {
-      status: "running",
-      queryUuid: string,
-      nextPollAfterMs: number,
-      heartbeatAt: string
-    }
-  }
-  Use get_query_result with this queryUuid to poll until the query is done. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
+If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
+Stop on terminal errors and correct the request before retrying.
 
-Notes:
-- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.
-- This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
-- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -2412,12 +2614,28 @@ Notes:
                 "type": "string",
               },
               "secondaryYAxisLabel": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "A helpful label for the secondary y-axis",
-                "type": "string",
               },
               "secondaryYAxisMetric": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
-                "type": "string",
               },
               "stackBars": {
                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -6746,8 +6964,16 @@ Example B — "Revenue by month with year-over-year comparison"
                       "type": "string",
                     },
                     "nullsFirst": {
+                      "anyOf": [
+                        {
+                          "type": "boolean",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "default": null,
                       "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
-                      "type": "boolean",
                     },
                   },
                   "required": [
@@ -6955,22 +7181,14 @@ All branches of an IF must return the same type.",
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Render a chart for a completed query result in MCP App-capable clients.
+      "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.
 
-Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the exact queryUuid that run_metric_query (or get_query_result) returned for this query in the current conversation — it is included in that tool's response as a \`queryUuid: <id>\` text block. Never invent, guess, or reuse a queryUuid from a different query or session; an unknown id fails with "not found". Lightdash loads the completed metric query from query history.
+Use when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.
+Pass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the \`queryUuid: <id>\` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.
 
-Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
+The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
 
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — short render status message.
-- structuredContent: {
-    result: {
-      status: "done",
-      queryUuid: string,
-      exploreUrl: string | null,
-      echartsOption: Record<string, unknown> | null // lightweight placeholder; full chart payload is app metadata
-    }
-  }",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -7012,12 +7230,28 @@ Response shape (MCP CallToolResult):
                 "type": "string",
               },
               "secondaryYAxisLabel": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "A helpful label for the secondary y-axis",
-                "type": "string",
               },
               "secondaryYAxisMetric": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
-                "type": "string",
               },
               "stackBars": {
                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -10051,48 +10285,16 @@ Usage Tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Execute an arbitrary SQL query against the project's data warehouse and return the results. The platform already gives the user a way to continue this exact query in SQL Runner — do not add your own SQL Runner link in the final answer text; a link you write in prose cannot be scoped to a specific query and will point at the wrong one if this tool is called more than once in a turn.
+      "description": "Execute a read-only SQL query against the project's data warehouse. For running queries, follow the polling instructions in the response. Prefer run_metric_query when the semantic layer can answer the question; use SQL for ad-hoc analysis or queries outside modeled explores.
 
-Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
-This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
-If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer run_metric_query and then render_chart when the request fits the semantic layer. render_chart does not support run_sql results.
+Use a complete SELECT statement in the connected warehouse's SQL dialect. Lightdash applies the row limit (default 500, max 500).
+For visuals supported by the semantic layer, prefer run_metric_query then render_chart. render_chart does not support run_sql results.
 
-The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
+Returns SQL data, not chart artifacts. The platform provides a query-specific SQL Runner action; do not add your own SQL Runner link in the final answer.
+If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
+Stop on terminal errors and correct the request before retrying.
 
-Parameters:
-- sql: The SQL query to execute. Must be a valid SELECT statement.
-- limit: Maximum number of rows to return (default 500, max 500).
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return CSV with a header row plus data rows. Empty results return prose text like "Query returned 0 rows."; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
-    result: {
-      status: "done",
-      rows:     Array<Record<string, unknown>>,  // each row keyed by column name
-      columns:  string[],                        // column names in order
-      rowCount: number,                          // total rows returned
-      sqlRunnerUrl: string | null                // shareable URL to inspect/edit the SQL in SQL Runner
-    }
-  }
-- If the query is still running, structuredContent: {
-    result: {
-      status: "running",
-      queryUuid: string,
-      nextPollAfterMs: number,
-      heartbeatAt: string
-    }
-  }
-  Use get_query_result with this queryUuid to poll until the query is done. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
-
-Notes:
-- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.
-- This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
-- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
-- Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
-- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0, sqlRunnerUrl } — distinct from a parse failure.
-- Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
-- On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
-",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -10229,26 +10431,14 @@ Notes:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Poll for the result of a long-running MCP query started by a query tool such as run_metric_query.
+      "description": "Poll an existing run_sql or run_metric_query query. Use the exact queryUuid returned by the query tool; never invent it. This tool retrieves results without rerunning the query.
 
-Use this tool when a query tool returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
-Each call waits up to the MCP wait window before returning another running response.
-For completed run_metric_query results, If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after get_query_result returns done. render_chart currently supports completed run_metric_query results.
+If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
+Stop on terminal errors and correct the request before retrying.
 
-Parameters:
-- queryUuid: The async query UUID returned by the query tool.
+Returns the original query's data on completion. For a visual, call render_chart after get_query_result returns done for a metric query. SQL results cannot be rendered by render_chart.
 
-Response shape (MCP CallToolResult):
-- Running: content contains polling status text and structuredContent.result contains { status: "running", queryUuid, nextPollAfterMs, heartbeatAt }. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
-- Completed SQL: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, columns, rowCount, sqlRunnerUrl }.
-- Completed metric query: content has the CSV text plus a separate \`queryUuid: <id>\` text block (copy this exact id for render_chart), and structuredContent.result contains { status: "done", queryUuid, rows, fields, exploreUrl }.
-- Failed/cancelled/expired: content contains status/error text and structuredContent.result contains { status, queryUuid, error }.
-
-Notes:
-- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.
-- This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
-- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
-",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -10904,32 +11094,22 @@ Notes:
       },
       "description": "Tool: run_ai_writeback
 
-Purpose:
-Make a change to the dbt project that backs the active Lightdash project by describing it in natural language, then open a pull request with the result. The target GitHub repository and dbt sub-folder are resolved server-side from the active project's dbt connection — you never specify them.
+Change a Lightdash project's dbt project from a natural-language prompt. The GitHub repository and dbt sub-folder are resolved server-side from its dbt connection; never specify them.
 
-How it works:
-- This tool starts the run and returns immediately with an aiWritebackRunUuid — it does NOT wait for the run to finish.
-- In the background: a sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project. If the agent changes any files, a branch is committed, pushed, and a pull request is opened.
-- Call get_ai_writeback_status with the returned aiWritebackRunUuid to check progress and get the pull request URL once the run finishes. The run typically takes a few minutes (cloning, running the agent, opening the PR) — poll every 10-15 seconds rather than immediately looping.
-- Clients that declare the MCP Tasks extension (io.modelcontextprotocol/tasks) in their per-request capabilities instead receive a task handle (resultType: "task", taskId = the run id) and should poll tasks/get / cancel via tasks/cancel rather than calling get_ai_writeback_status.
+Safety and requirements:
+- NOT read-only or idempotent: each call can start a run and open a new pull request. Use only when the user explicitly wants a dbt change.
+- Requires a GitHub-backed dbt connection, the organization's GitHub App installation, and AI writeback enabled for the organization.
 
-Requirements:
-- An active project must be set first via set_project (or the X-Lightdash-Project header).
-- The project's dbt connection must be GitHub-backed, and the organization must have the GitHub App installed.
-- The AI writeback feature must be enabled for the organization.
+Execution:
+- Returns immediately with aiWritebackRunUuid; does not wait for completion. A background sandbox clones the project's GitHub repository and runs the prompt through Claude Code CLI against dbt. If files change, a branch is committed and pushed, and a pull request opened.
+- Runs usually take a few minutes. Poll get_ai_writeback_status every 10-15 seconds with aiWritebackRunUuid for progress and the pull request URL.
+- Clients declaring io.modelcontextprotocol/tasks in per-request capabilities instead get a task handle (resultType: "task", taskId = run id). Poll tasks/get and cancel via tasks/cancel, rather than using get_ai_writeback_status.
 
-Important:
-- This tool is NOT read-only and NOT idempotent — each call can start a run that opens a new pull request. Use it only when the user explicitly wants to change their dbt project.
-- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the run finishes with status "error" and an error message listing the sources by name and repository — call run_ai_writeback again naming the intended source in the prompt itself (e.g. "In jaffle-2, add ..."). You never pass an id.
+Input:
+- prompt: a clear, self-contained change, e.g. "Add a total_revenue metric to orders as the sum of amount".
+- With multiple dbt sources, name the intended source in the prompt, e.g. "In the marketing dbt project, ..."; never pass a source ID. If ambiguous, the run ends with status "error" and an error message listing the source names. Call run_ai_writeback again with the intended source named in the prompt.
 
-Parameters:
-- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. "Add a 'total_revenue' metric to the orders model as the sum of amount"). When the project has more than one dbt source, name the intended source here (e.g. "In the marketing dbt project, ...").
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<human-readable message telling you the run started and to poll get_ai_writeback_status>" }]
-- structuredContent: {
-    aiWritebackRunUuid: string   // pass this to get_ai_writeback_status
-  }
+Normal response (MCP CallToolResult): content contains a text message saying the run started and to poll get_ai_writeback_status; structuredContent is { aiWritebackRunUuid: string }.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10941,7 +11121,7 @@ Response shape (MCP CallToolResult):
             "type": "string",
           },
           "prompt": {
-            "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.",
+            "description": "A clear, self-contained description of the change to make to the dbt project that backs the target Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.",
             "minLength": 1,
             "type": "string",
           },
@@ -11098,91 +11278,18 @@ exports[`MCP tool contracts > matches the filter-expression run_metric_query too
     "openWorldHint": false,
     "readOnlyHint": true,
   },
-  "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.
+  "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
-This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.
+This tool returns metric query data only. For a visual, call render_chart after run_metric_query returns done for a metric query.
 
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
-    result: {
-      status: "done",
-      queryUuid: string,
-      rows: Array<Record<string, unknown>>,
-      fields: Record<string, unknown>,
-      exploreUrl: string | null
-    }
-  }
-- If the query is still running, structuredContent: {
-    result: {
-      status: "running",
-      queryUuid: string,
-      nextPollAfterMs: number,
-      heartbeatAt: string
-    }
-  }
-  Use get_query_result with this queryUuid to poll until the query is done. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
+If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
+Stop on terminal errors and correct the request before retrying.
 
-Notes:
-- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.
-- This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
-- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
 
-Filter expression syntax:
-- Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
-- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
-
-### string
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`startsWith=<value>[,<value>...] [1+ values]\`
-- \`endsWith=<value>[,<value>...] [1+ values]\`
-- \`include=<value>[,<value>...] [1+ values]\`
-- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
-
-### number
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`lessThan=<value> [1 value]\`
-- \`lessThanOrEqual=<value> [1 value]\`
-- \`greaterThan=<value> [1 value]\`
-- \`greaterThanOrEqual=<value> [1 value]\`
-- \`inBetween=<first value>,<second value> [2 values]\`
-- \`notInBetween=<first value>,<second value> [2 values]\`
-
-### date
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`lessThan=<value> [1 value]\`
-- \`lessThanOrEqual=<value> [1 value]\`
-- \`greaterThan=<value> [1 value]\`
-- \`greaterThanOrEqual=<value> [1 value]\`
-- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`inTheCurrent=<unit> [1 unit]\`
-- \`notInTheCurrent=<unit> [1 unit]\`
-- \`inBetween=<first value>,<second value> [2 values]\`
-- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
-
-### boolean
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value> [1 value]\`
-- \`notEquals=<value> [1 value]\`",
+Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow the Lightdash MCP server instructions.",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "properties": {
@@ -11224,12 +11331,28 @@ Grammar: <field> <operator form>
             "type": "string",
           },
           "secondaryYAxisLabel": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
             "description": "A helpful label for the secondary y-axis",
-            "type": "string",
           },
           "secondaryYAxisMetric": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
             "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
-            "type": "string",
           },
           "stackBars": {
             "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -11523,8 +11646,16 @@ Example B — "Revenue by month with year-over-year comparison"
                   "type": "string",
                 },
                 "nullsFirst": {
+                  "anyOf": [
+                    {
+                      "type": "boolean",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "default": null,
                   "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
-                  "type": "boolean",
                 },
               },
               "required": [
@@ -11745,62 +11876,7 @@ Usage Tips:
 - Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
-- When filters is provided, pass one flat AND expression containing dimension fields only
-
-Filter expression syntax:
-- Join flat rules with AND only. OR is not supported by this tool.
-- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
-- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
-
-### string
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`startsWith=<value>[,<value>...] [1+ values]\`
-- \`endsWith=<value>[,<value>...] [1+ values]\`
-- \`include=<value>[,<value>...] [1+ values]\`
-- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
-
-### number
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`lessThan=<value> [1 value]\`
-- \`lessThanOrEqual=<value> [1 value]\`
-- \`greaterThan=<value> [1 value]\`
-- \`greaterThanOrEqual=<value> [1 value]\`
-- \`inBetween=<first value>,<second value> [2 values]\`
-- \`notInBetween=<first value>,<second value> [2 values]\`
-
-### date
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value>[,<value>...] [1+ values]\`
-- \`notEquals=<value>[,<value>...] [1+ values]\`
-- \`lessThan=<value> [1 value]\`
-- \`lessThanOrEqual=<value> [1 value]\`
-- \`greaterThan=<value> [1 value]\`
-- \`greaterThanOrEqual=<value> [1 value]\`
-- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
-- \`inTheCurrent=<unit> [1 unit]\`
-- \`notInTheCurrent=<unit> [1 unit]\`
-- \`inBetween=<first value>,<second value> [2 values]\`
-- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
-
-### boolean
-Grammar: <field> <operator form>
-- \`isNull [0 values]\`
-- \`notNull [0 values]\`
-- \`equals=<value> [1 value]\`
-- \`notEquals=<value> [1 value]\`
-
+- Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint; for supported operators, quoting, and examples, follow the Lightdash MCP server instructions.
 ",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11816,10 +11892,18 @@ Grammar: <field> <operator form>
         "type": "string",
       },
       "filters": {
-        "description": "Optional flat AND filter expression containing dimension fields only. Use null when the value search needs no additional scope.",
-        "maxLength": 16384,
-        "minLength": 1,
-        "type": "string",
+        "anyOf": [
+          {
+            "maxLength": 16384,
+            "minLength": 1,
+            "type": "string",
+          },
+          {
+            "type": "null",
+          },
+        ],
+        "default": null,
+        "description": "When present, scopes the candidate-value search with one flat AND filter expression containing dimension fields only.",
       },
       "projectUuid": {
         "description": "Project UUID for this operation.",

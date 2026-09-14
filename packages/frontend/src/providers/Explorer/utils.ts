@@ -11,8 +11,21 @@ import { type ConfigCacheMap } from './types';
 const DEFAULTS = {
     [ChartType.CARTESIAN]: () => ({ ...EMPTY_CARTESIAN_CHART_CONFIG }), // factory to avoid shared refs
     [ChartType.BIG_NUMBER]: () => ({ showTableNamesInLabel: false }),
+    // Must mirror useTableConfig's normalization defaults: cleanConfig merges
+    // these into both diff sides so a chart saved before a flag existed does
+    // not read as dirty once the table viz materializes the flag in the draft
     [ChartType.TABLE]: () => ({
+        showColumnCalculation: false,
+        showRowCalculation: false,
         showTableNames: false,
+        showResultsTotal: false,
+        showSubtotals: false,
+        showSubtotalsExpanded: false,
+        showRowGrouping: false,
+        hideRowNumbers: false,
+        metricsAsRows: false,
+        conditionalFormattings: [],
+        columns: {},
     }),
     [ChartType.PIE]: () => ({ showLegend: false, valueLabel: 'outside' }),
     [ChartType.FUNNEL]: () => ({}),

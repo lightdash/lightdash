@@ -135,6 +135,9 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                     role="menuitem"
                     leftSection={<IconUsers size={18} />}
                     onClick={onShare}
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="space-share"
+                    data-tour-hint="Click Share"
                 >
                     Share
                 </Menu.Item>

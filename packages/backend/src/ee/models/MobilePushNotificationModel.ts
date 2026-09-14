@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { Knex } from 'knex';
+import { UserTableName } from '../../database/entities/users';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AiPromptTableName, AiThreadTableName } from '../database/entities/ai';
 import {
@@ -76,6 +77,8 @@ export type SchedulableLiveActivityStartAttempt = {
     userUuid: string;
 };
 
+const OAuth2RefreshTokensTableName = 'oauth2_refresh_tokens';
+
 const tokenFingerprint = (token: string): string =>
     createHash('sha256').update(token).digest('hex');
 
@@ -107,6 +110,65 @@ export class MobilePushNotificationModel {
             .first();
     }
 
+    async installationHasLiveGrant(installationUuid: string): Promise<boolean> {
+        const installation = await this.database<DbMobilePushInstallation>(
+            MobilePushInstallationsTableName,
+        )
+            .select('oauth_client_id', 'user_uuid')
+            .where('installation_uuid', installationUuid)
+            .first();
+
+        if (installation === undefined) return false;
+        if (installation.oauth_client_id === null) return true;
+
+        const grant = await this.database(OAuth2RefreshTokensTableName)
+            .join(
+                UserTableName,
+                `${OAuth2RefreshTokensTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .where(`${UserTableName}.user_uuid`, installation.user_uuid)
+            .where(
+                `${OAuth2RefreshTokensTableName}.client_id`,
+                installation.oauth_client_id,
+            )
+            .whereNull(`${OAuth2RefreshTokensTableName}.revoked_at`)
+            .where(
+                `${OAuth2RefreshTokensTableName}.expires_at`,
+                '>',
+                this.database.fn.now(),
+            )
+            .first();
+
+        return grant !== undefined;
+    }
+
+    async deleteInstallationsWithoutLiveGrant(args: {
+        userId: number;
+        clientId: string;
+    }): Promise<void> {
+        await this.database<DbMobilePushInstallation>(
+            MobilePushInstallationsTableName,
+        )
+            .where('oauth_client_id', args.clientId)
+            .whereIn(
+                'user_uuid',
+                this.database(UserTableName)
+                    .select('user_uuid')
+                    .where('user_id', args.userId),
+            )
+            .whereNotExists((query) => {
+                void query
+                    .select(this.database.raw('1'))
+                    .from(OAuth2RefreshTokensTableName)
+                    .where('user_id', args.userId)
+                    .where('client_id', args.clientId)
+                    .whereNull('revoked_at')
+                    .where('expires_at', '>', this.database.fn.now());
+            })
+            .delete();
+    }
+
     async upsertInstallation(args: {
         installationUuid: string;
         organizationUuid: string;
@@ -114,6 +176,7 @@ export class MobilePushNotificationModel {
         platform: MobilePushPlatform;
         environment: MobilePushEnvironment;
         deviceToken: string;
+        oauthClientId: string | null;
     }): Promise<UpsertInstallationResult> {
         const fingerprint = tokenFingerprint(args.deviceToken);
         const encryptedDeviceToken = this.encryptionUtil.encrypt(
@@ -201,6 +264,7 @@ export class MobilePushNotificationModel {
                     environment: args.environment,
                     encrypted_device_token: encryptedDeviceToken,
                     device_token_fingerprint: fingerprint,
+                    oauth_client_id: args.oauthClientId,
                 })
                 .onConflict('installation_uuid')
                 .merge({
@@ -210,6 +274,7 @@ export class MobilePushNotificationModel {
                     environment: args.environment,
                     encrypted_device_token: encryptedDeviceToken,
                     device_token_fingerprint: fingerprint,
+                    oauth_client_id: args.oauthClientId,
                     ...(ownershipChanged || environmentChanged
                         ? {
                               encrypted_push_to_start_token: null,

@@ -29,7 +29,6 @@ import VirtualViewAsCodeModal from '../../../features/contentAsCode/components/V
 import {
     explorerActions,
     selectAdditionalMetrics,
-    selectIsVisualizationConfigOpen,
     selectMetricQuery,
     selectSavedChart,
     selectTableName,
@@ -60,11 +59,9 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
-import { useIsChartGalleryEnabled } from '../ChartGallery/useIsChartGalleryEnabled';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
-import VisualizationConfigPortal from '../VisualizationCard/VisualizationConfigPortal';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
 import { useIsGitProject } from '../WriteBackModal/hooks';
 import classes from './index.module.css';
@@ -90,7 +87,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         FeatureFlags.EditYamlInUi,
     );
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
-    const isChartGalleryEnabled = useIsChartGalleryEnabled();
     const merge = useMergeSafe();
     const additionalSource = merge?.additionalSources[0];
     const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
@@ -122,10 +118,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             }
         },
         [dispatch],
-    );
-
-    const isVisualizationConfigOpen = useExplorerSelector(
-        selectIsVisualizationConfigOpen,
     );
 
     const {
@@ -266,22 +258,30 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
-            {!isChartGalleryEnabled && (
-                <VisualizationConfigPortal active={isVisualizationConfigOpen} />
-            )}
-
             <Stack
                 h="100%"
                 className={classes.panel}
-                data-hidden={
-                    !isChartGalleryEnabled && isVisualizationConfigOpen
-                }
+                // Walkthrough look for manage:Explore: the table's fields,
+                // seen once the table is open and before any is picked.
+                data-tour-scope="manage:Explore"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="explore-table"]'
+                data-tour-label="The fields you can query"
+                data-tour-docs="explore/explore-view.mdx#the-explore-page:li1"
             >
                 {merge?.isMerging && merge.readOnly && <MergeJoinBar />}
                 {/* The breadcrumbs, warnings and menu all belong to the
                     primary source's explore; shown above an added source's
                     picker they read as its header, which they are not. */}
                 <Group
+                    data-tour-scope="manage:VirtualView"
+                    data-tour-step="1"
+                    data-tour-route="/projects/:projectUuid/tables/:tableName"
+                    data-tour-label="Inspect the updated virtual view"
+                    data-tour-busy='[data-tour-anchor="virtual-view-editor"]'
+                    data-tour-docs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                    data-tour-return="none"
+                    data-tour-resultdocs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:p2:1"
                     justify="space-between"
                     display={isGuidedMerge ? 'none' : undefined}
                 >
@@ -319,6 +319,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
                                     <ActionIcon
+                                        data-tour-anchor="virtual-view-actions"
+                                        data-tour-hint="Open virtual view actions"
                                         aria-label="Virtual view actions"
                                         variant="transparent"
                                     >
@@ -333,6 +335,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     icon={IconPencil}
                                                 />
                                             }
+                                            data-tour-anchor="virtual-view-edit"
+                                            data-tour-hint="Edit the virtual view"
                                             onClick={handleEditVirtualView}
                                         >
                                             <Text fz="xs" fw={500}>
@@ -372,6 +376,15 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     />
                                                 }
                                                 color="red"
+                                                data-tour-scope="delete:VirtualView"
+                                                data-tour-step="2"
+                                                data-tour-route="/projects/:projectUuid/tables/:tableName"
+                                                data-tour-title="Delete a virtual view"
+                                                data-tour-label="Delete the virtual view"
+                                                data-tour-docs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                                                data-tour-interactive="true"
+                                                data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-sql-runner"] >> [data-tour-anchor="sql-runner-editor"] >> [data-tour-anchor="sql-runner-run"] >> [data-tour-anchor="sql-cta-menu"] >> [data-tour-anchor="sql-cta-virtual-view"] >> [data-tour-anchor="sql-create-virtual-view"] >> [data-tour-anchor="virtual-view-name"] >> [data-tour-anchor="virtual-view-create-submit"] >> [data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-search"] >> [data-tour-anchor="explore-section"][data-tour-value="Virtual Views"] >> [data-tour-anchor="explore-table"][data-tour-value="Orders by status"] >> [data-tour-anchor="virtual-view-actions"]'
+                                                data-tour-then='[data-tour-anchor="modal-confirm"]'
                                                 onClick={
                                                     handleDeleteVirtualView
                                                 }

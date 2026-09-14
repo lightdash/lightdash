@@ -4,6 +4,8 @@ import {
     ChartSourceType,
     ContentReviewContentType,
     DirectAccessResourceType,
+    getDashboardDeleteAccess,
+    isResourceViewDataAppItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     ResourceViewItemType,
@@ -235,6 +237,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const isFavorited = favoritesContext?.isFavorited(item.data.uuid) ?? false;
 
     let userCanManage = false;
+    let userCanDelete = false;
     switch (item.type) {
         case ResourceViewItemType.CHART: {
             const userAccess = spaces.find(
@@ -298,6 +301,22 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             ...(userAccess ? [userAccess] : []),
                             ...grantAccess,
                         ],
+                    }),
+                ) === true;
+            userCanDelete =
+                user.data?.ability?.can(
+                    'delete',
+                    subject('Dashboard', {
+                        ...item.data,
+                        projectUuid,
+                        organizationUuid,
+                        access: getDashboardDeleteAccess([
+                            ...(userAccess ? [userAccess] : []),
+                            ...grantAccess.map((access) => ({
+                                ...access,
+                                grantedVia: 'dashboard' as const,
+                            })),
+                        ]),
                     }),
                 ) === true;
             break;
@@ -388,6 +407,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             <Menu
                 disabled={disabled}
                 opened={isOpen}
+                returnFocus={!isManageAccessOpen}
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
@@ -402,6 +422,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             disabled={disabled}
                             aria-label="Menu"
                             data-testid={`ResourceViewActionMenu/${item.data.name}`}
+                            // Anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="resource-actions"
+                            data-tour-hint="Open the actions menu on a space"
                         >
                             <IconDots size={16} />
                         </ActionIcon>
@@ -457,6 +480,14 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             />
                             {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                         </>
+                    )}
+
+                    {isResourceViewDataAppItem(item) && (
+                        <AskAiAgentMenuItem
+                            projectUuid={projectUuid}
+                            dataAppUuid={item.data.uuid}
+                            clickedFrom="data_app_resource_action_menu"
+                        />
                     )}
 
                     {(userCanManage || canDuplicateDataApp) &&
@@ -626,6 +657,17 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 <Menu.Item
                                     component="button"
                                     role="menuitem"
+                                    // Scope-tour marker, beside the
+                                    // manage:PinnedItems check above. See
+                                    // scripts/scope-tours/generate.ts.
+                                    data-tour-scope="manage:PinnedItems"
+                                    data-tour-step="2"
+                                    data-tour-route="/projects/:projectUuid/spaces"
+                                    data-tour-label="Click Pin to homepage"
+                                    data-tour-title="Pin content to the homepage"
+                                    data-tour-interactive="true"
+                                    data-tour-docs="explore/homepage.mdx#pin-content:2"
+                                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-spaces"] >> [data-tour-anchor="resource-actions"]'
                                     leftSection={
                                         isPinned ? (
                                             <IconPinnedOff size={18} />
@@ -781,35 +823,37 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 </Menu.Item>
                             )}
 
-                            {allowDelete && (
-                                <>
-                                    <Menu.Divider />
+                            {allowDelete &&
+                                (item.type !== ResourceViewItemType.DASHBOARD ||
+                                    userCanDelete) && (
+                                    <>
+                                        <Menu.Divider />
 
-                                    <Menu.Item
-                                        component="button"
-                                        role="menuitem"
-                                        color="red"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconTrash}
-                                                size={18}
-                                            />
-                                        }
-                                        onClick={() => {
-                                            onAction({
-                                                type: ResourceViewItemAction.DELETE,
-                                                item,
-                                            });
-                                        }}
-                                    >
-                                        Delete{' '}
-                                        {item.type ===
-                                        ResourceViewItemType.DATA_APP
-                                            ? 'data app'
-                                            : item.type}
-                                    </Menu.Item>
-                                </>
-                            )}
+                                        <Menu.Item
+                                            component="button"
+                                            role="menuitem"
+                                            color="red"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconTrash}
+                                                    size={18}
+                                                />
+                                            }
+                                            onClick={() => {
+                                                onAction({
+                                                    type: ResourceViewItemAction.DELETE,
+                                                    item,
+                                                });
+                                            }}
+                                        >
+                                            Delete{' '}
+                                            {item.type ===
+                                            ResourceViewItemType.DATA_APP
+                                                ? 'data app'
+                                                : item.type}
+                                        </Menu.Item>
+                                    </>
+                                )}
                         </>
                     )}
                 </Menu.Dropdown>

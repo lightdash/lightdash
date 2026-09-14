@@ -3,6 +3,8 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    isMetric,
+    isNumericItem,
     isTableCalculation,
     type CustomDimension,
     type Dimension,
@@ -10,14 +12,36 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Group, Stack, SegmentedControl, Tooltip } from '@mantine/core';
+import { useMemo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
+import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 
 export const Layout: React.FC = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { addableItems, addFieldToQuery, isFieldPending } =
+        useAddFieldsToQuery();
+
+    const addableDimensions = useMemo(
+        () =>
+            addableItems.filter(
+                (item): item is Dimension | CustomDimension =>
+                    isDimension(item) || isCustomDimension(item),
+            ),
+        [addableItems],
+    );
+
+    const addableNumericMetrics = useMemo(
+        () =>
+            addableItems.filter(
+                (item): item is Metric =>
+                    isField(item) && isMetric(item) && isNumericItem(item),
+            ),
+        [addableItems],
+    );
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;
 
@@ -30,12 +54,22 @@ export const Layout: React.FC = () => {
         groupChange,
         groupRemove,
 
+        metricId,
         selectedMetric,
         metricChange,
 
         isDonut,
         toggleDonut,
     } = visualizationConfig.chartConfig;
+
+    const unusedAddableDimensions = addableDimensions.filter(
+        (item) => !groupFieldIds.includes(getItemId(item)),
+    );
+    const hasAnyDimension =
+        dimensions.length > 0 || addableDimensions.length > 0;
+    const allDimensionsGrouped =
+        groupFieldIds.length ===
+        dimensions.length + unusedAddableDimensions.length;
 
     return (
         <Stack>
@@ -45,47 +79,64 @@ export const Layout: React.FC = () => {
                         <Config.Heading>Groups</Config.Heading>
                         <Tooltip
                             disabled={
-                                !(
-                                    dimensions.length === 0 ||
-                                    groupFieldIds.length === dimensions.length
-                                )
+                                !(!hasAnyDimension || allDimensionsGrouped)
                             }
                             label={
-                                dimensions.length === 0
+                                !hasAnyDimension
                                     ? 'You must select at least one dimension to create a pie chart'
-                                    : dimensions.length === groupFieldIds.length
-                                      ? 'To add more groups you need to add more dimensions to your query'
+                                    : allDimensionsGrouped
+                                      ? 'All dimensions are already used as groups'
                                       : undefined
                             }
                         >
                             <AddButton
-                                onClick={groupAdd}
+                                onClick={() => {
+                                    const hasUnusedInQueryDimension =
+                                        dimensions.some(
+                                            (item) =>
+                                                !groupFieldIds.includes(
+                                                    getItemId(item),
+                                                ),
+                                        );
+                                    if (hasUnusedInQueryDimension) {
+                                        groupAdd();
+                                        return;
+                                    }
+                                    const nextDimension =
+                                        unusedAddableDimensions[0];
+                                    if (!nextDimension) return;
+                                    addFieldToQuery(nextDimension);
+                                    groupAdd(getItemId(nextDimension));
+                                }}
                                 disabled={
-                                    dimensions.length === 0 ||
-                                    groupFieldIds.length === dimensions.length
+                                    !hasAnyDimension || allDimensionsGrouped
                                 }
                             />
                         </Tooltip>
                     </Config.Group>
 
                     {groupFieldIds.map((dimensionId, index) => {
-                        if (!itemsMap || !dimensionId) return null;
+                        if (!dimensionId) return null;
 
-                        const dimension = itemsMap[dimensionId];
+                        const dimension = itemsMap?.[dimensionId];
 
                         const selectedDimension =
                             isDimension(dimension) ||
                             isCustomDimension(dimension)
                                 ? dimension
-                                : undefined;
+                                : addableDimensions.find(
+                                      (item) => getItemId(item) === dimensionId,
+                                  );
                         return (
                             <FieldSelect<CustomDimension | Dimension>
                                 key={index}
-                                disabled={dimensions.length === 0}
+                                disabled={!hasAnyDimension}
                                 clearable={index !== 0}
                                 placeholder="Select dimension"
                                 item={selectedDimension}
                                 items={dimensions}
+                                addItems={addableDimensions}
+                                loading={isFieldPending(dimensionId)}
                                 inactiveItemIds={groupFieldIds
                                     .filter((id): id is string => !!id)
                                     .filter((id) => id !== dimensionId)}
@@ -95,6 +146,15 @@ export const Layout: React.FC = () => {
                                     if (newField) {
                                         const newFieldId = getItemId(newField);
                                         if (newFieldId !== dimensionId) {
+                                            if (
+                                                !dimensions.some(
+                                                    (item) =>
+                                                        getItemId(item) ===
+                                                        newFieldId,
+                                                )
+                                            ) {
+                                                addFieldToQuery(newField);
+                                            }
                                             groupChange(
                                                 dimensionId,
                                                 newFieldId,
@@ -116,16 +176,39 @@ export const Layout: React.FC = () => {
                     <Config.Heading>Metric</Config.Heading>
 
                     <Tooltip
-                        disabled={numericMetrics && numericMetrics.length > 0}
+                        disabled={
+                            numericMetrics.length > 0 ||
+                            addableNumericMetrics.length > 0
+                        }
                         label="You must select at least one numeric metric to create a pie chart"
                     >
                         <Box>
                             <FieldSelect<Metric | TableCalculation>
                                 placeholder="Select metric"
-                                disabled={numericMetrics.length === 0}
-                                item={selectedMetric}
+                                disabled={
+                                    numericMetrics.length === 0 &&
+                                    addableNumericMetrics.length === 0
+                                }
+                                item={
+                                    selectedMetric ??
+                                    addableNumericMetrics.find(
+                                        (item) => getItemId(item) === metricId,
+                                    )
+                                }
                                 items={numericMetrics}
+                                addItems={addableNumericMetrics}
+                                loading={isFieldPending(metricId)}
                                 onChange={(newField) => {
+                                    if (
+                                        newField &&
+                                        !numericMetrics.some(
+                                            (item) =>
+                                                getItemId(item) ===
+                                                getItemId(newField),
+                                        )
+                                    ) {
+                                        addFieldToQuery(newField);
+                                    }
                                     if (newField && isField(newField))
                                         metricChange(getItemId(newField));
                                     else if (

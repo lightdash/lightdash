@@ -3,15 +3,14 @@ import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
+import { installProcessExitLogging } from './logging/processExit';
 import SchedulerApp from './SchedulerApp';
 import { getProcessTimezoneWarning } from './utils/processTimezone';
 
 // Winston (handleExceptions/handleRejections in winston.ts) owns structured logging
 // for both events. Logger uses exitOnError: false so rejections are tolerated.
 // We still want uncaught exceptions to terminate — process state may be corrupt.
-process.on('uncaughtException', () => {
-    process.exit(1);
-});
+installProcessExitLogging();
 
 (async () => {
     if (process.env.CI !== 'true') {

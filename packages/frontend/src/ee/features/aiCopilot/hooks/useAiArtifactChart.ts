@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     getDataAppVizChartFromArtifact,
+    getMergeCompiledSqlText,
     type AiChartArtifactConfig,
     type ApiAiAgentThreadMessageVizQuery,
     type PersistedRunQueryPayload,
@@ -86,6 +87,7 @@ export const useAiArtifactCompiledSql = ({
         isMergeArtifact ? vizQueryData : undefined,
     );
     return isMergeArtifact
-        ? (mergeCompiledSql?.sql ?? undefined)
+        ? ((mergeCompiledSql && getMergeCompiledSqlText(mergeCompiledSql)) ??
+              undefined)
         : compiledSql?.query;
 };

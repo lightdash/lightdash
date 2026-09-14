@@ -19,6 +19,48 @@ type ApiResponse<T = unknown> = {
     body: T;
 };
 
+// Errors raised before the request was sent, so any method is safe to retry.
+// The preview ingress can refuse connections for a few seconds.
+const CONNECTION_ERROR_CODES = new Set([
+    'ECONNREFUSED',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+]);
+const MAX_CONNECTION_ATTEMPTS = 6;
+
+function isConnectionError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const { cause } = error;
+    return (
+        typeof cause === 'object' &&
+        cause !== null &&
+        'code' in cause &&
+        typeof cause.code === 'string' &&
+        CONNECTION_ERROR_CODES.has(cause.code)
+    );
+}
+
+export async function fetchWithConnectionRetry(
+    url: string,
+    init?: RequestInit,
+): Promise<Response> {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            return await fetch(url, init);
+        } catch (error) {
+            if (
+                !isConnectionError(error) ||
+                attempt >= MAX_CONNECTION_ATTEMPTS
+            ) {
+                throw error;
+            }
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, attempt * 1000);
+            });
+        }
+    }
+}
+
 export class ApiClient {
     private cookies: Map<string, string> = new Map();
 
@@ -66,7 +108,7 @@ export class ApiClient {
             fetchHeaders.Cookie = cookie;
         }
 
-        const resp = await fetch(url, {
+        const resp = await fetchWithConnectionRetry(url, {
             method,
             headers: fetchHeaders,
             body: body != null ? JSON.stringify(body) : undefined,

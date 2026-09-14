@@ -58,6 +58,7 @@ const makeItem = (
     publishedAt: '2026-06-30T00:00:00.000Z',
     tags: [],
     changelog: '',
+    icon: null,
     minLightdashVersion: null,
     vizSchema: {
         fields: [
@@ -67,6 +68,7 @@ const makeItem = (
         colorPalette: null,
     },
     thumbnail: null,
+    thumbnailDark: null,
     screenshots: [],
     artifacts: {
         source: { path: 'source.zip', sha256: 'a'.repeat(64) },
@@ -142,21 +144,23 @@ describe('ChartTypeLibrarySection', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('shows the quiet offline state when the fetch fails with no cached data', () => {
+    it('shows the offline state with a retry when the fetch fails with no cached data', () => {
         setFlag(true);
+        const refetch = vi.fn();
         mockedUseRegistryChartTypes.mockReturnValue({
             data: undefined,
             isInitialLoading: false,
             error: { name: 'Error', message: 'boom' },
+            refetch,
         } as unknown as ReturnType<typeof useRegistryChartTypes>);
         renderSection();
 
         expect(screen.getByText('Chart type library')).toBeInTheDocument();
         expect(
-            screen.getByText(
-                'The chart type library is unavailable right now.',
-            ),
+            screen.getByText(/The chart type library can't be reached/),
         ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(refetch).toHaveBeenCalled();
     });
 
     it('keeps showing cached data through a background fetch error', () => {
@@ -168,9 +172,28 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         expect(
-            screen.queryByText(
-                'The chart type library is unavailable right now.',
+            screen.queryByText(/The chart type library can't be reached/),
+        ).not.toBeInTheDocument();
+    });
+
+    it('explains how library chart types become available to the organization', () => {
+        setFlag(true);
+        setRegistryData([makeItem({})]);
+
+        renderWithProviders(
+            <ChartTypeLibrarySection
+                projectUuid={PROJECT_UUID}
+                withHeader={false}
+            />,
+        );
+
+        expect(
+            screen.getByText(
+                'These chart types are available to add to your instance. Once installed, they can be used by anyone building charts in your organization.',
             ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Chart type library'),
         ).not.toBeInTheDocument();
     });
 
@@ -202,18 +225,31 @@ describe('ChartTypeLibrarySection', () => {
         renderSection();
 
         expect(screen.getByText('Chart type library')).toBeInTheDocument();
-        expect(screen.getByText('(4)')).toBeInTheDocument();
-        expect(screen.getAllByText('Official')).toHaveLength(4);
+        // Installed chart types — upgradable ones included — are hidden from
+        // the library; they live in the installed tab.
+        expect(screen.getByText('(2)')).toBeInTheDocument();
+        expect(screen.getAllByText('Built by Lightdash')).toHaveLength(2);
 
         expect(screen.getByText('Not installed chart')).toBeInTheDocument();
-        expect(screen.getByText('Installed chart')).toBeInTheDocument();
-        expect(screen.getByText('Installed v1.0.0')).toBeInTheDocument();
-        expect(screen.getByText('Update chart')).toBeInTheDocument();
-        expect(screen.getByText('Update available')).toBeInTheDocument();
+        expect(screen.queryByText('Installed chart')).not.toBeInTheDocument();
+        expect(screen.queryByText('Update chart')).not.toBeInTheDocument();
         expect(screen.getByText('Incompatible chart')).toBeInTheDocument();
         expect(
             screen.getByText('Requires newer Lightdash'),
         ).toBeInTheDocument();
+    });
+
+    it('shows a beta badge only on beta-channel charts', () => {
+        setFlag(true);
+        setRegistryData([
+            makeItem({ slug: 'a', name: 'Stable chart', channel: 'stable' }),
+            makeItem({ slug: 'b', name: 'Untagged chart' }),
+            makeItem({ slug: 'c', name: 'Beta chart', channel: 'beta' }),
+        ]);
+        renderSection();
+
+        expect(screen.getByText('Beta chart')).toBeInTheDocument();
+        expect(screen.getAllByText('Beta')).toHaveLength(1);
     });
 
     it('renders each card as a keyboard-focusable button', () => {
@@ -288,103 +324,34 @@ describe('ChartTypeLibrarySection', () => {
         expect(screen.getByRole('button', { name: 'Install' })).toBeDisabled();
     });
 
-    it('shows View in gallery for the installed state without gating on permission', async () => {
+    it('hides installed and upgradable chart types from the library list', () => {
         setFlag(true);
         setRegistryData([
+            makeItem({ slug: 'a', name: 'Available chart' }),
             makeItem({
-                slug: 'radial-gauge',
+                slug: 'b',
+                name: 'Installed chart',
                 state: 'installed',
                 installedAppUuid: 'app-1',
                 installedRegistryVersion: '1.0.0',
             }),
-        ]);
-        renderSection();
-
-        fireEvent.click(screen.getByText('Radial gauge'));
-
-        expect(
-            await screen.findByRole('button', { name: 'View in gallery' }),
-        ).toBeInTheDocument();
-    });
-
-    it('shows Uninstall for the installed state when the user can manage the app', async () => {
-        mockedUseCanEditDataApp.mockReturnValue(true);
-        setFlag(true);
-        setRegistryData([
             makeItem({
-                slug: 'radial-gauge',
-                state: 'installed',
-                installedAppUuid: 'app-1',
-                installedRegistryVersion: '1.0.0',
-            }),
-        ]);
-        renderSection();
-
-        fireEvent.click(screen.getByText('Radial gauge'));
-
-        expect(
-            await screen.findByRole('button', { name: 'Uninstall' }),
-        ).toBeInTheDocument();
-    });
-
-    it('hides Uninstall for the installed state without manage permission', async () => {
-        mockedUseCanEditDataApp.mockReturnValue(false);
-        setFlag(true);
-        setRegistryData([
-            makeItem({
-                slug: 'radial-gauge',
-                state: 'installed',
-                installedAppUuid: 'app-1',
-                installedRegistryVersion: '1.0.0',
-            }),
-        ]);
-        renderSection();
-
-        fireEvent.click(screen.getByText('Radial gauge'));
-
-        expect(
-            await screen.findByRole('button', { name: 'View in gallery' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Uninstall' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('shows Uninstall alongside Upgrade for the update_available state', async () => {
-        mockedUseCanEditDataApp.mockReturnValue(true);
-        defaultAbility.update([
-            {
-                action: 'create',
-                subject: 'DataApp',
-                conditions: {
-                    organizationUuid: DEFAULT_ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                },
-            },
-        ]);
-        setFlag(true);
-        setRegistryData([
-            makeItem({
-                slug: 'radial-gauge',
+                slug: 'c',
+                name: 'Upgradable chart',
                 state: 'update_available',
-                installedAppUuid: 'app-1',
+                installedAppUuid: 'app-2',
                 installedRegistryVersion: '0.9.0',
             }),
         ]);
         renderSection();
 
-        fireEvent.click(screen.getByText('Radial gauge'));
-
-        expect(
-            await screen.findByRole('button', { name: /Upgrade to v/ }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Uninstall' }),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Available chart')).toBeInTheDocument();
+        expect(screen.queryByText('Installed chart')).not.toBeInTheDocument();
+        expect(screen.queryByText('Upgradable chart')).not.toBeInTheDocument();
+        expect(screen.getByText('(1)')).toBeInTheDocument();
     });
 
-    it('confirms the uninstall modal and deletes the installed app', async () => {
-        mockedUseCanEditDataApp.mockReturnValue(true);
+    it('shows the all-installed empty state when every registry chart is installed', () => {
         setFlag(true);
         setRegistryData([
             makeItem({
@@ -396,44 +363,11 @@ describe('ChartTypeLibrarySection', () => {
         ]);
         renderSection();
 
-        fireEvent.click(screen.getByText('Radial gauge'));
-        fireEvent.click(
-            await screen.findByRole('button', { name: 'Uninstall' }),
-        );
-        fireEvent.click(
-            await screen.findByRole('button', { name: 'Uninstall chart type' }),
-        );
-
-        expect(mockedDeleteAppMutateAsync).toHaveBeenCalledWith({
-            projectUuid: PROJECT_UUID,
-            appUuid: 'app-1',
-            successTitle: 'Chart type uninstalled',
-        });
-    });
-
-    // useCanEditDataApp is mocked wholesale in this file (see the module mock
-    // above), so the CASL self-rule itself isn't exercised here — this pins
-    // that the real installing user is threaded through instead of a
-    // hardcoded null, which is what the self-rule needs to key off of.
-    it('threads the installed app creator through to the manage-permission check', async () => {
-        setFlag(true);
-        setRegistryData([
-            makeItem({
-                slug: 'radial-gauge',
-                state: 'installed',
-                installedAppUuid: 'app-1',
-                installedRegistryVersion: '1.0.0',
-                installedCreatedByUserUuid: 'installer-user-uuid',
-            }),
-        ]);
-        renderSection();
-
-        fireEvent.click(screen.getByText('Radial gauge'));
-
-        await screen.findByRole('button', { name: 'View in gallery' });
-        expect(mockedUseCanEditDataApp).toHaveBeenCalledWith(PROJECT_UUID, {
-            spaceUuid: null,
-            createdByUserUuid: 'installer-user-uuid',
-        });
+        expect(
+            screen.getByText(
+                'Every chart type from the library is installed — find them in your installed charts.',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.getByText('(0)')).toBeInTheDocument();
     });
 });

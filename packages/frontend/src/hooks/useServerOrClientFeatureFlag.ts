@@ -24,7 +24,7 @@ export const refetchFeatureFlags = (queryClient: QueryClient) =>
  */
 export const useServerFeatureFlag = (
     featureFlagId: string,
-    options?: { retry?: number | boolean },
+    options?: { retry?: number | boolean; enabled?: boolean },
 ) => {
     return useQuery<FeatureFlag, ApiError>(
         [FEATURE_FLAG_QUERY_KEY, featureFlagId],
@@ -38,6 +38,7 @@ export const useServerFeatureFlag = (
         },
         {
             retry: options?.retry ?? false,
+            enabled: options?.enabled ?? true,
             refetchOnMount: false,
         },
     );

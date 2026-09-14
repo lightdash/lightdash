@@ -18,6 +18,7 @@ import {
     normalizeDateZoomConfig,
     normalizeGranularityParam,
     stripOverridesForLockedFiltersOnTab,
+    type AdditionalMetric,
     type ChartZoomableField,
     type Dashboard,
     type DashboardFilterableField,
@@ -224,6 +225,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
+    const [dashboardCustomMetrics, setDashboardCustomMetrics] = useState<
+        AdditionalMetric[]
+    >([]);
+    const [haveCustomMetricsChanged, setHaveCustomMetricsChanged] =
+        useState<boolean>(false);
     const [haveTabsChanged, setHaveTabsChanged] = useState<boolean>(false);
     const [dashboardTabs, setDashboardTabsInternal] = useState<
         Dashboard['tabs']
@@ -481,6 +487,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         currentDashboardConfig?.dateZoomGranularities,
         defaultStandardGranularities,
     ]);
+
+    // Seed the staged custom-metrics registry from config; keep user edits
+    // until save/cancel resets the changed flag.
+    useEffect(() => {
+        if (haveCustomMetricsChanged) return;
+        setDashboardCustomMetrics(currentDashboardConfig?.customMetrics ?? []);
+    }, [currentDashboardConfig?.customMetrics, haveCustomMetricsChanged]);
 
     // Sync default date zoom granularity from dashboard config
     useEffect(() => {
@@ -1823,6 +1836,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setDashboardTiles,
         haveTilesChanged,
         setHaveTilesChanged,
+        dashboardCustomMetrics,
+        setDashboardCustomMetrics,
+        haveCustomMetricsChanged,
+        setHaveCustomMetricsChanged,
         haveTabsChanged,
         setHaveTabsChanged,
         dashboardTabs,

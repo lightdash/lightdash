@@ -37,7 +37,11 @@ import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
-import { INSTALL_ACTIONS, summarisePrUrl } from './pullRequestCardUtils';
+import {
+    INSTALL_ACTIONS,
+    summarisePrUrl,
+    isBitbucketPullRequest,
+} from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { WritebackDiffModal } from './WritebackDiffModal';
 
@@ -135,14 +139,16 @@ export const PullRequestViewMenu: FC<{
                     >
                         Pull request
                     </Menu.Item>
-                    <Menu.Item
-                        leftSection={
-                            <MantineIcon icon={IconFileDiff} size={14} />
-                        }
-                        onClick={() => setDiffOpened(true)}
-                    >
-                        Diff
-                    </Menu.Item>
+                    {!isBitbucketPullRequest(prUrl) && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconFileDiff} size={14} />
+                            }
+                            onClick={() => setDiffOpened(true)}
+                        >
+                            Diff
+                        </Menu.Item>
+                    )}
                 </Menu.Dropdown>
             </Menu>
             <WritebackDiffModal
@@ -321,11 +327,12 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
+    const isBitbucket = isBitbucketPullRequest(prUrl);
     const ciCommitSha =
         metadata.status === 'success' ? (metadata.commitSha ?? null) : null;
     const { data: ciChecks } = usePullRequestCiChecks(
         projectUuid,
-        prUrl,
+        isBitbucket ? null : prUrl,
         ciCommitSha,
     );
     const { mutate: merge, isLoading: isMerging } =
@@ -356,9 +363,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 />
             );
         }
-        // The project's dbt connection isn't GitHub/GitLab, so there's no app to
-        // install — point the user at the connection settings to switch it.
-        if (metadata.errorCode === 'unsupported_source_control') {
+        if (
+            metadata.errorCode === 'unsupported_source_control' ||
+            metadata.errorCode === 'bitbucket_token_missing'
+        ) {
             return (
                 <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
@@ -373,13 +381,16 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         <Stack gap="xs">
                             <Stack gap={2}>
                                 <Text size="xs" fw={500}>
-                                    Source control not supported
+                                    {metadata.errorCode ===
+                                    'bitbucket_token_missing'
+                                        ? 'Configure Bitbucket API token'
+                                        : 'Source control not supported'}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    AI writeback needs this project's dbt
-                                    connection to use GitHub or GitLab. Update
-                                    the connection to open pull requests from
-                                    chat.
+                                    {metadata.errorCode ===
+                                    'bitbucket_token_missing'
+                                        ? 'Update the API token in this project connection. It needs repository and pull request read/write permissions in Bitbucket Cloud.'
+                                        : 'AI writeback needs a GitHub, GitLab or Bitbucket Cloud dbt connection. Update the connection to open pull requests from chat.'}
                                 </Text>
                             </Stack>
                             <Group gap={0}>
@@ -452,8 +463,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
             );
         }
         // The thread's pull request was already merged or closed, so further
-        // edits can't be added here. Not a failure — guide the user to a new
-        // thread rather than show a red error.
+        // edits require a new pull request in the same thread.
         if (metadata.errorCode === 'pull_request_not_open') {
             return (
                 <Paper p="sm" radius="md">
@@ -476,7 +486,8 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             <Text size="xs" c="dimmed">
                                 Its pull request has already been merged or
                                 closed, so further changes can't be added here.
-                                Start a new thread to request more changes.
+                                Ask to open a new pull request for further
+                                changes.
                             </Text>
                         </Stack>
                     </Group>
@@ -658,49 +669,53 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             projectUuid={projectUuid}
                             prUrl={metadata.prUrl}
                             previewUrl={
-                                isPreviewDeploySetup
+                                isPreviewDeploySetup || isBitbucket
                                     ? null
                                     : (metadata.previewUrl ?? null)
                             }
                             commitSha={metadata.commitSha ?? null}
                         />
-                        <PullRequestActionButtons
-                            ciChecks={ciChecks ?? null}
-                            isMerging={isMerging}
-                            isClosing={isClosing}
-                            onMerge={() =>
-                                merge(
-                                    {
-                                        prUrl: resolvedPrUrl,
-                                        sha: metadata.commitSha ?? null,
-                                    },
-                                    // Once merged, ask the agent to assess and
-                                    // repoint affected saved content. Injected as
-                                    // a hidden turn (filtered from the chat by
-                                    // AgentChatDisplay) so only the agent's
-                                    // proactive reply shows. Only when the agent
-                                    // can edit content — otherwise it can't act
-                                    // on the request.
-                                    canMigrateContent
-                                        ? {
-                                              onSuccess: () =>
-                                                  sendThreadMessage({
-                                                      prompt: POST_MERGE_MIGRATION_PROMPT,
-                                                      hidden: true,
-                                                  }),
-                                          }
-                                        : undefined,
-                                )
-                            }
-                            onClose={() => close({ prUrl: resolvedPrUrl })}
-                        />
+                        {!isBitbucket && (
+                            <PullRequestActionButtons
+                                ciChecks={ciChecks ?? null}
+                                isMerging={isMerging}
+                                isClosing={isClosing}
+                                onMerge={() =>
+                                    merge(
+                                        {
+                                            prUrl: resolvedPrUrl,
+                                            sha: metadata.commitSha ?? null,
+                                        },
+                                        // Once merged, ask the agent to assess and
+                                        // repoint affected saved content. Injected as
+                                        // a hidden turn (filtered from the chat by
+                                        // AgentChatDisplay) so only the agent's
+                                        // proactive reply shows. Only when the agent
+                                        // can edit content — otherwise it can't act
+                                        // on the request.
+                                        canMigrateContent
+                                            ? {
+                                                  onSuccess: () =>
+                                                      sendThreadMessage({
+                                                          prompt: POST_MERGE_MIGRATION_PROMPT,
+                                                          hidden: true,
+                                                      }),
+                                              }
+                                            : undefined,
+                                    )
+                                }
+                                onClose={() => close({ prUrl: resolvedPrUrl })}
+                            />
+                        )}
                     </Box>
                 </Box>
-                <PullRequestCiChecks
-                    prUrl={metadata.prUrl}
-                    ciChecks={ciChecks ?? null}
-                    hasMergeAction
-                />
+                {!isBitbucket && (
+                    <PullRequestCiChecks
+                        prUrl={metadata.prUrl}
+                        ciChecks={ciChecks ?? null}
+                        hasMergeAction
+                    />
+                )}
             </Stack>
         </Paper>
     );

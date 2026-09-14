@@ -33,6 +33,7 @@ import {
     assertValidDimensionRequiredAttribute,
     findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
+    findUnnestCrossProductWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getJoinedTables,
@@ -948,6 +949,51 @@ describe('applyLimitToSqlQuery', () => {
 });
 
 describe('findMetricInflationWarnings', () => {
+    it('does not ask unnested tables for a primary key but still flags parent metrics', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                sessions: { primaryKey: ['id'] },
+                sessions__hits: {
+                    nestedFrom: { parentTable: 'sessions', columnPath: 'hits' },
+                },
+            },
+            possibleJoins: [
+                {
+                    table: 'sessions__hits',
+                    sqlOn: 'TRUE',
+                    compiledSqlOn: 'TRUE',
+                    tablesReferences: ['sessions'],
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                },
+            ],
+            baseTable: 'sessions',
+            joinedTables: new Set(['sessions__hits']),
+            metrics: [
+                {
+                    name: 'total_pageviews',
+                    type: MetricType.SUM,
+                    table: 'sessions',
+                    label: 'Total pageviews',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'sessions__hits',
+                    label: 'Total revenue',
+                },
+            ],
+        });
+
+        expect(
+            result.some((warning) =>
+                warning.message.includes('missing a primary key definition'),
+            ),
+        ).toBe(false);
+        expect(result.map((warning) => warning.fields)).toEqual([
+            ['sessions_total_pageviews'],
+        ]);
+    });
+
     it('should return no warnings when there are no metrics', () => {
         const result = findMetricInflationWarnings({
             tables: {
@@ -1596,6 +1642,77 @@ describe('getJoinedTables', () => {
         const result = getJoinedTables(explore, ['orders', 'users']);
 
         expect(result).toContain('intermediary_table');
+    });
+});
+
+describe('findUnnestCrossProductWarnings', () => {
+    const tables = {
+        sessions: {},
+        sessions__hits: {
+            nestedFrom: { parentTable: 'sessions', columnPath: 'hits' },
+        },
+        sessions__hits__product: {
+            nestedFrom: {
+                parentTable: 'sessions__hits',
+                columnPath: 'hits.product',
+            },
+        },
+        sessions__hits__promotion: {
+            nestedFrom: {
+                parentTable: 'sessions__hits',
+                columnPath: 'hits.promotion',
+            },
+        },
+        sessions__customDimensions: {
+            nestedFrom: {
+                parentTable: 'sessions',
+                columnPath: 'customDimensions',
+            },
+        },
+        users: {},
+    };
+
+    it('does not warn for a single ancestry chain of unnests', () => {
+        expect(
+            findUnnestCrossProductWarnings({
+                tables,
+                joinedTables: new Set([
+                    'sessions__hits',
+                    'sessions__hits__product',
+                ]),
+            }),
+        ).toEqual([]);
+    });
+
+    it('does not warn when only regular joins are present', () => {
+        expect(
+            findUnnestCrossProductWarnings({
+                tables,
+                joinedTables: new Set(['users', 'sessions__hits']),
+            }),
+        ).toEqual([]);
+    });
+
+    it('warns once naming the independent unnests, not their shared ancestors', () => {
+        const result = findUnnestCrossProductWarnings({
+            tables,
+            joinedTables: new Set([
+                'sessions__hits',
+                'sessions__hits__product',
+                'sessions__hits__promotion',
+                'sessions__customDimensions',
+            ]),
+        });
+        expect(result).toHaveLength(1);
+        expect(result[0].tables).toEqual([
+            'sessions__hits__product',
+            'sessions__hits__promotion',
+            'sessions__customDimensions',
+        ]);
+        expect(result[0].message).toContain(
+            'Repeated columns **"sessions__hits__product"**, **"sessions__hits__promotion"** and **"sessions__customDimensions"** are unnested together',
+        );
+        expect(result[0].message).not.toContain('"sessions__hits"');
     });
 });
 

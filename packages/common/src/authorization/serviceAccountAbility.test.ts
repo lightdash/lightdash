@@ -25,6 +25,36 @@ const buildAbility = (scopes: ServiceAccountScope[]) => {
     return builder.build();
 };
 
+describe('roadmap management', () => {
+    it('grants legacy org admins management only within their organization', () => {
+        const ability = buildAbility([ServiceAccountScope.ORG_ADMIN]);
+        expect(
+            ability.can(
+                'manage',
+                subject('Roadmap', { organizationUuid: ORG }),
+            ),
+        ).toBe(true);
+        expect(
+            ability.can(
+                'manage',
+                subject('Roadmap', { organizationUuid: 'other-org' }),
+            ),
+        ).toBe(false);
+        expect(
+            buildAbility([ServiceAccountScope.ORG_READ]).can(
+                'manage',
+                subject('Roadmap', { organizationUuid: ORG }),
+            ),
+        ).toBe(false);
+        expect(
+            buildAbility([ServiceAccountScope.ORG_EDIT]).can(
+                'manage',
+                subject('Roadmap', { organizationUuid: ORG }),
+            ),
+        ).toBe(false);
+    });
+});
+
 describe('delegation permission footprints', () => {
     it.each(Object.values(ServiceAccountScope))(
         'derives %s from the permissions emitted by the ability builder',

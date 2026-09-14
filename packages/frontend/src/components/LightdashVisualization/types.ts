@@ -89,6 +89,7 @@ export type VisualizationCartesianConfigProps =
         >;
         colorPalette: string[];
         tableCalculationsMetadata?: TableCalculationMetadata[];
+        unsavedMetricQuery?: MetricQuery;
     };
 
 // Funnel
@@ -134,6 +135,7 @@ export type VisualizationConfigPieProps =
         itemsMap: ItemsMap | undefined;
         colorPalette: string[];
         tableCalculationsMetadata?: TableCalculationMetadata[];
+        unsavedMetricQuery?: MetricQuery;
     };
 
 // Table

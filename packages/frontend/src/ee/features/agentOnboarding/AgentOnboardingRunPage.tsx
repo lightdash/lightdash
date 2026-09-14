@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import {
     Alert,
-    Badge,
     Box,
     Button,
     Group,
@@ -44,16 +43,22 @@ import {
 } from './utils';
 import { setWatchedAgentOnboardingRun } from './watchedRunStore';
 
-const STATUS_CONFIG: Record<
-    AgentOnboardingRunStatus,
-    { label: string; color: string }
-> = {
-    queued: { label: 'Queued', color: 'gray' },
-    running: { label: 'Running', color: 'blue' },
-    completed: { label: 'Complete', color: 'green' },
-    failed: { label: 'Needs attention', color: 'red' },
-    cancelled: { label: 'Cancelled', color: 'gray' },
+const STATUS_LABELS: Record<AgentOnboardingRunStatus, string> = {
+    queued: 'Queued',
+    running: 'Running',
+    completed: 'Complete',
+    failed: 'Needs attention',
+    cancelled: 'Cancelled',
 };
+
+const RunStatus: FC<{ status: AgentOnboardingRunStatus }> = ({ status }) => (
+    <Group gap={6} wrap="nowrap" pt={4}>
+        <span className={classes.statusDot} data-status={status} />
+        <Text fz="sm" fw={500} c="dimmed">
+            {STATUS_LABELS[status]}
+        </Text>
+    </Group>
+);
 
 const getStatusMessage = (run: AgentOnboardingRun): string => {
     switch (run.status) {
@@ -96,7 +101,8 @@ const RunActions: FC<{
         return (
             <Group gap="xs">
                 <Button
-                    variant="default"
+                    variant="light"
+                    color="red"
                     leftSection={<MantineIcon icon={IconPlayerStop} />}
                     onClick={() => void onCancel()}
                     loading={isCancelling}
@@ -196,7 +202,6 @@ const AgentOnboardingRunPage: FC = () => {
     }
 
     const run = runQuery.data;
-    const statusConfig = STATUS_CONFIG[run.status];
     const openProject = () => {
         void navigate(`/projects/${run.projectUuid}`);
     };
@@ -245,25 +250,33 @@ const AgentOnboardingRunPage: FC = () => {
                 className={classes.page}
                 mx="calc(-1 * var(--mantine-spacing-md))"
                 my="calc(-1 * var(--mantine-spacing-md))"
-                p="xl"
+                p="lg"
             >
-                <Stack gap="lg" className={classes.content}>
+                <Stack gap="md" className={classes.content}>
                     <Group justify="space-between" align="flex-start">
-                        <Stack gap={6}>
-                            <Group gap="sm">
+                        <Stack gap={4}>
+                            <Group gap="sm" align="flex-start">
                                 <Title order={2}>
                                     Building your Lightdash project
                                 </Title>
-                                <Badge color={statusConfig.color}>
-                                    {statusConfig.label}
-                                </Badge>
+                                <RunStatus status={run.status} />
                             </Group>
                             {run.status !== 'failed' ? (
-                                <Text c="dimmed">
+                                <Text c="dimmed" fz="sm">
                                     {isCancellationRequested &&
                                     !isAgentOnboardingRunTerminal(run.status)
                                         ? 'Stopping the setup run…'
                                         : getStatusMessage(run)}
+                                    {!isAgentOnboardingRunTerminal(
+                                        run.status,
+                                    ) && !isCancellationRequested ? (
+                                        <>
+                                            {' '}
+                                            <AgentOnboardingDemoOffer
+                                                run={run}
+                                            />
+                                        </>
+                                    ) : null}
                                 </Text>
                             ) : null}
                         </Stack>
@@ -281,10 +294,6 @@ const AgentOnboardingRunPage: FC = () => {
                         />
                     </Group>
 
-                    {!isAgentOnboardingRunTerminal(run.status) ? (
-                        <AgentOnboardingDemoOffer run={run} />
-                    ) : null}
-
                     {run.status === 'failed' ? (
                         <Alert
                             color="red"
@@ -295,34 +304,44 @@ const AgentOnboardingRunPage: FC = () => {
                         </Alert>
                     ) : null}
 
-                    <Paper radius="md" className={classes.progressActivityCard}>
-                        <Box p="lg">
+                    <Box className={classes.workspace}>
+                        <Paper className={classes.panel}>
+                            <Box className={classes.panelHeader}>
+                                <Title order={5}>Progress</Title>
+                            </Box>
                             <AgentOnboardingProgress run={run} />
-                        </Box>
-                        <AgentOnboardingActivityPanel
-                            key={run.agentOnboardingRunUuid}
-                            events={run.events}
-                            hasGeneratedFiles={run.files.length > 0}
-                        />
-                    </Paper>
-
-                    <Paper radius="md" className={classes.workspace}>
-                        <Box className={classes.workspacePanel}>
-                            <Group h={48} px="md" justify="space-between">
-                                <Text fw={600} fz="sm">
-                                    Generated files
-                                </Text>
-                                <Text c="dimmed" fz="xs">
-                                    {run.files.length} files
-                                </Text>
-                            </Group>
-                            <AgentOnboardingFileBrowser
-                                projectUuid={run.projectUuid}
-                                runUuid={run.agentOnboardingRunUuid}
-                                files={run.files}
+                            <AgentOnboardingActivityPanel
+                                key={run.agentOnboardingRunUuid}
+                                events={run.events}
                             />
-                        </Box>
-                    </Paper>
+                        </Paper>
+
+                        <Paper className={classes.panel}>
+                            <Box className={classes.panelHeader}>
+                                <Title order={5}>Generated files</Title>
+                                <Text c="dimmed" fz="xs">
+                                    {run.files.length === 1
+                                        ? '1 file'
+                                        : `${run.files.length} files`}
+                                </Text>
+                            </Box>
+                            <Box className={classes.panelBody}>
+                                <AgentOnboardingFileBrowser
+                                    projectUuid={run.projectUuid}
+                                    runUuid={run.agentOnboardingRunUuid}
+                                    files={run.files}
+                                    isLive={
+                                        !isAgentOnboardingRunTerminal(
+                                            run.status,
+                                        )
+                                    }
+                                    latestActivity={
+                                        run.events.at(-1)?.message ?? null
+                                    }
+                                />
+                            </Box>
+                        </Paper>
+                    </Box>
                 </Stack>
             </Box>
         </Page>

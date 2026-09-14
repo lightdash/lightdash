@@ -109,6 +109,8 @@ export type PreAggregateSource = {
     externalTable?: string;
 };
 
+export type CustomMetaValue = string | number | boolean;
+
 export type Explore = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
@@ -140,6 +142,7 @@ export type Explore = {
         owner?: string; // model owner email (inherited by metrics)
     };
     aiHint?: string | string[];
+    customMeta?: Record<string, CustomMetaValue>;
     parameters?: LightdashProjectConfig['parameters'];
     /** Project `granularity_labels` overrides, keyed by TimeFrames. Consumed
      *  by the date zoom to relabel standard granularities. */
@@ -197,6 +200,7 @@ type SummaryExploreFields =
     | 'preAggregateSource'
     | 'externalSource'
     | 'aiHint'
+    | 'customMeta'
     | 'warnings';
 type SummaryExploreErrorFields =
     | 'name'
@@ -206,6 +210,7 @@ type SummaryExploreErrorFields =
     | 'groups'
     | 'type'
     | 'aiHint'
+    | 'customMeta'
     | 'errors';
 type SummaryExtraFields = {
     description?: string;

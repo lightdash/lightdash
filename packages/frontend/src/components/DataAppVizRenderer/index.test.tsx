@@ -80,6 +80,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid' }),
 }));
+vi.mock('../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
+}));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ embedToken: mocks.embedToken.current }),
 }));
@@ -358,12 +361,12 @@ describe('DataAppVizRenderer', () => {
         [
             'metadata',
             404,
-            'This custom chart type could not be found. It may have been deleted.',
+            'The chart type this chart was based on has been removed.',
         ],
         [
             'token',
             404,
-            'This custom chart type could not be found. It may have been deleted.',
+            'The chart type this chart was based on has been removed.',
         ],
     ])(
         'maps a %s HTTP %s response to its explicit state',
@@ -435,7 +438,7 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
-    it('pins an unsaved project chart type without requiring an SDK capability announcement', () => {
+    it('pins an unsaved custom chart type without requiring an SDK capability announcement', () => {
         mocks.dataAppVizVersion.current = undefined;
         mocks.vizContextOverrides.current = {
             savedChartUuid: undefined,
@@ -477,7 +480,7 @@ describe('DataAppVizRenderer', () => {
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
 
-    it('keeps an unchanged edited chart on its persisted project chart type version', () => {
+    it('keeps an unchanged edited chart on its persisted custom chart type version', () => {
         mocks.metadata.current = { ...readyMetadata(), version: 3 };
         mocks.dataAppVizVersion.current = 3;
         mocks.vizContextOverrides.current = {

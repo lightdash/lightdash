@@ -35,6 +35,7 @@ import {
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
+import classes from './Invite.module.css';
 
 interface WelcomeCardProps {
     email: string | undefined;
@@ -161,7 +162,12 @@ const OneClickCard: FC<OneClickCardProps> = ({
                     ? 'One click and we’ll take you straight to connecting the data warehouse.'
                     : 'One click to join your team.'}
             </Text>
-            <Button fullWidth loading={isLoading} onClick={onActivate}>
+            <Button
+                fullWidth
+                loading={isLoading}
+                onClick={onActivate}
+                classNames={{ label: classes.oneClickLabel }}
+            >
                 Continue as {email}
             </Button>
         </Stack>

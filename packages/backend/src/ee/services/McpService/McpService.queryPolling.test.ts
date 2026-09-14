@@ -12,6 +12,7 @@ import * as Sentry from '@sentry/node';
 import { z, type ZodRawShape } from 'zod';
 import * as runQueryTool from '../ai/tools/runQuery';
 import { McpService, McpToolName } from './McpService';
+import { makeMcpServerOptions } from './McpService.mock';
 
 type RegisteredToolCallback = (
     args: Record<string, unknown>,
@@ -23,6 +24,7 @@ const mockRegisteredMcpToolInputSchemas = new Map<string, ZodRawShape>();
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
@@ -35,6 +37,10 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
             return {
+                server: {
+                    registerCapabilities: vi.fn(),
+                    setRequestHandler: vi.fn(),
+                },
                 registerResource: vi.fn(),
                 registerPrompt: vi.fn(),
                 registerTool: vi.fn(
@@ -599,15 +605,13 @@ const makeMcpService = ({
     // re-register here with run_sql enabled — these tests exercise the tool.
     mockRegisteredMcpTools.clear();
     mockRegisteredMcpToolInputSchemas.clear();
-    service.setupHandlers({
-        projectPinned: false,
-        aiWritebackEnabled: false,
-        mcpContentWritesEnabled: true,
-        scheduledDeliveryEnabled: true,
-        runSqlEnabled: true,
-        runMetricQueryEnabled: true,
-        filterExpressionsEnabled,
-    });
+    service.setupHandlers(
+        makeMcpServerOptions({
+            runSqlEnabled: true,
+            runMetricQueryEnabled: true,
+            filterExpressionsEnabled,
+        }),
+    );
 
     return {
         aiAgentService,
@@ -668,6 +672,68 @@ const getTextResult = (result: unknown) => {
 const parseTextResult = (result: unknown) =>
     JSON.parse(getTextResult(result) || '{}') as Record<string, unknown>;
 
+describe('MCP catalogue audit', () => {
+    it.each([undefined, projectUuid])(
+        'preserves flat catalogue metadata for pinnedProjectUuid=%s',
+        async (pinnedProjectUuid) => {
+            const { service, mcpToolCallModel } = makeMcpService();
+            service.recordToolList({
+                catalogue: makeMcpServerOptions(
+                    { runSqlEnabled: true, filterExpressionsEnabled: true },
+                    pinnedProjectUuid,
+                ),
+                authInfo: {
+                    token: 'test-token',
+                    clientId: 'test-client',
+                    scopes: [],
+                    extra: {
+                        ...extra.authInfo.extra,
+                        headerProjectUuid: pinnedProjectUuid,
+                    },
+                },
+                durationMs: 1,
+            });
+            await vi.waitFor(() => {
+                expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        tool_name: 'tools/list',
+                        result_metadata: {
+                            catalogue: {
+                                projectPinned: pinnedProjectUuid !== undefined,
+                                mcpContentWritesEnabled: true,
+                                scheduledDeliveryEnabled: true,
+                                runSqlEnabled: true,
+                                runMetricQueryEnabled: false,
+                                filterExpressionsEnabled: true,
+                            },
+                        },
+                    }),
+                );
+            });
+        },
+    );
+});
+
+const expectPollingInstructions = (result: unknown) => {
+    const {
+        content: [{ text }],
+    } = z
+        .object({
+            content: z.tuple([
+                z.object({ type: z.literal('text'), text: z.string() }),
+            ]),
+        })
+        .parse(result);
+    expect(text).toContain(
+        `Wait 1000 ms, then call get_query_result with queryUuid: ${queryUuid}`,
+    );
+    expect(text).toContain('Do not resubmit the original query.');
+    expect(text).toContain(
+        'If a polling request times out or its connection fails, retry get_query_result with the same queryUuid.',
+    );
+    expect(text).toContain('not the MCP wait window');
+};
+
 describe('MCP async query polling', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.clear();
@@ -714,6 +780,7 @@ describe('MCP async query polling', () => {
                 },
             },
         });
+        expectPollingInstructions(result);
     });
 
     it('returns sqlRunnerUrl from a completed run_sql result', async () => {
@@ -1351,6 +1418,7 @@ describe('MCP async query polling', () => {
                 },
             },
         });
+        expectPollingInstructions(result);
     });
 
     it('returns exploreUrl from a completed run_metric_query result', async () => {
@@ -1473,6 +1541,11 @@ describe('MCP async query polling', () => {
         expect(
             asyncQueryService.getRawAsyncQueryResults,
         ).not.toHaveBeenCalled();
+        expect(asyncQueryService.executeAsyncSqlQuery).not.toHaveBeenCalled();
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).not.toHaveBeenCalled();
+        expectPollingInstructions(result);
     });
 
     it('returns final SQL rows with the original limit when get_query_result sees readiness during its wait', async () => {
@@ -2012,6 +2085,8 @@ describe('MCP async query polling', () => {
                 },
             },
         });
+        expect(JSON.stringify(result)).not.toContain('retry get_query_result');
+        expect(JSON.stringify(result)).not.toContain('Wait 1000 ms');
         expect(asyncQueryService.getAsyncQueryHistory).toHaveBeenCalledTimes(1);
         expect(
             asyncQueryService.pollQueryHistoryUntilDeadline,

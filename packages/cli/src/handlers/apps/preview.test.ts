@@ -238,7 +238,7 @@ describe('resolvePreviewTarget', () => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         await writeBundleToDir(dir, previewBundle);
         await expect(resolvePreviewTarget({ cwd: dir })).rejects.toThrow(
-            /Pass '--project <uuid>'/,
+            /Pass '--project <uuid or slug>'/,
         );
     });
 

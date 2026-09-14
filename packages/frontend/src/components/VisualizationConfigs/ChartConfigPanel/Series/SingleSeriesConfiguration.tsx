@@ -79,7 +79,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     return (
         <Box>
             <Group justify="space-between">
-                <Group gap="two" ref={ref} className="ld-grow">
+                <Group gap="two" ref={ref} flex={1}>
                     {isGrouped && (
                         <GrabIcon
                             dragHandleProps={dragHandleProps}
@@ -120,7 +120,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     )}
                     {!isSingle && isGrouped && (
-                        <Box className="ld-grow">
+                        <Box flex={1}>
                             <EditableText
                                 disabled={series.hidden}
                                 defaultValue={seriesValue}
@@ -162,7 +162,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     )}
                 </Group>
             </Group>
-            <Collapse in={!isCollapsable || isOpen || false}>
+            <Collapse expanded={!isCollapsable || isOpen || false}>
                 <Stack ml="lg" gap="xs">
                     <Group gap="xs" wrap="nowrap">
                         <ChartTypeSelect

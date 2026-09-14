@@ -47,6 +47,7 @@ export { getPermissionsFromAbilityRules } from './authorization/abilityPermissio
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
 export { canMutateVerifiedContent } from './authorization/canMutateVerifiedContent';
+export { getDashboardDeleteAccess } from './authorization/getDashboardDeleteAccess';
 export {
     defineUserAbility,
     getUserAbilityBuilder,
@@ -54,6 +55,7 @@ export {
     type ProjectAbilityProfile,
 } from './authorization/index';
 export * from './authorization/jwtAbility';
+export * from './authorization/embedPermissions';
 export { getOrganizationMemberRolePermissions } from './authorization/organizationMemberAbility';
 export { projectMemberAbilities } from './authorization/projectMemberAbility';
 export * from './authorization/parseAccount';
@@ -68,6 +70,7 @@ export * from './authorization/types';
 export * from './compiler/compilationReport';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
+export * from './compiler/joinInflation';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
 export * from './compiler/referenceLookup';
@@ -81,7 +84,8 @@ export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEdito
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
 export * from './dbt/projectMergedManifest';
-export * from './dbt/validation';
+// './dbt/validation' is not re-exported: it eagerly imports ~3.6 MB of dbt JSON
+// schemas. Import it from '@lightdash/common/dbt/validation' instead.
 export * from './ee';
 export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';
@@ -152,11 +156,13 @@ export * from './types/funnel';
 export * from './types/gdrive';
 export * from './types/gitIntegration';
 export * from './types/groups';
+export * from './types/jira';
 export * from './types/linear';
 export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/lightdashModel';
 export * from './types/lightdashProjectConfig';
+export * from './types/managedSignIn';
 export * from './types/mergeQuery';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
@@ -219,6 +225,9 @@ export {
     RedshiftAuthenticationType,
     resolveDbtVersion,
     playgroundProjectTriggers,
+    fillOmittedSecrets,
+    isMissingBigqueryKeyfile,
+    omitEmptySecrets,
     sensitiveCredentialsFieldNames,
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
@@ -229,10 +238,16 @@ export {
 } from './types/projects';
 export type {
     AgentSqlScope,
+    ApiCreateTrainingPreviewResponse,
     ApiEnsurePlaygroundProjectResponse,
+    ApiEnableLearnResponse,
+    ApiLearnAccessResponse,
+    EnableLearnResults,
+    LearnAccess,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
     EnsurePlaygroundProjectRequest,
+    CreateTrainingPreviewResults,
     EnsurePlaygroundProjectResults,
     PlaygroundProjectTrigger,
     AthenaCredentials,
@@ -314,6 +329,7 @@ export type {
     UpdateAgentSqlScope,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
+    CreateWarehouseCredentialsWithOptionalSecrets,
     WarehouseCredentials,
     WarehouseLocation,
 } from './types/projects';
@@ -340,6 +356,7 @@ export * from './types/space';
 export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
+export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';
 export * from './types/timeFrames';
@@ -668,11 +685,14 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
     jobTitle: z.string().min(0),
+    // Only collected from the person creating the organization; invited
+    // members skip it (their onboarding omits this field from the schema).
     howDidYouHearAboutUs: z
         .string()
         .trim()
         .min(1, 'Please let us know how you heard about Lightdash')
-        .max(1000),
+        .max(1000)
+        .optional(),
     enableEmailDomainAccess: z.boolean().default(false),
     isMarketingOptedIn: z.boolean().default(true),
     isTrackingAnonymized: z.boolean().default(false),
@@ -1216,3 +1236,10 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
         ],
     },
 ] as const;
+
+export * from './compiler/compileLightdashModels';
+
+export * from './lightdash/LightdashModelEditor';
+export * from './lightdash/convertCustomMetricToLightdash';
+export * from './types/analyticsProject';
+export * from './types/recentContent';

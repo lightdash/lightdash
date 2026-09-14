@@ -260,10 +260,12 @@ PoP can power the comparison value in big number charts, showing the delta from 
 1. Create the base chart in the Lightdash UI
 2. Click on a metric column header in the results table
 3. Select **Add period comparison**
-4. Choose the time dimension and offset, then save
+4. Set the offset, then click **Add comparison**. If only one eligible time dimension is available, it is selected automatically and shown as text rather than a dropdown. If multiple dimensions share the finest supported granularity, choose one from the **Time dimension** dropdown.
 5. Read the chart JSON through content tools
 6. The JSON will contain the complete `additionalMetrics` configuration
 7. Manage via `editContent` patches going forward
+
+Only dimensions at the finest supported time granularity in your results are eligible for comparison. For example, if you select both week and month, the comparison uses week. When the dropdown is shown, coarser dimensions are disabled because your results are grouped by a finer period.
 
 ## Common Patterns
 

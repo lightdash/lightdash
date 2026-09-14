@@ -186,8 +186,10 @@ export async function buildChartRegistryFixture({
         tags: ['fixture'],
         changelog,
         minLightdashVersion: null,
+        icon: null,
         vizSchema: FIXTURE_VIZ_SCHEMA,
         thumbnail: `${relPrefix}/thumb.png`,
+        thumbnailDark: null,
         screenshots: [`${relPrefix}/screenshot-1.png`],
         artifacts: {
             source: {

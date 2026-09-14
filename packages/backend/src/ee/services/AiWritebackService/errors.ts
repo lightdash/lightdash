@@ -2,25 +2,16 @@ import {
     ForbiddenError,
     ParameterError,
     PullRequestProvider,
+    UnexpectedGitError,
 } from '@lightdash/common';
 
-/**
- * Thrown when a writeback cannot proceed because the project has no usable Git
- * connection — either the organization has not installed the GitHub/GitLab app,
- * or the project's dbt connection is not a GitHub/GitLab type. The `editDbtProject`
- * tool catches this specifically (via `instanceof`) and tags its result metadata
- * with a provider-specific `errorCode`, so the chat UI can render an actionable
- * "install the app" state instead of a generic failure.
- *
- * `provider` is the git host the project expects (GitHub/GitLab) when that is
- * known, or null when the project's dbt connection is not a Git type at all.
- */
+/** A missing Git app or project token needs provider-specific setup guidance. */
 export class WritebackGitNotConnectedError extends ForbiddenError {
     readonly provider: PullRequestProvider | null;
 
     constructor(
         provider: PullRequestProvider | null = null,
-        message = 'This project is not connected to a GitHub or GitLab repository',
+        message = 'This project is not connected to a supported Git repository',
     ) {
         super(message);
         this.provider = provider;
@@ -75,5 +66,12 @@ export class WritebackRunAbortedError extends Error {
         );
         this.name = 'WritebackRunAbortedError';
         this.runStatus = runStatus;
+    }
+}
+
+/** A sandbox with unremoved Git credentials must never be resumed. */
+export class WritebackCredentialCleanupError extends UnexpectedGitError {
+    constructor() {
+        super('Could not clear Bitbucket sandbox credentials');
     }
 }

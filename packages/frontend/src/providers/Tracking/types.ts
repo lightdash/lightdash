@@ -1,10 +1,12 @@
 import {
     type AppVersionStatus,
     type AiDeepResearchTerminalStatus,
+    type ContentReviewContentType,
     type CustomFormatType,
     type DataAppTemplate,
     type HomepageRecommendedActionKey,
     type MapTileBackground,
+    type RegistryChartTypeState,
     type SearchItemType,
     type TableCalculationType,
     type TimeFrames,
@@ -58,6 +60,7 @@ type GenericEvent = {
         | EventName.ADD_CUSTOM_DIMENSION_CLICKED
         | EventName.DATE_ZOOM_CLICKED
         | EventName.COMMENTS_CLICKED
+        | EventName.DASHBOARD_COMMENTS_PANEL_OPENED
         | EventName.EMBED_DOWNLOAD_CSV_CLICKED
         | EventName.EMBED_DOWNLOAD_IMAGE_CLICKED
         | EventName.DOWNLOAD_IMAGE_CLICKED
@@ -219,6 +222,7 @@ export type SearchResultClickedEvent = {
     properties: {
         type: SearchItemType;
         id: string;
+        verifiedOnly: boolean;
     };
 };
 
@@ -233,6 +237,7 @@ export type GlobalSearchClosedEvent = {
     name: EventName.GLOBAL_SEARCH_CLOSED;
     properties: {
         action: 'result_click' | 'default';
+        verifiedOnly: boolean;
     };
 };
 
@@ -546,7 +551,12 @@ export type AiAgentAskClickedSource =
     | 'dashboard_header'
     | 'dashboard_chart_tile'
     | 'saved_chart_header'
-    | 'resource_action_menu';
+    | 'resource_action_menu'
+    | 'data_app_header'
+    | 'data_app_version_header'
+    | 'data_app_resource_action_menu'
+    | 'data_app_my_apps_menu'
+    | 'dashboard_data_app_tile';
 
 type AiAgentAskClickedEvent = {
     name: EventName.AI_AGENT_ASK_CLICKED;
@@ -566,6 +576,27 @@ type AiAgentChatMinimizedEvent = {
         projectId: string;
         agentUuid: string;
         threadUuid: string | undefined;
+    };
+};
+
+type AiAgentBattleStartedEvent = {
+    name: EventName.AI_AGENT_BATTLE_STARTED;
+    properties: {
+        projectId: string;
+        aiAgentId: string;
+        modelA: string | null;
+        modelB: string | null;
+    };
+};
+
+type ContentReviewSimilarContentClickedEvent = {
+    name: EventName.CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED;
+    properties: {
+        projectId: string;
+        contentType: ContentReviewContentType;
+        contentId: string;
+        similarContentId: string;
+        similarContentIsVerified: boolean;
     };
 };
 
@@ -916,8 +947,145 @@ type MapTileFallbackEvent = {
     };
 };
 
+// Workbook POC telemetry. Payload deliberately excludes metric SQL,
+// labels, descriptions and filter values.
+type DashboardWorkbookEvent = {
+    name:
+        | EventName.DASHBOARD_CUSTOM_METRIC_CREATED
+        | EventName.DASHBOARD_CUSTOM_METRIC_REUSED
+        | EventName.DASHBOARD_CHART_CREATED_IN_PLACE
+        | EventName.DASHBOARD_CHART_EDITED_IN_PLACE;
+    properties: {
+        organizationUuid: string | undefined;
+        projectUuid: string | undefined;
+        dashboardUuid: string;
+        exploreName: string;
+        registrySize: number;
+        distinctExploreCount: number;
+    };
+};
+
+// Chart type library (registry) funnel. Payloads carry slugs and enums
+// only — never free-text names.
+type ChartTypeLibraryViewedEvent = {
+    name: EventName.CHART_TYPE_LIBRARY_VIEWED;
+    properties: {
+        projectUuid: string;
+        chartCount: number;
+    };
+};
+
+type ChartTypeLibraryChartClickedEvent = {
+    name: EventName.CHART_TYPE_LIBRARY_CHART_CLICKED;
+    properties: {
+        projectUuid: string;
+        chartSlug: string;
+        channel: 'stable' | 'beta';
+        state: RegistryChartTypeState;
+    };
+};
+
+type ChartTypeLibraryInstallClickedEvent = {
+    name: EventName.CHART_TYPE_LIBRARY_INSTALL_CLICKED;
+    properties: {
+        projectUuid: string;
+        chartSlug: string;
+        action: 'install' | 'upgrade';
+    };
+};
+
+type ChartTypeDetailViewedEvent = {
+    name: EventName.CHART_TYPE_DETAIL_VIEWED;
+    properties: {
+        projectUuid: string;
+        isOfficial: boolean;
+        registrySlug: string | null;
+        hasUpdate: boolean;
+    };
+};
+
+type ChartTypePreviewInExplorerEvent = {
+    name: EventName.CHART_TYPE_PREVIEW_IN_EXPLORER;
+    properties: {
+        projectUuid: string;
+        registrySlug: string | null;
+        tableName: string;
+    };
+};
+
+type ChartTypeForkModalOpenedEvent = {
+    name: EventName.CHART_TYPE_FORK_MODAL_OPENED;
+    properties: {
+        projectUuid: string;
+        registrySlug: string | null;
+    };
+};
+
+/**
+ * Where a walkthrough was started from: a library card, the library's
+ * Resume or Recommended card, Next on the completion dialog, or a tour
+ * link opened directly (docs, the smoke) without going through the library.
+ */
+export type LearnStartSource =
+    | 'card'
+    | 'resume'
+    | 'recommended'
+    | 'next_from_completion'
+    | 'deep_link';
+
+type LearnLibraryViewedEvent = {
+    name: EventName.LEARN_LIBRARY_VIEWED;
+    properties: {
+        organizationUuid: string | null;
+        /** Null until an admin has enabled Learn for the organization. */
+        trainingProjectUuid: string | null;
+        hasTrainingProject: boolean;
+        /** Modules this instance can run, so the counts match the page. */
+        moduleCount: number;
+        startedCount: number;
+        completedCount: number;
+    };
+};
+
+type LearnWalkthroughStartedEvent = {
+    name: EventName.LEARN_WALKTHROUGH_STARTED;
+    properties: {
+        organizationUuid: string | null;
+        trainingProjectUuid: string;
+        scope: string;
+        source: LearnStartSource;
+        /** The learner had already finished this walkthrough. */
+        isRestart: boolean;
+    };
+};
+
+type LearnWalkthroughCompletedEvent = {
+    name: EventName.LEARN_WALKTHROUGH_COMPLETED;
+    properties: {
+        organizationUuid: string | null;
+        trainingProjectUuid: string | null;
+        scope: string;
+        stepCount: number;
+        durationSeconds: number;
+    };
+};
+
+type LearnWalkthroughDismissedEvent = {
+    name: EventName.LEARN_WALKTHROUGH_DISMISSED;
+    properties: {
+        organizationUuid: string | null;
+        trainingProjectUuid: string | null;
+        scope: string;
+        /** Furthest step reached, zero-based. */
+        stepIndex: number;
+        stepCount: number;
+        durationSeconds: number;
+    };
+};
+
 export type EventData =
     | GenericEvent
+    | DashboardWorkbookEvent
     | MapTileUsageEvent
     | MapTileFallbackEvent
     | AgentOnboardingDemoOfferShownEvent
@@ -992,15 +1160,27 @@ export type EventData =
     | AiAgentAskClickedEvent
     | AiAgentChatMinimizedEvent
     | AiDeepResearchReportEngagedEvent
+    | AiAgentBattleStartedEvent
+    | ContentReviewSimilarContentClickedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | DataAppRecentSuggestionClickEvent
     | DataAppClarifyRoundResolvedEvent
+    | ChartTypeLibraryViewedEvent
+    | ChartTypeLibraryChartClickedEvent
+    | ChartTypeLibraryInstallClickedEvent
+    | ChartTypeDetailViewedEvent
+    | ChartTypePreviewInExplorerEvent
+    | ChartTypeForkModalOpenedEvent
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent
     | FormulaTableCalculationAiGenerateClickedEvent
-    | DashboardFilterLockToggledEvent;
+    | DashboardFilterLockToggledEvent
+    | LearnLibraryViewedEvent
+    | LearnWalkthroughStartedEvent
+    | LearnWalkthroughCompletedEvent
+    | LearnWalkthroughDismissedEvent;
 
 export type IdentifyData = {
     id: string;

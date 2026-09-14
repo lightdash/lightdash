@@ -31,6 +31,7 @@ const entry = {
     minLightdashVersion: null,
     vizSchema: { fields: [], configOptions: [], colorPalette: null },
     thumbnail: 'charts/sankey/1.2.0/thumb.png',
+    thumbnailDark: null,
     screenshots: ['charts/sankey/1.2.0/screenshot-1.png'],
     artifacts: {
         source: {
@@ -56,10 +57,13 @@ const jsonResponse = (body: unknown) => ({
 const makeClient = (
     fetchImpl: ReturnType<typeof vi.fn>,
     url: string | null = BASE,
+    channel: 'stable' | 'next' = 'stable',
 ) =>
     new ChartRegistryClient({
         lightdashConfig: {
-            appRuntime: { chartRegistry: { url, allowInsecure: false } },
+            appRuntime: {
+                chartRegistry: { url, allowInsecure: false, channel },
+            },
         } as never,
         fetchImpl: fetchImpl as unknown as ChartRegistryFetchType,
     });
@@ -94,6 +98,21 @@ describe('ChartRegistryClient', () => {
         );
     });
 
+    it('fetches index-next.json on the next channel and keeps beta entries', async () => {
+        const betaIndex = {
+            ...index,
+            charts: [{ ...index.charts[0], channel: 'beta' }],
+        };
+        const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(betaIndex));
+        const client = makeClient(fetchImpl, BASE, 'next');
+        const result = await client.getIndex();
+        expect(fetchImpl).toHaveBeenCalledWith(
+            `${BASE}/index-next.json`,
+            expect.any(Number),
+        );
+        expect(result.charts[0].channel).toBe('beta');
+    });
+
     it('serves the stale cache when a refetch fails', async () => {
         vi.useFakeTimers();
         const fetchImpl = vi
@@ -111,6 +130,111 @@ describe('ChartRegistryClient', () => {
         expect(second.charts).toHaveLength(1);
         expect(second).toBe(first);
         expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it('forceRefresh fetches even when the cache is fresh and updates it', async () => {
+        const updated = {
+            ...index,
+            charts: [{ ...index.charts[0], version: '1.3.0' }],
+        };
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse(index))
+            .mockResolvedValueOnce(jsonResponse(updated));
+        const client = makeClient(fetchImpl);
+
+        await client.getIndex();
+        const refreshed = await client.getIndex({ forceRefresh: true });
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+        expect(refreshed.charts[0].version).toBe('1.3.0');
+        // The forced result replaces the cache for later plain reads.
+        expect((await client.getIndex()).charts[0].version).toBe('1.3.0');
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to the stale cache when a forced refresh fails', async () => {
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse(index))
+            .mockRejectedValueOnce(new Error('network down'));
+        const client = makeClient(fetchImpl);
+
+        const first = await client.getIndex();
+        const second = await client.getIndex({ forceRefresh: true });
+        expect(second).toBe(first);
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it('revalidates with the stored ETag and keeps the index on 304', async () => {
+        vi.useFakeTimers();
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ...jsonResponse(index),
+                etag: 'W/"abc"',
+            })
+            .mockResolvedValueOnce({
+                status: 304,
+                body: Buffer.alloc(0),
+                contentType: null,
+            });
+        const client = makeClient(fetchImpl);
+
+        const first = await client.getIndex();
+        await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+        const second = await client.getIndex();
+        expect(second).toBe(first);
+        expect(fetchImpl).toHaveBeenNthCalledWith(
+            2,
+            `${BASE}/index.json`,
+            expect.any(Number),
+            { headers: { 'if-none-match': 'W/"abc"' } },
+        );
+        // The 304 refreshed the TTL: an immediate third read stays cached.
+        const third = await client.getIndex();
+        expect(third).toBe(first);
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it('sends If-Modified-Since when only Last-Modified was stored', async () => {
+        vi.useFakeTimers();
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ...jsonResponse(index),
+                lastModified: 'Thu, 11 Sep 2026 10:00:00 GMT',
+            })
+            .mockResolvedValueOnce({
+                status: 304,
+                body: Buffer.alloc(0),
+                contentType: null,
+            });
+        const client = makeClient(fetchImpl);
+
+        await client.getIndex();
+        await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+        await client.getIndex();
+        expect(fetchImpl).toHaveBeenNthCalledWith(
+            2,
+            `${BASE}/index.json`,
+            expect.any(Number),
+            {
+                headers: {
+                    'if-modified-since': 'Thu, 11 Sep 2026 10:00:00 GMT',
+                },
+            },
+        );
+    });
+
+    it('rejects a non-2xx index response when nothing is cached', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue({
+            status: 404,
+            body: Buffer.from('not found'),
+            contentType: 'text/plain',
+        });
+        await expect(makeClient(fetchImpl).getIndex()).rejects.toThrow(
+            'status 404',
+        );
     });
 
     it('rejects an invalid index loudly', async () => {
@@ -204,10 +328,50 @@ describe('ChartRegistryClient', () => {
         ).rejects.toThrow(/outside/i);
     });
 
-    it('only serves assets enumerated in the index', async () => {
+    it('only serves assets under chart slugs present in the index', async () => {
         const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(index));
         const client = makeClient(fetchImpl);
-        expect(await client.getAsset('charts/other/steal.png')).toBeUndefined();
+        expect(
+            await client.getAsset('charts/other/1.0.0/steal.png'),
+        ).toBeUndefined();
+    });
+
+    it('serves a previous version screenshot no longer enumerated in the index', async () => {
+        // The index lists only each chart's latest version, and the listing
+        // and asset requests can be served from different index cache
+        // generations across a publish — older versions are immutable and
+        // still served by the registry, so they must stay proxyable.
+        const oldBytes = Buffer.from('old-version-bytes');
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse(index))
+            .mockResolvedValueOnce({
+                status: 200,
+                body: oldBytes,
+                contentType: 'image/png',
+            });
+        const client = makeClient(fetchImpl);
+        const asset = await client.getAsset(
+            'charts/sankey/1.1.0/screenshot-1.png',
+        );
+        expect(asset?.buffer.equals(oldBytes)).toBe(true);
+    });
+
+    it('rejects non-image and malformed asset paths without fetching', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(index));
+        const client = makeClient(fetchImpl);
+        expect(
+            await client.getAsset('charts/sankey/1.2.0/dist.tar'),
+        ).toBeUndefined();
+        expect(
+            await client.getAsset('charts/sankey/1.2.0/../../../etc/pw.png'),
+        ).toBeUndefined();
+        expect(
+            await client.getAsset('charts/sankey/not-semver/shot.png'),
+        ).toBeUndefined();
+        expect(await client.getAsset('index.json')).toBeUndefined();
+        // Shape-rejected paths short-circuit before any fetch, index included.
+        expect(fetchImpl).toHaveBeenCalledTimes(0);
     });
 
     it('serves an asset path enumerated in the index', async () => {
@@ -354,15 +518,10 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
         const baseUrl = await startServer((req, res) => {
             if (req.url === '/index.json') {
                 res.writeHead(200, { 'content-type': 'application/json' });
-                res.end(
-                    JSON.stringify({
-                        ...index,
-                        charts: [{ ...entry, thumbnail: 'thumb.png' }],
-                    }),
-                );
+                res.end(JSON.stringify(index));
                 return;
             }
-            if (req.url === '/thumb.png') {
+            if (req.url === '/charts/sankey/1.2.0/thumb.png') {
                 res.writeHead(404, { 'content-type': 'text/html' });
                 res.end('<html>not found</html>');
                 return;
@@ -371,7 +530,9 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
             res.end();
         });
         const client = makeRealClient(baseUrl);
-        expect(await client.getAsset('thumb.png')).toBeUndefined();
+        expect(
+            await client.getAsset('charts/sankey/1.2.0/thumb.png'),
+        ).toBeUndefined();
     });
 
     it('round-trips a binary asset byte-for-byte', async () => {
@@ -381,15 +542,10 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
         const baseUrl = await startServer((req, res) => {
             if (req.url === '/index.json') {
                 res.writeHead(200, { 'content-type': 'application/json' });
-                res.end(
-                    JSON.stringify({
-                        ...index,
-                        charts: [{ ...entry, thumbnail: 'thumb.png' }],
-                    }),
-                );
+                res.end(JSON.stringify(index));
                 return;
             }
-            if (req.url === '/thumb.png') {
+            if (req.url === '/charts/sankey/1.2.0/thumb.png') {
                 res.writeHead(200, { 'content-type': 'image/png' });
                 res.end(imageBytes);
                 return;
@@ -398,7 +554,7 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
             res.end();
         });
         const client = makeRealClient(baseUrl);
-        const asset = await client.getAsset('thumb.png');
+        const asset = await client.getAsset('charts/sankey/1.2.0/thumb.png');
         expect(asset?.buffer.equals(imageBytes)).toBe(true);
         expect(asset?.contentType).toBe('image/png');
     });

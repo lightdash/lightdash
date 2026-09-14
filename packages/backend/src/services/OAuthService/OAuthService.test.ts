@@ -28,8 +28,11 @@ describe('OAuthService edge cases', () => {
         mockOAuthModel = {
             getAccessToken: vi.fn(),
             getClient: vi.fn(),
+            getRefreshToken: vi.fn(),
             revokeToken: vi.fn(),
             revokeRefreshToken: vi.fn(),
+            deleteRefreshToken: vi.fn(),
+            deleteAccessToken: vi.fn(),
             validateRedirectUri: vi.fn(),
         } as AnyType;
         mockLightdashConfig = {
@@ -157,6 +160,88 @@ describe('OAuthService edge cases', () => {
             expect(mockOAuthModel.validateRedirectUri).toHaveBeenCalledWith(
                 'https://example.com/callback',
                 client,
+            );
+        });
+    });
+
+    describe('revokeToken', () => {
+        const refreshToken = {
+            refreshToken: 'refresh-token',
+            refreshTokenExpiresAt: new Date('2026-12-01T00:00:00.000Z'),
+            client: { id: 'oauth-mobile', grants: ['refresh_token'] },
+            user: { userId: 42, organizationUuid: 'organization-uuid' },
+        } as AnyType;
+
+        it('deletes a refresh token outright and never softly revokes it', async () => {
+            vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(
+                refreshToken,
+            );
+            vi.mocked(mockOAuthModel.deleteRefreshToken).mockResolvedValue(
+                true,
+            );
+
+            await expect(
+                oauthService.revokeToken('refresh-token'),
+            ).resolves.toBe(true);
+            expect(mockOAuthModel.deleteRefreshToken).toHaveBeenCalledWith(
+                'refresh-token',
+            );
+            expect(mockOAuthModel.revokeToken).not.toHaveBeenCalled();
+        });
+
+        it('tells the listener which grant the user revoked', async () => {
+            const onGrantRevoked = vi.fn(async () => undefined);
+            const service = new TestOAuthService({
+                userModel: mockUserModel,
+                oauthModel: mockOAuthModel,
+                lightdashConfig: mockLightdashConfig,
+                onGrantRevoked,
+            });
+            vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(
+                refreshToken,
+            );
+            vi.mocked(mockOAuthModel.deleteRefreshToken).mockResolvedValue(
+                true,
+            );
+
+            await service.revokeToken('refresh-token');
+
+            expect(onGrantRevoked).toHaveBeenCalledWith({
+                userId: 42,
+                clientId: 'oauth-mobile',
+            });
+        });
+
+        it('leaves the listener alone when no row was deleted', async () => {
+            const onGrantRevoked = vi.fn(async () => undefined);
+            const service = new TestOAuthService({
+                userModel: mockUserModel,
+                oauthModel: mockOAuthModel,
+                lightdashConfig: mockLightdashConfig,
+                onGrantRevoked,
+            });
+            vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(
+                refreshToken,
+            );
+            vi.mocked(mockOAuthModel.deleteRefreshToken).mockResolvedValue(
+                false,
+            );
+
+            await expect(service.revokeToken('refresh-token')).resolves.toBe(
+                false,
+            );
+            expect(onGrantRevoked).not.toHaveBeenCalled();
+        });
+
+        it('deletes an access token when the value is not a refresh token', async () => {
+            vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(false);
+            vi.mocked(mockOAuthModel.deleteAccessToken).mockResolvedValue(true);
+
+            await expect(
+                oauthService.revokeToken('access-token'),
+            ).resolves.toBe(true);
+            expect(mockOAuthModel.deleteAccessToken).toHaveBeenCalledWith(
+                'access-token',
             );
         });
     });

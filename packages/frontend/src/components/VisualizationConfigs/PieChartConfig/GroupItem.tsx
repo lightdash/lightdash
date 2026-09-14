@@ -99,7 +99,7 @@ export const GroupItem = forwardRef<
                             onColorChange(defaultLabel, newColor)
                         }
                     />
-                    <Box className="ld-grow">
+                    <Box flex={1}>
                         <EditableText
                             placeholder={defaultLabel}
                             value={label}
@@ -122,7 +122,7 @@ export const GroupItem = forwardRef<
                     </Tooltip>
                 </Group>
 
-                <Collapse in={opened}>
+                <Collapse expanded={opened}>
                     <Stack ml="xl" gap="xs" pb="xs">
                         <ValueOptions
                             valueLabel={valueLabel}

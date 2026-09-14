@@ -194,7 +194,7 @@ export const SearchDropdown: FC<Props> = ({
                     </ScrollArea.Autosize>
                 </Combobox.Options>
                 {footer && (
-                    <Combobox.Footer p={0} className="ld-overflow-hidden">
+                    <Combobox.Footer p={0} className={styles.comboboxFooter}>
                         {footer}
                     </Combobox.Footer>
                 )}

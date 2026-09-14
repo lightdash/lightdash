@@ -50,6 +50,6 @@ describe('createGithubGitCredentialFiles', () => {
                 host: 'github.example.com/attacker',
                 token: 'ghs_test-token',
             }),
-        ).toThrow('GitHub host domain must not include a path');
+        ).toThrow('Git host domain must not include a path');
     });
 });

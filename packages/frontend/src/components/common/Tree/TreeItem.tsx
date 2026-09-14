@@ -101,14 +101,14 @@ const TreeItem: React.FC<Props> = ({
                 color="ldGray.7"
                 size="lg"
                 stroke={1.5}
-                className="ld-shrink-0"
+                className={classes.itemIcon}
             />
 
             <Highlight
                 truncate="end"
                 fz={rem(13)}
                 fw={500}
-                className="ld-grow"
+                flex={1}
                 highlight={matchHighlights}
                 highlightStyles={{
                     backgroundColor: 'transparent',
@@ -123,7 +123,7 @@ const TreeItem: React.FC<Props> = ({
                     icon={IconCheck}
                     size="lg"
                     color="blue.6"
-                    className="ld-shrink-0"
+                    className={classes.itemIcon}
                 />
             )}
         </Paper>

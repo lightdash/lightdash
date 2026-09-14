@@ -4,6 +4,7 @@ import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentEvaluationRunResults } from '../../hooks/useAiAgentEvaluations';
 import { ToolCallPaper } from '../ChatElements/ToolCalls/ToolCallPaper';
+import classes from './EvalAssessmentDisplay.module.css';
 import { getAssessmentConfig } from './utils';
 
 type EvalAssessmentDisplayProps = {
@@ -83,7 +84,11 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                     }
                 >
                     {assessment.reason && (
-                        <Text size="xs" className="ld-pre-wrap" mt="xs">
+                        <Text
+                            size="xs"
+                            className={classes.assessmentText}
+                            mt="xs"
+                        >
                             {assessment.reason}
                         </Text>
                     )}
@@ -92,7 +97,11 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                             <Text size="xs" fw={600} c="dimmed">
                                 Expected Response
                             </Text>
-                            <Text size="xs" className="ld-pre-wrap" fs="italic">
+                            <Text
+                                size="xs"
+                                className={classes.assessmentText}
+                                fs="italic"
+                            >
                                 {expectedResponse}
                             </Text>
                         </Stack>

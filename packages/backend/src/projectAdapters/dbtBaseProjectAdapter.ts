@@ -3,7 +3,6 @@ import {
     applyMetricFlowMetricsToModels,
     attachTypesToModels,
     catalogHasTimestampDomains,
-    convertExplores,
     DbtManifestVersion,
     DbtModelNode,
     DbtPackages,
@@ -21,18 +20,20 @@ import {
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
+    iterateExplores,
     loadLightdashProjectConfig,
     loadProjectContextFile,
-    ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
     NotFoundError,
     ParseError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
+    type AttachTypesDiagnostics,
     type LightdashProjectConfig,
     type ProjectContextEntry,
 } from '@lightdash/common';
+import { ManifestValidator } from '@lightdash/common/dbt/validation';
 import { WarehouseClient } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';
@@ -45,6 +46,7 @@ import {
     CachedWarehouse,
     DbtClient,
     ProjectAdapter,
+    type ExploreCompileOptions,
     type TrackingParams,
 } from '../types';
 
@@ -194,7 +196,27 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
+        compileOptions?: ExploreCompileOptions,
     ): Promise<(Explore | ExploreError)[]> {
+        const stream = await this.prepareExploreStream(
+            trackingParams,
+            loadSources,
+            allowPartialCompilation,
+            compileOptions,
+        );
+        const explores: (Explore | ExploreError)[] = [];
+        for await (const explore of stream) explores.push(explore);
+        return explores;
+    }
+
+    public async prepareExploreStream(
+        trackingParams?: TrackingParams,
+        loadSources: boolean = false,
+        allowPartialCompilation: boolean = true,
+        compileOptions?: ExploreCompileOptions,
+    ): Promise<AsyncIterable<Explore | ExploreError>> {
+        const unnestRepeatedColumns =
+            compileOptions?.unnestRepeatedColumns ?? false;
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
         if (this.dbtClient.installDeps !== undefined) {
@@ -308,12 +330,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     {},
                 );
             }
-            Logger.info(`Attach types to ${validModels.length} models`);
             const lazyTypedModels = attachTypesToModels(
                 validModels,
                 this.cachedWarehouse.warehouseCatalog,
                 true,
                 adapterType !== 'snowflake',
+                (diagnostics) =>
+                    DbtBaseProjectAdapter.logAttachTypesPhase(
+                        'cached_catalog',
+                        trackingParams,
+                        diagnostics,
+                    ),
             );
             Logger.info('Convert explores');
             const disableTimestampConversion =
@@ -321,7 +348,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 this.warehouseClient.credentials.disableTimestampConversion ===
                     true;
 
-            const lazyExplores = await convertExplores(
+            const lazyExplores = iterateExplores(
                 lazyTypedModels,
                 loadSources,
                 adapterType,
@@ -331,10 +358,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     disableTimestampConversion,
                     allowPartialCompilation,
                     postProcessors,
+                    unnestRepeatedColumns,
                 },
             );
-            Logger.info('Finished compiling explores');
-            return [...lazyExplores, ...failedExplores];
+            return (async function* compiledExplores() {
+                yield* lazyExplores;
+                yield* failedExplores;
+                Logger.info('Finished compiling explores');
+            })();
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
                 Logger.info(
@@ -342,12 +373,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 );
                 const modelCatalog =
                     getSchemaStructureFromDbtModels(validModels);
-                Logger.info(
-                    `Fetching table metadata for ${modelCatalog.length} tables`,
-                );
-
+                const catalogFetchStartedAt = Date.now();
                 const warehouseCatalog =
                     await this.warehouseClient.getCatalog(modelCatalog);
+                Logger.info('dbt.compile.warehouseCatalogFetch', {
+                    event: 'dbt.compile.warehouseCatalogFetch',
+                    projectUuid: trackingParams?.projectUuid ?? null,
+                    jobUuid: trackingParams?.jobUuid ?? null,
+                    warehouseType: this.warehouseClient.credentials.type,
+                    requestedTables: modelCatalog.length,
+                    durationMs: Date.now() - catalogFetchStartedAt,
+                });
                 // Clients only create the sidecar when they classify a column;
                 // stamp it (possibly empty) so the staleness check above can't
                 // refetch again on domain-less warehouses.
@@ -356,15 +392,18 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     warehouseCatalog,
                 );
 
-                Logger.info(
-                    'Attach types to models after missing catalog error',
-                );
                 // Some types were missing so refresh the schema and try again
                 const typedModels = attachTypesToModels(
                     validModels,
                     warehouseCatalog,
                     false,
                     adapterType !== 'snowflake',
+                    (diagnostics) =>
+                        DbtBaseProjectAdapter.logAttachTypesPhase(
+                            'refetched_catalog',
+                            trackingParams,
+                            diagnostics,
+                        ),
                 );
                 Logger.info('Convert explores after missing catalog error');
                 const disableTimestampConversion =
@@ -372,7 +411,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     this.warehouseClient.credentials
                         .disableTimestampConversion === true;
 
-                const explores = await convertExplores(
+                const explores = iterateExplores(
                     typedModels,
                     loadSources,
                     adapterType,
@@ -382,15 +421,41 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                         disableTimestampConversion,
                         allowPartialCompilation,
                         postProcessors,
+                        unnestRepeatedColumns,
                     },
                 );
-                Logger.info(
-                    'Finished compiling explores after missing catalog error',
-                );
-                return [...explores, ...failedExplores];
+                return (async function* compiledExplores() {
+                    yield* explores;
+                    yield* failedExplores;
+                    Logger.info(
+                        'Finished compiling explores after missing catalog error',
+                    );
+                })();
             }
             throw e;
         }
+    }
+
+    private static logAttachTypesPhase(
+        catalogSource: 'cached_catalog' | 'refetched_catalog',
+        trackingParams: TrackingParams | undefined,
+        diagnostics: AttachTypesDiagnostics,
+    ) {
+        Logger.info('dbt.compile.attachTypes', {
+            event: 'dbt.compile.attachTypes',
+            projectUuid: trackingParams?.projectUuid ?? null,
+            jobUuid: trackingParams?.jobUuid ?? null,
+            catalogSource,
+            durationMs: diagnostics.durationMs,
+            modelCount: diagnostics.modelCount,
+            columnCount: diagnostics.columnCount,
+            catalogTableCount: diagnostics.catalogTableCount,
+            distinctSchemaCount: diagnostics.schemaPairs.length,
+            schemaPairs: diagnostics.schemaPairs.slice(0, 20),
+            exactLookups: diagnostics.exactLookups,
+            caseInsensitiveLookups: diagnostics.caseInsensitiveLookups,
+            missingLookups: diagnostics.missingLookups,
+        });
     }
 
     static _validateDbtModel(

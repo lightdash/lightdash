@@ -48,3 +48,20 @@ stable.
 
 The checked-in Postgres profile under the example project is not modified. A
 temporary dbt-duckdb profile points at the output database during the build.
+
+## Teaching content
+
+Edit chart, dashboard, and metrics-tree definitions in `content.ts`. The extra
+University samples — pins, comments, categories, the prebuilt app, agent, and
+completed research report — live in `teachingContent.ts` and are included by
+the same build. Update the source and shipped bundle together.
+
+Check the complete content definition against the shipped bundle without
+rebuilding the warehouse or changing any assets:
+
+```sh
+pnpm test:playground-content
+```
+
+The parity test covers every field, including the app's built/source files and
+research Markdown, so a rebuild cannot silently drop teaching samples.

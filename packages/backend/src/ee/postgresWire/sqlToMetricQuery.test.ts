@@ -1,4 +1,10 @@
-import { FilterOperator, type Filters } from '@lightdash/common';
+import {
+    CustomDimensionType,
+    FilterOperator,
+    SupportedDbtAdapter,
+    TimeFrames,
+    type Filters,
+} from '@lightdash/common';
 import {
     compileSqlToMetricQuery,
     PGWIRE_DEFAULT_LIMIT,
@@ -9,6 +15,7 @@ import { type PgWireTable } from './types';
 const ORDERS: PgWireTable = {
     name: 'orders',
     description: null,
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
     fields: [
         {
             fieldId: 'orders_status',
@@ -17,6 +24,7 @@ const ORDERS: PgWireTable = {
             kind: 'dimension',
             type: 'string',
             description: null,
+            timeInterval: null,
         },
         {
             fieldId: 'orders_order_date',
@@ -25,6 +33,7 @@ const ORDERS: PgWireTable = {
             kind: 'dimension',
             type: 'date',
             description: null,
+            timeInterval: null,
         },
         {
             fieldId: 'orders_created_at',
@@ -33,6 +42,44 @@ const ORDERS: PgWireTable = {
             kind: 'dimension',
             type: 'timestamp',
             description: null,
+            timeInterval: null,
+        },
+        // time-interval dimensions generated from orders_order_date
+        {
+            fieldId: 'orders_order_date_day',
+            table: 'orders',
+            name: 'order_date_day',
+            kind: 'dimension',
+            type: 'date',
+            description: null,
+            timeInterval: {
+                frame: TimeFrames.DAY,
+                baseDimensionName: 'order_date',
+            },
+        },
+        {
+            fieldId: 'orders_order_date_year',
+            table: 'orders',
+            name: 'order_date_year',
+            kind: 'dimension',
+            type: 'date',
+            description: null,
+            timeInterval: {
+                frame: TimeFrames.YEAR,
+                baseDimensionName: 'order_date',
+            },
+        },
+        {
+            fieldId: 'orders_order_date_month_num',
+            table: 'orders',
+            name: 'order_date_month_num',
+            kind: 'dimension',
+            type: 'number',
+            description: null,
+            timeInterval: {
+                frame: TimeFrames.MONTH_NUM,
+                baseDimensionName: 'order_date',
+            },
         },
         {
             fieldId: 'orders_is_completed',
@@ -41,6 +88,7 @@ const ORDERS: PgWireTable = {
             kind: 'dimension',
             type: 'boolean',
             description: null,
+            timeInterval: null,
         },
         {
             fieldId: 'orders_amount',
@@ -49,6 +97,7 @@ const ORDERS: PgWireTable = {
             kind: 'dimension',
             type: 'number',
             description: null,
+            timeInterval: null,
         },
         // fields from a joined table in the explore
         {
@@ -58,6 +107,7 @@ const ORDERS: PgWireTable = {
             kind: 'dimension',
             type: 'string',
             description: null,
+            timeInterval: null,
         },
         // same column name as orders_amount, different table
         {
@@ -67,6 +117,7 @@ const ORDERS: PgWireTable = {
             kind: 'dimension',
             type: 'number',
             description: null,
+            timeInterval: null,
         },
         {
             fieldId: 'orders_total_order_amount',
@@ -75,6 +126,7 @@ const ORDERS: PgWireTable = {
             kind: 'metric',
             type: 'sum',
             description: null,
+            timeInterval: null,
         },
         {
             fieldId: 'orders_unique_order_count',
@@ -83,6 +135,7 @@ const ORDERS: PgWireTable = {
             kind: 'metric',
             type: 'count_distinct',
             description: null,
+            timeInterval: null,
         },
         {
             fieldId: 'orders_avg_amount',
@@ -91,6 +144,7 @@ const ORDERS: PgWireTable = {
             kind: 'metric',
             type: 'average',
             description: null,
+            timeInterval: null,
         },
     ],
 };
@@ -98,6 +152,7 @@ const ORDERS: PgWireTable = {
 const CUSTOMERS: PgWireTable = {
     name: 'customers',
     description: null,
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
     fields: [
         {
             fieldId: 'customers_customer_id',
@@ -106,6 +161,7 @@ const CUSTOMERS: PgWireTable = {
             kind: 'dimension',
             type: 'number',
             description: null,
+            timeInterval: null,
         },
         {
             fieldId: 'customers_days_since_last_order',
@@ -114,6 +170,7 @@ const CUSTOMERS: PgWireTable = {
             kind: 'metric',
             type: 'min',
             description: null,
+            timeInterval: null,
         },
     ],
 };
@@ -196,6 +253,9 @@ describe('compileSqlToMetricQuery', () => {
                 'orders_status',
                 'orders_order_date',
                 'orders_created_at',
+                'orders_order_date_day',
+                'orders_order_date_year',
+                'orders_order_date_month_num',
                 'orders_is_completed',
                 'orders_amount',
                 'customers_first_name',
@@ -1813,5 +1873,205 @@ describe('schema probes', () => {
         );
         expect(query.alwaysEmpty).toBe(false);
         expect(query.metricQuery.filters.dimensions).toBeDefined();
+    });
+});
+
+describe('date parts', () => {
+    const YEAR_NUM_ID = 'orders_order_date_pgwire_year_num';
+
+    it('compiles the Looker Studio year column to a synthesised YEAR_NUM dimension', () => {
+        const result = compile(
+            `SELECT "T1"."orders_order_date_day",
+                    CAST(EXTRACT(YEAR FROM "T1"."orders_order_date"::TIMESTAMP) AS INT) AS "Year"
+             FROM orders "T1"
+             WHERE "T1"."orders_order_date" IS NOT NULL
+             ORDER BY CAST(EXTRACT(YEAR FROM "T1"."orders_order_date"::TIMESTAMP) AS INT)
+             LIMIT 2`,
+        );
+        expect(result.metricQuery).toMatchObject({
+            dimensions: ['orders_order_date_day', YEAR_NUM_ID],
+            metrics: [],
+            tableCalculations: [],
+            customDimensions: [
+                {
+                    id: YEAR_NUM_ID,
+                    name: 'order_date_pgwire_year_num',
+                    table: 'orders',
+                    type: CustomDimensionType.SQL,
+                    sql: "DATE_PART('YEAR', ${orders.order_date})",
+                    dimensionType: 'number',
+                },
+            ],
+            sorts: [{ fieldId: YEAR_NUM_ID, descending: false }],
+            limit: 2,
+        });
+        expect(result.columns[1]).toEqual({
+            name: 'Year',
+            source: YEAR_NUM_ID,
+            kind: 'dimension',
+            type: 'number',
+        });
+    });
+
+    it('uses the explore warehouse dialect for the synthesised SQL', () => {
+        const bigquery = compileSqlToMetricQuery(
+            'SELECT EXTRACT(YEAR FROM orders_order_date) AS y FROM orders',
+            [{ ...ORDERS, targetDatabase: SupportedDbtAdapter.BIGQUERY }],
+        );
+        expect(bigquery.metricQuery.customDimensions?.[0]).toMatchObject({
+            sql: 'EXTRACT(YEAR FROM ${orders.order_date})',
+        });
+    });
+
+    it('selects the existing interval dimension when the explore has one', () => {
+        const result = compile(
+            `SELECT EXTRACT(MONTH FROM orders_order_date) AS m,
+                    DATE_TRUNC('year', orders_order_date) AS y
+             FROM orders ORDER BY m`,
+        );
+        expect(result.metricQuery.dimensions).toEqual([
+            'orders_order_date_month_num',
+            'orders_order_date_year',
+        ]);
+        expect(result.metricQuery.customDimensions).toBeUndefined();
+        expect(result.metricQuery.sorts).toEqual([
+            { fieldId: 'orders_order_date_month_num', descending: false },
+        ]);
+        expect(result.columns.map((c) => c.name)).toEqual(['m', 'y']);
+    });
+
+    it('resolves sibling intervals when the part is taken from an interval dimension', () => {
+        const result = compile(
+            'SELECT EXTRACT(MONTH FROM orders_order_date_day) AS m FROM orders',
+        );
+        expect(result.metricQuery.dimensions).toEqual([
+            'orders_order_date_month_num',
+        ]);
+    });
+
+    it('synthesises truncating frames and date_part parts the explore lacks', () => {
+        const result = compile(
+            `SELECT DATE_TRUNC('quarter', orders_order_date)::DATE AS q,
+                    date_part('doy', orders_order_date) AS d
+             FROM orders`,
+        );
+        expect(result.metricQuery.customDimensions).toEqual([
+            {
+                id: 'orders_order_date_pgwire_quarter',
+                name: 'order_date_pgwire_quarter',
+                table: 'orders',
+                type: CustomDimensionType.SQL,
+                sql: "DATE_TRUNC('QUARTER', ${orders.order_date})",
+                dimensionType: 'date',
+            },
+            {
+                id: 'orders_order_date_pgwire_day_of_year_num',
+                name: 'order_date_pgwire_day_of_year_num',
+                table: 'orders',
+                type: CustomDimensionType.SQL,
+                sql: "DATE_PART('DOY', ${orders.order_date})",
+                dimensionType: 'number',
+            },
+        ]);
+        expect(result.columns.map((c) => c.type)).toEqual(['date', 'number']);
+    });
+
+    it('truncates timestamps to sub-day frames', () => {
+        const result = compile(
+            `SELECT DATE_TRUNC('second', orders_created_at) AS s,
+                    DATE_TRUNC('milliseconds', orders_created_at) AS ms
+             FROM orders`,
+        );
+        expect(result.metricQuery.dimensions).toEqual([
+            'orders_created_at_pgwire_second',
+            'orders_created_at_pgwire_millisecond',
+        ]);
+        expect(result.columns.map((c) => c.type)).toEqual([
+            'timestamp',
+            'timestamp',
+        ]);
+    });
+
+    it('extracts time parts from timestamp dimensions', () => {
+        const result = compile(
+            'SELECT EXTRACT(HOUR FROM orders_created_at) AS h FROM orders',
+        );
+        expect(result.metricQuery.customDimensions?.[0]).toMatchObject({
+            id: 'orders_created_at_pgwire_hour_of_day_num',
+            sql: "DATE_PART('HOUR', ${orders.created_at})",
+        });
+    });
+
+    it('selects the same date part once when repeated', () => {
+        const result = compile(
+            `SELECT EXTRACT(YEAR FROM orders_order_date) AS a,
+                    EXTRACT(YEAR FROM orders_order_date) AS b
+             FROM orders`,
+        );
+        expect(result.metricQuery.dimensions).toEqual([YEAR_NUM_ID]);
+        expect(result.metricQuery.customDimensions).toHaveLength(1);
+        expect(result.columns.map((c) => c.source)).toEqual([
+            YEAR_NUM_ID,
+            YEAR_NUM_ID,
+        ]);
+    });
+
+    it('accepts GROUP BY on the date part expression', () => {
+        const result = compile(
+            `SELECT EXTRACT(YEAR FROM orders_order_date) AS y, orders_total_order_amount
+             FROM orders GROUP BY EXTRACT(YEAR FROM orders_order_date)`,
+        );
+        expect(result.metricQuery.dimensions).toEqual([YEAR_NUM_ID]);
+    });
+
+    it('names unaliased date parts like Postgres', () => {
+        const result = compile(
+            "SELECT EXTRACT(YEAR FROM orders_order_date), DATE_TRUNC('month', orders_order_date) FROM orders",
+        );
+        expect(result.columns.map((c) => c.name)).toEqual([
+            'extract',
+            'date_trunc',
+        ]);
+    });
+
+    it('rejects ORDER BY expressions that are not in the SELECT list', () => {
+        expect(() =>
+            compile(
+                'SELECT orders_status FROM orders ORDER BY EXTRACT(YEAR FROM orders_order_date)',
+            ),
+        ).toThrow(/ORDER BY expression must appear in the SELECT list/);
+    });
+
+    it('rejects day-of-week parts explicitly', () => {
+        expect(() =>
+            compile('SELECT EXTRACT(DOW FROM orders_order_date) FROM orders'),
+        ).toThrow(/EXTRACT\(DOW\) is not supported/);
+        expect(() =>
+            compile(
+                'SELECT EXTRACT(ISODOW FROM orders_order_date) FROM orders',
+            ),
+        ).toThrow(/EXTRACT\(ISODOW\) is not supported/);
+    });
+
+    it('rejects time parts of date dimensions', () => {
+        expect(() =>
+            compile('SELECT EXTRACT(HOUR FROM orders_order_date) FROM orders'),
+        ).toThrow(/has no time component/);
+    });
+
+    it('rejects date parts of non-date columns', () => {
+        expect(() =>
+            compile('SELECT EXTRACT(YEAR FROM orders_status) FROM orders'),
+        ).toThrow(/is not a date or timestamp dimension/);
+    });
+
+    it('leaves parts without a time frame on the table calculation path', () => {
+        expect(() =>
+            compile('SELECT EXTRACT(EPOCH FROM orders_order_date) FROM orders'),
+        ).toThrow(/not in the SELECT list/);
+        const result = compile(
+            'SELECT orders_order_date, EXTRACT(EPOCH FROM orders_order_date) AS e FROM orders',
+        );
+        expect(result.metricQuery.tableCalculations).toHaveLength(1);
     });
 });

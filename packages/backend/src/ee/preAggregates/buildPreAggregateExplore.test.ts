@@ -492,7 +492,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.dimensions.order_date_month_name.compiledSql,
-        ).toBe("TO_CHAR(orders.orders_order_date_day, 'FMMonth')");
+        ).toBe("strftime(orders.orders_order_date_day, '%B')");
     });
 
     describe('external pre-aggregates', () => {

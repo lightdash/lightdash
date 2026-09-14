@@ -7,9 +7,12 @@ import { IconPhoto } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
-import { registryAssetUrl } from '../utils/registryAssetUrl';
+import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
+import { registryThumbnailPath } from '../utils/registryAssetUrl';
+import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryCard.module.css';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
+import RegistryAssetImage from './RegistryAssetImage';
 
 const StateBadge: FC<{ item: RegistryChartTypeListItem }> = ({ item }) => {
     switch (item.state) {
@@ -46,48 +49,55 @@ type Props = {
     onClick: () => void;
 };
 
-const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => (
-    <PolymorphicPaperButton
-        component="button"
-        type="button"
-        withBorder
-        radius="md"
-        shadow="subtle"
-        className={classes.card}
-        onClick={onClick}
-    >
-        <Box className={classes.preview}>
-            {item.thumbnail ? (
-                <img
-                    src={registryAssetUrl(item.thumbnail)}
-                    alt={item.name}
-                    className={classes.previewImage}
-                />
-            ) : (
-                <Paper variant="dotted" h="100%" radius={0}>
-                    <Stack align="center" justify="center" gap="xs" h="100%">
-                        <MantineIcon
-                            icon={IconPhoto}
-                            size="xl"
-                            color="ldGray.5"
-                        />
-                    </Stack>
-                </Paper>
-            )}
-        </Box>
-        <Stack gap="xs" p="sm">
-            <Group gap="xs" wrap="nowrap" justify="space-between">
-                <Text fz={13} fw={600} truncate="end">
-                    {item.name}
+const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
+    const { colorScheme } = useAppColorScheme();
+    const thumbnail = registryThumbnailPath(item, colorScheme);
+    const placeholder = (
+        <Paper variant="dotted" h="100%" radius={0}>
+            <Stack align="center" justify="center" gap="xs" h="100%">
+                <MantineIcon icon={IconPhoto} size="xl" color="ldGray.5" />
+            </Stack>
+        </Paper>
+    );
+    return (
+        <PolymorphicPaperButton
+            component="button"
+            type="button"
+            withBorder
+            radius="md"
+            shadow="subtle"
+            className={classes.card}
+            onClick={onClick}
+        >
+            <Box className={classes.preview}>
+                {thumbnail ? (
+                    <RegistryAssetImage
+                        path={thumbnail}
+                        alt={item.name}
+                        className={classes.previewImage}
+                        fallback={placeholder}
+                    />
+                ) : (
+                    placeholder
+                )}
+            </Box>
+            <Stack gap="xs" p="sm">
+                <Group gap="xs" wrap="nowrap" justify="space-between">
+                    <Text fz={13} fw={600} truncate="end">
+                        {item.name}
+                    </Text>
+                    <Group gap={4} wrap="nowrap" flex="0 0 auto">
+                        {item.channel === 'beta' && <ChartTypeBetaBadge />}
+                        <OfficialChartTypeBadge />
+                    </Group>
+                </Group>
+                <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
+                    {item.description || 'No description'}
                 </Text>
-                <OfficialChartTypeBadge />
-            </Group>
-            <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
-                {item.description || 'No description'}
-            </Text>
-            <StateBadge item={item} />
-        </Stack>
-    </PolymorphicPaperButton>
-);
+                <StateBadge item={item} />
+            </Stack>
+        </PolymorphicPaperButton>
+    );
+};
 
 export default ChartTypeLibraryCard;

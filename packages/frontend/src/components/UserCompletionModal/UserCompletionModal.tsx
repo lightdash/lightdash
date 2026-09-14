@@ -29,9 +29,13 @@ const UserCompletionModal: FC = () => {
             zodResolver(
                 canEnterOrganizationName
                     ? CompleteUserSchema
-                    : // User is not creating org, just accepting invite
-                      // They cannot input org name so don't validate it for backwards compat reasons
-                      CompleteUserSchema.omit({ organizationName: true }),
+                    : // User is not creating org, just accepting invite: they
+                      // cannot input org name (backwards compat) and we only
+                      // ask the org creator how they heard about us.
+                      CompleteUserSchema.omit({
+                          organizationName: true,
+                          howDidYouHearAboutUs: true,
+                      }),
             ),
         [canEnterOrganizationName],
     );
@@ -51,10 +55,12 @@ const UserCompletionModal: FC = () => {
     const { isLoading, mutate, isSuccess } = useUserCompleteMutation();
 
     const handleSubmit = form.onSubmit((data) => {
-        const payload = {
-            ...data,
-            howDidYouHearAboutUs: data.howDidYouHearAboutUs?.trim() ?? '',
-        };
+        // Only the org creator answers "how did you hear about us?"; drop it
+        // for invited members so we don't collect (or track) their answer.
+        const howDidYouHearAboutUs = canEnterOrganizationName
+            ? data.howDidYouHearAboutUs?.trim() || undefined
+            : undefined;
+        const payload = { ...data, howDidYouHearAboutUs };
         if (user.data?.organizationName) {
             const { organizationName, ...rest } = payload;
             mutate(rest);
@@ -113,7 +119,8 @@ const UserCompletionModal: FC = () => {
                         !(
                             form.values.organizationName &&
                             form.values.jobTitle &&
-                            form.values.howDidYouHearAboutUs.trim()
+                            (!canEnterOrganizationName ||
+                                form.values.howDidYouHearAboutUs?.trim())
                         )
                     }
                 >
@@ -150,13 +157,15 @@ const UserCompletionModal: FC = () => {
                         {...form.getInputProps('jobTitle')}
                     />
 
-                    <TextInput
-                        label="How did you hear about us?"
-                        placeholder="Google, a colleague, a podcast..."
-                        disabled={isLoading}
-                        required
-                        {...form.getInputProps('howDidYouHearAboutUs')}
-                    />
+                    {canEnterOrganizationName && (
+                        <TextInput
+                            label="How did you hear about us?"
+                            placeholder="Google, a colleague, a podcast..."
+                            disabled={isLoading}
+                            required
+                            {...form.getInputProps('howDidYouHearAboutUs')}
+                        />
+                    )}
 
                     <Stack gap="xs">
                         {canEnableEmailDomainAccess && (

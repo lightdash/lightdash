@@ -18,7 +18,7 @@ import { QueryComposer } from './QueryComposer';
 export type MergeQueryComposerArguments = {
     /** Composable merge SQL, before presentation pivot and terminal checks. */
     coreSql: string;
-    terminalWrapper: MergeTerminalWrapper;
+    terminalWrapper: Pick<MergeTerminalWrapper, 'orderBy' | 'limit'>;
     /** Every merged column as an ordinary field, keyed by field id. */
     itemsMap: ItemsMap;
     /** The compile's typed field list — the virtual view's column types. */
@@ -84,7 +84,10 @@ export class MergeQueryComposer extends QueryComposer {
 
     private readonly mergedItemsMap: ItemsMap;
 
-    private readonly terminalWrapper: MergeTerminalWrapper;
+    private readonly terminalWrapper: Pick<
+        MergeTerminalWrapper,
+        'orderBy' | 'limit'
+    >;
 
     private readonly parameterReferences: Set<string>;
 
@@ -148,12 +151,10 @@ export class MergeQueryComposer extends QueryComposer {
     }
 
     protected finalizeSql(sql: string, isPivoted: boolean): string {
-        return applyMergeTerminalWrapper(sql, {
-            ...this.terminalWrapper,
-            // PivotQueryBuilder owns presentation ordering and limiting once
-            // present. The source-cap assertion must remain outermost.
-            ...(isPivoted ? { orderBy: [], limit: null } : {}),
-        });
+        // PivotQueryBuilder owns presentation ordering and limiting once present
+        return isPivoted
+            ? sql
+            : applyMergeTerminalWrapper(sql, this.terminalWrapper);
     }
 
     /**

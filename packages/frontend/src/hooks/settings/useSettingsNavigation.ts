@@ -77,6 +77,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -341,7 +342,7 @@ export const useSettingsNavigation = (
                 label: 'Integrations',
                 to: '/generalSettings/integrations',
                 icon: IconPlug,
-                keywords: ['slack', 'github', 'gitlab', 'linear'],
+                keywords: ['slack', 'github', 'gitlab', 'linear', 'jira'],
                 children: [],
                 exact: true,
             });
@@ -444,6 +445,18 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/projectManagement',
                 icon: IconDatabase,
                 keywords: ['projects', 'manage'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (canAccessAnalyticsSettings) {
+            organizationItems.push({
+                label: 'Lightdash analytics',
+                to: '/generalSettings/lightdashAnalytics',
+                icon: IconReportAnalytics,
+                isBeta: true,
+                keywords: ['usage', 'analytics', 'tokens', 'queries'],
                 children: [],
                 exact: true,
             });
@@ -1063,6 +1076,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,

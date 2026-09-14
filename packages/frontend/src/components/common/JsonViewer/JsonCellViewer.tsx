@@ -16,6 +16,7 @@ import { useRjvTheme } from '../../../hooks/useRjvTheme';
 import { CopyActionIcon } from '../CopyActionIcon';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
+import classes from './JsonCellViewer.module.css';
 import { type JsonCellValue } from './utils';
 
 type Props = {
@@ -160,7 +161,7 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
                                 component="pre"
                                 fz="xs"
                                 m={0}
-                                className="ld-pre-wrap"
+                                className={classes.formattedJson}
                             >
                                 {formattedJson}
                             </Box>

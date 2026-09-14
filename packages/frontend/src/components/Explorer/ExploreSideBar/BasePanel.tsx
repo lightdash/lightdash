@@ -216,7 +216,17 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
         return (
             <>
                 <ItemDetailProvider>
-                    <Stack h="100%" flex={1}>
+                    <Stack
+                        h="100%"
+                        flex={1}
+                        data-tour-scope="delete:VirtualView"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/tables"
+                        data-tour-label="Inspect the available tables"
+                        data-tour-docs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                        data-tour-return="none"
+                        data-tour-resultdocs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:1"
+                    >
                         <Can
                             I="manage"
                             this={subject('Explore', {
@@ -275,6 +285,13 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                             placeholder="Search tables"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            // Typed anchor for scope walkthroughs: the list
+                            // is virtualised, so a table far down it is
+                            // reached by searching for it.
+                            data-tour-anchor="explore-search"
+                            data-tour-hint="Search for the table"
+                            data-tour-input="true"
+                            data-tour-suggest="Orders by status"
                         />
 
                         <VirtualizedExploreList

@@ -1,4 +1,8 @@
-import { SDK_FEATURES, type SdkFeature } from '@lightdash/common';
+import {
+    getSdkFeaturesForTarget,
+    type SdkFeature,
+    type SdkFeatureTarget,
+} from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type SdkManifest } from './useAppSdkBridge';
 
@@ -32,12 +36,19 @@ export type SdkUpgradeOffer = {
  * The offer always describes the version an upgrade would actually rebuild
  * from — `upgradeApp` restores the latest ready source regardless of what the
  * user is previewing — so manifests from any other version are ignored.
+ *
+ * Only registry entries that apply to `target` count: every bundle reports
+ * the whole SDK registry, so a chart type is not stale for lacking Sheets
+ * export, and an app is not stale for lacking viz-context features.
  */
 export const useSdkUpgradeStatus = ({
+    target,
     bundleKey,
     renderedKey,
     isRendering,
 }: {
+    /** Which kind of bundle is being classified. */
+    target: SdkFeatureTarget;
     /** Identity (app + version) of the bundle the offer describes: the latest
      *  ready version, never the one the user happens to be viewing. A change
      *  resets the manifest so the new bundle re-reports rather than inheriting
@@ -88,13 +99,12 @@ export const useSdkUpgradeStatus = ({
     }, []);
 
     const offer = useMemo<SdkUpgradeOffer>(() => {
+        const registry = getSdkFeaturesForTarget(target);
         if (manifest) {
             const reported = new Set(manifest.features);
             // Additions only: keys the bundle reports that the current
             // registry no longer has (removed features) are ignored.
-            const newFeatures = SDK_FEATURES.filter(
-                (f) => !reported.has(f.key),
-            );
+            const newFeatures = registry.filter((f) => !reported.has(f.key));
             return {
                 status: newFeatures.length > 0 ? 'stale' : 'current',
                 newFeatures,
@@ -106,11 +116,11 @@ export const useSdkUpgradeStatus = ({
         return {
             status: timedOut ? 'legacy' : 'unknown',
             newFeatures: [],
-            candidateFeatures: timedOut ? [...SDK_FEATURES] : [],
+            candidateFeatures: timedOut ? registry : [],
             reportedSdkVersion: null,
             reportedFeatures: null,
         };
-    }, [manifest, timedOut]);
+    }, [manifest, timedOut, target]);
 
     /** What the bundle on screen reports, whichever version that is. Answers
      *  "can the app I am looking at do X?" — a different question from the

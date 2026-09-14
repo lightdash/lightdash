@@ -9,6 +9,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import {
     getFileContent,
     getPullRequest,
@@ -198,6 +199,7 @@ const buildService = (overrides: Overrides = {}) => {
     };
     const service = new ContentAsCodeWritebackService({
         lightdashConfig: { siteUrl: 'https://app.lightdash.dev' } as never,
+        analytics: analyticsMock,
         projectModel: {
             get: vi.fn().mockResolvedValue({
                 projectUuid: 'project-uuid',
@@ -280,12 +282,26 @@ describe('ContentAsCodeWritebackService', () => {
 
     it('dismisses an open draft without deleting it', async () => {
         const { service, contentDraftModel } = buildService();
+        const track = vi.spyOn(analyticsMock, 'track');
 
         await service.dismissDraft(user, 'project-uuid', 'draft-uuid');
 
         expect(contentDraftModel.update).toHaveBeenCalledWith('draft-uuid', {
             status: 'dismissed',
         });
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'content_draft.dismissed',
+                userId: user.userUuid,
+                properties: {
+                    projectId: 'project-uuid',
+                    draftId: 'draft-uuid',
+                    contentType: 'dashboard',
+                    contentId: 'dashboard-uuid',
+                    reason: 'reviewer',
+                },
+            }),
+        );
     });
 
     it('lets the author reopen the same dismissed draft', async () => {
@@ -441,6 +457,7 @@ describe('ContentAsCodeWritebackService', () => {
             state: 'closed',
             merged: false,
         } as never);
+        const track = vi.spyOn(analyticsMock, 'track');
 
         await service.listDrafts(user, 'project-uuid', { refresh: true });
 
@@ -454,6 +471,25 @@ describe('ContentAsCodeWritebackService', () => {
         });
         expect(contentDraftModel.listByProject).toHaveBeenCalledWith(
             'project-uuid',
+        );
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'content_as_code_writeback.pull_request_closed',
+                properties: expect.objectContaining({
+                    writebackId: 'row-uuid',
+                    prNumber: 5,
+                    hadDraft: true,
+                }),
+            }),
+        );
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'content_draft.dismissed',
+                properties: expect.objectContaining({
+                    draftId: 'draft-uuid',
+                    reason: 'pull_request_closed',
+                }),
+            }),
         );
     });
 

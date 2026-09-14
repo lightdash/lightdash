@@ -10,6 +10,7 @@ const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
@@ -22,6 +23,10 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
             return {
+                server: {
+                    registerCapabilities: vi.fn(),
+                    setRequestHandler: vi.fn(),
+                },
                 registerResource: vi.fn(),
                 registerPrompt: vi.fn(),
                 registerTool: vi.fn(

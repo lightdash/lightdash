@@ -108,6 +108,7 @@ const ResourceCard: FC<ResourceCardProps> = ({
             return (
                 <ResourceViewGridDashboardItem
                     item={item}
+                    projectUuid={projectUuid}
                     allowDelete={allowDelete}
                     onAction={onAction}
                     dragIcon={dragIcon}
@@ -117,6 +118,7 @@ const ResourceCard: FC<ResourceCardProps> = ({
             return (
                 <ResourceViewGridChartItem
                     item={item}
+                    projectUuid={projectUuid}
                     allowDelete={allowDelete}
                     onAction={onAction}
                     dragIcon={dragIcon}
@@ -215,6 +217,11 @@ const DraggableItem: FC<DraggableItemProps> = ({
             }`}
             ref={mergeRefs(setNodeRef, hoverRef)}
             style={style}
+            // Walkthrough anchor (data-tour-via): a pinned item, by name.
+            data-tour-anchor="pinned-item"
+            data-tour-hint="Open a pinned item"
+            data-tour-hint-named="Open {value}"
+            data-tour-value={item.data.name}
             onClick={(event: React.MouseEvent<HTMLDivElement>) => {
                 if (shouldSuppressClick()) {
                     event.preventDefault();

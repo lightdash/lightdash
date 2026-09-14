@@ -15,6 +15,7 @@ const GROUP_DISPLAY_NAMES: Record<ScopeGroup, string> = {
     [ScopeGroup.DATA]: 'Data Access',
     [ScopeGroup.SHARING]: 'Sharing & Export',
     [ScopeGroup.AI]: 'AI Features',
+    [ScopeGroup.EMBED]: 'Embedding',
     [ScopeGroup.SPOTLIGHT]: 'Spotlight Features',
 };
 

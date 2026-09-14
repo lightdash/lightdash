@@ -88,3 +88,8 @@ export type LightdashModel = Omit<
     explores?: Record<string, LightdashModelExplore>; // Override to use RequiredFilter
     dimensions: LightdashModelDimension[]; // Required: array of dimensions with types
 };
+
+export type LightdashModelWithSource = LightdashModel & {
+    /** Path relative to the project directory, retained for source editing. */
+    sourcePath: string;
+};

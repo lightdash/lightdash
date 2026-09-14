@@ -4,10 +4,10 @@ import {
     DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
     getModelsFromManifest,
-    ManifestValidator,
     SupportedDbtAdapter,
     type DbtManifest,
 } from '@lightdash/common';
+import { ManifestValidator } from '@lightdash/common/dbt/validation';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { projectMergedManifest } from './projectMergedManifest';
 

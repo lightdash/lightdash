@@ -32,6 +32,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    ProjectType,
     SaveOrganizationBrandRequest,
     SessionUser,
     TooManyRequestsError,
@@ -66,6 +67,7 @@ import {
     validateOrganizationScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
 import { BaseService } from '../BaseService';
+import { isAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/analyticsProjectClient';
 
 const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
 
@@ -664,7 +666,25 @@ export class OrganizationService extends BaseService {
             ),
         );
 
-        return projects.filter((_, index) => accessResults[index]);
+        const analyticsEnabled =
+            projects.some(
+                (project) => project.provisioningSource === 'analytics',
+            ) &&
+            auditedAbility.can(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            ) &&
+            (await isAnalyticsProjectEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            ));
+
+        return projects.filter(
+            (project, index) =>
+                accessResults[index] &&
+                (project.provisioningSource !== 'analytics' ||
+                    analyticsEnabled),
+        );
     }
 
     async getOnboarding(user: SessionUser): Promise<OnbordingRecord> {
@@ -1200,13 +1220,18 @@ export class OrganizationService extends BaseService {
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
         }
+        // Impersonators need to read the setting to know the action is available
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
+        const canReadSetting =
+            auditedAbility.can(
                 'update',
                 subject('Organization', { organizationUuid }),
-            )
-        ) {
+            ) ||
+            auditedAbility.can(
+                'impersonate',
+                subject('User', { organizationUuid, isActive: true }),
+            );
+        if (!canReadSetting) {
             throw new ForbiddenError();
         }
         const flag = await this.featureFlagModel.get({

@@ -102,6 +102,7 @@ import type {
     ExternalFetchResponse,
 } from '../ee';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
+import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUserActivityDownloadCsv,
@@ -109,6 +110,10 @@ import {
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
+import {
+    type AnalyticsProjectStatus,
+    type EnsureAnalyticsProjectResult,
+} from './analyticsProject';
 import { type AnyType } from './any';
 import {
     type ApiCreateComment,
@@ -189,6 +194,7 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
+    type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
     type DashboardVersion,
 } from './dashboard';
@@ -231,6 +237,13 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import type {
+    JiraInstallation,
+    JiraInstallUrl,
+    JiraIssueType,
+    JiraProject,
+    JiraSite,
+} from './jira';
 import { type KnexPaginatedData } from './knex-paginate';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
@@ -307,6 +320,7 @@ import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 import {
     DbtProjectType,
+    type CreateTrainingPreviewResults,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type EnsurePlaygroundProjectResults,
@@ -330,7 +344,11 @@ import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
 import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
-import { type ApiRoadmapResponse } from './roadmap';
+import {
+    type ApiRoadmapFollowProjectResponse,
+    type ApiRoadmapProjectResponse,
+    type ApiRoadmapResponse,
+} from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
@@ -369,6 +387,7 @@ import {
 import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
+    type ApiCustomDimensionWriteBackPreview,
     type ApiGithubDbtWritePreview,
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
@@ -377,6 +396,7 @@ import {
     type SortBy,
 } from './sqlRunner';
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
+import { type WarehouseConnectionTestResults } from './sshTunnel';
 import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import { type ApiUpstreamDiffResults } from './upstreamDiff';
@@ -710,6 +730,7 @@ export type HealthState = {
     hasSlack: boolean;
     hasGithub: boolean;
     hasGitlab: boolean;
+    hasJira: boolean;
     hasLinear: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
@@ -1004,6 +1025,12 @@ export type ApiExecuteAsyncDashboardChartQueryResults =
         metricQuery: MetricQuery;
         fields: ItemsMap;
         appliedDashboardFilters: DashboardFilters;
+        /**
+         * For a merged chart, the applied filters keyed by the merge source
+         * they were pushed into (source ids match `fieldOrigins`). Absent on
+         * ordinary tiles.
+         */
+        appliedDashboardFiltersBySourceId?: Record<string, DashboardFilters>;
         dateZoomApplied: boolean;
     };
 
@@ -1241,7 +1268,11 @@ type ApiResults =
     | ContentReviewSimilarContentItem[]
     | KnexPaginatedData<ContentReviewRequestListItem[]>
     | BigqueryProjectRecommendation
+    | ApiScimRequestLogListResponse['results']
     | EnsurePlaygroundProjectResults
+    | AnalyticsProjectStatus
+    | EnsureAnalyticsProjectResult
+    | CreateTrainingPreviewResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults
@@ -1256,6 +1287,7 @@ type ApiResults =
     | ApiRefreshResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
+    | WarehouseConnectionTestResults
     | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess
@@ -1320,9 +1352,12 @@ type ApiResults =
     | ApiPaginatedValidateResponse['results']
     | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
+    | ApiRoadmapProjectResponse['results']
+    | ApiRoadmapFollowProjectResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
+    | DashboardCustomMetricUpdateResult
     | DashboardVersion
     | EmbedUrl
     | DecodedEmbed
@@ -1334,6 +1369,11 @@ type ApiResults =
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
+    | JiraInstallation
+    | JiraInstallUrl
+    | Array<JiraSite>
+    | Array<JiraProject>
+    | Array<JiraIssueType>
     | LinearInstallation
     | Array<LinearTeam>
     | Array<LinearProject>
@@ -1381,6 +1421,7 @@ type ApiResults =
     | ApiChartContentResponse['results']
     | ApiSqlRunnerJobStatusResponse['results']
     | ApiCreateVirtualView['results']
+    | ApiCustomDimensionWriteBackPreview['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']

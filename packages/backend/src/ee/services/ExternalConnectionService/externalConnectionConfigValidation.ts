@@ -4,6 +4,7 @@ import {
     ParameterError,
     type ApiKeyLocation,
     type ExternalConnectionAuthType,
+    type OAuthClientAuthMethod,
 } from '@lightdash/common';
 import { validateCustomHeaders } from './proxyValidation';
 
@@ -14,14 +15,18 @@ const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10 MiB
 const MAX_TIMEOUT_MS = 120_000; // 2 minutes
 const MAX_RATE_LIMIT = 100_000;
 const MAX_INSTRUCTIONS_CHARS = 10_000;
+const MAX_OAUTH_TOKEN_URL_CHARS = 2_048;
+const MAX_OAUTH_CLIENT_ID_CHARS = 512;
+const MAX_OAUTH_SCOPES = 50;
+const MAX_OAUTH_SCOPE_CHARS = 2_048;
 
 const SUPPORTED_METHODS = new Set<string>(EXTERNAL_CONNECTION_METHODS);
 // RFC 7230 token chars — valid for HTTP header names and a safe set for query keys.
 const HTTP_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
 const CONTENT_TYPE = /^[a-z0-9*]+\/[a-z0-9.+*-]+$/i;
-// Google OAuth scopes are full https URLs, except the OIDC scopes
-// openid/email/profile which Google's token endpoint accepts as bare names.
-export const OAUTH_SCOPE = /^(https:\/\/\S+|openid|email|profile)$/;
+// RFC 6749 scope-token: printable ASCII except double quote and backslash.
+export const OAUTH_SCOPE = /^[\x21\x23-\x5B\x5D-\x7E]+$/;
+const GOOGLE_OAUTH_SCOPE = /^(https:\/\/\S+|openid|email|profile)$/;
 // Must be an absolute path with no whitespace, query, or fragment.
 const PATH_PREFIX = /^\/[^\s?#]*$/;
 
@@ -45,6 +50,9 @@ export type ValidatableExternalConnectionConfig = {
     apiKeyName?: string | null;
     apiKeyLocation?: ApiKeyLocation | null;
     oauthScopes?: string[] | null;
+    oauthTokenUrl?: string | null;
+    oauthClientId?: string | null;
+    oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders?: Record<string, string> | null;
 };
 
@@ -223,13 +231,26 @@ export function validateExternalConnectionConfig(
     );
 
     // --- auth invariants ---
+    const usesOAuthScopes =
+        config.type === 'google_service_account' ||
+        config.type === 'oauth_client_credentials';
     if (
-        config.type !== 'google_service_account' &&
+        !usesOAuthScopes &&
         config.oauthScopes &&
         config.oauthScopes.length > 0
     ) {
         throw new ParameterError(
-            'OAuth scopes are only valid for type "google_service_account"',
+            'OAuth scopes are only valid for OAuth authentication types',
+        );
+    }
+    if (
+        config.type !== 'oauth_client_credentials' &&
+        (config.oauthTokenUrl ||
+            config.oauthClientId ||
+            config.oauthClientAuthMethod)
+    ) {
+        throw new ParameterError(
+            'OAuth client configuration is only valid for type "oauth_client_credentials"',
         );
     }
     switch (config.type) {
@@ -285,13 +306,89 @@ export function validateExternalConnectionConfig(
                 );
             }
             config.oauthScopes.forEach((scope) => {
-                if (typeof scope !== 'string' || !OAUTH_SCOPE.test(scope)) {
+                if (
+                    typeof scope !== 'string' ||
+                    scope.length > MAX_OAUTH_SCOPE_CHARS ||
+                    !GOOGLE_OAUTH_SCOPE.test(scope)
+                ) {
                     throw new ParameterError(
                         `Invalid OAuth scope: ${JSON.stringify(scope)}`,
                     );
                 }
             });
             break;
+        case 'oauth_client_credentials': {
+            if (!hasSecretAfter) {
+                throw new ParameterError(
+                    'type "oauth_client_credentials" requires a client secret',
+                );
+            }
+            if (config.apiKeyName || config.apiKeyLocation) {
+                throw new ParameterError(
+                    'type "oauth_client_credentials" must not set an api key name or location',
+                );
+            }
+            if (
+                !config.oauthClientId?.trim() ||
+                config.oauthClientId.length > MAX_OAUTH_CLIENT_ID_CHARS
+            ) {
+                throw new ParameterError(
+                    'type "oauth_client_credentials" requires a valid client ID',
+                );
+            }
+            if (
+                config.oauthClientAuthMethod !== 'basic' &&
+                config.oauthClientAuthMethod !== 'body'
+            ) {
+                throw new ParameterError(
+                    'type "oauth_client_credentials" requires client authentication method "basic" or "body"',
+                );
+            }
+            if (
+                !config.oauthTokenUrl ||
+                config.oauthTokenUrl.length > MAX_OAUTH_TOKEN_URL_CHARS
+            ) {
+                throw new ParameterError(
+                    'type "oauth_client_credentials" requires a valid token URL',
+                );
+            }
+            let tokenUrl: URL;
+            try {
+                tokenUrl = new URL(config.oauthTokenUrl);
+            } catch {
+                throw new ParameterError('OAuth token URL must be a valid URL');
+            }
+            if (tokenUrl.protocol !== 'https:') {
+                throw new ParameterError('OAuth token URL must use https');
+            }
+            if (tokenUrl.username || tokenUrl.password) {
+                throw new ParameterError(
+                    'OAuth token URL must not contain credentials',
+                );
+            }
+            if (!tokenUrl.hostname || tokenUrl.hash) {
+                throw new ParameterError(
+                    'OAuth token URL must include a host and must not contain a fragment',
+                );
+            }
+            if ((config.oauthScopes?.length ?? 0) > MAX_OAUTH_SCOPES) {
+                throw new ParameterError(
+                    `OAuth scopes must contain at most ${MAX_OAUTH_SCOPES} values`,
+                );
+            }
+            config.oauthScopes?.forEach((scope) => {
+                if (
+                    typeof scope !== 'string' ||
+                    scope.length > MAX_OAUTH_SCOPE_CHARS ||
+                    !OAUTH_SCOPE.test(scope)
+                ) {
+                    throw new ParameterError(
+                        `Invalid OAuth scope: ${JSON.stringify(scope)}`,
+                    );
+                }
+            });
+            break;
+        }
         default:
             assertUnreachable(
                 config.type,

@@ -2,6 +2,7 @@ import {
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
     getSubtotalKey,
+    isApiError,
     QueryHistoryStatus,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
@@ -63,26 +64,38 @@ const getMockTotalError = (kind: CalculateTotalKind) => {
         : undefined;
 };
 
-const startCalculateTotalQuery = ({
+// The backend refuses to build a totals query with nothing to select (for
+// example a dimension-only table, or one whose only metrics are
+// period-over-period). That is "no totals", not a failure to surface.
+export const isTotalsNotSupportedError = (error: unknown): boolean =>
+    isApiError(error) && error.error.name === 'NotSupportedError';
+
+// Resolves to null when the backend reports there is nothing to total.
+const startCalculateTotalQuery = async ({
     projectUuid,
     sourceQueryUuid,
     kind,
     subtotalDimensions,
     invalidateCache,
-}: StartCalculateTotalArgs) => {
+}: StartCalculateTotalArgs): Promise<ApiExecuteAsyncMetricQueryResults | null> => {
     const mockError = getMockTotalError(kind);
     if (mockError) return Promise.reject(mockError);
 
-    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
-        url: `/projects/${projectUuid}/query/${sourceQueryUuid}/calculate-total`,
-        version: 'v2',
-        method: 'POST',
-        body: JSON.stringify({
-            kind,
-            subtotalDimensions,
-            invalidateCache,
-        }),
-    });
+    try {
+        return await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+            url: `/projects/${projectUuid}/query/${sourceQueryUuid}/calculate-total`,
+            version: 'v2',
+            method: 'POST',
+            body: JSON.stringify({
+                kind,
+                subtotalDimensions,
+                invalidateCache,
+            }),
+        });
+    } catch (error) {
+        if (isTotalsNotSupportedError(error)) return null;
+        throw error;
+    }
 };
 
 // Single wide row of totals. Keys are pivoted SQL column names for pivoted
@@ -94,11 +107,12 @@ const fetchTotals = async (
         kind: Extract<CalculateTotalKind, 'columnTotal' | 'grandTotal'>;
     },
 ): Promise<AsyncTotalsMap> => {
-    const { queryUuid } = await startCalculateTotalQuery(args);
+    const started = await startCalculateTotalQuery(args);
+    if (!started) return {};
 
     // Polling endpoint defaults to page=1, so the READY response already
     // contains the single totals row — no separate stream fetch needed.
-    const query = await pollForResults(args.projectUuid, queryUuid);
+    const query = await pollForResults(args.projectUuid, started.queryUuid);
 
     if (
         query.status === QueryHistoryStatus.ERROR ||
@@ -194,12 +208,14 @@ const fetchRowTotals = async (
 ): Promise<PivotRowTotalsByIndex> => {
     const { projectUuid, sourceQueryUuid, indexFieldIds, invalidateCache } =
         args;
-    const { queryUuid } = await startCalculateTotalQuery({
+    const started = await startCalculateTotalQuery({
         projectUuid,
         sourceQueryUuid,
         kind: 'rowTotal',
         invalidateCache,
     });
+    if (!started) return {};
+    const { queryUuid } = started;
 
     const query = await pollForResults(projectUuid, queryUuid);
 
@@ -303,13 +319,15 @@ const fetchRowSubtotals = async (args: {
             async (
                 group,
             ): Promise<[dimensions: string[], rows: ResultRow[]]> => {
-                const { queryUuid } = await startCalculateTotalQuery({
+                const started = await startCalculateTotalQuery({
                     projectUuid: args.projectUuid,
                     sourceQueryUuid: args.sourceQueryUuid,
                     kind: 'rowSubtotal',
                     subtotalDimensions: group,
                     invalidateCache: args.invalidateCache,
                 });
+                if (!started) return [group, []];
+                const { queryUuid } = started;
 
                 const query = await pollForResults(args.projectUuid, queryUuid);
                 if (
@@ -416,13 +434,15 @@ const fetchSubtotals = async (args: {
     const entries = await Promise.all(
         dimensionGroups.map(
             async (group): Promise<[string, RawResultRow[]]> => {
-                const { queryUuid } = await startCalculateTotalQuery({
+                const started = await startCalculateTotalQuery({
                     projectUuid,
                     sourceQueryUuid,
                     kind: 'columnSubtotal',
                     subtotalDimensions: group,
                     invalidateCache: args.invalidateCache,
                 });
+                if (!started) return [getSubtotalKey(group), []];
+                const { queryUuid } = started;
 
                 const query = await pollForResults(projectUuid, queryUuid);
                 if (

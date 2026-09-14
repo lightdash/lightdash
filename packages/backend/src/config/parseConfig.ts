@@ -1,5 +1,6 @@
 import {
     AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
+    AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
@@ -45,6 +46,7 @@ import {
     DEFAULT_ANTHROPIC_MODEL_NAME,
     DEFAULT_BEDROCK_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
+    DEFAULT_GOOGLE_MODEL_NAME,
     DEFAULT_OPENAI_EMBEDDING_MODEL,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
@@ -1075,7 +1077,7 @@ export const parseUsageEventsS3Config = (): Omit<
     } = baseS3Config;
 
     return {
-        endpoint,
+        endpoint: process.env.USAGE_EVENTS_S3_ENDPOINT || endpoint,
         forcePathStyle,
         bucket: process.env.USAGE_EVENTS_S3_BUCKET || baseBucket,
         region: process.env.USAGE_EVENTS_S3_REGION || baseRegion,
@@ -1260,16 +1262,22 @@ export const getAiConfig = () => ({
     defaultEmbeddingModelProvider:
         process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
         DEFAULT_DEFAULT_AI_PROVIDER,
-    // Unknown names are dropped (with a log) rather than passed through so a
-    // typo can't fail schema validation and discard the whole parsed config.
-    selfManagedProviders: getArrayFromCommaSeparatedList(
-        'AI_COPILOT_SELF_MANAGED_PROVIDERS',
+    // Which instance-level provider keys are Lightdash's. Set by Lightdash's
+    // own infrastructure on Lightdash Cloud deployments that run on Lightdash
+    // keys; never set by customers. Everything else — self-hosted installs,
+    // dedicated instances configured with a customer's key, org keys entered
+    // in the UI — is the customer's, so the default is "none". Only affects
+    // the `keyManagement` dimension on AI usage analytics. Unknown names are
+    // dropped (with a log) rather than passed through so a typo can't fail
+    // schema validation and discard the whole parsed config.
+    lightdashManagedProviders: getArrayFromCommaSeparatedList(
+        'AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS',
     ).filter((provider): provider is (typeof AI_PROVIDER_KEYS)[number] => {
         if ((AI_PROVIDER_KEYS as readonly string[]).includes(provider)) {
             return true;
         }
         console.error(
-            `Ignoring unknown provider "${provider}" in AI_COPILOT_SELF_MANAGED_PROVIDERS`,
+            `Ignoring unknown provider "${provider}" in AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS`,
         );
         return false;
     }),
@@ -1342,15 +1350,41 @@ export const getAiConfig = () => ({
                       ),
                   }
                 : undefined,
+        google: process.env.GEMINI_API_KEY
+            ? {
+                  apiKey: process.env.GEMINI_API_KEY,
+                  modelName:
+                      process.env.GEMINI_MODEL_NAME ||
+                      DEFAULT_GOOGLE_MODEL_NAME,
+                  baseUrl: process.env.GEMINI_BASE_URL
+                      ? normalizeLlmGatewayBaseUrl(
+                            process.env.GEMINI_BASE_URL,
+                            'GEMINI_BASE_URL',
+                        )
+                      : undefined,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'GEMINI_AVAILABLE_MODELS',
+                  ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'GEMINI_SUPPORTS_STREAMING',
+                  ),
+              }
+            : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
             ? {
                   apiKey: process.env.OPENROUTER_API_KEY,
                   modelName:
                       process.env.OPENROUTER_MODEL_NAME ||
                       DEFAULT_OPENROUTER_MODEL_NAME,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_AVAILABLE_MODELS',
+                  ),
                   sortOrder: process.env.OPENROUTER_SORT_ORDER,
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
+                  ),
+                  providerOrder: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_PROVIDER_ORDER',
                   ),
                   customHeaders: getProviderCustomHeaders(
                       'OPENROUTER_CUSTOM_HEADERS',
@@ -1478,6 +1512,9 @@ export type LightdashConfig = {
         licenseKey: string | null;
         licenseCertificate: string | null;
     };
+    roadmap: {
+        baseUrl: string;
+    };
     sentry: SentryConfig;
     auth: AuthConfig;
     intercom: IntercomConfig;
@@ -1513,6 +1550,7 @@ export type LightdashConfig = {
     };
     dbt: {
         environmentVariableAllowlist: string[];
+        sourceFetchConcurrency: number | undefined;
     };
     database: {
         connectionUri: string | undefined;
@@ -1591,6 +1629,15 @@ export type LightdashConfig = {
                 delayMs: number;
                 maxBatches?: number;
                 schedule: string;
+            };
+        };
+        scimRequestLogs: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
             };
         };
     };
@@ -1674,7 +1721,12 @@ export type LightdashConfig = {
         sessionTimeoutMs: number;
     };
     aiWriteback: {
-        anthropicApiKey: string | null;
+        /**
+         * @deprecated Writeback runs on the shared data-apps Anthropic
+         * credentials (`ANTHROPIC_API_KEY`). Only read when those are unset, so
+         * instances still setting the writeback-specific key keep working.
+         */
+        legacyAnthropicApiKey: string | null;
         /**
          * Pre-clone size ceiling (MB) for the general coding agent. A repo whose
          * GitHub-reported size exceeds this is rejected with an actionable error
@@ -2110,6 +2162,8 @@ export type AppRuntimeConfig = {
         url: string | null;
         /** dev-only: allow http/private addresses for a local fixture registry */
         allowInsecure: boolean;
+        /** which index the client reads: stable (index.json) or next (index-next.json, includes beta charts) */
+        channel: 'stable' | 'next';
     };
 };
 
@@ -2220,6 +2274,11 @@ type AuthOneLoginConfig = {
     loginPath: string;
 };
 
+type AuthMicrosoftManagedSignInConfig = {
+    iosClientId: string | undefined;
+    androidClientId: string | undefined;
+};
+
 type AuthOidcConfig = {
     callbackPath: string;
     loginPath: string;
@@ -2264,6 +2323,7 @@ export type AuthConfig = {
     okta: AuthOktaConfig;
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
+    microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
     databricks: AuthDatabricksConfig;
@@ -2275,6 +2335,8 @@ export type AuthConfig = {
     oauthServer?: {
         accessTokenLifetime: number; // in seconds (default = 1 hour)
         refreshTokenLifetime: number; // in seconds (default = 2 weeks)
+        mobileRefreshTokenLifetime: number; // in seconds (default = 90 days)
+        refreshTokenRotationGrace: number; // in seconds (default = 1 minute)
     };
 };
 
@@ -2318,9 +2380,9 @@ export type PostmarkConfig = {
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
-// The official chart type registry (lightdash/lightdash-gallery, GitHub Pages).
+// The official chart type registry (lightdash/lightdash-library, GitHub Pages).
 const DEFAULT_CHART_REGISTRY_URL: string | null =
-    'https://lightdash.github.io/lightdash-gallery';
+    'https://lightdash.github.io/lightdash-library';
 
 const parseSandboxProvider = (
     value: string | undefined,
@@ -2572,6 +2634,15 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             // local dev fixtures and trusted internal registry mirrors —
             // never with a registry URL you do not fully control.
             allowInsecure: parseChartRegistryAllowInsecure(),
+            channel: ((raw) => {
+                const normalized = raw?.trim().toLowerCase();
+                if (!normalized || normalized === 'stable')
+                    return 'stable' as const;
+                if (normalized === 'next') return 'next' as const;
+                throw new ParseError(
+                    `Cannot parse environment variable "LIGHTDASH_CHART_REGISTRY_CHANNEL". Value must be one of stable, next but LIGHTDASH_CHART_REGISTRY_CHANNEL=${raw}`,
+                );
+            })(process.env.LIGHTDASH_CHART_REGISTRY_CHANNEL),
         },
     };
 };
@@ -2627,18 +2698,53 @@ const parseCertificateFingerprints = (value: string | undefined): string[] =>
         .map((fingerprint) => fingerprint.trim())
         .filter((fingerprint) => fingerprint.length > 0);
 
+const normalizeCredentialEnvironmentVariable = (
+    value: string | undefined,
+): string | undefined => {
+    if (value === undefined) {
+        return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+};
+
 const parseMobilePushFcmCredential = ():
     | MobilePushNotificationsConfig['fcm']
     | undefined => {
-    const projectId = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID;
-    const clientEmail = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL;
-    const privateKey = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY;
+    const projectId = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID,
+    );
+    const clientEmail = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL,
+    );
+    const privateKey = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY,
+    );
 
-    return projectId === undefined ||
-        clientEmail === undefined ||
-        privateKey === undefined
-        ? undefined
-        : { projectId, clientEmail, privateKey };
+    if (
+        projectId !== undefined &&
+        clientEmail !== undefined &&
+        privateKey !== undefined
+    ) {
+        return { projectId, clientEmail, privateKey };
+    }
+
+    const missingVariables = [
+        projectId === undefined && 'MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID',
+        clientEmail === undefined &&
+            'MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL',
+        privateKey === undefined && 'MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY',
+    ].filter((name): name is string => name !== false);
+
+    if (missingVariables.length < 3) {
+        console.warn(
+            `Mobile push FCM credential is missing: ${missingVariables.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    return undefined;
 };
 
 const parseMobilePushCredential = (
@@ -2845,6 +2951,20 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    const queryHistoryCleanupEnabled =
+        process.env.QUERY_HISTORY_CLEANUP_ENABLED !== 'false';
+    const queryHistoryRetentionDays =
+        getIntegerFromEnvironmentVariable('QUERY_HISTORY_RETENTION_DAYS') ||
+        AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS;
+    if (
+        queryHistoryCleanupEnabled &&
+        queryHistoryRetentionDays < AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS
+    ) {
+        console.warn(
+            `WARNING: QUERY_HISTORY_RETENTION_DAYS is below the ${AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS}-day Deep Research report retention. Report charts may become unavailable before their reports expire.`,
+        );
+    }
+
     return {
         mode,
         mobile: {
@@ -2887,6 +3007,11 @@ export const parseConfig = (): LightdashConfig => {
         license: {
             licenseKey,
             licenseCertificate,
+        },
+        roadmap: {
+            baseUrl:
+                process.env.LIGHTDASH_ROADMAP_API_URL ||
+                'https://roadmap.lightdash.com',
         },
         security: {
             contentSecurityPolicy: {
@@ -3067,6 +3192,12 @@ export const parseConfig = (): LightdashConfig => {
                         ? `https://login.microsoftonline.com/${process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID}/v2.0/.well-known/openid-configuration`
                         : undefined,
             },
+            microsoftManagedSignIn: {
+                iosClientId:
+                    process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_IOS_CLIENT_ID,
+                androidClientId:
+                    process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID,
+            },
             oidc: {
                 callbackPath: '/oauth/redirect/oidc',
                 loginPath: '/login/oidc',
@@ -3116,6 +3247,14 @@ export const parseConfig = (): LightdashConfig => {
                     getIntegerFromEnvironmentVariable(
                         'AUTH_OAUTH_SERVER_REFRESH_TOKEN_LIFETIME',
                     ) || 60 * 60 * 24 * 14, // 2 weeks
+                mobileRefreshTokenLifetime:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_MOBILE_REFRESH_TOKEN_LIFETIME',
+                    ) || 60 * 60 * 24 * 90, // 90 days
+                refreshTokenRotationGrace:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_REFRESH_TOKEN_ROTATION_GRACE',
+                    ) || 60, // 1 minute
             },
         },
         intercom: {
@@ -3183,6 +3322,9 @@ export const parseConfig = (): LightdashConfig => {
         dbt: {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
+            ),
+            sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
+                'DBT_SOURCE_FETCH_CONCURRENCY',
             ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
@@ -3340,12 +3482,8 @@ export const parseConfig = (): LightdashConfig => {
             },
             queryHistory: {
                 cleanup: {
-                    enabled:
-                        process.env.QUERY_HISTORY_CLEANUP_ENABLED !== 'false', // true by default
-                    retentionDays:
-                        getIntegerFromEnvironmentVariable(
-                            'QUERY_HISTORY_RETENTION_DAYS',
-                        ) || AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
+                    enabled: queryHistoryCleanupEnabled,
+                    retentionDays: queryHistoryRetentionDays,
                     batchSize:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_CLEANUP_BATCH_SIZE',
@@ -3361,6 +3499,29 @@ export const parseConfig = (): LightdashConfig => {
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
+                },
+            },
+            scimRequestLogs: {
+                cleanup: {
+                    enabled:
+                        process.env.SCIM_REQUEST_LOG_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_RETENTION_DAYS',
+                        ) ?? 30,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
                 },
             },
         },
@@ -3535,7 +3696,8 @@ export const parseConfig = (): LightdashConfig => {
             ), // 10 minutes default
         },
         aiWriteback: {
-            anthropicApiKey: process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
+            legacyAnthropicApiKey:
+                process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
             codingAgentMaxRepoSizeMb: parseInt(
                 process.env.AI_CODING_AGENT_MAX_REPO_SIZE_MB || '500',
                 10,

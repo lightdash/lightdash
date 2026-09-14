@@ -41,29 +41,37 @@ const hasAnthropicByoGatewayConflict = (
     orgKeys: AiOrgProviderApiKeys,
 ): boolean => Boolean(orgKeys.anthropic && config.providers.anthropic?.baseUrl);
 
+const hasGoogleByoGatewayConflict = (
+    config: CopilotConfig,
+    orgKeys: AiOrgProviderApiKeys,
+): boolean => Boolean(orgKeys.google && config.providers.google?.baseUrl);
+
 /**
  * Overlay an org's own API key onto the instance copilot config. Only the
  * apiKey is org-supplied — every other provider option comes from the instance
  * config. Keys for providers the instance does not configure are ignored here
  * (the write path rejects them), so BYO can only swap the key of a provider
- * this instance already runs. Anthropic gateway mode is the exception: its
- * instance credential authenticates the gateway, so replacing it with an org
- * key is rejected rather than sending that key to the gateway.
+ * this instance already runs. Custom provider endpoints are the exception:
+ * their instance credential may authenticate an arbitrary gateway, so an org
+ * key is rejected rather than sent to that endpoint.
  */
 /**
  * Effective model visibility = stored settings on top of an implicit default:
- * an org with a BYO Anthropic key but no BYO OpenAI key hides OpenAI from the
- * model selector, so chat never silently falls back to the instance OpenAI key.
- * Explicit stored settings win, so an admin can re-enable OpenAI if they want
- * the fallback.
+ * an org with any BYO key hides every BYO provider it has not keyed, so chat
+ * never silently falls back to an instance key. Explicit stored settings win,
+ * so an admin can re-enable a provider if they intentionally want fallback.
  */
 export const resolveEffectiveModelVisibility = (
     orgKeys: AiOrgProviderApiKeys,
     stored: AiOrgModelVisibility | null,
 ): AiOrgModelVisibility | null => {
     const implicit: AiOrgModelVisibility = {};
-    if (orgKeys.anthropic && !orgKeys.openai) {
-        implicit.openai = { enabled: false };
+    if (BYO_AI_PROVIDERS.some((provider) => orgKeys[provider])) {
+        BYO_AI_PROVIDERS.forEach((provider) => {
+            if (!orgKeys[provider]) {
+                implicit[provider] = { enabled: false };
+            }
+        });
     }
     const merged = { ...implicit, ...(stored ?? {}) };
     return Object.keys(merged).length > 0 ? merged : null;
@@ -87,8 +95,23 @@ export const overlayOrgProviderApiKeys = (
         };
     }
 
+    if (orgKeys.google && providers.google) {
+        if (hasGoogleByoGatewayConflict(config, orgKeys)) {
+            throw new MissingConfigError(
+                'Organization Google Gemini API keys cannot be used while GEMINI_BASE_URL is configured. Remove the organization key or disable the instance Gemini gateway.',
+            );
+        }
+        providers.google = {
+            ...providers.google,
+            apiKey: orgKeys.google,
+        };
+    }
+
     if (orgKeys.openai && providers.openai) {
-        providers.openai = { ...providers.openai, apiKey: orgKeys.openai };
+        providers.openai = {
+            ...providers.openai,
+            apiKey: orgKeys.openai,
+        };
     }
 
     // When the org brings its own key(s), never resolve to a provider it did
@@ -331,17 +354,25 @@ export class OrgAiCopilotConfigResolver {
      * uses this so it runs on the org's own key without the fast model breaking.
      */
     async resolveFastModel(
-        config: CopilotConfig,
+        config: ResolvedCopilotConfig,
         options?: { enableReasoning?: boolean },
     ) {
         const { anthropic } = config.providers;
-        const accessibleModelIds = anthropic?.apiKey
-            ? await this.getAccessibleModelIds('anthropic', anthropic.apiKey, {
-                  baseUrl: anthropic.baseUrl,
-                  availableModels: anthropic.availableModels,
-                  customHeaders: anthropic.customHeaders,
-              })
-            : null;
+        const anthropicAllowed =
+            config.byoProviders.length === 0 ||
+            config.byoProviders.includes('anthropic');
+        const accessibleModelIds =
+            anthropic?.apiKey && anthropicAllowed
+                ? await this.getAccessibleModelIds(
+                      'anthropic',
+                      anthropic.apiKey,
+                      {
+                          baseUrl: anthropic.baseUrl,
+                          availableModels: anthropic.availableModels,
+                          customHeaders: anthropic.customHeaders,
+                      },
+                  )
+                : null;
         return getFastModelForAccessibleKey(
             config,
             accessibleModelIds,
@@ -368,7 +399,9 @@ export class OrgAiCopilotConfigResolver {
                 organizationUuid,
             );
         if (!orgKeys) return none;
-        const hasActiveByoKey = Boolean(orgKeys.anthropic || orgKeys.openai);
+        const hasActiveByoKey = BYO_AI_PROVIDERS.some(
+            (provider) => orgKeys[provider],
+        );
         if (!orgKeys.anthropic) {
             return { hasActiveByoKey, canJudgeOnByoKey: false };
         }

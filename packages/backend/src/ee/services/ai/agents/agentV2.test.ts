@@ -417,6 +417,11 @@ describe('generateAgentResponse token usage persistence', () => {
                 totalTokens: 31000,
                 finalStepTotalTokens: 31000,
             },
+            responseTiming: {
+                startedAt: expect.any(String),
+                firstTokenAt: null,
+                finishedAt: expect.any(String),
+            },
         });
     });
 });
@@ -468,7 +473,8 @@ describe('recordAgentStepUsage', () => {
             event: 'ai.usage',
             properties: {
                 feature: 'agent',
-                inputTokens: 10,
+                // The total includes the cache tokens: 10 uncached + 4 read + 2 write.
+                inputTokens: 16,
                 outputTokens: 7,
                 cacheReadTokens: 4,
                 cacheWriteTokens: 2,
@@ -528,7 +534,8 @@ describe('recordAgentStepUsage', () => {
             runUuid: 'run-1',
             phase: 'investigating',
             tokens: {
-                inputTokens: 10,
+                // The total includes the cache tokens: 10 uncached + 4 read + 2 write.
+                inputTokens: 16,
                 outputTokens: 7,
                 cacheReadTokens: 4,
                 cacheWriteTokens: 2,
@@ -1060,6 +1067,7 @@ describe('getAgentTools workstream tool gate', () => {
             toolHints: [],
             userId: 'user-1',
             useSlackStreamCard: false,
+            slackLinksOnly: false,
             ...flags,
         }) as unknown as AiAgentArgs;
 
@@ -1111,11 +1119,11 @@ describe('getAgentTools workstream tool gate', () => {
                 ),
                 visualizationUsesExpressions:
                     tools.generateVisualization.description?.includes(
-                        'Filter expression syntax:',
+                        'follow the Lightdash Agent system prompt',
                     ) ?? false,
                 fieldValueSearchUsesExpressions:
                     tools.searchFieldValues.description?.includes(
-                        'When filters is provided, pass one flat AND expression',
+                        'follow the Lightdash Agent system prompt',
                     ) ?? false,
             }).toEqual({
                 promptUsesExpressions: enableFilterExpressions,

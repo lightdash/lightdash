@@ -202,6 +202,24 @@ const collisionDetectionStrategy: CollisionDetection = (args) => {
         : closestCorners(args);
 };
 
+/**
+ * Walkthrough action for manage:ProjectHomepage: publishing the draft. The
+ * publish dialog's confirm and the logo (back home) follow.
+ */
+const publishTourAction = {
+    'data-tour-scope': 'manage:ProjectHomepage',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/homepage-builder',
+    'data-tour-label': 'Click Publish',
+    'data-tour-title': 'Edit the project homepage',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="home"] >> [data-tour-anchor="customize-homepage"] >> [data-tour-anchor="homepage-block"][data-tour-value="Call to action"]',
+    'data-tour-then':
+        '[data-tour-anchor="modal-confirm"] >> [data-tour-nav="home"]',
+    'data-tour-docs': 'explore/homepage.mdx#preview-and-publish:p7:1-2',
+};
+
 const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
     definition,
     onAdd,
@@ -218,6 +236,12 @@ const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
             className={classes.railCard}
             data-dragging={isDragging}
             onClick={onAdd}
+            // Anchor for scope walkthroughs (data-tour-via): a block to add,
+            // by its label. The hint's {value} is the label:
+            //   data-tour-anchor="homepage-block" data-tour-hint="Add the {value} block"
+            data-tour-anchor="homepage-block"
+            data-tour-hint="Add the {value} block"
+            data-tour-value={definition.label}
         >
             <IconSquare icon={definition.icon} />
             <Box miw={0}>
@@ -861,6 +885,7 @@ export const HomepageEditor: FC<Props> = ({
                     className={classes.tbBtnPrimary}
                     disabled={publishMutation.isLoading}
                     onClick={handleOpenPublish}
+                    {...publishTourAction}
                 >
                     Publish
                     <MantineIcon icon={IconArrowRight} size={14} />
@@ -902,7 +927,15 @@ export const HomepageEditor: FC<Props> = ({
             >
                 <div className={classes.body}>
                     {!isPreviewing && (
-                        <aside className={classes.rail}>
+                        <aside
+                            className={classes.rail}
+                            // Walkthrough look at the block library.
+                            data-tour-scope="manage:ProjectHomepage"
+                            data-tour-look="1"
+                            data-tour-after='[data-tour-anchor="customize-homepage"]'
+                            data-tour-label="The block library"
+                            data-tour-docs="explore/homepage.mdx#build-a-homepage:li1"
+                        >
                             <div className={classes.railTitle}>Blocks</div>
                             <Stack gap={6}>
                                 {availableBlocks.map((definition) => (

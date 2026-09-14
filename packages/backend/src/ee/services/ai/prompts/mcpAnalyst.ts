@@ -1,3 +1,5 @@
+import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from './filterGuidance';
+
 // Only offered to sessions whose tools/list actually includes run_sql
 // (gated on manage:SqlRunner).
 const RUN_SQL_GUIDANCE = `### When to Use run_sql vs run_metric_query
@@ -50,6 +52,7 @@ Governed metric execution (\`run_metric_query\`) is not available in this sessio
 
 const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
+    filterExpressionsEnabled: boolean,
 ): string => `# Lightdash MCP Tools — Usage Guidelines
 
 ## Query Building Workflow
@@ -81,7 +84,7 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. **Get started with context**
 - When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
 - If still ambiguous, ask the user which data source they want — do NOT guess
 
-${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}### Time Filtering
+${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${MCP_FILTER_EXPRESSION_GUIDANCE_SECTION}\n\n` : ''}### Time Filtering
 - If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
 - Use the \`inThePast\` operator for relative windows
 - Date fields from joined tables work identically in filters
@@ -115,19 +118,26 @@ Author table calculations as type \`formula\` (the field's schema documents the 
 - Reference using the pattern \`table_metricname\`
 `;
 
-export const getMcpAnalystPrompt = (args?: {
-    runSqlEnabled?: boolean;
-    runMetricQueryEnabled?: boolean;
+export const getMcpAnalystPrompt = ({
+    runSqlEnabled,
+    runMetricQueryEnabled,
+    filterExpressionsEnabled,
+}: {
+    runSqlEnabled: boolean;
+    runMetricQueryEnabled: boolean;
+    filterExpressionsEnabled: boolean;
 }): string => {
-    const runSqlEnabled = args?.runSqlEnabled ?? true;
-    const runMetricQueryEnabled = args?.runMetricQueryEnabled ?? true;
     if (!runSqlEnabled && !runMetricQueryEnabled) {
         return CONTENT_ONLY_PROMPT;
     }
     if (!runMetricQueryEnabled) {
         return SQL_ONLY_PROMPT;
     }
-    return buildMcpAnalystPrompt(runSqlEnabled);
+    return buildMcpAnalystPrompt(runSqlEnabled, filterExpressionsEnabled);
 };
 
-export const MCP_ANALYST_PROMPT = getMcpAnalystPrompt();
+export const MCP_ANALYST_PROMPT = getMcpAnalystPrompt({
+    runSqlEnabled: true,
+    runMetricQueryEnabled: true,
+    filterExpressionsEnabled: false,
+});

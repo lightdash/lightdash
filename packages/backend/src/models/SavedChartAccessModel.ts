@@ -91,10 +91,10 @@ export class SavedChartAccessModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .whereIn(
+            .whereRaw('?? = ANY(?::uuid[])', [
                 `${SavedChartUserAccessTableName}.saved_chart_uuid`,
                 uniqueUuids,
-            )
+            ])
             .where(`${SavedChartUserAccessTableName}.user_uuid`, userUuid)
             .where(
                 `${OrganizationTableName}.organization_uuid`,
@@ -160,10 +160,10 @@ export class SavedChartAccessModel {
                             );
                         },
                     )
-                    .whereIn(
+                    .whereRaw('?? = ANY(?::uuid[])', [
                         `${SavedChartGroupAccessTableName}.saved_chart_uuid`,
                         uniqueUuids,
-                    )
+                    ])
                     .where(`${UserTableName}.user_uuid`, userUuid)
                     .where(
                         `${OrganizationTableName}.organization_uuid`,

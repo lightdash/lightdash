@@ -1,4 +1,10 @@
-import { deepEqual, getItemId, getMetrics } from '@lightdash/common';
+import {
+    deepEqual,
+    getDimensions,
+    getItemId,
+    getItemLabelWithoutTableName,
+    getMetrics,
+} from '@lightdash/common';
 import { Button, Group, rgba, Text, Tooltip } from '@mantine/core';
 import {
     IconCircleCheckFilled,
@@ -32,6 +38,10 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
+import {
+    useIsModalHosted,
+    useModalHostedChartSaved,
+} from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
@@ -46,6 +56,10 @@ const SaveChartButton: FC<{
     const isAmbientAiEnabled = useAmbientAiEnabled();
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
+    const isModalHosted = useIsModalHosted();
+    const onModalHostChartSaved = useModalHostedChartSaved();
+    // Both mean the Explorer is not the page, so saving must not navigate away.
+    const suppressNavigation = isEmbedded || isModalHosted;
     const projectUuid = useProjectUuid();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     // For saving: enriched with map extent (only subscribes here to avoid re-renders elsewhere)
@@ -98,7 +112,9 @@ const SaveChartButton: FC<{
         setIsQueryModalOpen(true);
     };
 
-    const update = useAddVersionMutation({ redirectOnSuccess: !isEmbedded });
+    const update = useAddVersionMutation({
+        redirectOnSuccess: !suppressNavigation,
+    });
     const updateMetadata = useUpdateMutation(
         savedChart?.dashboardUuid ?? undefined,
         savedChart?.uuid,
@@ -123,6 +139,7 @@ const SaveChartButton: FC<{
                     onSuccess: (data) => {
                         if (!hasVersionChanges && !hasMergeChanges) {
                             embed.onChartSaved?.(data, 'updated');
+                            onModalHostChartSaved?.(data);
                         }
                     },
                 },
@@ -139,9 +156,12 @@ const SaveChartButton: FC<{
                     },
                 },
                 {
-                    // Lets the embed dashboard builder react to the update
+                    // Lets a dashboard builder react to the update
                     // (e.g. close its chart editor modal)
-                    onSuccess: (data) => embed.onChartSaved?.(data, 'updated'),
+                    onSuccess: (data) => {
+                        embed.onChartSaved?.(data, 'updated');
+                        onModalHostChartSaved?.(data);
+                    },
                 },
             );
         }
@@ -177,6 +197,29 @@ const SaveChartButton: FC<{
         unsavedChartVersion,
         onComplete: handleMetadataComplete,
     });
+
+    // A deterministic name from the query, so the save dialog never opens
+    // with an empty name: "<metrics> by <dimensions>". AI-generated metadata
+    // takes precedence when available.
+    const defaultMetadata = useMemo(() => {
+        if (!explore) return undefined;
+        const { metrics, dimensions } = unsavedChartVersion.metricQuery;
+        const metricLabels = getMetrics(explore)
+            .filter((metric) => metrics.includes(getItemId(metric)))
+            .map(getItemLabelWithoutTableName);
+        const dimensionLabels = getDimensions(explore)
+            .filter((dimension) => dimensions.includes(getItemId(dimension)))
+            .map(getItemLabelWithoutTableName);
+        const name = [
+            metricLabels.join(', '),
+            dimensionLabels.length > 0
+                ? `by ${dimensionLabels.join(', ')}`
+                : '',
+        ]
+            .filter(Boolean)
+            .join(' ');
+        return { name: name || explore.label, description: '' };
+    }, [explore, unsavedChartVersion.metricQuery]);
 
     const isDisabled =
         disabled ||
@@ -240,7 +283,7 @@ const SaveChartButton: FC<{
                         // Trigger metadata generation on mouse enter if available
                         onMouseEnter={() => {
                             if (savedChart) return;
-                            if (isEmbedded) return;
+                            if (suppressNavigation) return;
                             if (!isAmbientAiEnabled) return;
                             triggerMetadataGeneration();
                         }}
@@ -258,6 +301,20 @@ const SaveChartButton: FC<{
                             }),
                         })}
                         onClick={handleSaveChart}
+                        // Scope-tour marker: the control manage:SavedChart
+                        // unlocks. Path and follow-up declared here; see
+                        // scripts/scope-tours/generate.ts.
+                        data-tour-anchor="save-chart-changes"
+                        data-tour-hint="Save changes"
+                        data-tour-scope="manage:SavedChart"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/tables/:tableName"
+                        data-tour-label="Click Save chart"
+                        data-tour-title="Save a chart"
+                        data-tour-docs="explore/explore-view.mdx#save-your-chart:p2:1"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-table"] >> [data-tour-anchor="explore-metric"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"]'
+                        data-tour-then='[data-tour-anchor="chart-save-to-space"] >> [data-tour-anchor="chart-save-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="chart-save-submit"]'
                     >
                         {savedChart ? 'Save changes' : 'Save chart'}
                     </Button>
@@ -301,13 +358,14 @@ const SaveChartButton: FC<{
                         setIsQueryModalOpen(false);
                         setIsSaveAsModal(false);
                         embed.onChartSaved?.(saved, 'created');
+                        onModalHostChartSaved?.(saved);
                     }}
                     defaultSpaceUuid={spaceUuid ?? undefined}
-                    chartMetadata={generatedMetadata ?? undefined}
+                    chartMetadata={generatedMetadata ?? defaultMetadata}
                     forceSpaceOrDashboardChoice={isSaveAsModal}
                     isSaveAs={isSaveAsModal}
-                    redirectOnSuccess={!isEmbedded}
-                    showViewChartAction={!isEmbedded}
+                    redirectOnSuccess={!suppressNavigation}
+                    showViewChartAction={!suppressNavigation}
                     forcedSpaceUuid={
                         isEmbedded ? embed.writeActions?.spaceUuid : undefined
                     }
@@ -368,6 +426,14 @@ const SaveChartButton: FC<{
                             </Button>
                             <Button
                                 color="green.7"
+                                data-tour-scope="manage:VerifiedContent"
+                                data-tour-step="2"
+                                data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                data-tour-title="Edit a verified chart"
+                                data-tour-label="Save and verify the changed chart"
+                                data-tour-docs="explore/verified-content.mdx#what-you-see-when-saving-verified-content:1"
+                                data-tour-interactive="true"
+                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="chart-actions"] >> [data-tour-anchor="verify-chart"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="save-chart-changes"]'
                                 leftSection={
                                     <IconCircleCheckFilled size={16} />
                                 }

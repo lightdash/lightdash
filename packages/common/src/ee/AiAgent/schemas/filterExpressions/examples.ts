@@ -119,6 +119,15 @@ export const formatFilterExpressionExample = (
     }
 };
 
+export const FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE =
+    formatFilterExpressionExample({
+        fieldId: 'orders_product_name',
+        fieldType: DimensionType.STRING,
+        fieldFilterType: FilterType.STRING,
+        operator: FilterOperator.EQUALS,
+        values: ['Coffee Filters (100pk)'],
+    });
+
 const expandFiniteExamplePermutations = (
     example: AiFilterExample,
     argumentCount: (typeof filterExpressionOperatorDefinitions)[number]['argumentCountByFilterType'][FilterType],

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MergeJoinType } from '../../../../types/mergeQuery';
+import assertUnreachable from '../../../../utils/assertUnreachable';
 import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
@@ -16,9 +17,10 @@ import {
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import {
-    buildMcpQueryRunResponseDescription,
     buildMcpVisualizationFollowUpInstruction,
-    MCP_QUERY_COMMON_NOTES,
+    MCP_ARTIFACT_INTEGRATION_NOTE,
+    MCP_QUERY_ERROR_NOTE,
+    MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
 import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
 
@@ -208,13 +210,15 @@ const chartConfigBuiltinSchema = z.object({
     yAxisLabel: z.string().describe('A helpful label to explain the y-axis'),
     secondaryYAxisMetric: z
         .string()
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
             '(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).',
         ),
     secondaryYAxisLabel: z
         .string()
-        .nullable()
+        .nullish()
+        .default(null)
         .describe('A helpful label for the secondary y-axis'),
 });
 
@@ -274,35 +278,38 @@ export const isCustomChartTypeSlugChartConfig = (
 
 // The MCP lead paragraph carries the keywords lexical tool search ranks on;
 // the agent runtime has its own prompt and different sibling tool names.
-const MCP_RUN_QUERY_LEAD = `Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.`;
+const MCP_RUN_QUERY_LEAD = `Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.`;
+
+const RUN_QUERY_PARAMETER_GUIDANCE = `If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.`;
 
 export const TOOL_RUN_QUERY_DESCRIPTION = ({
     runtime,
-}: ToolDescriptionContext): string => `${
-    runtime === 'mcp' ? MCP_RUN_QUERY_LEAD : 'Execute a metric query.'
-}
+}: ToolDescriptionContext): string => {
+    switch (runtime) {
+        case 'agent':
+            return `Execute a metric query.
 
-If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
+${RUN_QUERY_PARAMETER_GUIDANCE}
+
+The tool handles execution and chart artifacts. It returns a result summary and CSV data when data access is enabled. For empty results, follow the returned guidance. Correct validation or execution errors before retrying.`;
+        case 'mcp':
+            return `${MCP_RUN_QUERY_LEAD}
+
+${RUN_QUERY_PARAMETER_GUIDANCE}
 
 This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
-    'run_metric_query',
-)}
+                'run_metric_query',
+            )}
 
-${buildMcpQueryRunResponseDescription({
-    contentDescription:
-        'bare CSV text. CSV headers are display labels, not stable field IDs',
-    completedResultShape: `    result: {
-      status: "done",
-      queryUuid: string,
-      rows: Array<Record<string, unknown>>,
-      fields: Record<string, unknown>,
-      exploreUrl: string | null
-    }`,
-})}
+${MCP_QUERY_RESULT_USAGE_NOTE}
+${MCP_QUERY_ERROR_NOTE}
 
-Notes:
-${MCP_QUERY_COMMON_NOTES}
+${MCP_ARTIFACT_INTEGRATION_NOTE}
 `;
+        default:
+            return assertUnreachable(runtime, 'Unknown query tool runtime');
+    }
+};
 
 // Kept only for parsing historical persisted tool args.
 export const toolRunQueryArgsSchemaV1 = createToolSchema()
@@ -537,22 +544,14 @@ export const parsePersistedRunQueryArgs = (
         : null;
 };
 
-export const TOOL_RENDER_CHART_DESCRIPTION = `Render a chart for a completed query result in MCP App-capable clients.
+export const TOOL_RENDER_CHART_DESCRIPTION = `Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.
 
-Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the exact queryUuid that run_metric_query (or get_query_result) returned for this query in the current conversation — it is included in that tool's response as a \`queryUuid: <id>\` text block. Never invent, guess, or reuse a queryUuid from a different query or session; an unknown id fails with "not found". Lightdash loads the completed metric query from query history.
+Use when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.
+Pass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the \`queryUuid: <id>\` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.
 
-Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
+The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
 
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — short render status message.
-- structuredContent: {
-    result: {
-      status: "done",
-      queryUuid: string,
-      exploreUrl: string | null,
-      echartsOption: Record<string, unknown> | null // lightweight placeholder; full chart payload is app metadata
-    }
-  }`;
+${MCP_ARTIFACT_INTEGRATION_NOTE}`;
 
 export const toolRenderChartArgsSchema = createToolSchema()
     .extend({

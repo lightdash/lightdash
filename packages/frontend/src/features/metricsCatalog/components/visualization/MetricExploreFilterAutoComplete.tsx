@@ -22,7 +22,7 @@ import {
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import styles from './MetricExploreFilterAutoComplete.module.css';
 
-type Props = Omit<PillsInputProps, 'onChange'> & {
+type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     dimension: CompiledDimension;
     values: string[];
     onChange: (values: string[]) => void;

@@ -56,7 +56,10 @@ export const getConnectionDefaults = (
                     schema: nonEmpty(credentials.schema),
                 };
             }
-            if (credentials.connectionType === DuckdbConnectionType.EMBEDDED) {
+            if (
+                credentials.connectionType === DuckdbConnectionType.EMBEDDED ||
+                credentials.connectionType === DuckdbConnectionType.ANALYTICS
+            ) {
                 return {
                     database: undefined,
                     schema: nonEmpty(credentials.schema),

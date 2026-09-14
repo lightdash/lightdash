@@ -5,7 +5,6 @@ import {
 } from '../../../features/explorer/store';
 import type Page from '../../common/Page/Page';
 import VisualizationConfigPortal from '../VisualizationCard/VisualizationConfigPortal';
-import { useIsChartGalleryEnabled } from './useIsChartGalleryEnabled';
 
 type RightSidebarProps = Pick<
     ComponentProps<typeof Page>,
@@ -23,16 +22,11 @@ export const useChartGalleryRightSidebar = ({
     const isVisualizationConfigOpen = useExplorerSelector(
         selectIsVisualizationConfigOpen,
     );
-    const isChartGalleryEnabled = useIsChartGalleryEnabled();
 
     return {
-        rightSidebar:
-            isChartGalleryEnabled && enabled ? (
-                <VisualizationConfigPortal />
-            ) : null,
-        isRightSidebarOpen:
-            isChartGalleryEnabled && enabled && isVisualizationConfigOpen,
-        keepRightSidebarMounted: isChartGalleryEnabled,
-        noRightSidebarPadding: isChartGalleryEnabled,
+        rightSidebar: enabled ? <VisualizationConfigPortal /> : null,
+        isRightSidebarOpen: enabled && isVisualizationConfigOpen,
+        keepRightSidebarMounted: true,
+        noRightSidebarPadding: true,
     };
 };

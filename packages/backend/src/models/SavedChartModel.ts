@@ -151,6 +151,12 @@ const getSavedChartPivotConfig = (
     };
 };
 
+type SavedChartLocation = {
+    projectUuid: string;
+    dashboardUuid: string | null;
+    spaceUuid: string;
+};
+
 const createSavedChartVersionFields = async (
     trx: Knex,
     data: CreateDbSavedChartVersionField[],
@@ -529,13 +535,17 @@ export const createSavedChart = async (
             return await db.transaction(async (trx) => {
                 await acquireProjectSlugLock(trx, projectUuid, slug);
 
+                let deletedOwnerUuid: string | undefined;
                 if (forceSlug) {
-                    const existingUuid = await resolveForcedChartSlug(
+                    const owner = await getSavedChartSlugOwner(
                         trx,
                         projectUuid,
                         slug,
                     );
-                    if (existingUuid) return existingUuid;
+                    if (owner && !owner.deleted_at) {
+                        return owner.saved_query_uuid;
+                    }
+                    deletedOwnerUuid = owner?.saved_query_uuid;
                 }
 
                 let chart: InsertChart;
@@ -607,9 +617,29 @@ export const createSavedChart = async (
                         space_id: space.space_id,
                     };
                 }
-                const [newSavedChart] = await trx(SavedChartsTableName)
-                    .insert(chart)
-                    .returning('*');
+                // An exact slug owned by a deleted chart is the same content
+                // as code identity, so it comes back where the upload puts it.
+                const [newSavedChart] = deletedOwnerUuid
+                    ? await trx(SavedChartsTableName)
+                          .update({
+                              name: chart.name,
+                              description: chart.description,
+                              last_version_chart_kind:
+                                  chart.last_version_chart_kind,
+                              last_version_updated_by_user_uuid:
+                                  chart.last_version_updated_by_user_uuid,
+                              last_version_updated_at: new Date(),
+                              color_palette_uuid: chart.color_palette_uuid,
+                              space_id: chart.space_id,
+                              dashboard_uuid: chart.dashboard_uuid,
+                              deleted_at: null,
+                              deleted_by_user_uuid: null,
+                          })
+                          .where('saved_query_uuid', deletedOwnerUuid)
+                          .returning('*')
+                    : await trx(SavedChartsTableName)
+                          .insert(chart)
+                          .returning('*');
                 await createSavedChartVersion(
                     trx,
                     newSavedChart.saved_query_id,
@@ -1081,14 +1111,25 @@ export class SavedChartModel {
         data: CreateSavedChartVersion,
         user: SessionUser | undefined,
         tx?: Knex,
+        expectedLocation?: SavedChartLocation,
     ): Promise<SavedChartDAO> {
         const doWork = async (trx: Knex) => {
-            const [savedChart] = await trx(SavedChartsTableName)
-                .select(['saved_query_id'])
-                .where('saved_query_uuid', savedChartUuid)
-                .whereNull('deleted_at');
+            const chartQuery = this.getChartMutationQuery(
+                trx,
+                savedChartUuid,
+                expectedLocation,
+            ).select(['saved_query_id']);
+            if (expectedLocation) {
+                chartQuery.forUpdate();
+            }
+            const [savedChart] = await chartQuery;
 
             if (!savedChart) {
+                if (expectedLocation) {
+                    throw new ConflictError(
+                        'Chart location changed. Reload the chart and try again.',
+                    );
+                }
                 throw new NotFoundError('Saved chart not found');
             }
 
@@ -1119,10 +1160,37 @@ export class SavedChartModel {
         return this.get(savedChartUuid);
     }
 
+    private getChartMutationQuery(
+        database: Knex,
+        savedChartUuid: string,
+        expectedLocation?: SavedChartLocation,
+    ) {
+        const query = database(SavedChartsTableName)
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNull('deleted_at');
+        if (!expectedLocation) {
+            return query;
+        }
+
+        query
+            .where('project_uuid', expectedLocation.projectUuid)
+            .where('dashboard_uuid', expectedLocation.dashboardUuid);
+        if (expectedLocation.dashboardUuid !== null) {
+            return query.whereNull('space_id');
+        }
+        return query.where(
+            'space_id',
+            database(SpaceTableName)
+                .select('space_id')
+                .where('space_uuid', expectedLocation.spaceUuid),
+        );
+    }
+
     private async updateChart(
         database: Knex,
         savedChartUuid: string,
         data: UpdateSavedChart,
+        expectedLocation?: SavedChartLocation,
     ): Promise<void> {
         const savedChart = await database(SavedChartsTableName)
             .select(`${SavedChartsTableName}.project_uuid`)
@@ -1154,24 +1222,36 @@ export class SavedChartModel {
             targetSpaceId = space.space_id;
         }
 
-        await database(SavedChartsTableName)
-            .update({
-                name: data.name,
-                description: data.description,
-                project_uuid: savedChart.project_uuid,
-                space_id: targetSpaceId,
-                dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
-                color_palette_uuid: data.colorPaletteUuid,
-            })
-            .where('saved_query_uuid', savedChartUuid)
-            .whereNull('deleted_at');
+        const updatedRows = await this.getChartMutationQuery(
+            database,
+            savedChartUuid,
+            expectedLocation,
+        ).update({
+            name: data.name,
+            description: data.description,
+            project_uuid: savedChart.project_uuid,
+            space_id: targetSpaceId,
+            dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
+            color_palette_uuid: data.colorPaletteUuid,
+        });
+        if (expectedLocation && updatedRows !== 1) {
+            throw new ConflictError(
+                'Chart location changed. Reload the chart and try again.',
+            );
+        }
     }
 
     async update(
         savedChartUuid: string,
         data: UpdateSavedChart,
+        expectedLocation?: SavedChartLocation,
     ): Promise<SavedChartDAO> {
-        await this.updateChart(this.database, savedChartUuid, data);
+        await this.updateChart(
+            this.database,
+            savedChartUuid,
+            data,
+            expectedLocation,
+        );
         return this.get(savedChartUuid);
     }
 

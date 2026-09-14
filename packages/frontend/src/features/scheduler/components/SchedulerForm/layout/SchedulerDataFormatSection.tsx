@@ -1,11 +1,15 @@
 import {
     isAppScheduler,
+    isChartScheduler,
     isDashboardScheduler,
     SchedulerFormat,
     type Dashboard,
     type DashboardFilterRule,
+    type FilterRule,
+    type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SavedChart,
     type SchedulerAndTargets,
     type SchedulerAppState,
     type UnmetFilterRequirement,
@@ -31,7 +35,11 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
 import { Limit, Values } from '../../types';
-import { useSchedulerFormContext } from '../schedulerFormContext';
+import { SchedulerFormChartFilterOverridesTab } from '../SchedulerFormChartFilterOverridesTab';
+import {
+    hasFileAttachmentTargets,
+    useSchedulerFormContext,
+} from '../schedulerFormContext';
 import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
 import classes from './SchedulerDeliveryModal.module.css';
@@ -52,6 +60,13 @@ const getAppQueryCountCaption = (
 
 type Props = {
     dashboard: Dashboard | undefined;
+    /** Chart deliveries only: the chart whose saved filters can be adjusted. */
+    savedChart?: SavedChart;
+    /** Chart deliveries opened from the chart page: the explorer's fields. */
+    itemsMap?: ItemsMap;
+    /** Chart deliveries only: whether this user may replace the chart's saved filters. */
+    canAdjustChartFilters?: boolean;
+    chartFiltersWithUnmetRequirements?: FilterRule[];
     savedSchedulerData?: SchedulerAndTargets;
     isApp: boolean;
     appUuid?: string;
@@ -70,6 +85,10 @@ type Props = {
 
 export const SchedulerDataFormatSection: FC<Props> = ({
     dashboard,
+    savedChart,
+    itemsMap,
+    canAdjustChartFilters = true,
+    chartFiltersWithUnmetRequirements = [],
     savedSchedulerData,
     isApp,
     appUuid,
@@ -265,22 +284,23 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             })}
                         />
                     )}
-                {format === SchedulerFormat.CSV && (
+                {(format === SchedulerFormat.CSV ||
+                    format === SchedulerFormat.XLSX) && (
                     <Tooltip
-                        label="You must have at least one email recipient to attach a file to emails"
+                        label="Add an email or Slack recipient to attach the file"
                         position="top-start"
-                        disabled={(form.values.emailTargets?.length || 0) > 0}
+                        disabled={hasFileAttachmentTargets(form.values)}
                     >
                         <Box display="flex" w="fit-content">
                             <Checkbox
                                 size="xs"
-                                label="Attach the file to emails"
+                                label="Attach the file to the delivery"
+                                description="Emails get it as an attachment, Slack channels get it in the message thread"
                                 {...form.getInputProps('options.asAttachment', {
                                     type: 'checkbox',
                                 })}
                                 disabled={
-                                    (form.values.emailTargets?.length || 0) ===
-                                    0
+                                    !hasFileAttachmentTargets(form.values)
                                 }
                             />
                         </Box>
@@ -404,6 +424,37 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                 </Box>
                             </Stack>
                         )}
+                    </Stack>
+                </>
+            )}
+
+            {savedChart && (
+                <>
+                    <Divider />
+                    <Stack gap="xs">
+                        <span className={classes.subBlockLabel}>Filters</span>
+                        <SchedulerFormChartFilterOverridesTab
+                            savedChart={savedChart}
+                            itemsMap={itemsMap}
+                            readOnly={!canAdjustChartFilters}
+                            draftFilters={form.values.chartFilters}
+                            isEditMode={savedSchedulerData !== undefined}
+                            savedFilters={
+                                savedSchedulerData &&
+                                isChartScheduler(savedSchedulerData)
+                                    ? savedSchedulerData.filters
+                                    : undefined
+                            }
+                            onChange={(chartFilters) => {
+                                form.setFieldValue(
+                                    'chartFilters',
+                                    chartFilters,
+                                );
+                            }}
+                            filtersWithUnmetRequirements={
+                                chartFiltersWithUnmetRequirements
+                            }
+                        />
                     </Stack>
                 </>
             )}

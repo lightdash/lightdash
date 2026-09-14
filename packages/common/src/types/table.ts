@@ -35,6 +35,8 @@ export type TableBase = {
      */
     schema: string;
     sqlTable: string; // The sql identifier for the table
+    /** Set on tables unnested from a repeated column of `parentTable`; their grain is derived, so they carry no primary key. */
+    nestedFrom?: { parentTable: string; columnPath: string };
     primaryKey?: string[];
     orderFieldsBy?: OrderFieldsByStrategy;
     groupLabel?: string;

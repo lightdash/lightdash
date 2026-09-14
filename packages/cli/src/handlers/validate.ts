@@ -25,6 +25,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { compile, CompileHandlerOptions } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { resolveProjectFlag } from './resolveProjectFlag';
 import { getProjectDisableTimestampConversion } from './timestampConversion';
 import {
     filterValidationsBySpace,
@@ -174,12 +175,14 @@ export const validateHandler = async (
     const selectedProject = options.preview
         ? config.context?.previewProject
         : config.context?.project;
-    const projectUuid = options.project || selectedProject;
+    const projectUuid = options.project
+        ? await resolveProjectFlag(options.project)
+        : selectedProject;
 
     if (projectUuid === undefined) {
         throw new ParameterError(
             `No project specified, select a project to validate using ${styles.bold(
-                `--project <projectUuid>`,
+                `--project <project uuid or slug>`,
             )} or create a preview environment using ${styles.bold(
                 `lightdash start-preview`,
             )} or configure your default project using ${styles.bold(
@@ -212,42 +215,7 @@ export const validateHandler = async (
             projectUuid,
         );
 
-    let validationTargets = options.only ? [...options.only] : [];
-    const hasPartialModelSelection =
-        Boolean(options.select?.length) ||
-        Boolean(options.models?.length) ||
-        Boolean(options.exclude?.length) ||
-        Boolean(options.selector);
-    const includesDataAppValidation =
-        validationTargets.length === 0 ||
-        validationTargets.includes(ValidationTarget.APPS);
-
-    if (hasPartialModelSelection && includesDataAppValidation) {
-        if (
-            validationTargets.length === 1 &&
-            validationTargets[0] === ValidationTarget.APPS
-        ) {
-            throw new ParameterError(
-                'Data app validation requires a full project compile. Remove the dbt model selection flags to use --only apps.',
-            );
-        }
-
-        validationTargets =
-            validationTargets.length === 0
-                ? [
-                      ValidationTarget.TABLES,
-                      ValidationTarget.CHARTS,
-                      ValidationTarget.DASHBOARDS,
-                  ]
-                : validationTargets.filter(
-                      (target) => target !== ValidationTarget.APPS,
-                  );
-        console.error(
-            styles.warning(
-                '> Skipping data app validation because dbt model selection flags produce a partial semantic layer',
-            ),
-        );
-    }
+    const validationTargets = options.only ? [...options.only] : [];
 
     await LightdashAnalytics.track({
         event: 'validate.started',

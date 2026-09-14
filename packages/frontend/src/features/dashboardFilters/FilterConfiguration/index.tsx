@@ -604,7 +604,7 @@ const FilterConfiguration: FC<Props> = ({
             </Tabs>
 
             <Flex gap="sm">
-                <Box className="ld-grow" />
+                <Box flex={1} />
 
                 {!isTemporary &&
                     isFilterModified &&

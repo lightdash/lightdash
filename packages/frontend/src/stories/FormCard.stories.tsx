@@ -59,7 +59,6 @@ export function FormCard({ hasError = false }: FormCardProps) {
                     <Button
                         type="submit"
                         radius="md"
-                        variant="dark"
                         style={{
                             alignSelf: 'flex-end',
                         }}

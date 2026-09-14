@@ -50,17 +50,20 @@ const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
     const hasError = itemHasValidationError(item);
     const hasVerification = itemHasVerification(item);
 
+    const displaySpaceName = spaceName ?? item.recentContent?.space.name;
     const viewsCount =
-        item.item && 'viewsCount' in item.item
+        item.recentContent?.views ??
+        (item.item && 'viewsCount' in item.item
             ? item.item.viewsCount
-            : undefined;
-    const createdBy =
-        item.item && 'createdBy' in item.item && item.item.createdBy
-            ? `${item.item.createdBy.firstName} ${item.item.createdBy.lastName}`
-            : undefined;
-
+            : undefined);
+    const author =
+        item.recentContent?.createdBy ??
+        (item.item && 'createdBy' in item.item ? item.item.createdBy : null);
+    const createdBy = author
+        ? `${author.firstName} ${author.lastName}`
+        : undefined;
     const hasFacts =
-        spaceName !== undefined ||
+        displaySpaceName !== undefined ||
         viewsCount !== undefined ||
         createdBy !== undefined;
 
@@ -86,8 +89,8 @@ const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
 
             {hasFacts && (
                 <Stack gap={6} mt="md" className={classes.facts}>
-                    {spaceName !== undefined && (
-                        <Fact label="Space">{spaceName}</Fact>
+                    {displaySpaceName !== undefined && (
+                        <Fact label="Space">{displaySpaceName}</Fact>
                     )}
                     {viewsCount !== undefined && (
                         <Fact label="Views">{viewsCount}</Fact>

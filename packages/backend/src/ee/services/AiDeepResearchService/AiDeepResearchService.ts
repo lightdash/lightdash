@@ -9,10 +9,14 @@ import {
     aiDeepResearchWorkerFindingsInputSchema,
     AiResultType,
     applyDeepResearchChartRefsWithAdjustments,
+    buildDeepResearchVizConfig,
     ConflictError,
+    derivePivotConfigurationFromChart,
     findDeepResearchChartRefs,
     ForbiddenError,
     getErrorMessage,
+    getGroupByDimensions,
+    getWebAiChartConfig,
     isAiDeepResearchEvidencePackEmpty,
     isAiDeepResearchRunTerminal,
     isUserWithOrg,
@@ -44,6 +48,7 @@ import {
     type AiDeepResearchTerminalStatus,
     type AiDeepResearchWarehouseChart,
     type ApiAiAgentThreadMessageVizQuery,
+    type PivotConfiguration,
     type SessionUser,
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
@@ -1068,6 +1073,7 @@ export class AiDeepResearchService extends BaseService {
             projectUuid: args.projectUuid,
             metricQuery: chart.metricQuery,
             context: QueryExecutionContext.AI,
+            pivotConfiguration: this.getChartPivotConfiguration(chart),
         });
 
         return {
@@ -1089,6 +1095,37 @@ export class AiDeepResearchService extends BaseService {
                 description: null,
             },
         };
+    }
+
+    // Grouped charts expect server-pivoted results, matching the chat viz path.
+    private getChartPivotConfiguration(
+        chart: AiDeepResearchChartData,
+    ): PivotConfiguration | undefined {
+        try {
+            const webAiChartConfig = getWebAiChartConfig({
+                vizConfig: buildDeepResearchVizConfig(chart),
+                metricQuery: chart.metricQuery,
+                fieldsMap: chart.fields,
+                overrideChartType: chart.chartConfig.defaultVizType,
+            });
+            const groupByDimensions = getGroupByDimensions(webAiChartConfig);
+            if (!groupByDimensions?.length) {
+                return undefined;
+            }
+            return derivePivotConfigurationFromChart(
+                {
+                    chartConfig: webAiChartConfig.echartsConfig,
+                    pivotConfig: { columns: groupByDimensions },
+                },
+                chart.metricQuery,
+                chart.fields,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Deep Research chart ${chart.queryUuid} refresh falls back to unpivoted results: ${getErrorMessage(error)}`,
+            );
+            return undefined;
+        }
     }
 
     async getChart(args: {

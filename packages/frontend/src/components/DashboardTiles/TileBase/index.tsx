@@ -22,11 +22,14 @@ import {
     IconCircleCheckFilled,
     IconDots,
     IconEdit,
+    IconExternalLink,
     IconGripVertical,
+    IconLink,
     IconTrash,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useState } from 'react';
+import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import { FloatingActionsPill } from '../../common/FloatingActionsPill';
 import MantineIcon from '../../common/MantineIcon';
@@ -96,10 +99,16 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
-    const hasMenuContent = isEditMode || !!extraMenuItems;
+    const copyTileLink = useCopyTileLink(tile);
+    const canCopyTileLink = !minimal && copyTileLink !== null;
+    // The title is the only link to the chart page and hidden titles have
+    // none, so the pill carries one in view mode.
+    const canViewChart = !minimal && !isEditMode && !!titleHref;
+
+    const hasMenuContent = isEditMode || !!extraMenuItems || canCopyTileLink;
     const isVerified = verification !== null && verification !== undefined;
     const hasHeaderContent =
-        hasMenuContent || isVerified || hasNonMenuHeaderContent;
+        hasMenuContent || isVerified || hasNonMenuHeaderContent || canViewChart;
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
@@ -119,7 +128,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
             {((containerHovered && !titleHovered && !chartHovered) ||
                 isMenuOpen ||
-                lockHeaderVisibility) &&
+                lockHeaderVisibility ||
+                // Content meant to stay visible (a tile's comment count)
+                // keeps the header shown without a hover.
+                !!visibleHeaderElement) &&
                 hasHeaderContent && (
                     <FloatingActionsPill
                         className={clsx('non-draggable', styles.tileTooltip)}
@@ -152,6 +164,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             </Tooltip>
                         )}
 
+                        {canViewChart && (
+                            <Tooltip label="View chart">
+                                <ActionIcon
+                                    component="a"
+                                    size="sm"
+                                    href={titleHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    aria-label="View chart"
+                                >
+                                    <MantineIcon icon={IconExternalLink} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+
                         {hasMenuContent && (
                             <Menu
                                 withArrow
@@ -163,6 +190,20 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 onClose={() => toggleMenu(false)}
                             >
                                 <Menu.Dropdown>
+                                    {canCopyTileLink && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconLink} />
+                                            }
+                                            onClick={copyTileLink}
+                                        >
+                                            Copy link to tile
+                                        </Menu.Item>
+                                    )}
+                                    {canCopyTileLink &&
+                                        (!!extraMenuItems || isEditMode) && (
+                                            <Menu.Divider />
+                                        )}
                                     {extraMenuItems}
                                     {isEditMode && extraMenuItems && (
                                         <Menu.Divider />
@@ -253,6 +294,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
             <Card
                 className={styles.tileCard}
+                // Walkthrough: a look at the tile while it can still be
+                // dragged and resized, before the dashboard is saved.
+                data-tour-scope="manage:Dashboard"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="add-charts-submit"]'
+                data-tour-interactive="true"
+                data-tour-label="Try resizing or moving the tile"
+                data-tour-docs="explore/dashboards.mdx#add-an-existing-chart:p2:1"
                 data-with-transparent-border={transparent}
                 data-with-edit-mode={isEditMode}
                 data-has-error={hasError}

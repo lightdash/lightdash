@@ -94,6 +94,28 @@ const expectPromptPlan = (plan: ReturnType<typeof planReviewWriteback>) => {
 };
 
 describe('planReviewWriteback', () => {
+    it('preserves original nested native model paths in semantic review fixes', () => {
+        const plan = expectPromptPlan(
+            planReviewWriteback(
+                baseItem(),
+                new Map([
+                    [
+                        'orders',
+                        {
+                            ymlPath: 'lightdash/models/nested/revenue.yaml',
+                            dbtSourceUuid: null,
+                        },
+                    ],
+                ]),
+            ),
+        );
+        expect(plan.promptText).toContain(
+            'yaml: lightdash/models/nested/revenue.yaml',
+        );
+        expect(plan.promptText).toContain('connected semantic layer YAML');
+        expect(plan.promptText).not.toContain('inspect the dbt project');
+    });
+
     it('builds a deterministic one-shot prompt for semantic_layer items', () => {
         const plan = expectPromptPlan(
             planReviewWriteback(

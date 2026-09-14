@@ -62,7 +62,6 @@ export const ExploreMetricButton = ({ row }: Props) => {
         >
             <Button
                 size="compact-sm"
-                variant="dark"
                 onClick={handleExploreClick}
                 py="xxs"
                 px={10}

@@ -1,3 +1,4 @@
+import { type ServiceAccount } from '../ee/serviceAccounts/types';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceDashboard } from './dashboard';
 import { type KnexPaginatedData } from './knex-paginate';
@@ -175,6 +176,7 @@ export type SpaceAccess = {
     // Present only on rows synthesized from a direct content grant; absent on
     // space-derived rows. CASL rules never match on it.
     grantedVia?: GrantSource;
+    grantSourceUuid?: string;
 };
 
 // Full space share with user metadata, used for frontend display
@@ -216,6 +218,11 @@ export type SpaceAccessListFilters = {
     userUuids?: string[];
     /** Only entries with direct access (user access or space group access) */
     directOnly?: boolean;
+};
+
+export type ApiSpaceServiceAccountCandidatesResponse = {
+    status: 'ok';
+    results: Pick<ServiceAccount, 'userUuid' | 'description'>[];
 };
 
 export type ApiSpaceAccessListResponse = {

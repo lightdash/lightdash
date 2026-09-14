@@ -4,6 +4,7 @@ import {
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
     getFilterTypeFromItemType,
+    getDashboardFilterField,
     hashStringToBase36,
     ProjectType,
     type DashboardDataAppTile,
@@ -21,6 +22,7 @@ import {
 } from '@mantine/core';
 import { IconAppsOff, IconCode, IconFilter } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
+import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
@@ -49,10 +51,17 @@ const DashboardFiltersIndicator: FC<{
     filterRules: DashboardFilterRule[];
     filterableItems: Record<string, FilterableItem>;
 }> = ({ filterRules, filterableItems }) => {
+    const fieldsByTile = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
     if (filterRules.length === 0) return null;
 
     const labelledRules = filterRules.map((filterRule) => {
-        const filterableItem = filterableItems[filterRule.target.fieldId];
+        const filterableItem = getDashboardFilterField(
+            filterableItems,
+            filterRule,
+            fieldsByTile,
+        );
         const labels = filterableItem
             ? getConditionalRuleLabelFromItem(filterRule, filterableItem)
             : getConditionalRuleLabel(
@@ -125,6 +134,7 @@ const DataAppTile: FC<Props> = (props) => {
         },
     } = props;
     const projectUuid = useProjectUuid();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
@@ -281,6 +291,14 @@ const DataAppTile: FC<Props> = (props) => {
     return (
         <TileBase
             title={title}
+            titleLeftIcon={
+                <AskAiAgentButton
+                    projectUuid={projectUuid}
+                    dataAppUuid={appUuid}
+                    dashboardUuid={dashboardUuid}
+                    clickedFrom="dashboard_data_app_tile"
+                />
+            }
             lockHeaderVisibility={isCommentsMenuOpen}
             visibleHeaderElement={
                 tileHasComments ? dashboardComments : undefined

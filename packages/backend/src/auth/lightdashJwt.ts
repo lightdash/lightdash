@@ -51,6 +51,16 @@ export function decodeLightdashJwt(
         );
         const decodedToken = verify(token, secret) as CreateEmbedJwt;
 
+        // Unknown authorization modes must not fall back to default permissions.
+        if (
+            decodedToken.content?.type === 'aiAgent' ||
+            decodedToken.content?.type === 'dashboard'
+        ) {
+            z.enum(['default', 'roles'])
+                .optional()
+                .parse(decodedToken.writeActions?.permissionsMode);
+        }
+
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {
             EmbedJwtSchema.parse(decodedToken);

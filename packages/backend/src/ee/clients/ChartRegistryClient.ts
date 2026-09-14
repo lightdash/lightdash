@@ -15,7 +15,10 @@ import {
     validatePublicHttpUrl,
 } from '../../utils/ssrfProtection';
 
-const INDEX_TTL_MS = 60 * 60 * 1000;
+// Short because expiry only triggers a conditional revalidation (ETag /
+// Last-Modified) — an unchanged registry answers 304 with no body, so the
+// steady-state cost of a small TTL is one header exchange per interval.
+const INDEX_TTL_MS = 5 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_INDEX_BYTES = 8 * 1024 * 1024;
 const MAX_ARTIFACT_BYTES = 50 * 1024 * 1024;
@@ -29,6 +32,18 @@ const ALLOWED_ASSET_CONTENT_TYPES = new Set([
     'image/gif',
 ]);
 
+// Servable asset shape: one image filename under a published version dir of
+// an indexed chart. Validated structurally (plus a slug check against the
+// index) rather than by exact enumeration: the index only lists each chart's
+// latest version, and its per-process TTL cache means the listing and asset
+// requests can straddle a publish on different cache generations — exact
+// matching 404s thumbnails for up to the TTL on every publish. Published
+// versions are immutable and served forever, so older versions' screenshots
+// are always safe to proxy; resolveUrl and the content-type allowlist bound
+// everything else.
+const ASSET_PATH_PATTERN =
+    /^charts\/([a-z0-9][a-z0-9-]*)\/\d+\.\d+\.\d+\/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:png|jpe?g|webp|gif)$/;
+
 const normalizeContentType = (contentType: string): string =>
     contentType.split(';')[0].trim().toLowerCase();
 
@@ -36,11 +51,20 @@ export type ChartRegistryRawResponse = {
     status: number;
     body: Buffer;
     contentType: string | null;
+    /** Response validators, captured so the index can be revalidated cheaply. */
+    etag?: string | null;
+    lastModified?: string | null;
+};
+
+export type ChartRegistryFetchOptions = {
+    /** Conditional-request headers (If-None-Match / If-Modified-Since). */
+    headers?: Record<string, string>;
 };
 
 export type ChartRegistryFetch = (
     url: string,
     maxBytes: number,
+    options?: ChartRegistryFetchOptions,
 ) => Promise<ChartRegistryRawResponse>;
 
 /** Reads a fetch response body, aborting the moment it exceeds maxBytes. */
@@ -160,7 +184,11 @@ export function createPinnedLookup(
  */
 export async function chartRegistryFetch(
     url: string,
-    options: { maxBytes: number; allowPrivateAddresses: boolean },
+    options: {
+        maxBytes: number;
+        allowPrivateAddresses: boolean;
+        headers?: Record<string, string>;
+    },
 ): Promise<ChartRegistryRawResponse> {
     const parsedUrl = await validatePublicHttpUrl(url, {
         allowedProtocols: options.allowPrivateAddresses
@@ -191,6 +219,7 @@ export async function chartRegistryFetch(
         const response = await fetch(url, {
             redirect: 'manual',
             signal: controller.signal,
+            ...(options.headers ? { headers: options.headers } : {}),
             ...(dispatcher ? { dispatcher } : {}),
         });
         // validatePublicHttpUrl only validated this URL; a redirect target
@@ -211,6 +240,8 @@ export async function chartRegistryFetch(
             status: response.status,
             body,
             contentType: response.headers.get('content-type'),
+            etag: response.headers.get('etag'),
+            lastModified: response.headers.get('last-modified'),
         };
     } finally {
         clearTimeout(timeout);
@@ -223,10 +254,16 @@ export class ChartRegistryClient {
 
     private readonly allowInsecure: boolean;
 
+    private readonly indexFileName: string;
+
     private readonly fetchImpl: ChartRegistryFetch;
 
-    private cache: { index: ChartRegistryIndex; fetchedAt: number } | null =
-        null;
+    private cache: {
+        index: ChartRegistryIndex;
+        fetchedAt: number;
+        etag: string | null;
+        lastModified: string | null;
+    } | null = null;
 
     constructor(args: {
         lightdashConfig: LightdashConfig;
@@ -235,6 +272,13 @@ export class ChartRegistryClient {
         this.baseUrl = args.lightdashConfig.appRuntime.chartRegistry.url;
         this.allowInsecure =
             args.lightdashConfig.appRuntime.chartRegistry.allowInsecure;
+        // The next channel's index additionally lists charts whose latest
+        // version is a beta (entries carry `channel`); the stable index
+        // only ever lists stable versions.
+        this.indexFileName =
+            args.lightdashConfig.appRuntime.chartRegistry.channel === 'next'
+                ? 'index-next.json'
+                : 'index.json';
         this.fetchImpl = args.fetchImpl ?? this.defaultFetch.bind(this);
     }
 
@@ -260,20 +304,58 @@ export class ChartRegistryClient {
         return resolved;
     }
 
-    async getIndex(): Promise<ChartRegistryIndex> {
+    /**
+     * `forceRefresh` skips the TTL for explicit "check the registry now"
+     * actions (install/upgrade). Whenever a cached copy exists, the request
+     * carries its validators, so an unchanged registry answers 304 and the
+     * cached index is kept — forced or not, a refresh of an unchanged
+     * registry costs one header exchange. Any fetch failure falls back to
+     * the stale cache, as before.
+     */
+    async getIndex(options?: {
+        forceRefresh?: boolean;
+    }): Promise<ChartRegistryIndex> {
         if (!this.baseUrl) {
             throw new ParameterError('Chart registry is not configured');
         }
-        if (this.cache && Date.now() - this.cache.fetchedAt < INDEX_TTL_MS) {
+        if (
+            !options?.forceRefresh &&
+            this.cache &&
+            Date.now() - this.cache.fetchedAt < INDEX_TTL_MS
+        ) {
             return this.cache.index;
         }
         try {
-            const { body } = await this.fetchImpl(
-                this.resolveUrl('index.json').toString(),
-                MAX_INDEX_BYTES,
-            );
-            const index = this.parseIndex(body);
-            this.cache = { index, fetchedAt: Date.now() };
+            const url = this.resolveUrl(this.indexFileName).toString();
+            const conditionalHeaders: Record<string, string> = {};
+            if (this.cache?.etag) {
+                conditionalHeaders['if-none-match'] = this.cache.etag;
+            } else if (this.cache?.lastModified) {
+                conditionalHeaders['if-modified-since'] =
+                    this.cache.lastModified;
+            }
+            const response =
+                Object.keys(conditionalHeaders).length > 0
+                    ? await this.fetchImpl(url, MAX_INDEX_BYTES, {
+                          headers: conditionalHeaders,
+                      })
+                    : await this.fetchImpl(url, MAX_INDEX_BYTES);
+            if (response.status === 304 && this.cache) {
+                this.cache = { ...this.cache, fetchedAt: Date.now() };
+                return this.cache.index;
+            }
+            if (response.status < 200 || response.status >= 300) {
+                throw new ParameterError(
+                    `Chart registry index request failed with status ${response.status}`,
+                );
+            }
+            const index = this.parseIndex(response.body);
+            this.cache = {
+                index,
+                fetchedAt: Date.now(),
+                etag: response.etag ?? null,
+                lastModified: response.lastModified ?? null,
+            };
             return index;
         } catch (e) {
             if (this.cache) {
@@ -299,8 +381,11 @@ export class ChartRegistryClient {
         return chartRegistryIndexSchema.parse(parsed);
     }
 
-    async getEntry(slug: string): Promise<ChartRegistryEntry | undefined> {
-        const index = await this.getIndex();
+    async getEntry(
+        slug: string,
+        options?: { forceRefresh?: boolean },
+    ): Promise<ChartRegistryEntry | undefined> {
+        const index = await this.getIndex(options);
         return index.charts.find((chart) => chart.slug === slug);
     }
 
@@ -339,12 +424,15 @@ export class ChartRegistryClient {
     async getAsset(
         path: string,
     ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
+        const match = path.match(ASSET_PATH_PATTERN);
+        if (!match) {
+            return undefined;
+        }
         const index = await this.getIndex();
-        const isKnownAsset = index.charts.some(
-            (chart) =>
-                chart.thumbnail === path || chart.screenshots.includes(path),
+        const isKnownChart = index.charts.some(
+            (chart) => chart.slug === match[1],
         );
-        if (!isKnownAsset) {
+        if (!isKnownChart) {
             return undefined;
         }
         const { status, body, contentType } = await this.fetchImpl(
@@ -363,10 +451,12 @@ export class ChartRegistryClient {
     private defaultFetch(
         url: string,
         maxBytes: number,
+        options?: ChartRegistryFetchOptions,
     ): Promise<ChartRegistryRawResponse> {
         return chartRegistryFetch(url, {
             maxBytes,
             allowPrivateAddresses: this.allowInsecure,
+            ...(options?.headers ? { headers: options.headers } : {}),
         });
     }
 }

@@ -10,6 +10,7 @@ import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { resolveProjectFlag } from './resolveProjectFlag';
 
 type EligibleTile = TilePreAggregateAuditHit | TilePreAggregateAuditMiss;
 
@@ -33,7 +34,7 @@ type PreAggregateAuditOptions = {
 };
 
 async function resolveProjectUuid(flagValue?: string): Promise<string> {
-    if (flagValue) return flagValue;
+    if (flagValue) return resolveProjectFlag(flagValue);
     if (process.env.LIGHTDASH_PROJECT_UUID) {
         return process.env.LIGHTDASH_PROJECT_UUID;
     }
@@ -41,7 +42,7 @@ async function resolveProjectUuid(flagValue?: string): Promise<string> {
     const projectUuid = config.context?.project;
     if (!projectUuid) {
         console.error(
-            'No project selected. Pass --project <uuid>, set LIGHTDASH_PROJECT_UUID, or run `lightdash login`.',
+            'No project selected. Pass --project <uuid or slug>, set LIGHTDASH_PROJECT_UUID, or run `lightdash login`.',
         );
         process.exit(1);
     }

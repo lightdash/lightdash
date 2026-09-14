@@ -11,7 +11,10 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { type DashboardFilterRule } from '@lightdash/common';
+import {
+    getDashboardFilterField,
+    type DashboardFilterRule,
+} from '@lightdash/common';
 import { Group, Skeleton, useMantineTheme } from '@mantine/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -264,7 +267,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleDragEnd}
             >
                 {dashboardFilters.dimensions.map((item, index) => {
-                    const field = allFilterableFieldsMap[item.target.fieldId];
+                    const field = getDashboardFilterField(
+                        allFilterableFieldsMap,
+                        item,
+                        filterableFieldsByTileUuid,
+                    );
                     const appliesToTabs = getTabsUsingFilter(item);
 
                     const isOrphanedFilter = appliesToTabs.length === 0;
@@ -340,8 +347,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleMetricDragEnd}
             >
                 {dashboardFilters.metrics.map((item, index) => {
-                    const metricField =
-                        allFilterableMetricsMap[item.target.fieldId];
+                    const metricField = getDashboardFilterField(
+                        allFilterableMetricsMap,
+                        item,
+                        filterableFieldsByTileUuid,
+                    );
                     const appliesToTabs = getTabsUsingFilter(item);
 
                     const isOrphanedFilter = appliesToTabs.length === 0;
@@ -402,8 +412,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             </DndContext>
 
             {dashboardTemporaryFilters.metrics.map((item, index) => {
-                const metricField =
-                    allFilterableMetricsMap[item.target.fieldId];
+                const metricField = getDashboardFilterField(
+                    allFilterableMetricsMap,
+                    item,
+                    filterableFieldsByTileUuid,
+                );
                 const appliesToTabs = getTabsUsingFilter(item);
 
                 const isOrphanedFilter = appliesToTabs.length === 0;
@@ -454,7 +467,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             })}
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
-                const field = allFilterableFieldsMap[item.target.fieldId];
+                const field = getDashboardFilterField(
+                    allFilterableFieldsMap,
+                    item,
+                    filterableFieldsByTileUuid,
+                );
                 const appliesToTabs = getTabsUsingFilter(item);
 
                 const isOrphanedFilter = appliesToTabs.length === 0;

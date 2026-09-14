@@ -1,26 +1,25 @@
 import { useLayoutEffect, useState } from 'react';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 
-type Options = {
-    // The gallery sidebar host can be replaced while open; follow it across remounts.
-    followHost: boolean;
-};
-
-const useVisualizationConfigPortalTarget = (
-    isOpen: boolean,
-    { followHost }: Options,
-) => {
+const useVisualizationConfigPortalTarget = (isOpen: boolean) => {
+    const [sourceElement, setSourceElement] = useState<HTMLElement | null>(
+        null,
+    );
     const [target, setTarget] = useState<HTMLElement | null>(null);
 
     useLayoutEffect(() => {
-        if (!isOpen) {
+        const root = sourceElement?.getRootNode();
+        if (
+            !isOpen ||
+            !(root instanceof Document || root instanceof ShadowRoot)
+        ) {
             setTarget(null);
             return;
         }
 
         const updateTarget = () => {
             setTarget((currentTarget) => {
-                const nextTarget = document.getElementById(
+                const nextTarget = root.getElementById(
                     VisualizationConfigPortalId,
                 );
                 return currentTarget === nextTarget
@@ -31,15 +30,13 @@ const useVisualizationConfigPortalTarget = (
 
         updateTarget();
 
-        if (!followHost) return;
-
         const observer = new MutationObserver(updateTarget);
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(root, { childList: true, subtree: true });
 
         return () => observer.disconnect();
-    }, [isOpen, followHost]);
+    }, [isOpen, sourceElement]);
 
-    return target;
+    return { target, ref: setSourceElement };
 };
 
 export default useVisualizationConfigPortalTarget;

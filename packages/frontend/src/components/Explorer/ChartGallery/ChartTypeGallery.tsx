@@ -39,14 +39,14 @@ import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
+import classes from './ChartTypeGallery.module.css';
 import {
     projectChartTypeItem,
     useChartTypeOptions,
     type ChartTypeOption,
-} from '../VisualizationCardOptions/useChartTypeOptions';
-import classes from './ChartTypeGallery.module.css';
+} from './useChartTypeOptions';
 
-/** Grid slots the project section may fill before collapsing; when it does,
+/** Grid slots the custom section may fill before collapsing; when it does,
     the last slot becomes the "+N more" tile, so the collapse never trades a
     single hidden card for a tile. */
 const MAX_UNCOLLAPSED_PROJECT_TYPES = 6;
@@ -490,15 +490,15 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         ...(dataAppsEnabled
             ? [
                   {
-                      label: 'Project',
+                      label: 'Custom',
                       items: visibleProjectItems,
                       loading: isInitialLoading,
                       errorMessage: error
-                          ? 'Failed to load project chart types'
+                          ? 'Failed to load custom chart types'
                           : null,
                       emptyMessage: debouncedSearch
-                          ? 'No project chart types match your search'
-                          : 'No project chart types yet',
+                          ? 'No custom chart types match your search'
+                          : 'No custom chart types yet',
                       onRetry: error ? () => void refetch() : null,
                       onLoadMore: collapseProjectTypes
                           ? () => setShowAllProjectTypes(true)

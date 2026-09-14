@@ -141,12 +141,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         searchValue={projectSearch}
                         onSearchChange={setProjectSearch}
                     />
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className="ld-self-center"
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
                     <FilterFacet
                         label="Users"
                         icon={IconUser}
@@ -158,12 +153,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         searchValue={userSearch}
                         onSearchChange={setUserSearch}
                     />
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className="ld-self-center"
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
                     <FilterFacet
                         label="Models"
                         icon={IconSparkles}
@@ -172,12 +162,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         options={modelOptions}
                         tooltipLabel="Filter activity by the model that built it"
                     />
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className="ld-self-center"
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
                     <SegmentedControl
                         size="xs"
                         value={selectedPeriod}
@@ -191,12 +176,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                             value: period,
                         }))}
                     />
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className="ld-self-center"
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
                     <SegmentedControl
                         size="xs"
                         value={selectedKind}
@@ -210,12 +190,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                     />
                     {hasActiveFilters && (
                         <>
-                            <Divider
-                                orientation="vertical"
-                                w={1}
-                                h={20}
-                                className="ld-self-center"
-                            />
+                            <Divider orientation="vertical" w={1} h={20} />
                             <Button
                                 variant="subtle"
                                 size="xs"

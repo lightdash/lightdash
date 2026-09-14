@@ -2,6 +2,7 @@ import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
+import { DashboardSlugMappingsTableName } from '../database/entities/dashboardSlugMappings';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
@@ -135,6 +136,7 @@ describe('generateUniqueSlugScopedToProject', () => {
 
     it('uses direct project ownership and exact probes for dashboards', async () => {
         tracker.on.select(DashboardsTableName).responseOnce([]);
+        tracker.on.select(DashboardSlugMappingsTableName).responseOnce([]);
 
         await generateUniqueSlugScopedToProject(
             database,
@@ -143,10 +145,29 @@ describe('generateUniqueSlugScopedToProject', () => {
             'Orders',
         );
 
-        const [query] = tracker.history.select;
+        const query = tracker.history.select.find(({ sql }) =>
+            sql.includes(DashboardsTableName),
+        )!;
         expect(query.sql).toContain(`"${DashboardsTableName}"."project_uuid"`);
         expect(query.sql).toContain('"slug" = $2');
         expect(query.sql).not.toContain('join');
+    });
+
+    it('reserves historical dashboard slugs when generating a new slug', async () => {
+        tracker.on.select(DashboardsTableName).responseOnce([]);
+        tracker.on
+            .select(DashboardSlugMappingsTableName)
+            .responseOnce([{ slug: 'orders' }]);
+        tracker.on.select(DashboardsTableName).responseOnce([]);
+        tracker.on.select(DashboardSlugMappingsTableName).responseOnce([]);
+        expect(
+            await generateUniqueSlugScopedToProject(
+                database,
+                'project-uuid',
+                DashboardsTableName,
+                'Orders',
+            ),
+        ).toBe('orders-1');
     });
 
     it.each([SavedSqlTableName, AppsTableName] as const)(
@@ -189,6 +210,7 @@ describe('generateUniqueSlugScopedToProject', () => {
             .select(DashboardsTableName)
             .responseOnce([{ slug: 'orders' }]);
         tracker.on.select(DashboardsTableName).responseOnce([]);
+        tracker.on.select(DashboardSlugMappingsTableName).responseOnce([]);
 
         const slug = await generateUniqueSlugScopedToProject(
             database,
@@ -198,7 +220,11 @@ describe('generateUniqueSlugScopedToProject', () => {
         );
 
         expect(slug).toBe('orders-1');
-        expect(tracker.history.select).toHaveLength(2);
+        expect(
+            tracker.history.select.filter(({ sql }) =>
+                sql.includes(DashboardsTableName),
+            ),
+        ).toHaveLength(2);
     });
 
     it('caps generated app slugs at 255 characters', async () => {

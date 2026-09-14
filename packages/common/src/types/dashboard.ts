@@ -510,6 +510,30 @@ export type ApiGetDashboardHistoryResponse = {
     results: DashboardHistory;
 };
 
+export type DashboardCustomMetricAffectedChart = {
+    uuid: string;
+    name: string;
+};
+
+export type UpdateDashboardCustomMetric = {
+    /** Replacement definition; must keep the existing table and name */
+    metric: AdditionalMetric;
+    /** Report affected charts without writing anything */
+    dryRun?: boolean;
+};
+
+export type DashboardCustomMetricUpdateResult = {
+    customMetrics: AdditionalMetric[];
+    /** Dashboard-owned charts whose snapshot references the metric */
+    affectedCharts: DashboardCustomMetricAffectedChart[];
+    dryRun: boolean;
+};
+
+export type ApiUpdateDashboardCustomMetricResponse = {
+    status: 'ok';
+    results: DashboardCustomMetricUpdateResult;
+};
+
 export type ApiGetDashboardVersionResponse = {
     status: 'ok';
     results: DashboardVersion;

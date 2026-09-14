@@ -51,6 +51,10 @@ vi.mock('../../../hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: vi.fn(() => ({ data: dashboard })),
 }));
 
+vi.mock('../../../hooks/useSavedQuery', () => ({
+    useSavedQuery: vi.fn(() => ({ data: undefined })),
+}));
+
 vi.mock('../../../hooks/toaster/useToaster', () => ({
     default: vi.fn(() => ({ showToastApiError: vi.fn() })),
 }));

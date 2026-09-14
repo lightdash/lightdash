@@ -12,6 +12,11 @@ const dashboardAsCodeSchema = z.object({
         .nullable()
         .optional()
         .transform((str) => str ?? undefined),
+    tabs: z.array(
+        z.object({
+            name: z.string(),
+        }),
+    ),
     tiles: z.array(
         z.union([
             z.object({

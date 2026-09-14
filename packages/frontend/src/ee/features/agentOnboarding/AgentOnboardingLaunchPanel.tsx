@@ -216,7 +216,7 @@ export const AgentOnboardingLaunchPanel: FC<
                                 size={44}
                                 radius="xl"
                                 variant="light"
-                                color="violet"
+                                color="indigo"
                             >
                                 <MantineIcon icon={IconSparkles} size="lg" />
                             </ThemeIcon>
@@ -270,7 +270,7 @@ export const AgentOnboardingLaunchPanel: FC<
                         >
                             Use my own coding agent instead
                         </Button>
-                        <Collapse in={isLocalPromptOpen}>
+                        <Collapse expanded={isLocalPromptOpen}>
                             {localPrompt}
                         </Collapse>
                     </Stack>

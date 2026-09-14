@@ -22,7 +22,7 @@ const closeComment = (repoUrl, author) =>
     [
         `Hi @${author}, thanks for taking the time to open this.`,
         '',
-        `Lightdash no longer accepts unsolicited code contributions. We close pull requests unless the author is a [trusted contributor](${repoUrl}/blob/main/${TRUSTED_LIST_PATH}) and the work was agreed with our team in advance.`,
+        'Lightdash only accepts code contributions we have planned together, so we are closing this pull request.',
         '',
         `This is not a judgment of your work. We would still like to understand the problem, so please open a [bug report](${repoUrl}/issues/new?template=bug_report.yml) or [feature request](${repoUrl}/issues/new?template=feature-request.yml) instead. If you are a Lightdash customer, please contact us through your support channel.`,
         '',

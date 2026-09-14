@@ -321,6 +321,8 @@ export type ExternalFetchResult = {
     status: number;
     /** Upstream `Content-Type` (e.g. `application/json`). */
     contentType: string;
+    /** Safe upstream response headers, with lowercase names. */
+    headers: Record<string, string>;
     /** Parsed JSON body when JSON, otherwise the raw text. */
     body: unknown;
     /** True when Lightdash truncated an oversized response body. */
