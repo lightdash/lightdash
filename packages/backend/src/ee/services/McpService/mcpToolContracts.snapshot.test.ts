@@ -434,8 +434,8 @@ describe('MCP tool contracts', () => {
             await mcpService.createServer(makeMcpServerOptions(options));
             // Existing instruction overages cannot grow; lower these as text shrinks.
             const instructionCeilings = options.runSqlEnabled
-                ? { structured: 2622, expression: 2759 }
-                : { structured: 1825, expression: 1962 };
+                ? { structured: 2412, expression: 2549 }
+                : { structured: 1615, expression: 1752 };
             const instructionCeiling = options.runMetricQueryEnabled
                 ? instructionCeilings[
                       options.filterExpressionsEnabled
@@ -481,6 +481,7 @@ describe('MCP tool contracts', () => {
                         'If the user mentions any time period, add an explicit date filter; never use sort + limit instead.',
                         'Use inThePast for relative windows.',
                         'Date fields from joined tables work identically in filters.',
+                        'Add a customMetrics entry only after grep_fields / get_metadata confirm no existing metric fits.',
                     ],
                 },
                 {
