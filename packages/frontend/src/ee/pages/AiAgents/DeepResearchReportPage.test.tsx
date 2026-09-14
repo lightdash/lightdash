@@ -107,11 +107,11 @@ describe('DeepResearchReportPage', () => {
 
         await user.click(screen.getByRole('button', { name: 'Back to chat' }));
 
-        expect(screen.getByText('Agent thread')).toBeInTheDocument();
+        expect(await screen.findByText('Agent thread')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Browser back' }));
 
-        expect(screen.getByText('Origin page')).toBeInTheDocument();
+        expect(await screen.findByText('Origin page')).toBeInTheDocument();
     });
 
     it('shows the retained expiration state', () => {
