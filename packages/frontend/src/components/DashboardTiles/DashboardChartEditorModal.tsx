@@ -1,5 +1,6 @@
 import {
     type AdditionalMetric,
+    type CreateSavedChartVersion,
     type DashboardCustomMetricAffectedChart,
     type SavedChart,
 } from '@lightdash/common';
@@ -49,6 +50,7 @@ import { buildDashboardEditorInitialState } from './buildDashboardEditorInitialS
 import { DashboardChartEditorActionsPortalId } from './constants';
 import DashboardChartEditorHeaderActions from './DashboardChartEditorHeaderActions';
 import styles from './DashboardChartEditorModal.module.css';
+import { useDashboardChartEditorUrlSync } from './useDashboardChartEditorUrlSync';
 
 type HeaderActionHandlers = {
     onOpenChartPage: (target: { pathname: string; search: string }) => void;
@@ -59,6 +61,10 @@ type HeaderActionHandlers = {
 type ContentProps = HeaderActionHandlers & {
     exploreId: string;
     editChart?: SavedChart;
+    /** Edits handed over in the url; starts the session on them. */
+    handedOverChartVersion?: CreateSavedChartVersion;
+    /** Dashboard hosts carry this session's unsaved edits in their url. */
+    withUrlSync: boolean;
     /** The chart as the server last returned it; null until fetched. */
     chartOnServer: SavedChart | null;
     seededMetrics: AdditionalMetric[];
@@ -120,6 +126,8 @@ const DashboardChartEditorView: FC<
 const DashboardChartEditorContent: FC<ContentProps> = ({
     exploreId,
     editChart,
+    handedOverChartVersion,
+    withUrlSync,
     chartOnServer,
     seededMetrics,
     onDirtyChange,
@@ -139,6 +147,7 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
                 exploreId,
                 editChart,
                 seededMetrics,
+                unsavedChartVersionOverride: handedOverChartVersion,
             }),
         }),
     );
@@ -147,6 +156,7 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
         <Provider store={store}>
             <ExplorerEffects />
             <UnsavedChangesBridge onDirtyChange={onDirtyChange} />
+            {withUrlSync && <ChartEditorUrlSync />}
             <SavedChartMetadataBridge chart={chartOnServer} />
             <DashboardChartEditorView
                 editChart={editChart}
@@ -159,6 +169,12 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
             />
         </Provider>
     );
+};
+
+// The url sync reads the modal store, so it lives inside the Provider.
+const ChartEditorUrlSync: FC = () => {
+    useDashboardChartEditorUrlSync();
+    return null;
 };
 
 // Query effects must run inside the store Provider.
@@ -224,6 +240,8 @@ type Props = {
     /** Null when hosted outside a dashboard (e.g. the AI agent thread view). */
     dashboard: { uuid: string; name: string } | null;
     editChart?: SavedChart;
+    /** Edits the dashboard read back out of its url for this chart. */
+    handedOverChartVersion?: CreateSavedChartVersion;
     /** Shared-metrics layer: seed, collect, badge, registry mutations */
     customMetricsEnabled: boolean;
     /**
@@ -245,6 +263,7 @@ const DashboardChartEditorModal: FC<Props> = ({
     opened,
     dashboard,
     editChart,
+    handedOverChartVersion,
     customMetricsEnabled,
     onBeforeOpenChartPage,
     onChartSaved,
@@ -499,6 +518,10 @@ const DashboardChartEditorModal: FC<Props> = ({
                         }-${editChart?.uuid ?? 'new'}`}
                         exploreId={exploreId ?? ''}
                         editChart={editChart}
+                        handedOverChartVersion={handedOverChartVersion}
+                        withUrlSync={
+                            dashboard !== null && editChart !== undefined
+                        }
                         chartOnServer={
                             chartOnServer &&
                             chartOnServer.uuid === editChart?.uuid
