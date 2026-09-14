@@ -118,7 +118,9 @@ you point it at a local CLI build and a dbt-duckdb virtualenv. Because the envir
 than an inheritance, whatever runs the commands must be reachable through that prefix or through the PATH the
 backend process itself inherited, `node` included. `LEARN_SANDBOX_API_URL` overrides the `LIGHTDASH_URL` the
 child talks to, which otherwise defaults to `siteUrl`; set it when the address the browser uses is not an address
-the backend host can reach itself. `PLAYGROUND_DATA_DIR` continues to name the directory holding
+the backend host can reach itself. `LEARN_SANDBOX_MAX_CONCURRENT_COMMANDS` (default 4) caps how many sandbox commands run at once on a worker: commands are
+spread over that many scheduler queues by project, each queue runs serially, so a project's commands never overlap and the
+worker never hosts more dbt processes than the cap. `PLAYGROUND_DATA_DIR` continues to name the directory holding
 `jaffle_shop.duckdb`, and the sandbox passes it through to the child, since the CLI accepts a local DuckDB
 profile only when the file sits directly inside it.
 

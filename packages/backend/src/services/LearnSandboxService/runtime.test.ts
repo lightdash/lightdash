@@ -4,7 +4,9 @@ import path from 'node:path';
 import {
     buildSandboxEnvironment,
     detectSandboxRuntime,
+    learnSandboxQueueName,
     resetSandboxRuntimeCache,
+    resolveSandboxRuntime,
 } from './runtime';
 
 describe('buildSandboxEnvironment', () => {
@@ -141,5 +143,46 @@ describe('detectSandboxRuntime', () => {
             PATH: '',
         });
         expect(result).toEqual({ lightdash: true, dbt: true, node: true });
+    });
+});
+
+describe('learnSandboxQueueName', () => {
+    it('is deterministic and stays within the bucket count', () => {
+        const a = learnSandboxQueueName(
+            '11111111-2222-3333-4444-555555555555',
+            4,
+        );
+        expect(a).toBe(
+            learnSandboxQueueName('11111111-2222-3333-4444-555555555555', 4),
+        );
+        expect(a).toMatch(/^learn-sandbox-[0-3]$/);
+        expect(learnSandboxQueueName('anything', 1)).toBe('learn-sandbox-0');
+        const seen = new Set(
+            Array.from({ length: 64 }, (_, i) =>
+                learnSandboxQueueName(`project-${i}`, 4),
+            ),
+        );
+        expect(seen.size).toBeGreaterThan(1);
+    });
+});
+
+describe('resolveSandboxRuntime maxConcurrentCommands', () => {
+    it('defaults to 4 and accepts a positive integer override', () => {
+        expect(resolveSandboxRuntime({}).maxConcurrentCommands).toBe(4);
+        expect(
+            resolveSandboxRuntime({
+                LEARN_SANDBOX_MAX_CONCURRENT_COMMANDS: '2',
+            }).maxConcurrentCommands,
+        ).toBe(2);
+        expect(
+            resolveSandboxRuntime({
+                LEARN_SANDBOX_MAX_CONCURRENT_COMMANDS: '0',
+            }).maxConcurrentCommands,
+        ).toBe(4);
+        expect(
+            resolveSandboxRuntime({
+                LEARN_SANDBOX_MAX_CONCURRENT_COMMANDS: 'x',
+            }).maxConcurrentCommands,
+        ).toBe(4);
     });
 });
