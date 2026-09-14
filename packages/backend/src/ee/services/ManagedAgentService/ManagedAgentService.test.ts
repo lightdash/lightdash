@@ -6,6 +6,8 @@ import {
     ManagedAgentRunStatus,
     ProjectMemberRole,
     ServiceAccountScope,
+    ValidationErrorType,
+    ValidationSourceType,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -192,6 +194,9 @@ const buildService = ({
         createRuntime: vi.fn().mockReturnValue(dataRuntime),
     };
     const analytics = { track: vi.fn() };
+    const validationModel = { get: vi.fn().mockResolvedValue([]) };
+    const savedChartModel = { get: vi.fn() };
+    const spacePermissionService = { resolveAccess: vi.fn() };
     const service = new ManagedAgentService({
         lightdashConfig: {
             siteUrl: 'http://localhost',
@@ -217,13 +222,13 @@ const buildService = ({
             }),
         },
         projectModel,
-        validationModel: {},
-        savedChartModel: {},
+        validationModel,
+        savedChartModel,
         dashboardModel: {},
         spaceModel: {
             find: vi.fn().mockResolvedValue(suggestionsSpaces),
         },
-        spacePermissionService: {},
+        spacePermissionService,
         userModel: {
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
         },
@@ -238,6 +243,9 @@ const buildService = ({
     } as AnyType);
 
     return {
+        validationModel,
+        savedChartModel,
+        spacePermissionService,
         analytics,
         aiAgentToolsService,
         dataRuntime,
@@ -958,5 +966,103 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             error: expect.stringContaining('cannot delete content'),
         });
         expect(managedAgentModel.reverseAction).not.toHaveBeenCalled();
+    });
+});
+
+describe('ManagedAgentService broken-content pagination', () => {
+    it('reaches every visible item even when earlier pages are repaired', async () => {
+        const {
+            service,
+            validationModel,
+            savedChartModel,
+            spacePermissionService,
+        } = buildService({ runtime: 'ai-sdk' });
+        const actor = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                {
+                    action: 'view',
+                    subject: 'SavedChart',
+                    conditions: {
+                        'metadata.savedChartUuid': { $ne: 'chart-0050' },
+                    },
+                },
+            ]),
+        };
+        const validations = Array.from({ length: 251 }, (_, index) => ({
+            validationId: null,
+            validationUuid: `validation-${index}`,
+            projectUuid: PROJECT_UUID,
+            createdAt: new Date('2026-01-01'),
+            source: ValidationSourceType.Chart,
+            chartUuid: `chart-${String(index).padStart(4, '0')}`,
+            name: `Chart ${index}`,
+            tableName: 'orders',
+            error: 'Missing field',
+            errorType: ValidationErrorType.Dimension,
+        }));
+        validationModel.get.mockResolvedValue([...validations].reverse());
+        savedChartModel.get.mockImplementation(async (uuid: string) => ({
+            uuid,
+            name: uuid,
+            projectUuid: PROJECT_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            spaceUuid: 'space',
+        }));
+        spacePermissionService.resolveAccess.mockResolvedValue({
+            inheritsFromOrgOrProject: true,
+            access: [],
+        });
+        type Page = {
+            items: { uuid: string }[];
+            total_count: number;
+            returned_count: number;
+            next_cursor: string | null;
+            truncated: boolean;
+            omitted_count: number;
+        };
+        const readPage = async (cursor: string | null): Promise<Page> => {
+            const response = await service['handleGetBrokenContent'](
+                actor,
+                PROJECT_UUID,
+                { table_name: 'orders', limit: 500, cursor },
+            );
+            try {
+                return JSON.parse(response);
+            } catch {
+                throw new Error('Invalid tool JSON');
+            }
+        };
+        const first = await readPage(null);
+        expect(first.next_cursor).toBe('chart-0100');
+        expect(first.items).toHaveLength(100);
+        expect(first.total_count).toBe(250);
+        expect((await readPage('')).items).toEqual(first.items);
+        const visited = first.items.map(({ uuid }) => uuid);
+        // Completed repairs disappear from validation rows before the next request.
+        validationModel.get.mockResolvedValue(
+            validations.filter((row) => !visited.includes(row.chartUuid)),
+        );
+        const second = await readPage(first.next_cursor);
+        expect(second.items).toHaveLength(100);
+        const third = await readPage(second.next_cursor);
+        expect(third).toMatchObject({
+            returned_count: 50,
+            next_cursor: null,
+            truncated: false,
+            omitted_count: 0,
+        });
+        const all = [
+            ...visited,
+            ...second.items.map(({ uuid }) => uuid),
+            ...third.items.map(({ uuid }) => uuid),
+        ];
+        expect(all).toEqual(
+            validations
+                .map(({ chartUuid }) => chartUuid)
+                .filter((uuid) => uuid !== 'chart-0050'),
+        );
+        expect(new Set(all).size).toBe(250);
+        expect((await readPage('chart-9999')).items).toEqual([]);
     });
 });

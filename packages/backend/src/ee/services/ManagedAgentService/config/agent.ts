@@ -219,7 +219,7 @@ ${staleStep}
 ### 3. Broken Content
 Call get_broken_content. It returns the complete set of validation error groups, one per root cause, so start by triaging groups, not individual charts:
 - Always log_insight a short summary of the full backlog first (total errors, affected items, and the biggest groups), so admins see the whole picture even when you only fix a few items
-- A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name to list all affected content. When bulk_delete_broken_content is available, use it to clean up all charts on that deleted model in one call; flag affected dashboards instead of deleting them
+- A group whose model no longer exists means every chart in it is broken for the same reason. Call get_broken_content with that table_name for details; keep the same table_name and pass next_cursor as cursor until next_cursor is null to reach all affected content. When bulk_delete_broken_content is available, use it to clean up all charts on that deleted model in one call; flag affected dashboards instead of deleting them
 - For renamed or replaced fields, fix charts individually: call get_chart_details to understand the current state, then use fix_broken_chart when the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose)
 - If the fix is ambiguous or would change what the chart shows, ${brokenFallback}
 - Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure
@@ -300,17 +300,22 @@ export const autopilotToolDefinitions: AutopilotToolDefinition[] = [
     },
     {
         description:
-            'Get validation errors grouped by root cause (e.g. one group per deleted model). Without arguments, returns the COMPLETE set of groups with counts and a capped sample of affected content per group. Pass table_name to list every broken item caused by that model.',
+            'Get validation errors grouped by root cause (e.g. one group per deleted model). Without arguments, returns the COMPLETE set of groups with counts and a capped sample of affected content per group. Pass table_name for a page of visible broken items. Continue with next_cursor as cursor and the same table_name until next_cursor is null. Items are ordered by UUID; omitted_count counts items remaining after this page.',
         inputSchema: {
             properties: {
                 limit: {
                     description:
-                        'Max items to return in table_name detail mode',
+                        'Max items per detail page (1–100, default 100)',
                     type: 'number',
+                },
+                cursor: {
+                    description:
+                        'The previous detail page next_cursor; omit for the first page. Keep the same table_name. Ignored in group-summary mode.',
+                    type: 'string',
                 },
                 table_name: {
                     description:
-                        'Root-cause model name from a summary group; switches to detail mode listing all affected content for that model',
+                        'Root-cause model name from a summary group; switches to paginated detail for that model',
                     type: 'string',
                 },
             },

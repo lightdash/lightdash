@@ -97,6 +97,7 @@ import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import { loadAutopilotSkill } from './skills';
 import {
     buildManagedAgentToolListResult,
+    formatManagedAgentBrokenContentPage,
     formatManagedAgentToolListResult,
     getManagedAgentToolResultLimit,
     getValidationRootCauseTableName,
@@ -2764,8 +2765,7 @@ export class ManagedAgentService extends BaseService {
                 validation.errorType !== ValidationErrorType.ChartConfiguration,
         );
 
-        // Detail mode: full item list for one root-cause model. Scoping by
-        // model keeps every item reachable without raising the global cap.
+        // UUID cursors stay valid when repairs remove items from earlier pages.
         const tableNameFilter =
             typeof input.table_name === 'string' && input.table_name.length > 0
                 ? input.table_name
@@ -2781,12 +2781,15 @@ export class ManagedAgentService extends BaseService {
                 projectUuid,
                 matching,
             );
-            return formatManagedAgentToolListResult(
+            return formatManagedAgentBrokenContentPage(
                 summarizeManagedAgentBrokenContent(visibleValidations),
                 getManagedAgentToolResultLimit(
                     input.limit,
                     MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
                 ),
+                typeof input.cursor === 'string' && input.cursor.length > 0
+                    ? input.cursor
+                    : null,
             );
         }
 
@@ -2857,7 +2860,7 @@ export class ManagedAgentService extends BaseService {
             total_errors: summary.totalErrors,
             total_affected_items: summary.totalAffectedItems,
             groups,
-            note: 'This is the COMPLETE set of validation error groups. To list every affected item for one group, call get_broken_content again with table_name set to that group. Counts include content outside your visibility scope; items only list content you can act on.',
+            note: 'This is the COMPLETE set of validation error groups. For detail, call get_broken_content with table_name, then pass each next_cursor as cursor with the same table_name until next_cursor is null. Counts include content outside your visibility scope; items only list content you can act on.',
         });
     }
 

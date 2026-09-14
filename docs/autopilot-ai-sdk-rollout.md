@@ -47,6 +47,8 @@ This runs against a synthetic empty-project fixture. It exercises real action sc
 
 `AUTOPILOT_EVAL_SCENARIO=context` replaces the empty fixture with a synthetic project of 350 broken charts and 12 stale dashboards, built from the real validation grouping and tool serialisers. Two shapes are exercised: `shared-model` (12 errors per chart on one model, hitting every per-item cap) and `many-models` (one error per chart across 350 models, exercising the uncapped group list). Each case uses at most 12 steps, a 90 second deadline and no provider retries, and makes no application or warehouse writes.
 
+`AUTOPILOT_EVAL_SCENARIO=pagination` instead checks that the model follows `next_cursor` through four detail pages of 350 charts and sees each chart exactly once.
+
 The per-step report records input/output tokens, cumulative input tokens and tool-result bytes. Peak per-call input is the prompt footprint; cumulative input sums every call and must not be compared with a context window. `get_broken_content` returns every root-cause group, so group count and error strings still grow with the project; only samples, detail pages and per-item errors are capped. Decide on compaction from representative full-checklist runs, not from this intake pass.
 
 ## Acceptance before switching the default
