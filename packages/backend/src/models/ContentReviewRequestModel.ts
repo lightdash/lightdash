@@ -132,9 +132,41 @@ export type ContentReviewSimilarCandidate = {
     slug: string;
     spaceUuid: string;
     spaceName: string;
+    score: number;
+    matchReason: 'same_name' | 'similar_name';
 };
 
-type SimilarContentRow = Omit<ContentReviewSimilarCandidate, 'contentType'>;
+type SimilarSource = {
+    contentType: ContentReviewContentType;
+    table: string;
+    uuidColumn: string;
+};
+
+const SIMILAR_SOURCES: Record<
+    'chart' | 'sqlChart' | 'dashboard',
+    SimilarSource
+> = {
+    chart: {
+        contentType: ContentReviewContentType.CHART,
+        table: SavedChartsTableName,
+        uuidColumn: 'saved_query_uuid',
+    },
+    sqlChart: {
+        contentType: ContentReviewContentType.SQL_CHART,
+        table: SavedSqlTableName,
+        uuidColumn: 'saved_sql_uuid',
+    },
+    dashboard: {
+        contentType: ContentReviewContentType.DASHBOARD,
+        table: DashboardsTableName,
+        uuidColumn: 'dashboard_uuid',
+    },
+};
+
+type SimilarContentRow = Omit<
+    ContentReviewSimilarCandidate,
+    'contentType' | 'score' | 'matchReason'
+>;
 
 type SimilarContentScope = {
     projectUuid: string;
@@ -526,38 +558,54 @@ export class ContentReviewRequestModel {
         );
     }
 
-    private getSimilarityContentQuery({
-        projectUuid,
-        excludeContentUuid,
-        accessibleSpaceUuids,
-    }: SimilarContentScope): Knex.QueryBuilder<
-        SimilarContentRow,
-        SimilarContentRow[]
-    > {
+    private getSimilarityContentQuery(
+        source: SimilarSource,
+        {
+            projectUuid,
+            excludeContentUuid,
+            accessibleSpaceUuids,
+        }: SimilarContentScope,
+    ): Knex.QueryBuilder<SimilarContentRow, SimilarContentRow[]> {
         return this.database
-            .from({ content: SavedChartsTableName })
+            .from({ content: source.table })
             .select<SimilarContentRow[]>({
-                uuid: 'content.saved_query_uuid',
+                uuid: `content.${source.uuidColumn}`,
                 name: 'content.name',
                 slug: 'content.slug',
                 spaceUuid: 'spaces.space_uuid',
                 spaceName: 'spaces.name',
             })
-            .leftJoin({ owner: DashboardsTableName }, (join) => {
-                join.on(
-                    'owner.dashboard_uuid',
-                    'content.dashboard_uuid',
-                ).onNull('owner.deleted_at');
-            })
-            .join({ spaces: SpaceTableName }, (join) => {
-                join.on('spaces.space_id', 'content.space_id').orOn(
-                    function dashboardSpace() {
-                        this.onNull('content.space_id').andOn(
-                            'spaces.space_id',
-                            'owner.space_id',
-                        );
-                    },
-                );
+            .modify((query) => {
+                if (source.contentType === ContentReviewContentType.DASHBOARD) {
+                    void query.join(
+                        { spaces: SpaceTableName },
+                        'spaces.space_id',
+                        'content.space_id',
+                    );
+                    return;
+                }
+                const spaceKey =
+                    source.contentType === ContentReviewContentType.SQL_CHART
+                        ? 'space_uuid'
+                        : 'space_id';
+                void query
+                    .leftJoin({ owner: DashboardsTableName }, (join) => {
+                        join.on(
+                            'owner.dashboard_uuid',
+                            'content.dashboard_uuid',
+                        ).onNull('owner.deleted_at');
+                    })
+                    .join({ spaces: SpaceTableName }, (join) => {
+                        join.on(
+                            `spaces.${spaceKey}`,
+                            `content.${spaceKey}`,
+                        ).orOn(function dashboardSpace() {
+                            this.onNull(`content.${spaceKey}`).andOn(
+                                'spaces.space_id',
+                                'owner.space_id',
+                            );
+                        });
+                    });
             })
             .join(
                 { projects: ProjectTableName },
@@ -572,7 +620,7 @@ export class ContentReviewRequestModel {
             .modify((query) => {
                 if (excludeContentUuid !== null) {
                     void query.whereNot(
-                        'content.saved_query_uuid',
+                        `content.${source.uuidColumn}`,
                         excludeContentUuid,
                     );
                 }
@@ -601,7 +649,10 @@ export class ContentReviewRequestModel {
             .orderBy('created_at', 'desc')
             .orderBy('saved_queries_version_id', 'desc')
             .limit(1);
-        const query = this.getSimilarityContentQuery(scope)
+        const query = this.getSimilarityContentQuery(
+            SIMILAR_SOURCES.chart,
+            scope,
+        )
             .join(
                 { version: SavedChartVersionsTableName },
                 'version.saved_query_id',
@@ -690,5 +741,50 @@ export class ContentReviewRequestModel {
                 ),
             ).values(),
         ].slice(0, 12);
+    }
+
+    /** @deprecated Retained only for GET /similar until its sunset. */
+    async findSimilarByName({
+        contentType,
+        name,
+        limit,
+        ...scope
+    }: SimilarContentScope & {
+        contentType: ContentReviewContentType;
+        name: string;
+        limit: number;
+    }): Promise<ContentReviewSimilarCandidate[]> {
+        if (name.trim().length === 0 || scope.accessibleSpaceUuids.length === 0)
+            return [];
+        const sources =
+            contentType === ContentReviewContentType.DASHBOARD
+                ? [SIMILAR_SOURCES.dashboard]
+                : [SIMILAR_SOURCES.chart, SIMILAR_SOURCES.sqlChart];
+        const results = await Promise.all(
+            sources.map(async (source) => {
+                const rows = await this.getSimilarityContentQuery(source, scope)
+                    .whereILike(
+                        'content.name',
+                        escapeLikeWildcards(name.trim()),
+                    )
+                    .orderBy('content.name')
+                    .orderBy(`content.${source.uuidColumn}`)
+                    .limit(limit);
+                return rows.map((row) => ({
+                    ...row,
+                    contentType: source.contentType,
+                    score: 100,
+                    matchReason: 'same_name' as const,
+                }));
+            }),
+        );
+        return results
+            .flat()
+            .sort(
+                (a, b) =>
+                    a.name.localeCompare(b.name) ||
+                    a.uuid.localeCompare(b.uuid),
+            )
+            .slice(0, limit);
     }
 }

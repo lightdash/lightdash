@@ -18,6 +18,8 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
+    Extension,
     Get,
     Middlewares,
     OperationId,
@@ -38,6 +40,7 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../../controllers/authentication';
+import { getDeprecatedRouteMiddleware } from '../../controllers/authentication/deprecation';
 import { BaseController } from '../../controllers/baseController';
 import { type ContentReviewRequestService } from '../services/ContentReviewRequestService/ContentReviewRequestService';
 
@@ -103,10 +106,24 @@ export class ContentReviewRequestController extends BaseController {
     }
 
     /**
-     * Legacy saved-chart comparison route. Name-only requests return no matches.
+     * Deprecated — use POST /similar for AI-powered chart comparison instead.
+     * Preserves name matching until 14 December 2026. The replacement requires Ambient AI and a saved chart UUID or metric query context.
      * @summary Find similar content
+     * @deprecated Use POST /similar with a saved chart UUID or metric query context.
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Extension('x-mint', {
+        content:
+            '<Warning>This endpoint is deprecated and scheduled for removal after 14 December 2026. Migrate to POST /api/v1/projects/{projectUuid}/review-requests/similar with contentType, name, excludeContentUuid, and chart query context when comparing unsaved charts. The replacement requires Ambient AI; it does not support name-only, SQL chart, or dashboard comparisons.</Warning>',
+    })
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-09-14'), {
+            suffixMessage:
+                'Use POST /api/v1/projects/{projectUuid}/review-requests/similar with Ambient AI and a saved chart UUID or metric query context instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/similar')
     @OperationId('findSimilarContentForReview')
@@ -121,7 +138,7 @@ export class ContentReviewRequestController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().findSimilarContentWithAi(
+            results: await this.getService().findSimilarContent(
                 toSessionUser(req.account),
                 projectUuid,
                 {

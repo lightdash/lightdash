@@ -151,6 +151,7 @@ let dashboardModelMock: { getByIdOrSlug: ReturnType<typeof vi.fn> };
 
 const buildService = () => {
     const contentReviewRequestModel = {
+        findSimilarByName: vi.fn().mockResolvedValue([]),
         findChartSimilarityCandidates: vi.fn().mockResolvedValue([]),
         findChartLocations: vi.fn().mockResolvedValue([chartLocation]),
         findDashboardLocations: vi.fn().mockResolvedValue([]),
@@ -1086,5 +1087,124 @@ describe('Ambient AI content similarity', () => {
         ).rejects.toThrow('not enabled');
         expect(deps.savedChartModel.get).not.toHaveBeenCalled();
         expect(deps.aiService.compareCharts).not.toHaveBeenCalled();
+    });
+});
+
+describe('legacy GET similarity compatibility', () => {
+    const candidate = {
+        contentType: ContentReviewContentType.CHART,
+        uuid: 'existing',
+        name: 'Weekly revenue',
+        slug: 'weekly-revenue',
+        spaceUuid: SHARED_SPACE,
+        spaceName: 'Finance',
+        score: 100,
+        matchReason: 'same_name' as const,
+    };
+    const params = {
+        contentType: ContentReviewContentType.CHART,
+        name: 'Weekly revenue',
+        excludeContentUuid: CHART,
+    };
+
+    it('passes accessible spaces into matching before limiting candidates', async () => {
+        const { service, contentReviewRequestModel, spacePermissionService } =
+            buildService();
+        contentReviewRequestModel.findSimilarByName.mockResolvedValue([
+            candidate,
+        ]);
+        const results = await service.findSimilarContent(
+            requester,
+            PROJECT,
+            params,
+        );
+        expect(
+            spacePermissionService.getAccessibleSpaceUuids,
+        ).toHaveBeenCalledWith('view', requester, [
+            SHARED_SPACE,
+            PERSONAL_SPACE,
+        ]);
+        expect(
+            contentReviewRequestModel.findSimilarByName,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ accessibleSpaceUuids: [SHARED_SPACE] }),
+        );
+        expect(results[0]).toMatchObject({
+            contentUuid: 'existing',
+            matchReason: 'same_name',
+            isVerified: false,
+        });
+    });
+
+    it('prefers verified content without letting a weaker name match outrank an exact name', async () => {
+        const { service, contentReviewRequestModel, contentVerificationModel } =
+            buildService();
+        contentReviewRequestModel.findSimilarByName.mockResolvedValue([
+            candidate,
+            {
+                ...candidate,
+                uuid: 'verified-related',
+                score: 90,
+                matchReason: 'similar_name',
+            },
+        ]);
+        contentVerificationModel.getByContentUuids.mockResolvedValue(
+            new Map([['verified-related', {}]]),
+        );
+        const results = await service.findSimilarContent(
+            requester,
+            PROJECT,
+            params,
+        );
+        expect(results.map((item) => item.contentUuid)).toEqual([
+            'existing',
+            'verified-related',
+        ]);
+        expect(results[1].isVerified).toBe(true);
+    });
+
+    it.each(Object.values(ContentReviewContentType))(
+        'keeps legacy %s matching available without AI',
+        async (contentType) => {
+            const { service, contentReviewRequestModel, aiService } =
+                buildService();
+            aiService.isAmbientAiEnabled.mockResolvedValue(false);
+            contentReviewRequestModel.findSimilarByName.mockResolvedValue([
+                { ...candidate, contentType },
+            ]);
+            const results = await service.findSimilarContent(
+                requester,
+                PROJECT,
+                {
+                    ...params,
+                    contentType,
+                    excludeContentUuid: null,
+                },
+            );
+            expect(results).toEqual([
+                expect.objectContaining({
+                    contentUuid: candidate.uuid,
+                    contentType,
+                    matchReason: 'same_name',
+                }),
+            ]);
+            expect(aiService.isAmbientAiEnabled).not.toHaveBeenCalled();
+            expect(aiService.compareCharts).not.toHaveBeenCalled();
+            expect(
+                contentReviewRequestModel.findChartSimilarityCandidates,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('enforces the feature gate before searching', async () => {
+        const { service, contentReviewRequestModel, directAccessFeatureGate } =
+            buildService();
+        directAccessFeatureGate.isEnabledForUser.mockResolvedValue(false);
+        await expect(
+            service.findSimilarContent(requester, PROJECT, params),
+        ).rejects.toThrow('not enabled');
+        expect(
+            contentReviewRequestModel.findSimilarByName,
+        ).not.toHaveBeenCalled();
     });
 });

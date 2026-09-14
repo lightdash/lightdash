@@ -59,6 +59,24 @@ describe('content similarity (PostgreSQL)', () => {
         });
         return uuid;
     };
+    const find = (
+        name: string,
+        options: {
+            type?: ContentReviewContentType;
+            exclude?: string;
+            spaces?: string[];
+            limit?: number;
+        } = {},
+    ) =>
+        model.findSimilarByName({
+            projectUuid,
+            name,
+            contentType: options.type ?? ContentReviewContentType.CHART,
+            excludeContentUuid: options.exclude ?? null,
+            accessibleSpaceUuids: options.spaces ?? [sharedSpace],
+            limit: options.limit ?? 5,
+        });
+
     beforeAll(() => {
         if (!process.env.PGDATABASE && !process.env.PGCONNECTIONURI)
             throw new Error(
@@ -330,5 +348,166 @@ describe('content similarity (PostgreSQL)', () => {
                 }),
             ).toEqual([]);
         });
+    });
+    it.each([
+        ['Weekly revenue', 'Weekly customer churn'],
+        ['Gross revenue', 'Net revenue'],
+        ['Revenue', 'Revenue forecast customer churn acquisition'],
+        ['Monthly revenue', 'Weekly revenue'],
+        ['Revenue', 'Revenue by region'],
+        ['Revenue by region', 'Region revenue'],
+        ['MRR_USD', 'MRR USD'],
+        ['Revenue%', 'Revenue forecast'],
+        ['Revenue_', 'RevenueX'],
+        ['!!!', '???'],
+        ['Revenue', 'Avenue'],
+        ['Customer retention', 'Customer acquisition'],
+    ])('does not suggest %s for %s', async (name, candidate) => {
+        await add(candidate);
+        expect(await find(name)).toEqual([]);
+    });
+
+    it.each([
+        ['Weekly Revenue', 'weekly revenue'],
+        ['Monthly report', 'Monthly report'],
+        ['Résumé des ventes', 'Résumé des ventes'],
+        ['Ｒｅｖｅｎｕｅ', 'Ｒｅｖｅｎｕｅ'],
+        ['売上 月次', '売上 月次'],
+        ['MRR_USD', 'mrr_usd'],
+        ['Revenue 100%', 'Revenue 100%'],
+        ['Revenue\\cost', 'Revenue\\cost'],
+    ])(
+        'matches full names without a word list: %s / %s',
+        async (name, candidate) => {
+            const uuid = await add(candidate);
+            expect(await find(name)).toEqual([
+                expect.objectContaining({ uuid, matchReason: 'same_name' }),
+            ]);
+        },
+    );
+
+    it('orders equal-name matches deterministically before limiting', async () => {
+        const uuids = await Promise.all(
+            Array.from({ length: 3 }, () => add('Revenue')),
+        );
+        expect((await find('Revenue')).map((r) => r.uuid)).toEqual(
+            uuids.sort(),
+        );
+        expect((await find('Revenue', { limit: 1 }))[0].uuid).toBe(uuids[0]);
+    });
+
+    it('filters inaccessible candidates before the limit', async () => {
+        await Promise.all(
+            Array.from({ length: 25 }, () =>
+                add('Revenue', { space: privateSpace }),
+            ),
+        );
+        const visible = await add('Revenue');
+        expect(
+            (await find('Revenue', { limit: 1 })).map((r) => r.uuid),
+        ).toEqual([visible]);
+        expect(await find('Revenue', { spaces: [] })).toEqual([]);
+    });
+
+    it('excludes self, personal spaces, deleted content/spaces and other projects', async () => {
+        const self = await add('Revenue');
+        await add('Revenue', { deleted: true });
+        await Promise.all(
+            [personalSpace, deletedSpace, otherProjectSpace].map((space) =>
+                add('Revenue', { space }),
+            ),
+        );
+        expect(
+            await find('Revenue', {
+                exclude: self,
+                spaces: [
+                    sharedSpace,
+                    personalSpace,
+                    deletedSpace,
+                    otherProjectSpace,
+                ],
+            }),
+        ).toEqual([]);
+    });
+
+    it('matches charts across both chart types but isolates dashboards', async () => {
+        const chart = await add('Revenue');
+        const sql = await add('Revenue', {
+            type: ContentReviewContentType.SQL_CHART,
+        });
+        const dashboard = await add('Revenue', {
+            type: ContentReviewContentType.DASHBOARD,
+        });
+        expect((await find('Revenue')).map((r) => r.uuid).sort()).toEqual(
+            [chart, sql].sort(),
+        );
+        expect(
+            (
+                await find('Revenue', {
+                    type: ContentReviewContentType.SQL_CHART,
+                })
+            )
+                .map((r) => r.uuid)
+                .sort(),
+        ).toEqual([chart, sql].sort());
+        expect(
+            (
+                await find('Revenue', {
+                    type: ContentReviewContentType.DASHBOARD,
+                })
+            ).map((r) => r.uuid),
+        ).toEqual([dashboard]);
+    });
+
+    it('finds dashboard-owned charts through their dashboard space and excludes deleted owners', async () => {
+        const owner = await add('Overview', {
+            type: ContentReviewContentType.DASHBOARD,
+        });
+        const chart = await add('Revenue');
+        const sql = await add('Revenue', {
+            type: ContentReviewContentType.SQL_CHART,
+        });
+        await tx('saved_queries')
+            .where('saved_query_uuid', chart)
+            .update({ space_id: null, dashboard_uuid: owner });
+        await tx('saved_sql')
+            .where('saved_sql_uuid', sql)
+            .update({ space_uuid: null, dashboard_uuid: owner });
+        expect((await find('Revenue')).map((r) => r.uuid).sort()).toEqual(
+            [chart, sql].sort(),
+        );
+        await tx('dashboards')
+            .where('dashboard_uuid', owner)
+            .update({ deleted_at: new Date() });
+        expect(await find('Revenue')).toEqual([]);
+    });
+
+    it('finds the relevant chart among thousands of unrelated names', async () => {
+        const space = await tx('spaces')
+            .where('space_uuid', sharedSpace)
+            .first<{ space_id: number }>();
+        await tx<{
+            saved_query_uuid: string;
+            name: string;
+            slug: string;
+            space_id: number;
+        }>('saved_queries').insert(
+            Array.from({ length: 2000 }, (_, i) => ({
+                saved_query_uuid: randomUUID(),
+                name: `Customer acquisition cohort ${i}`,
+                slug: `cohort-${i}`,
+                space_id: space!.space_id,
+            })),
+        );
+        const relevant = await add('Shipping counts by method');
+        expect(
+            (await find('Shipping counts by method')).map((r) => r.uuid),
+        ).toEqual([relevant]);
+    });
+
+    it('treats query syntax and SQL metacharacters as name text', async () => {
+        await add('Customer churn');
+        expect(await find("Revenue' OR 1=1 --")).toEqual([]);
+        expect(await find('%')).toEqual([]);
     });
 });

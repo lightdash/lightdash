@@ -82,6 +82,10 @@ type ContentReviewRequestServiceArguments = {
 
 type ProjectContext = { organizationUuid: string; projectUuid: string };
 
+const SIMILAR_CANDIDATE_LIMIT = 20;
+const SIMILAR_RESULT_LIMIT = 5;
+const VERIFIED_SCORE_BOOST = 2;
+
 type ContentLookups = {
     locations: Map<string, ContentReviewContentLocation>;
     spaces: Map<string, ContentReviewSpaceInfo>;
@@ -1157,6 +1161,93 @@ export class ContentReviewRequestService extends BaseService {
             { ...cancelled, grantedPrincipals: [] },
             settings,
         );
+    }
+
+    /** @deprecated Retained only for GET /similar until its sunset. */
+    async findSimilarContent(
+        user: SessionUser,
+        projectUuid: string,
+        params: {
+            contentType: ContentReviewContentType;
+            name: string;
+            excludeContentUuid: string | null;
+        },
+    ): Promise<ContentReviewSimilarContentItem[]> {
+        const context = await this.getProjectContext(user, projectUuid);
+        if (params.name.trim().length === 0) return [];
+        const spaces =
+            await this.spaceModel.getSpacesByProjectUuid(projectUuid);
+        const accessibleSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((space) => space.uuid),
+            );
+        const candidates =
+            await this.contentReviewRequestModel.findSimilarByName({
+                projectUuid,
+                contentType: params.contentType,
+                name: params.name,
+                excludeContentUuid: params.excludeContentUuid,
+                accessibleSpaceUuids,
+                limit: SIMILAR_CANDIDATE_LIMIT,
+            });
+        if (candidates.length === 0) return [];
+        const visible = candidates;
+        const verifiedByType = new Map<ContentReviewContentType, Set<string>>();
+        await Promise.all(
+            [...new Set(visible.map((c) => c.contentType))].map(
+                async (candidateType) => {
+                    const verifiableType =
+                        ContentReviewRequestService.toVerifiableContentType(
+                            candidateType,
+                        );
+                    if (verifiableType === null) return;
+                    const verified =
+                        await this.contentVerificationModel.getByContentUuids(
+                            verifiableType,
+                            visible
+                                .filter((c) => c.contentType === candidateType)
+                                .map((c) => c.uuid),
+                        );
+                    verifiedByType.set(candidateType, new Set(verified.keys()));
+                },
+            ),
+        );
+        const results = visible
+            .map((c) => {
+                const isVerified =
+                    verifiedByType.get(c.contentType)?.has(c.uuid) ?? false;
+                return {
+                    contentType: c.contentType,
+                    contentUuid: c.uuid,
+                    name: c.name,
+                    slug: c.slug,
+                    spaceUuid: c.spaceUuid,
+                    spaceName: c.spaceName,
+                    isVerified,
+                    score: c.score + (isVerified ? VERIFIED_SCORE_BOOST : 0),
+                    matchReason: c.matchReason,
+                };
+            })
+            .sort((a, b) => b.score - a.score)
+            .slice(0, SIMILAR_RESULT_LIMIT);
+        if (results.length > 0) {
+            this.analytics.track({
+                event: 'content_review_request.similar_content_found',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: context.organizationUuid,
+                    projectId: projectUuid,
+                    contentType: params.contentType,
+                    contentId: params.excludeContentUuid,
+                    matchCount: results.length,
+                    verifiedMatchCount: results.filter((r) => r.isVerified)
+                        .length,
+                },
+            });
+        }
+        return results;
     }
 
     async findSimilarContentWithAi(
