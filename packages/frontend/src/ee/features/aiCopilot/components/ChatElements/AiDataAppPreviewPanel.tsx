@@ -1,4 +1,8 @@
-import { getAppDisplayName, isAppVersionInProgress } from '@lightdash/common';
+import {
+    getAppDisplayName,
+    getSdkFeatureTargetForTemplate,
+    isAppVersionInProgress,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -10,10 +14,12 @@ import {
     Text,
 } from '@mantine/core';
 import { IconExternalLink, IconX } from '@tabler/icons-react';
-import { useCallback, useState, type FC, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
-import AppIframePreview from '../../../../../features/apps/AppIframePreview';
+import AppIframePreview, {
+    type AppIframePreviewHandle,
+} from '../../../../../features/apps/AppIframePreview';
 import AppInspectorPanel from '../../../../../features/apps/AppInspectorPanel';
 import AppActionsMenu from '../../../../../features/apps/components/AppActionsMenu';
 import { ElementPickerButton } from '../../../../../features/apps/components/ElementPickerButton';
@@ -22,8 +28,10 @@ import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/
 import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../../../../../features/apps/hooks/useCanEditDataApp';
+import { useCaptureThumbnail } from '../../../../../features/apps/hooks/useCaptureThumbnail';
 import { useElementPicker } from '../../../../../features/apps/hooks/useElementPicker';
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
+import { useSdkUpgradeStatus } from '../../../../../features/apps/hooks/useSdkUpgradeStatus';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
 import { type ElementRef } from '../../../../../features/apps/utils/elementRefs';
 import { useRestoreAiAgentThreadDataAppVersionMutation } from '../../hooks/useProjectAiAgents';
@@ -177,6 +185,47 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
             ? `${previewOrigin}/api/apps/${appUuid}/versions/${effectiveVersion}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
+    const isPreviewMounted = !isTokenLoading && !!previewUrl && !!token;
+
+    // Same offer the builder derives: keyed to the latest ready bundle (the
+    // one an upgrade rebuilds from), not to the version on screen.
+    const { offer: sdkUpgradeOffer, onSdkManifest: handleSdkManifest } =
+        useSdkUpgradeStatus({
+            target: getSdkFeatureTargetForTemplate(app?.template),
+            bundleKey:
+                latestReadyVersion !== null
+                    ? `${appUuid}:${latestReadyVersion}`
+                    : null,
+            renderedKey: isPreviewMounted ? identityKey : null,
+            isRendering:
+                isPreviewMounted &&
+                latestReadyVersion !== null &&
+                effectiveVersion === latestReadyVersion,
+        });
+    const { onSdkManifest: onInspectorSdkManifest } = inspector.iframeProps;
+    const handleIframeSdkManifest = useCallback<typeof handleSdkManifest>(
+        (manifest) => {
+            onInspectorSdkManifest(manifest);
+            handleSdkManifest(manifest);
+        },
+        [onInspectorSdkManifest, handleSdkManifest],
+    );
+
+    const previewRef = useRef<AppIframePreviewHandle>(null);
+    const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const capturePreviewScreenshot = useCallback(async () => {
+        const capture = previewRef.current?.captureScreenshot;
+        if (!capture) {
+            throw new Error('Screenshot capture is not available');
+        }
+        return capture();
+    }, []);
+    const { captureThumbnail, isCapturing: isCapturingThumbnail } =
+        useCaptureThumbnail({
+            app: { projectUuid, appUuid },
+            capture: capturePreviewScreenshot,
+        });
+
     const returnToLatest = () =>
         dispatch(
             setDataAppPreviewVersion({
@@ -302,6 +351,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         body = (
             <>
                 <AppIframePreview
+                    ref={previewRef}
                     src={previewUrl}
                     previewToken={token}
                     expectedPreviewOrigin={previewOrigin}
@@ -310,9 +360,15 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                     identityKey={identityKey}
                     capabilities={{ gsheetExport: true }}
                     invalidateCache={invalidateCache}
+                    onScreenshotAvailabilityChange={setScreenshotAvailable}
                     {...(showInspector
                         ? { ...inspector.iframeProps, ...picker.iframeProps }
                         : {})}
+                    onSdkManifest={
+                        showInspector
+                            ? handleIframeSdkManifest
+                            : handleSdkManifest
+                    }
                 />
                 {showInspector && !inspector.hidden && (
                     <AppInspectorPanel
@@ -397,9 +453,23 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                 )
                             }
                             onDeleted={() => dispatch(clearPreview())}
-                            captureThumbnail={null}
-                            capturePreviewScreenshot={null}
-                            upgrade={null}
+                            captureThumbnail={{
+                                onCapture: () => void captureThumbnail(),
+                                disabled:
+                                    !isPreviewMounted ||
+                                    !screenshotAvailable ||
+                                    isCapturingThumbnail,
+                            }}
+                            capturePreviewScreenshot={
+                                screenshotAvailable
+                                    ? capturePreviewScreenshot
+                                    : null
+                            }
+                            upgrade={{
+                                ...sdkUpgradeOffer,
+                                disabled:
+                                    !isPreviewMounted || isBuildInProgress,
+                            }}
                             target={{
                                 size: 'sm',
                                 variant: 'subtle',
