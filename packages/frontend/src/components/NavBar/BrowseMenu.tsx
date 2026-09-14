@@ -31,6 +31,7 @@ import {
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
+import { useChartTypesEnabled } from '../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useRecentlyDeletedAccess } from '../../features/recentlyDeleted/hooks/useRecentlyDeletedAccess';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
@@ -105,6 +106,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     const { data: favorites } = useFavorites(projectUuid);
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const chartTypesEnabled = useChartTypesEnabled();
     const canViewDataApps = user.data?.ability?.can('view', 'DataApp') ?? false;
     // The gallery list endpoint is gated on `manage Explore`, not on data app access.
     const canViewChartTypes =
@@ -206,7 +208,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     </Menu.Item>
                 )}
 
-                {dataAppsFlag.data?.enabled && canViewChartTypes && (
+                {chartTypesEnabled.enabled && canViewChartTypes && (
                     <Menu.Item
                         component={Link}
                         to={`/projects/${projectUuid}/gallery`}
