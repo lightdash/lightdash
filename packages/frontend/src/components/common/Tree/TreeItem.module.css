@@ -26,6 +26,8 @@
 }
 
 .actionIcon {
+    overflow: visible;
+    flex-shrink: 0;
     opacity: 0.8;
 
     &:hover {
@@ -39,6 +41,7 @@
 
 .folderToggle {
     position: relative;
+    flex-shrink: 0;
     width: var(--mantine-spacing-lg);
     height: var(--mantine-spacing-lg);
     pointer-events: none;

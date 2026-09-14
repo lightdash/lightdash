@@ -6,7 +6,12 @@ import {
     rem,
     Tooltip,
 } from '@mantine/core';
-import { IconCheck, IconFolder, IconFolderOpen } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconFolder,
+    IconFolderOpen,
+    IconFolders,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import React, { useMemo } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -102,7 +107,7 @@ const TreeItem: React.FC<Props> = ({
                     >
                         <span className={classes.folderClosed}>
                             <MantineIcon
-                                icon={IconFolder}
+                                icon={IconFolders}
                                 color="ldGray.7"
                                 size="lg"
                                 stroke={1.5}
