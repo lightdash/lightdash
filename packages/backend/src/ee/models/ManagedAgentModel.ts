@@ -1134,11 +1134,12 @@ export class ManagedAgentModel {
             await trx.raw(
                 `UPDATE ${ManagedAgentRunsTableName}
                  SET status = ?,
-                     finished_at = started_at + interval '${ManagedAgentModel.STALE_RUN_THRESHOLD_MS} milliseconds',
+                     finished_at = started_at + interval '1 millisecond' * ?,
                      error = COALESCE(error, ?)
                  WHERE project_uuid = ? AND status = ? AND started_at < ?`,
                 [
                     ManagedAgentRunStatus.ERROR,
+                    ManagedAgentModel.STALE_RUN_THRESHOLD_MS,
                     ManagedAgentModel.STALE_RUN_ERROR,
                     input.projectUuid,
                     ManagedAgentRunStatus.STARTED,
