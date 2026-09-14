@@ -8,6 +8,7 @@ import {
     type PossibleAbilities,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { type Knex } from 'knex';
 import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type DbMobileSetupCode } from '../../database/entities/mobileSetupCodes';
@@ -35,6 +36,12 @@ const client = {
     redirectUris: ['com.lightdash.mobile://oauth/callback'],
     isPublicClient: true,
 };
+
+const transaction = { isTransaction: true } as Knex.Transaction;
+const token = { accessToken: 'access-token', user, client };
+const issueTokens = vi
+    .fn<Parameters<MobileSetupService['redeem']>[1]>()
+    .mockResolvedValue(token);
 
 const pendingCode = (): DbMobileSetupCode => ({
     mobile_setup_code_uuid: codeId,
@@ -65,12 +72,12 @@ const createService = () => {
             .fn<MobileSetupCodeModel['findByHash']>()
             .mockResolvedValue(pendingCode()),
         revoke: vi.fn<MobileSetupCodeModel['revoke']>().mockResolvedValue(),
-        redeem: vi.fn<MobileSetupCodeModel['redeem']>().mockResolvedValue({
-            ...pendingCode(),
-            redeemed_at: new Date(),
-            redeemed_platform: 'ios',
-            redeemed_client_id: client.id,
-        }),
+        redeem: vi
+            .fn<MobileSetupCodeModel['redeem']>()
+            .mockImplementation(
+                async (_hash, _clientId, _platform, _userUuid, callback) =>
+                    callback(transaction),
+            ),
     } as unknown as MobileSetupCodeModel;
     const featureFlagModel = {
         get: vi.fn<FeatureFlagModel['get']>().mockResolvedValue({
@@ -114,6 +121,7 @@ const createService = () => {
 describe('MobileSetupService', () => {
     afterEach(() => {
         vi.useRealTimers();
+        vi.clearAllMocks();
     });
 
     it('mints 160-bit base32 codes, stores only the hash and builds the versioned link', async () => {
@@ -235,8 +243,12 @@ describe('MobileSetupService', () => {
     it('redeems for the bound user, organization and project', async () => {
         const { service, mobileSetupCodeModel, userModel } = createService();
         await expect(
-            service.redeem({ code, client, platform: 'ios' }),
-        ).resolves.toEqual({ user, projectUuid });
+            service.redeem({ code, client, platform: 'ios' }, issueTokens),
+        ).resolves.toEqual(token);
+        expect(issueTokens).toHaveBeenCalledWith(
+            { user, projectUuid },
+            transaction,
+        );
         expect(
             vi.mocked(userModel.findSessionUserAndOrgByUuid),
         ).toHaveBeenCalledWith(user.userUuid, user.organizationUuid);
@@ -244,6 +256,8 @@ describe('MobileSetupService', () => {
             pendingCode().code_hash,
             client.id,
             'ios',
+            user.userUuid,
+            expect.any(Function),
         );
     });
 
@@ -258,7 +272,7 @@ describe('MobileSetupService', () => {
             ...overrides,
         });
         await expect(
-            service.redeem({ code, client, platform: 'ios' }),
+            service.redeem({ code, client, platform: 'ios' }, issueTokens),
         ).rejects.toMatchObject({ code: expected });
         expect(vi.mocked(mobileSetupCodeModel.redeem)).not.toHaveBeenCalled();
     });
@@ -271,7 +285,10 @@ describe('MobileSetupService', () => {
         async (wrongClient) => {
             const { service, mobileSetupCodeModel } = createService();
             await expect(
-                service.redeem({ code, client: wrongClient, platform: 'ios' }),
+                service.redeem(
+                    { code, client: wrongClient, platform: 'ios' },
+                    issueTokens,
+                ),
             ).rejects.toMatchObject({ code: MobileSetupCodeError.UNKNOWN });
             expect(
                 vi.mocked(mobileSetupCodeModel.findByHash),
@@ -287,7 +304,7 @@ describe('MobileSetupService', () => {
             enabled: false,
         });
         await expect(
-            service.redeem({ code, client, platform: 'ios' }),
+            service.redeem({ code, client, platform: 'ios' }, issueTokens),
         ).rejects.toBeInstanceOf(ForbiddenError);
         expect(vi.mocked(mobileSetupCodeModel.redeem)).not.toHaveBeenCalled();
     });
@@ -299,7 +316,7 @@ describe('MobileSetupService', () => {
             .mockResolvedValueOnce(pendingCode())
             .mockResolvedValue({ ...pendingCode(), redeemed_at: new Date() });
         await expect(
-            service.redeem({ code, client, platform: 'android' }),
+            service.redeem({ code, client, platform: 'android' }, issueTokens),
         ).rejects.toMatchObject({ code: MobileSetupCodeError.ALREADY_USED });
     });
 });
