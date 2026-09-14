@@ -54,7 +54,7 @@ vi.mock('../index', async () => {
     const ExplorerHostProbe = () => {
         const dispatch = useExplorerDispatch();
         const isOpen = useExplorerSelector(selectIsVisualizationConfigOpen);
-        const target = useVisualizationConfigPortalTarget(isOpen);
+        const { target, ref } = useVisualizationConfigPortalTarget(isOpen);
 
         return (
             <ChartColorMappingContextProvider>
@@ -74,6 +74,7 @@ vi.mock('../index', async () => {
                     isEditMode
                 >
                     <button
+                        ref={ref}
                         type="button"
                         onClick={() =>
                             dispatch(explorerActions.openVisualizationConfig())
