@@ -1,5 +1,6 @@
 import {
     type ApiSuccessEmpty,
+    type ApiDirectAccessGroupsResponse,
     type DirectAccessAssignment,
     type DirectAccessPrincipalType,
     type DirectAccessResourceType,
@@ -18,6 +19,17 @@ export type DirectAccessResourceRef = {
 
 const assignmentsPath = (projectUuid: string, ref: DirectAccessResourceRef) =>
     `/projects/${projectUuid}/direct-access/${ref.resourceType}/${ref.resourceUuid}/assignments`;
+
+export const getDirectAccessGroups = (
+    projectUuid: string,
+    ref: DirectAccessResourceRef,
+) =>
+    lightdashApi<ApiDirectAccessGroupsResponse['results']>({
+        version: 'v2',
+        url: `/projects/${projectUuid}/direct-access/${ref.resourceType}/${ref.resourceUuid}/groups`,
+        method: 'GET',
+        body: undefined,
+    });
 
 export const getDirectAccessAssignments = (
     projectUuid: string,

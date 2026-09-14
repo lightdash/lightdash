@@ -62,3 +62,8 @@ export type ApiDirectAccessAssignmentsResponse = {
     status: 'ok';
     results: DirectAccessAssignment[];
 };
+
+export type ApiDirectAccessGroupsResponse = {
+    status: 'ok';
+    results: DirectAccessGroupPrincipal[];
+};

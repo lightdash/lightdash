@@ -2,6 +2,7 @@ import {
     DirectAccessResourceType,
     type ApiError,
     type DirectAccessAssignment,
+    type DirectAccessGroupPrincipal,
     type DirectAccessPrincipalType,
     type SpaceMemberRole,
 } from '@lightdash/common';
@@ -16,6 +17,7 @@ import { invalidateContent } from '../../../hooks/useContent';
 import useApp from '../../../providers/App/useApp';
 import {
     getDirectAccessAssignments,
+    getDirectAccessGroups,
     resetDirectAccess,
     revokeDirectAccessAssignment,
     upsertDirectAccessAssignment,
@@ -45,6 +47,16 @@ export const useDirectAccessAssignments = (
         queryFn: () => getDirectAccessAssignments(projectUuid, ref),
         retry: false,
         ...queryOptions,
+    });
+
+export const useDirectAccessGroups = (
+    projectUuid: string,
+    ref: DirectAccessResourceRef,
+) =>
+    useQuery<DirectAccessGroupPrincipal[], ApiError>({
+        queryKey: [...directAccessQueryKey(projectUuid, ref), 'groups'],
+        queryFn: () => getDirectAccessGroups(projectUuid, ref),
+        retry: false,
     });
 
 const useInvalidateAfterDirectAccessMutation = (
