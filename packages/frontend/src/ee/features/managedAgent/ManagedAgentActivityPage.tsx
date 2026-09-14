@@ -108,8 +108,11 @@ import {
 } from './hooks/useManagedAgentActions';
 import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
 import { useManagedAgentRuns } from './hooks/useManagedAgentRuns';
+import { useManagedAgentRuntime } from './hooks/useManagedAgentRuntime';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
+import { ManagedAgentRunModel } from './ManagedAgentRunModel';
+import { ManagedAgentRuntimeDetails } from './ManagedAgentRuntimeDetails';
 import { SuggestionsSpaceAccess } from './SuggestionsSpaceAccess';
 import { ToolActivityBadge } from './ToolActivityBadge';
 
@@ -256,6 +259,8 @@ const PolicyNumberField: FC<{
 };
 
 const SetupSection: FC<{
+    runtime: ReturnType<typeof useManagedAgentRuntime>;
+    canManageAiSettings: boolean;
     enabled: boolean;
     schedule: ManagedAgentScheduleOption;
     settingsOpen: boolean;
@@ -264,6 +269,8 @@ const SetupSection: FC<{
     isRunNowLoading: boolean;
     isRunning: boolean;
 }> = ({
+    runtime,
+    canManageAiSettings,
     enabled,
     schedule: initialSchedule,
     settingsOpen,
@@ -336,6 +343,12 @@ const SetupSection: FC<{
                     </Button>
                 </Group>
             </Group>
+            <Box pb="md">
+                <ManagedAgentRuntimeDetails
+                    runtime={runtime}
+                    canManageAiSettings={canManageAiSettings}
+                />
+            </Box>
             <Box className={classes.headerDivider} />
         </Stack>
     );
@@ -1285,6 +1298,9 @@ const SettingsSidebar: FC<{
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-settings', projectUuid],
             });
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-runtime', projectUuid],
+            });
         },
         onError: ({ error }: ApiError) => {
             showSettingsApiError({
@@ -2011,6 +2027,7 @@ const RunHeaderRow: FC<{
                             </Tooltip>
                         </>
                     )}
+                    <ManagedAgentRunModel run={run} />
                     {variant === 'errored' && (
                         <>
                             <Text fz="xs" c="dimmed">
@@ -2224,6 +2241,7 @@ const QuietRunsGroup: FC<{
                                         )}
                                     </Text>
                                 </Group>
+                                <ManagedAgentRunModel run={run} />
                             </Group>
                             <Text fz="xs" c="dimmed">
                                 No actions
@@ -2646,6 +2664,10 @@ const ManagedAgentActivityPage: FC = () => {
         useToaster();
     const { data: settings, isLoading: settingsLoading } =
         useManagedAgentSettings({ enabled: canManageAutopilot });
+    const runtime = useManagedAgentRuntime(
+        projectUuid ?? '',
+        canManageAutopilot,
+    );
     const { data: latestRun } = useManagedAgentLatestRun({
         enabled: canManageAutopilot,
     });
@@ -2854,6 +2876,13 @@ const ManagedAgentActivityPage: FC = () => {
                     <Box className={classes.page}>
                         <Stack gap="lg">
                             <SetupSection
+                                runtime={runtime}
+                                canManageAiSettings={
+                                    user.data?.ability.can(
+                                        'manage',
+                                        'Organization',
+                                    ) ?? false
+                                }
                                 enabled={settings?.enabled ?? false}
                                 schedule={
                                     settings?.schedule ??

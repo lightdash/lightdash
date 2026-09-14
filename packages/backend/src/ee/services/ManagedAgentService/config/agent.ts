@@ -786,11 +786,13 @@ const managedAgentSandboxToolsets: NonNullable<AgentCreateParams['tools']> = [
     },
 ];
 
+export const AUTOPILOT_MANAGED_MODEL_ID = 'claude-opus-4-6';
+
 const managedAgentConfig: AgentCreateParams = {
     name: 'Lightdash Autopilot Agent',
     description: null,
     model: {
-        id: 'claude-opus-4-6',
+        id: AUTOPILOT_MANAGED_MODEL_ID,
         speed: 'standard',
     },
     system: buildManagedAgentSystemPrompt(DEFAULT_MANAGED_AGENT_POLICY),

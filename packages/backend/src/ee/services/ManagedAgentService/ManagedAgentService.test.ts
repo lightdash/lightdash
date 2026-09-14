@@ -129,6 +129,7 @@ const buildService = ({
         }),
         finishRun: vi.fn().mockResolvedValue(undefined),
         setRunSessionId: vi.fn().mockResolvedValue(undefined),
+        setRunModel: vi.fn().mockResolvedValue(undefined),
         getActionCountsByTypeForRun: vi.fn().mockResolvedValue({}),
         getAction: vi.fn(),
         reverseAction: vi.fn(),
@@ -649,6 +650,7 @@ describe('ManagedAgentService runtime details', () => {
             provider: 'anthropic',
             model: 'claude-sonnet-4-6',
             keySource: 'instance',
+            keyManagement: 'self-managed',
             requestedCleanupMode: 'cleanup',
             effectiveCleanupMode: 'observe',
             error: null,
@@ -673,6 +675,24 @@ describe('ManagedAgentService runtime details', () => {
         expect(
             await service.getRuntimeInfo(fromSession(user), PROJECT_UUID),
         ).toMatchObject({ keySource: 'organization' });
+    });
+
+    it('returns an actionable error without model attribution when resolution fails', async () => {
+        const { service, orgAiCopilotConfigResolver } = buildService({
+            runtime: 'ai-sdk',
+        });
+        orgAiCopilotConfigResolver.getCopilotConfig.mockRejectedValue(
+            new Error('Invalid provider configuration'),
+        );
+        await expect(
+            service.getRuntimeInfo(fromSession(user), PROJECT_UUID),
+        ).resolves.toMatchObject({
+            provider: null,
+            model: null,
+            keySource: null,
+            keyManagement: null,
+            error: expect.stringContaining('Organization settings'),
+        });
     });
 
     it('does not expose configuration to a user who cannot administer the project', async () => {
@@ -776,6 +796,11 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                 provider: 'openai.responses',
                 modelId: 'unscored-model',
                 doGenerate: async (options) => {
+                    expect(managedAgentModel.setRunModel).toHaveBeenCalledWith(
+                        'run-uuid',
+                        { provider: 'openai', name: 'unscored-model' },
+                    );
+                    expect(managedAgentModel.finishRun).not.toHaveBeenCalled();
                     expect(
                         options.tools?.some(
                             (tool) =>
@@ -842,6 +867,33 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             );
         },
     );
+
+    it('does not execute the model if saving attribution fails', async () => {
+        const { service, managedAgentModel } = buildService({
+            runtime: 'ai-sdk',
+        });
+        const doGenerate = vi.fn();
+        vi.mocked(getModel).mockReturnValue({
+            ...resolvedModel,
+            model: new MockLanguageModelV3({
+                provider: 'openai.responses',
+                modelId: 'gpt-test',
+                doGenerate,
+            }),
+        } as AnyType);
+        managedAgentModel.setRunModel.mockRejectedValue(
+            new Error('Database unavailable'),
+        );
+        await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(doGenerate).not.toHaveBeenCalled();
+        expect(managedAgentModel.finishRun).toHaveBeenCalledWith(
+            'run-uuid',
+            expect.objectContaining({
+                status: 'error',
+                error: 'Database unavailable',
+            }),
+        );
+    });
 
     it('cannot delete a prior creation through the reversal tool when cleanup is not allowed', async () => {
         const { service, managedAgentModel } = buildService({
