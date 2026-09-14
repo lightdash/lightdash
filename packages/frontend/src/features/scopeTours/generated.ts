@@ -2241,6 +2241,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         title: 'Verify a chart',
         sources: [
             'packages/frontend/src/components/Explorer/SavedChartsHeader/index.tsx',
+            'packages/frontend/src/components/Explorer/SavedChartsHeader/ChartActionsMenu.tsx',
         ],
         steps: [
             {
@@ -5276,6 +5277,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         title: 'Verify a chart',
         sources: [
             'packages/frontend/src/components/Explorer/SavedChartsHeader/index.tsx',
+            'packages/frontend/src/components/Explorer/SavedChartsHeader/ChartActionsMenu.tsx',
         ],
         steps: [
             {

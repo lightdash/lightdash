@@ -1,3 +1,45 @@
+## [2.207.1](https://github.com/lightdash/lightdash/compare/2.207.0...2.207.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **common:** apply Snowflake timestamp wrap once on additional dimension intervals ([#29021](https://github.com/lightdash/lightdash/issues/29021)) ([7f765ac](https://github.com/lightdash/lightdash/commit/7f765acf0f3844f70fa3c1249e3a0c0fcaa4e411))
+* **data-apps:** skip OS notification for user-cancelled builds ([#29156](https://github.com/lightdash/lightdash/issues/29156)) ([a645fbc](https://github.com/lightdash/lightdash/commit/a645fbc624e31fef08bdd008f732d93749487612))
+
+# [2.207.0](https://github.com/lightdash/lightdash/compare/2.206.2...2.207.0) (2026-09-14)
+
+
+### Bug Fixes
+
+* **dashboards:** match the chart editor header to the chart page ([#29063](https://github.com/lightdash/lightdash/issues/29063)) ([5fb2ca2](https://github.com/lightdash/lightdash/commit/5fb2ca29d3ad1262f861b7e26f761f38a91b9cc1))
+
+
+### Features
+
+* **dashboards:** keep the chart editor's edits in the dashboard url ([#29146](https://github.com/lightdash/lightdash/issues/29146)) ([e54c725](https://github.com/lightdash/lightdash/commit/e54c725334703d5dccffb2d9b4714f6a82e477e5))
+* **dashboards:** keep the edited chart in the URL ([#29103](https://github.com/lightdash/lightdash/issues/29103)) ([2b2bc54](https://github.com/lightdash/lightdash/commit/2b2bc54d65c8dc75fa14eff925e754709f8953d5))
+
+## [2.206.2](https://github.com/lightdash/lightdash/compare/2.206.1...2.206.2) (2026-09-14)
+
+
+### Bug Fixes
+
+* enforce content-as-code upload space permissions ([#29138](https://github.com/lightdash/lightdash/issues/29138)) ([9d1813c](https://github.com/lightdash/lightdash/commit/9d1813c3565d8af1390e43896600924d3fb5160f)), closes [#23610](https://github.com/lightdash/lightdash/issues/23610)
+
+## [2.206.1](https://github.com/lightdash/lightdash/compare/2.206.0...2.206.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **embed:** remove nested data app scrollbars ([#29139](https://github.com/lightdash/lightdash/issues/29139)) ([ddbb89c](https://github.com/lightdash/lightdash/commit/ddbb89ce8cecb16ef304c87df6f6f29e4f410ca4))
+
+# [2.206.0](https://github.com/lightdash/lightdash/compare/2.205.2...2.206.0) (2026-09-14)
+
+
+### Features
+
+* **explorer:** quick-create custom metrics from the sidebar and inherit dimension formatting ([#29136](https://github.com/lightdash/lightdash/issues/29136)) ([0d805ff](https://github.com/lightdash/lightdash/commit/0d805ffee2ec3e24f9214720cf2b15e7b5499b20))
+
 ## [2.205.2](https://github.com/lightdash/lightdash/compare/2.205.1...2.205.2) (2026-09-14)
 
 

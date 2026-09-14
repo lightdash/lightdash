@@ -17,6 +17,7 @@ import {
     type DashboardFilterRule,
     type UpdateDashboard,
     type DashboardTile,
+    type CreateSavedChartVersion,
     type Dashboard as IDashboard,
     type SavedChart,
 } from '@lightdash/common';
@@ -30,7 +31,12 @@ import { IconAlertCircle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useBlocker, useNavigate, useParams } from 'react-router';
+import {
+    useBlocker,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
@@ -41,6 +47,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import Page from '../components/common/Page/Page';
 import DashboardChartEditorModal from '../components/DashboardTiles/DashboardChartEditorModal';
+import { CREATE_SAVED_CHART_VERSION_SEARCH_PARAM } from '../components/DashboardTiles/useDashboardChartEditorUrlSync';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
 import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
@@ -62,9 +69,11 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { tryParseCreateSavedChartVersionParam } from '../hooks/useExplorerRoute';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
+import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
@@ -79,6 +88,9 @@ import { buildDashboardConfig } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
 
+/** Dashboard URL param naming the chart open in the in-dashboard editor. */
+const EDIT_CHART_SEARCH_PARAM = 'editChart';
+
 const Dashboard: FC = () => {
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
@@ -88,8 +100,11 @@ const Dashboard: FC = () => {
         mode?: string;
     }>();
 
-    const { clearIsEditingDashboardChart, clearDashboardStorage } =
-        useDashboardStorage();
+    const {
+        clearIsEditingDashboardChart,
+        clearDashboardStorage,
+        storeDashboard,
+    } = useDashboardStorage();
 
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -844,8 +859,110 @@ const Dashboard: FC = () => {
         isChartEditorEnabled &&
         dashboardCustomMetricsFlag.data?.enabled === true;
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
-    const [chartToEdit, setChartToEdit] = useState<SavedChart | undefined>();
 
+    // The chart being edited is named by the URL, so a reload or a step back
+    // from the chart page lands in the editor. A tile hands over the chart it
+    // already holds; without one (a fresh load) it is fetched by the param.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const editChartParam = searchParams.get(EDIT_CHART_SEARCH_PARAM);
+    const [chartFromTile, setChartFromTile] = useState<
+        SavedChart | undefined
+    >();
+    const setEditChartParam = useCallback(
+        (chartUuid: string) => {
+            setSearchParams(
+                (params) => {
+                    params.set(EDIT_CHART_SEARCH_PARAM, chartUuid);
+                    params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                    return params;
+                },
+                { replace: true },
+            );
+        },
+        [setSearchParams],
+    );
+    const clearChartEditorParams = useCallback(() => {
+        setSearchParams(
+            (params) => {
+                params.delete(EDIT_CHART_SEARCH_PARAM);
+                params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                return params;
+            },
+            { replace: true },
+        );
+    }, [setSearchParams]);
+    // The editor's own unsaved edits, read once at mount: applying them later
+    // would fight the sync that keeps writing them back to the url.
+    const [editChartParamAtMount] = useState(() =>
+        searchParams.get(EDIT_CHART_SEARCH_PARAM),
+    );
+    const [chartVersionAtMount] = useState<CreateSavedChartVersion | undefined>(
+        () => {
+            const param = searchParams.get(
+                CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
+            );
+            return param
+                ? tryParseCreateSavedChartVersionParam(param)
+                : undefined;
+        },
+    );
+    const chartVersionParam = searchParams.get(
+        CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
+    );
+    const chartFromUrl = useSavedQuery({
+        uuidOrSlug:
+            isChartEditorEnabled &&
+            editChartParam &&
+            chartFromTile?.uuid !== editChartParam
+                ? editChartParam
+                : undefined,
+        projectUuid,
+        // The same content the tiles show: the dashboard loads its draft
+        includeUnpublishedDraft: true,
+        // A param naming a chart the user cannot load is dropped rather than kept
+        useQueryOptions: { onError: () => clearChartEditorParams() },
+    });
+    const chartToEdit = useMemo(() => {
+        if (!isChartEditorEnabled || !editChartParam) return undefined;
+        if (chartFromTile?.uuid === editChartParam) return chartFromTile;
+        return chartFromUrl.data?.uuid === editChartParam
+            ? chartFromUrl.data
+            : undefined;
+    }, [
+        isChartEditorEnabled,
+        editChartParam,
+        chartFromTile,
+        chartFromUrl.data,
+    ]);
+    const openChartEditor = useCallback(
+        (chart: SavedChart) => {
+            setChartFromTile(chart);
+            setEditChartParam(chart.uuid);
+        },
+        [setEditChartParam],
+    );
+    const closeChartEditor = useCallback(() => {
+        setChartFromTile(undefined);
+        clearChartEditorParams();
+    }, [clearChartEditorParams]);
+    // Only for the chart the url named at mount, and only while the url still
+    // carries the edits: a closed session must not resurrect them.
+    const handedOverChartVersion = useMemo(() => {
+        if (!chartVersionAtMount || chartVersionParam === null)
+            return undefined;
+        if (!chartToEdit || chartToEdit.uuid !== editChartParamAtMount)
+            return undefined;
+        return chartVersionAtMount.tableName === chartToEdit.tableName &&
+            chartVersionAtMount.metricQuery.exploreName ===
+                chartToEdit.tableName
+            ? chartVersionAtMount
+            : undefined;
+    }, [
+        chartVersionAtMount,
+        chartVersionParam,
+        chartToEdit,
+        editChartParamAtMount,
+    ]);
     const queryClient = useQueryClient();
     const { track } = useTracking();
     const handleRegistryMetricEdited = useCallback(
@@ -964,11 +1081,12 @@ const Dashboard: FC = () => {
                     },
                 ]);
             }
-            setChartToEdit(undefined);
+            closeChartEditor();
             setIsNewChartOpen(false);
         },
         [
             chartToEdit,
+            closeChartEditor,
             handleAddTiles,
             activeTab?.uuid,
             dashboardCustomMetrics,
@@ -981,6 +1099,34 @@ const Dashboard: FC = () => {
             isDashboardCustomMetricsEnabled,
         ],
     );
+
+    // The dashboard rides along in session storage for the trip back, as a
+    // tile's "Edit chart" link does. Every chart stores it: the route blocker
+    // reads the same key, so skipping it would cancel the hand-over.
+    const handleBeforeOpenChartPage = useCallback(() => {
+        storeDashboard(
+            dashboardTiles,
+            dashboardFilters,
+            haveTilesChanged,
+            haveFiltersChanged,
+            dashboardUuid,
+            dashboard?.name,
+            activeTab?.uuid,
+            dashboardTabs,
+            dashboard?.slug,
+        );
+    }, [
+        storeDashboard,
+        dashboardTiles,
+        dashboardFilters,
+        haveTilesChanged,
+        haveFiltersChanged,
+        dashboardUuid,
+        dashboard?.name,
+        dashboard?.slug,
+        activeTab?.uuid,
+        dashboardTabs,
+    ]);
 
     if (isDashboardLoading) {
         return <PageSpinner />;
@@ -1242,9 +1388,11 @@ const Dashboard: FC = () => {
                                 name: dashboard.name,
                             }}
                             editChart={chartToEdit}
+                            handedOverChartVersion={handedOverChartVersion}
                             customMetricsEnabled={
                                 isDashboardCustomMetricsEnabled
                             }
+                            onBeforeOpenChartPage={handleBeforeOpenChartPage}
                             onChartSaved={handleChartEditorSaved}
                             onRegistryMetricEdited={handleRegistryMetricEdited}
                             onRegistryMetricDeleted={
@@ -1252,7 +1400,7 @@ const Dashboard: FC = () => {
                             }
                             onClose={() => {
                                 setIsNewChartOpen(false);
-                                setChartToEdit(undefined);
+                                closeChartEditor();
                             }}
                         />
                     ) : null}
@@ -1291,7 +1439,7 @@ const Dashboard: FC = () => {
                     {/* Coordinates filter chip / rules popovers across the dashboard */}
                     <DashboardChartEditContext.Provider
                         value={
-                            isChartEditorEnabled ? setChartToEdit : undefined
+                            isChartEditorEnabled ? openChartEditor : undefined
                         }
                     >
                         <FilterBarPopoversProvider>
