@@ -184,7 +184,7 @@ describe('planReviewWriteback', () => {
                     },
                 },
             },
-        ] as never);
+        ]);
         const item = baseItem();
         if (item.latestFinding) {
             item.latestFinding.targetRefs = [
@@ -256,6 +256,23 @@ describe('planReviewWriteback', () => {
             dbtSourceUuid: null,
             dbtSourceResolution: 'ambiguous',
         });
+    });
+
+    it('skips error summaries when resolving yaml paths', () => {
+        const targets = buildYmlPathByModel([
+            {
+                name: 'broken_orders',
+                isExploreError: true,
+                tables: {
+                    broken_orders: {
+                        name: 'broken_orders',
+                        ymlPath: 'models/broken_orders.yml',
+                    },
+                },
+            },
+        ]);
+
+        expect(targets).toEqual(new Map());
     });
 
     it('builds a prompt from a manual semantic-layer issue', () => {

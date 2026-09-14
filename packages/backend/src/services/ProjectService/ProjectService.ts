@@ -9903,14 +9903,14 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const cachedExplores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
+        const cachedExplores =
+            await this.projectModel.findExploreTableSummariesFromCache(
+                projectUuid,
+            );
         const explores = Object.values(cachedExplores);
 
         return (explores || []).reduce<ProjectCatalog>((acc, explore) => {
-            if (!isExploreError(explore)) {
+            if (!explore.isExploreError) {
                 Object.values(explore.tables).forEach(
                     ({ database, schema, name, description, sqlTable }) => {
                         acc[database] = acc[database] || {};
@@ -11820,10 +11820,13 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const cachedExplores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
+        const charts =
+            await this.savedChartModel.findInfoForDbtExposures(projectUuid);
+        const cachedExplores =
+            await this.projectModel.findExploreTableSummariesFromCache(
+                projectUuid,
+                uniq(charts.map((chart) => chart.tableName)),
+            );
         const allExplores = Object.values(cachedExplores);
 
         const validExplores = allExplores?.filter(
@@ -11835,9 +11838,6 @@ export class ProjectService extends BaseService {
         if (!validExplores) {
             throw new NotFoundError('No explores found');
         }
-
-        const charts =
-            await this.savedChartModel.findInfoForDbtExposures(projectUuid);
 
         const chartExposures = charts.reduce<DbtExposure[]>((acc, chart) => {
             const dependsOn = Object.values(

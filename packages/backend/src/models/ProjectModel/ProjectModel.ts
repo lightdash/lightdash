@@ -261,6 +261,42 @@ type RawSummaryRow = {
     customMeta: Explore['customMeta'] | null;
 };
 
+export type ExploreTableSummary = Pick<
+    CompiledTable,
+    | 'name'
+    | 'originalName'
+    | 'database'
+    | 'schema'
+    | 'description'
+    | 'sqlTable'
+    | 'ymlPath'
+    | 'dbtSourceUuid'
+>;
+
+export type ExploreTableSummaryRecord = {
+    name: string;
+    type: ExploreType | undefined;
+    baseTable: string | undefined;
+    isExploreError: boolean;
+    tables: Record<string, ExploreTableSummary>;
+};
+
+type RawExploreTableSummaryRow = {
+    exploreName: string;
+    exploreType: ExploreType | null;
+    baseTable: string | null;
+    isExploreError: boolean;
+    tableKey: string | null;
+    tableName: string | null;
+    originalName: string | null;
+    database: string | null;
+    schema: string | null;
+    description: string | null;
+    sqlTable: string | null;
+    ymlPath: string | null;
+    dbtSourceUuid: string | null;
+};
+
 type PreviewChartUuidMapping = {
     sourceChartUuid: string;
     previewChartUuid: string;
@@ -1980,6 +2016,114 @@ export class ProjectModel {
         );
     }
 
+    async findExploreTableSummariesFromCache(
+        projectUuid: string,
+        exploreNamesWithDuplicates?: string[],
+    ): Promise<Record<string, ExploreTableSummaryRecord>> {
+        const exploreNames = exploreNamesWithDuplicates
+            ? [...new Set(exploreNamesWithDuplicates)]
+            : undefined;
+
+        return wrapSentryTransaction(
+            'ProjectModel.findExploreTableSummariesFromCache',
+            { projectUuid, exploreNames },
+            async (span) => {
+                const query = this.database(CachedExploreTableName)
+                    .select<RawExploreTableSummaryRow[]>(
+                        this.database.raw(`
+                            explore_fields.name as "exploreName",
+                            explore_fields.type as "exploreType",
+                            explore_fields."baseTable" as "baseTable",
+                            explore_fields.errors is not null as "isExploreError",
+                            table_entry.key as "tableKey",
+                            table_fields.name as "tableName",
+                            table_fields."originalName" as "originalName",
+                            table_fields.database as "database",
+                            table_fields.schema as "schema",
+                            table_fields.description as "description",
+                            table_fields."sqlTable" as "sqlTable",
+                            table_fields."ymlPath" as "ymlPath",
+                            table_fields."dbtSourceUuid" as "dbtSourceUuid"
+                        `),
+                    )
+                    .joinRaw(
+                        `LEFT JOIN LATERAL jsonb_to_record(explore) AS explore_fields(
+                            name text,
+                            type text,
+                            "baseTable" text,
+                            errors jsonb,
+                            tables jsonb
+                        ) ON TRUE
+                        LEFT JOIN LATERAL jsonb_each(COALESCE(explore_fields.tables, '{}'::jsonb)) AS table_entry(key, value) ON TRUE
+                        LEFT JOIN LATERAL jsonb_to_record(table_entry.value) AS table_fields(
+                            name text,
+                            "originalName" text,
+                            database text,
+                            schema text,
+                            description text,
+                            "sqlTable" text,
+                            "ymlPath" text,
+                            "dbtSourceUuid" text
+                        ) ON TRUE`,
+                    )
+                    .where(
+                        `${CachedExploreTableName}.project_uuid`,
+                        projectUuid,
+                    );
+
+                if (exploreNames) {
+                    void query.whereIn(
+                        `${CachedExploreTableName}.name`,
+                        exploreNames,
+                    );
+                }
+
+                const rows = await query;
+                const explores = rows.reduce<
+                    Record<string, ExploreTableSummaryRecord>
+                >((acc, row) => {
+                    const explore = acc[row.exploreName] ?? {
+                        name: row.exploreName,
+                        type: row.exploreType ?? undefined,
+                        baseTable: row.baseTable ?? undefined,
+                        isExploreError: row.isExploreError,
+                        tables: {},
+                    };
+
+                    if (row.tableKey !== null) {
+                        explore.tables[row.tableKey] = {
+                            name: row.tableName as string,
+                            database: row.database as string,
+                            schema: row.schema as string,
+                            sqlTable: row.sqlTable as string,
+                            ...(row.originalName === null
+                                ? {}
+                                : { originalName: row.originalName }),
+                            ...(row.description === null
+                                ? {}
+                                : { description: row.description }),
+                            ...(row.ymlPath === null
+                                ? {}
+                                : { ymlPath: row.ymlPath }),
+                            ...(row.dbtSourceUuid === null
+                                ? {}
+                                : { dbtSourceUuid: row.dbtSourceUuid }),
+                        };
+                    }
+
+                    acc[row.exploreName] = explore;
+                    return acc;
+                }, {});
+
+                span.setAttribute(
+                    'foundExplores',
+                    !!Object.keys(explores).length,
+                );
+                return explores;
+            },
+        );
+    }
+
     async getCachedExploreNames(projectUuid: string): Promise<string[]> {
         const rows = await this.database(CachedExploreTableName)
             .select<{ name: string }[]>('name')
@@ -2113,10 +2257,8 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
     ): Promise<string[]> {
-        const allCachedExplores = await this.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
+        const allCachedExplores =
+            await this.findExploreTableSummariesFromCache(projectUuid);
         return getExploreSplitCandidates(
             exploreName,
             Object.values(allCachedExplores),

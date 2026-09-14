@@ -54,7 +54,7 @@ import {
     SpaceUserAccessTableName,
 } from '../../database/entities/spaces';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
-import { ProjectModel } from './ProjectModel';
+import { ProjectModel, type ExploreTableSummaryRecord } from './ProjectModel';
 import {
     CompletePostgresCredentials,
     encryptionUtilMock,
@@ -168,16 +168,20 @@ describe('ProjectModel', () => {
         expect(tracker.history.select).toHaveLength(1);
     });
     describe('getExploreFromCache', () => {
-        const createQualifiedExplore = (name: string) => ({
-            ...exploreWithMetricFilters,
+        const createQualifiedExplore = (
+            name: string,
+        ): ExploreTableSummaryRecord => ({
             name,
-            label: name,
+            type: ExploreType.DEFAULT,
             baseTable: name,
+            isExploreError: false,
             tables: {
                 [name]: {
-                    ...exploreWithMetricFilters.tables.payments,
                     name,
                     originalName: 'orders',
+                    database: exploreWithMetricFilters.tables.payments.database,
+                    schema: exploreWithMetricFilters.tables.payments.schema,
+                    sqlTable: exploreWithMetricFilters.tables.payments.sqlTable,
                 },
             },
         });
@@ -190,7 +194,9 @@ describe('ProjectModel', () => {
             );
             const findExploresFromCache = vi
                 .spyOn(model, 'findExploresFromCache')
-                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({});
+            const findExploreTableSummariesFromCache = vi
+                .spyOn(model, 'findExploreTableSummariesFromCache')
                 .mockResolvedValueOnce({
                     [sourceAExplore.name]: sourceAExplore,
                     [sourceBExplore.name]: sourceBExplore,
@@ -210,15 +216,18 @@ describe('ProjectModel', () => {
                     ],
                 },
             });
-            expect(findExploresFromCache).toHaveBeenCalledTimes(2);
+            expect(findExploresFromCache).toHaveBeenCalledTimes(1);
+            expect(findExploreTableSummariesFromCache).toHaveBeenCalledTimes(1);
         });
 
         test('keeps the plain not found error when no split candidates exist', async () => {
             const findExploresFromCache = vi
                 .spyOn(model, 'findExploresFromCache')
-                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({});
+            const findExploreTableSummariesFromCache = vi
+                .spyOn(model, 'findExploreTableSummariesFromCache')
                 .mockResolvedValueOnce({
-                    payments: exploreWithMetricFilters,
+                    payments: createQualifiedExplore('payments'),
                 });
 
             await expect(
@@ -226,16 +235,19 @@ describe('ProjectModel', () => {
             ).rejects.toEqual(
                 new NotFoundError('Explore "orders" does not exist.'),
             );
-            expect(findExploresFromCache).toHaveBeenCalledTimes(2);
+            expect(findExploresFromCache).toHaveBeenCalledTimes(1);
+            expect(findExploreTableSummariesFromCache).toHaveBeenCalledTimes(1);
         });
 
         test('keeps the plain not found error for one original-name match', async () => {
             const sourceAExplore = createQualifiedExplore('sourceA__orders');
-            vi.spyOn(model, 'findExploresFromCache')
-                .mockResolvedValueOnce({})
-                .mockResolvedValueOnce({
-                    [sourceAExplore.name]: sourceAExplore,
-                });
+            vi.spyOn(model, 'findExploresFromCache').mockResolvedValueOnce({});
+            vi.spyOn(
+                model,
+                'findExploreTableSummariesFromCache',
+            ).mockResolvedValueOnce({
+                [sourceAExplore.name]: sourceAExplore,
+            });
 
             await expect(
                 model.getExploreFromCache(projectUuid, 'orders'),

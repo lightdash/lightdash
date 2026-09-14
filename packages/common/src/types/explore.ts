@@ -172,13 +172,23 @@ export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
+type ExploreSplitCandidateSource = {
+    name: string;
+    baseTable?: string;
+    tables?: Record<string, Pick<CompiledTable, 'originalName'>>;
+    errors?: unknown;
+    isExploreError?: boolean;
+};
+
 export const getExploreSplitCandidates = (
     exploreName: string,
-    explores: (Explore | ExploreError)[],
+    explores: ExploreSplitCandidateSource[],
 ): string[] => {
     const candidates = explores.flatMap((explore) => {
-        if (isExploreError(explore)) return [];
-        const baseTable = explore.tables[explore.baseTable];
+        if (explore.isExploreError || 'errors' in explore) return [];
+        const baseTable = explore.baseTable
+            ? explore.tables?.[explore.baseTable]
+            : undefined;
         // Package names can contain `__`, so match the qualified suffix rather
         // than treating the separator as something we can parse.
         return baseTable?.originalName === exploreName &&
