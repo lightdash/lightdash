@@ -1103,6 +1103,8 @@ export class ManagedAgentModel {
             triggeredBy: row.triggered_by as ManagedAgentRunTriggeredBy,
             status: isStale ? ManagedAgentRunStatus.ERROR : rawStatus,
             sessionId: row.session_id,
+            modelProvider: row.model_provider,
+            modelName: row.model_name,
             startedAt: row.started_at,
             finishedAt:
                 isStale && !row.finished_at
@@ -1164,6 +1166,15 @@ export class ManagedAgentModel {
                 .returning('*');
             return ManagedAgentModel.mapDbRun(row);
         });
+    }
+
+    async setRunModel(
+        runUuid: string,
+        model: { provider: string | null; name: string | null },
+    ): Promise<void> {
+        await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .update({ model_provider: model.provider, model_name: model.name });
     }
 
     async setRunSessionId(runUuid: string, sessionId: string): Promise<void> {

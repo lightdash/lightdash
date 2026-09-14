@@ -213,6 +213,7 @@ export type ManagedAgentRuntimeInfo = {
     provider: string | null;
     model: string | null;
     keySource: 'organization' | 'instance' | null;
+    keyManagement: 'self-managed' | 'lightdash-managed' | null;
     requestedCleanupMode: ManagedAgentAggression;
     effectiveCleanupMode: ManagedAgentAggression;
     notice: string | null;
@@ -320,6 +321,8 @@ export type ManagedAgentRun = {
     triggeredBy: ManagedAgentRunTriggeredBy;
     status: ManagedAgentRunStatus;
     sessionId: string | null;
+    modelProvider: string | null;
+    modelName: string | null;
     startedAt: Date;
     finishedAt: Date | null;
     actionCount: number;

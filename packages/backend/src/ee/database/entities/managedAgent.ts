@@ -136,6 +136,8 @@ export type DbManagedAgentRun = {
     triggered_by: string;
     status: string;
     session_id: string | null;
+    model_provider: string | null;
+    model_name: string | null;
     started_at: Date;
     finished_at: Date | null;
     action_count: number;
@@ -160,6 +162,8 @@ export type DbManagedAgentRunUpdate = Partial<
         | 'summary'
         | 'error'
         | 'current_activity'
+        | 'model_provider'
+        | 'model_name'
     >
 >;
 
