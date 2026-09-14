@@ -32,6 +32,7 @@ import { lightdashApi } from '../api';
 import { useServiceAccounts } from '../ee/features/serviceAccounts/useServiceAccounts';
 import { useTestConnection } from '../features/externalConnections/hooks/useTestConnection';
 import { useTestConnectionConfig } from '../features/externalConnections/hooks/useTestConnectionConfig';
+import { useMintMobileSetupCode } from '../features/mobileApp/hooks/useMobileSetupCodes';
 import { useLoginWithEmailMutation } from '../features/users/hooks/useLogin';
 import { getGdriveAccessToken } from './gdrive/useGdrive';
 import {
@@ -294,6 +295,22 @@ describe('credential-bearing requests are marked sensitive', () => {
         expect(mockApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/ee/projects/project-uuid/external-connections/connection-uuid/test',
+                method: 'POST',
+                sensitive: true,
+            }),
+        );
+    });
+
+    it('mobile setup code mint', async () => {
+        const { result } = renderHook(() => useMintMobileSetupCode(), {
+            wrapper: createWrapper(),
+        });
+
+        await result.current.mutateAsync('project-uuid');
+
+        expect(mockApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/user/me/mobile-setup-codes',
                 method: 'POST',
                 sensitive: true,
             }),
