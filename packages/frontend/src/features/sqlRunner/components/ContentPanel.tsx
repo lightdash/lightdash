@@ -436,6 +436,7 @@ export const ContentPanel: FC = () => {
                     onSizeChange={setPanelSizes}
                     resizable={!hideResultsPanel}
                     lineSize="var(--mantine-spacing-md)"
+                    handleColor="transparent"
                     classNames={{ handle: styles.resizeHandle }}
                     styles={{
                         handle: {
