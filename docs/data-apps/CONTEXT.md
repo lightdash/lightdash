@@ -63,6 +63,12 @@ cancelled — recorded exactly once against the prompt that started it. A
 build started from a Slack thread announces its outcome in that thread.
 _Avoid_: build result, completion notification, follow-up message
 
+**Build outcome notification**:
+The OS notification shown for a build outcome that lands while the user's
+tab is hidden. It reads the same outcome the build card shows; it is not a
+separate record of it.
+_Avoid_: completion notification, desktop alert, push notification
+
 **Iterate**:
 To add a version to an existing data app with a new prompt. The coding
 agent works from the current source, so follow-up prompts land as targeted

@@ -105,7 +105,10 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
-import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
+import {
+    getBuildOutcome,
+    useBuildNotification,
+} from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useCaptureThumbnail } from '../features/apps/hooks/useCaptureThumbnail';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
@@ -768,11 +771,20 @@ const AppGenerate: FC = () => {
     const isLoading = isSubmitting || isAgentWorking || hasPendingClarification;
 
     // OS notification when a build finishes (only fires when tab is in background)
-    const notifyBuildDone = useBuildNotification(appName, isLoading);
+    const notifyBuildDone = useBuildNotification({
+        appUuid: activeAppUuid ?? null,
+        appName,
+        shouldRequestPermission: isLoading,
+    });
+    const onBuildDone = useCallback(
+        (summary: ApiAppVersionSummary) =>
+            notifyBuildDone(getBuildOutcome(summary)),
+        [notifyBuildDone],
+    );
 
     // Web Worker that polls the API while a version is building.
     // Workers aren't throttled in background tabs, unlike main-thread timers.
-    useAppBuildPoller(projectUuid, activeAppUuid, isBuilding, notifyBuildDone);
+    useAppBuildPoller(projectUuid, activeAppUuid, isBuilding, onBuildDone);
 
     // Clear local messages once server data takes over (avoids duplicates).
     // Use the version count as dependency so this doesn't fire on every poll.
