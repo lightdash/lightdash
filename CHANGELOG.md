@@ -1,3 +1,10 @@
+## [2.211.3](https://github.com/lightdash/lightdash/compare/2.211.2...2.211.3) (2026-09-14)
+
+
+### Bug Fixes
+
+* **scim:** return 400 for every invalid patch path ([#29191](https://github.com/lightdash/lightdash/issues/29191)) ([7559e52](https://github.com/lightdash/lightdash/commit/7559e5226a0480b993a08f4df72d23ae230cd3e1))
+
 ## [2.211.2](https://github.com/lightdash/lightdash/compare/2.211.1...2.211.2) (2026-09-14)
 
 
