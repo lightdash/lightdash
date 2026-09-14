@@ -147,7 +147,8 @@ export const getDimensionFromId = ({
                         baseField.type,
                         startOfWeek,
                         effectiveTimezone,
-                        columnTimezone,
+                        // A declared wall clock wins over the connection default.
+                        baseField.sourceTimezone ?? columnTimezone,
                         baseField.timestampDomain,
                     ),
                     timeInterval: newTimeFrame,

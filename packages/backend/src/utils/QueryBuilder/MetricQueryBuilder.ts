@@ -792,6 +792,31 @@ export class MetricQueryBuilder {
     }
 
     /**
+     * Zone the dimension's compiled naive values are in: its own declared wall
+     * clock, then its interval base's (resolved like `skipTimezoneConversion`
+     * and `timestampDomain`), then the connection default.
+     */
+    private resolveSourceTimezone(
+        dimension: CompiledDimension | undefined,
+    ): string {
+        if (!dimension) {
+            return this.columnTimezone;
+        }
+        const baseDimensionId = dimension.timeIntervalBaseDimensionName
+            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
+            : undefined;
+        const baseDimension = baseDimensionId
+            ? (this.originalExploreDimensions[baseDimensionId] ??
+              this.exploreDimensions[baseDimensionId])
+            : undefined;
+        return (
+            dimension.sourceTimezone ??
+            baseDimension?.sourceTimezone ??
+            this.columnTimezone
+        );
+    }
+
+    /**
      * Rewrites `compiledSql` with the project-TZ wrap for truncatable and
      * extractable intervals.
      *
@@ -843,13 +868,14 @@ export class MetricQueryBuilder {
         // base dimension (mirrors skipTimezoneConversion resolution).
         const timestampDomain =
             dimension.timestampDomain ?? baseDimension.timestampDomain;
+        const sourceTimezone = this.resolveSourceTimezone(dimension);
 
         // RAW passes the base column through untouched, so a naive column is
         // misparsed as UTC downstream — rebase it to a true instant via the
         // session timezone (identity in value for aware columns), or via the
         // explicit data-timezone rebase when the column is known-naive.
         if (isRaw) {
-            if (this.columnTimezone === 'UTC') {
+            if (sourceTimezone === 'UTC') {
                 return { sql: dimension.compiledSql, lhsMode: 'legacy' };
             }
             // Filter LHS keeps the bare column — the literal side carries the
@@ -863,7 +889,7 @@ export class MetricQueryBuilder {
                 return {
                     sql: castNaiveToInstant(
                         baseDimension.compiledSql,
-                        this.columnTimezone,
+                        sourceTimezone,
                     ),
                     lhsMode: 'instant',
                 };
@@ -892,7 +918,7 @@ export class MetricQueryBuilder {
                     baseDimension.type,
                     startOfWeek,
                     timezone,
-                    this.columnTimezone,
+                    sourceTimezone,
                     timestampDomain,
                     // GLITCH-452: reached only when useTimezoneAwareDateTrunc is on,
                     // so day-or-coarser grains emit a real DATE (matches metadata).
@@ -901,7 +927,7 @@ export class MetricQueryBuilder {
                 lhsMode: isTimezoneRoundTripNoOp(
                     adapterType,
                     timezone,
-                    this.columnTimezone,
+                    sourceTimezone,
                     timestampDomain,
                 )
                     ? 'legacy'
@@ -917,7 +943,7 @@ export class MetricQueryBuilder {
                 baseDimension.type,
                 startOfWeek,
                 timezone,
-                this.columnTimezone,
+                sourceTimezone,
                 timestampDomain,
             ),
             lhsMode: 'legacy',
@@ -997,7 +1023,7 @@ export class MetricQueryBuilder {
             timestampFilterContext: resolveTimestampFilterContext({
                 adapterType,
                 useTimezoneAwareDateTrunc: this.args.useTimezoneAwareDateTrunc,
-                sourceTimezone: this.columnTimezone,
+                sourceTimezone: this.resolveSourceTimezone(dimension),
                 timestampDomain: this.resolveFilterTimestampDomain(dimension),
                 timeInterval: dimension.timeInterval,
                 lhsMode,
@@ -1192,13 +1218,15 @@ export class MetricQueryBuilder {
                 baseSql,
             );
             // The operand form decides which timezone the aggregate reads: the
-            // dimension's compiled SQL is in columnTimezone, a raw column in
-            // dataTimezone. When the compiler wrapped the dimension, a metric
-            // that inherited its SQL already aggregates the UTC expression.
+            // dimension's compiled SQL is in its own source timezone, a raw
+            // column in its declared wall clock zone, else dataTimezone. When
+            // the compiler wrapped the dimension, a metric that inherited its
+            // SQL already aggregates the UTC expression.
+            const dimensionTimezone = this.resolveSourceTimezone(baseDimension);
             const operandTimezone =
                 operand !== undefined && operand === baseDimension?.compiledSql
-                    ? this.columnTimezone
-                    : this.dataTimezone;
+                    ? dimensionTimezone
+                    : (baseDimension?.wallClockTimezone ?? this.dataTimezone);
             const explicitNaive =
                 baseDimension?.timestampDomain === 'naive' &&
                 castNaiveAggregateToInstant !== null &&
@@ -1206,11 +1234,11 @@ export class MetricQueryBuilder {
             const explicitAware =
                 baseDimension?.timestampDomain === 'aware' &&
                 castAwareToInstant !== null &&
-                this.columnTimezone !== 'UTC';
+                dimensionTimezone !== 'UTC';
             if (
                 !explicitNaive &&
                 !explicitAware &&
-                this.columnTimezone === 'UTC'
+                dimensionTimezone === 'UTC'
             ) {
                 return baseSql;
             }
