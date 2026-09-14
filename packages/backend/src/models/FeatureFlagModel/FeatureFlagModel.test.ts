@@ -969,6 +969,7 @@ describe('mobile app setup rollout', () => {
                     ),
                 },
                 buildFakeDatabase({
+                    flag: { default_enabled: null },
                     orgOverride:
                         override === undefined
                             ? undefined

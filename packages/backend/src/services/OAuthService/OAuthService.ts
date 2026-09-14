@@ -149,7 +149,7 @@ export class OAuthService extends BaseService {
             return await this.oauthServer.token(request, response);
         } catch (error) {
             if (
-                request.body.grant_type === MOBILE_SETUP_CODE_GRANT_TYPE &&
+                request.body?.grant_type === MOBILE_SETUP_CODE_GRANT_TYPE &&
                 (error instanceof OAuth2Server.InvalidClientError ||
                     error instanceof OAuth2Server.UnauthorizedClientError)
             ) {

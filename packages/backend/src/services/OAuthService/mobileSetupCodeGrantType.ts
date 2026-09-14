@@ -17,8 +17,8 @@ export const createMobileSetupCodeGrantType = (
             try {
                 requestedScope = this.getScope(request);
             } catch {
-                throw new OAuth2Server.InvalidGrantError(
-                    MobileSetupCodeError.UNKNOWN,
+                throw new OAuth2Server.InvalidScopeError(
+                    'Request at least one of read or write',
                 );
             }
             const scope =
@@ -27,6 +27,10 @@ export const createMobileSetupCodeGrantType = (
                     : ['read', 'write'].filter((allowed) =>
                           requestedScope.includes(allowed),
                       );
+            if (scope.length === 0)
+                throw new OAuth2Server.InvalidScopeError(
+                    'Request at least one of read or write',
+                );
             let redeemed: Awaited<ReturnType<MobileSetupService['redeem']>>;
             try {
                 redeemed = await getMobileSetupService().redeem({
