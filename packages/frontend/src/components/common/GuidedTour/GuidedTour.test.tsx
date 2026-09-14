@@ -1,6 +1,6 @@
 import { Button, Popover, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -245,6 +245,95 @@ describe('GuidedTour', () => {
             vi.useRealTimers();
         }
     });
+
+    it.each([
+        { entry: 'resume', change: 'moves', changeAt: 700 },
+        { entry: 'click', change: 'moves', changeAt: 700 },
+        { entry: 'resume', change: 'moves', changeAt: 1100 },
+        { entry: 'resume', change: 'disappears', changeAt: 700 },
+    ])(
+        'positions the card after the target $change at $changeAt ms ($entry)',
+        async ({ entry, change, changeAt }) => {
+            vi.useFakeTimers();
+            vi.stubGlobal('innerWidth', 1280);
+            vi.stubGlobal('innerHeight', 768);
+            const heading = document.createElement('button');
+            heading.setAttribute('data-results', '');
+            document.body.appendChild(heading);
+            const target = document.createElement('button');
+            target.setAttribute('data-export', '');
+            document.body.appendChild(target);
+            let targetRect = new DOMRect(1100, 500, 32, 32);
+            const rectSpy = vi
+                .spyOn(target, 'getBoundingClientRect')
+                .mockImplementation(() => targetRect);
+            const { unmount } = renderWithProviders(
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-results]',
+                            title: 'Open results',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetClick: true,
+                        },
+                        {
+                            target: '[data-export]',
+                            title: 'Export results',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetClick: true,
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                    initialStepIndex={entry === 'resume' ? 1 : 0}
+                    initialBeacon={
+                        entry === 'resume' ? { x: 100, y: 100 } : null
+                    }
+                />,
+            );
+            // Let React commit each sampled frame, including the expansion timers.
+            const advanceFrames = async (ms: number) => {
+                for (let elapsed = 0; elapsed < ms; elapsed += 20) {
+                    await act(async () => {
+                        await vi.advanceTimersByTimeAsync(20);
+                    });
+                }
+            };
+            try {
+                if (entry === 'click') {
+                    await advanceFrames(1000);
+                    fireEvent.click(heading);
+                }
+                await advanceFrames(changeAt);
+                if (change === 'disappears') {
+                    target.remove();
+                } else {
+                    targetRect = new DOMRect(1100, 400, 32, 32);
+                }
+                await advanceFrames(1600 - changeAt);
+
+                const card = screen
+                    .getByText('Export results')
+                    .closest('[data-tour-card]')?.parentElement;
+                // The old top (266px) covers the target at y=400; below is clear.
+                expect(card?.style.getPropertyValue('--tour-card-top')).toBe(
+                    change === 'disappears' ? '' : '446px',
+                );
+                expect(
+                    screen.getByRole('button', { name: 'Skip' }),
+                ).toBeVisible();
+            } finally {
+                unmount();
+                target.remove();
+                heading.remove();
+                rectSpy.mockRestore();
+                vi.useRealTimers();
+                vi.unstubAllGlobals();
+            }
+        },
+    );
 
     // A step's target may sit behind a control only some instances show (a
     // chooser before the export form). While that control is on the page and
