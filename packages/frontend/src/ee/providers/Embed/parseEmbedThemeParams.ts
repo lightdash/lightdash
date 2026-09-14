@@ -1,6 +1,6 @@
 import { type EmbedTheme } from './types';
 
-const HEX_COLOR_REGEX = /^[0-9a-fA-F]{3,8}$/;
+const HEX_COLOR_REGEX = /^(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 /**
  * Parses the embed theme params from the current URL query string.
@@ -16,6 +16,9 @@ export function parseEmbedThemeParams(): {
     const theme: EmbedTheme =
         themeParam === 'light' || themeParam === 'dark' ? themeParam : 'light';
     const bgParam = params.get('backgroundColor');
+    if (bgParam === 'transparent') {
+        return { theme, backgroundColor: 'transparent' };
+    }
     // Accept bare hex codes (e.g. "121212") and prepend "#"
     const backgroundColor =
         bgParam && HEX_COLOR_REGEX.test(bgParam) ? `#${bgParam}` : null;
