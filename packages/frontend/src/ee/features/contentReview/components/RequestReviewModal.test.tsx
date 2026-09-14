@@ -118,17 +118,26 @@ describe('RequestReviewModal', () => {
         );
     });
 
-    it('shows a failed check separately from no matches and offers retry', async () => {
-        const refetch = vi.fn();
-        similarContent.mockReturnValue({ isError: true, refetch });
-        renderModal();
-        await pickFinanceAndContinue();
-        expect(
-            screen.getByText('Related content could not be checked.'),
-        ).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
-        expect(refetch).toHaveBeenCalledOnce();
-    });
+    it.each([{ isError: true }, { isEnabled: false, isInitialLoading: false }])(
+        'allows review submission without a warning when suggestions are unavailable: %j',
+        async (state) => {
+            similarContent.mockReturnValue(state);
+            renderModal();
+            await pickFinanceAndContinue();
+            expect(screen.queryByRole('status')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Retry' }),
+            ).not.toBeInTheDocument();
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Request review' }),
+            );
+            await waitFor(() =>
+                expect(createRequest).toHaveBeenCalledWith(
+                    expect.objectContaining({ similarContent: [] }),
+                ),
+            );
+        },
+    );
 
     it('shows a pending check without requiring a note', async () => {
         similarContent.mockReturnValue({ isInitialLoading: true });

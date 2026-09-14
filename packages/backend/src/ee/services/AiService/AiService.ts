@@ -23,6 +23,8 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { generateText } from 'ai';
+import NodeCache from 'node-cache';
+import { createHash } from 'node:crypto';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -40,6 +42,11 @@ import {
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
 import { generateChartMetadata as generateChartMetadataFromContext } from '../ai/agents/chartMetadataGenerator';
+import {
+    compareChartQueries,
+    type ChartSimilarityInput,
+    type ChartSimilarityMatch,
+} from '../ai/agents/chartSimilarity';
 import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
 import {
     generateFormulaTableCalculation as generateFormulaTableCalculationFromContext,
@@ -85,6 +92,78 @@ export class AiService extends BaseService {
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
+    private readonly chartSimilarityCache = new NodeCache({
+        stdTTL: 60,
+        checkperiod: 60,
+        maxKeys: 100,
+    });
+
+    private readonly chartSimilarityInFlight = new Map<
+        string,
+        Promise<ChartSimilarityMatch[]>
+    >();
+
+    async isAmbientAiEnabled(user: SessionUser): Promise<boolean> {
+        try {
+            const config =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    user.organizationUuid ?? null,
+                );
+            // Configuration only: cached review submissions must not contact providers.
+            if (config.providers.anthropic?.apiKey) return true;
+            const flag = await this.featureFlagService.get({
+                user,
+                featureFlagId: CommercialFeatureFlags.AiCopilot,
+            });
+            if (!flag.enabled) return false;
+            getModel(config, { enableReasoning: false, useFastModel: true });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    // Caller supplies freshly authorized chart definitions. Keys include the
+    // caller and complete query context, so revisions and permissions are re-read.
+    async compareCharts(
+        user: SessionUser,
+        projectUuid: string,
+        input: ChartSimilarityInput,
+        cachedOnly = false,
+    ): Promise<ChartSimilarityMatch[] | undefined> {
+        const key = createHash('sha256')
+            .update(
+                JSON.stringify([
+                    user.organizationUuid,
+                    user.userUuid,
+                    projectUuid,
+                    input,
+                ]),
+            )
+            .digest('hex');
+        const cached =
+            this.chartSimilarityCache.get<ChartSimilarityMatch[]>(key);
+        if (cached !== undefined || cachedOnly) return cached;
+        const inFlight = this.chartSimilarityInFlight.get(key);
+        if (inFlight) return inFlight;
+        // Bound concurrent work as well as context and model output.
+        if (this.chartSimilarityInFlight.size >= 20) return undefined;
+        const operation = (async () => {
+            const model = await this.getAmbientAiModel(user, { projectUuid });
+            const matches = await compareChartQueries(model, input);
+            if (this.chartSimilarityCache.getStats().keys < 100) {
+                this.chartSimilarityCache.set(key, matches);
+            }
+            return matches;
+        })();
+        this.chartSimilarityInFlight.set(key, operation);
+        try {
+            return await operation;
+        } finally {
+            this.chartSimilarityInFlight.delete(key);
+        }
+    }
 
     constructor(dependencies: Dependencies) {
         super();

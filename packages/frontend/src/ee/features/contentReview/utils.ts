@@ -3,6 +3,7 @@ import {
     ContentReviewContentType,
     type ContentReviewContentSummary,
     type ContentReviewUser,
+    type ContentReviewSimilarContentItem,
 } from '@lightdash/common';
 import {
     IconChartBar,
@@ -103,5 +104,20 @@ export const getContentTypeLabel = (
                 contentType,
                 'Unknown review content type',
             );
+    }
+};
+
+export const getSimilarityMatchLabel = (
+    reason: ContentReviewSimilarContentItem['matchReason'],
+): string => {
+    switch (reason) {
+        case 'potential_duplicate':
+            return 'Potential duplicate';
+        case 'related':
+            return 'Related analysis';
+        case 'same_name':
+            return 'Same name';
+        default:
+            return 'Similar name';
     }
 };

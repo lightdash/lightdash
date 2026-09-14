@@ -15,6 +15,7 @@ export type AiCallFeature =
     | 'deep-research'
     | 'agent-subtask'
     | 'chart-metadata'
+    | 'chart-similarity'
     | 'document-summary'
     | 'thread-title'
     | 'tooltip'

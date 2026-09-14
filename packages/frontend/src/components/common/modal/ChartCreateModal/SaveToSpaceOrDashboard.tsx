@@ -651,6 +651,11 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             value={form.values.description ?? ''}
                         />
                         <SaveChartSuggestions
+                            chart={{
+                                metricQuery: savedData.metricQuery,
+                                parameters: savedData.parameters,
+                                merge: savedData.merge,
+                            }}
                             projectUuid={projectUuid ?? null}
                             name={form.values.name ?? ''}
                         />

@@ -12,7 +12,7 @@ import { useId, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
-import { getContentHref } from '../utils';
+import { getContentHref, getSimilarityMatchLabel } from '../utils';
 import ContentReviewItemRow from './ContentReviewItemRow';
 import classes from './SimilarContentPanel.module.css';
 
@@ -73,7 +73,8 @@ const SimilarContentPanel: FC<Props> = ({
                                 key={item.contentUuid}
                                 contentType={item.contentType}
                                 name={item.name}
-                                meta={`${item.matchReason === 'same_name' ? 'Same name' : 'Similar name'} · in ${item.spaceName}`}
+                                meta={`${getSimilarityMatchLabel(item.matchReason)} · in ${item.spaceName}`}
+                                description={item.explanation}
                                 href={getContentHref(
                                     projectUuid,
                                     item.contentType,
